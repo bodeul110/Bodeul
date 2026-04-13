@@ -28,6 +28,8 @@
     <string name="switch_to_register">회원가입</string>
     <string name="switch_to_login">로그인으로 돌아가기</string>
     <string name="forgot_password">비밀번호 찾기</string>
+    <string name="resend_verification_email">인증 메일 다시 보내기</string>
+    <string name="resend_verification_email_countdown">인증 메일 다시 보내기 (%1$d초)</string>
     <string name="social_login_label">또는 간편 로그인</string>
     <string name="social_login_pending">소셜 로그인은 추후 연동 예정입니다.</string>
     <string name="demo_banner_manager">Firebase 설정 전 데모 모드입니다. 매니저 계정: manager@bodeul.app / bodeul1234</string>
@@ -111,6 +113,7 @@
     <string name="toast_password_reset_sent">비밀번호 재설정 메일을 보냈습니다. 메일함을 확인해주세요.</string>
     <string name="toast_register_success_verify">회원가입이 완료되었습니다. 이메일 인증을 마친 뒤 로그인해주세요.</string>
     <string name="toast_register_success_demo">회원가입이 완료되었습니다. 방금 만든 계정으로 로그인해주세요.</string>
+    <string name="toast_verification_email_resent">인증 메일을 다시 보냈습니다. 받은 편지함과 스팸함을 확인해주세요.</string>
     <string name="error_email_required">이메일을 입력해주세요.</string>
     <string name="error_email_invalid">올바른 이메일 형식을 입력해주세요.</string>
     <string name="error_password_required">비밀번호를 입력해주세요.</string>

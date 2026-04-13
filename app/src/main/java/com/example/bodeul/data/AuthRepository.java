@@ -31,6 +31,9 @@ public interface AuthRepository {
     // 입력한 이메일로 비밀번호 재설정 안내를 보낸다.
     void resetPassword(String email, RepositoryCallback<Void> callback);
 
+    // 로그인 전에 이메일 인증 메일을 다시 보내야 할 때 사용한다.
+    void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback);
+
     // 현재 세션을 종료하고 다음 진입에서 다시 로그인하도록 만든다.
     void signOut();
 

@@ -91,6 +91,12 @@ public class MockAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
+        // 데모 모드에서는 실제 인증 메일을 보내지 않으므로 안내 메시지만 반환한다.
+        callback.onError("데모 모드에서는 인증 메일 재발송을 지원하지 않습니다.");
+    }
+
+    @Override
     public void signOut() {
         cachedUser = null;
     }

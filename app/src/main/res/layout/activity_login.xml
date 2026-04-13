@@ -198,6 +198,17 @@
                 android:textSize="14sp" />
 
             <TextView
+                android:id="@+id/textResendVerification"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:text="@string/resend_verification_email"
+                android:textColor="@color/bodeul_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/textSwitchMode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

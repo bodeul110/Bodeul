@@ -25,6 +25,7 @@ import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
+import com.google.firebase.auth.ActionCodeSettings;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.google.firebase.auth.FirebaseAuthInvalidUserException;
@@ -43,6 +44,9 @@ import java.util.concurrent.Executor;
  * Firebase Authentication과 Firestore를 이용해 로그인과 회원가입을 처리한다.
  */
 public class FirebaseAuthRepository implements AuthRepository {
+    private static final String RESOURCE_AUTH_CUSTOM_DOMAIN = "firebase_auth_custom_domain";
+    private static final String RESOURCE_AUTH_CONTINUE_URL = "firebase_auth_continue_url";
+
     private final Context appContext;
     private final FirebaseAuth firebaseAuth;
     private final FirebaseFirestore firestore;
@@ -64,6 +68,7 @@ public class FirebaseAuthRepository implements AuthRepository {
         this.credentialManager = CredentialManager.create(appContext);
         this.mainExecutor = ContextCompat.getMainExecutor(appContext);
         this.firebaseAuth.setLanguageCode("ko");
+        applyConfiguredAuthDomain();
     }
 
     @Override
@@ -113,16 +118,9 @@ public class FirebaseAuthRepository implements AuthRepository {
                         return;
                     }
                     if (!firebaseUser.isEmailVerified()) {
-                        // 미인증 계정은 로그인 상태를 유지하지 않고 인증 메일을 다시 보낸다.
-                        firebaseUser.sendEmailVerification()
-                                .addOnSuccessListener(unused -> {
-                                    signOut();
-                                    callback.onError("이메일 인증이 필요합니다. 인증 메일을 다시 보냈습니다.");
-                                })
-                                .addOnFailureListener(exception -> {
-                                    signOut();
-                                    callback.onError(resolveVerificationEmailMessage(exception, true));
-                                });
+                        // 미인증 계정은 자동 재발송하지 않고 사용자가 직접 다시 보내도록 안내한다.
+                        signOut();
+                        callback.onError("이메일 인증이 필요합니다. 받은 편지함과 스팸함을 확인하고, 필요하면 인증 메일 다시 보내기를 눌러주세요.");
                         return;
                     }
                     loadUserProfile(firebaseUser.getUid(), expectedRole, callback);
@@ -175,15 +173,19 @@ public class FirebaseAuthRepository implements AuthRepository {
                                 cachedUser = user;
 
                                 // 회원가입 직후 인증 메일을 보내고 다음 로그인은 인증 후에만 허용한다.
-                                firebaseUser.sendEmailVerification()
-                                        .addOnSuccessListener(ignored -> {
-                                            signOut();
-                                            callback.onSuccess(user);
-                                        })
-                                        .addOnFailureListener(exception -> {
-                                            signOut();
-                                            callback.onError(resolveVerificationEmailMessage(exception, false));
-                                        });
+                                sendVerificationEmail(firebaseUser, false, new RepositoryCallback<Void>() {
+                                    @Override
+                                    public void onSuccess(Void result) {
+                                        signOut();
+                                        callback.onSuccess(user);
+                                    }
+
+                                    @Override
+                                    public void onError(String message) {
+                                        signOut();
+                                        callback.onError(message);
+                                    }
+                                });
                             })
                             .addOnFailureListener(exception -> {
                                 // 프로필 저장이 실패하면 Auth 계정만 남지 않도록 정리를 시도한다.
@@ -197,11 +199,49 @@ public class FirebaseAuthRepository implements AuthRepository {
 
     @Override
     public void resetPassword(String email, RepositoryCallback<Void> callback) {
-        // Firebase가 제공하는 비밀번호 재설정 메일 발송 기능을 그대로 사용한다.
-        firebaseAuth.sendPasswordResetEmail(email)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(exception ->
-                        callback.onError(resolveResetPasswordMessage(exception)));
+        // 커스텀 도메인이 설정돼 있으면 같은 도메인으로 재설정 링크를 보낸다.
+        sendPasswordResetEmail(email, callback);
+    }
+
+    @Override
+    public void resendVerificationEmail(
+            String email,
+            String password,
+            RepositoryCallback<Void> callback
+    ) {
+        // 사용자가 명시적으로 요청했을 때만 인증 메일을 다시 보낸다.
+        firebaseAuth.signInWithEmailAndPassword(email, password)
+                .addOnSuccessListener(authResult -> {
+                    FirebaseUser firebaseUser = authResult.getUser();
+                    if (firebaseUser == null) {
+                        signOut();
+                        callback.onError("계정 정보를 다시 확인해주세요.");
+                        return;
+                    }
+                    if (firebaseUser.isEmailVerified()) {
+                        signOut();
+                        callback.onError("이미 이메일 인증이 완료된 계정입니다. 로그인해주세요.");
+                        return;
+                    }
+
+                    sendVerificationEmail(firebaseUser, true, new RepositoryCallback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            signOut();
+                            callback.onSuccess(null);
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            signOut();
+                            callback.onError(message);
+                        }
+                    });
+                })
+                .addOnFailureListener(exception -> {
+                    signOut();
+                    callback.onError(resolveSignInMessage(exception));
+                });
     }
 
     @Override
@@ -447,6 +487,111 @@ public class FirebaseAuthRepository implements AuthRepository {
 
         String serverClientId = context.getString(resourceId);
         return TextUtils.isEmpty(serverClientId) ? null : serverClientId;
+    }
+
+    private void applyConfiguredAuthDomain() {
+        // 콘솔에서 허용한 커스텀 인증 도메인이 있으면 기본 firebaseapp.com 대신 사용한다.
+        String customDomain = resolveOptionalStringResource(RESOURCE_AUTH_CUSTOM_DOMAIN);
+        if (TextUtils.isEmpty(customDomain)) {
+            return;
+        }
+        firebaseAuth.setCustomAuthDomain(normalizeDomain(customDomain));
+    }
+
+    @Nullable
+    private ActionCodeSettings createEmailActionSettings() {
+        String customDomain = resolveOptionalStringResource(RESOURCE_AUTH_CUSTOM_DOMAIN);
+        String continueUrl = resolveOptionalStringResource(RESOURCE_AUTH_CONTINUE_URL);
+        if (TextUtils.isEmpty(customDomain) && TextUtils.isEmpty(continueUrl)) {
+            return null;
+        }
+
+        // 메일 링크가 브랜드 도메인을 우선 사용하도록 ActionCodeSettings를 구성한다.
+        String normalizedDomain = TextUtils.isEmpty(customDomain) ? null : normalizeDomain(customDomain);
+        ActionCodeSettings.Builder builder = ActionCodeSettings.newBuilder()
+                .setHandleCodeInApp(false)
+                .setAndroidPackageName(appContext.getPackageName(), false, null);
+
+        if (!TextUtils.isEmpty(normalizedDomain)) {
+            builder.setLinkDomain(normalizedDomain);
+        }
+        if (!TextUtils.isEmpty(continueUrl)) {
+            builder.setUrl(normalizeContinueUrl(continueUrl));
+        } else if (!TextUtils.isEmpty(normalizedDomain)) {
+            builder.setUrl("https://" + normalizedDomain);
+        }
+        return builder.build();
+    }
+
+    private void sendPasswordResetEmail(String email, RepositoryCallback<Void> callback) {
+        ActionCodeSettings actionCodeSettings = createEmailActionSettings();
+        if (actionCodeSettings == null) {
+            firebaseAuth.sendPasswordResetEmail(email)
+                    .addOnSuccessListener(unused -> callback.onSuccess(null))
+                    .addOnFailureListener(exception ->
+                            callback.onError(resolveResetPasswordMessage(exception)));
+            return;
+        }
+
+        firebaseAuth.sendPasswordResetEmail(email, actionCodeSettings)
+                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                .addOnFailureListener(exception ->
+                        firebaseAuth.sendPasswordResetEmail(email)
+                                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                                .addOnFailureListener(fallbackException ->
+                                        callback.onError(resolveResetPasswordMessage(fallbackException))));
+    }
+
+    private void sendVerificationEmail(
+            FirebaseUser firebaseUser,
+            boolean resend,
+            RepositoryCallback<Void> callback
+    ) {
+        ActionCodeSettings actionCodeSettings = createEmailActionSettings();
+        if (actionCodeSettings == null) {
+            firebaseUser.sendEmailVerification()
+                    .addOnSuccessListener(unused -> callback.onSuccess(null))
+                    .addOnFailureListener(exception ->
+                            callback.onError(resolveVerificationEmailMessage(exception, resend)));
+            return;
+        }
+
+        firebaseUser.sendEmailVerification(actionCodeSettings)
+                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                .addOnFailureListener(exception ->
+                        firebaseUser.sendEmailVerification()
+                                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                                .addOnFailureListener(fallbackException ->
+                                        callback.onError(resolveVerificationEmailMessage(fallbackException, resend))));
+    }
+
+    @Nullable
+    private String resolveOptionalStringResource(String resourceName) {
+        int resourceId = appContext.getResources()
+                .getIdentifier(resourceName, "string", appContext.getPackageName());
+        if (resourceId == 0) {
+            return null;
+        }
+
+        String value = appContext.getString(resourceId).trim();
+        return TextUtils.isEmpty(value) ? null : value;
+    }
+
+    private String normalizeDomain(String value) {
+        String normalized = value.trim().replaceFirst("^https?://", "");
+        int pathStartIndex = normalized.indexOf('/');
+        if (pathStartIndex >= 0) {
+            normalized = normalized.substring(0, pathStartIndex);
+        }
+        return normalized;
+    }
+
+    private String normalizeContinueUrl(String value) {
+        String normalized = value.trim();
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            return normalized;
+        }
+        return "https://" + normalized;
     }
 
     private void clearCredentialState() {

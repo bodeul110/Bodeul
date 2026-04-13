@@ -3,6 +3,7 @@ package com.example.bodeul.ui.auth;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.text.TextUtils;
 import android.util.Patterns;
 import android.view.View;
@@ -31,16 +32,22 @@ import com.google.android.material.textfield.TextInputLayout;
  */
 public class LoginActivity extends AppCompatActivity {
     private static final String EXTRA_ROLE_HINT = "role_hint";
+    private static final long VERIFICATION_EMAIL_RESEND_COOLDOWN_MS = 60_000L;
 
     private AuthRepository authRepository;
     private UserRole roleHint;
     private boolean registerMode;
+    private boolean loading;
+    private long verificationResendAvailableAtMillis;
+    @Nullable
+    private CountDownTimer verificationResendCooldownTimer;
 
     private TextView textLoginTitle;
     private TextView textLoginSubtitle;
     private TextView textDemoBanner;
     private TextView textSwitchMode;
     private TextView textForgotPassword;
+    private TextView textResendVerification;
     private TextInputLayout layoutName;
     private TextInputLayout layoutPhone;
     private TextInputLayout layoutEmail;
@@ -79,6 +86,7 @@ public class LoginActivity extends AppCompatActivity {
         textDemoBanner = findViewById(R.id.textDemoBanner);
         textSwitchMode = findViewById(R.id.textSwitchMode);
         textForgotPassword = findViewById(R.id.textForgotPassword);
+        textResendVerification = findViewById(R.id.textResendVerification);
         layoutName = findViewById(R.id.layoutName);
         layoutPhone = findViewById(R.id.layoutPhone);
         layoutEmail = findViewById(R.id.layoutEmail);
@@ -107,6 +115,7 @@ public class LoginActivity extends AppCompatActivity {
             bindMode();
         });
         textForgotPassword.setOnClickListener(view -> requestPasswordReset());
+        textResendVerification.setOnClickListener(view -> requestVerificationEmailResend());
         buttonSocialKakao.setOnClickListener(view ->
                 Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
         buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
@@ -151,6 +160,7 @@ public class LoginActivity extends AppCompatActivity {
         layoutName.setVisibility(registerMode ? View.VISIBLE : View.GONE);
         layoutPhone.setVisibility(registerMode ? View.VISIBLE : View.GONE);
         textForgotPassword.setVisibility(registerMode ? View.GONE : View.VISIBLE);
+        updateVerificationResendState();
     }
 
     private void bindFirebaseBanner() {
@@ -260,6 +270,37 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
+    private void requestVerificationEmailResend() {
+        clearErrors();
+
+        // 재발송은 로그인 전이므로 이메일과 비밀번호를 다시 확인한 뒤 실행한다.
+        String email = valueOf(inputEmail);
+        String password = valueOf(inputPassword);
+        if (!validateEmail(email) || !validatePassword(password, false)) {
+            return;
+        }
+
+        setLoading(true);
+        authRepository.resendVerificationEmail(email, password, new RepositoryCallback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                setLoading(false);
+                startVerificationResendCooldown();
+                Toast.makeText(
+                        LoginActivity.this,
+                        R.string.toast_verification_email_resent,
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+
+            @Override
+            public void onError(String message) {
+                setLoading(false);
+                Toast.makeText(LoginActivity.this, message, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private final RepositoryCallback<User> signInCallback = new RepositoryCallback<User>() {
         @Override
         public void onSuccess(User result) {
@@ -292,6 +333,9 @@ public class LoginActivity extends AppCompatActivity {
             inputPhone.setText(null);
             inputPassword.setText(null);
             bindMode();
+            if (authRepository.isFirebaseBacked()) {
+                startVerificationResendCooldown();
+            }
 
             Toast.makeText(
                     LoginActivity.this,
@@ -325,6 +369,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void setLoading(boolean loading) {
+        this.loading = loading;
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         buttonSubmit.setEnabled(!loading);
         buttonSocialKakao.setEnabled(!loading);
@@ -335,6 +380,7 @@ public class LoginActivity extends AppCompatActivity {
         chipRoleManager.setEnabled(!loading);
         chipRolePatient.setEnabled(!loading);
         chipRoleGuardian.setEnabled(!loading);
+        updateVerificationResendState();
     }
 
     private void clearErrors() {
@@ -392,5 +438,69 @@ public class LoginActivity extends AppCompatActivity {
             return false;
         }
         return true;
+    }
+
+    private void startVerificationResendCooldown() {
+        verificationResendAvailableAtMillis =
+                System.currentTimeMillis() + VERIFICATION_EMAIL_RESEND_COOLDOWN_MS;
+        if (verificationResendCooldownTimer != null) {
+            verificationResendCooldownTimer.cancel();
+        }
+
+        verificationResendCooldownTimer = new CountDownTimer(
+                VERIFICATION_EMAIL_RESEND_COOLDOWN_MS,
+                1_000L
+        ) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                updateVerificationResendState();
+            }
+
+            @Override
+            public void onFinish() {
+                verificationResendAvailableAtMillis = 0L;
+                verificationResendCooldownTimer = null;
+                updateVerificationResendState();
+            }
+        };
+        verificationResendCooldownTimer.start();
+        updateVerificationResendState();
+    }
+
+    private void updateVerificationResendState() {
+        if (textResendVerification == null) {
+            return;
+        }
+
+        boolean visible = !registerMode && authRepository.isFirebaseBacked();
+        textResendVerification.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) {
+            return;
+        }
+
+        long remainingSeconds = getVerificationResendRemainingSeconds();
+        boolean enabled = !loading && remainingSeconds == 0L;
+        textResendVerification.setEnabled(enabled);
+        textResendVerification.setAlpha(enabled ? 1f : 0.5f);
+        textResendVerification.setText(remainingSeconds > 0L
+                ? getString(R.string.resend_verification_email_countdown, remainingSeconds)
+                : getString(R.string.resend_verification_email));
+    }
+
+    private long getVerificationResendRemainingSeconds() {
+        long remainingMillis = verificationResendAvailableAtMillis - System.currentTimeMillis();
+        if (remainingMillis <= 0L) {
+            return 0L;
+        }
+        return (remainingMillis + 999L) / 1_000L;
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (verificationResendCooldownTimer != null) {
+            verificationResendCooldownTimer.cancel();
+            verificationResendCooldownTimer = null;
+        }
+        super.onDestroy();
     }
 }
