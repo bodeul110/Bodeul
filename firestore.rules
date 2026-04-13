@@ -1,0 +1,152 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserExists() {
+      return signedIn()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentRole() {
+      return currentUserExists()
+          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          : null;
+    }
+
+    function isAdmin() {
+      return currentRole() == 'ADMIN';
+    }
+
+    function isManager() {
+      return currentRole() == 'MANAGER';
+    }
+
+    function isPatient() {
+      return currentRole() == 'PATIENT';
+    }
+
+    function isGuardian() {
+      return currentRole() == 'GUARDIAN';
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isClientCreatableRole(role) {
+      return role == 'PATIENT'
+          || role == 'GUARDIAN'
+          || role == 'MANAGER';
+    }
+
+    function appointmentExists(appointmentRequestId) {
+      return exists(
+          /databases/$(database)/documents/appointmentRequests/$(appointmentRequestId)
+      );
+    }
+
+    function appointmentDoc(appointmentRequestId) {
+      return get(
+          /databases/$(database)/documents/appointmentRequests/$(appointmentRequestId)
+      );
+    }
+
+    function isAppointmentParticipant(appointmentRequestId) {
+      return signedIn()
+          && appointmentExists(appointmentRequestId)
+          && (
+            appointmentDoc(appointmentRequestId).data.patientUserId == request.auth.uid
+            || appointmentDoc(appointmentRequestId).data.guardianUserId == request.auth.uid
+            || appointmentDoc(appointmentRequestId).data.managerUserId == request.auth.uid
+            || isAdmin()
+          );
+    }
+
+    function sessionExists(sessionId) {
+      return exists(/databases/$(database)/documents/companionSessions/$(sessionId));
+    }
+
+    function sessionDoc(sessionId) {
+      return get(/databases/$(database)/documents/companionSessions/$(sessionId));
+    }
+
+    function isSessionParticipant(sessionId) {
+      return signedIn()
+          && sessionExists(sessionId)
+          && (
+            sessionDoc(sessionId).data.managerUserId == request.auth.uid
+            || isAdmin()
+            || isAppointmentParticipant(sessionDoc(sessionId).data.appointmentRequestId)
+          );
+    }
+
+    match /users/{userId} {
+      // 개발 단계에서는 로그인 사용자라면 프로필을 읽을 수 있게 두고 쓰기만 제한한다.
+      allow read: if signedIn();
+      allow create: if isSelf(userId)
+          && isClientCreatableRole(request.resource.data.role);
+      allow update: if isAdmin()
+          || (
+            isSelf(userId)
+            && request.resource.data.role == resource.data.role
+          );
+      allow delete: if isAdmin();
+    }
+
+    match /appointmentRequests/{appointmentRequestId} {
+      // 매니저 대시보드와 후속 화면에서 참조가 많아 개발 중에는 로그인 사용자 읽기를 허용한다.
+      allow read: if signedIn();
+
+      // 신규 신청은 환자, 보호자, 관리자만 생성할 수 있다.
+      allow create: if isAdmin()
+          || (
+            isPatient()
+            && request.resource.data.patientUserId == request.auth.uid
+          )
+          || (
+            isGuardian()
+            && request.resource.data.guardianUserId == request.auth.uid
+          );
+
+      // 매칭과 상태 변경은 배정된 매니저 또는 관리자가 담당한다.
+      allow update: if isAdmin()
+          || (isManager() && resource.data.managerUserId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /companionSessions/{sessionId} {
+      // 세션 조회는 쿼리 기반으로 이루어져 개발 중에는 로그인 사용자 읽기를 허용한다.
+      allow read: if signedIn();
+
+      // 세션 생성과 수정은 배정된 매니저 또는 관리자가 수행한다.
+      allow create: if isAdmin()
+          || (
+            isManager()
+            && request.resource.data.managerUserId == request.auth.uid
+          );
+      allow update: if isAdmin()
+          || (isManager() && resource.data.managerUserId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /hospitalGuides/{guideId} {
+      // 병원 가이드는 로그인 사용자라면 읽을 수 있고, 수정은 관리자만 가능하다.
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /sessionReports/{reportId} {
+      // 리포트도 화면 결합도가 높아 개발 단계에서는 로그인 사용자 읽기를 허용한다.
+      allow read: if signedIn();
+
+      // 최종 리포트 작성은 배정된 매니저 또는 관리자만 가능하다.
+      allow create, update: if isAdmin()
+          || (isManager() && isSessionParticipant(request.resource.data.sessionId));
+      allow delete: if isAdmin();
+    }
+  }
+}

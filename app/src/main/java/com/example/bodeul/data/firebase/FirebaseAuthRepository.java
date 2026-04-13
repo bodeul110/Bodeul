@@ -84,11 +84,13 @@ public class FirebaseAuthRepository implements AuthRepository {
                     if (!firebaseUser.isEmailVerified()) {
                         // 미인증 계정은 로그인 상태를 유지하지 않고 인증 메일을 다시 보낸다.
                         firebaseUser.sendEmailVerification()
-                                .addOnCompleteListener(task -> {
+                                .addOnSuccessListener(unused -> {
                                     signOut();
-                                    callback.onError(task.isSuccessful()
-                                            ? "이메일 인증이 필요합니다. 인증 메일을 다시 보냈습니다."
-                                            : "이메일 인증이 필요합니다. 메일함을 확인한 뒤 다시 시도해주세요.");
+                                    callback.onError("이메일 인증이 필요합니다. 인증 메일을 다시 보냈습니다.");
+                                })
+                                .addOnFailureListener(exception -> {
+                                    signOut();
+                                    callback.onError(resolveVerificationEmailMessage(exception, true));
                                 });
                         return;
                     }
@@ -131,9 +133,13 @@ public class FirebaseAuthRepository implements AuthRepository {
 
                                 // 회원가입 직후 인증 메일을 보내고, 다음 로그인은 인증 완료 후에만 허용한다.
                                 firebaseUser.sendEmailVerification()
-                                        .addOnCompleteListener(task -> {
+                                        .addOnSuccessListener(ignored -> {
                                             signOut();
                                             callback.onSuccess(user);
+                                        })
+                                        .addOnFailureListener(exception -> {
+                                            signOut();
+                                            callback.onError(resolveVerificationEmailMessage(exception, false));
                                         });
                             })
                             .addOnFailureListener(exception -> {
@@ -247,5 +253,15 @@ public class FirebaseAuthRepository implements AuthRepository {
             return "가입된 이메일 정보를 찾지 못했습니다.";
         }
         return "비밀번호 재설정 메일을 보내지 못했습니다. 잠시 후 다시 시도해주세요.";
+    }
+
+    private String resolveVerificationEmailMessage(Exception exception, boolean resend) {
+        if (exception instanceof FirebaseAuthInvalidUserException) {
+            return "계정 정보를 다시 확인해주세요.";
+        }
+        if (resend) {
+            return "이메일 인증이 필요하지만 인증 메일을 다시 보내지 못했습니다. 잠시 후 다시 시도해주세요.";
+        }
+        return "회원가입은 완료됐지만 인증 메일을 보내지 못했습니다. 로그인 화면에서 다시 시도해주세요.";
     }
 }
