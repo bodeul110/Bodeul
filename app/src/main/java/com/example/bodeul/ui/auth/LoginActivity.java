@@ -116,8 +116,7 @@ public class LoginActivity extends AppCompatActivity {
         });
         textForgotPassword.setOnClickListener(view -> requestPasswordReset());
         textResendVerification.setOnClickListener(view -> requestVerificationEmailResend());
-        buttonSocialKakao.setOnClickListener(view ->
-                Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
+        buttonSocialKakao.setOnClickListener(view -> submitKakaoAuth());
         buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
         buttonSocialNaver.setOnClickListener(view ->
                 Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
@@ -183,19 +182,19 @@ public class LoginActivity extends AppCompatActivity {
 
         // 데모 모드에서는 역할에 맞는 기본 계정을 자동으로 채워준다.
         if (roleHint == UserRole.MANAGER || chipRoleManager.isChecked()) {
-            inputEmail.setText("manager@bodeul.app");
-            inputPassword.setText("bodeul1234");
+            inputEmail.setText(R.string.demo_account_manager_email);
+            inputPassword.setText(R.string.demo_account_password);
             return;
         }
 
         if (chipRoleGuardian.isChecked()) {
-            inputEmail.setText("guardian@bodeul.app");
-            inputPassword.setText("bodeul1234");
+            inputEmail.setText(R.string.demo_account_guardian_email);
+            inputPassword.setText(R.string.demo_account_password);
             return;
         }
 
-        inputEmail.setText("patient@bodeul.app");
-        inputPassword.setText("bodeul1234");
+        inputEmail.setText(R.string.demo_account_patient_email);
+        inputPassword.setText(R.string.demo_account_password);
     }
 
     private void submitAuth() {
@@ -243,6 +242,20 @@ public class LoginActivity extends AppCompatActivity {
 
         setLoading(true);
         authRepository.signInWithGoogle(this, selectedRole, signInCallback);
+    }
+
+    private void submitKakaoAuth() {
+        clearErrors();
+
+        // 카카오 로그인도 현재 선택한 역할을 기준으로 Firestore 프로필을 맞춘다.
+        UserRole selectedRole = getSelectedRole();
+        if (selectedRole == null) {
+            Toast.makeText(this, R.string.toast_role_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        setLoading(true);
+        authRepository.signInWithKakao(this, selectedRole, signInCallback);
     }
 
     private void requestPasswordReset() {

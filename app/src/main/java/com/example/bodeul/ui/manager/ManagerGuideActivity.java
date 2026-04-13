@@ -120,16 +120,32 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void bindDashboard(ManagerDashboard dashboard) {
         // 화면 전체가 하나의 대시보드 모델을 기준으로 다시 그려지도록 값을 채운다.
-        textGuidePatient.setText(getString(R.string.guide_patient_label) + ": "
-                + dashboard.getPatient().getName());
-        textGuideGuardian.setText(getString(R.string.guide_guardian_label) + ": "
-                + dashboard.getGuardian().getName() + " / " + dashboard.getGuardian().getPhone());
-        textGuideSchedule.setText(getString(R.string.guide_schedule_label) + ": "
-                + dashboard.getAppointmentRequest().getAppointmentAt());
-        textGuidePlace.setText(getString(R.string.guide_place_label) + ": "
-                + dashboard.getAppointmentRequest().getMeetingPlace());
-        textGuideRequestNote.setText(getString(R.string.guide_note_label) + ": "
-                + dashboard.getAppointmentRequest().getSpecialNotes());
+        textGuidePatient.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_patient_label),
+                dashboard.getPatient().getName()
+        ));
+        textGuideGuardian.setText(getString(
+                R.string.guide_guardian_value_format,
+                getString(R.string.guide_guardian_label),
+                dashboard.getGuardian().getName(),
+                dashboard.getGuardian().getPhone()
+        ));
+        textGuideSchedule.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_schedule_label),
+                dashboard.getAppointmentRequest().getAppointmentAt()
+        ));
+        textGuidePlace.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_place_label),
+                dashboard.getAppointmentRequest().getMeetingPlace()
+        ));
+        textGuideRequestNote.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_note_label),
+                dashboard.getAppointmentRequest().getSpecialNotes()
+        ));
 
         CompanionSession session = dashboard.getSession();
         inputGuardianUpdate.setText(nullToEmpty(session.getGuardianUpdate()));

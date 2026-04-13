@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -101,7 +102,7 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     public synchronized boolean isPasswordValid(String email, String password) {
-        String savedPassword = passwordsByEmail.get(email.toLowerCase());
+        String savedPassword = passwordsByEmail.get(normalizeKey(email));
         return savedPassword != null && savedPassword.equals(password);
     }
 
@@ -117,10 +118,10 @@ public class MockBodeulRepository implements BodeulRepository {
             return null;
         }
 
-        String id = role.name().toLowerCase() + "-" + (users.size() + 1);
+        String id = role.name().toLowerCase(Locale.ROOT) + "-" + (users.size() + 1);
         User user = new User(id, role, name, email, phone);
         users.add(user);
-        passwordsByEmail.put(email.toLowerCase(), password);
+        passwordsByEmail.put(normalizeKey(email), password);
         return user;
     }
 
@@ -263,6 +264,11 @@ public class MockBodeulRepository implements BodeulRepository {
             return SessionStatus.PAYMENT;
         }
         return SessionStatus.PAYMENT;
+    }
+
+    private String normalizeKey(String value) {
+        // 이메일과 내부 키는 사용자 기기 로케일과 무관하게 동일한 규칙으로 정규화한다.
+        return value.toLowerCase(Locale.ROOT);
     }
 
     private void seedUsers() {

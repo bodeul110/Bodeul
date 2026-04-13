@@ -19,13 +19,14 @@ import androidx.credentials.exceptions.ClearCredentialException;
 import androidx.credentials.exceptions.GetCredentialException;
 import androidx.credentials.exceptions.NoCredentialException;
 
+import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
-import com.google.firebase.auth.ActionCodeSettings;
+import com.google.firebase.auth.EmailAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.google.firebase.auth.FirebaseAuthInvalidUserException;
@@ -33,23 +34,34 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.auth.UserInfo;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.google.firebase.functions.FirebaseFunctionsException;
+import com.kakao.sdk.auth.model.OAuthToken;
+import com.kakao.sdk.common.model.ClientError;
+import com.kakao.sdk.common.model.ClientErrorCause;
+import com.kakao.sdk.user.UserApiClient;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
+import kotlin.Unit;
+import kotlin.jvm.functions.Function2;
+
 /**
  * Firebase Authentication과 Firestore를 이용해 로그인과 회원가입을 처리한다.
  */
 public class FirebaseAuthRepository implements AuthRepository {
-    private static final String RESOURCE_AUTH_CUSTOM_DOMAIN = "firebase_auth_custom_domain";
-    private static final String RESOURCE_AUTH_CONTINUE_URL = "firebase_auth_continue_url";
+    private static final String FUNCTIONS_REGION = "asia-northeast3";
+    private static final String PROVIDER_KAKAO = "KAKAO";
 
     private final Context appContext;
     private final FirebaseAuth firebaseAuth;
     private final FirebaseFirestore firestore;
+    private final FirebaseFunctions functions;
     private final CredentialManager credentialManager;
     private final Executor mainExecutor;
 
@@ -65,10 +77,10 @@ public class FirebaseAuthRepository implements AuthRepository {
         this.appContext = appContext;
         this.firebaseAuth = firebaseAuth;
         this.firestore = firestore;
+        this.functions = FirebaseFunctions.getInstance(FUNCTIONS_REGION);
         this.credentialManager = CredentialManager.create(appContext);
         this.mainExecutor = ContextCompat.getMainExecutor(appContext);
         this.firebaseAuth.setLanguageCode("ko");
-        applyConfiguredAuthDomain();
     }
 
     @Override
@@ -79,14 +91,13 @@ public class FirebaseAuthRepository implements AuthRepository {
             return;
         }
 
-        // Auth 세션만으로는 역할 정보가 없어서 users 문서를 다시 읽어야 한다.
         FirebaseUser currentUser = firebaseAuth.getCurrentUser();
         if (currentUser == null) {
             callback.onError("로그인이 필요합니다.");
             return;
         }
 
-        // 이메일 인증 여부를 최신 상태로 확인하기 위해 현재 사용자를 다시 고친다.
+        // 이메일 로그인 사용자는 메일 인증 여부를 최신 상태로 다시 확인한다.
         currentUser.reload()
                 .addOnSuccessListener(unused -> {
                     FirebaseUser reloadedUser = firebaseAuth.getCurrentUser();
@@ -94,7 +105,7 @@ public class FirebaseAuthRepository implements AuthRepository {
                         callback.onError("로그인이 필요합니다.");
                         return;
                     }
-                    if (!isSocialUser(reloadedUser) && !reloadedUser.isEmailVerified()) {
+                    if (requiresEmailVerification(reloadedUser) && !reloadedUser.isEmailVerified()) {
                         signOut();
                         callback.onError("이메일 인증을 완료한 뒤 다시 로그인해주세요.");
                         return;
@@ -118,9 +129,15 @@ public class FirebaseAuthRepository implements AuthRepository {
                         return;
                     }
                     if (!firebaseUser.isEmailVerified()) {
-                        // 미인증 계정은 자동 재발송하지 않고 사용자가 직접 다시 보내도록 안내한다.
-                        signOut();
-                        callback.onError("이메일 인증이 필요합니다. 받은 편지함과 스팸함을 확인하고, 필요하면 인증 메일 다시 보내기를 눌러주세요.");
+                        firebaseUser.sendEmailVerification()
+                                .addOnSuccessListener(unused -> {
+                                    signOut();
+                                    callback.onError("이메일 인증이 필요합니다. 인증 메일을 다시 보냈습니다.");
+                                })
+                                .addOnFailureListener(exception -> {
+                                    signOut();
+                                    callback.onError(resolveVerificationEmailMessage(exception, true));
+                                });
                         return;
                     }
                     loadUserProfile(firebaseUser.getUid(), expectedRole, callback);
@@ -131,7 +148,6 @@ public class FirebaseAuthRepository implements AuthRepository {
 
     @Override
     public void signInWithGoogle(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback) {
-        // 구글 로그인은 Firebase 콘솔과 google-services 설정이 모두 맞아야 동작한다.
         String serverClientId = resolveGoogleServerClientId(activity);
         if (TextUtils.isEmpty(serverClientId)) {
             callback.onError("구글 로그인 설정이 아직 완료되지 않았습니다. Firebase 콘솔에서 Google 로그인을 활성화하고 google-services.json을 다시 받아주세요.");
@@ -139,6 +155,47 @@ public class FirebaseAuthRepository implements AuthRepository {
         }
 
         requestGoogleCredential(activity, serverClientId, true, expectedRole, callback);
+    }
+
+    @Override
+    public void signInWithKakao(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback) {
+        // 카카오 로그인은 SDK 로그인 후 Firebase Functions에서 custom token을 발급받는다.
+        if (TextUtils.isEmpty(appContext.getString(R.string.kakao_native_app_key))) {
+            callback.onError("카카오 로그인 설정이 아직 완료되지 않았습니다.");
+            return;
+        }
+
+        startKakaoLogin(activity, expectedRole, callback, true);
+    }
+
+    @Override
+    public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
+        // 인증 메일 재전송은 계정 본인 확인을 위해 이메일 비밀번호를 다시 검증한 뒤 수행한다.
+        firebaseAuth.signInWithEmailAndPassword(email, password)
+                .addOnSuccessListener(authResult -> {
+                    FirebaseUser firebaseUser = authResult.getUser();
+                    if (firebaseUser == null) {
+                        callback.onError("계정 정보를 확인하지 못했습니다.");
+                        return;
+                    }
+                    if (firebaseUser.isEmailVerified()) {
+                        signOut();
+                        callback.onError("이미 이메일 인증이 완료된 계정입니다.");
+                        return;
+                    }
+
+                    firebaseUser.sendEmailVerification()
+                            .addOnSuccessListener(unused -> {
+                                signOut();
+                                callback.onSuccess(null);
+                            })
+                            .addOnFailureListener(exception -> {
+                                signOut();
+                                callback.onError(resolveVerificationEmailMessage(exception, true));
+                            });
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError(resolveSignInMessage(exception)));
     }
 
     @Override
@@ -172,23 +229,17 @@ public class FirebaseAuthRepository implements AuthRepository {
                                 User user = new User(firebaseUser.getUid(), role, name, email, phone);
                                 cachedUser = user;
 
-                                // 회원가입 직후 인증 메일을 보내고 다음 로그인은 인증 후에만 허용한다.
-                                sendVerificationEmail(firebaseUser, false, new RepositoryCallback<Void>() {
-                                    @Override
-                                    public void onSuccess(Void result) {
-                                        signOut();
-                                        callback.onSuccess(user);
-                                    }
-
-                                    @Override
-                                    public void onError(String message) {
-                                        signOut();
-                                        callback.onError(message);
-                                    }
-                                });
+                                firebaseUser.sendEmailVerification()
+                                        .addOnSuccessListener(ignored -> {
+                                            signOut();
+                                            callback.onSuccess(user);
+                                        })
+                                        .addOnFailureListener(exception -> {
+                                            signOut();
+                                            callback.onError(resolveVerificationEmailMessage(exception, false));
+                                        });
                             })
                             .addOnFailureListener(exception -> {
-                                // 프로필 저장이 실패하면 Auth 계정만 남지 않도록 정리를 시도한다.
                                 firebaseUser.delete().addOnCompleteListener(task -> signOut());
                                 callback.onError("사용자 프로필을 저장하지 못했습니다.");
                             });
@@ -199,54 +250,16 @@ public class FirebaseAuthRepository implements AuthRepository {
 
     @Override
     public void resetPassword(String email, RepositoryCallback<Void> callback) {
-        // 커스텀 도메인이 설정돼 있으면 같은 도메인으로 재설정 링크를 보낸다.
-        sendPasswordResetEmail(email, callback);
-    }
-
-    @Override
-    public void resendVerificationEmail(
-            String email,
-            String password,
-            RepositoryCallback<Void> callback
-    ) {
-        // 사용자가 명시적으로 요청했을 때만 인증 메일을 다시 보낸다.
-        firebaseAuth.signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener(authResult -> {
-                    FirebaseUser firebaseUser = authResult.getUser();
-                    if (firebaseUser == null) {
-                        signOut();
-                        callback.onError("계정 정보를 다시 확인해주세요.");
-                        return;
-                    }
-                    if (firebaseUser.isEmailVerified()) {
-                        signOut();
-                        callback.onError("이미 이메일 인증이 완료된 계정입니다. 로그인해주세요.");
-                        return;
-                    }
-
-                    sendVerificationEmail(firebaseUser, true, new RepositoryCallback<Void>() {
-                        @Override
-                        public void onSuccess(Void result) {
-                            signOut();
-                            callback.onSuccess(null);
-                        }
-
-                        @Override
-                        public void onError(String message) {
-                            signOut();
-                            callback.onError(message);
-                        }
-                    });
-                })
-                .addOnFailureListener(exception -> {
-                    signOut();
-                    callback.onError(resolveSignInMessage(exception));
-                });
+        // Firebase가 제공하는 비밀번호 재설정 메일 발송 기능을 그대로 사용한다.
+        firebaseAuth.sendPasswordResetEmail(email)
+                .addOnSuccessListener(unused -> callback.onSuccess(null))
+                .addOnFailureListener(exception ->
+                        callback.onError(resolveResetPasswordMessage(exception)));
     }
 
     @Override
     public void signOut() {
-        // 로컬 캐시와 Firebase 세션을 함께 비우고, Credential Manager에도 로그아웃을 알린다.
+        // Firebase 세션과 구글 자격 증명 상태를 함께 정리한다.
         cachedUser = null;
         firebaseAuth.signOut();
         clearCredentialState();
@@ -255,6 +268,111 @@ public class FirebaseAuthRepository implements AuthRepository {
     @Override
     public boolean isFirebaseBacked() {
         return true;
+    }
+
+    private void startKakaoLogin(
+            Activity activity,
+            UserRole expectedRole,
+            RepositoryCallback<User> callback,
+            boolean preferTalk
+    ) {
+        if (preferTalk && UserApiClient.getInstance().isKakaoTalkLoginAvailable(activity)) {
+            UserApiClient.getInstance().loginWithKakaoTalk(
+                    activity,
+                    createKakaoCallback(activity, expectedRole, callback, true)
+            );
+            return;
+        }
+
+        UserApiClient.getInstance().loginWithKakaoAccount(
+                activity,
+                createKakaoCallback(activity, expectedRole, callback, false)
+        );
+    }
+
+    private Function2<OAuthToken, Throwable, Unit> createKakaoCallback(
+            Activity activity,
+            UserRole expectedRole,
+            RepositoryCallback<User> callback,
+            boolean fromKakaoTalk
+    ) {
+        return (token, error) -> {
+            if (error != null) {
+                if (fromKakaoTalk
+                        && !(error instanceof ClientError
+                        && ((ClientError) error).getReason() == ClientErrorCause.Cancelled)) {
+                    startKakaoLogin(activity, expectedRole, callback, false);
+                    return Unit.INSTANCE;
+                }
+
+                if (error instanceof ClientError
+                        && ((ClientError) error).getReason() == ClientErrorCause.Cancelled) {
+                    callback.onError("카카오 로그인 요청이 취소되었습니다.");
+                    return Unit.INSTANCE;
+                }
+
+                callback.onError("카카오 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+                return Unit.INSTANCE;
+            }
+
+            if (token == null || TextUtils.isEmpty(token.getAccessToken())) {
+                callback.onError("카카오 로그인 토큰을 확인하지 못했습니다.");
+                return Unit.INSTANCE;
+            }
+
+            requestKakaoCustomToken(token.getAccessToken(), expectedRole, callback);
+            return Unit.INSTANCE;
+        };
+    }
+
+    private void requestKakaoCustomToken(
+            String accessToken,
+            UserRole expectedRole,
+            RepositoryCallback<User> callback
+    ) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("accessToken", accessToken);
+        payload.put("role", expectedRole.name());
+
+        functions.getHttpsCallable("kakaoCustomToken")
+                .call(payload)
+                .addOnSuccessListener(result -> {
+                    if (!(result.getData() instanceof Map)) {
+                        callback.onError("카카오 로그인 응답을 해석하지 못했습니다.");
+                        return;
+                    }
+
+                    Map<?, ?> data = (Map<?, ?>) result.getData();
+                    String firebaseToken = asString(data.get("firebaseToken"));
+                    SocialProfile socialProfile = toSocialProfile(PROVIDER_KAKAO, data.get("profile"));
+                    if (TextUtils.isEmpty(firebaseToken) || socialProfile == null) {
+                        callback.onError("카카오 로그인 응답을 해석하지 못했습니다.");
+                        return;
+                    }
+
+                    signInWithCustomToken(firebaseToken, expectedRole, socialProfile, callback);
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError(resolveKakaoCallableMessage(exception)));
+    }
+
+    private void signInWithCustomToken(
+            String firebaseToken,
+            UserRole expectedRole,
+            SocialProfile socialProfile,
+            RepositoryCallback<User> callback
+    ) {
+        firebaseAuth.signInWithCustomToken(firebaseToken)
+                .addOnSuccessListener(authResult -> {
+                    FirebaseUser firebaseUser = authResult.getUser();
+                    if (firebaseUser == null) {
+                        callback.onError("소셜 로그인에 실패했습니다.");
+                        return;
+                    }
+                    syncSocialUserProfile(firebaseUser, expectedRole, socialProfile, callback);
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("소셜 로그인에 실패했습니다. 잠시 후 다시 시도해주세요."));
     }
 
     private void requestGoogleCredential(
@@ -331,24 +449,32 @@ public class FirebaseAuthRepository implements AuthRepository {
                         callback.onError("구글 로그인에 실패했습니다.");
                         return;
                     }
-                    syncGoogleUserProfile(firebaseUser, expectedRole, callback);
+
+                    SocialProfile socialProfile = new SocialProfile(
+                            "GOOGLE",
+                            firebaseUser.getUid(),
+                            defaultNameIfEmpty(firebaseUser.getDisplayName(), expectedRole),
+                            defaultEmailIfEmpty(firebaseUser.getEmail(), "google_" + firebaseUser.getUid()),
+                            firebaseUser.getPhoneNumber() == null ? "" : firebaseUser.getPhoneNumber()
+                    );
+                    syncSocialUserProfile(firebaseUser, expectedRole, socialProfile, callback);
                 })
                 .addOnFailureListener(exception ->
                         callback.onError(resolveGoogleFirebaseMessage(exception)));
     }
 
-    private void syncGoogleUserProfile(
+    private void syncSocialUserProfile(
             FirebaseUser firebaseUser,
             UserRole expectedRole,
+            SocialProfile socialProfile,
             RepositoryCallback<User> callback
     ) {
         firestore.collection("users")
                 .document(firebaseUser.getUid())
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    // 첫 구글 로그인이라면 선택한 역할 기준으로 Firestore 프로필을 만든다.
                     if (!documentSnapshot.exists()) {
-                        createGoogleUserProfile(firebaseUser, expectedRole, callback);
+                        createSocialUserProfile(firebaseUser, expectedRole, socialProfile, callback);
                         return;
                     }
 
@@ -372,48 +498,37 @@ public class FirebaseAuthRepository implements AuthRepository {
                         callback.onError("사용자 정보를 불러오지 못했습니다."));
     }
 
-    private void createGoogleUserProfile(
+    private void createSocialUserProfile(
             FirebaseUser firebaseUser,
             UserRole expectedRole,
+            SocialProfile socialProfile,
             RepositoryCallback<User> callback
     ) {
-        String email = firebaseUser.getEmail();
-        if (TextUtils.isEmpty(email)) {
-            signOut();
-            callback.onError("구글 계정에서 이메일 정보를 확인하지 못했습니다.");
-            return;
-        }
-
-        String displayName = firebaseUser.getDisplayName();
-        if (TextUtils.isEmpty(displayName)) {
-            displayName = defaultNameForRole(expectedRole);
-        }
-
-        String phoneNumber = firebaseUser.getPhoneNumber();
-        if (phoneNumber == null) {
-            phoneNumber = "";
-        }
-
-        final String finalName = displayName;
-        final String finalPhone = phoneNumber;
-
         Map<String, Object> userDocument = new HashMap<>();
-        userDocument.put("name", finalName);
-        userDocument.put("email", email);
-        userDocument.put("phone", finalPhone);
+        userDocument.put("name", socialProfile.name);
+        userDocument.put("email", socialProfile.email);
+        userDocument.put("phone", socialProfile.phone);
         userDocument.put("role", expectedRole.name());
+        userDocument.put("provider", socialProfile.provider);
+        userDocument.put("providerUserId", socialProfile.providerUserId);
 
         firestore.collection("users")
                 .document(firebaseUser.getUid())
                 .set(userDocument)
                 .addOnSuccessListener(unused -> {
-                    User user = new User(firebaseUser.getUid(), expectedRole, finalName, email, finalPhone);
+                    User user = new User(
+                            firebaseUser.getUid(),
+                            expectedRole,
+                            socialProfile.name,
+                            socialProfile.email,
+                            socialProfile.phone
+                    );
                     cachedUser = user;
                     callback.onSuccess(user);
                 })
                 .addOnFailureListener(exception -> {
                     signOut();
-                    callback.onError("구글 계정 프로필을 저장하지 못했습니다.");
+                    callback.onError("소셜 계정 프로필을 저장하지 못했습니다.");
                 });
     }
 
@@ -427,7 +542,6 @@ public class FirebaseAuthRepository implements AuthRepository {
                 .document(userId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    // Auth uid를 기준으로 users 컬렉션의 단일 사용자 프로필을 직렬화한다.
                     User user = toUser(documentSnapshot);
                     if (user == null) {
                         signOut();
@@ -463,14 +577,30 @@ public class FirebaseAuthRepository implements AuthRepository {
             return null;
         }
 
-        // phone은 선택값으로 보고 비어 있으면 빈 문자열로 정리한다.
         UserRole role = UserRole.valueOf(roleValue);
         return new User(documentSnapshot.getId(), role, name, email, phone == null ? "" : phone);
     }
 
-    private boolean isSocialUser(FirebaseUser firebaseUser) {
-        for (com.google.firebase.auth.UserInfo userInfo : firebaseUser.getProviderData()) {
-            if (GoogleAuthProvider.PROVIDER_ID.equals(userInfo.getProviderId())) {
+    @Nullable
+    private SocialProfile toSocialProfile(String provider, @Nullable Object rawProfile) {
+        if (!(rawProfile instanceof Map)) {
+            return null;
+        }
+
+        Map<?, ?> profileMap = (Map<?, ?>) rawProfile;
+        String providerUserId = asString(profileMap.get("providerUserId"));
+        String name = defaultNameIfEmpty(asString(profileMap.get("name")), UserRole.PATIENT);
+        String email = defaultEmailIfEmpty(asString(profileMap.get("email")), provider.toLowerCase() + "_" + providerUserId);
+        String phone = asString(profileMap.get("phone"));
+        if (TextUtils.isEmpty(providerUserId) || TextUtils.isEmpty(email)) {
+            return null;
+        }
+        return new SocialProfile(provider, providerUserId, name, email, phone == null ? "" : phone);
+    }
+
+    private boolean requiresEmailVerification(FirebaseUser firebaseUser) {
+        for (UserInfo userInfo : firebaseUser.getProviderData()) {
+            if (EmailAuthProvider.PROVIDER_ID.equals(userInfo.getProviderId())) {
                 return true;
             }
         }
@@ -487,111 +617,6 @@ public class FirebaseAuthRepository implements AuthRepository {
 
         String serverClientId = context.getString(resourceId);
         return TextUtils.isEmpty(serverClientId) ? null : serverClientId;
-    }
-
-    private void applyConfiguredAuthDomain() {
-        // 콘솔에서 허용한 커스텀 인증 도메인이 있으면 기본 firebaseapp.com 대신 사용한다.
-        String customDomain = resolveOptionalStringResource(RESOURCE_AUTH_CUSTOM_DOMAIN);
-        if (TextUtils.isEmpty(customDomain)) {
-            return;
-        }
-        firebaseAuth.setCustomAuthDomain(normalizeDomain(customDomain));
-    }
-
-    @Nullable
-    private ActionCodeSettings createEmailActionSettings() {
-        String customDomain = resolveOptionalStringResource(RESOURCE_AUTH_CUSTOM_DOMAIN);
-        String continueUrl = resolveOptionalStringResource(RESOURCE_AUTH_CONTINUE_URL);
-        if (TextUtils.isEmpty(customDomain) && TextUtils.isEmpty(continueUrl)) {
-            return null;
-        }
-
-        // 메일 링크가 브랜드 도메인을 우선 사용하도록 ActionCodeSettings를 구성한다.
-        String normalizedDomain = TextUtils.isEmpty(customDomain) ? null : normalizeDomain(customDomain);
-        ActionCodeSettings.Builder builder = ActionCodeSettings.newBuilder()
-                .setHandleCodeInApp(false)
-                .setAndroidPackageName(appContext.getPackageName(), false, null);
-
-        if (!TextUtils.isEmpty(normalizedDomain)) {
-            builder.setLinkDomain(normalizedDomain);
-        }
-        if (!TextUtils.isEmpty(continueUrl)) {
-            builder.setUrl(normalizeContinueUrl(continueUrl));
-        } else if (!TextUtils.isEmpty(normalizedDomain)) {
-            builder.setUrl("https://" + normalizedDomain);
-        }
-        return builder.build();
-    }
-
-    private void sendPasswordResetEmail(String email, RepositoryCallback<Void> callback) {
-        ActionCodeSettings actionCodeSettings = createEmailActionSettings();
-        if (actionCodeSettings == null) {
-            firebaseAuth.sendPasswordResetEmail(email)
-                    .addOnSuccessListener(unused -> callback.onSuccess(null))
-                    .addOnFailureListener(exception ->
-                            callback.onError(resolveResetPasswordMessage(exception)));
-            return;
-        }
-
-        firebaseAuth.sendPasswordResetEmail(email, actionCodeSettings)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(exception ->
-                        firebaseAuth.sendPasswordResetEmail(email)
-                                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                                .addOnFailureListener(fallbackException ->
-                                        callback.onError(resolveResetPasswordMessage(fallbackException))));
-    }
-
-    private void sendVerificationEmail(
-            FirebaseUser firebaseUser,
-            boolean resend,
-            RepositoryCallback<Void> callback
-    ) {
-        ActionCodeSettings actionCodeSettings = createEmailActionSettings();
-        if (actionCodeSettings == null) {
-            firebaseUser.sendEmailVerification()
-                    .addOnSuccessListener(unused -> callback.onSuccess(null))
-                    .addOnFailureListener(exception ->
-                            callback.onError(resolveVerificationEmailMessage(exception, resend)));
-            return;
-        }
-
-        firebaseUser.sendEmailVerification(actionCodeSettings)
-                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                .addOnFailureListener(exception ->
-                        firebaseUser.sendEmailVerification()
-                                .addOnSuccessListener(unused -> callback.onSuccess(null))
-                                .addOnFailureListener(fallbackException ->
-                                        callback.onError(resolveVerificationEmailMessage(fallbackException, resend))));
-    }
-
-    @Nullable
-    private String resolveOptionalStringResource(String resourceName) {
-        int resourceId = appContext.getResources()
-                .getIdentifier(resourceName, "string", appContext.getPackageName());
-        if (resourceId == 0) {
-            return null;
-        }
-
-        String value = appContext.getString(resourceId).trim();
-        return TextUtils.isEmpty(value) ? null : value;
-    }
-
-    private String normalizeDomain(String value) {
-        String normalized = value.trim().replaceFirst("^https?://", "");
-        int pathStartIndex = normalized.indexOf('/');
-        if (pathStartIndex >= 0) {
-            normalized = normalized.substring(0, pathStartIndex);
-        }
-        return normalized;
-    }
-
-    private String normalizeContinueUrl(String value) {
-        String normalized = value.trim();
-        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
-            return normalized;
-        }
-        return "https://" + normalized;
     }
 
     private void clearCredentialState() {
@@ -614,7 +639,10 @@ public class FirebaseAuthRepository implements AuthRepository {
         );
     }
 
-    private String defaultNameForRole(UserRole role) {
+    private String defaultNameIfEmpty(@Nullable String name, UserRole role) {
+        if (!TextUtils.isEmpty(name)) {
+            return name;
+        }
         switch (role) {
             case MANAGER:
                 return "매니저";
@@ -626,6 +654,18 @@ public class FirebaseAuthRepository implements AuthRepository {
             default:
                 return "환자";
         }
+    }
+
+    private String defaultEmailIfEmpty(@Nullable String email, String prefix) {
+        if (!TextUtils.isEmpty(email)) {
+            return email;
+        }
+        return prefix + "@bodeul.local";
+    }
+
+    @Nullable
+    private String asString(@Nullable Object rawValue) {
+        return rawValue == null ? null : String.valueOf(rawValue);
     }
 
     private String resolveSignInMessage(Exception exception) {
@@ -689,5 +729,44 @@ public class FirebaseAuthRepository implements AuthRepository {
             return "구글 인증 정보를 확인하지 못했습니다.";
         }
         return "구글 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    }
+
+    private String resolveKakaoCallableMessage(Exception exception) {
+        if (exception instanceof FirebaseFunctionsException) {
+            FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
+            Object details = functionsException.getDetails();
+            if (details instanceof Map) {
+                String message = asString(((Map<?, ?>) details).get("message"));
+                if (!TextUtils.isEmpty(message)) {
+                    return message;
+                }
+            }
+            if (!TextUtils.isEmpty(functionsException.getMessage())) {
+                return "카카오 로그인 처리에 실패했습니다. " + functionsException.getMessage();
+            }
+        }
+        return "카카오 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    }
+
+    private static class SocialProfile {
+        private final String provider;
+        private final String providerUserId;
+        private final String name;
+        private final String email;
+        private final String phone;
+
+        private SocialProfile(
+                String provider,
+                String providerUserId,
+                String name,
+                String email,
+                String phone
+        ) {
+            this.provider = provider;
+            this.providerUserId = providerUserId;
+            this.name = name;
+            this.email = email;
+            this.phone = phone;
+        }
     }
 }

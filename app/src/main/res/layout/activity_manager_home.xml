@@ -3,7 +3,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bodeul_background"
     android:fillViewport="true">
 
     <LinearLayout
@@ -115,13 +114,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardActionDocs"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 app:cardBackgroundColor="@color/bodeul_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
@@ -153,14 +151,13 @@
             </com.google.android.material.card.MaterialCardView>
 
             <Space
-                android:layout_width="12dp"
-                android:layout_height="1dp" />
+                android:layout_width="1dp"
+                android:layout_height="12dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardActionSchedule"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 app:cardBackgroundColor="@color/bodeul_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
@@ -196,13 +193,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardActionGuide"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 app:cardBackgroundColor="@color/bodeul_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"
@@ -234,14 +230,13 @@
             </com.google.android.material.card.MaterialCardView>
 
             <Space
-                android:layout_width="12dp"
-                android:layout_height="1dp" />
+                android:layout_width="1dp"
+                android:layout_height="12dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardActionLogout"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 app:cardBackgroundColor="@color/bodeul_surface"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp"

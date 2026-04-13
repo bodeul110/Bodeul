@@ -10,11 +10,11 @@
     app:strokeColor="@color/bodeul_outline"
     app:strokeWidth="1dp">
 
-    <!-- 단계 번호, 설명, 상태 배지를 한 줄에 보여주는 공통 아이템 레이아웃이다. -->
+    <!-- 단계 설명과 상태 배지를 세로 흐름으로 배치해 좁은 화면에서도 잘리지 않게 한다. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
+        android:gravity="top"
         android:orientation="horizontal"
         android:padding="18dp">
 
@@ -50,19 +50,20 @@
                 android:lineSpacingExtra="3dp"
                 android:textColor="@color/bodeul_text_secondary"
                 android:textSize="13sp" />
-        </LinearLayout>
 
-        <TextView
-            android:id="@+id/textStepState"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_step_badge"
-            android:paddingStart="10dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="6dp"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/textStepState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_step_badge"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp"
+                android:textColor="@color/bodeul_primary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

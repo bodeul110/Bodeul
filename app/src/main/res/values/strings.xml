@@ -32,8 +32,15 @@
     <string name="resend_verification_email_countdown">인증 메일 다시 보내기 (%1$d초)</string>
     <string name="social_login_label">또는 간편 로그인</string>
     <string name="social_login_pending">소셜 로그인은 추후 연동 예정입니다.</string>
+    <string name="social_login_kakao_short" translatable="false">K</string>
+    <string name="social_login_google_short" translatable="false">G</string>
+    <string name="social_login_naver_short" translatable="false">N</string>
     <string name="demo_banner_manager">Firebase 설정 전 데모 모드입니다. 매니저 계정: manager@bodeul.app / bodeul1234</string>
     <string name="demo_banner_general">Firebase 설정 전 데모 모드입니다. 환자 계정: patient@bodeul.app / bodeul1234</string>
+    <string name="demo_account_manager_email" translatable="false">manager@bodeul.app</string>
+    <string name="demo_account_guardian_email" translatable="false">guardian@bodeul.app</string>
+    <string name="demo_account_patient_email" translatable="false">patient@bodeul.app</string>
+    <string name="demo_account_password" translatable="false">bodeul1234</string>
     <string name="login_role_manager">매니저</string>
     <string name="login_role_patient">환자</string>
     <string name="login_role_guardian">보호자</string>
@@ -67,9 +74,7 @@
     <string name="manager_action_docs_desc">자격증 및 서류 관리</string>
     <string name="manager_action_schedule">스케줄 등록</string>
     <string name="manager_action_schedule_desc">활동 가능 시간 설정</string>
-    <string name="manager_action_history">과거 경력</string>
     <string name="manager_action_history_desc">동행 이력 확인</string>
-    <string name="manager_action_support">문의하기</string>
     <string name="manager_action_support_desc">지원팀 문의</string>
     <string name="manager_assignment_title">보들 동행서비스 소개</string>
     <string name="manager_assignment_detail">%1$s · %2$s\n예약 시간 %3$s</string>
@@ -86,6 +91,8 @@
     <string name="guide_schedule_label">예약 시간</string>
     <string name="guide_place_label">만남 장소</string>
     <string name="guide_note_label">요청 사항</string>
+    <string name="guide_field_value_format">%1$s: %2$s</string>
+    <string name="guide_guardian_value_format">%1$s: %2$s / %3$s</string>
     <string name="guide_status_completed">완료</string>
     <string name="guide_status_active">진행 중</string>
     <string name="guide_status_pending">대기</string>

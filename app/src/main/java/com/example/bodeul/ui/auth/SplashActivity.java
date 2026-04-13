@@ -2,8 +2,6 @@ package com.example.bodeul.ui.auth;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -20,9 +18,6 @@ import com.example.bodeul.ui.manager.ManagerActivity;
  * 앱 시작 시 로그인 상태를 확인하고 첫 진입 화면을 결정하는 스플래시 화면이다.
  */
 public class SplashActivity extends AppCompatActivity {
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable navigateRunnable = this::routeAfterSplash;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,14 +27,8 @@ public class SplashActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        // 짧은 스플래시 노출 후 세션 상태를 확인해 다음 화면으로 분기한다.
-        handler.postDelayed(navigateRunnable, 1200L);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        handler.removeCallbacks(navigateRunnable);
+        // Android 12 이상에서는 시스템 시작 화면이 먼저 보이므로 추가 지연 없이 바로 분기한다.
+        routeAfterSplash();
     }
 
     private void routeAfterSplash() {

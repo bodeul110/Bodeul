@@ -61,6 +61,22 @@ public class MockAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void signInWithKakao(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback) {
+        // 목업 모드에서는 카카오 SDK와 Firebase Functions가 없어서 사용할 수 없다.
+        callback.onError("데모 모드에서는 카카오 로그인을 사용할 수 없습니다.");
+    }
+
+    @Override
+    public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
+        // 데모 모드에서는 이메일 인증 절차가 없어서 계정 확인만 통과하면 성공 처리한다.
+        if (!repository.isPasswordValid(email, password)) {
+            callback.onError("이메일 또는 비밀번호를 확인해주세요.");
+            return;
+        }
+        callback.onSuccess(null);
+    }
+
+    @Override
     public void register(
             String name,
             String email,
@@ -88,12 +104,6 @@ public class MockAuthRepository implements AuthRepository {
             return;
         }
         callback.onSuccess(null);
-    }
-
-    @Override
-    public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
-        // 데모 모드에서는 실제 인증 메일을 보내지 않으므로 안내 메시지만 반환한다.
-        callback.onError("데모 모드에서는 인증 메일 재발송을 지원하지 않습니다.");
     }
 
     @Override
