@@ -11,7 +11,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 /**
- * 실행 환경에 맞는 저장소 구현을 한 곳에서 선택해 주입하는 단순 서비스 로케이터다.
+ * 실행 환경에 맞는 저장소 구현을 한곳에서 선택해 주입하는 단순 서비스 로케이터다.
  */
 public final class ServiceLocator {
     // 앱 전역에서 같은 저장소 인스턴스를 재사용해 세션 상태를 유지한다.
@@ -27,6 +27,7 @@ public final class ServiceLocator {
             // Firebase 설정이 있으면 실제 인증 저장소를, 없으면 데모 저장소를 사용한다.
             if (FirebaseSupport.isConfigured(context)) {
                 authRepository = new FirebaseAuthRepository(
+                        context.getApplicationContext(),
                         FirebaseAuth.getInstance(),
                         FirebaseFirestore.getInstance()
                 );
@@ -50,7 +51,7 @@ public final class ServiceLocator {
     }
 
     private static MockBodeulRepository getMockBodeulRepository() {
-        // Firebase가 없을 때는 인증/매니저 기능이 같은 목업 데이터 원본을 공유한다.
+        // Firebase가 없을 때는 인증과 매니저 기능이 같은 목업 데이터를 공유한다.
         if (mockBodeulRepository == null) {
             mockBodeulRepository = new MockBodeulRepository();
         }

@@ -53,6 +53,9 @@ public class LoginActivity extends AppCompatActivity {
     private Chip chipRolePatient;
     private Chip chipRoleGuardian;
     private MaterialButton buttonSubmit;
+    private MaterialButton buttonSocialKakao;
+    private MaterialButton buttonSocialGoogle;
+    private MaterialButton buttonSocialNaver;
     private ProgressBar progressBar;
 
     public static Intent createIntent(Context context, UserRole roleHint) {
@@ -88,6 +91,9 @@ public class LoginActivity extends AppCompatActivity {
         chipRolePatient = findViewById(R.id.chipRolePatient);
         chipRoleGuardian = findViewById(R.id.chipRoleGuardian);
         buttonSubmit = findViewById(R.id.buttonSubmitAuth);
+        buttonSocialKakao = findViewById(R.id.buttonSocialKakao);
+        buttonSocialGoogle = findViewById(R.id.buttonSocialGoogle);
+        buttonSocialNaver = findViewById(R.id.buttonSocialNaver);
         progressBar = findViewById(R.id.progressAuth);
 
         configureRoleChips();
@@ -101,11 +107,10 @@ public class LoginActivity extends AppCompatActivity {
             bindMode();
         });
         textForgotPassword.setOnClickListener(view -> requestPasswordReset());
-        findViewById(R.id.buttonSocialKakao).setOnClickListener(view ->
+        buttonSocialKakao.setOnClickListener(view ->
                 Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
-        findViewById(R.id.buttonSocialGoogle).setOnClickListener(view ->
-                Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
-        findViewById(R.id.buttonSocialNaver).setOnClickListener(view ->
+        buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
+        buttonSocialNaver.setOnClickListener(view ->
                 Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
 
         View.OnClickListener roleListener = view -> applyDemoCredentials();
@@ -216,6 +221,20 @@ public class LoginActivity extends AppCompatActivity {
         authRepository.signIn(email, password, selectedRole, signInCallback);
     }
 
+    private void submitGoogleAuth() {
+        clearErrors();
+
+        // 구글 로그인도 현재 선택한 역할을 기준으로 Firestore 프로필을 맞춘다.
+        UserRole selectedRole = getSelectedRole();
+        if (selectedRole == null) {
+            Toast.makeText(this, R.string.toast_role_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        setLoading(true);
+        authRepository.signInWithGoogle(this, selectedRole, signInCallback);
+    }
+
     private void requestPasswordReset() {
         clearErrors();
 
@@ -308,6 +327,9 @@ public class LoginActivity extends AppCompatActivity {
     private void setLoading(boolean loading) {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         buttonSubmit.setEnabled(!loading);
+        buttonSocialKakao.setEnabled(!loading);
+        buttonSocialGoogle.setEnabled(!loading);
+        buttonSocialNaver.setEnabled(!loading);
         textSwitchMode.setEnabled(!loading);
         textForgotPassword.setEnabled(!loading);
         chipRoleManager.setEnabled(!loading);
