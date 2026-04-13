@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bodeul_background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- 로그인 사용자 정보와 로그아웃 버튼을 묶은 홈 상단 카드다. -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/bodeul_surface"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/bodeul_outline"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:id="@+id/textHomeTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/home_title"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textSignedInAs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/bodeul_text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:lineSpacingExtra="4dp"
+                    android:text="@string/home_summary"
+                    android:textColor="@color/bodeul_text_secondary"
+                    android:textSize="15sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonSignOut"
+                    style="@style/BodeulHomeButton"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/home_sign_out"
+                    android:textColor="@color/bodeul_primary"
+                    app:backgroundTint="@color/bodeul_surface_alt" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 역할별 주요 기능 화면으로 이동하는 빠른 실행 버튼들이다. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/openBooking"
+            style="@style/BodeulHomeButton"
+            android:layout_marginTop="24dp"
+            android:text="@string/home_patient_flow" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/openManager"
+            style="@style/BodeulHomeButton"
+            android:text="@string/home_manager_flow" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/openGuardianReport"
+            style="@style/BodeulHomeButton"
+            android:text="@string/home_guardian_flow" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/openAdmin"
+            style="@style/BodeulHomeButton"
+            android:text="@string/home_admin_flow" />
+    </LinearLayout>
+</ScrollView>

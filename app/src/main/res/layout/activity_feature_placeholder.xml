@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bodeul_background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- 아직 구현되지 않은 기능의 제목을 표시한다. -->
+        <TextView
+            android:id="@+id/featureTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- 현재 상태와 향후 구현 방향을 간단히 안내한다. -->
+        <TextView
+            android:id="@+id/featureDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="16sp" />
+    </LinearLayout>
+</ScrollView>

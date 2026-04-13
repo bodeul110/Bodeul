@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bodeul_background"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- 앱 브랜드를 크게 보여주는 스플래시 메인 타이틀이다. -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/splash_title"
+        android:textColor="@color/bodeul_primary"
+        android:textSize="42sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="@string/splash_subtitle"
+        android:textColor="@color/bodeul_text_secondary"
+        android:textSize="16sp" />
+
+    <!-- 세션 확인이 진행되는 동안 짧게 노출되는 로딩 표시다. -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:layout_width="160dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="52dp"
+        android:indeterminate="true"
+        app:indicatorColor="@color/bodeul_primary" />
+
+    <!-- 하단에는 서비스 성격을 짧게 보조 설명으로 남긴다. -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/splash_footer"
+        android:textColor="@color/bodeul_outline"
+        android:textSize="11sp" />
+</LinearLayout>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bodeul_primary">#3E6FF6</color>
+    <color name="bodeul_primary_dark">#2957D4</color>
+    <color name="bodeul_secondary">#FFB648</color>
+    <color name="bodeul_background">#F7F9FF</color>
+    <color name="bodeul_surface">#FFFFFFFF</color>
+    <color name="bodeul_surface_alt">#EFF3FF</color>
+    <color name="bodeul_text_primary">#1D2433</color>
+    <color name="bodeul_text_secondary">#697188</color>
+    <color name="bodeul_outline">#D9E1FF</color>
+    <color name="bodeul_success">#35B58A</color>
+    <color name="bodeul_warning">#FFB648</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
