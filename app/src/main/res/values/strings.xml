@@ -70,6 +70,8 @@
     <string name="manager_home_card_title">현재 단계 %1$d / %2$d</string>
     <string name="manager_home_card_body">%1$s 환자님의 %2$s 방문을 준비 중입니다.</string>
     <string name="manager_home_card_button">실시간 동행 가이드 시작하기</string>
+    <string name="manager_home_empty_card_title">배정된 동행 일정이 없습니다</string>
+    <string name="manager_home_empty_card_body">새 일정이 연결되면 이곳에서 바로 확인할 수 있습니다.</string>
     <string name="manager_action_docs">서류 등록</string>
     <string name="manager_action_docs_desc">자격증 및 서류 관리</string>
     <string name="manager_action_schedule">스케줄 등록</string>
@@ -79,8 +81,11 @@
     <string name="manager_assignment_title">보들 동행서비스 소개</string>
     <string name="manager_assignment_detail">%1$s · %2$s\n예약 시간 %3$s</string>
     <string name="manager_assignment_note">특이사항: %1$s</string>
+    <string name="manager_assignment_empty_detail">아직 연결된 환자 일정이 없습니다.</string>
+    <string name="manager_assignment_empty_note">관리자가 매칭을 완료하면 동행 가이드와 일정 정보가 자동으로 표시됩니다.</string>
     <string name="manager_open_guide">가이드 열기</string>
     <string name="manager_logout">로그아웃</string>
+    <string name="manager_home_empty_toast">현재 배정된 일정이 없어 가이드를 열 수 없습니다.</string>
 
     <string name="guide_title">보들 동행 가이드</string>
     <string name="guide_subtitle">단계별 맞춤 안내를 진행해주세요.</string>
@@ -99,6 +104,7 @@
     <string name="guide_button_next">다음 단계 완료</string>
     <string name="guide_button_last">마지막 단계 확인</string>
     <string name="guide_button_done">서비스 종료 완료</string>
+    <string name="guide_button_waiting">배정된 일정 대기 중</string>
     <string name="guide_guardian_section">보호자 공유 메시지</string>
     <string name="guide_guardian_hint">예: 환자분을 만나 병원에 도착했습니다.</string>
     <string name="guide_guardian_save">상황 공유 저장</string>
@@ -111,6 +117,12 @@
     <string name="guide_report_next_visit_hint">다음 방문 일정</string>
     <string name="guide_report_submit">진료 리포트 전송</string>
     <string name="guide_report_update">리포트 수정 저장</string>
+    <string name="guide_empty_patient_value">아직 배정된 동행 일정이 없습니다.</string>
+    <string name="guide_empty_guardian_value">매칭 완료 후 보호자 정보가 표시됩니다.</string>
+    <string name="guide_empty_schedule_value">일정 배정 후 자동으로 표시됩니다.</string>
+    <string name="guide_empty_place_value">만남 장소가 정해지면 자동으로 표시됩니다.</string>
+    <string name="guide_empty_note_value">현재 확인할 동행 요청이 없습니다.</string>
+    <string name="guide_empty_steps">현재 진행 중인 동행 일정이 없어 가이드를 시작할 수 없습니다.</string>
 
     <string name="toast_placeholder">이 기능은 다음 단계에서 연동합니다.</string>
     <string name="toast_login_required">로그인이 필요합니다.</string>

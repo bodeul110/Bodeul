@@ -8,6 +8,7 @@ initializeApp();
 const FUNCTIONS_OPTIONS = {
   region: "asia-northeast3",
   cors: true,
+  invoker: "public",
 };
 
 const CLIENT_CREATABLE_ROLES = new Set(["PATIENT", "GUARDIAN", "MANAGER"]);

@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -113,6 +114,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
             @Override
             public void onError(String message) {
+                if (isNoActiveSession(message)) {
+                    bindEmptyState();
+                    return;
+                }
                 Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
             }
         });
@@ -120,6 +125,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void bindDashboard(ManagerDashboard dashboard) {
         // 화면 전체가 하나의 대시보드 모델을 기준으로 다시 그려지도록 값을 채운다.
+        setInputsEnabled(true);
+        buttonSubmitReport.setEnabled(true);
         textGuidePatient.setText(getString(
                 R.string.guide_field_value_format,
                 getString(R.string.guide_patient_label),
@@ -354,6 +361,78 @@ public class ManagerGuideActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void bindEmptyState() {
+        // 일정이 배정되기 전에도 가이드 화면이 오류가 아닌 안내 화면처럼 보이도록 채운다.
+        textGuidePatient.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_patient_label),
+                getString(R.string.guide_empty_patient_value)
+        ));
+        textGuideGuardian.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_guardian_label),
+                getString(R.string.guide_empty_guardian_value)
+        ));
+        textGuideSchedule.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_schedule_label),
+                getString(R.string.guide_empty_schedule_value)
+        ));
+        textGuidePlace.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_place_label),
+                getString(R.string.guide_empty_place_value)
+        ));
+        textGuideRequestNote.setText(getString(
+                R.string.guide_field_value_format,
+                getString(R.string.guide_note_label),
+                getString(R.string.guide_empty_note_value)
+        ));
+
+        inputGuardianUpdate.setText(null);
+        inputMedicationNote.setText(null);
+        inputReportSummary.setText(null);
+        inputReportTreatment.setText(null);
+        inputNextVisit.setText(null);
+
+        renderEmptySteps();
+        buttonAdvanceGuide.setText(R.string.guide_button_waiting);
+        buttonAdvanceGuide.setEnabled(false);
+        buttonSubmitReport.setText(R.string.guide_report_submit);
+        buttonSubmitReport.setEnabled(false);
+        setInputsEnabled(false);
+    }
+
+    private void renderEmptySteps() {
+        guideStepsContainer.removeAllViews();
+
+        TextView emptyView = new TextView(this);
+        emptyView.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        emptyView.setText(R.string.guide_empty_steps);
+        emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
+        emptyView.setTextSize(14f);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        emptyView.setPadding(padding, padding, padding, padding);
+        guideStepsContainer.addView(emptyView);
+    }
+
+    private void setInputsEnabled(boolean enabled) {
+        inputGuardianUpdate.setEnabled(enabled);
+        inputMedicationNote.setEnabled(enabled);
+        inputReportSummary.setEnabled(enabled);
+        inputReportTreatment.setEnabled(enabled);
+        inputNextVisit.setEnabled(enabled);
+        findViewById(R.id.buttonSaveGuardianUpdate).setEnabled(enabled);
+        findViewById(R.id.buttonSaveMedicationNote).setEnabled(enabled);
+    }
+
+    private boolean isNoActiveSession(String message) {
+        return ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message);
     }
 
     private String valueOf(TextInputEditText editText) {

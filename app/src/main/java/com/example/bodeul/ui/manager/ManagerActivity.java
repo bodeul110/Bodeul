@@ -17,6 +17,8 @@ import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 
 /**
  * 매니저가 현재 동행 현황과 주요 빠른 작업을 확인하는 홈 화면이다.
@@ -25,6 +27,7 @@ public class ManagerActivity extends AppCompatActivity {
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private User currentUser;
+    private boolean hasActiveSession;
 
     private TextView textManagerMode;
     private TextView textManagerGreeting;
@@ -32,6 +35,8 @@ public class ManagerActivity extends AppCompatActivity {
     private TextView textManagerCardBody;
     private TextView textAssignmentDetail;
     private TextView textAssignmentNote;
+    private MaterialButton buttonOpenGuideFromHero;
+    private MaterialCardView cardActionGuide;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,9 +52,11 @@ public class ManagerActivity extends AppCompatActivity {
         textManagerCardBody = findViewById(R.id.textManagerCardBody);
         textAssignmentDetail = findViewById(R.id.textAssignmentDetail);
         textAssignmentNote = findViewById(R.id.textAssignmentNote);
+        buttonOpenGuideFromHero = findViewById(R.id.buttonOpenGuideFromHero);
+        cardActionGuide = findViewById(R.id.cardActionGuide);
 
-        findViewById(R.id.buttonOpenGuideFromHero).setOnClickListener(view -> openGuide());
-        findViewById(R.id.cardActionGuide).setOnClickListener(view -> openGuide());
+        buttonOpenGuideFromHero.setOnClickListener(view -> openGuide());
+        cardActionGuide.setOnClickListener(view -> openGuide());
         findViewById(R.id.cardActionDocs).setOnClickListener(view ->
                 Toast.makeText(this, R.string.toast_placeholder, Toast.LENGTH_SHORT).show());
         findViewById(R.id.cardActionSchedule).setOnClickListener(view ->
@@ -59,6 +66,7 @@ public class ManagerActivity extends AppCompatActivity {
         textManagerMode.setText(managerRepository.isFirebaseBacked()
                 ? R.string.manager_home_mode_firebase
                 : R.string.manager_home_mode_demo);
+        bindEmptyDashboard();
     }
 
     @Override
@@ -91,6 +99,8 @@ public class ManagerActivity extends AppCompatActivity {
         managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                hasActiveSession = true;
+                setGuideAccessEnabled(true);
                 int totalSteps = result.getHospitalGuide().getSteps().size();
                 textManagerCardTitle.setText(getString(
                         R.string.manager_home_card_title,
@@ -116,6 +126,10 @@ public class ManagerActivity extends AppCompatActivity {
 
             @Override
             public void onError(String message) {
+                if (isNoActiveSession(message)) {
+                    bindEmptyDashboard();
+                    return;
+                }
                 Toast.makeText(ManagerActivity.this, message, Toast.LENGTH_SHORT).show();
             }
         });
@@ -124,6 +138,11 @@ public class ManagerActivity extends AppCompatActivity {
     private void openGuide() {
         if (currentUser == null) {
             Toast.makeText(this, R.string.toast_login_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!hasActiveSession) {
+            Toast.makeText(this, R.string.manager_home_empty_toast, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -141,5 +160,26 @@ public class ManagerActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void bindEmptyDashboard() {
+        // 세션이 없는 경우에도 홈 화면은 정상 상태로 보이도록 기본 안내 문구를 채운다.
+        hasActiveSession = false;
+        setGuideAccessEnabled(false);
+        textManagerCardTitle.setText(R.string.manager_home_empty_card_title);
+        textManagerCardBody.setText(R.string.manager_home_empty_card_body);
+        textAssignmentDetail.setText(R.string.manager_assignment_empty_detail);
+        textAssignmentNote.setText(R.string.manager_assignment_empty_note);
+    }
+
+    private void setGuideAccessEnabled(boolean enabled) {
+        buttonOpenGuideFromHero.setEnabled(enabled);
+        buttonOpenGuideFromHero.setAlpha(enabled ? 1f : 0.5f);
+        cardActionGuide.setEnabled(enabled);
+        cardActionGuide.setAlpha(enabled ? 1f : 0.5f);
+    }
+
+    private boolean isNoActiveSession(String message) {
+        return ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message);
     }
 }

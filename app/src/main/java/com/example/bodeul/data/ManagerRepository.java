@@ -6,6 +6,9 @@ import com.example.bodeul.domain.model.ManagerDashboard;
  * 매니저 홈과 동행 가이드 화면에서 사용하는 기능 전용 저장소 계약이다.
  */
 public interface ManagerRepository {
+    // 매니저에게 아직 배정된 동행 세션이 없을 때 공통으로 사용하는 안내 문구다.
+    String MESSAGE_NO_ACTIVE_SESSION = "현재 배정된 동행 일정이 없습니다.";
+
     // 매니저 홈과 가이드 화면에 필요한 묶음 데이터를 한 번에 불러온다.
     void getManagerDashboard(String managerUserId, RepositoryCallback<ManagerDashboard> callback);
 
