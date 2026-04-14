@@ -67,6 +67,12 @@ public class MockAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void signInWithNaver(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback) {
+        // 목업 모드에서는 네이버 SDK와 Firebase Functions가 없어서 사용할 수 없다.
+        callback.onError("데모 모드에서는 네이버 로그인을 사용할 수 없습니다.");
+    }
+
+    @Override
     public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
         // 데모 모드에서는 이메일 인증 절차가 없어서 계정 확인만 통과하면 성공 처리한다.
         if (!repository.isPasswordValid(email, password)) {

@@ -7,6 +7,9 @@ if (file("google-services.json").exists()) {
 }
 
 val kakaoNativeAppKey = providers.gradleProperty("kakaoNativeAppKey").orElse("").get()
+val naverClientId = providers.gradleProperty("naverClientId").orElse("").get()
+val naverClientSecret = providers.gradleProperty("naverClientSecret").orElse("").get()
+val naverClientName = providers.gradleProperty("naverClientName").orElse("").get()
 
 android {
     namespace = "com.example.bodeul"
@@ -20,6 +23,9 @@ android {
         versionName = "1.0"
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
+        resValue("string", "naver_client_id", naverClientId)
+        resValue("string", "naver_client_secret", naverClientSecret)
+        resValue("string", "naver_client_name", naverClientName)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -58,6 +64,7 @@ dependencies {
     implementation("com.google.firebase:firebase-functions")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.kakao.sdk:v2-user:2.23.3")
+    implementation("com.navercorp.nid:oauth:5.11.2")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

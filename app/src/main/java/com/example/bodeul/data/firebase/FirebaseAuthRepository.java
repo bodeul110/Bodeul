@@ -43,6 +43,8 @@ import com.kakao.sdk.auth.model.OAuthToken;
 import com.kakao.sdk.common.model.ClientError;
 import com.kakao.sdk.common.model.ClientErrorCause;
 import com.kakao.sdk.user.UserApiClient;
+import com.navercorp.nid.NaverIdLoginSDK;
+import com.navercorp.nid.oauth.util.NidOAuthCallback;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,6 +59,7 @@ import kotlin.jvm.functions.Function2;
 public class FirebaseAuthRepository implements AuthRepository {
     private static final String FUNCTIONS_REGION = "asia-northeast3";
     private static final String PROVIDER_KAKAO = "KAKAO";
+    private static final String PROVIDER_NAVER = "NAVER";
 
     private final Context appContext;
     private final FirebaseAuth firebaseAuth;
@@ -169,6 +172,32 @@ public class FirebaseAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void signInWithNaver(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback) {
+        // 네이버 로그인도 SDK 로그인 후 Firebase Functions에서 custom token을 발급받는다.
+        if (!isNaverConfigured()) {
+            callback.onError("네이버 로그인 설정이 아직 완료되지 않았습니다.");
+            return;
+        }
+
+        NaverIdLoginSDK.INSTANCE.authenticate(activity, new NidOAuthCallback() {
+            @Override
+            public void onSuccess() {
+                String accessToken = NaverIdLoginSDK.INSTANCE.getAccessToken();
+                if (TextUtils.isEmpty(accessToken)) {
+                    callback.onError("네이버 로그인 토큰을 확인하지 못했습니다.");
+                    return;
+                }
+                requestNaverCustomToken(accessToken, expectedRole, callback);
+            }
+
+            @Override
+            public void onFailure(String errorCode, String errorDesc) {
+                callback.onError(resolveNaverRequestMessage(errorCode, errorDesc));
+            }
+        });
+    }
+
+    @Override
     public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
         // 인증 메일 재전송은 계정 본인 확인을 위해 이메일 비밀번호를 다시 검증한 뒤 수행한다.
         firebaseAuth.signInWithEmailAndPassword(email, password)
@@ -262,6 +291,7 @@ public class FirebaseAuthRepository implements AuthRepository {
         // Firebase 세션과 구글 자격 증명 상태를 함께 정리한다.
         cachedUser = null;
         firebaseAuth.signOut();
+        logoutFromNaver();
         clearCredentialState();
     }
 
@@ -354,6 +384,37 @@ public class FirebaseAuthRepository implements AuthRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError(resolveKakaoCallableMessage(exception)));
+    }
+
+    private void requestNaverCustomToken(
+            String accessToken,
+            UserRole expectedRole,
+            RepositoryCallback<User> callback
+    ) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("accessToken", accessToken);
+        payload.put("role", expectedRole.name());
+
+        functions.getHttpsCallable("naverCustomToken")
+                .call(payload)
+                .addOnSuccessListener(result -> {
+                    if (!(result.getData() instanceof Map)) {
+                        callback.onError("네이버 로그인 응답을 해석하지 못했습니다.");
+                        return;
+                    }
+
+                    Map<?, ?> data = (Map<?, ?>) result.getData();
+                    String firebaseToken = asString(data.get("firebaseToken"));
+                    SocialProfile socialProfile = toSocialProfile(PROVIDER_NAVER, data.get("profile"));
+                    if (TextUtils.isEmpty(firebaseToken) || socialProfile == null) {
+                        callback.onError("네이버 로그인 응답을 해석하지 못했습니다.");
+                        return;
+                    }
+
+                    signInWithCustomToken(firebaseToken, expectedRole, socialProfile, callback);
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError(resolveNaverCallableMessage(exception)));
     }
 
     private void signInWithCustomToken(
@@ -639,6 +700,30 @@ public class FirebaseAuthRepository implements AuthRepository {
         );
     }
 
+    private void logoutFromNaver() {
+        if (!isNaverConfigured()) {
+            return;
+        }
+
+        NaverIdLoginSDK.INSTANCE.logout(new NidOAuthCallback() {
+            @Override
+            public void onSuccess() {
+                // 로그아웃 후 추가 작업은 없다.
+            }
+
+            @Override
+            public void onFailure(String errorCode, String errorDesc) {
+                // 다음 로그인에서 다시 초기화할 수 있으므로 실패를 무시한다.
+            }
+        });
+    }
+
+    private boolean isNaverConfigured() {
+        return !TextUtils.isEmpty(appContext.getString(R.string.naver_client_id))
+                && !TextUtils.isEmpty(appContext.getString(R.string.naver_client_secret))
+                && !TextUtils.isEmpty(appContext.getString(R.string.naver_client_name));
+    }
+
     private String defaultNameIfEmpty(@Nullable String name, UserRole role) {
         if (!TextUtils.isEmpty(name)) {
             return name;
@@ -746,6 +831,33 @@ public class FirebaseAuthRepository implements AuthRepository {
             }
         }
         return "카카오 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    }
+
+    private String resolveNaverRequestMessage(String errorCode, String errorDesc) {
+        if (!TextUtils.isEmpty(errorCode) && errorCode.contains("CANCEL")) {
+            return "네이버 로그인 요청이 취소되었습니다.";
+        }
+        if (!TextUtils.isEmpty(errorDesc)) {
+            return "네이버 로그인에 실패했습니다. " + errorDesc;
+        }
+        return "네이버 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    }
+
+    private String resolveNaverCallableMessage(Exception exception) {
+        if (exception instanceof FirebaseFunctionsException) {
+            FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
+            Object details = functionsException.getDetails();
+            if (details instanceof Map) {
+                String message = asString(((Map<?, ?>) details).get("message"));
+                if (!TextUtils.isEmpty(message)) {
+                    return message;
+                }
+            }
+            if (!TextUtils.isEmpty(functionsException.getMessage())) {
+                return "네이버 로그인 처리에 실패했습니다. " + functionsException.getMessage();
+            }
+        }
+        return "네이버 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
     }
 
     private static class SocialProfile {

@@ -21,6 +21,9 @@ public interface AuthRepository {
     // 카카오 로그인 SDK와 Firebase custom token 인증을 이어서 처리한다.
     void signInWithKakao(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback);
 
+    // 네이버 로그인 SDK와 Firebase custom token 인증을 이어서 처리한다.
+    void signInWithNaver(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback);
+
     // 인증 메일을 다시 보내기 위해 이메일 비밀번호를 재확인한 뒤 발송한다.
     void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback);
 

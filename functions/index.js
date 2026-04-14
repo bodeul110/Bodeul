@@ -44,6 +44,36 @@ exports.kakaoCustomToken = onCall(FUNCTIONS_OPTIONS, async (request) => {
   };
 });
 
+exports.naverCustomToken = onCall(FUNCTIONS_OPTIONS, async (request) => {
+  const accessToken = `${request.data?.accessToken ?? ""}`.trim();
+  const role = `${request.data?.role ?? ""}`.trim();
+
+  if (!CLIENT_CREATABLE_ROLES.has(role)) {
+    throw invalidArgument("허용되지 않은 사용자 역할입니다.");
+  }
+
+  if (!accessToken) {
+    throw invalidArgument("네이버 access token이 필요합니다.");
+  }
+
+  const naverProfileResponse = await fetchNaverProfile(accessToken);
+  const providerUserId = `${naverProfileResponse?.response?.id ?? ""}`.trim();
+  if (!providerUserId) {
+    throw unauthenticated("네이버 사용자 정보를 확인하지 못했습니다.");
+  }
+
+  const firebaseToken = await getAuth().createCustomToken(`naver_${providerUserId}`);
+  return {
+    firebaseToken,
+    profile: {
+      providerUserId,
+      name: extractNaverName(naverProfileResponse),
+      email: extractNaverEmail(naverProfileResponse, providerUserId),
+      phone: extractNaverPhone(naverProfileResponse),
+    },
+  };
+});
+
 async function fetchKakaoProfile(accessToken) {
   const response = await fetch("https://kapi.kakao.com/v2/user/me", {
     method: "GET",
@@ -71,6 +101,38 @@ async function fetchKakaoProfile(accessToken) {
   return responseBody;
 }
 
+async function fetchNaverProfile(accessToken) {
+  const response = await fetch("https://openapi.naver.com/v1/nid/me", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  let responseBody = {};
+  try {
+    responseBody = await response.json();
+  } catch (error) {
+    logger.error("네이버 응답 JSON 파싱 실패", error);
+  }
+
+  if (!response.ok) {
+    logger.error("네이버 사용자 정보 조회 실패", {
+      status: response.status,
+      body: responseBody,
+    });
+    throw unauthenticated("네이버 로그인 정보가 유효하지 않거나 만료되었습니다.");
+  }
+
+  if (`${responseBody?.resultcode ?? ""}` !== "00") {
+    logger.error("네이버 사용자 정보 응답 오류", responseBody);
+    throw unauthenticated("네이버 사용자 정보를 확인하지 못했습니다.");
+  }
+
+  return responseBody;
+}
+
 function extractKakaoName(kakaoProfile) {
   const nickname = kakaoProfile?.kakao_account?.profile?.nickname;
   if (typeof nickname === "string" && nickname.trim()) {
@@ -93,6 +155,41 @@ function extractKakaoPhone(kakaoProfile) {
   const phone = kakaoProfile?.kakao_account?.phone_number;
   if (typeof phone === "string" && phone.trim()) {
     return phone.trim();
+  }
+  return "";
+}
+
+function extractNaverName(naverProfileResponse) {
+  const name = naverProfileResponse?.response?.name;
+  if (typeof name === "string" && name.trim()) {
+    return name.trim();
+  }
+
+  const nickname = naverProfileResponse?.response?.nickname;
+  if (typeof nickname === "string" && nickname.trim()) {
+    return nickname.trim();
+  }
+  return "네이버 사용자";
+}
+
+function extractNaverEmail(naverProfileResponse, providerUserId) {
+  const email = naverProfileResponse?.response?.email;
+  if (typeof email === "string" && email.trim()) {
+    return email.trim();
+  }
+
+  return `naver_${providerUserId}@bodeul.local`;
+}
+
+function extractNaverPhone(naverProfileResponse) {
+  const mobileE164 = naverProfileResponse?.response?.mobile_e164;
+  if (typeof mobileE164 === "string" && mobileE164.trim()) {
+    return mobileE164.trim();
+  }
+
+  const mobile = naverProfileResponse?.response?.mobile;
+  if (typeof mobile === "string" && mobile.trim()) {
+    return mobile.trim();
   }
   return "";
 }

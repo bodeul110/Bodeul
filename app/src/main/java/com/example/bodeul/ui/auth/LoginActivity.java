@@ -118,8 +118,7 @@ public class LoginActivity extends AppCompatActivity {
         textResendVerification.setOnClickListener(view -> requestVerificationEmailResend());
         buttonSocialKakao.setOnClickListener(view -> submitKakaoAuth());
         buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
-        buttonSocialNaver.setOnClickListener(view ->
-                Toast.makeText(this, R.string.social_login_pending, Toast.LENGTH_SHORT).show());
+        buttonSocialNaver.setOnClickListener(view -> submitNaverAuth());
 
         View.OnClickListener roleListener = view -> applyDemoCredentials();
         chipRoleManager.setOnClickListener(roleListener);
@@ -256,6 +255,20 @@ public class LoginActivity extends AppCompatActivity {
 
         setLoading(true);
         authRepository.signInWithKakao(this, selectedRole, signInCallback);
+    }
+
+    private void submitNaverAuth() {
+        clearErrors();
+
+        // 네이버 로그인도 현재 선택한 역할을 기준으로 Firestore 프로필을 맞춘다.
+        UserRole selectedRole = getSelectedRole();
+        if (selectedRole == null) {
+            Toast.makeText(this, R.string.toast_role_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        setLoading(true);
+        authRepository.signInWithNaver(this, selectedRole, signInCallback);
     }
 
     private void requestPasswordReset() {
