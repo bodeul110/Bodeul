@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bodeul_primary">#3E6FF6</color>
-    <color name="bodeul_primary_dark">#2957D4</color>
-    <color name="bodeul_secondary">#FFB648</color>
-    <color name="bodeul_background">#F7F9FF</color>
+    <color name="bodeul_primary">#2F67D8</color>
+    <color name="bodeul_primary_dark">#2356BD</color>
+    <color name="bodeul_primary_light">#6E96FF</color>
+    <color name="bodeul_secondary">#FDB544</color>
+    <color name="bodeul_background">#F8FAFF</color>
     <color name="bodeul_surface">#FFFFFFFF</color>
-    <color name="bodeul_surface_alt">#EFF3FF</color>
-    <color name="bodeul_text_primary">#1D2433</color>
-    <color name="bodeul_text_secondary">#697188</color>
-    <color name="bodeul_outline">#D9E1FF</color>
+    <color name="bodeul_surface_alt">#F1F4FB</color>
+    <color name="bodeul_text_primary">#1A2234</color>
+    <color name="bodeul_text_secondary">#747D93</color>
+    <color name="bodeul_outline">#E0E6F3</color>
     <color name="bodeul_success">#35B58A</color>
-    <color name="bodeul_warning">#FFB648</color>
+    <color name="bodeul_warning">#FDB544</color>
+    <color name="bodeul_shadow">#180E1E4D</color>
+    <color name="bodeul_warm_glow">#FFF2D8</color>
+    <color name="bodeul_cool_glow">#E8F1FF</color>
+    <color name="bodeul_soft_blue">#DCE7FF</color>
+    <color name="bodeul_soft_yellow">#FFE7B8</color>
+    <color name="bodeul_soft_green">#DBF3E6</color>
+    <color name="bodeul_soft_purple">#E9E4FF</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- 관리자 헤더에서 뒤로가기와 실행 모드를 같이 안내한다. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/buttonBackAdmin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/guide_back"
+                android:textColor="@color/bodeul_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <Space
+                android:layout_width="12dp"
+                android:layout_height="1dp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/feature_admin_title"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textAdminMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_step_badge"
+                android:paddingStart="12dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="8dp"
+                android:textColor="@color/bodeul_primary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="4dp"
+            android:text="@string/admin_subtitle"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="14sp" />
+
+        <!-- 운영 건수와 매니저 상태를 한 번에 보여주는 관리자 요약 카드다. -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/bodeul_surface"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/bodeul_outline"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:id="@+id/textAdminGreeting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textAdminSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/bodeul_text_secondary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/textAdminManagers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="@string/admin_pending_title"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- 아직 배정되지 않은 요청을 수동 매칭 버튼과 함께 보여주는 영역이다. -->
+        <LinearLayout
+            android:id="@+id/adminPendingRequestsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
+
+        <!-- 병원과 진료과 가이드를 직접 등록하거나 덮어쓰는 입력 카드다. -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            app:cardBackgroundColor="@color/bodeul_surface"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/bodeul_outline"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/admin_guide_form_title"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="4dp"
+                    android:text="@string/admin_guide_form_helper"
+                    android:textColor="@color/bodeul_text_secondary"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutAdminGuideHospital"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="@string/admin_guide_hospital_hint"
+                    app:boxBackgroundColor="@color/bodeul_surface_alt"
+                    app:boxCornerRadiusBottomEnd="20dp"
+                    app:boxCornerRadiusBottomStart="20dp"
+                    app:boxCornerRadiusTopEnd="20dp"
+                    app:boxCornerRadiusTopStart="20dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputAdminGuideHospital"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapWords" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutAdminGuideDepartment"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/admin_guide_department_hint"
+                    app:boxBackgroundColor="@color/bodeul_surface_alt"
+                    app:boxCornerRadiusBottomEnd="20dp"
+                    app:boxCornerRadiusBottomStart="20dp"
+                    app:boxCornerRadiusTopEnd="20dp"
+                    app:boxCornerRadiusTopStart="20dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputAdminGuideDepartment"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapWords" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutAdminGuideSteps"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/admin_guide_steps_hint"
+                    app:boxBackgroundColor="@color/bodeul_surface_alt"
+                    app:boxCornerRadiusBottomEnd="20dp"
+                    app:boxCornerRadiusBottomStart="20dp"
+                    app:boxCornerRadiusTopEnd="20dp"
+                    app:boxCornerRadiusTopStart="20dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputAdminGuideSteps"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:minLines="4" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonSubmitAdminGuide"
+                    style="@style/BodeulHomeButton"
+                    android:text="@string/admin_guide_submit" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="@string/admin_guide_list_title"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- 관리자에게 등록된 병원 가이드 목록을 요약해서 보여주는 영역이다. -->
+        <LinearLayout
+            android:id="@+id/adminGuideListContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:text="@string/admin_managed_title"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- 이미 매칭되었거나 완료된 요청을 운영 현황용으로 다시 정리하는 영역이다. -->
+        <LinearLayout
+            android:id="@+id/adminManagedRequestsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="24dp"
+            android:orientation="vertical" />
+
+        <ProgressBar
+            android:id="@+id/progressAdmin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone"
+            app:indicatorColor="@color/bodeul_primary" />
+    </LinearLayout>
+</ScrollView>

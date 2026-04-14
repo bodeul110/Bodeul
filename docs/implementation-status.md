@@ -1,175 +1,121 @@
-# 현재 구현 상태
+# 구현 상태
 
 기준일: 2026-04-14
 
-이 문서는 현재 저장소에서 실제로 동작하는 기능과 아직 미구현인 범위를 빠르게 파악하기 위한 협업 기준 문서다.
+이 문서는 현재 프로젝트에서 실제로 동작하는 범위와 최근 작업, 남은 범위를 빠르게 확인하기 위한 기준 문서다.
 
 ## 1. 현재 동작하는 기능
 
-### 인증과 로그인
-
-- 스플래시에서 로그인 상태를 확인하고 다음 화면으로 자동 분기
-- 역할 선택 화면 제공
-- 이메일 회원가입, 이메일 인증, 이메일 로그인
-- 비밀번호 재설정 메일 발송
-- 인증 메일 재발송
-- 구글 로그인
-- 카카오 로그인
-- 네이버 로그인
-- 소셜 로그인 시 Firebase custom token 인증
-- 소셜 첫 로그인 시 `users/<uid>` 자동 생성
-- 로그인 방식이 달라도 같은 이메일로 중복 계정을 새로 만드는 것은 차단
-- 소셜 제공자에서 이름, 이메일, 전화번호가 더 최신 값으로 내려오면 기존 `users` 문서를 보강
-- 이름이나 연락처가 비어 있으면 `프로필 보완 화면`으로 먼저 이동
-- 로그아웃
-- Firebase 설정이 없을 때는 데모 모드로 자동 전환
-
-### 매니저 기능
-
-- 매니저 홈 화면
-- Firestore의 `companionSessions`, `appointmentRequests`, `users`, `hospitalGuides`, `sessionReports`를 조합해 대시보드 표시
-- 매니저 동행 가이드 화면
-- 단계 진행 상태 표시
-- 다음 단계로 이동
-- 보호자 공유 메시지 저장
-- 복약 메모 저장
-- 세션 리포트 저장
-- 세션이 없는 경우 오류 대신 정상 빈 상태 안내 표시
-
-### 공통 앱 흐름
-
-- 로그인 후 역할에 따라 매니저 홈 또는 일반 홈으로 이동
-- 자동 로그인 시에도 프로필 보완 필요 여부를 다시 확인
-- Firebase 설정이 정상일 때 실제 Firebase 모드로 동작
-- Firebase 설정이 없을 때는 목업 데이터로 실행 가능
-
-## 2. 부분 구현 또는 플레이스홀더
-
-### 화면은 있으나 실제 기능은 미구현
-
-- 환자/보호자 동행 신청 화면
-- 보호자 리포트 화면
-- 관리자 화면
-- 매니저 홈의 `서류 등록`, `스케줄 등록`
-
-위 항목은 현재 공통 플레이스홀더 또는 안내용 버튼 상태다.
-
-### 데이터는 있으나 운영 흐름이 미완성
-
-- 관리자에서 직접 매칭하는 UI
-- 환자/보호자가 자신의 요청 상태를 조회하는 실제 화면
-- 보호자 실시간 상태 조회 화면
-- 관리자용 병원 가이드 관리 화면
-- 소셜 계정 연동 해제와 회원탈퇴 정책 UI
-- 설정/내 정보 화면
-
-## 3. Firebase 연동 범위
-
-### 현재 사용 중인 Firebase 기능
-
-- Firebase Authentication
-  - Email/Password
-  - Google
-  - Custom Token
-- Cloud Functions
-  - `kakaoCustomToken`
-  - `naverCustomToken`
-- Cloud Firestore
-
-### 현재 앱이 기대하는 주요 컬렉션
-
-- `users`
-  - 필드 예시: `name`, `email`, `phone`, `role`, `provider`, `providerUserId`
-- `appointmentRequests`
-- `companionSessions`
-- `hospitalGuides`
-- `sessionReports`
-
-## 4. 구현 완료 기준으로 볼 수 있는 사용자 흐름
+### 인증
+- 스플래시에서 로그인 상태를 확인하고 다음 화면으로 분기한다.
+- 역할 선택 화면을 통해 매니저와 일반 사용자 흐름을 나눈다.
+- 이메일 로그인, 회원가입, 비밀번호 재설정 메일 전송이 동작한다.
+- Firebase 모드에서는 이메일 인증 재전송과 소셜 로그인 후 사용자 문서 보완까지 연결된다.
+- Google, Kakao, Naver 로그인과 Firebase custom token 연동이 구현돼 있다.
+- 이름 또는 연락처가 비어 있으면 프로필 보완 화면으로 먼저 이동한다.
+- Firebase 설정이 없을 때는 목업 데이터 기반 모드로 자동 전환된다.
 
 ### 매니저
+- 매니저 홈에서 현재 동행 세션 요약과 기본 액션을 확인할 수 있다.
+- 활성 세션이 있으면 병원 동행 가이드 화면으로 진입할 수 있다.
+- 동행 가이드에서 단계 진행, 보호자 공유 메시지 저장, 복약 메모 저장, 진료 리포트 저장이 가능하다.
+- 활성 세션이 없을 때도 빈 상태 화면으로 안전하게 동작한다.
 
-1. 역할 선택
-2. 이메일/구글/카카오/네이버 로그인
-3. 필요하면 프로필 보완
-4. 매니저 홈 진입
-5. Firestore에 연결된 세션이 있으면 동행 가이드 진입
-6. 단계 진행, 보호자 공유, 복약 메모, 리포트 저장
+### 환자 및 보호자
+- 병원 동행 신청 화면에서 병원명, 진료과, 예약 시간, 만남 장소, 특이사항을 입력해 요청을 생성할 수 있다.
+- 같은 화면에서 현재 계정 기준 요청 목록과 최근 요청 상태를 조회할 수 있다.
+- 보호자 리포트 화면에서 진행 상태, 보호자 공유 메시지, 최종 진료 리포트를 한 번에 확인할 수 있다.
 
-### 환자/보호자
+### 관리자
+- 관리자 화면에서 미배정 요청 목록을 조회할 수 있다.
+- 환자와 보호자 연결 정보, 병원 가이드 존재 여부, 매니저 가능 여부를 확인한 뒤 수동 매칭할 수 있다.
+- 병원별 동행 가이드를 등록하고 저장된 가이드를 목록으로 확인할 수 있다.
 
-1. 역할 선택
-2. 이메일/구글/카카오/네이버 로그인
-3. 필요하면 프로필 보완
-4. 일반 홈 진입
-5. 이후 실제 기능 화면은 아직 플레이스홀더
+### 공통
+- Firebase 저장소와 목업 저장소를 같은 흐름으로 사용할 수 있다.
+- 역할별 진입 분기와 프로필 보완 분기가 인증 직후 자동으로 적용된다.
+- `assembleDebug`, `testDebugUnitTest` 기준으로 기본 동작을 검증해둔 상태다.
 
-## 5. 아직 구현되지 않은 핵심 기능
+## 2. UI 1차 정렬 현황
 
-- 환자/보호자 신청 폼
-- 요청 생성과 조회
-- 매칭 생성과 변경 UI
-- 보호자 진행 현황 화면
-- 관리자 운영 화면
-- 이미지 업로드
-- 알림
-- 설정/내 정보 편집 화면
-- 회원탈퇴
-- 외부 서비스 운영 정책 정리
+### 피그마 기준으로 1차 정렬한 화면
+- 스플래시
+- 역할 선택
+- 로그인
+- 매니저 홈
+- 매니저 동행 가이드
 
-## 6. 협업 시 주의할 점
+### 이번 UI 패스에서 반영한 방향
+- 공통 색상, 배경 글로우, 버튼, 카드 스타일을 피그마 톤에 맞춰 재정의했다.
+- 앱 로고 에셋을 실제 리소스로 추가해 인증과 매니저 화면 전반에 공통 적용했다.
+- 매니저 홈은 피그마 구조를 참고하되 현재 기능과 맞도록 `현장 가이드`, `로그아웃` 등 실제 동작과 일치하는 카드로 재구성했다.
+- 매니저 가이드는 피그마의 단계형 흐름을 유지하되 현재 데이터에 없는 이미지 영역은 정보 카드와 기록 카드로 치환했다.
 
-- 로그인 기능 수정 시 이메일, 구글, 카카오, 네이버 4가지 로그인 방식을 같이 확인해야 한다.
-- 소셜 로그인 수정 시 Firebase Functions도 함께 확인해야 한다.
-- `users` 문서의 `role`, `provider`, `providerUserId`는 인증 분기와 중복 계정 정책에 직접 영향을 준다.
-- 매니저 화면은 세션 1건 기준으로 동작한다.
-- `assembleDebug` 기준 빌드는 현재 성공 상태다.
+### 아직 피그마 기준 정렬이 덜 된 화면
+- 병원 동행 신청
+- 보호자 리포트
+- 관리자 화면
+- 권한 안내 전용 화면
 
-## 7. 최근 정리 사항
+## 3. 최근 작업 정리
 
-기준일: 2026-04-14
+### 기능 구현
+- `BookingActivity`를 실제 병원 동행 신청 화면으로 전환했다.
+- `GuardianReportActivity`를 실제 조회 화면으로 전환해 `appointmentRequests`, `companionSessions.guardianUpdate`, `sessionReports`를 함께 읽도록 구성했다.
+- `AdminActivity`를 운영 화면으로 전환해 미배정 요청 조회, 수동 매칭, 병원 가이드 저장을 지원하도록 구성했다.
+- 목업 저장소와 Firebase 저장소에 신청, 보호자 리포트, 관리자 운영용 저장소 계층을 추가했다.
 
-### 이번에 정리한 내용
+### UI 정렬
+- 공통 색상과 카드 배경, 하단 내비게이션, 서비스 썸네일용 드로어블을 추가했다.
+- 스플래시와 역할 선택 화면을 피그마 기준 구조로 재구성했다.
+- 로그인 화면을 피그마 흐름에 맞춰 입력부, 간편 로그인, 하단 액션 순서로 재정렬했다.
+- 매니저 홈을 히어로 카드, 2x2 액션 카드, 배정 정보, 서비스 소개 카드 구조로 재구성했다.
+- 매니저 가이드를 정보 카드, 단계 카드, 현장 기록 카드 구조로 재구성했다.
 
-- 로그인 SDK 키를 `local.properties` 우선, `gradle.properties` 보조 방식으로 읽도록 빌드 구성을 정리했다.
-- 저장소에 남기면 안 되는 네이버 클라이언트 ID와 시크릿 기본값은 비워 두고, 값이 없을 때도 앱 빌드는 유지되도록 정리했다.
-- 승인 없이 올라가 있던 Android Gradle Plugin 버전 변경은 원래 버전으로 되돌렸다.
-- 로그인과 프로필 보완 화면에서 이름, 이메일, 연락처를 같은 규칙으로 정규화하도록 정리했다.
-- 소셜 로그인 제공자가 이름을 주지 않은 경우 잘못된 기본 이름을 넣지 않고 프로필 보완 화면으로 보내도록 수정했다.
-- 현재 개발 환경의 `local.properties` 에 네이버 로그인 값을 다시 넣어 설정 누락 상태를 복구했다.
-- 로그인 화면 회전이나 재생성 뒤에도 회원가입 모드, 선택 역할, 인증 메일 재발송 쿨다운이 유지되도록 보완했다.
-- `testDebugUnitTest`, `assembleDebug` 재검증까지 다시 통과했다.
+## 4. 이번 작업의 변경 범위
 
-### 변경된 범위
-
-- `app/build.gradle.kts`
-- `app/src/main/java/com/example/bodeul/util/UserProfileSanitizer.java`
-- `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
-- `app/src/main/java/com/example/bodeul/ui/auth/ProfileCompletionActivity.java`
-- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
-- `app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java`
-- `app/src/test/java/com/example/bodeul/UserProfileSanitizerTest.java`
-- `local.properties`
-- `build.gradle.kts`
-- `gradle.properties`
-- `docs/firebase-setup.md`
+- `app/src/main/res/drawable-nodpi/bodeul_logo_icon.png`
+- `app/src/main/res/drawable/bg_bottom_nav.xml`
+- `app/src/main/res/drawable/bg_nav_active.xml`
+- `app/src/main/res/drawable/bg_primary_gradient.xml`
+- `app/src/main/res/drawable/bg_primary_hero.xml`
+- `app/src/main/res/drawable/bg_screen_glow.xml`
+- `app/src/main/res/drawable/bg_service_thumb_cool.xml`
+- `app/src/main/res/drawable/bg_service_thumb_warm.xml`
+- `app/src/main/res/drawable/bg_surface_card_soft.xml`
+- `app/src/main/res/drawable/bg_surface_pill.xml`
+- `app/src/main/res/layout/activity_login.xml`
+- `app/src/main/res/layout/activity_manager_home.xml`
+- `app/src/main/res/layout/activity_manager_guide.xml`
+- `app/src/main/res/layout/activity_role_selection.xml`
+- `app/src/main/res/layout/activity_splash.xml`
+- `app/src/main/res/layout/item_manager_step.xml`
+- `app/src/main/res/values/colors.xml`
+- `app/src/main/res/values/strings.xml`
+- `app/src/main/res/values/themes.xml`
+- `app/src/main/res/values-night/themes.xml`
 - `docs/implementation-status.md`
 
-### 아직 남은 범위
+## 5. 남은 범위
 
-- 각 개발 환경의 `local.properties` 에 네이버 로그인 값을 채워 실제 소셜 로그인까지 다시 검증
-- 이름 또는 연락처 제공이 비어 있는 실제 카카오·네이버 계정으로 프로필 보완 분기가 기대대로 동작하는지 실기기 재확인
-- 운영 배포 전 카카오 앱 키와 네이버 콘솔 설정이 최신 값인지 최종 재확인
+### UI
+- `Booking`, `GuardianReport`, `Admin` 화면을 현재 공통 스타일 토큰 기준으로 2차 정렬해야 한다.
+- 디자인 export에 없는 권한 안내, 에러, 빈 상태 세부 화면을 보완해야 한다.
+- 소셜 로그인 버튼은 현재 문자 기반이므로 실제 아이콘 리소스가 준비되면 교체하는 편이 좋다.
 
-## 8. 관련 핵심 파일
+### 기능
+- 신청 단계에서 환자와 보호자 연결 정보를 더 자연스럽게 받는 입력 구조가 필요하다.
+- 관리자 화면의 가이드 수정, 삭제, 운영 이력 확인 UI가 아직 없다.
+- 매니저 홈의 `서류 등록`, `스케줄 등록`은 아직 플레이스홀더 동작이다.
+- 매니저 흐름은 현재 `매니저당 활성 세션 1건` 전제로 구현돼 있다.
 
-- 인증
-  - `app/src/main/java/com/example/bodeul/ui/auth/`
-  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
-- 매니저
-  - `app/src/main/java/com/example/bodeul/ui/manager/`
-  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
-- Firebase Functions
-  - `functions/index.js`
-- 설정 문서
-  - `docs/firebase-setup.md`
+### 검증
+- 새 기능이나 UI 작업 후에는 계속 `assembleDebug`를 기준 검증으로 유지한다.
+- 실제 배포 전에는 Kakao, Naver, Google 콘솔 설정과 Firebase Functions 연동 값을 최신 기준으로 다시 확인해야 한다.
+
+## 6. 다음 권장 순서
+
+1. `Booking` 화면을 현재 공통 스타일에 맞춰 재구성한다.
+2. `GuardianReport` 화면을 같은 토큰으로 정렬해 보호자 축 UI를 닫는다.
+3. `Admin` 화면을 운영 도구 톤으로 정리한다.
+4. 이후 실제 아이콘, 상태별 세부 화면, 권한 안내 화면을 보완한다.

@@ -3,50 +3,67 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_screen_glow"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingStart="28dp"
+        android:paddingTop="28dp"
+        android:paddingEnd="28dp"
+        android:paddingBottom="24dp">
 
-        <!-- 브랜드와 역할 선택 안내 문구를 먼저 노출한다. -->
-        <TextView
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="26sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/bodeul_logo_icon" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/app_name"
+                android:textColor="@color/bodeul_primary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
+            android:layout_marginTop="44dp"
             android:text="@string/role_select_title"
             android:textColor="@color/bodeul_text_primary"
-            android:textSize="30sp"
+            android:textSize="34sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="14dp"
             android:lineSpacingExtra="4dp"
             android:text="@string/role_select_subtitle"
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="15sp" />
 
-        <!-- 매니저 전용 로그인 흐름으로 진입하는 선택 카드다. -->
+        <!-- 로그인 흐름 분기를 역할 카드 두 장으로 단순하게 보여준다. -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardManagerType"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
             app:cardBackgroundColor="@color/bodeul_surface"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
+            app:cardCornerRadius="34dp"
+            app:cardElevation="4dp"
             app:strokeColor="@color/bodeul_primary"
             app:strokeWidth="2dp">
 
@@ -54,44 +71,71 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:padding="22dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_badge_blue"
+                        android:gravity="center"
+                        android:text="@string/login_role_manager"
+                        android:textColor="@color/bodeul_primary"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:id="@+id/textManagerSelected"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_surface_pill"
+                        android:paddingStart="12dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="6dp"
+                        android:textColor="@color/bodeul_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/textManagerSelected"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/role_selected"
-                    android:textColor="@color/bodeul_primary"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
+                    android:layout_marginTop="24dp"
                     android:text="@string/role_manager_title"
                     android:textColor="@color/bodeul_text_primary"
-                    android:textSize="28sp"
+                    android:textSize="30sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="4dp"
                     android:text="@string/role_manager_desc"
                     android:textColor="@color/bodeul_text_secondary"
                     android:textSize="15sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 환자와 보호자가 공통 인증 흐름으로 진입하는 선택 카드다. -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardPatientType"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             app:cardBackgroundColor="@color/bodeul_surface"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp"
+            app:cardCornerRadius="34dp"
+            app:cardElevation="4dp"
             app:strokeColor="@color/bodeul_outline"
             app:strokeWidth="1dp">
 
@@ -99,20 +143,47 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:padding="22dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_badge_yellow"
+                        android:gravity="center"
+                        android:text="@string/role_patient_guardian_title"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:id="@+id/textPatientSelected"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_surface_pill"
+                        android:paddingStart="12dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="6dp"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/textPatientSelected"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/role_unselected"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
+                    android:layout_marginTop="24dp"
                     android:text="@string/role_patient_guardian_title"
                     android:textColor="@color/bodeul_text_primary"
                     android:textSize="28sp"
@@ -122,17 +193,17 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="4dp"
                     android:text="@string/role_patient_guardian_desc"
                     android:textColor="@color/bodeul_text_secondary"
                     android:textSize="15sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 선택한 역할을 기준으로 다음 인증 화면으로 이동한다. -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonContinueRole"
             style="@style/BodeulHomeButton"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="36dp"
             android:text="@string/next_step" />
     </LinearLayout>
 </ScrollView>

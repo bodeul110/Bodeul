@@ -3,30 +3,42 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_screen_glow"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingStart="28dp"
+        android:paddingTop="36dp"
+        android:paddingEnd="28dp"
+        android:paddingBottom="28dp">
 
-        <!-- 상단 브랜드와 인증 화면 제목 영역이다. -->
+        <ImageView
+            android:layout_width="82dp"
+            android:layout_height="82dp"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/bodeul_logo_icon" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
             android:text="@string/app_name"
             android:textColor="@color/bodeul_primary"
-            android:textSize="26sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/textLoginTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="30dp"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="30sp"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:textColor="@color/bodeul_primary"
+            android:textSize="33sp"
             android:textStyle="bold" />
 
         <TextView
@@ -34,27 +46,32 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="@string/login_subtitle"
-            android:textColor="@color/bodeul_text_secondary"
-            android:textSize="15sp" />
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/textDemoBanner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:background="@color/bodeul_surface_alt"
-            android:padding="14dp"
+            android:background="@drawable/bg_surface_pill"
+            android:lineSpacingExtra="3dp"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="12dp"
             android:textColor="@color/bodeul_primary"
             android:textSize="13sp"
             android:visibility="gone" />
 
-        <!-- 사용자 유형에 따라 로그인 대상 역할을 고른다. -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/roleChipGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="20dp"
             app:selectionRequired="true"
             app:singleSelection="true">
 
@@ -63,37 +80,49 @@
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/login_role_manager" />
+                android:text="@string/login_role_manager"
+                android:textColor="@color/bodeul_text_primary"
+                app:checkedIconVisible="false"
+                app:chipBackgroundColor="@color/bodeul_surface_alt"
+                app:chipCornerRadius="22dp"
+                app:chipStrokeColor="@color/bodeul_outline"
+                app:chipStrokeWidth="1dp" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipRolePatient"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/login_role_patient" />
+                android:text="@string/login_role_patient"
+                android:textColor="@color/bodeul_text_primary"
+                app:checkedIconVisible="false"
+                app:chipBackgroundColor="@color/bodeul_surface_alt"
+                app:chipCornerRadius="22dp"
+                app:chipStrokeColor="@color/bodeul_outline"
+                app:chipStrokeWidth="1dp" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipRoleGuardian"
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/login_role_guardian" />
+                android:text="@string/login_role_guardian"
+                android:textColor="@color/bodeul_text_primary"
+                app:checkedIconVisible="false"
+                app:chipBackgroundColor="@color/bodeul_surface_alt"
+                app:chipCornerRadius="22dp"
+                app:chipStrokeColor="@color/bodeul_outline"
+                app:chipStrokeWidth="1dp" />
         </com.google.android.material.chip.ChipGroup>
 
-        <!-- 회원가입 모드에서만 추가로 노출되는 프로필 입력 영역이다. -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/layoutName"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+            style="@style/BodeulFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:hint="@string/login_name_hint"
-            android:visibility="gone"
-            app:boxBackgroundColor="@color/bodeul_surface"
-            app:boxCornerRadiusBottomEnd="22dp"
-            app:boxCornerRadiusBottomStart="22dp"
-            app:boxCornerRadiusTopEnd="22dp"
-            app:boxCornerRadiusTopStart="22dp">
+            android:visibility="gone">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/inputName"
@@ -104,17 +133,12 @@
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/layoutPhone"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+            style="@style/BodeulFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
             android:hint="@string/login_phone_hint"
-            android:visibility="gone"
-            app:boxBackgroundColor="@color/bodeul_surface"
-            app:boxCornerRadiusBottomEnd="22dp"
-            app:boxCornerRadiusBottomStart="22dp"
-            app:boxCornerRadiusTopEnd="22dp"
-            app:boxCornerRadiusTopStart="22dp">
+            android:visibility="gone">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/inputPhone"
@@ -123,19 +147,22 @@
                 android:inputType="phone" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- 로그인과 회원가입에서 공통으로 사용하는 계정 입력 영역이다. -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/layoutEmail"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:hint="@string/login_email_hint"
-            app:boxBackgroundColor="@color/bodeul_surface"
-            app:boxCornerRadiusBottomEnd="22dp"
-            app:boxCornerRadiusBottomStart="22dp"
-            app:boxCornerRadiusTopEnd="22dp"
-            app:boxCornerRadiusTopStart="22dp">
+            android:layout_marginTop="22dp"
+            android:text="@string/login_email_or_id_hint"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutEmail"
+            style="@style/BodeulFilledInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="@string/login_email_hint">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/inputEmail"
@@ -144,18 +171,22 @@
                 android:inputType="textEmailAddress" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/layoutPassword"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
+            android:text="@string/login_password_hint"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutPassword"
+            style="@style/BodeulFilledInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:hint="@string/login_password_hint"
-            app:boxBackgroundColor="@color/bodeul_surface"
-            app:boxCornerRadiusBottomEnd="22dp"
-            app:boxCornerRadiusBottomStart="22dp"
-            app:boxCornerRadiusTopEnd="22dp"
-            app:boxCornerRadiusTopStart="22dp"
             app:endIconMode="password_toggle">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -165,47 +196,128 @@
                 android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- 인증 요청과 진행 상태 표시 영역이다. -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonSubmitAuth"
             style="@style/BodeulHomeButton"
-            android:layout_marginTop="18dp" />
+            android:layout_marginTop="22dp" />
 
         <ProgressBar
             android:id="@+id/progressAuth"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="14dp"
+            android:visibility="gone"
+            app:indicatorColor="@color/bodeul_primary" />
+
+        <TextView
+            android:id="@+id/textResendVerification"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/resend_verification_email"
+            android:textColor="@color/bodeul_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
             android:visibility="gone" />
 
-        <!-- 로그인/회원가입 전환과 비밀번호 찾기 링크를 한 줄에 배치한다. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="28dp"
             android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="@color/bodeul_outline" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_marginEnd="14dp"
+                android:text="@string/social_login_divider"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="13sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="@color/bodeul_outline" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonSocialKakao"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:text="@string/social_login_kakao_short"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/bodeul_warning"
+                app:cornerRadius="35dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonSocialGoogle"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_marginStart="16dp"
+                android:text="@string/social_login_google_short"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/white"
+                app:cornerRadius="20dp"
+                app:strokeColor="@color/bodeul_outline"
+                app:strokeWidth="1dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonSocialNaver"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_marginStart="16dp"
+                android:text="@string/social_login_naver_short"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:backgroundTint="#16C45B"
+                app:cornerRadius="20dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
             android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/textForgotPassword"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/forgot_password"
-                android:textColor="@color/bodeul_text_secondary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/textResendVerification"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
-                android:text="@string/resend_verification_email"
-                android:textColor="@color/bodeul_primary"
+                android:text="@string/forgot_password"
+                android:textColor="@color/bodeul_text_secondary"
                 android:textSize="14sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:text="·"
+                android:textColor="@color/bodeul_outline"
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/textSwitchMode"
@@ -216,62 +328,23 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- 향후 소셜 로그인 진입 버튼이 배치될 영역이다. -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="18dp"
             android:gravity="center"
-            android:text="@string/social_login_label"
-            android:textColor="@color/bodeul_text_secondary"
-            android:textSize="13sp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonSocialKakao"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:text="@string/social_login_kakao_short"
-                android:textColor="@color/bodeul_text_primary"
-                app:backgroundTint="@color/bodeul_warning"
-                app:cornerRadius="28dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonSocialGoogle"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="16dp"
-                android:text="@string/social_login_google_short"
-                android:textColor="@color/bodeul_text_primary"
-                app:backgroundTint="@color/white"
-                app:cornerRadius="28dp"
-                app:strokeColor="@color/bodeul_outline"
-                app:strokeWidth="1dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonSocialNaver"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="16dp"
-                android:text="@string/social_login_naver_short"
-                android:textColor="@color/white"
-                app:backgroundTint="#1EC800"
-                app:cornerRadius="28dp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
+            android:lineSpacingExtra="4dp"
             android:text="@string/social_login_helper"
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:gravity="center"
+            android:text="@string/copyright_footer"
+            android:textColor="@color/bodeul_outline"
+            android:textSize="11sp" />
     </LinearLayout>
 </ScrollView>

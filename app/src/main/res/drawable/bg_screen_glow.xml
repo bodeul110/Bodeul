@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/bodeul_background" />
+        </shape>
+    </item>
+    <item
+        android:width="220dp"
+        android:height="220dp"
+        android:gravity="bottom|left">
+        <shape android:shape="oval">
+            <solid android:color="@color/bodeul_warm_glow" />
+        </shape>
+    </item>
+    <item
+        android:width="200dp"
+        android:height="200dp"
+        android:gravity="top|right">
+        <shape android:shape="oval">
+            <solid android:color="@color/bodeul_cool_glow" />
+        </shape>
+    </item>
+</layer-list>

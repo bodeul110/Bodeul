@@ -5,12 +5,11 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
     app:cardBackgroundColor="@color/bodeul_surface"
-    app:cardCornerRadius="22dp"
+    app:cardCornerRadius="24dp"
     app:cardElevation="0dp"
     app:strokeColor="@color/bodeul_outline"
     app:strokeWidth="1dp">
 
-    <!-- 단계 설명과 상태 배지를 세로 흐름으로 배치해 좁은 화면에서도 잘리지 않게 한다. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -20,11 +19,12 @@
 
         <TextView
             android:id="@+id/textStepBadge"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:background="@drawable/bg_step_badge"
             android:gravity="center"
             android:textColor="@color/bodeul_primary"
+            android:textSize="13sp"
             android:textStyle="bold" />
 
         <LinearLayout
@@ -34,36 +34,43 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/textStepTitle"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/bodeul_text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/textStepTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textStepState"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_step_badge"
+                    android:paddingStart="10dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="6dp"
+                    android:textColor="@color/bodeul_primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/textStepDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="8dp"
                 android:lineSpacingExtra="3dp"
                 android:textColor="@color/bodeul_text_secondary"
                 android:textSize="13sp" />
-
-            <TextView
-                android:id="@+id/textStepState"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/bg_step_badge"
-                android:paddingStart="10dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="6dp"
-                android:textColor="@color/bodeul_primary"
-                android:textSize="12sp"
-                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

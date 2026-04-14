@@ -1,316 +1,659 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="@drawable/bg_screen_glow">
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-        <!-- 브랜드명과 현재 실행 모드를 보여주는 상단 바다. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="112dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
+                        android:contentDescription="@string/app_name"
+                        android:src="@drawable/bodeul_logo_icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/manager_home_brand"
+                        android:textColor="@color/bodeul_primary"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/textManagerMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_surface_pill"
+                    android:paddingStart="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="8dp"
+                    android:textColor="@color/bodeul_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
-                android:layout_width="0dp"
+                android:id="@+id/textManagerGreeting"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/manager_home_brand"
-                android:textColor="@color/bodeul_primary"
-                android:textSize="24sp"
+                android:layout_marginTop="26dp"
+                android:lineSpacingExtra="2dp"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="34sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/textManagerMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/manager_home_subtitle"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="15sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:cardCornerRadius="30dp"
+                app:cardElevation="8dp"
+                app:cardMaxElevation="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_primary_hero"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_surface_pill"
+                        android:paddingStart="12dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="6dp"
+                        android:text="@string/manager_home_card_eyebrow"
+                        android:textColor="@color/bodeul_primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/textManagerCardTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:lineSpacingExtra="2dp"
+                        android:textColor="@color/white"
+                        android:textSize="28sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/textManagerCardBody"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonOpenGuideFromHero"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:minWidth="0dp"
+                        android:text="@string/manager_home_card_button"
+                        android:textAllCaps="false"
+                        android:textColor="@color/bodeul_primary"
+                        app:backgroundTint="@color/bodeul_secondary"
+                        app:cornerRadius="24dp"
+                        app:iconPadding="8dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardActionDocs"
+                    android:layout_width="0dp"
+                    android:layout_height="148dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_badge_blue"
+                            android:gravity="center"
+                            android:text="@string/manager_action_docs_short"
+                            android:textColor="@color/bodeul_primary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/manager_action_docs"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/manager_action_docs_desc"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardActionSchedule"
+                    android:layout_width="0dp"
+                    android:layout_height="148dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_badge_yellow"
+                            android:gravity="center"
+                            android:text="@string/manager_action_schedule_short"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/manager_action_schedule"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/manager_action_schedule_desc"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardActionGuide"
+                    android:layout_width="0dp"
+                    android:layout_height="148dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_badge_purple"
+                            android:gravity="center"
+                            android:text="@string/manager_action_guide_short"
+                            android:textColor="@color/bodeul_primary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/manager_open_guide"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/manager_action_guide_desc"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardActionLogout"
+                    android:layout_width="0dp"
+                    android:layout_height="148dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="26dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_badge_green"
+                            android:gravity="center"
+                            android:text="@string/manager_action_logout_short"
+                            android:textColor="@color/bodeul_success"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <Space
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/manager_logout"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/manager_action_logout_desc"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="@string/manager_assignment_title"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                app:cardBackgroundColor="@color/bodeul_surface"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="6dp"
+                app:strokeColor="@color/bodeul_outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="22dp">
+
+                    <TextView
+                        android:id="@+id/textAssignmentDetail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="3dp"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/textAssignmentNote"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/manager_home_service_title"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manager_home_service_more"
+                    android:textColor="@color/bodeul_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:paddingEnd="12dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="238dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="14dp"
+                        app:cardBackgroundColor="@color/bodeul_surface"
+                        app:cardCornerRadius="28dp"
+                        app:cardElevation="6dp"
+                        app:strokeColor="@color/bodeul_outline"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="120dp"
+                                android:background="@drawable/bg_service_thumb_warm" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:background="@drawable/bg_badge_blue"
+                                android:paddingStart="10dp"
+                                android:paddingTop="4dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="4dp"
+                                android:text="@string/manager_home_card_waiting"
+                                android:textColor="@color/bodeul_primary"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:text="@string/manager_home_service_card_title"
+                                android:textColor="@color/bodeul_text_primary"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:lineSpacingExtra="3dp"
+                                android:text="@string/manager_home_service_card_body"
+                                android:textColor="@color/bodeul_text_secondary"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="238dp"
+                        android:layout_height="wrap_content"
+                        app:cardBackgroundColor="@color/bodeul_surface"
+                        app:cardCornerRadius="28dp"
+                        app:cardElevation="6dp"
+                        app:strokeColor="@color/bodeul_outline"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="120dp"
+                                android:background="@drawable/bg_service_thumb_cool" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:background="@drawable/bg_badge_green"
+                                android:paddingStart="10dp"
+                                android:paddingTop="4dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="4dp"
+                                android:text="@string/guide_actions_title"
+                                android:textColor="@color/bodeul_success"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:text="@string/manager_home_service_card_secondary_title"
+                                android:textColor="@color/bodeul_text_primary"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:lineSpacingExtra="3dp"
+                                android:text="@string/manager_home_service_card_secondary_body"
+                                android:textColor="@color/bodeul_text_secondary"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+            </HorizontalScrollView>
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="84dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_bottom_nav"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_nav_active" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@color/bodeul_surface_alt"
-                android:paddingStart="12dp"
-                android:paddingTop="8dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="8dp"
+                android:layout_marginTop="6dp"
+                android:text="@string/manager_home_nav_home"
                 android:textColor="@color/bodeul_primary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_surface_pill" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/manager_home_nav_history"
+                android:textColor="@color/bodeul_text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/textManagerGreeting"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="32sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/manager_home_subtitle"
-            android:textColor="@color/bodeul_text_secondary"
-            android:textSize="15sp" />
-
-        <!-- 현재 배정 건을 가장 먼저 안내하는 대표 카드 영역이다. -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            app:cardBackgroundColor="@color/bodeul_primary"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="0dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="24dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/manager_home_card_eyebrow"
-                    android:textColor="@color/bodeul_surface_alt"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/textManagerCardTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:textColor="@color/white"
-                    android:textSize="26sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textManagerCardBody"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:textColor="@color/white"
-                    android:textSize="15sp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonOpenGuideFromHero"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:text="@string/manager_home_card_button"
-                    android:textAllCaps="false"
-                    android:textColor="@color/bodeul_primary"
-                    app:backgroundTint="@color/white"
-                    app:cornerRadius="22dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 문서, 일정, 가이드, 로그아웃으로 빠르게 이동하는 액션 카드 그룹이다. -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
+            android:layout_weight="1"
+            android:gravity="center"
             android:orientation="vertical">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardActionDocs"
-                android:layout_width="match_parent"
+            <View
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_surface_pill" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/bodeul_surface"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/bodeul_outline"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="18dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/manager_action_docs"
-                        android:textColor="@color/bodeul_text_primary"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/manager_action_docs_desc"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <Space
-                android:layout_width="1dp"
-                android:layout_height="12dp" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardActionSchedule"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/bodeul_surface"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/bodeul_outline"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="18dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/manager_action_schedule"
-                        android:textColor="@color/bodeul_text_primary"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/manager_action_schedule_desc"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                android:layout_marginTop="6dp"
+                android:text="@string/manager_home_nav_guide"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="12sp" />
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_weight="1"
+            android:gravity="center"
             android:orientation="vertical">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardActionGuide"
-                android:layout_width="match_parent"
+            <View
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_surface_pill" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/bodeul_surface"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/bodeul_outline"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="18dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/manager_open_guide"
-                        android:textColor="@color/bodeul_text_primary"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/manager_action_history_desc"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <Space
-                android:layout_width="1dp"
-                android:layout_height="12dp" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardActionLogout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/bodeul_surface"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/bodeul_outline"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="18dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/manager_logout"
-                        android:textColor="@color/bodeul_text_primary"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/manager_action_support_desc"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                android:layout_marginTop="6dp"
+                android:text="@string/manager_home_nav_profile"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="12sp" />
         </LinearLayout>
-
-        <!-- 현재 배정된 환자 동행 건의 핵심 정보를 다시 정리하는 섹션이다. -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="@string/manager_assignment_title"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            app:cardBackgroundColor="@color/bodeul_surface"
-            app:cardCornerRadius="24dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/bodeul_outline"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <TextView
-                    android:id="@+id/textAssignmentDetail"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textAssignmentNote"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:lineSpacingExtra="4dp"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
-</ScrollView>
+</FrameLayout>

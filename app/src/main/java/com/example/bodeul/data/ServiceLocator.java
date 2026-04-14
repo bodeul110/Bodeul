@@ -3,9 +3,15 @@ package com.example.bodeul.data;
 import android.content.Context;
 
 import com.example.bodeul.data.firebase.FirebaseAuthRepository;
+import com.example.bodeul.data.firebase.FirebaseBookingRepository;
+import com.example.bodeul.data.firebase.FirebaseAdminRepository;
+import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
 import com.example.bodeul.data.firebase.FirebaseSupport;
+import com.example.bodeul.data.mock.MockAdminRepository;
+import com.example.bodeul.data.mock.MockBookingRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
+import com.example.bodeul.data.mock.MockGuardianReportRepository;
 import com.example.bodeul.data.mock.MockManagerRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -17,7 +23,10 @@ public final class ServiceLocator {
     // 앱 전역에서 같은 저장소 인스턴스를 재사용해 세션 상태를 유지한다.
     private static MockBodeulRepository mockBodeulRepository;
     private static AuthRepository authRepository;
+    private static BookingRepository bookingRepository;
+    private static GuardianReportRepository guardianReportRepository;
     private static ManagerRepository managerRepository;
+    private static AdminRepository adminRepository;
 
     private ServiceLocator() {
     }
@@ -48,6 +57,42 @@ public final class ServiceLocator {
             }
         }
         return managerRepository;
+    }
+
+    public static synchronized BookingRepository provideBookingRepository(Context context) {
+        if (bookingRepository == null) {
+            // 신청 화면도 같은 기준으로 Firebase 또는 목업 구현을 선택한다.
+            if (FirebaseSupport.isConfigured(context)) {
+                bookingRepository = new FirebaseBookingRepository(FirebaseFirestore.getInstance());
+            } else {
+                bookingRepository = new MockBookingRepository(getMockBodeulRepository());
+            }
+        }
+        return bookingRepository;
+    }
+
+    public static synchronized GuardianReportRepository provideGuardianReportRepository(Context context) {
+        if (guardianReportRepository == null) {
+            // 보호자 진행 현황 화면도 같은 기준으로 Firebase 또는 목업 구현을 고른다.
+            if (FirebaseSupport.isConfigured(context)) {
+                guardianReportRepository = new FirebaseGuardianReportRepository(FirebaseFirestore.getInstance());
+            } else {
+                guardianReportRepository = new MockGuardianReportRepository(getMockBodeulRepository());
+            }
+        }
+        return guardianReportRepository;
+    }
+
+    public static synchronized AdminRepository provideAdminRepository(Context context) {
+        if (adminRepository == null) {
+            // 관리자 운영 화면은 수동 매칭과 가이드 관리가 가능하도록 별도 저장소를 사용한다.
+            if (FirebaseSupport.isConfigured(context)) {
+                adminRepository = new FirebaseAdminRepository(FirebaseFirestore.getInstance());
+            } else {
+                adminRepository = new MockAdminRepository(getMockBodeulRepository());
+            }
+        }
+        return adminRepository;
     }
 
     private static MockBodeulRepository getMockBodeulRepository() {

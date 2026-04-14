@@ -50,6 +50,26 @@ public class MockBodeulRepository implements BodeulRepository {
         return Collections.unmodifiableList(new ArrayList<>(appointmentRequests));
     }
 
+    public synchronized List<AppointmentRequest> getAppointmentRequestsForUser(String userId, UserRole role) {
+        List<AppointmentRequest> result = new ArrayList<>();
+        for (AppointmentRequest request : appointmentRequests) {
+            if (matchesRequestOwner(request, userId, role)) {
+                result.add(request);
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public synchronized List<User> getUsersByRole(UserRole role) {
+        List<User> result = new ArrayList<>();
+        for (User user : users) {
+            if (user.getRole() == role) {
+                result.add(user);
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
     @Override
     public synchronized List<CompanionSession> getManagerSessions(String managerUserId) {
         List<CompanionSession> result = new ArrayList<>();
@@ -80,6 +100,10 @@ public class MockBodeulRepository implements BodeulRepository {
             }
         }
         return null;
+    }
+
+    public synchronized List<HospitalGuide> getHospitalGuides() {
+        return Collections.unmodifiableList(new ArrayList<>(hospitalGuides));
     }
 
     @Nullable
@@ -151,6 +175,66 @@ public class MockBodeulRepository implements BodeulRepository {
             return updatedUser;
         }
         return null;
+    }
+
+    @Nullable
+    public synchronized AppointmentRequest createAppointmentRequest(
+            User currentUser,
+            String hospitalName,
+            String departmentName,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes
+    ) {
+        if (currentUser.getRole() != UserRole.PATIENT && currentUser.getRole() != UserRole.GUARDIAN) {
+            return null;
+        }
+
+        AppointmentRequest request = new AppointmentRequest(
+                "request-" + (appointmentRequests.size() + 1),
+                currentUser.getRole() == UserRole.PATIENT ? currentUser.getId() : "",
+                currentUser.getRole() == UserRole.GUARDIAN ? currentUser.getId() : "",
+                normalizeText(hospitalName),
+                normalizeText(departmentName),
+                normalizeText(appointmentAt),
+                normalizeText(meetingPlace),
+                normalizeText(specialNotes),
+                AppointmentStatus.REQUESTED,
+                null
+        );
+        // 새로 만든 요청을 목록 상단에 쌓아 신청 직후 바로 보이게 한다.
+        appointmentRequests.add(0, request);
+        return request;
+    }
+
+    @Nullable
+    public synchronized AppointmentRequest createLinkedAppointmentRequest(
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes
+    ) {
+        if (findUserById(patientUserId) == null || findUserById(guardianUserId) == null) {
+            return null;
+        }
+
+        AppointmentRequest request = new AppointmentRequest(
+                "request-" + (appointmentRequests.size() + 1),
+                normalizeText(patientUserId),
+                normalizeText(guardianUserId),
+                normalizeText(hospitalName),
+                normalizeText(departmentName),
+                normalizeText(appointmentAt),
+                normalizeText(meetingPlace),
+                normalizeText(specialNotes),
+                AppointmentStatus.REQUESTED,
+                null
+        );
+        appointmentRequests.add(0, request);
+        return request;
     }
 
     @Nullable
@@ -259,6 +343,84 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized CompanionSession findSessionByRequestId(String requestId) {
+        for (CompanionSession session : companionSessions) {
+            if (session.getAppointmentRequestId().equals(requestId)) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    public synchronized boolean isManagerAvailable(String managerUserId) {
+        for (CompanionSession session : companionSessions) {
+            if (!session.getManagerUserId().equals(managerUserId)) {
+                continue;
+            }
+            if (session.getStatus() != SessionStatus.COMPLETED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Nullable
+    public synchronized AppointmentRequest assignManagerToRequest(String requestId, String managerUserId) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null || request.getStatus() != AppointmentStatus.REQUESTED) {
+            return null;
+        }
+        if (!hasLinkedParticipants(request) || !isManagerAvailable(managerUserId)) {
+            return null;
+        }
+        if (findSessionByRequestId(requestId) != null) {
+            return null;
+        }
+
+        request.assignManager(managerUserId);
+        companionSessions.add(new CompanionSession(
+                "session-" + requestId,
+                requestId,
+                managerUserId,
+                1,
+                SessionStatus.READY,
+                "",
+                ""
+        ));
+        return request;
+    }
+
+    @Nullable
+    public synchronized HospitalGuide saveHospitalGuide(
+            String hospitalName,
+            String departmentName,
+            List<String> stepLines
+    ) {
+        List<GuideStep> steps = buildGuideSteps(stepLines);
+        if (steps.isEmpty()) {
+            return null;
+        }
+
+        String normalizedHospital = normalizeText(hospitalName);
+        String normalizedDepartment = normalizeText(departmentName);
+        HospitalGuide existingGuide = getHospitalGuide(normalizedHospital, normalizedDepartment);
+        HospitalGuide updatedGuide = new HospitalGuide(
+                existingGuide == null ? "guide-" + (hospitalGuides.size() + 1) : existingGuide.getId(),
+                normalizedHospital,
+                normalizedDepartment,
+                steps
+        );
+
+        if (existingGuide == null) {
+            hospitalGuides.add(updatedGuide);
+        } else {
+            int guideIndex = hospitalGuides.indexOf(existingGuide);
+            hospitalGuides.set(guideIndex, updatedGuide);
+        }
+        return updatedGuide;
+    }
+
+    @Nullable
     private AppointmentRequest findAppointmentRequest(String appointmentRequestId) {
         for (AppointmentRequest request : appointmentRequests) {
             if (request.getId().equals(appointmentRequestId)) {
@@ -292,6 +454,66 @@ public class MockBodeulRepository implements BodeulRepository {
             return SessionStatus.PAYMENT;
         }
         return SessionStatus.PAYMENT;
+    }
+
+    private boolean matchesRequestOwner(AppointmentRequest request, String userId, UserRole role) {
+        if (role == UserRole.PATIENT) {
+            return userId.equals(request.getPatientUserId());
+        }
+        if (role == UserRole.GUARDIAN) {
+            return userId.equals(request.getGuardianUserId());
+        }
+        return false;
+    }
+
+    private boolean hasLinkedParticipants(AppointmentRequest request) {
+        return !normalizeText(request.getPatientUserId()).isEmpty()
+                && !normalizeText(request.getGuardianUserId()).isEmpty();
+    }
+
+    private List<GuideStep> buildGuideSteps(List<String> stepLines) {
+        List<GuideStep> steps = new ArrayList<>();
+        int order = 1;
+        for (String rawLine : stepLines) {
+            String line = normalizeText(rawLine);
+            if (line.isEmpty()) {
+                continue;
+            }
+            String[] parts = splitGuideLine(line, order);
+            steps.add(new GuideStep(order, parts[0], parts[1]));
+            order++;
+        }
+        return steps;
+    }
+
+    private String[] splitGuideLine(String line, int order) {
+        int separatorIndex = findGuideSeparatorIndex(line);
+        if (separatorIndex < 0) {
+            return new String[]{"단계 " + order, line};
+        }
+
+        String title = normalizeText(line.substring(0, separatorIndex));
+        String description = normalizeText(line.substring(separatorIndex + 1));
+        if (title.isEmpty() || description.isEmpty()) {
+            return new String[]{"단계 " + order, line};
+        }
+        return new String[]{title, description};
+    }
+
+    private int findGuideSeparatorIndex(String line) {
+        int colonIndex = line.indexOf(':');
+        if (colonIndex >= 0) {
+            return colonIndex;
+        }
+        int barIndex = line.indexOf('|');
+        if (barIndex >= 0) {
+            return barIndex;
+        }
+        return line.indexOf('-');
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String normalizeKey(String value) {
