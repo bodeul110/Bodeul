@@ -48,6 +48,7 @@
 ### 이번 UI 패스에서 반영한 방향
 - 공통 색상, 배경 글로우, 버튼, 카드 스타일을 피그마 톤에 맞춰 재정의했다.
 - 앱 로고 에셋을 실제 리소스로 추가해 인증과 매니저 화면 전반에 공통 적용했다.
+- 제공받은 공식 로고 원본에서 풀로고와 심볼 리소스를 다시 추출해 상단 브랜드 영역과 런처 아이콘에 반영했다.
 - 매니저 홈은 피그마 구조를 참고하되 현재 기능과 맞도록 `현장 가이드`, `로그아웃` 등 실제 동작과 일치하는 카드로 재구성했다.
 - 매니저 가이드는 피그마의 단계형 흐름을 유지하되 현재 데이터에 없는 이미지 영역은 정보 카드와 기록 카드로 치환했다.
 
@@ -67,6 +68,7 @@
 
 ### UI 정렬
 - 공통 색상과 카드 배경, 하단 내비게이션, 서비스 썸네일용 드로어블을 추가했다.
+- 공식 로고 원본에서 `풀로고`, `심볼`, `흰색 심볼` 리소스를 생성하고 런처 아이콘과 상단 브랜딩에 연결했다.
 - 스플래시와 역할 선택 화면을 피그마 기준 구조로 재구성했다.
 - 로그인 화면을 피그마 흐름에 맞춰 입력부, 간편 로그인, 하단 액션 순서로 재정렬했다.
 - 매니저 홈을 히어로 카드, 2x2 액션 카드, 배정 정보, 서비스 소개 카드 구조로 재구성했다.
@@ -74,7 +76,13 @@
 
 ## 4. 이번 작업의 변경 범위
 
+- `app/src/main/res/drawable/ic_launcher_background.xml`
+- `app/src/main/res/drawable/ic_launcher_foreground.xml`
 - `app/src/main/res/drawable-nodpi/bodeul_logo_icon.png`
+- `app/src/main/res/drawable-nodpi/bodeul_logo_full.png`
+- `app/src/main/res/drawable-nodpi/bodeul_logo_full_white.png`
+- `app/src/main/res/drawable-nodpi/bodeul_logo_mark.png`
+- `app/src/main/res/drawable-nodpi/bodeul_logo_mark_white.png`
 - `app/src/main/res/drawable/bg_bottom_nav.xml`
 - `app/src/main/res/drawable/bg_nav_active.xml`
 - `app/src/main/res/drawable/bg_primary_gradient.xml`
@@ -87,9 +95,22 @@
 - `app/src/main/res/layout/activity_login.xml`
 - `app/src/main/res/layout/activity_manager_home.xml`
 - `app/src/main/res/layout/activity_manager_guide.xml`
+- `app/src/main/res/layout/activity_profile_completion.xml`
 - `app/src/main/res/layout/activity_role_selection.xml`
 - `app/src/main/res/layout/activity_splash.xml`
 - `app/src/main/res/layout/item_manager_step.xml`
+- `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`
+- `app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml`
+- `app/src/main/res/mipmap-mdpi/ic_launcher.png`
+- `app/src/main/res/mipmap-mdpi/ic_launcher_round.png`
+- `app/src/main/res/mipmap-hdpi/ic_launcher.png`
+- `app/src/main/res/mipmap-hdpi/ic_launcher_round.png`
+- `app/src/main/res/mipmap-xhdpi/ic_launcher.png`
+- `app/src/main/res/mipmap-xhdpi/ic_launcher_round.png`
+- `app/src/main/res/mipmap-xxhdpi/ic_launcher.png`
+- `app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png`
+- `app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`
+- `app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png`
 - `app/src/main/res/values/colors.xml`
 - `app/src/main/res/values/strings.xml`
 - `app/src/main/res/values/themes.xml`

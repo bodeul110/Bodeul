@@ -12,13 +12,12 @@
         android:padding="24dp">
 
         <!-- 프로필 보완 화면도 같은 브랜드 톤을 유지해 인증 흐름처럼 이어지게 한다. -->
-        <TextView
-            android:layout_width="wrap_content"
+        <ImageView
+            android:layout_width="126dp"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="26sp"
-            android:textStyle="bold" />
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/bodeul_logo_full" />
 
         <TextView
             android:layout_width="wrap_content"

@@ -17,25 +17,17 @@
         android:paddingBottom="28dp">
 
         <ImageView
-            android:layout_width="82dp"
-            android:layout_height="82dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/bodeul_logo_icon" />
-
-        <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="160dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/app_name"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/bodeul_logo_full" />
 
         <TextView
             android:id="@+id/textLoginTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="24dp"
             android:gravity="center"
             android:textColor="@color/bodeul_primary"
             android:textSize="33sp"

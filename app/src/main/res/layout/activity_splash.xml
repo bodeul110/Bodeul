@@ -13,24 +13,16 @@
         android:padding="28dp">
 
         <ImageView
-            android:layout_width="88dp"
-            android:layout_height="88dp"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
             android:contentDescription="@string/app_name"
-            android:src="@drawable/bodeul_logo_icon" />
+            android:src="@drawable/bodeul_logo_full" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="@string/splash_title"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="34sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="26dp"
             android:gravity="center"
             android:text="@string/splash_subtitle"
             android:textColor="@color/bodeul_text_secondary"
