@@ -32,6 +32,34 @@
 .\gradlew.bat assembleDebug
 ```
 
+## 협업 설정
+
+- 공용 원격 저장소는 `origin`(`git@github.com:bodeul110/Bodeul.git`) 기준으로 사용합니다.
+- GitHub 저장소에서 팀원을 `Collaborator`로 추가한 뒤 같은 저장소를 함께 사용합니다.
+- `master` 브랜치는 기준 브랜치로 유지하고, 기능 개발은 반드시 별도 브랜치에서 진행합니다.
+
+## 협업 절차
+
+새로 작업을 시작할 때는 아래 순서로 진행합니다.
+
+```powershell
+git clone git@github.com:bodeul110/Bodeul.git
+cd BoDeul
+git checkout -b feature/작업이름
+```
+
+작업 중에는 기준 브랜치 변경 사항을 먼저 반영하고, 푸시 전 빌드를 확인합니다.
+
+```powershell
+git pull --rebase origin master
+.\gradlew.bat assembleDebug
+git add .
+git commit -m "기능 설명"
+git push -u origin feature/작업이름
+```
+
+브랜치를 푸시한 뒤에는 GitHub에서 Pull Request를 생성하고, 리뷰 후 `master`에 머지합니다.
+
 ## 데모 로그인
 
 - 매니저: `manager@bodeul.app` / `bodeul1234`
