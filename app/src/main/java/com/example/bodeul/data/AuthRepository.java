@@ -27,6 +27,9 @@ public interface AuthRepository {
     // 인증 메일을 다시 보내기 위해 이메일 비밀번호를 재확인한 뒤 발송한다.
     void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback);
 
+    // 현재 로그인한 사용자의 이름과 연락처를 보완 저장한다.
+    void updateCurrentUserProfile(String name, String phone, RepositoryCallback<User> callback);
+
     // 새 사용자 계정을 만들고 바로 로그인 가능한 상태로 준비한다.
     void register(
             String name,

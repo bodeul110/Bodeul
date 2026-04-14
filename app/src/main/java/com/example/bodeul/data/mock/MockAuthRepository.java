@@ -83,6 +83,23 @@ public class MockAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void updateCurrentUserProfile(String name, String phone, RepositoryCallback<User> callback) {
+        if (cachedUser == null) {
+            callback.onError("로그인이 필요합니다.");
+            return;
+        }
+
+        User updatedUser = repository.updateUserProfile(cachedUser.getId(), name, phone);
+        if (updatedUser == null) {
+            callback.onError("사용자 정보를 저장하지 못했습니다.");
+            return;
+        }
+
+        cachedUser = updatedUser;
+        callback.onSuccess(updatedUser);
+    }
+
+    @Override
     public void register(
             String name,
             String email,

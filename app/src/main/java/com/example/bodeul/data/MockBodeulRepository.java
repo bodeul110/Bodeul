@@ -126,6 +126,27 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized User updateUserProfile(String userId, String name, String phone) {
+        for (int index = 0; index < users.size(); index++) {
+            User existingUser = users.get(index);
+            if (!existingUser.getId().equals(userId)) {
+                continue;
+            }
+
+            User updatedUser = new User(
+                    existingUser.getId(),
+                    existingUser.getRole(),
+                    name,
+                    existingUser.getEmail(),
+                    phone
+            );
+            users.set(index, updatedUser);
+            return updatedUser;
+        }
+        return null;
+    }
+
+    @Nullable
     public synchronized ManagerDashboard getManagerDashboard(String managerUserId) {
         // 매니저 홈과 가이드 화면이 한 번에 그려질 수 있도록 관련 데이터를 묶어 반환한다.
         User manager = findUserById(managerUserId);

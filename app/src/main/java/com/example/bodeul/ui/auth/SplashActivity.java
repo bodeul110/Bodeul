@@ -5,14 +5,11 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
-import com.example.bodeul.domain.model.UserRole;
-import com.example.bodeul.ui.manager.ManagerActivity;
 
 /**
  * 앱 시작 시 로그인 상태를 확인하고 첫 진입 화면을 결정하는 스플래시 화면이다.
@@ -36,25 +33,20 @@ public class SplashActivity extends AppCompatActivity {
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
-                // 로그인된 사용자는 역할에 맞는 첫 화면으로 바로 보낸다.
-                if (result.getRole() == UserRole.MANAGER) {
-                    openNext(ManagerActivity.class);
-                    return;
-                }
-                openNext(MainActivity.class);
+                // 로그인된 사용자는 프로필 보완 여부까지 확인한 뒤 다음 화면으로 보낸다.
+                openNext(AuthFlowRouter.createPostAuthIntent(SplashActivity.this, result));
             }
 
             @Override
             public void onError(String message) {
                 // 로그인 정보가 없으면 역할 선택부터 시작한다.
-                openNext(RoleSelectionActivity.class);
+                openNext(new Intent(SplashActivity.this, RoleSelectionActivity.class));
             }
         });
     }
 
-    private void openNext(Class<?> activityClass) {
+    private void openNext(Intent intent) {
         // 스플래시는 일회성 화면이므로 뒤로 돌아오지 않게 스택을 비운다.
-        Intent intent = new Intent(this, activityClass);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

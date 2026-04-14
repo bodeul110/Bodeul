@@ -12,6 +12,8 @@ import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.admin.AdminActivity;
+import com.example.bodeul.ui.auth.AuthFlowRouter;
+import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.manager.ManagerActivity;
@@ -49,6 +51,10 @@ public class MainActivity extends AppCompatActivity {
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
+                if (AuthFlowRouter.requiresProfileCompletion(result)) {
+                    openProfileCompletion();
+                    return;
+                }
                 textSignedInAs.setText(getString(
                         R.string.home_signed_in_as,
                         result.getName(),
@@ -70,6 +76,13 @@ public class MainActivity extends AppCompatActivity {
     private void openRoleSelection() {
         // 로그아웃이나 세션 만료 시 역할 선택부터 다시 시작하도록 스택을 정리한다.
         Intent intent = new Intent(this, RoleSelectionActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void openProfileCompletion() {
+        Intent intent = ProfileCompletionActivity.createIntent(this);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();

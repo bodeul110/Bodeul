@@ -14,14 +14,12 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
-import com.example.bodeul.ui.manager.ManagerActivity;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.textfield.TextInputEditText;
@@ -331,10 +329,8 @@ public class LoginActivity extends AppCompatActivity {
         @Override
         public void onSuccess(User result) {
             setLoading(false);
-            // 로그인된 역할에 따라 매니저 전용 화면과 일반 홈 화면을 분기한다.
-            Intent intent = result.getRole() == UserRole.MANAGER
-                    ? new Intent(LoginActivity.this, ManagerActivity.class)
-                    : new Intent(LoginActivity.this, MainActivity.class);
+            // 로그인 직후에도 프로필 보완이 필요하면 먼저 보완 화면으로 보낸다.
+            Intent intent = AuthFlowRouter.createPostAuthIntent(LoginActivity.this, result);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();

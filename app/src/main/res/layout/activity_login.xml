@@ -264,5 +264,14 @@
                 app:backgroundTint="#1EC800"
                 app:cornerRadius="28dp" />
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="@string/social_login_helper"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

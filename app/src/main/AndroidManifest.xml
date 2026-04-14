@@ -29,6 +29,9 @@
             android:name=".ui.manager.ManagerActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.auth.ProfileCompletionActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.auth.LoginActivity"
             android:exported="false" />
         <activity

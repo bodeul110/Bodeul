@@ -58,6 +58,8 @@ import kotlin.jvm.functions.Function2;
  */
 public class FirebaseAuthRepository implements AuthRepository {
     private static final String FUNCTIONS_REGION = "asia-northeast3";
+    private static final String PROVIDER_EMAIL = "EMAIL";
+    private static final String PROVIDER_GOOGLE = "GOOGLE";
     private static final String PROVIDER_KAKAO = "KAKAO";
     private static final String PROVIDER_NAVER = "NAVER";
 
@@ -228,6 +230,48 @@ public class FirebaseAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void updateCurrentUserProfile(String name, String phone, RepositoryCallback<User> callback) {
+        FirebaseUser firebaseUser = firebaseAuth.getCurrentUser();
+        if (firebaseUser == null) {
+            callback.onError("로그인이 필요합니다.");
+            return;
+        }
+
+        firestore.collection("users")
+                .document(firebaseUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    User existingUser = toUser(documentSnapshot);
+                    if (existingUser == null) {
+                        callback.onError("users 컬렉션에서 계정 정보를 찾지 못했습니다.");
+                        return;
+                    }
+
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("name", name);
+                    updates.put("phone", phone);
+
+                    documentSnapshot.getReference()
+                            .update(updates)
+                            .addOnSuccessListener(unused -> {
+                                User updatedUser = new User(
+                                        existingUser.getId(),
+                                        existingUser.getRole(),
+                                        name,
+                                        existingUser.getEmail(),
+                                        phone
+                                );
+                                cachedUser = updatedUser;
+                                callback.onSuccess(updatedUser);
+                            })
+                            .addOnFailureListener(exception ->
+                                    callback.onError("프로필 정보를 저장하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("사용자 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
     public void register(
             String name,
             String email,
@@ -250,6 +294,8 @@ public class FirebaseAuthRepository implements AuthRepository {
                     userDocument.put("email", email);
                     userDocument.put("phone", phone);
                     userDocument.put("role", role.name());
+                    userDocument.put("provider", PROVIDER_EMAIL);
+                    userDocument.put("providerUserId", firebaseUser.getUid());
 
                     firestore.collection("users")
                             .document(firebaseUser.getUid())
@@ -512,7 +558,7 @@ public class FirebaseAuthRepository implements AuthRepository {
                     }
 
                     SocialProfile socialProfile = new SocialProfile(
-                            "GOOGLE",
+                            PROVIDER_GOOGLE,
                             firebaseUser.getUid(),
                             defaultNameIfEmpty(firebaseUser.getDisplayName(), expectedRole),
                             defaultEmailIfEmpty(firebaseUser.getEmail(), "google_" + firebaseUser.getUid()),
@@ -552,8 +598,7 @@ public class FirebaseAuthRepository implements AuthRepository {
                         return;
                     }
 
-                    cachedUser = user;
-                    callback.onSuccess(user);
+                    refreshExistingSocialUserProfile(documentSnapshot, user, socialProfile, callback);
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("사용자 정보를 불러오지 못했습니다."));
@@ -565,31 +610,101 @@ public class FirebaseAuthRepository implements AuthRepository {
             SocialProfile socialProfile,
             RepositoryCallback<User> callback
     ) {
-        Map<String, Object> userDocument = new HashMap<>();
-        userDocument.put("name", socialProfile.name);
-        userDocument.put("email", socialProfile.email);
-        userDocument.put("phone", socialProfile.phone);
-        userDocument.put("role", expectedRole.name());
-        userDocument.put("provider", socialProfile.provider);
-        userDocument.put("providerUserId", socialProfile.providerUserId);
-
+        // 같은 이메일로 다른 로그인 방식 계정이 이미 있으면 중복 가입 대신 기존 방식을 안내한다.
         firestore.collection("users")
-                .document(firebaseUser.getUid())
-                .set(userDocument)
-                .addOnSuccessListener(unused -> {
-                    User user = new User(
-                            firebaseUser.getUid(),
-                            expectedRole,
-                            socialProfile.name,
-                            socialProfile.email,
-                            socialProfile.phone
-                    );
-                    cachedUser = user;
-                    callback.onSuccess(user);
+                .whereEqualTo("email", socialProfile.email)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    if (!querySnapshot.isEmpty()) {
+                        DocumentSnapshot duplicateDocument = querySnapshot.getDocuments().get(0);
+                        if (!firebaseUser.getUid().equals(duplicateDocument.getId())) {
+                            signOut();
+                            callback.onError(resolveDuplicateEmailMessage(duplicateDocument));
+                            return;
+                        }
+                    }
+
+                    Map<String, Object> userDocument = new HashMap<>();
+                    userDocument.put("name", socialProfile.name);
+                    userDocument.put("email", socialProfile.email);
+                    userDocument.put("phone", socialProfile.phone);
+                    userDocument.put("role", expectedRole.name());
+                    userDocument.put("provider", socialProfile.provider);
+                    userDocument.put("providerUserId", socialProfile.providerUserId);
+
+                    firestore.collection("users")
+                            .document(firebaseUser.getUid())
+                            .set(userDocument)
+                            .addOnSuccessListener(unused -> {
+                                User user = new User(
+                                        firebaseUser.getUid(),
+                                        expectedRole,
+                                        socialProfile.name,
+                                        socialProfile.email,
+                                        socialProfile.phone
+                                );
+                                cachedUser = user;
+                                callback.onSuccess(user);
+                            })
+                            .addOnFailureListener(exception -> {
+                                signOut();
+                                callback.onError("소셜 계정 프로필을 저장하지 못했습니다.");
+                            });
                 })
                 .addOnFailureListener(exception -> {
                     signOut();
-                    callback.onError("소셜 계정 프로필을 저장하지 못했습니다.");
+                    callback.onError("기존 계정 정보를 확인하지 못했습니다.");
+                });
+    }
+
+    private void refreshExistingSocialUserProfile(
+            DocumentSnapshot documentSnapshot,
+            User user,
+            SocialProfile socialProfile,
+            RepositoryCallback<User> callback
+    ) {
+        Map<String, Object> updates = new HashMap<>();
+
+        // 제공자에서 더 최신 프로필을 받은 경우 누락된 값을 보강한다.
+        if (!TextUtils.isEmpty(socialProfile.name) && !socialProfile.name.equals(user.getName())) {
+            updates.put("name", socialProfile.name);
+        }
+        if (!TextUtils.isEmpty(socialProfile.email) && !socialProfile.email.equals(user.getEmail())) {
+            updates.put("email", socialProfile.email);
+        }
+        if (!TextUtils.isEmpty(socialProfile.phone) && !socialProfile.phone.equals(user.getPhone())) {
+            updates.put("phone", socialProfile.phone);
+        }
+        if (TextUtils.isEmpty(documentSnapshot.getString("provider"))) {
+            updates.put("provider", socialProfile.provider);
+        }
+        if (TextUtils.isEmpty(documentSnapshot.getString("providerUserId"))) {
+            updates.put("providerUserId", socialProfile.providerUserId);
+        }
+
+        if (updates.isEmpty()) {
+            cachedUser = user;
+            callback.onSuccess(user);
+            return;
+        }
+
+        documentSnapshot.getReference()
+                .update(updates)
+                .addOnSuccessListener(unused -> {
+                    User refreshedUser = new User(
+                            user.getId(),
+                            user.getRole(),
+                            updates.containsKey("name") ? socialProfile.name : user.getName(),
+                            updates.containsKey("email") ? socialProfile.email : user.getEmail(),
+                            updates.containsKey("phone") ? socialProfile.phone : user.getPhone()
+                    );
+                    cachedUser = refreshedUser;
+                    callback.onSuccess(refreshedUser);
+                })
+                .addOnFailureListener(exception -> {
+                    cachedUser = user;
+                    callback.onSuccess(user);
                 });
     }
 
@@ -858,6 +973,28 @@ public class FirebaseAuthRepository implements AuthRepository {
             }
         }
         return "네이버 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    }
+
+    private String resolveDuplicateEmailMessage(DocumentSnapshot duplicateDocument) {
+        String provider = duplicateDocument.getString("provider");
+        if (TextUtils.isEmpty(provider) || PROVIDER_EMAIL.equals(provider)) {
+            return "같은 이메일로 이미 이메일 로그인 계정이 있습니다. 기존 로그인 방식으로 로그인해주세요.";
+        }
+        return "같은 이메일로 이미 " + toProviderLabel(provider) + " 로그인 계정이 있습니다. 기존 로그인 방식으로 로그인해주세요.";
+    }
+
+    private String toProviderLabel(String provider) {
+        switch (provider) {
+            case PROVIDER_GOOGLE:
+                return "구글";
+            case PROVIDER_KAKAO:
+                return "카카오";
+            case PROVIDER_NAVER:
+                return "네이버";
+            case PROVIDER_EMAIL:
+            default:
+                return "이메일";
+        }
     }
 
     private static class SocialProfile {

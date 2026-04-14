@@ -16,6 +16,8 @@ import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.ui.auth.AuthFlowRouter;
+import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -75,6 +77,10 @@ public class ManagerActivity extends AppCompatActivity {
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
+                if (AuthFlowRouter.requiresProfileCompletion(result)) {
+                    openProfileCompletion();
+                    return;
+                }
                 if (result.getRole() != UserRole.MANAGER) {
                     Toast.makeText(ManagerActivity.this, R.string.toast_manager_only, Toast.LENGTH_SHORT).show();
                     startActivity(new Intent(ManagerActivity.this, MainActivity.class));
@@ -157,6 +163,13 @@ public class ManagerActivity extends AppCompatActivity {
 
     private void openRoleSelection() {
         Intent intent = new Intent(this, RoleSelectionActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void openProfileCompletion() {
+        Intent intent = ProfileCompletionActivity.createIntent(this);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
