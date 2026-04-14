@@ -20,6 +20,7 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.textfield.TextInputEditText;
@@ -198,7 +199,7 @@ public class LoginActivity extends AppCompatActivity {
         clearErrors();
 
         // 공통 필수값을 먼저 검사해 불필요한 저장소 호출을 막는다.
-        String email = valueOf(inputEmail);
+        String email = UserProfileSanitizer.normalizeEmail(valueOf(inputEmail));
         String password = valueOf(inputPassword);
         if (!validateEmail(email) || !validatePassword(password, registerMode)) {
             return;
@@ -212,12 +213,15 @@ public class LoginActivity extends AppCompatActivity {
 
         setLoading(true);
         if (registerMode) {
-            String name = valueOf(inputName);
-            String phone = valueOf(inputPhone);
+            String name = UserProfileSanitizer.normalizeName(valueOf(inputName));
+            String phone = UserProfileSanitizer.normalizePhone(valueOf(inputPhone));
             if (!validateName(name) || !validatePhone(phone)) {
                 setLoading(false);
                 return;
             }
+
+            inputName.setText(name);
+            inputPhone.setText(phone);
 
             // 회원가입 시 선택한 역할을 함께 저장해 이후 화면 분기를 단순화한다.
             authRepository.register(name, email, phone, password, selectedRole, registerCallback);
@@ -273,7 +277,7 @@ public class LoginActivity extends AppCompatActivity {
         clearErrors();
 
         // 비밀번호 재설정은 이메일만 있으면 실행할 수 있다.
-        String email = valueOf(inputEmail);
+        String email = UserProfileSanitizer.normalizeEmail(valueOf(inputEmail));
         if (!validateEmail(email)) {
             return;
         }
@@ -298,7 +302,7 @@ public class LoginActivity extends AppCompatActivity {
         clearErrors();
 
         // 재발송은 로그인 전이므로 이메일과 비밀번호를 다시 확인한 뒤 실행한다.
-        String email = valueOf(inputEmail);
+        String email = UserProfileSanitizer.normalizeEmail(valueOf(inputEmail));
         String password = valueOf(inputPassword);
         if (!validateEmail(email) || !validatePassword(password, false)) {
             return;
@@ -454,8 +458,7 @@ public class LoginActivity extends AppCompatActivity {
             return false;
         }
 
-        String digits = phone.replaceAll("[^0-9]", "");
-        if (digits.length() < 10) {
+        if (!UserProfileSanitizer.isValidPhone(phone)) {
             layoutPhone.setError(getString(R.string.error_phone_invalid));
             return false;
         }

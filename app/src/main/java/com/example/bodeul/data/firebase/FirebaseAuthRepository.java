@@ -24,6 +24,7 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.google.firebase.auth.EmailAuthProvider;
@@ -47,6 +48,7 @@ import com.navercorp.nid.NaverIdLoginSDK;
 import com.navercorp.nid.oauth.util.NidOAuthCallback;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -126,7 +128,8 @@ public class FirebaseAuthRepository implements AuthRepository {
     @Override
     public void signIn(String email, String password, UserRole expectedRole, RepositoryCallback<User> callback) {
         // 인증 성공 후에는 Firestore의 사용자 프로필을 읽어 역할까지 검증한다.
-        firebaseAuth.signInWithEmailAndPassword(email, password)
+        String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
+        firebaseAuth.signInWithEmailAndPassword(normalizedEmail, password)
                 .addOnSuccessListener(authResult -> {
                     FirebaseUser firebaseUser = authResult.getUser();
                     if (firebaseUser == null) {
@@ -202,7 +205,8 @@ public class FirebaseAuthRepository implements AuthRepository {
     @Override
     public void resendVerificationEmail(String email, String password, RepositoryCallback<Void> callback) {
         // 인증 메일 재전송은 계정 본인 확인을 위해 이메일 비밀번호를 다시 검증한 뒤 수행한다.
-        firebaseAuth.signInWithEmailAndPassword(email, password)
+        String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
+        firebaseAuth.signInWithEmailAndPassword(normalizedEmail, password)
                 .addOnSuccessListener(authResult -> {
                     FirebaseUser firebaseUser = authResult.getUser();
                     if (firebaseUser == null) {
@@ -237,6 +241,9 @@ public class FirebaseAuthRepository implements AuthRepository {
             return;
         }
 
+        String normalizedName = UserProfileSanitizer.normalizeName(name);
+        String normalizedPhone = UserProfileSanitizer.normalizePhone(phone);
+
         firestore.collection("users")
                 .document(firebaseUser.getUid())
                 .get()
@@ -248,8 +255,8 @@ public class FirebaseAuthRepository implements AuthRepository {
                     }
 
                     Map<String, Object> updates = new HashMap<>();
-                    updates.put("name", name);
-                    updates.put("phone", phone);
+                    updates.put("name", normalizedName);
+                    updates.put("phone", normalizedPhone);
 
                     documentSnapshot.getReference()
                             .update(updates)
@@ -257,9 +264,9 @@ public class FirebaseAuthRepository implements AuthRepository {
                                 User updatedUser = new User(
                                         existingUser.getId(),
                                         existingUser.getRole(),
-                                        name,
+                                        normalizedName,
                                         existingUser.getEmail(),
-                                        phone
+                                        normalizedPhone
                                 );
                                 cachedUser = updatedUser;
                                 callback.onSuccess(updatedUser);
@@ -281,7 +288,11 @@ public class FirebaseAuthRepository implements AuthRepository {
             RepositoryCallback<User> callback
     ) {
         // Auth 계정 생성과 Firestore 프로필 저장을 순서대로 처리한다.
-        firebaseAuth.createUserWithEmailAndPassword(email, password)
+        String normalizedName = UserProfileSanitizer.normalizeName(name);
+        String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
+        String normalizedPhone = UserProfileSanitizer.normalizePhone(phone);
+
+        firebaseAuth.createUserWithEmailAndPassword(normalizedEmail, password)
                 .addOnSuccessListener(authResult -> {
                     FirebaseUser firebaseUser = authResult.getUser();
                     if (firebaseUser == null) {
@@ -290,9 +301,9 @@ public class FirebaseAuthRepository implements AuthRepository {
                     }
 
                     Map<String, Object> userDocument = new HashMap<>();
-                    userDocument.put("name", name);
-                    userDocument.put("email", email);
-                    userDocument.put("phone", phone);
+                    userDocument.put("name", normalizedName);
+                    userDocument.put("email", normalizedEmail);
+                    userDocument.put("phone", normalizedPhone);
                     userDocument.put("role", role.name());
                     userDocument.put("provider", PROVIDER_EMAIL);
                     userDocument.put("providerUserId", firebaseUser.getUid());
@@ -301,7 +312,13 @@ public class FirebaseAuthRepository implements AuthRepository {
                             .document(firebaseUser.getUid())
                             .set(userDocument)
                             .addOnSuccessListener(unused -> {
-                                User user = new User(firebaseUser.getUid(), role, name, email, phone);
+                                User user = new User(
+                                        firebaseUser.getUid(),
+                                        role,
+                                        normalizedName,
+                                        normalizedEmail,
+                                        normalizedPhone
+                                );
                                 cachedUser = user;
 
                                 firebaseUser.sendEmailVerification()
@@ -326,7 +343,7 @@ public class FirebaseAuthRepository implements AuthRepository {
     @Override
     public void resetPassword(String email, RepositoryCallback<Void> callback) {
         // Firebase가 제공하는 비밀번호 재설정 메일 발송 기능을 그대로 사용한다.
-        firebaseAuth.sendPasswordResetEmail(email)
+        firebaseAuth.sendPasswordResetEmail(UserProfileSanitizer.normalizeEmail(email))
                 .addOnSuccessListener(unused -> callback.onSuccess(null))
                 .addOnFailureListener(exception ->
                         callback.onError(resolveResetPasswordMessage(exception)));
@@ -560,9 +577,9 @@ public class FirebaseAuthRepository implements AuthRepository {
                     SocialProfile socialProfile = new SocialProfile(
                             PROVIDER_GOOGLE,
                             firebaseUser.getUid(),
-                            defaultNameIfEmpty(firebaseUser.getDisplayName(), expectedRole),
-                            defaultEmailIfEmpty(firebaseUser.getEmail(), "google_" + firebaseUser.getUid()),
-                            firebaseUser.getPhoneNumber() == null ? "" : firebaseUser.getPhoneNumber()
+                            UserProfileSanitizer.normalizeName(firebaseUser.getDisplayName()),
+                            normalizeEmailOrFallback(firebaseUser.getEmail(), "google_" + firebaseUser.getUid()),
+                            UserProfileSanitizer.normalizePhone(firebaseUser.getPhoneNumber())
                     );
                     syncSocialUserProfile(firebaseUser, expectedRole, socialProfile, callback);
                 })
@@ -754,7 +771,13 @@ public class FirebaseAuthRepository implements AuthRepository {
         }
 
         UserRole role = UserRole.valueOf(roleValue);
-        return new User(documentSnapshot.getId(), role, name, email, phone == null ? "" : phone);
+        return new User(
+                documentSnapshot.getId(),
+                role,
+                UserProfileSanitizer.normalizeName(name),
+                UserProfileSanitizer.normalizeEmail(email),
+                UserProfileSanitizer.normalizePhone(phone)
+        );
     }
 
     @Nullable
@@ -765,13 +788,16 @@ public class FirebaseAuthRepository implements AuthRepository {
 
         Map<?, ?> profileMap = (Map<?, ?>) rawProfile;
         String providerUserId = asString(profileMap.get("providerUserId"));
-        String name = defaultNameIfEmpty(asString(profileMap.get("name")), UserRole.PATIENT);
-        String email = defaultEmailIfEmpty(asString(profileMap.get("email")), provider.toLowerCase() + "_" + providerUserId);
-        String phone = asString(profileMap.get("phone"));
+        String name = UserProfileSanitizer.normalizeName(asString(profileMap.get("name")));
+        String email = normalizeEmailOrFallback(
+                asString(profileMap.get("email")),
+                provider.toLowerCase(Locale.ROOT) + "_" + providerUserId
+        );
+        String phone = UserProfileSanitizer.normalizePhone(asString(profileMap.get("phone")));
         if (TextUtils.isEmpty(providerUserId) || TextUtils.isEmpty(email)) {
             return null;
         }
-        return new SocialProfile(provider, providerUserId, name, email, phone == null ? "" : phone);
+        return new SocialProfile(provider, providerUserId, name, email, phone);
     }
 
     private boolean requiresEmailVerification(FirebaseUser firebaseUser) {
@@ -839,26 +865,10 @@ public class FirebaseAuthRepository implements AuthRepository {
                 && !TextUtils.isEmpty(appContext.getString(R.string.naver_client_name));
     }
 
-    private String defaultNameIfEmpty(@Nullable String name, UserRole role) {
-        if (!TextUtils.isEmpty(name)) {
-            return name;
-        }
-        switch (role) {
-            case MANAGER:
-                return "매니저";
-            case GUARDIAN:
-                return "보호자";
-            case ADMIN:
-                return "관리자";
-            case PATIENT:
-            default:
-                return "환자";
-        }
-    }
-
-    private String defaultEmailIfEmpty(@Nullable String email, String prefix) {
-        if (!TextUtils.isEmpty(email)) {
-            return email;
+    private String normalizeEmailOrFallback(@Nullable String email, String prefix) {
+        String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
+        if (!TextUtils.isEmpty(normalizedEmail)) {
+            return normalizedEmail;
         }
         return prefix + "@bodeul.local";
     }

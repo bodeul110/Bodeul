@@ -134,11 +134,19 @@
 - 로그인 SDK 키를 `local.properties` 우선, `gradle.properties` 보조 방식으로 읽도록 빌드 구성을 정리했다.
 - 저장소에 남기면 안 되는 네이버 클라이언트 ID와 시크릿 기본값은 비워 두고, 값이 없을 때도 앱 빌드는 유지되도록 정리했다.
 - 승인 없이 올라가 있던 Android Gradle Plugin 버전 변경은 원래 버전으로 되돌렸다.
-- `assembleDebug` 재검증까지 다시 통과했다.
+- 로그인과 프로필 보완 화면에서 이름, 이메일, 연락처를 같은 규칙으로 정규화하도록 정리했다.
+- 소셜 로그인 제공자가 이름을 주지 않은 경우 잘못된 기본 이름을 넣지 않고 프로필 보완 화면으로 보내도록 수정했다.
+- `testDebugUnitTest`, `assembleDebug` 재검증까지 다시 통과했다.
 
 ### 변경된 범위
 
 - `app/build.gradle.kts`
+- `app/src/main/java/com/example/bodeul/util/UserProfileSanitizer.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/ProfileCompletionActivity.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
+- `app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java`
+- `app/src/test/java/com/example/bodeul/UserProfileSanitizerTest.java`
 - `build.gradle.kts`
 - `gradle.properties`
 - `docs/firebase-setup.md`
@@ -147,6 +155,7 @@
 ### 아직 남은 범위
 
 - 각 개발 환경의 `local.properties` 에 네이버 로그인 값을 채워 실제 소셜 로그인까지 다시 검증
+- 이름 또는 연락처 제공이 비어 있는 실제 카카오·네이버 계정으로 프로필 보완 분기가 기대대로 동작하는지 실기기 재확인
 - 운영 배포 전 카카오 앱 키와 네이버 콘솔 설정이 최신 값인지 최종 재확인
 
 ## 8. 관련 핵심 파일

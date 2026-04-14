@@ -17,6 +17,7 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -102,11 +103,14 @@ public class ProfileCompletionActivity extends AppCompatActivity {
         }
 
         clearErrors();
-        String name = valueOf(inputName);
-        String phone = valueOf(inputPhone);
+        String name = UserProfileSanitizer.normalizeName(valueOf(inputName));
+        String phone = UserProfileSanitizer.normalizePhone(valueOf(inputPhone));
         if (!validateName(name) || !validatePhone(phone)) {
             return;
         }
+
+        inputName.setText(name);
+        inputPhone.setText(phone);
 
         setLoading(true);
         authRepository.updateCurrentUserProfile(name, phone, new RepositoryCallback<User>() {
@@ -170,8 +174,7 @@ public class ProfileCompletionActivity extends AppCompatActivity {
             return false;
         }
 
-        String digits = phone.replaceAll("[^0-9]", "");
-        if (digits.length() < 10) {
+        if (!UserProfileSanitizer.isValidPhone(phone)) {
             layoutPhone.setError(getString(R.string.error_phone_invalid));
             return false;
         }

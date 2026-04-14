@@ -12,6 +12,7 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.UserProfileSanitizer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,8 +94,9 @@ public class MockBodeulRepository implements BodeulRepository {
 
     @Nullable
     public synchronized User findUserByEmail(String email) {
+        String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
         for (User user : users) {
-            if (user.getEmail().equalsIgnoreCase(email)) {
+            if (UserProfileSanitizer.normalizeEmail(user.getEmail()).equals(normalizedEmail)) {
                 return user;
             }
         }
@@ -118,15 +120,20 @@ public class MockBodeulRepository implements BodeulRepository {
             return null;
         }
 
+        String normalizedName = UserProfileSanitizer.normalizeName(name);
+        String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
+        String normalizedPhone = UserProfileSanitizer.normalizePhone(phone);
         String id = role.name().toLowerCase(Locale.ROOT) + "-" + (users.size() + 1);
-        User user = new User(id, role, name, email, phone);
+        User user = new User(id, role, normalizedName, normalizedEmail, normalizedPhone);
         users.add(user);
-        passwordsByEmail.put(normalizeKey(email), password);
+        passwordsByEmail.put(normalizeKey(normalizedEmail), password);
         return user;
     }
 
     @Nullable
     public synchronized User updateUserProfile(String userId, String name, String phone) {
+        String normalizedName = UserProfileSanitizer.normalizeName(name);
+        String normalizedPhone = UserProfileSanitizer.normalizePhone(phone);
         for (int index = 0; index < users.size(); index++) {
             User existingUser = users.get(index);
             if (!existingUser.getId().equals(userId)) {
@@ -136,9 +143,9 @@ public class MockBodeulRepository implements BodeulRepository {
             User updatedUser = new User(
                     existingUser.getId(),
                     existingUser.getRole(),
-                    name,
+                    normalizedName,
                     existingUser.getEmail(),
-                    phone
+                    normalizedPhone
             );
             users.set(index, updatedUser);
             return updatedUser;
