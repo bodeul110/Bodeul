@@ -125,7 +125,31 @@
 - 매니저 화면은 세션 1건 기준으로 동작한다.
 - `assembleDebug` 기준 빌드는 현재 성공 상태다.
 
-## 7. 관련 핵심 파일
+## 7. 최근 정리 사항
+
+기준일: 2026-04-14
+
+### 이번에 정리한 내용
+
+- 로그인 SDK 키를 `local.properties` 우선, `gradle.properties` 보조 방식으로 읽도록 빌드 구성을 정리했다.
+- 저장소에 남기면 안 되는 네이버 클라이언트 ID와 시크릿 기본값은 비워 두고, 값이 없을 때도 앱 빌드는 유지되도록 정리했다.
+- 승인 없이 올라가 있던 Android Gradle Plugin 버전 변경은 원래 버전으로 되돌렸다.
+- `assembleDebug` 재검증까지 다시 통과했다.
+
+### 변경된 범위
+
+- `app/build.gradle.kts`
+- `build.gradle.kts`
+- `gradle.properties`
+- `docs/firebase-setup.md`
+- `docs/implementation-status.md`
+
+### 아직 남은 범위
+
+- 각 개발 환경의 `local.properties` 에 네이버 로그인 값을 채워 실제 소셜 로그인까지 다시 검증
+- 운영 배포 전 카카오 앱 키와 네이버 콘솔 설정이 최신 값인지 최종 재확인
+
+## 8. 관련 핵심 파일
 
 - 인증
   - `app/src/main/java/com/example/bodeul/ui/auth/`

@@ -14,6 +14,26 @@
 
 `google-services.json` 이 없으면 앱은 자동으로 데모 모드로 동작합니다.
 
+## 소셜 로그인 키 관리
+
+실제 카카오와 네이버 로그인을 테스트할 때는 저장소에 민감한 값을 남기지 않도록 `local.properties` 또는 사용자별 Gradle 환경 변수에 값을 둡니다.
+
+```properties
+naverClientId=발급받은_클라이언트_ID
+naverClientSecret=발급받은_클라이언트_시크릿
+naverClientName=보들
+```
+
+필요하면 카카오 네이티브 앱 키도 같은 방식으로 `local.properties` 에 덮어쓸 수 있습니다.
+
+```properties
+kakaoNativeAppKey=발급받은_네이티브_앱_키
+```
+
+- `local.properties` 는 `.gitignore` 에 포함되어 있어 저장소에 커밋되지 않습니다.
+- 현재 저장소의 `gradle.properties` 는 네이버 로그인 값을 비워 두므로, 실제 네이버 로그인 테스트 전에는 각 개발 환경에서 값을 채워야 합니다.
+- 값이 비어 있어도 `assembleDebug` 빌드는 가능하지만, 실제 소셜 로그인 검증은 해당 콘솔 값이 준비된 뒤에 해야 합니다.
+
 ## 콘솔에서 해야 할 일
 
 ### 1. Firebase 프로젝트 생성
@@ -246,18 +266,19 @@ firebase deploy --only firestore:rules,firestore:indexes
 ## 첫 테스트 체크리스트
 
 1. `app/google-services.json` 을 넣습니다.
-2. 필요하면 [firebase_auth_config.xml](/D:/BoDeul/app/src/main/res/values/firebase_auth_config.xml:1) 에 운영 도메인을 입력합니다.
-3. `Authentication > Settings > Authorized domains` 와 `Templates` 설정을 끝냅니다.
-4. 앱을 실행합니다.
-5. 환자 또는 보호자 계정을 회원가입합니다.
-6. 인증 메일을 열어 이메일 인증을 완료합니다.
-7. 스팸함으로 가면 로그인 화면의 `인증 메일 다시 보내기` 버튼으로 재시험합니다.
-8. 다시 로그인합니다.
-9. Firestore `users` 컬렉션에 사용자 문서가 생겼는지 확인합니다.
-10. 매니저 계정으로도 같은 방식으로 가입합니다.
-11. Firestore에 `hospitalGuides`, `appointmentRequests`, `companionSessions` 를 넣습니다.
-12. 매니저 로그인 후 홈과 가이드 화면이 열리는지 확인합니다.
-13. 보호자 메시지 저장, 복약 메모 저장, 리포트 전송이 Firestore에 반영되는지 확인합니다.
+2. 실제 네이버 로그인을 시험할 계획이면 `local.properties` 에 `naverClientId`, `naverClientSecret`, `naverClientName` 을 넣습니다.
+3. 필요하면 [firebase_auth_config.xml](/D:/BoDeul/app/src/main/res/values/firebase_auth_config.xml:1) 에 운영 도메인을 입력합니다.
+4. `Authentication > Settings > Authorized domains` 와 `Templates` 설정을 끝냅니다.
+5. 앱을 실행합니다.
+6. 환자 또는 보호자 계정을 회원가입합니다.
+7. 인증 메일을 열어 이메일 인증을 완료합니다.
+8. 스팸함으로 가면 로그인 화면의 `인증 메일 다시 보내기` 버튼으로 재시험합니다.
+9. 다시 로그인합니다.
+10. Firestore `users` 컬렉션에 사용자 문서가 생겼는지 확인합니다.
+11. 매니저 계정으로도 같은 방식으로 가입합니다.
+12. Firestore에 `hospitalGuides`, `appointmentRequests`, `companionSessions` 를 넣습니다.
+13. 매니저 로그인 후 홈과 가이드 화면이 열리는지 확인합니다.
+14. 보호자 메시지 저장, 복약 메모 저장, 리포트 전송이 Firestore에 반영되는지 확인합니다.
 
 ## 데모 계정
 

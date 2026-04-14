@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
 }
@@ -6,10 +8,25 @@ if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
 
-val kakaoNativeAppKey = providers.gradleProperty("kakaoNativeAppKey").orElse("").get()
-val naverClientId = providers.gradleProperty("naverClientId").orElse("").get()
-val naverClientSecret = providers.gradleProperty("naverClientSecret").orElse("").get()
-val naverClientName = providers.gradleProperty("naverClientName").orElse("").get()
+// 저장소에 남기지 않을 로그인 키는 local.properties를 우선으로 읽는다.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun localOrGradleProperty(name: String): String {
+    return (localProperties.getProperty(name)
+        ?: providers.gradleProperty(name).orNull
+        ?: "").trim()
+}
+
+val kakaoNativeAppKey = localOrGradleProperty("kakaoNativeAppKey")
+val naverClientId = localOrGradleProperty("naverClientId")
+val naverClientSecret = localOrGradleProperty("naverClientSecret")
+val naverClientName = localOrGradleProperty("naverClientName")
+    .ifEmpty { "보들" }
 
 android {
     namespace = "com.example.bodeul"
