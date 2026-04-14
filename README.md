@@ -19,6 +19,7 @@
 
 ## 문서
 
+- [현재 구현 상태](docs/implementation-status.md)
 - [MVP 범위](docs/mvp-scope.md)
 - [아키텍처 초안](docs/architecture-draft.md)
 - [팀 작업 분담](docs/team-task-breakdown.md)
