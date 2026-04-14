@@ -11,6 +11,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -31,6 +32,10 @@ import com.google.android.material.textfield.TextInputLayout;
  */
 public class LoginActivity extends AppCompatActivity {
     private static final String EXTRA_ROLE_HINT = "role_hint";
+    private static final String STATE_REGISTER_MODE = "state_register_mode";
+    private static final String STATE_SELECTED_ROLE = "state_selected_role";
+    private static final String STATE_VERIFICATION_RESEND_AVAILABLE_AT =
+            "state_verification_resend_available_at";
     private static final long VERIFICATION_EMAIL_RESEND_COOLDOWN_MS = 60_000L;
 
     private AuthRepository authRepository;
@@ -104,9 +109,11 @@ public class LoginActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressAuth);
 
         configureRoleChips();
+        restoreScreenState(savedInstanceState);
         bindMode();
         bindFirebaseBanner();
         applyDemoCredentials();
+        restoreVerificationResendCooldown();
 
         buttonSubmit.setOnClickListener(view -> submitAuth());
         textSwitchMode.setOnClickListener(view -> {
@@ -123,6 +130,41 @@ public class LoginActivity extends AppCompatActivity {
         chipRoleManager.setOnClickListener(roleListener);
         chipRolePatient.setOnClickListener(roleListener);
         chipRoleGuardian.setOnClickListener(roleListener);
+    }
+
+    private void restoreScreenState(@Nullable Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return;
+        }
+
+        // 화면 재생성 뒤에도 회원가입 모드와 선택 역할을 그대로 유지한다.
+        registerMode = savedInstanceState.getBoolean(STATE_REGISTER_MODE, false);
+        restoreSelectedRole(savedInstanceState.getString(STATE_SELECTED_ROLE));
+        verificationResendAvailableAtMillis = savedInstanceState.getLong(
+                STATE_VERIFICATION_RESEND_AVAILABLE_AT,
+                0L
+        );
+    }
+
+    private void restoreSelectedRole(@Nullable String savedRoleName) {
+        if (TextUtils.isEmpty(savedRoleName)) {
+            return;
+        }
+
+        try {
+            UserRole savedRole = UserRole.valueOf(savedRoleName);
+            if (savedRole == UserRole.MANAGER) {
+                chipRoleManager.setChecked(true);
+                return;
+            }
+            if (savedRole == UserRole.GUARDIAN) {
+                chipRoleGuardian.setChecked(true);
+                return;
+            }
+            chipRolePatient.setChecked(true);
+        } catch (IllegalArgumentException ignored) {
+            // 저장된 역할 값이 잘못된 경우 현재 기본 선택을 유지한다.
+        }
     }
 
     private void configureRoleChips() {
@@ -466,14 +508,23 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void startVerificationResendCooldown() {
-        verificationResendAvailableAtMillis =
-                System.currentTimeMillis() + VERIFICATION_EMAIL_RESEND_COOLDOWN_MS;
+        startVerificationResendCooldown(VERIFICATION_EMAIL_RESEND_COOLDOWN_MS);
+    }
+
+    private void startVerificationResendCooldown(long durationMillis) {
+        if (durationMillis <= 0L) {
+            verificationResendAvailableAtMillis = 0L;
+            updateVerificationResendState();
+            return;
+        }
+
+        verificationResendAvailableAtMillis = System.currentTimeMillis() + durationMillis;
         if (verificationResendCooldownTimer != null) {
             verificationResendCooldownTimer.cancel();
         }
 
         verificationResendCooldownTimer = new CountDownTimer(
-                VERIFICATION_EMAIL_RESEND_COOLDOWN_MS,
+                durationMillis,
                 1_000L
         ) {
             @Override
@@ -490,6 +541,16 @@ public class LoginActivity extends AppCompatActivity {
         };
         verificationResendCooldownTimer.start();
         updateVerificationResendState();
+    }
+
+    private void restoreVerificationResendCooldown() {
+        long remainingMillis = verificationResendAvailableAtMillis - System.currentTimeMillis();
+        if (remainingMillis <= 0L) {
+            verificationResendAvailableAtMillis = 0L;
+            updateVerificationResendState();
+            return;
+        }
+        startVerificationResendCooldown(remainingMillis);
     }
 
     private void updateVerificationResendState() {
@@ -527,5 +588,19 @@ public class LoginActivity extends AppCompatActivity {
             verificationResendCooldownTimer = null;
         }
         super.onDestroy();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(STATE_REGISTER_MODE, registerMode);
+        UserRole selectedRole = getSelectedRole();
+        if (selectedRole != null) {
+            outState.putString(STATE_SELECTED_ROLE, selectedRole.name());
+        }
+        outState.putLong(
+                STATE_VERIFICATION_RESEND_AVAILABLE_AT,
+                verificationResendAvailableAtMillis
+        );
     }
 }
