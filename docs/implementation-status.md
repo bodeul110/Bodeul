@@ -136,6 +136,7 @@
 - 승인 없이 올라가 있던 Android Gradle Plugin 버전 변경은 원래 버전으로 되돌렸다.
 - 로그인과 프로필 보완 화면에서 이름, 이메일, 연락처를 같은 규칙으로 정규화하도록 정리했다.
 - 소셜 로그인 제공자가 이름을 주지 않은 경우 잘못된 기본 이름을 넣지 않고 프로필 보완 화면으로 보내도록 수정했다.
+- 현재 개발 환경의 `local.properties` 에 네이버 로그인 값을 다시 넣어 설정 누락 상태를 복구했다.
 - `testDebugUnitTest`, `assembleDebug` 재검증까지 다시 통과했다.
 
 ### 변경된 범위
@@ -147,6 +148,7 @@
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
 - `app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java`
 - `app/src/test/java/com/example/bodeul/UserProfileSanitizerTest.java`
+- `local.properties`
 - `build.gradle.kts`
 - `gradle.properties`
 - `docs/firebase-setup.md`
