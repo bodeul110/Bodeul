@@ -67,7 +67,7 @@ public class FirebaseAdminRepository implements AdminRepository {
                     return;
                 }
                 if (!targetOverview.hasLinkedParticipants()) {
-                    callback.onError("환자와 보호자 정보가 모두 연결된 요청만 배정할 수 있습니다.");
+                    callback.onError("환자와 보호자 계정 연결이 완료된 요청만 배정할 수 있습니다.");
                     return;
                 }
                 if (!targetOverview.hasGuide()) {
@@ -464,7 +464,13 @@ public class FirebaseAdminRepository implements AdminRepository {
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
                 AppointmentStatus.valueOf(statusValue),
-                managerUserId
+                managerUserId,
+                normalizeText(documentSnapshot.getString("patientName")),
+                normalizeText(documentSnapshot.getString("patientPhone")),
+                normalizeText(documentSnapshot.getString("patientEmail")),
+                normalizeText(documentSnapshot.getString("guardianName")),
+                normalizeText(documentSnapshot.getString("guardianPhone")),
+                normalizeText(documentSnapshot.getString("guardianEmail"))
         );
     }
 

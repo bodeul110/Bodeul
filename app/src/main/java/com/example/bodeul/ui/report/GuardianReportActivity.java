@@ -167,9 +167,7 @@ public class GuardianReportActivity extends AppCompatActivity {
     }
 
     private CharSequence buildHighlightBody(GuardianReportEntry entry, int count) {
-        String patientName = entry.getPatient() == null
-                ? getString(R.string.guardian_report_patient_missing)
-                : entry.getPatient().getName();
+        String patientName = buildPatientDisplay(entry);
         String managerName = entry.getManager() == null
                 ? getString(R.string.guardian_report_manager_pending)
                 : entry.getManager().getName();
@@ -207,6 +205,33 @@ public class GuardianReportActivity extends AppCompatActivity {
         return session.getGuardianUpdate();
     }
 
+    private String buildPatientDisplay(GuardianReportEntry entry) {
+        if (entry.getPatient() != null) {
+            return buildContactText(entry.getPatient().getName(), entry.getPatient().getPhone(), false);
+        }
+        return buildContactText(
+                entry.getAppointmentRequest().getPatientName(),
+                entry.getAppointmentRequest().getPatientPhone(),
+                true
+        );
+    }
+
+    private String buildContactText(String name, String phone, boolean pendingLink) {
+        String baseText;
+        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(phone)) {
+            baseText = getString(R.string.guardian_report_contact_name_phone, name, phone);
+        } else if (!TextUtils.isEmpty(name)) {
+            baseText = name;
+        } else if (!TextUtils.isEmpty(phone)) {
+            baseText = phone;
+        } else {
+            return getString(R.string.guardian_report_patient_missing);
+        }
+        return pendingLink
+                ? getString(R.string.guardian_report_contact_pending, baseText)
+                : baseText;
+    }
+
     private void renderEntries(List<GuardianReportEntry> entries) {
         guardianReportListContainer.removeAllViews();
         if (entries.isEmpty()) {
@@ -238,9 +263,7 @@ public class GuardianReportActivity extends AppCompatActivity {
             ));
             patientView.setText(getString(
                     R.string.guardian_report_item_patient,
-                    entry.getPatient() == null
-                            ? getString(R.string.guardian_report_patient_missing)
-                            : entry.getPatient().getName()
+                    buildPatientDisplay(entry)
             ));
             scheduleView.setText(getString(
                     R.string.guardian_report_item_schedule,
@@ -298,11 +321,13 @@ public class GuardianReportActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        int padding = (int) (20 * getResources().getDisplayMetrics().density);
+        emptyView.setBackgroundResource(R.drawable.bg_surface_card_soft);
         emptyView.setPadding(padding, padding, padding, padding);
         emptyView.setText(R.string.guardian_report_list_empty);
         emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
         emptyView.setTextSize(14f);
+        emptyView.setLineSpacing(0f, 1.2f);
         guardianReportListContainer.addView(emptyView);
     }
 

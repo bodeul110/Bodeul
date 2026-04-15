@@ -119,8 +119,25 @@ public class MockBodeulRepository implements BodeulRepository {
     @Nullable
     public synchronized User findUserByEmail(String email) {
         String normalizedEmail = UserProfileSanitizer.normalizeEmail(email);
+        if (normalizedEmail.isEmpty()) {
+            return null;
+        }
         for (User user : users) {
             if (UserProfileSanitizer.normalizeEmail(user.getEmail()).equals(normalizedEmail)) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    public synchronized User findUserByPhone(String phone) {
+        String normalizedPhone = UserProfileSanitizer.normalizePhone(phone);
+        if (normalizedPhone.isEmpty()) {
+            return null;
+        }
+        for (User user : users) {
+            if (UserProfileSanitizer.normalizePhone(user.getPhone()).equals(normalizedPhone)) {
                 return user;
             }
         }
@@ -184,25 +201,84 @@ public class MockBodeulRepository implements BodeulRepository {
             String departmentName,
             String appointmentAt,
             String meetingPlace,
-            String specialNotes
+            String specialNotes,
+            String linkedParticipantName,
+            String linkedParticipantPhone,
+            String linkedParticipantEmail
     ) {
         if (currentUser.getRole() != UserRole.PATIENT && currentUser.getRole() != UserRole.GUARDIAN) {
             return null;
         }
 
+        String normalizedLinkedName = UserProfileSanitizer.normalizeName(linkedParticipantName);
+        String normalizedLinkedPhone = UserProfileSanitizer.normalizePhone(linkedParticipantPhone);
+        String normalizedLinkedEmail = UserProfileSanitizer.normalizeEmail(linkedParticipantEmail);
+        User linkedParticipant = resolveLinkedParticipant(
+                resolveCounterpartRole(currentUser.getRole()),
+                normalizedLinkedEmail,
+                normalizedLinkedPhone
+        );
+
+        String patientUserId;
+        String guardianUserId;
+        String patientName;
+        String patientPhone;
+        String patientEmail;
+        String guardianName;
+        String guardianPhone;
+        String guardianEmail;
+
+        if (currentUser.getRole() == UserRole.PATIENT) {
+            patientUserId = currentUser.getId();
+            patientName = UserProfileSanitizer.normalizeName(currentUser.getName());
+            patientPhone = UserProfileSanitizer.normalizePhone(currentUser.getPhone());
+            patientEmail = UserProfileSanitizer.normalizeEmail(currentUser.getEmail());
+            guardianUserId = linkedParticipant == null ? "" : linkedParticipant.getId();
+            guardianName = linkedParticipant == null
+                    ? normalizedLinkedName
+                    : UserProfileSanitizer.normalizeName(linkedParticipant.getName());
+            guardianPhone = linkedParticipant == null
+                    ? normalizedLinkedPhone
+                    : UserProfileSanitizer.normalizePhone(linkedParticipant.getPhone());
+            guardianEmail = linkedParticipant == null
+                    ? normalizedLinkedEmail
+                    : UserProfileSanitizer.normalizeEmail(linkedParticipant.getEmail());
+        } else {
+            guardianUserId = currentUser.getId();
+            guardianName = UserProfileSanitizer.normalizeName(currentUser.getName());
+            guardianPhone = UserProfileSanitizer.normalizePhone(currentUser.getPhone());
+            guardianEmail = UserProfileSanitizer.normalizeEmail(currentUser.getEmail());
+            patientUserId = linkedParticipant == null ? "" : linkedParticipant.getId();
+            patientName = linkedParticipant == null
+                    ? normalizedLinkedName
+                    : UserProfileSanitizer.normalizeName(linkedParticipant.getName());
+            patientPhone = linkedParticipant == null
+                    ? normalizedLinkedPhone
+                    : UserProfileSanitizer.normalizePhone(linkedParticipant.getPhone());
+            patientEmail = linkedParticipant == null
+                    ? normalizedLinkedEmail
+                    : UserProfileSanitizer.normalizeEmail(linkedParticipant.getEmail());
+        }
+
         AppointmentRequest request = new AppointmentRequest(
                 "request-" + (appointmentRequests.size() + 1),
-                currentUser.getRole() == UserRole.PATIENT ? currentUser.getId() : "",
-                currentUser.getRole() == UserRole.GUARDIAN ? currentUser.getId() : "",
+                patientUserId,
+                guardianUserId,
                 normalizeText(hospitalName),
                 normalizeText(departmentName),
                 normalizeText(appointmentAt),
                 normalizeText(meetingPlace),
                 normalizeText(specialNotes),
                 AppointmentStatus.REQUESTED,
-                null
+                null,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail
         );
-        // 새로 만든 요청을 목록 상단에 쌓아 신청 직후 바로 보이게 한다.
+        // 새로 만든 요청은 목록 상단에 쌓아 신청 직후 바로 보이게 한다.
         appointmentRequests.add(0, request);
         return request;
     }
@@ -217,7 +293,9 @@ public class MockBodeulRepository implements BodeulRepository {
             String meetingPlace,
             String specialNotes
     ) {
-        if (findUserById(patientUserId) == null || findUserById(guardianUserId) == null) {
+        User patient = findUserById(patientUserId);
+        User guardian = findUserById(guardianUserId);
+        if (patient == null || guardian == null) {
             return null;
         }
 
@@ -231,7 +309,13 @@ public class MockBodeulRepository implements BodeulRepository {
                 normalizeText(meetingPlace),
                 normalizeText(specialNotes),
                 AppointmentStatus.REQUESTED,
-                null
+                null,
+                UserProfileSanitizer.normalizeName(patient.getName()),
+                UserProfileSanitizer.normalizePhone(patient.getPhone()),
+                UserProfileSanitizer.normalizeEmail(patient.getEmail()),
+                UserProfileSanitizer.normalizeName(guardian.getName()),
+                UserProfileSanitizer.normalizePhone(guardian.getPhone()),
+                UserProfileSanitizer.normalizeEmail(guardian.getEmail())
         );
         appointmentRequests.add(0, request);
         return request;
@@ -471,6 +555,24 @@ public class MockBodeulRepository implements BodeulRepository {
                 && !normalizeText(request.getGuardianUserId()).isEmpty();
     }
 
+    @Nullable
+    private User resolveLinkedParticipant(UserRole expectedRole, String email, String phone) {
+        User matchedByEmail = findUserByEmail(email);
+        if (matchedByEmail != null && matchedByEmail.getRole() == expectedRole) {
+            return matchedByEmail;
+        }
+
+        User matchedByPhone = findUserByPhone(phone);
+        if (matchedByPhone != null && matchedByPhone.getRole() == expectedRole) {
+            return matchedByPhone;
+        }
+        return null;
+    }
+
+    private UserRole resolveCounterpartRole(UserRole requesterRole) {
+        return requesterRole == UserRole.PATIENT ? UserRole.GUARDIAN : UserRole.PATIENT;
+    }
+
     private List<GuideStep> buildGuideSteps(List<String> stepLines) {
         List<GuideStep> steps = new ArrayList<>();
         int order = 1;
@@ -569,7 +671,13 @@ public class MockBodeulRepository implements BodeulRepository {
                 "본관 1층 안내 데스크",
                 "어지럼 증상과 복용 중인 약 정보를 함께 확인해주세요.",
                 AppointmentStatus.MATCHED,
-                "manager-1"
+                "manager-1",
+                "이현우",
+                "010-0000-0001",
+                "patient@bodeul.app",
+                "김유나",
+                "010-0000-0002",
+                "guardian@bodeul.app"
         ));
     }
 

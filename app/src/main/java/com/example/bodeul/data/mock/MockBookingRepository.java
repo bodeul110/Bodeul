@@ -36,6 +36,9 @@ public class MockBookingRepository implements BookingRepository {
             String appointmentAt,
             String meetingPlace,
             String specialNotes,
+            String linkedParticipantName,
+            String linkedParticipantPhone,
+            String linkedParticipantEmail,
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
@@ -49,7 +52,10 @@ public class MockBookingRepository implements BookingRepository {
                 departmentName,
                 appointmentAt,
                 meetingPlace,
-                specialNotes
+                specialNotes,
+                linkedParticipantName,
+                linkedParticipantPhone,
+                linkedParticipantEmail
         );
         if (request == null) {
             callback.onError("동행 신청을 저장하지 못했습니다.");

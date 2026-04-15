@@ -241,12 +241,18 @@ public class AdminActivity extends AppCompatActivity {
         ));
         participantsView.setText(getString(
                 R.string.admin_request_participants,
-                overview.getPatient() == null
-                        ? getString(R.string.admin_participant_patient_missing)
-                        : overview.getPatient().getName(),
-                overview.getGuardian() == null
-                        ? getString(R.string.admin_participant_guardian_missing)
-                        : overview.getGuardian().getName()
+                buildParticipantDisplay(
+                        overview.getPatient(),
+                        overview.getAppointmentRequest().getPatientName(),
+                        overview.getAppointmentRequest().getPatientPhone(),
+                        R.string.admin_participant_patient_missing
+                ),
+                buildParticipantDisplay(
+                        overview.getGuardian(),
+                        overview.getAppointmentRequest().getGuardianName(),
+                        overview.getAppointmentRequest().getGuardianPhone(),
+                        R.string.admin_participant_guardian_missing
+                )
         ));
         scheduleView.setText(getString(
                 R.string.admin_request_schedule,
@@ -308,6 +314,19 @@ public class AdminActivity extends AppCompatActivity {
 
     private String resolveBlockingReason(AdminRequestOverview overview, List<User> availableManagers) {
         if (!overview.hasLinkedParticipants()) {
+            if (hasParticipantInfo(
+                    overview.getPatient(),
+                    overview.getAppointmentRequest().getPatientName(),
+                    overview.getAppointmentRequest().getPatientPhone(),
+                    overview.getAppointmentRequest().getPatientEmail()
+            ) && hasParticipantInfo(
+                    overview.getGuardian(),
+                    overview.getAppointmentRequest().getGuardianName(),
+                    overview.getAppointmentRequest().getGuardianPhone(),
+                    overview.getAppointmentRequest().getGuardianEmail()
+            )) {
+                return getString(R.string.admin_request_block_pending_link);
+            }
             return getString(R.string.admin_request_block_missing_participants);
         }
         if (!overview.hasGuide()) {
@@ -317,6 +336,44 @@ public class AdminActivity extends AppCompatActivity {
             return getString(R.string.admin_request_block_no_manager);
         }
         return "";
+    }
+
+    private String buildParticipantDisplay(
+            User user,
+            String snapshotName,
+            String snapshotPhone,
+            int missingResId
+    ) {
+        if (user != null) {
+            return buildParticipantValue(user.getName(), user.getPhone(), false);
+        }
+        if (TextUtils.isEmpty(snapshotName) && TextUtils.isEmpty(snapshotPhone)) {
+            return getString(missingResId);
+        }
+        return buildParticipantValue(snapshotName, snapshotPhone, true);
+    }
+
+    private boolean hasParticipantInfo(User user, String name, String phone, String email) {
+        if (user != null) {
+            return true;
+        }
+        return !TextUtils.isEmpty(name) || !TextUtils.isEmpty(phone) || !TextUtils.isEmpty(email);
+    }
+
+    private String buildParticipantValue(String name, String phone, boolean pendingLink) {
+        String baseText;
+        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(phone)) {
+            baseText = getString(R.string.admin_participant_value_name_phone, name, phone);
+        } else if (!TextUtils.isEmpty(name)) {
+            baseText = name;
+        } else if (!TextUtils.isEmpty(phone)) {
+            baseText = phone;
+        } else {
+            baseText = getString(R.string.admin_participant_value_unknown);
+        }
+        return pendingLink
+                ? getString(R.string.admin_participant_value_pending_link, baseText)
+                : baseText;
     }
 
     private void renderManagerButtons(
@@ -481,11 +538,13 @@ public class AdminActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
-        int padding = dpToPx(16);
+        int padding = dpToPx(20);
+        emptyView.setBackgroundResource(R.drawable.bg_surface_card_soft);
         emptyView.setPadding(padding, padding, padding, padding);
         emptyView.setText(messageResId);
         emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
         emptyView.setTextSize(14f);
+        emptyView.setLineSpacing(0f, 1.2f);
         container.addView(emptyView);
     }
 
