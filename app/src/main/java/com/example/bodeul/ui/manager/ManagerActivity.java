@@ -2,11 +2,14 @@ package com.example.bodeul.ui.manager;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
@@ -16,6 +19,7 @@ import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
@@ -24,14 +28,22 @@ import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 /**
  * 매니저가 현재 동행 현황과 주요 빠른 작업을 확인하는 홈 화면이다.
  */
 public class ManagerActivity extends AppCompatActivity {
+    private enum QuickActionType {
+        DOCUMENT,
+        SCHEDULE
+    }
+
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private User currentUser;
+    private ManagerHomeProfile managerHomeProfile = new ManagerHomeProfile("", "");
     private boolean hasActiveSession;
 
     private TextView textManagerMode;
@@ -40,6 +52,8 @@ public class ManagerActivity extends AppCompatActivity {
     private TextView textManagerCardBody;
     private TextView textAssignmentDetail;
     private TextView textAssignmentNote;
+    private TextView textActionDocsDescription;
+    private TextView textActionScheduleDescription;
     private View managerStatePanel;
     private View managerContentContainer;
     private MaterialButton buttonOpenGuideFromHero;
@@ -59,6 +73,8 @@ public class ManagerActivity extends AppCompatActivity {
         textManagerCardBody = findViewById(R.id.textManagerCardBody);
         textAssignmentDetail = findViewById(R.id.textAssignmentDetail);
         textAssignmentNote = findViewById(R.id.textAssignmentNote);
+        textActionDocsDescription = findViewById(R.id.textActionDocsDescription);
+        textActionScheduleDescription = findViewById(R.id.textActionScheduleDescription);
         managerStatePanel = findViewById(R.id.managerStatePanel);
         managerContentContainer = findViewById(R.id.managerContentContainer);
         buttonOpenGuideFromHero = findViewById(R.id.buttonOpenGuideFromHero);
@@ -66,16 +82,15 @@ public class ManagerActivity extends AppCompatActivity {
 
         buttonOpenGuideFromHero.setOnClickListener(view -> openGuide());
         cardActionGuide.setOnClickListener(view -> openGuide());
-        findViewById(R.id.cardActionDocs).setOnClickListener(view ->
-                Toast.makeText(this, R.string.toast_placeholder, Toast.LENGTH_SHORT).show());
-        findViewById(R.id.cardActionSchedule).setOnClickListener(view ->
-                Toast.makeText(this, R.string.toast_placeholder, Toast.LENGTH_SHORT).show());
+        findViewById(R.id.cardActionDocs).setOnClickListener(view -> openQuickActionDialog(QuickActionType.DOCUMENT));
+        findViewById(R.id.cardActionSchedule).setOnClickListener(view -> openQuickActionDialog(QuickActionType.SCHEDULE));
         findViewById(R.id.cardActionLogout).setOnClickListener(view -> signOut());
 
         textManagerMode.setText(managerRepository.isFirebaseBacked()
                 ? R.string.manager_home_mode_firebase
                 : R.string.manager_home_mode_demo);
         bindEmptyDashboard();
+        bindManagerHomeProfile(managerHomeProfile);
     }
 
     @Override
@@ -97,12 +112,32 @@ public class ManagerActivity extends AppCompatActivity {
                 currentUser = result;
                 hideBlockingState();
                 textManagerGreeting.setText(getString(R.string.manager_home_greeting, result.getName()));
+                loadManagerHomeProfile();
                 loadDashboard();
             }
 
             @Override
             public void onError(String message) {
                 showAuthState();
+            }
+        });
+    }
+
+    private void loadManagerHomeProfile() {
+        managerRepository.getManagerHomeProfile(currentUser.getId(), new RepositoryCallback<ManagerHomeProfile>() {
+            @Override
+            public void onSuccess(ManagerHomeProfile result) {
+                managerHomeProfile = result;
+                bindManagerHomeProfile(result);
+            }
+
+            @Override
+            public void onError(String message) {
+                managerHomeProfile = new ManagerHomeProfile("", "");
+                bindManagerHomeProfile(managerHomeProfile);
+                if (!TextUtils.isEmpty(message)) {
+                    Toast.makeText(ManagerActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
@@ -166,6 +201,80 @@ public class ManagerActivity extends AppCompatActivity {
         startActivity(new Intent(this, ManagerGuideActivity.class));
     }
 
+    private void openQuickActionDialog(QuickActionType actionType) {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_manager_quick_note, null, false);
+        TextInputLayout inputLayout = dialogView.findViewById(R.id.layoutManagerQuickNote);
+        TextInputEditText inputEditText = dialogView.findViewById(R.id.inputManagerQuickNote);
+
+        if (actionType == QuickActionType.DOCUMENT) {
+            inputLayout.setHint(getString(R.string.manager_action_docs_input_hint));
+            inputLayout.setHelperText(getString(R.string.manager_action_docs_input_helper));
+            inputEditText.setText(managerHomeProfile.getDocumentSummary());
+        } else {
+            inputLayout.setHint(getString(R.string.manager_action_schedule_input_hint));
+            inputLayout.setHelperText(getString(R.string.manager_action_schedule_input_helper));
+            inputEditText.setText(managerHomeProfile.getAvailabilitySummary());
+        }
+        if (inputEditText.getText() != null) {
+            inputEditText.setSelection(inputEditText.getText().length());
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(actionType == QuickActionType.DOCUMENT
+                        ? R.string.manager_action_docs_dialog_title
+                        : R.string.manager_action_schedule_dialog_title)
+                .setView(dialogView)
+                .setNegativeButton(R.string.manager_action_dialog_cancel, null)
+                .setPositiveButton(R.string.manager_action_dialog_save, null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    String value = inputEditText.getText() == null ? "" : inputEditText.getText().toString().trim();
+                    if (TextUtils.isEmpty(value)) {
+                        inputLayout.setError(getString(R.string.error_required_field));
+                        return;
+                    }
+                    inputLayout.setError(null);
+                    saveQuickAction(actionType, value, dialog);
+                }));
+        dialog.show();
+    }
+
+    private void saveQuickAction(QuickActionType actionType, String value, AlertDialog dialog) {
+        RepositoryCallback<ManagerHomeProfile> callback = new RepositoryCallback<ManagerHomeProfile>() {
+            @Override
+            public void onSuccess(ManagerHomeProfile result) {
+                managerHomeProfile = result;
+                bindManagerHomeProfile(result);
+                Toast.makeText(
+                        ManagerActivity.this,
+                        actionType == QuickActionType.DOCUMENT
+                                ? R.string.manager_action_docs_saved
+                                : R.string.manager_action_schedule_saved,
+                        Toast.LENGTH_SHORT
+                ).show();
+                dialog.dismiss();
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(ManagerActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        };
+
+        if (actionType == QuickActionType.DOCUMENT) {
+            managerRepository.saveManagerDocumentSummary(currentUser.getId(), value, callback);
+            return;
+        }
+        managerRepository.saveManagerAvailabilitySummary(currentUser.getId(), value, callback);
+    }
+
     private void signOut() {
         authRepository.signOut();
         openRoleSelection();
@@ -193,6 +302,28 @@ public class ManagerActivity extends AppCompatActivity {
         textManagerCardBody.setText(R.string.manager_home_empty_card_body);
         textAssignmentDetail.setText(R.string.manager_assignment_empty_detail);
         textAssignmentNote.setText(R.string.manager_assignment_empty_note);
+    }
+
+    private void bindManagerHomeProfile(ManagerHomeProfile profile) {
+        textActionDocsDescription.setText(buildActionCardDescription(
+                profile.getDocumentSummary(),
+                R.string.manager_action_docs_desc
+        ));
+        textActionScheduleDescription.setText(buildActionCardDescription(
+                profile.getAvailabilitySummary(),
+                R.string.manager_action_schedule_desc
+        ));
+    }
+
+    private CharSequence buildActionCardDescription(String savedValue, int emptyResId) {
+        if (TextUtils.isEmpty(savedValue)) {
+            return getString(emptyResId);
+        }
+        return summarizeCardText(savedValue);
+    }
+
+    private String summarizeCardText(String value) {
+        return value.replace('\n', ' ').replace("  ", " ").trim();
     }
 
     private void setGuideAccessEnabled(boolean enabled) {

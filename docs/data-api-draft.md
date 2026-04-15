@@ -13,6 +13,8 @@
 - `name`
 - `email`
 - `phone`
+- `managerDocumentSummary` (선택, 매니저 전용)
+- `managerAvailabilitySummary` (선택, 매니저 전용)
 
 ### AppointmentRequest
 

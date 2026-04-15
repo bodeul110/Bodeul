@@ -45,10 +45,20 @@ import java.util.List;
  * 관리자용 수동 매칭과 병원 가이드 관리 화면이다.
  */
 public class AdminActivity extends AppCompatActivity {
+    private enum ManagedRequestFilter {
+        ALL,
+        MATCHED,
+        IN_PROGRESS,
+        COMPLETED,
+        CANCELED
+    }
+
     private AuthRepository authRepository;
     private AdminRepository adminRepository;
     private User currentUser;
     private HospitalGuide editingGuide;
+    private List<AdminRequestOverview> managedRequestsSnapshot = new ArrayList<>();
+    private ManagedRequestFilter managedRequestFilter = ManagedRequestFilter.ALL;
     private boolean loading;
 
     private TextView textAdminMode;
@@ -58,9 +68,11 @@ public class AdminActivity extends AppCompatActivity {
     private TextView textAdminGuideFormTitle;
     private TextView textAdminGuideFormBadge;
     private TextView textAdminGuideFormHelper;
+    private TextView textAdminManagedSummary;
     private View adminStatePanel;
     private View adminContentContainer;
     private LinearLayout adminPendingRequestsContainer;
+    private LinearLayout adminManagedFilterContainer;
     private LinearLayout adminManagedRequestsContainer;
     private LinearLayout adminGuideListContainer;
     private TextInputLayout layoutAdminGuideHospital;
@@ -88,9 +100,11 @@ public class AdminActivity extends AppCompatActivity {
         textAdminGuideFormTitle = findViewById(R.id.textAdminGuideFormTitle);
         textAdminGuideFormBadge = findViewById(R.id.textAdminGuideFormBadge);
         textAdminGuideFormHelper = findViewById(R.id.textAdminGuideFormHelper);
+        textAdminManagedSummary = findViewById(R.id.textAdminManagedSummary);
         adminStatePanel = findViewById(R.id.adminStatePanel);
         adminContentContainer = findViewById(R.id.adminContentContainer);
         adminPendingRequestsContainer = findViewById(R.id.adminPendingRequestsContainer);
+        adminManagedFilterContainer = findViewById(R.id.adminManagedFilterContainer);
         adminManagedRequestsContainer = findViewById(R.id.adminManagedRequestsContainer);
         adminGuideListContainer = findViewById(R.id.adminGuideListContainer);
         layoutAdminGuideHospital = findViewById(R.id.layoutAdminGuideHospital);
@@ -178,7 +192,8 @@ public class AdminActivity extends AppCompatActivity {
         textAdminManagers.setText(buildManagerSummary(dashboard));
 
         renderPendingRequests(dashboard);
-        renderManagedRequests(dashboard.getManagedRequests());
+        managedRequestsSnapshot = new ArrayList<>(dashboard.getManagedRequests());
+        renderManagedRequests(managedRequestsSnapshot);
         renderGuides(dashboard.getHospitalGuides());
     }
 
@@ -229,7 +244,10 @@ public class AdminActivity extends AppCompatActivity {
     }
 
     private void renderManagedRequests(List<AdminRequestOverview> managedRequests) {
+        renderManagedFilters(managedRequests);
+        bindManagedSummary(managedRequests);
         adminManagedRequestsContainer.removeAllViews();
+        List<AdminRequestOverview> filteredRequests = filterManagedRequests(managedRequests);
         if (managedRequests.isEmpty()) {
             renderEmptyText(
                     adminManagedRequestsContainer,
@@ -238,12 +256,147 @@ public class AdminActivity extends AppCompatActivity {
             );
             return;
         }
+        if (filteredRequests.isEmpty()) {
+            renderEmptyText(
+                    adminManagedRequestsContainer,
+                    R.string.admin_managed_title,
+                    R.string.admin_managed_filtered_empty
+            );
+            return;
+        }
 
         LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminRequestOverview overview : managedRequests) {
+        for (AdminRequestOverview overview : filteredRequests) {
             View itemView = inflater.inflate(R.layout.item_admin_request, adminManagedRequestsContainer, false);
             bindRequestItem(itemView, overview, new ArrayList<>(), false);
             adminManagedRequestsContainer.addView(itemView);
+        }
+    }
+
+    private void renderManagedFilters(List<AdminRequestOverview> managedRequests) {
+        adminManagedFilterContainer.removeAllViews();
+        if (managedRequests.isEmpty()) {
+            adminManagedFilterContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        adminManagedFilterContainer.setVisibility(View.VISIBLE);
+        for (ManagedRequestFilter filter : ManagedRequestFilter.values()) {
+            MaterialButton button = new MaterialButton(
+                    this,
+                    null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+            );
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            params.setMarginEnd(dpToPx(8));
+            button.setLayoutParams(params);
+            button.setAllCaps(false);
+            button.setCornerRadius(dpToPx(18));
+            button.setText(getString(
+                    R.string.admin_managed_filter_button,
+                    toManagedFilterLabel(filter),
+                    countManagedRequests(managedRequests, filter)
+            ));
+            bindManagedFilterButtonStyle(button, filter == managedRequestFilter);
+            button.setOnClickListener(view -> {
+                managedRequestFilter = filter;
+                renderManagedRequests(managedRequestsSnapshot);
+            });
+            adminManagedFilterContainer.addView(button);
+        }
+    }
+
+    private void bindManagedFilterButtonStyle(MaterialButton button, boolean selected) {
+        if (selected) {
+            button.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
+            button.setStrokeColor(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
+            button.setTextColor(getColor(R.color.white));
+            return;
+        }
+        button.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.white)));
+        button.setStrokeColor(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
+        button.setTextColor(getColor(R.color.bodeul_primary));
+    }
+
+    private void bindManagedSummary(List<AdminRequestOverview> managedRequests) {
+        if (managedRequests.isEmpty()) {
+            textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);
+            return;
+        }
+
+        int matchedCount = countManagedRequests(managedRequests, ManagedRequestFilter.MATCHED);
+        int inProgressCount = countManagedRequests(managedRequests, ManagedRequestFilter.IN_PROGRESS);
+        int completedCount = countManagedRequests(managedRequests, ManagedRequestFilter.COMPLETED);
+        int canceledCount = countManagedRequests(managedRequests, ManagedRequestFilter.CANCELED);
+        int visibleCount = filterManagedRequests(managedRequests).size();
+        int totalCount = managedRequests.size();
+
+        textAdminManagedSummary.setText(getString(
+                R.string.admin_managed_summary,
+                matchedCount,
+                inProgressCount,
+                completedCount,
+                canceledCount,
+                toManagedFilterLabel(managedRequestFilter),
+                visibleCount,
+                totalCount
+        ));
+    }
+
+    private int countManagedRequests(List<AdminRequestOverview> managedRequests, ManagedRequestFilter filter) {
+        return filterManagedRequests(managedRequests, filter).size();
+    }
+
+    private List<AdminRequestOverview> filterManagedRequests(List<AdminRequestOverview> managedRequests) {
+        return filterManagedRequests(managedRequests, managedRequestFilter);
+    }
+
+    private List<AdminRequestOverview> filterManagedRequests(
+            List<AdminRequestOverview> managedRequests,
+            ManagedRequestFilter filter
+    ) {
+        List<AdminRequestOverview> filteredRequests = new ArrayList<>();
+        for (AdminRequestOverview overview : managedRequests) {
+            if (matchesManagedFilter(overview, filter)) {
+                filteredRequests.add(overview);
+            }
+        }
+        return filteredRequests;
+    }
+
+    private boolean matchesManagedFilter(AdminRequestOverview overview, ManagedRequestFilter filter) {
+        AppointmentStatus status = overview.getAppointmentRequest().getStatus();
+        switch (filter) {
+            case MATCHED:
+                return status == AppointmentStatus.MATCHED;
+            case IN_PROGRESS:
+                return status == AppointmentStatus.IN_PROGRESS;
+            case COMPLETED:
+                return status == AppointmentStatus.COMPLETED;
+            case CANCELED:
+                return status == AppointmentStatus.CANCELED;
+            case ALL:
+            default:
+                return true;
+        }
+    }
+
+    private String toManagedFilterLabel(ManagedRequestFilter filter) {
+        switch (filter) {
+            case MATCHED:
+                return getString(R.string.admin_managed_filter_matched);
+            case IN_PROGRESS:
+                return getString(R.string.admin_managed_filter_in_progress);
+            case COMPLETED:
+                return getString(R.string.admin_managed_filter_completed);
+            case CANCELED:
+                return getString(R.string.admin_managed_filter_canceled);
+            case ALL:
+            default:
+                return getString(R.string.admin_managed_filter_all);
         }
     }
 
@@ -669,6 +822,9 @@ public class AdminActivity extends AppCompatActivity {
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
         textAdminManagers.setText(R.string.admin_manager_summary_empty);
+        textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);
+        adminManagedFilterContainer.removeAllViews();
+        adminManagedFilterContainer.setVisibility(View.GONE);
         adminPendingRequestsContainer.removeAllViews();
         adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();

@@ -4,6 +4,7 @@ import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 
 /**
  * 매니저 화면을 데모 데이터에 연결하는 목업 저장소 구현이다.
@@ -57,6 +58,44 @@ public class MockManagerRepository implements ManagerRepository {
             return;
         }
         callback.onSuccess(dashboard);
+    }
+
+    @Override
+    public void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback) {
+        ManagerHomeProfile profile = repository.getManagerHomeProfile(managerUserId);
+        if (profile == null) {
+            callback.onError("매니저 홈 요약 정보를 불러오지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(profile);
+    }
+
+    @Override
+    public void saveManagerDocumentSummary(
+            String managerUserId,
+            String documentSummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        ManagerHomeProfile profile = repository.saveManagerDocumentSummary(managerUserId, documentSummary);
+        if (profile == null) {
+            callback.onError("서류 등록 정보를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(profile);
+    }
+
+    @Override
+    public void saveManagerAvailabilitySummary(
+            String managerUserId,
+            String availabilitySummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        ManagerHomeProfile profile = repository.saveManagerAvailabilitySummary(managerUserId, availabilitySummary);
+        if (profile == null) {
+            callback.onError("활동 가능 일정을 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(profile);
     }
 
     @Override

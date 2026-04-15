@@ -1,6 +1,7 @@
 package com.example.bodeul.data;
 
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 
 /**
  * 매니저 홈과 동행 가이드 화면에서 사용하는 기능 전용 저장소 계약이다.
@@ -20,6 +21,23 @@ public interface ManagerRepository {
 
     // 진료 이후 약 수령 및 복약 관련 메모를 저장한다.
     void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback);
+
+    // 홈 화면에서 보여줄 서류 / 일정 요약 정보를 불러온다.
+    void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback);
+
+    // 홈 화면에서 매니저 서류 등록 요약을 저장한다.
+    void saveManagerDocumentSummary(
+            String managerUserId,
+            String documentSummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    );
+
+    // 홈 화면에서 매니저 활동 가능 일정 요약을 저장한다.
+    void saveManagerAvailabilitySummary(
+            String managerUserId,
+            String availabilitySummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    );
 
     // 동행 종료 후 보호자용 리포트를 저장하고 최신 대시보드를 반환한다.
     void submitSessionReport(

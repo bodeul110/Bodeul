@@ -223,8 +223,17 @@
     <string name="admin_guide_delete_dialog_confirm">가이드 삭제</string>
     <string name="admin_guide_delete_dialog_keep">유지하기</string>
     <string name="admin_managed_title">운영 중 또는 완료된 요청</string>
-    <string name="admin_managed_helper">이미 배정된 요청과 완료된 세션도 같은 기준으로 다시 확인할 수 있습니다.</string>
+    <string name="admin_managed_helper">이미 배정된 요청, 진행 중 세션, 완료 또는 취소 이력까지 상태별로 다시 확인할 수 있습니다.</string>
     <string name="admin_managed_empty">아직 운영 중인 요청이 없습니다.</string>
+    <string name="admin_managed_filtered_empty">선택한 상태의 운영 이력이 아직 없습니다.</string>
+    <string name="admin_managed_summary_empty">운영 이력이 생기면 상태별 집계와 필터가 이곳에 표시됩니다.</string>
+    <string name="admin_managed_summary">배정 완료 %1$d건 · 진행 중 %2$d건 · 완료 %3$d건 · 취소 %4$d건\n현재 필터: %5$s · %6$d / %7$d건 표시 중</string>
+    <string name="admin_managed_filter_all">전체</string>
+    <string name="admin_managed_filter_matched">배정 완료</string>
+    <string name="admin_managed_filter_in_progress">진행 중</string>
+    <string name="admin_managed_filter_completed">동행 완료</string>
+    <string name="admin_managed_filter_canceled">취소</string>
+    <string name="admin_managed_filter_button">%1$s %2$d</string>
     <string name="admin_empty_greeting">관리자 운영 화면</string>
     <string name="admin_empty_summary">현재 운영 데이터를 불러오지 못했습니다.</string>
 
@@ -252,10 +261,10 @@
     <string name="manager_home_nav_profile">내 페이지</string>
     <string name="manager_action_docs">서류 등록</string>
     <string name="manager_action_docs_short">서류</string>
-    <string name="manager_action_docs_desc">자격증 및 서류 관리</string>
+    <string name="manager_action_docs_desc">자격증, 신분증, 통장사본 등 제출 상태를 남겨주세요.</string>
     <string name="manager_action_schedule">스케줄 등록</string>
     <string name="manager_action_schedule_short">일정</string>
-    <string name="manager_action_schedule_desc">활동 가능 시간 설정</string>
+    <string name="manager_action_schedule_desc">활동 가능한 요일과 시간을 저장해 주세요.</string>
     <string name="manager_action_guide_desc">현재 배정된 동행 세션 열기</string>
     <string name="manager_action_guide_short">가이드</string>
     <string name="manager_action_logout_desc">현재 계정 로그아웃</string>
@@ -270,6 +279,16 @@
     <string name="manager_open_guide">가이드 열기</string>
     <string name="manager_logout">로그아웃</string>
     <string name="manager_home_empty_toast">현재 배정된 일정이 없어 가이드를 열 수 없습니다.</string>
+    <string name="manager_action_docs_dialog_title">서류 등록 요약</string>
+    <string name="manager_action_schedule_dialog_title">활동 가능 일정 요약</string>
+    <string name="manager_action_docs_input_hint">제출한 서류와 현재 상태</string>
+    <string name="manager_action_schedule_input_hint">활동 가능한 요일과 시간</string>
+    <string name="manager_action_docs_input_helper">예: 요양보호사 자격증, 신분증, 통장사본 제출 완료</string>
+    <string name="manager_action_schedule_input_helper">예: 평일 09:00-18:00, 토요일 오전 가능</string>
+    <string name="manager_action_dialog_save">저장</string>
+    <string name="manager_action_dialog_cancel">취소</string>
+    <string name="manager_action_docs_saved">서류 등록 요약을 저장했습니다.</string>
+    <string name="manager_action_schedule_saved">활동 가능 일정을 저장했습니다.</string>
 
     <string name="guide_title">보들 동행 가이드</string>
     <string name="guide_subtitle">단계별 맞춤 안내를 진행해주세요.</string>

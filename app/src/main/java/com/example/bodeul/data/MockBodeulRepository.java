@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
@@ -32,6 +33,8 @@ public class MockBodeulRepository implements BodeulRepository {
     private final List<HospitalGuide> hospitalGuides = new ArrayList<>();
     private final List<SessionReport> sessionReports = new ArrayList<>();
     private final Map<String, String> passwordsByEmail = new HashMap<>();
+    private final Map<String, String> managerDocumentSummariesByUserId = new HashMap<>();
+    private final Map<String, String> managerAvailabilitySummariesByUserId = new HashMap<>();
 
     public MockBodeulRepository() {
         seedUsers();
@@ -104,6 +107,48 @@ public class MockBodeulRepository implements BodeulRepository {
 
     public synchronized List<HospitalGuide> getHospitalGuides() {
         return Collections.unmodifiableList(new ArrayList<>(hospitalGuides));
+    }
+
+    @Nullable
+    public synchronized ManagerHomeProfile getManagerHomeProfile(String managerUserId) {
+        User manager = findUserById(managerUserId);
+        if (manager == null || manager.getRole() != UserRole.MANAGER) {
+            return null;
+        }
+        return new ManagerHomeProfile(
+                managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
+                managerAvailabilitySummariesByUserId.getOrDefault(managerUserId, "")
+        );
+    }
+
+    @Nullable
+    public synchronized ManagerHomeProfile saveManagerDocumentSummary(String managerUserId, String documentSummary) {
+        User manager = findUserById(managerUserId);
+        if (manager == null || manager.getRole() != UserRole.MANAGER) {
+            return null;
+        }
+        String normalizedSummary = normalizeText(documentSummary);
+        if (normalizedSummary.isEmpty()) {
+            managerDocumentSummariesByUserId.remove(managerUserId);
+        } else {
+            managerDocumentSummariesByUserId.put(managerUserId, normalizedSummary);
+        }
+        return getManagerHomeProfile(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerHomeProfile saveManagerAvailabilitySummary(String managerUserId, String availabilitySummary) {
+        User manager = findUserById(managerUserId);
+        if (manager == null || manager.getRole() != UserRole.MANAGER) {
+            return null;
+        }
+        String normalizedSummary = normalizeText(availabilitySummary);
+        if (normalizedSummary.isEmpty()) {
+            managerAvailabilitySummariesByUserId.remove(managerUserId);
+        } else {
+            managerAvailabilitySummariesByUserId.put(managerUserId, normalizedSummary);
+        }
+        return getManagerHomeProfile(managerUserId);
     }
 
     @Nullable
@@ -800,6 +845,15 @@ public class MockBodeulRepository implements BodeulRepository {
         passwordsByEmail.put("guardian@bodeul.app", "bodeul1234");
         passwordsByEmail.put("manager@bodeul.app", "bodeul1234");
         passwordsByEmail.put("admin@bodeul.app", "bodeul1234");
+
+        managerDocumentSummariesByUserId.put(
+                "manager-1",
+                "요양보호사 자격증, 신분증, 통장사본 제출 완료"
+        );
+        managerAvailabilitySummariesByUserId.put(
+                "manager-1",
+                "평일 09:00-18:00, 토요일 오전 활동 가능"
+        );
     }
 
     private void seedAppointmentRequests() {

@@ -41,7 +41,9 @@ kakaoNativeAppKey=발급받은_네이티브_앱_키
   "name": "김보들",
   "email": "manager@bodeul.app",
   "phone": "010-0000-0003",
-  "role": "MANAGER"
+  "role": "MANAGER",
+  "managerDocumentSummary": "요양보호사 자격증, 신분증, 통장사본 제출 완료",
+  "managerAvailabilitySummary": "평일 09:00-18:00 활동 가능"
 }
 ```
 

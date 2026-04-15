@@ -190,10 +190,13 @@
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/textActionDocsDescription"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:text="@string/manager_action_docs_desc"
+                            android:ellipsize="end"
+                            android:maxLines="3"
                             android:textColor="@color/bodeul_text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -241,10 +244,13 @@
                             android:textStyle="bold" />
 
                         <TextView
+                            android:id="@+id/textActionScheduleDescription"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:text="@string/manager_action_schedule_desc"
+                            android:ellipsize="end"
+                            android:maxLines="3"
                             android:textColor="@color/bodeul_text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>

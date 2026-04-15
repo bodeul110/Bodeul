@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -273,5 +274,31 @@ public class MockBodeulRepositoryTest {
         assertNotNull(savedGuide);
         assertEquals(true, repository.deleteHospitalGuide(savedGuide.getId()));
         assertEquals(null, repository.getHospitalGuide("삭제병원", "이비인후과"));
+    }
+
+    @Test
+    public void managerHomeProfile_saveQuickSummariesUpdatesStoredValues() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        ManagerHomeProfile initialProfile = repository.getManagerHomeProfile(manager.getId());
+        assertNotNull(initialProfile);
+        assertEquals("요양보호사 자격증, 신분증, 통장사본 제출 완료", initialProfile.getDocumentSummary());
+
+        ManagerHomeProfile updatedDocumentProfile = repository.saveManagerDocumentSummary(
+                manager.getId(),
+                "추가 서류 검토 중"
+        );
+        ManagerHomeProfile updatedAvailabilityProfile = repository.saveManagerAvailabilitySummary(
+                manager.getId(),
+                "월-금 10:00-17:00 가능"
+        );
+
+        assertNotNull(updatedDocumentProfile);
+        assertNotNull(updatedAvailabilityProfile);
+        assertEquals("추가 서류 검토 중", updatedDocumentProfile.getDocumentSummary());
+        assertEquals("월-금 10:00-17:00 가능", updatedAvailabilityProfile.getAvailabilitySummary());
     }
 }

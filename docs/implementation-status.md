@@ -27,6 +27,8 @@
 ### 매니저
 
 - 매니저 홈
+- 서류 등록 요약 저장
+- 활동 가능 일정 저장
 - 매니저 홈 권한 / 로그인 / 불러오기 실패 상태 패널 표시
 - 병원 동행 가이드 진행
 - 동행 가이드 권한 / 로그인 / 불러오기 실패 상태 패널 표시
@@ -40,6 +42,7 @@
 - 수동 매칭
 - 병원 가이드 등록
 - 병원 가이드 수정 / 삭제
+- 운영 이력 상태별 필터
 - 운영 중 요청 조회
 - 권한 없음 / 로그인 필요 / 불러오기 실패 상태 패널 표시
 
@@ -53,31 +56,33 @@
 
 ## 2. 이번 작업에서 구현한 내용
 
-- 관리자 화면에서 등록된 병원 가이드를 선택해 단계 내용을 수정하는 흐름을 추가했다.
-- 수정 중에는 병원 / 진료과를 고정하고 단계만 바꾸도록 폼 상태를 분리했다.
-- 등록된 병원 가이드 삭제와 삭제 확인 다이얼로그를 추가했다.
-- 목업 저장소에 병원 가이드 삭제 기능과 단위 테스트를 추가했다.
+- 매니저 홈의 `서류 등록`, `스케줄 등록` 플레이스홀더를 실제 저장 다이얼로그로 바꿨다.
+- 서류 제출 상태와 활동 가능 일정은 매니저 전용 요약 데이터로 저장하고, 홈 카드에 바로 다시 표시되도록 연결했다.
+- 목업 저장소와 Firebase 저장소 모두 같은 방식으로 매니저 홈 요약 데이터를 읽고 저장하도록 맞췄다.
+- 관련 문자열, 데모 데이터, 단위 테스트, Firebase 문서를 함께 정리했다.
 
 ## 3. 변경된 범위
 
-- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java`
-- `app/src/main/java/com/example/bodeul/data/AdminRepository.java`
+- `app/src/main/java/com/example/bodeul/data/ManagerRepository.java`
 - `app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java`
-- `app/src/main/java/com/example/bodeul/data/mock/MockAdminRepository.java`
-- `app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java`
-- `app/src/main/res/layout/activity_admin.xml`
-- `app/src/main/res/layout/item_admin_guide.xml`
-- `app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java`
+- `app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
+- `app/src/main/java/com/example/bodeul/domain/model/ManagerHomeProfile.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerActivity.java`
+- `app/src/main/res/layout/activity_manager_home.xml`
+- `app/src/main/res/layout/dialog_manager_quick_note.xml`
 - `app/src/main/res/values/strings.xml`
+- `app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java`
 - `docs/data-api-draft.md`
+- `docs/firebase-setup.md`
 - `docs/implementation-status.md`
 
 ## 4. 남은 범위
 
 ### 기능
 
-- 운영 이력 전용 화면과 필터링은 아직 없다.
-- 매니저 홈의 `서류 등록`, `스케줄 등록`은 아직 플레이스홀더다.
+- 운영 이력 전용 상세 화면과 날짜 기준 필터링은 아직 없다.
+- 매니저 서류 파일 업로드, 증빙 이미지 첨부, 관리자 승인 상태는 아직 없다.
 - `IN_PROGRESS` 이후 요청 변경 / 취소 정책은 아직 앱에서 막기만 하고 별도 운영 대응 화면은 없다.
 
 ### UI
@@ -87,8 +92,8 @@
 
 ## 5. 다음 권장 순서
 
-1. 관리자 운영 이력 / 필터 확장
-2. 매니저 홈 플레이스홀더 기능 실제 연결
+1. 관리자 운영 이력 상세 / 날짜 필터 확장
+2. 매니저 서류 파일 업로드 / 승인 상태 확장
 3. 날짜 / 시간 선택기 주변 빠른 선택 UX 검토
 
 ## 6. 검증

@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
@@ -192,6 +193,54 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback) {
+        firestore.collection("users")
+                .document(managerUserId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (!documentSnapshot.exists()) {
+                        callback.onError("users 컬렉션에서 매니저 정보를 찾지 못했습니다.");
+                        return;
+                    }
+                    callback.onSuccess(toManagerHomeProfile(documentSnapshot));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 홈 요약 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
+    public void saveManagerDocumentSummary(
+            String managerUserId,
+            String documentSummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        saveManagerHomeProfileField(
+                managerUserId,
+                "managerDocumentSummary",
+                normalizeText(documentSummary),
+                "managerDocumentUpdatedAt",
+                "서류 등록 정보를 저장하지 못했습니다.",
+                callback
+        );
+    }
+
+    @Override
+    public void saveManagerAvailabilitySummary(
+            String managerUserId,
+            String availabilitySummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        saveManagerHomeProfileField(
+                managerUserId,
+                "managerAvailabilitySummary",
+                normalizeText(availabilitySummary),
+                "managerAvailabilityUpdatedAt",
+                "활동 가능 일정을 저장하지 못했습니다.",
+                callback
+        );
+    }
+
+    @Override
     public void submitSessionReport(
             String managerUserId,
             String summary,
@@ -252,6 +301,25 @@ public class FirebaseManagerRepository implements ManagerRepository {
         return true;
     }
 
+    private void saveManagerHomeProfileField(
+            String managerUserId,
+            String key,
+            String value,
+            String updatedAtKey,
+            String errorMessage,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put(key, value);
+        updates.put(updatedAtKey, FieldValue.serverTimestamp());
+
+        firestore.collection("users")
+                .document(managerUserId)
+                .update(updates)
+                .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                .addOnFailureListener(exception -> callback.onError(errorMessage));
+    }
+
     private void updateSessionField(
             String managerUserId,
             String key,
@@ -302,6 +370,15 @@ public class FirebaseManagerRepository implements ManagerRepository {
     private boolean isActiveSession(CompanionSession session) {
         return session.getStatus() != SessionStatus.COMPLETED
                 && session.getStatus() != SessionStatus.CANCELED;
+    }
+
+    private ManagerHomeProfile toManagerHomeProfile(DocumentSnapshot documentSnapshot) {
+        String documentSummary = documentSnapshot.getString("managerDocumentSummary");
+        String availabilitySummary = documentSnapshot.getString("managerAvailabilitySummary");
+        return new ManagerHomeProfile(
+                documentSummary == null ? "" : documentSummary,
+                availabilitySummary == null ? "" : availabilitySummary
+        );
     }
 
     @Nullable
@@ -479,6 +556,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 medicationNotes == null ? "" : medicationNotes,
                 nextVisitAt == null ? "" : nextVisitAt
         );
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     @Nullable
