@@ -235,7 +235,13 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
                 AppointmentStatus.valueOf(statusValue),
-                managerUserId
+                managerUserId,
+                stringOrEmpty(documentSnapshot.getString("patientName")),
+                stringOrEmpty(documentSnapshot.getString("patientPhone")),
+                stringOrEmpty(documentSnapshot.getString("patientEmail")),
+                stringOrEmpty(documentSnapshot.getString("guardianName")),
+                stringOrEmpty(documentSnapshot.getString("guardianPhone")),
+                stringOrEmpty(documentSnapshot.getString("guardianEmail"))
         );
     }
 
@@ -345,5 +351,9 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
             return ((Timestamp) rawValue).toDate().toString();
         }
         return String.valueOf(rawValue);
+    }
+
+    private String stringOrEmpty(@Nullable String value) {
+        return value == null ? "" : value;
     }
 }

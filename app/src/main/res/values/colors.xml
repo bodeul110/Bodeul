@@ -19,5 +19,7 @@
     <color name="bodeul_soft_yellow">#FFE7B8</color>
     <color name="bodeul_soft_green">#DBF3E6</color>
     <color name="bodeul_soft_purple">#E9E4FF</color>
+    <color name="bodeul_error">#D95C4E</color>
+    <color name="bodeul_soft_red">#FDE2DE</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

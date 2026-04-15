@@ -12,35 +12,71 @@ import com.example.bodeul.domain.model.UserRole;
 
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * 목업 신청 저장소가 환자와 보호자 요청을 올바르게 분기하는지 검증한다.
+ * 목업 저장소가 신청 생성과 운영 기능을 현재 요구사항대로 처리하는지 검증한다.
  */
 public class MockBodeulRepositoryTest {
     @Test
-    public void createAppointmentRequest_patientAddsRequestedItemToTop() {
+    public void createAppointmentRequest_patientLinksExistingGuardianByEmail() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
         assertNotNull(patient);
+        assertNotNull(guardian);
 
         AppointmentRequest created = repository.createAppointmentRequest(
                 patient,
-                "보들안심병원",
-                "정형외과",
+                "safe-hospital",
+                "orthopedics",
                 "2026-04-18 09:30",
-                "본관 1층 로비",
-                "보호자 연락처는 010-1111-2222입니다."
+                "main-lobby",
+                "call-guardian-before-arrival",
+                guardian.getName(),
+                guardian.getPhone(),
+                guardian.getEmail()
         );
 
         assertNotNull(created);
         assertEquals(AppointmentStatus.REQUESTED, created.getStatus());
+        assertEquals(patient.getId(), created.getPatientUserId());
+        assertEquals(guardian.getId(), created.getGuardianUserId());
+        assertEquals(guardian.getName(), created.getGuardianName());
+        assertEquals(guardian.getPhone(), created.getGuardianPhone());
 
         List<AppointmentRequest> requests = repository.getAppointmentRequestsForUser(
                 patient.getId(),
                 UserRole.PATIENT
         );
         assertEquals(created.getId(), requests.get(0).getId());
+    }
+
+    @Test
+    public void createAppointmentRequest_guardianKeepsPatientSnapshotWhenAccountIsMissing() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
+        assertNotNull(guardian);
+
+        AppointmentRequest created = repository.createAppointmentRequest(
+                guardian,
+                "safe-hospital",
+                "orthopedics",
+                "2026-04-19 11:00",
+                "front-gate",
+                "walk-slowly",
+                "new patient",
+                "01012341234",
+                ""
+        );
+
+        assertNotNull(created);
+        assertEquals("", created.getPatientUserId());
+        assertEquals("new patient", created.getPatientName());
+        assertEquals("010-1234-1234", created.getPatientPhone());
+        assertEquals(guardian.getId(), created.getGuardianUserId());
+        assertEquals(guardian.getName(), created.getGuardianName());
     }
 
     @Test
@@ -59,12 +95,79 @@ public class MockBodeulRepositoryTest {
     }
 
     @Test
+    public void updateAppointmentRequest_requestedOwnerCanRewriteScheduleAndContact() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+        assertNotNull(patient);
+
+        AppointmentRequest created = repository.createAppointmentRequest(
+                patient,
+                "처음병원",
+                "안과",
+                "2026-04-24 11:20",
+                "본관 1층",
+                "초기 메모",
+                "새 보호자",
+                "01011112222",
+                ""
+        );
+        assertNotNull(created);
+
+        AppointmentRequest updated = repository.updateAppointmentRequest(
+                patient,
+                created.getId(),
+                "서울튼튼병원",
+                "정형외과",
+                "2026-04-25 15:40",
+                "본관 2층 안내데스크",
+                "수정 테스트 메모",
+                "새 보호자",
+                "01022223333",
+                ""
+        );
+
+        assertNotNull(updated);
+        assertEquals("서울튼튼병원", updated.getHospitalName());
+        assertEquals("정형외과", updated.getDepartmentName());
+        assertEquals("2026-04-25 15:40", updated.getAppointmentAt());
+        assertEquals("본관 2층 안내데스크", updated.getMeetingPlace());
+        assertEquals("새 보호자", updated.getGuardianName());
+        assertEquals("010-2222-3333", updated.getGuardianPhone());
+        assertEquals(AppointmentStatus.REQUESTED, updated.getStatus());
+    }
+
+    @Test
+    public void cancelAppointmentRequest_requestedOwnerCanCancelOwnRequest() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+        assertNotNull(patient);
+
+        AppointmentRequest created = repository.createAppointmentRequest(
+                patient,
+                "취소병원",
+                "내과",
+                "2026-04-26 10:10",
+                "본관 3층",
+                "",
+                "새 보호자",
+                "01033334444",
+                ""
+        );
+        assertNotNull(created);
+
+        AppointmentRequest canceled = repository.cancelAppointmentRequest(patient, created.getId());
+
+        assertNotNull(canceled);
+        assertEquals(AppointmentStatus.CANCELED, canceled.getStatus());
+    }
+
+    @Test
     public void assignManagerToRequest_createsMatchedRequestAndSession() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");
         User guardian = repository.findUserByEmail("guardian@bodeul.app");
         User newManager = repository.registerUser(
-                "신규매니저",
+                "manager-two",
                 "new-manager@bodeul.app",
                 "010-9999-0001",
                 UserRole.MANAGER,
@@ -77,12 +180,13 @@ public class MockBodeulRepositoryTest {
         AppointmentRequest linkedRequest = repository.createLinkedAppointmentRequest(
                 patient.getId(),
                 guardian.getId(),
-                "서울내과병원",
-                "신경과",
+                "seoul-internal",
+                "neurology",
                 "2026-04-20 14:00",
-                "본관 1층 로비",
-                "수동 매칭 테스트"
+                "main-lobby",
+                "manual-match-test"
         );
+
         assertNotNull(linkedRequest);
 
         AppointmentRequest assigned = repository.assignManagerToRequest(linkedRequest.getId(), newManager.getId());
@@ -97,17 +201,17 @@ public class MockBodeulRepositoryTest {
         MockBodeulRepository repository = new MockBodeulRepository();
 
         HospitalGuide savedGuide = repository.saveHospitalGuide(
-                "보들안심병원",
-                "정형외과",
-                java.util.Arrays.asList(
-                        "도착 확인: 환자와 보호자 도착 여부를 먼저 확인합니다.",
-                        "접수 진행: 창구에서 예약 정보를 확인합니다."
+                "safe-hospital",
+                "orthopedics",
+                Arrays.asList(
+                        "check-id: verify patient and guardian ids",
+                        "front-desk: confirm reservation info"
                 )
         );
 
         assertNotNull(savedGuide);
         assertEquals(2, savedGuide.getSteps().size());
-        assertEquals("도착 확인", savedGuide.getSteps().get(0).getTitle());
-        assertEquals("정형외과", repository.getHospitalGuide("보들안심병원", "정형외과").getDepartmentName());
+        assertEquals("check-id", savedGuide.getSteps().get(0).getTitle());
+        assertEquals("orthopedics", repository.getHospitalGuide("safe-hospital", "orthopedics").getDepartmentName());
     }
 }

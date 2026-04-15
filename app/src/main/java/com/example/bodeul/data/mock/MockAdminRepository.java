@@ -52,7 +52,7 @@ public class MockAdminRepository implements AdminRepository {
             return;
         }
         if (!hasLinkedParticipants(request)) {
-            callback.onError("환자와 보호자 정보가 모두 연결된 요청만 배정할 수 있습니다.");
+            callback.onError("환자와 보호자 계정 연결이 완료된 요청만 배정할 수 있습니다.");
             return;
         }
         if (repository.getHospitalGuide(request.getHospitalName(), request.getDepartmentName()) == null) {

@@ -4,9 +4,10 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.text.format.DateFormat;
+import android.util.Patterns;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -15,6 +16,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
@@ -27,41 +29,71 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.StatePanelHelper;
+import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.timepicker.MaterialTimePicker;
+import com.google.android.material.timepicker.TimeFormat;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
+import java.util.regex.Pattern;
 
 /**
  * 환자와 보호자가 병원 동행을 신청하고 현재 요청 상태를 확인하는 화면이다.
  */
 public class BookingActivity extends AppCompatActivity {
+    private static final Pattern APPOINTMENT_AT_PATTERN =
+            Pattern.compile("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$");
+    private static final String SEOUL_TIME_ZONE = "Asia/Seoul";
+
     private AuthRepository authRepository;
     private BookingRepository bookingRepository;
     private User currentUser;
+    private AppointmentRequest editingRequest;
     private boolean loading;
 
     private TextView textBookingMode;
     private TextView textBookingRequesterName;
     private TextView textBookingRequesterRole;
     private TextView textBookingRequesterPhone;
+    private TextView textBookingLinkedSection;
+    private TextView textBookingLinkedHelper;
     private TextView textBookingLatestStatus;
     private TextView textBookingLatestTitle;
     private TextView textBookingLatestBody;
+    private TextView textBookingFormTitle;
+    private TextView textBookingFormBadge;
+    private TextView textBookingFormHelper;
+    private View bookingStatePanel;
+    private View bookingContentContainer;
     private LinearLayout bookingRequestsContainer;
+    private TextInputLayout layoutBookingLinkedName;
+    private TextInputLayout layoutBookingLinkedPhone;
+    private TextInputLayout layoutBookingLinkedEmail;
     private TextInputLayout layoutHospitalName;
     private TextInputLayout layoutDepartmentName;
     private TextInputLayout layoutAppointmentAt;
     private TextInputLayout layoutMeetingPlace;
     private TextInputLayout layoutSpecialNotes;
+    private TextInputEditText inputBookingLinkedName;
+    private TextInputEditText inputBookingLinkedPhone;
+    private TextInputEditText inputBookingLinkedEmail;
     private TextInputEditText inputHospitalName;
     private TextInputEditText inputDepartmentName;
     private TextInputEditText inputAppointmentAt;
     private TextInputEditText inputMeetingPlace;
     private TextInputEditText inputSpecialNotes;
     private MaterialButton buttonSubmitBooking;
+    private MaterialButton buttonCancelBookingEdit;
     private ProgressBar progressBooking;
 
     @Override
@@ -76,21 +108,35 @@ public class BookingActivity extends AppCompatActivity {
         textBookingRequesterName = findViewById(R.id.textBookingRequesterName);
         textBookingRequesterRole = findViewById(R.id.textBookingRequesterRole);
         textBookingRequesterPhone = findViewById(R.id.textBookingRequesterPhone);
+        textBookingLinkedSection = findViewById(R.id.textBookingLinkedSection);
+        textBookingLinkedHelper = findViewById(R.id.textBookingLinkedHelper);
         textBookingLatestStatus = findViewById(R.id.textBookingLatestStatus);
         textBookingLatestTitle = findViewById(R.id.textBookingLatestTitle);
         textBookingLatestBody = findViewById(R.id.textBookingLatestBody);
+        textBookingFormTitle = findViewById(R.id.textBookingFormTitle);
+        textBookingFormBadge = findViewById(R.id.textBookingFormBadge);
+        textBookingFormHelper = findViewById(R.id.textBookingFormHelper);
+        bookingStatePanel = findViewById(R.id.bookingStatePanel);
+        bookingContentContainer = findViewById(R.id.bookingContentContainer);
         bookingRequestsContainer = findViewById(R.id.bookingRequestsContainer);
+        layoutBookingLinkedName = findViewById(R.id.layoutBookingLinkedName);
+        layoutBookingLinkedPhone = findViewById(R.id.layoutBookingLinkedPhone);
+        layoutBookingLinkedEmail = findViewById(R.id.layoutBookingLinkedEmail);
         layoutHospitalName = findViewById(R.id.layoutBookingHospitalName);
         layoutDepartmentName = findViewById(R.id.layoutBookingDepartmentName);
         layoutAppointmentAt = findViewById(R.id.layoutBookingAppointmentAt);
         layoutMeetingPlace = findViewById(R.id.layoutBookingMeetingPlace);
         layoutSpecialNotes = findViewById(R.id.layoutBookingSpecialNotes);
+        inputBookingLinkedName = findViewById(R.id.inputBookingLinkedName);
+        inputBookingLinkedPhone = findViewById(R.id.inputBookingLinkedPhone);
+        inputBookingLinkedEmail = findViewById(R.id.inputBookingLinkedEmail);
         inputHospitalName = findViewById(R.id.inputBookingHospitalName);
         inputDepartmentName = findViewById(R.id.inputBookingDepartmentName);
         inputAppointmentAt = findViewById(R.id.inputBookingAppointmentAt);
         inputMeetingPlace = findViewById(R.id.inputBookingMeetingPlace);
         inputSpecialNotes = findViewById(R.id.inputBookingSpecialNotes);
         buttonSubmitBooking = findViewById(R.id.buttonSubmitBooking);
+        buttonCancelBookingEdit = findViewById(R.id.buttonCancelBookingEdit);
         progressBooking = findViewById(R.id.progressBooking);
 
         textBookingMode.setText(bookingRepository.isFirebaseBacked()
@@ -99,15 +145,19 @@ public class BookingActivity extends AppCompatActivity {
 
         findViewById(R.id.buttonBackBooking).setOnClickListener(view -> finish());
         buttonSubmitBooking.setOnClickListener(view -> submitAppointmentRequest());
+        buttonCancelBookingEdit.setOnClickListener(view -> exitEditMode());
+        configureAppointmentPicker();
 
         bindEmptySummary();
         renderEmptyRequests();
+        updateFormMode();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         setLoading(true);
+        hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
@@ -117,12 +167,12 @@ public class BookingActivity extends AppCompatActivity {
                 }
                 if (!supportsBookingRole(result.getRole())) {
                     setLoading(false);
-                    Toast.makeText(BookingActivity.this, R.string.toast_booking_role_only, Toast.LENGTH_SHORT).show();
-                    finish();
+                    showPermissionState();
                     return;
                 }
 
                 currentUser = result;
+                hideBlockingState();
                 bindRequester(result);
                 loadRequests();
             }
@@ -130,7 +180,7 @@ public class BookingActivity extends AppCompatActivity {
             @Override
             public void onError(String message) {
                 setLoading(false);
-                openRoleSelection();
+                showAuthState();
             }
         });
     }
@@ -148,6 +198,137 @@ public class BookingActivity extends AppCompatActivity {
                         ? getString(R.string.booking_requester_phone_empty)
                         : user.getPhone()
         ));
+        bindLinkedParticipantSection(user);
+    }
+
+    private void bindLinkedParticipantSection(User user) {
+        String counterpartRole = toCounterpartRoleLabel(user.getRole());
+        textBookingLinkedSection.setText(getString(R.string.booking_linked_section_format, counterpartRole));
+        textBookingLinkedHelper.setText(getString(R.string.booking_linked_helper_format, counterpartRole));
+        layoutBookingLinkedName.setHint(getString(R.string.booking_linked_name_hint_format, counterpartRole));
+        layoutBookingLinkedPhone.setHint(getString(R.string.booking_linked_phone_hint_format, counterpartRole));
+        layoutBookingLinkedEmail.setHint(getString(R.string.booking_linked_email_hint_format, counterpartRole));
+    }
+
+    private void configureAppointmentPicker() {
+        inputAppointmentAt.setOnClickListener(view -> openAppointmentDatePicker());
+        layoutAppointmentAt.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
+        layoutAppointmentAt.setEndIconDrawable(android.R.drawable.ic_menu_my_calendar);
+        layoutAppointmentAt.setEndIconOnClickListener(view -> openAppointmentDatePicker());
+        layoutAppointmentAt.setOnClickListener(view -> openAppointmentDatePicker());
+    }
+
+    private void openAppointmentDatePicker() {
+        Long initialSelection = resolveInitialAppointmentDateSelection();
+        MaterialDatePicker<Long> datePicker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText(R.string.booking_date_picker_title)
+                .setSelection(initialSelection == null
+                        ? MaterialDatePicker.todayInUtcMilliseconds()
+                        : initialSelection)
+                .build();
+
+        datePicker.addOnPositiveButtonClickListener(selection ->
+                openAppointmentTimePicker(selection == null ? MaterialDatePicker.todayInUtcMilliseconds() : selection));
+        datePicker.show(getSupportFragmentManager(), "bookingAppointmentDatePicker");
+    }
+
+    private void openAppointmentTimePicker(long selectedDateUtcMillis) {
+        Calendar initialCalendar = resolveInitialTimeCalendar(selectedDateUtcMillis);
+        MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
+                .setTimeFormat(DateFormat.is24HourFormat(this) ? TimeFormat.CLOCK_24H : TimeFormat.CLOCK_12H)
+                .setHour(initialCalendar.get(Calendar.HOUR_OF_DAY))
+                .setMinute(initialCalendar.get(Calendar.MINUTE))
+                .setTitleText(R.string.booking_time_picker_title)
+                .build();
+
+        timePicker.addOnPositiveButtonClickListener(view -> applyAppointmentDateTime(
+                selectedDateUtcMillis,
+                timePicker.getHour(),
+                timePicker.getMinute()
+        ));
+        timePicker.show(getSupportFragmentManager(), "bookingAppointmentTimePicker");
+    }
+
+    private void applyAppointmentDateTime(long selectedDateUtcMillis, int hourOfDay, int minute) {
+        Calendar utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.KOREA);
+        utcCalendar.setTimeInMillis(selectedDateUtcMillis);
+
+        Calendar seoulCalendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
+        seoulCalendar.set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR));
+        seoulCalendar.set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH));
+        seoulCalendar.set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH));
+        seoulCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+        seoulCalendar.set(Calendar.MINUTE, minute);
+        seoulCalendar.set(Calendar.SECOND, 0);
+        seoulCalendar.set(Calendar.MILLISECOND, 0);
+
+        inputAppointmentAt.setText(formatAppointmentAt(seoulCalendar.getTimeInMillis()));
+        layoutAppointmentAt.setError(null);
+    }
+
+    @Nullable
+    private Long resolveInitialAppointmentDateSelection() {
+        Calendar parsedCalendar = parseAppointmentCalendar(valueOf(inputAppointmentAt));
+        if (parsedCalendar == null) {
+            return null;
+        }
+
+        Calendar utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.KOREA);
+        utcCalendar.clear();
+        utcCalendar.set(
+                parsedCalendar.get(Calendar.YEAR),
+                parsedCalendar.get(Calendar.MONTH),
+                parsedCalendar.get(Calendar.DAY_OF_MONTH)
+        );
+        return utcCalendar.getTimeInMillis();
+    }
+
+    private Calendar resolveInitialTimeCalendar(long selectedDateUtcMillis) {
+        Calendar parsedCalendar = parseAppointmentCalendar(valueOf(inputAppointmentAt));
+        if (parsedCalendar != null) {
+            return parsedCalendar;
+        }
+
+        Calendar utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.KOREA);
+        utcCalendar.setTimeInMillis(selectedDateUtcMillis);
+        Calendar seoulCalendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
+        seoulCalendar.set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR));
+        seoulCalendar.set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH));
+        seoulCalendar.set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH));
+        seoulCalendar.set(Calendar.SECOND, 0);
+        seoulCalendar.set(Calendar.MILLISECOND, 0);
+        return seoulCalendar;
+    }
+
+    @Nullable
+    private Calendar parseAppointmentCalendar(String appointmentAt) {
+        if (TextUtils.isEmpty(appointmentAt)) {
+            return null;
+        }
+
+        SimpleDateFormat formatter = createAppointmentFormatter();
+        try {
+            java.util.Date parsedDate = formatter.parse(appointmentAt);
+            if (parsedDate == null) {
+                return null;
+            }
+            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
+            calendar.setTime(parsedDate);
+            return calendar;
+        } catch (ParseException exception) {
+            return null;
+        }
+    }
+
+    private String formatAppointmentAt(long appointmentAtMillis) {
+        return createAppointmentFormatter().format(appointmentAtMillis);
+    }
+
+    private SimpleDateFormat createAppointmentFormatter() {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
+        formatter.setLenient(false);
+        formatter.setTimeZone(TimeZone.getTimeZone(SEOUL_TIME_ZONE));
+        return formatter;
     }
 
     private void loadRequests() {
@@ -160,6 +341,7 @@ public class BookingActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<AppointmentRequest> result) {
                 setLoading(false);
+                hideBlockingState();
                 bindLatestRequest(result.isEmpty() ? null : result.get(0), result.size());
                 renderRequests(result);
             }
@@ -169,7 +351,7 @@ public class BookingActivity extends AppCompatActivity {
                 setLoading(false);
                 bindEmptySummary();
                 renderEmptyRequests();
-                Toast.makeText(BookingActivity.this, message, Toast.LENGTH_SHORT).show();
+                showLoadErrorState(message);
             }
         });
     }
@@ -180,35 +362,80 @@ public class BookingActivity extends AppCompatActivity {
         }
 
         clearErrors();
+        String linkedParticipantName = valueOf(inputBookingLinkedName);
+        String linkedParticipantPhone = valueOf(inputBookingLinkedPhone);
+        String linkedParticipantEmail = valueOf(inputBookingLinkedEmail);
         String hospitalName = valueOf(inputHospitalName);
         String departmentName = valueOf(inputDepartmentName);
         String appointmentAt = valueOf(inputAppointmentAt);
         String meetingPlace = valueOf(inputMeetingPlace);
         String specialNotes = valueOf(inputSpecialNotes);
-        if (!validateRequired(layoutHospitalName, hospitalName)
+        if (!validateRequired(layoutBookingLinkedName, linkedParticipantName)
+                || !validateRequired(layoutBookingLinkedPhone, linkedParticipantPhone)
+                || !validateLinkedPhone(linkedParticipantPhone)
+                || !validateLinkedEmail(linkedParticipantEmail)
+                || !validateRequired(layoutHospitalName, hospitalName)
                 || !validateRequired(layoutDepartmentName, departmentName)
                 || !validateRequired(layoutAppointmentAt, appointmentAt)
-                || !validateRequired(layoutMeetingPlace, meetingPlace)) {
+                || !validateRequired(layoutMeetingPlace, meetingPlace)
+                || !validateAppointmentAtFormat(appointmentAt)) {
             return;
         }
 
         setLoading(true);
-        bookingRepository.createAppointmentRequest(
+        if (editingRequest == null) {
+            bookingRepository.createAppointmentRequest(
+                    currentUser,
+                    hospitalName,
+                    departmentName,
+                    appointmentAt,
+                    meetingPlace,
+                    specialNotes,
+                    linkedParticipantName,
+                    linkedParticipantPhone,
+                    linkedParticipantEmail,
+                    new RepositoryCallback<AppointmentRequest>() {
+                        @Override
+                        public void onSuccess(AppointmentRequest result) {
+                            Toast.makeText(
+                                    BookingActivity.this,
+                                    R.string.toast_booking_submitted,
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                            clearFormFields();
+                            loadRequests();
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            setLoading(false);
+                            Toast.makeText(BookingActivity.this, message, Toast.LENGTH_LONG).show();
+                        }
+                    }
+            );
+            return;
+        }
+
+        bookingRepository.updateAppointmentRequest(
                 currentUser,
+                editingRequest.getId(),
                 hospitalName,
                 departmentName,
                 appointmentAt,
                 meetingPlace,
                 specialNotes,
+                linkedParticipantName,
+                linkedParticipantPhone,
+                linkedParticipantEmail,
                 new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest result) {
                         Toast.makeText(
                                 BookingActivity.this,
-                                R.string.toast_booking_submitted,
+                                R.string.toast_booking_updated,
                                 Toast.LENGTH_SHORT
                         ).show();
-                        clearForm();
+                        exitEditMode();
                         loadRequests();
                     }
 
@@ -219,6 +446,91 @@ public class BookingActivity extends AppCompatActivity {
                     }
                 }
         );
+    }
+
+    private void startEditingRequest(AppointmentRequest request) {
+        if (!canMutateRequest(request) || currentUser == null || loading) {
+            Toast.makeText(this, R.string.toast_booking_request_locked, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        editingRequest = request;
+        boolean requesterIsGuardian = currentUser.getRole() == UserRole.GUARDIAN;
+        inputBookingLinkedName.setText(requesterIsGuardian ? request.getPatientName() : request.getGuardianName());
+        inputBookingLinkedPhone.setText(requesterIsGuardian ? request.getPatientPhone() : request.getGuardianPhone());
+        inputBookingLinkedEmail.setText(requesterIsGuardian ? request.getPatientEmail() : request.getGuardianEmail());
+        inputHospitalName.setText(request.getHospitalName());
+        inputDepartmentName.setText(request.getDepartmentName());
+        inputAppointmentAt.setText(request.getAppointmentAt());
+        inputMeetingPlace.setText(request.getMeetingPlace());
+        inputSpecialNotes.setText(request.getSpecialNotes());
+        clearErrors();
+        updateFormMode();
+    }
+
+    private void cancelRequest(AppointmentRequest request) {
+        if (!canMutateRequest(request) || currentUser == null || loading) {
+            Toast.makeText(this, R.string.toast_booking_request_locked, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        setLoading(true);
+        bookingRepository.cancelAppointmentRequest(
+                currentUser,
+                request.getId(),
+                new RepositoryCallback<AppointmentRequest>() {
+                    @Override
+                    public void onSuccess(AppointmentRequest result) {
+                        if (editingRequest != null && editingRequest.getId().equals(result.getId())) {
+                            exitEditMode();
+                        }
+                        Toast.makeText(
+                                BookingActivity.this,
+                                R.string.toast_booking_canceled,
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        loadRequests();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(BookingActivity.this, message, Toast.LENGTH_LONG).show();
+                    }
+                }
+        );
+    }
+
+    private boolean canMutateRequest(AppointmentRequest request) {
+        return request.getStatus() == AppointmentStatus.REQUESTED;
+    }
+
+    private void updateFormMode() {
+        if (editingRequest == null) {
+            textBookingFormTitle.setText(R.string.booking_form_section);
+            textBookingFormBadge.setText(R.string.booking_form_badge);
+            textBookingFormHelper.setText(R.string.booking_form_helper);
+            buttonSubmitBooking.setText(R.string.booking_submit_button);
+            buttonCancelBookingEdit.setVisibility(View.GONE);
+            return;
+        }
+
+        textBookingFormTitle.setText(R.string.booking_form_edit_section);
+        textBookingFormBadge.setText(R.string.booking_form_edit_badge);
+        textBookingFormHelper.setText(getString(
+                R.string.booking_form_edit_helper,
+                editingRequest.getHospitalName(),
+                editingRequest.getDepartmentName()
+        ));
+        buttonSubmitBooking.setText(R.string.booking_submit_update_button);
+        buttonCancelBookingEdit.setVisibility(View.VISIBLE);
+    }
+
+    private void exitEditMode() {
+        editingRequest = null;
+        clearFormFields();
+        clearErrors();
+        updateFormMode();
     }
 
     private void bindLatestRequest(@Nullable AppointmentRequest request, int requestCount) {
@@ -265,7 +577,11 @@ public class BookingActivity extends AppCompatActivity {
             TextView titleView = requestView.findViewById(R.id.textBookingRequestTitle);
             TextView detailView = requestView.findViewById(R.id.textBookingRequestDetail);
             TextView placeView = requestView.findViewById(R.id.textBookingRequestPlace);
+            TextView linkedView = requestView.findViewById(R.id.textBookingRequestLinked);
             TextView noteView = requestView.findViewById(R.id.textBookingRequestNote);
+            View actionsView = requestView.findViewById(R.id.layoutBookingRequestActions);
+            MaterialButton editButton = requestView.findViewById(R.id.buttonBookingRequestEdit);
+            MaterialButton cancelButton = requestView.findViewById(R.id.buttonBookingRequestCancel);
 
             bindStatusBadge(statusView, request.getStatus());
             titleView.setText(getString(
@@ -281,6 +597,11 @@ public class BookingActivity extends AppCompatActivity {
                     R.string.booking_request_place,
                     request.getMeetingPlace()
             ));
+            linkedView.setText(getString(
+                    R.string.booking_request_linked,
+                    toCounterpartRoleLabel(currentUser == null ? UserRole.PATIENT : currentUser.getRole()),
+                    buildLinkedParticipantLine(request)
+            ));
 
             if (TextUtils.isEmpty(request.getSpecialNotes())) {
                 noteView.setVisibility(View.GONE);
@@ -293,24 +614,36 @@ public class BookingActivity extends AppCompatActivity {
             }
 
             cardView.setStrokeColor(getColor(resolveStatusStrokeColor(request.getStatus())));
+            if (canMutateRequest(request)) {
+                actionsView.setVisibility(View.VISIBLE);
+                editButton.setOnClickListener(view -> startEditingRequest(request));
+                cancelButton.setOnClickListener(view -> cancelRequest(request));
+            } else {
+                actionsView.setVisibility(View.GONE);
+            }
             bookingRequestsContainer.addView(requestView);
         }
     }
 
     private void renderEmptyRequests() {
         bookingRequestsContainer.removeAllViews();
-
-        TextView emptyView = new TextView(this);
-        emptyView.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        emptyView.setPadding(padding, padding, padding, padding);
-        emptyView.setText(R.string.booking_requests_empty);
-        emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
-        emptyView.setTextSize(14f);
-        bookingRequestsContainer.addView(emptyView);
+        View emptyPanel = LayoutInflater.from(this).inflate(
+                R.layout.include_state_panel,
+                bookingRequestsContainer,
+                false
+        );
+        StatePanelHelper.show(
+                emptyPanel,
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.state_badge_notice),
+                getString(R.string.booking_empty_title),
+                getString(R.string.booking_requests_empty),
+                null,
+                null,
+                null,
+                null
+        );
+        bookingRequestsContainer.addView(emptyPanel);
     }
 
     private void bindStatusBadge(TextView textView, AppointmentStatus status) {
@@ -388,6 +721,40 @@ public class BookingActivity extends AppCompatActivity {
         return getString(R.string.login_role_patient);
     }
 
+    private String toCounterpartRoleLabel(UserRole requesterRole) {
+        return requesterRole == UserRole.GUARDIAN
+                ? getString(R.string.login_role_patient)
+                : getString(R.string.login_role_guardian);
+    }
+
+    private String buildLinkedParticipantLine(AppointmentRequest request) {
+        boolean requesterIsGuardian = currentUser != null && currentUser.getRole() == UserRole.GUARDIAN;
+        String linkedName = requesterIsGuardian ? request.getPatientName() : request.getGuardianName();
+        String linkedPhone = requesterIsGuardian ? request.getPatientPhone() : request.getGuardianPhone();
+        String linkedEmail = requesterIsGuardian ? request.getPatientEmail() : request.getGuardianEmail();
+        String linkedUserId = requesterIsGuardian ? request.getPatientUserId() : request.getGuardianUserId();
+
+        String primaryValue;
+        if (!TextUtils.isEmpty(linkedName) && !TextUtils.isEmpty(linkedPhone)) {
+            primaryValue = getString(R.string.booking_linked_value_name_phone, linkedName, linkedPhone);
+        } else if (!TextUtils.isEmpty(linkedName) && !TextUtils.isEmpty(linkedEmail)) {
+            primaryValue = getString(R.string.booking_linked_value_name_phone, linkedName, linkedEmail);
+        } else if (!TextUtils.isEmpty(linkedName)) {
+            primaryValue = linkedName;
+        } else if (!TextUtils.isEmpty(linkedPhone)) {
+            primaryValue = linkedPhone;
+        } else if (!TextUtils.isEmpty(linkedEmail)) {
+            primaryValue = linkedEmail;
+        } else {
+            return getString(R.string.booking_linked_pending);
+        }
+
+        if (TextUtils.isEmpty(linkedUserId)) {
+            return getString(R.string.booking_linked_pending_format, primaryValue);
+        }
+        return primaryValue;
+    }
+
     private boolean supportsBookingRole(UserRole role) {
         return role == UserRole.PATIENT || role == UserRole.GUARDIAN;
     }
@@ -400,7 +767,34 @@ public class BookingActivity extends AppCompatActivity {
         return true;
     }
 
+    private boolean validateAppointmentAtFormat(String appointmentAt) {
+        if (APPOINTMENT_AT_PATTERN.matcher(appointmentAt).matches()) {
+            return true;
+        }
+        layoutAppointmentAt.setError(getString(R.string.error_booking_appointment_format));
+        return false;
+    }
+
+    private boolean validateLinkedPhone(String phone) {
+        if (UserProfileSanitizer.isValidPhone(phone)) {
+            return true;
+        }
+        layoutBookingLinkedPhone.setError(getString(R.string.error_phone_invalid));
+        return false;
+    }
+
+    private boolean validateLinkedEmail(String email) {
+        if (TextUtils.isEmpty(email) || Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            return true;
+        }
+        layoutBookingLinkedEmail.setError(getString(R.string.error_email_invalid));
+        return false;
+    }
+
     private void clearErrors() {
+        layoutBookingLinkedName.setError(null);
+        layoutBookingLinkedPhone.setError(null);
+        layoutBookingLinkedEmail.setError(null);
         layoutHospitalName.setError(null);
         layoutDepartmentName.setError(null);
         layoutAppointmentAt.setError(null);
@@ -408,7 +802,10 @@ public class BookingActivity extends AppCompatActivity {
         layoutSpecialNotes.setError(null);
     }
 
-    private void clearForm() {
+    private void clearFormFields() {
+        inputBookingLinkedName.setText(null);
+        inputBookingLinkedPhone.setText(null);
+        inputBookingLinkedEmail.setText(null);
         inputHospitalName.setText(null);
         inputDepartmentName.setText(null);
         inputAppointmentAt.setText(null);
@@ -420,6 +817,10 @@ public class BookingActivity extends AppCompatActivity {
         this.loading = loading;
         progressBooking.setVisibility(loading ? View.VISIBLE : View.GONE);
         buttonSubmitBooking.setEnabled(!loading);
+        buttonCancelBookingEdit.setEnabled(!loading);
+        inputBookingLinkedName.setEnabled(!loading);
+        inputBookingLinkedPhone.setEnabled(!loading);
+        inputBookingLinkedEmail.setEnabled(!loading);
         inputHospitalName.setEnabled(!loading);
         inputDepartmentName.setEnabled(!loading);
         inputAppointmentAt.setEnabled(!loading);
@@ -427,8 +828,93 @@ public class BookingActivity extends AppCompatActivity {
         inputSpecialNotes.setEnabled(!loading);
     }
 
+    private void showPermissionState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_permission),
+                getString(R.string.state_permission_title, getString(R.string.feature_booking_title)),
+                getString(R.string.state_permission_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection()
+        );
+    }
+
+    private void showAuthState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_auth),
+                getString(R.string.state_auth_title),
+                getString(R.string.state_auth_body),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection(),
+                null,
+                null
+        );
+    }
+
+    private void showLoadErrorState(String message) {
+        String body = getString(R.string.state_load_error_body);
+        if (!TextUtils.isEmpty(message)) {
+            body = body + "\n\n" + message;
+        }
+        showBlockingState(
+                StatePanelHelper.Tone.ERROR,
+                getString(R.string.state_badge_error),
+                getString(R.string.state_load_error_title, getString(R.string.feature_booking_title)),
+                body,
+                getString(R.string.state_action_retry),
+                view -> {
+                    if (currentUser == null) {
+                        showAuthState();
+                        return;
+                    }
+                    setLoading(true);
+                    hideBlockingState();
+                    loadRequests();
+                },
+                getString(R.string.state_action_open_home),
+                view -> openHome()
+        );
+    }
+
+    private void showBlockingState(
+            StatePanelHelper.Tone tone,
+            CharSequence badge,
+            CharSequence title,
+            CharSequence body,
+            @Nullable CharSequence primaryText,
+            @Nullable View.OnClickListener primaryListener,
+            @Nullable CharSequence secondaryText,
+            @Nullable View.OnClickListener secondaryListener
+    ) {
+        StatePanelHelper.show(
+                bookingStatePanel,
+                tone,
+                badge,
+                title,
+                body,
+                primaryText,
+                primaryListener,
+                secondaryText,
+                secondaryListener
+        );
+        bookingContentContainer.setVisibility(View.GONE);
+    }
+
+    private void hideBlockingState() {
+        StatePanelHelper.hide(bookingStatePanel);
+        bookingContentContainer.setVisibility(View.VISIBLE);
+    }
+
     private String valueOf(TextInputEditText editText) {
         return editText.getText() == null ? "" : editText.getText().toString().trim();
+    }
+
+    private void openHome() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 
     private void openRoleSelection() {

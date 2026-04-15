@@ -2,9 +2,11 @@ package com.example.bodeul.ui.manager;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
@@ -19,6 +21,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 
@@ -37,6 +40,8 @@ public class ManagerActivity extends AppCompatActivity {
     private TextView textManagerCardBody;
     private TextView textAssignmentDetail;
     private TextView textAssignmentNote;
+    private View managerStatePanel;
+    private View managerContentContainer;
     private MaterialButton buttonOpenGuideFromHero;
     private MaterialCardView cardActionGuide;
 
@@ -54,6 +59,8 @@ public class ManagerActivity extends AppCompatActivity {
         textManagerCardBody = findViewById(R.id.textManagerCardBody);
         textAssignmentDetail = findViewById(R.id.textAssignmentDetail);
         textAssignmentNote = findViewById(R.id.textAssignmentNote);
+        managerStatePanel = findViewById(R.id.managerStatePanel);
+        managerContentContainer = findViewById(R.id.managerContentContainer);
         buttonOpenGuideFromHero = findViewById(R.id.buttonOpenGuideFromHero);
         cardActionGuide = findViewById(R.id.cardActionGuide);
 
@@ -74,6 +81,7 @@ public class ManagerActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
@@ -82,20 +90,19 @@ public class ManagerActivity extends AppCompatActivity {
                     return;
                 }
                 if (result.getRole() != UserRole.MANAGER) {
-                    Toast.makeText(ManagerActivity.this, R.string.toast_manager_only, Toast.LENGTH_SHORT).show();
-                    startActivity(new Intent(ManagerActivity.this, MainActivity.class));
-                    finish();
+                    showPermissionState();
                     return;
                 }
 
                 currentUser = result;
+                hideBlockingState();
                 textManagerGreeting.setText(getString(R.string.manager_home_greeting, result.getName()));
                 loadDashboard();
             }
 
             @Override
             public void onError(String message) {
-                openRoleSelection();
+                showAuthState();
             }
         });
     }
@@ -105,6 +112,7 @@ public class ManagerActivity extends AppCompatActivity {
         managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                hideBlockingState();
                 hasActiveSession = true;
                 setGuideAccessEnabled(true);
                 int totalSteps = result.getHospitalGuide().getSteps().size();
@@ -133,17 +141,19 @@ public class ManagerActivity extends AppCompatActivity {
             @Override
             public void onError(String message) {
                 if (isNoActiveSession(message)) {
+                    hideBlockingState();
                     bindEmptyDashboard();
                     return;
                 }
-                Toast.makeText(ManagerActivity.this, message, Toast.LENGTH_SHORT).show();
+                bindEmptyDashboard();
+                showLoadErrorState(message);
             }
         });
     }
 
     private void openGuide() {
         if (currentUser == null) {
-            Toast.makeText(this, R.string.toast_login_required, Toast.LENGTH_SHORT).show();
+            showAuthState();
             return;
         }
 
@@ -194,5 +204,89 @@ public class ManagerActivity extends AppCompatActivity {
 
     private boolean isNoActiveSession(String message) {
         return ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message);
+    }
+
+    private void showPermissionState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_permission),
+                getString(R.string.state_permission_title, getString(R.string.feature_manager_home_title)),
+                getString(R.string.state_permission_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection()
+        );
+    }
+
+    private void showAuthState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_auth),
+                getString(R.string.state_auth_title),
+                getString(R.string.state_auth_body),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection(),
+                null,
+                null
+        );
+    }
+
+    private void showLoadErrorState(String message) {
+        String body = getString(R.string.state_load_error_body);
+        if (message != null && !message.trim().isEmpty()) {
+            body = body + "\n\n" + message;
+        }
+        showBlockingState(
+                StatePanelHelper.Tone.ERROR,
+                getString(R.string.state_badge_error),
+                getString(R.string.state_load_error_title, getString(R.string.feature_manager_home_title)),
+                body,
+                getString(R.string.state_action_retry),
+                view -> {
+                    if (currentUser == null) {
+                        showAuthState();
+                        return;
+                    }
+                    hideBlockingState();
+                    loadDashboard();
+                },
+                getString(R.string.state_action_open_home),
+                view -> openHome()
+        );
+    }
+
+    private void showBlockingState(
+            StatePanelHelper.Tone tone,
+            CharSequence badge,
+            CharSequence title,
+            CharSequence body,
+            @Nullable CharSequence primaryText,
+            @Nullable View.OnClickListener primaryListener,
+            @Nullable CharSequence secondaryText,
+            @Nullable View.OnClickListener secondaryListener
+    ) {
+        StatePanelHelper.show(
+                managerStatePanel,
+                tone,
+                badge,
+                title,
+                body,
+                primaryText,
+                primaryListener,
+                secondaryText,
+                secondaryListener
+        );
+        managerContentContainer.setVisibility(View.GONE);
+    }
+
+    private void hideBlockingState() {
+        StatePanelHelper.hide(managerStatePanel);
+        managerContentContainer.setVisibility(View.VISIBLE);
+    }
+
+    private void openHome() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 }

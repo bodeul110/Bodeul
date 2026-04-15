@@ -12,8 +12,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AdminRepository;
 import com.example.bodeul.data.AuthRepository;
@@ -29,6 +31,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -49,6 +52,8 @@ public class AdminActivity extends AppCompatActivity {
     private TextView textAdminGreeting;
     private TextView textAdminSummary;
     private TextView textAdminManagers;
+    private View adminStatePanel;
+    private View adminContentContainer;
     private LinearLayout adminPendingRequestsContainer;
     private LinearLayout adminManagedRequestsContainer;
     private LinearLayout adminGuideListContainer;
@@ -73,6 +78,8 @@ public class AdminActivity extends AppCompatActivity {
         textAdminGreeting = findViewById(R.id.textAdminGreeting);
         textAdminSummary = findViewById(R.id.textAdminSummary);
         textAdminManagers = findViewById(R.id.textAdminManagers);
+        adminStatePanel = findViewById(R.id.adminStatePanel);
+        adminContentContainer = findViewById(R.id.adminContentContainer);
         adminPendingRequestsContainer = findViewById(R.id.adminPendingRequestsContainer);
         adminManagedRequestsContainer = findViewById(R.id.adminManagedRequestsContainer);
         adminGuideListContainer = findViewById(R.id.adminGuideListContainer);
@@ -99,6 +106,7 @@ public class AdminActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         setLoading(true);
+        hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
@@ -108,19 +116,19 @@ public class AdminActivity extends AppCompatActivity {
                 }
                 if (result.getRole() != UserRole.ADMIN) {
                     setLoading(false);
-                    Toast.makeText(AdminActivity.this, R.string.toast_admin_only, Toast.LENGTH_SHORT).show();
-                    finish();
+                    showPermissionState();
                     return;
                 }
 
                 currentUser = result;
+                hideBlockingState();
                 loadDashboard();
             }
 
             @Override
             public void onError(String message) {
                 setLoading(false);
-                openRoleSelection();
+                showAuthState();
             }
         });
     }
@@ -130,6 +138,7 @@ public class AdminActivity extends AppCompatActivity {
             @Override
             public void onSuccess(AdminDashboard result) {
                 setLoading(false);
+                hideBlockingState();
                 bindDashboard(result);
             }
 
@@ -137,7 +146,7 @@ public class AdminActivity extends AppCompatActivity {
             public void onError(String message) {
                 setLoading(false);
                 bindEmptyState();
-                Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
+                showLoadErrorState(message);
             }
         });
     }
@@ -190,7 +199,11 @@ public class AdminActivity extends AppCompatActivity {
     private void renderPendingRequests(AdminDashboard dashboard) {
         adminPendingRequestsContainer.removeAllViews();
         if (dashboard.getPendingRequests().isEmpty()) {
-            renderEmptyText(adminPendingRequestsContainer, R.string.admin_pending_empty);
+            renderEmptyText(
+                    adminPendingRequestsContainer,
+                    R.string.admin_pending_title,
+                    R.string.admin_pending_empty
+            );
             return;
         }
 
@@ -205,7 +218,11 @@ public class AdminActivity extends AppCompatActivity {
     private void renderManagedRequests(List<AdminRequestOverview> managedRequests) {
         adminManagedRequestsContainer.removeAllViews();
         if (managedRequests.isEmpty()) {
-            renderEmptyText(adminManagedRequestsContainer, R.string.admin_managed_empty);
+            renderEmptyText(
+                    adminManagedRequestsContainer,
+                    R.string.admin_managed_title,
+                    R.string.admin_managed_empty
+            );
             return;
         }
 
@@ -241,12 +258,18 @@ public class AdminActivity extends AppCompatActivity {
         ));
         participantsView.setText(getString(
                 R.string.admin_request_participants,
-                overview.getPatient() == null
-                        ? getString(R.string.admin_participant_patient_missing)
-                        : overview.getPatient().getName(),
-                overview.getGuardian() == null
-                        ? getString(R.string.admin_participant_guardian_missing)
-                        : overview.getGuardian().getName()
+                buildParticipantDisplay(
+                        overview.getPatient(),
+                        overview.getAppointmentRequest().getPatientName(),
+                        overview.getAppointmentRequest().getPatientPhone(),
+                        R.string.admin_participant_patient_missing
+                ),
+                buildParticipantDisplay(
+                        overview.getGuardian(),
+                        overview.getAppointmentRequest().getGuardianName(),
+                        overview.getAppointmentRequest().getGuardianPhone(),
+                        R.string.admin_participant_guardian_missing
+                )
         ));
         scheduleView.setText(getString(
                 R.string.admin_request_schedule,
@@ -308,6 +331,19 @@ public class AdminActivity extends AppCompatActivity {
 
     private String resolveBlockingReason(AdminRequestOverview overview, List<User> availableManagers) {
         if (!overview.hasLinkedParticipants()) {
+            if (hasParticipantInfo(
+                    overview.getPatient(),
+                    overview.getAppointmentRequest().getPatientName(),
+                    overview.getAppointmentRequest().getPatientPhone(),
+                    overview.getAppointmentRequest().getPatientEmail()
+            ) && hasParticipantInfo(
+                    overview.getGuardian(),
+                    overview.getAppointmentRequest().getGuardianName(),
+                    overview.getAppointmentRequest().getGuardianPhone(),
+                    overview.getAppointmentRequest().getGuardianEmail()
+            )) {
+                return getString(R.string.admin_request_block_pending_link);
+            }
             return getString(R.string.admin_request_block_missing_participants);
         }
         if (!overview.hasGuide()) {
@@ -317,6 +353,44 @@ public class AdminActivity extends AppCompatActivity {
             return getString(R.string.admin_request_block_no_manager);
         }
         return "";
+    }
+
+    private String buildParticipantDisplay(
+            User user,
+            String snapshotName,
+            String snapshotPhone,
+            int missingResId
+    ) {
+        if (user != null) {
+            return buildParticipantValue(user.getName(), user.getPhone(), false);
+        }
+        if (TextUtils.isEmpty(snapshotName) && TextUtils.isEmpty(snapshotPhone)) {
+            return getString(missingResId);
+        }
+        return buildParticipantValue(snapshotName, snapshotPhone, true);
+    }
+
+    private boolean hasParticipantInfo(User user, String name, String phone, String email) {
+        if (user != null) {
+            return true;
+        }
+        return !TextUtils.isEmpty(name) || !TextUtils.isEmpty(phone) || !TextUtils.isEmpty(email);
+    }
+
+    private String buildParticipantValue(String name, String phone, boolean pendingLink) {
+        String baseText;
+        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(phone)) {
+            baseText = getString(R.string.admin_participant_value_name_phone, name, phone);
+        } else if (!TextUtils.isEmpty(name)) {
+            baseText = name;
+        } else if (!TextUtils.isEmpty(phone)) {
+            baseText = phone;
+        } else {
+            baseText = getString(R.string.admin_participant_value_unknown);
+        }
+        return pendingLink
+                ? getString(R.string.admin_participant_value_pending_link, baseText)
+                : baseText;
     }
 
     private void renderManagerButtons(
@@ -350,7 +424,11 @@ public class AdminActivity extends AppCompatActivity {
     private void renderGuides(List<HospitalGuide> guides) {
         adminGuideListContainer.removeAllViews();
         if (guides.isEmpty()) {
-            renderEmptyText(adminGuideListContainer, R.string.admin_guide_empty);
+            renderEmptyText(
+                    adminGuideListContainer,
+                    R.string.admin_guide_list_title,
+                    R.string.admin_guide_empty
+            );
             return;
         }
 
@@ -475,18 +553,24 @@ public class AdminActivity extends AppCompatActivity {
         return stepLines;
     }
 
-    private void renderEmptyText(LinearLayout container, int messageResId) {
-        TextView emptyView = new TextView(this);
-        emptyView.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        int padding = dpToPx(16);
-        emptyView.setPadding(padding, padding, padding, padding);
-        emptyView.setText(messageResId);
-        emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
-        emptyView.setTextSize(14f);
-        container.addView(emptyView);
+    private void renderEmptyText(LinearLayout container, int titleResId, int messageResId) {
+        View emptyPanel = LayoutInflater.from(this).inflate(
+                R.layout.include_state_panel,
+                container,
+                false
+        );
+        StatePanelHelper.show(
+                emptyPanel,
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.state_badge_notice),
+                getString(titleResId),
+                getString(messageResId),
+                null,
+                null,
+                null,
+                null
+        );
+        container.addView(emptyPanel);
     }
 
     private void bindEmptyState() {
@@ -496,9 +580,9 @@ public class AdminActivity extends AppCompatActivity {
         adminPendingRequestsContainer.removeAllViews();
         adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
-        renderEmptyText(adminPendingRequestsContainer, R.string.admin_pending_empty);
-        renderEmptyText(adminManagedRequestsContainer, R.string.admin_managed_empty);
-        renderEmptyText(adminGuideListContainer, R.string.admin_guide_empty);
+        renderEmptyText(adminPendingRequestsContainer, R.string.admin_pending_title, R.string.admin_pending_empty);
+        renderEmptyText(adminManagedRequestsContainer, R.string.admin_managed_title, R.string.admin_managed_empty);
+        renderEmptyText(adminGuideListContainer, R.string.admin_guide_list_title, R.string.admin_guide_empty);
     }
 
     private void bindStatusBadge(TextView textView, AppointmentStatus status) {
@@ -593,12 +677,97 @@ public class AdminActivity extends AppCompatActivity {
         inputAdminGuideSteps.setEnabled(!loading);
     }
 
+    private void showPermissionState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_permission),
+                getString(R.string.state_permission_title, getString(R.string.feature_admin_title)),
+                getString(R.string.state_permission_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection()
+        );
+    }
+
+    private void showAuthState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_auth),
+                getString(R.string.state_auth_title),
+                getString(R.string.state_auth_body),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection(),
+                null,
+                null
+        );
+    }
+
+    private void showLoadErrorState(String message) {
+        String body = getString(R.string.state_load_error_body);
+        if (!TextUtils.isEmpty(message)) {
+            body = body + "\n\n" + message;
+        }
+        showBlockingState(
+                StatePanelHelper.Tone.ERROR,
+                getString(R.string.state_badge_error),
+                getString(R.string.state_load_error_title, getString(R.string.feature_admin_title)),
+                body,
+                getString(R.string.state_action_retry),
+                view -> {
+                    if (currentUser == null) {
+                        showAuthState();
+                        return;
+                    }
+                    setLoading(true);
+                    hideBlockingState();
+                    loadDashboard();
+                },
+                getString(R.string.state_action_open_home),
+                view -> openHome()
+        );
+    }
+
+    private void showBlockingState(
+            StatePanelHelper.Tone tone,
+            CharSequence badge,
+            CharSequence title,
+            CharSequence body,
+            @Nullable CharSequence primaryText,
+            @Nullable View.OnClickListener primaryListener,
+            @Nullable CharSequence secondaryText,
+            @Nullable View.OnClickListener secondaryListener
+    ) {
+        StatePanelHelper.show(
+                adminStatePanel,
+                tone,
+                badge,
+                title,
+                body,
+                primaryText,
+                primaryListener,
+                secondaryText,
+                secondaryListener
+        );
+        adminContentContainer.setVisibility(View.GONE);
+    }
+
+    private void hideBlockingState() {
+        StatePanelHelper.hide(adminStatePanel);
+        adminContentContainer.setVisibility(View.VISIBLE);
+    }
+
     private String valueOf(TextInputEditText editText) {
         return editText.getText() == null ? "" : editText.getText().toString().trim();
     }
 
     private int dpToPx(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void openHome() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 
     private void openRoleSelection() {

@@ -1,8 +1,10 @@
-# 데이터 및 API 초안
+# 데이터 / API 초안
 
-이 문서는 팀 논의를 위한 초안입니다. 최종 구현이 달라지더라도 아래 엔티티를 기준으로 백엔드를 시작할 수 있습니다.
+기준: 2026-04-15
 
-## 핵심 엔티티
+이 문서는 현재 구현과 다음 서버 작업을 맞추기 위한 초안이다.
+
+## 엔티티
 
 ### User
 
@@ -12,41 +14,47 @@
 - `email`
 - `phone`
 
-### PatientProfile
-
-- `id`
-- `userId`
-- `birthYear`
-- `notes`
-- `guardianUserId`
-
-### ManagerProfile
-
-- `id`
-- `userId`
-- `serviceArea`
-- `certifications`
-- `available`
-
 ### AppointmentRequest
 
 - `id`
 - `patientUserId`
 - `guardianUserId`
+- `patientName`
+- `patientPhone`
+- `patientEmail`
+- `guardianName`
+- `guardianPhone`
+- `guardianEmail`
 - `hospitalName`
 - `departmentName`
 - `appointmentAt`
+- `appointmentAtEpochMillis`
+- `appointmentDateKey`
 - `meetingPlace`
 - `specialNotes`
+- `reminderStages`
 - `status`: `REQUESTED`, `MATCHED`, `IN_PROGRESS`, `COMPLETED`, `CANCELED`
 - `managerUserId`
+- `requesterUserId`
+- `requesterRole`
+- `requesterName`
+- `requesterPhone`
+- `createdAt`
+- `updatedAt`
+
+설명:
+
+- `patientUserId`, `guardianUserId`는 아직 계정이 연결되지 않았으면 빈 문자열일 수 있다.
+- 대신 `patientName/Phone/Email`, `guardianName/Phone/Email`에는 신청 시점 입력값 또는 연결된 계정 정보가 항상 남도록 설계한다.
+- 요청을 만든 환자 / 보호자는 `REQUESTED` 상태에서만 병원, 일정, 만남 장소, 연결 대상 정보를 수정하거나 취소할 수 있다.
+- `users` 문서가 생성되거나 연락처가 바뀌면 서버 트리거가 미연결 요청을 다시 찾아 `patientUserId` 또는 `guardianUserId`를 자동으로 채운다.
+- 예약이 취소 / 삭제되거나 `appointmentAt`이 바뀌면 서버 트리거가 남아 있는 리마인더 작업을 `SKIPPED`로 정리한다.
 
 ### HospitalGuide
 
 - `id`
 - `hospitalName`
 - `departmentName`
-- `title`
 - `steps`
 
 ### CompanionSession
@@ -54,21 +62,12 @@
 - `id`
 - `appointmentRequestId`
 - `managerUserId`
-- `currentStep`
+- `currentStepOrder`
 - `currentStatus`
 - `guardianUpdate`
 - `medicationNote`
-- `startedAt`
-- `completedAt`
-
-### LocationUpdate
-
-- `id`
-- `sessionId`
-- `latitude`
-- `longitude`
-- `label`
 - `createdAt`
+- `updatedAt`
 
 ### SessionReport
 
@@ -80,10 +79,37 @@
 - `nextVisitAt`
 - `createdAt`
 
+### AppointmentReminderJob
+
+- `id`
+- `appointmentRequestId`
+- `reminderStage`: `D7`, `D3`, `D1`
+- `templateKey`
+- `channel`
+- `state`
+- `reminderDateKey`
+- `appointmentDateKey`
+- `recipientUserIds`
+- `recipientPhones`
+- `messagePreview`
+- `deliveryAttempts`
+- `skipReason`
+- `providerResult`
+- `createdAt`
+- `updatedAt`
+- `skippedAt`
+
+설명:
+
+- `appointmentRequests` 문서가 취소 / 삭제 / 일정 변경되면 아직 발송되지 않은 작업은 `SKIPPED` 상태로 정리한다.
+- 이미 `SENT` 또는 `SIMULATED`로 끝난 작업은 이 정리 대상에서 제외한다.
+
 ## API 초안
 
 - `POST /appointment-requests`
 - `GET /appointment-requests/{id}`
+- `PATCH /appointment-requests/{id}`
+- `POST /appointment-requests/{id}/cancel`
 - `PATCH /appointment-requests/{id}/status`
 - `POST /appointment-requests/{id}/match`
 - `GET /manager/sessions`

@@ -6,13 +6,14 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
@@ -26,6 +27,7 @@ import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textfield.TextInputEditText;
@@ -43,6 +45,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextView textGuideSchedule;
     private TextView textGuidePlace;
     private TextView textGuideRequestNote;
+    private View managerGuideStatePanel;
+    private View managerGuideContentContainer;
     private LinearLayout guideStepsContainer;
     private MaterialButton buttonAdvanceGuide;
     private MaterialButton buttonSubmitReport;
@@ -65,6 +69,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
         textGuideSchedule = findViewById(R.id.textGuideSchedule);
         textGuidePlace = findViewById(R.id.textGuidePlace);
         textGuideRequestNote = findViewById(R.id.textGuideRequestNote);
+        managerGuideStatePanel = findViewById(R.id.managerGuideStatePanel);
+        managerGuideContentContainer = findViewById(R.id.managerGuideContentContainer);
         guideStepsContainer = findViewById(R.id.guideStepsContainer);
         buttonAdvanceGuide = findViewById(R.id.buttonAdvanceGuide);
         buttonSubmitReport = findViewById(R.id.buttonSubmitReport);
@@ -84,22 +90,23 @@ public class ManagerGuideActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
                 if (result.getRole() != UserRole.MANAGER) {
-                    Toast.makeText(ManagerGuideActivity.this, R.string.toast_manager_only, Toast.LENGTH_SHORT).show();
-                    finish();
+                    showPermissionState();
                     return;
                 }
 
                 currentUser = result;
+                hideBlockingState();
                 loadDashboard();
             }
 
             @Override
             public void onError(String message) {
-                openRoleSelection();
+                showAuthState();
             }
         });
     }
@@ -109,16 +116,19 @@ public class ManagerGuideActivity extends AppCompatActivity {
         managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                hideBlockingState();
                 bindDashboard(result);
             }
 
             @Override
             public void onError(String message) {
                 if (isNoActiveSession(message)) {
+                    hideBlockingState();
                     bindEmptyState();
                     return;
                 }
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+                bindEmptyState();
+                showLoadErrorState(message);
             }
         });
     }
@@ -407,18 +417,23 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void renderEmptySteps() {
         guideStepsContainer.removeAllViews();
-
-        TextView emptyView = new TextView(this);
-        emptyView.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        emptyView.setText(R.string.guide_empty_steps);
-        emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
-        emptyView.setTextSize(14f);
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        emptyView.setPadding(padding, padding, padding, padding);
-        guideStepsContainer.addView(emptyView);
+        View emptyPanel = LayoutInflater.from(this).inflate(
+                R.layout.include_state_panel,
+                guideStepsContainer,
+                false
+        );
+        StatePanelHelper.show(
+                emptyPanel,
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.state_badge_notice),
+                getString(R.string.guide_steps_title),
+                getString(R.string.guide_empty_steps),
+                null,
+                null,
+                null,
+                null
+        );
+        guideStepsContainer.addView(emptyPanel);
     }
 
     private void setInputsEnabled(boolean enabled) {
@@ -433,6 +448,90 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private boolean isNoActiveSession(String message) {
         return ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message);
+    }
+
+    private void showPermissionState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_permission),
+                getString(R.string.state_permission_title, getString(R.string.guide_title)),
+                getString(R.string.state_permission_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection()
+        );
+    }
+
+    private void showAuthState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_auth),
+                getString(R.string.state_auth_title),
+                getString(R.string.state_auth_body),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection(),
+                null,
+                null
+        );
+    }
+
+    private void showLoadErrorState(String message) {
+        String body = getString(R.string.state_load_error_body);
+        if (!TextUtils.isEmpty(message)) {
+            body = body + "\n\n" + message;
+        }
+        showBlockingState(
+                StatePanelHelper.Tone.ERROR,
+                getString(R.string.state_badge_error),
+                getString(R.string.state_load_error_title, getString(R.string.guide_title)),
+                body,
+                getString(R.string.state_action_retry),
+                view -> {
+                    if (currentUser == null) {
+                        showAuthState();
+                        return;
+                    }
+                    hideBlockingState();
+                    loadDashboard();
+                },
+                getString(R.string.state_action_open_home),
+                view -> openHome()
+        );
+    }
+
+    private void showBlockingState(
+            StatePanelHelper.Tone tone,
+            CharSequence badge,
+            CharSequence title,
+            CharSequence body,
+            @Nullable CharSequence primaryText,
+            @Nullable View.OnClickListener primaryListener,
+            @Nullable CharSequence secondaryText,
+            @Nullable View.OnClickListener secondaryListener
+    ) {
+        StatePanelHelper.show(
+                managerGuideStatePanel,
+                tone,
+                badge,
+                title,
+                body,
+                primaryText,
+                primaryListener,
+                secondaryText,
+                secondaryListener
+        );
+        managerGuideContentContainer.setVisibility(View.GONE);
+    }
+
+    private void hideBlockingState() {
+        StatePanelHelper.hide(managerGuideStatePanel);
+        managerGuideContentContainer.setVisibility(View.VISIBLE);
+    }
+
+    private void openHome() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 
     private String valueOf(TextInputEditText editText) {

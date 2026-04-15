@@ -6,14 +6,14 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.GuardianReportRepository;
@@ -30,6 +30,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.StatePanelHelper;
 
 import java.util.List;
 
@@ -48,6 +49,8 @@ public class GuardianReportActivity extends AppCompatActivity {
     private TextView textGuardianReportHighlightStatus;
     private TextView textGuardianReportHighlightTitle;
     private TextView textGuardianReportHighlightBody;
+    private View guardianReportStatePanel;
+    private View guardianReportContentContainer;
     private LinearLayout guardianReportListContainer;
     private ProgressBar progressGuardianReport;
 
@@ -65,6 +68,8 @@ public class GuardianReportActivity extends AppCompatActivity {
         textGuardianReportHighlightStatus = findViewById(R.id.textGuardianReportHighlightStatus);
         textGuardianReportHighlightTitle = findViewById(R.id.textGuardianReportHighlightTitle);
         textGuardianReportHighlightBody = findViewById(R.id.textGuardianReportHighlightBody);
+        guardianReportStatePanel = findViewById(R.id.guardianReportStatePanel);
+        guardianReportContentContainer = findViewById(R.id.guardianReportContentContainer);
         guardianReportListContainer = findViewById(R.id.guardianReportListContainer);
         progressGuardianReport = findViewById(R.id.progressGuardianReport);
 
@@ -80,6 +85,7 @@ public class GuardianReportActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         setLoading(true);
+        hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
@@ -89,19 +95,19 @@ public class GuardianReportActivity extends AppCompatActivity {
                 }
                 if (result.getRole() != UserRole.GUARDIAN) {
                     setLoading(false);
-                    Toast.makeText(GuardianReportActivity.this, R.string.toast_guardian_only, Toast.LENGTH_SHORT).show();
-                    finish();
+                    showPermissionState();
                     return;
                 }
 
                 currentUser = result;
+                hideBlockingState();
                 loadDashboard();
             }
 
             @Override
             public void onError(String message) {
                 setLoading(false);
-                openRoleSelection();
+                showAuthState();
             }
         });
     }
@@ -111,6 +117,7 @@ public class GuardianReportActivity extends AppCompatActivity {
             @Override
             public void onSuccess(GuardianReportDashboard result) {
                 setLoading(false);
+                hideBlockingState();
                 bindDashboard(result);
             }
 
@@ -118,7 +125,7 @@ public class GuardianReportActivity extends AppCompatActivity {
             public void onError(String message) {
                 setLoading(false);
                 bindEmptyState();
-                Toast.makeText(GuardianReportActivity.this, message, Toast.LENGTH_SHORT).show();
+                showLoadErrorState(message);
             }
         });
     }
@@ -167,9 +174,7 @@ public class GuardianReportActivity extends AppCompatActivity {
     }
 
     private CharSequence buildHighlightBody(GuardianReportEntry entry, int count) {
-        String patientName = entry.getPatient() == null
-                ? getString(R.string.guardian_report_patient_missing)
-                : entry.getPatient().getName();
+        String patientName = buildPatientDisplay(entry);
         String managerName = entry.getManager() == null
                 ? getString(R.string.guardian_report_manager_pending)
                 : entry.getManager().getName();
@@ -207,6 +212,33 @@ public class GuardianReportActivity extends AppCompatActivity {
         return session.getGuardianUpdate();
     }
 
+    private String buildPatientDisplay(GuardianReportEntry entry) {
+        if (entry.getPatient() != null) {
+            return buildContactText(entry.getPatient().getName(), entry.getPatient().getPhone(), false);
+        }
+        return buildContactText(
+                entry.getAppointmentRequest().getPatientName(),
+                entry.getAppointmentRequest().getPatientPhone(),
+                true
+        );
+    }
+
+    private String buildContactText(String name, String phone, boolean pendingLink) {
+        String baseText;
+        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(phone)) {
+            baseText = getString(R.string.guardian_report_contact_name_phone, name, phone);
+        } else if (!TextUtils.isEmpty(name)) {
+            baseText = name;
+        } else if (!TextUtils.isEmpty(phone)) {
+            baseText = phone;
+        } else {
+            return getString(R.string.guardian_report_patient_missing);
+        }
+        return pendingLink
+                ? getString(R.string.guardian_report_contact_pending, baseText)
+                : baseText;
+    }
+
     private void renderEntries(List<GuardianReportEntry> entries) {
         guardianReportListContainer.removeAllViews();
         if (entries.isEmpty()) {
@@ -238,9 +270,7 @@ public class GuardianReportActivity extends AppCompatActivity {
             ));
             patientView.setText(getString(
                     R.string.guardian_report_item_patient,
-                    entry.getPatient() == null
-                            ? getString(R.string.guardian_report_patient_missing)
-                            : entry.getPatient().getName()
+                    buildPatientDisplay(entry)
             ));
             scheduleView.setText(getString(
                     R.string.guardian_report_item_schedule,
@@ -292,18 +322,23 @@ public class GuardianReportActivity extends AppCompatActivity {
 
     private void renderEmptyEntry() {
         guardianReportListContainer.removeAllViews();
-
-        TextView emptyView = new TextView(this);
-        emptyView.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        emptyView.setPadding(padding, padding, padding, padding);
-        emptyView.setText(R.string.guardian_report_list_empty);
-        emptyView.setTextColor(getColor(R.color.bodeul_text_secondary));
-        emptyView.setTextSize(14f);
-        guardianReportListContainer.addView(emptyView);
+        View emptyPanel = LayoutInflater.from(this).inflate(
+                R.layout.include_state_panel,
+                guardianReportListContainer,
+                false
+        );
+        StatePanelHelper.show(
+                emptyPanel,
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.state_badge_notice),
+                getString(R.string.guardian_report_empty_title),
+                getString(R.string.guardian_report_list_empty),
+                null,
+                null,
+                null,
+                null
+        );
+        guardianReportListContainer.addView(emptyPanel);
     }
 
     private void bindEmptyState() {
@@ -387,6 +422,91 @@ public class GuardianReportActivity extends AppCompatActivity {
     private void setLoading(boolean loading) {
         this.loading = loading;
         progressGuardianReport.setVisibility(loading ? View.VISIBLE : View.GONE);
+    }
+
+    private void showPermissionState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_permission),
+                getString(R.string.state_permission_title, getString(R.string.feature_guardian_report_title)),
+                getString(R.string.state_permission_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection()
+        );
+    }
+
+    private void showAuthState() {
+        showBlockingState(
+                StatePanelHelper.Tone.WARNING,
+                getString(R.string.state_badge_auth),
+                getString(R.string.state_auth_title),
+                getString(R.string.state_auth_body),
+                getString(R.string.state_action_open_login),
+                view -> openRoleSelection(),
+                null,
+                null
+        );
+    }
+
+    private void showLoadErrorState(String message) {
+        String body = getString(R.string.state_load_error_body);
+        if (!TextUtils.isEmpty(message)) {
+            body = body + "\n\n" + message;
+        }
+        showBlockingState(
+                StatePanelHelper.Tone.ERROR,
+                getString(R.string.state_badge_error),
+                getString(R.string.state_load_error_title, getString(R.string.feature_guardian_report_title)),
+                body,
+                getString(R.string.state_action_retry),
+                view -> {
+                    if (currentUser == null) {
+                        showAuthState();
+                        return;
+                    }
+                    setLoading(true);
+                    hideBlockingState();
+                    loadDashboard();
+                },
+                getString(R.string.state_action_open_home),
+                view -> openHome()
+        );
+    }
+
+    private void showBlockingState(
+            StatePanelHelper.Tone tone,
+            CharSequence badge,
+            CharSequence title,
+            CharSequence body,
+            @Nullable CharSequence primaryText,
+            @Nullable View.OnClickListener primaryListener,
+            @Nullable CharSequence secondaryText,
+            @Nullable View.OnClickListener secondaryListener
+    ) {
+        StatePanelHelper.show(
+                guardianReportStatePanel,
+                tone,
+                badge,
+                title,
+                body,
+                primaryText,
+                primaryListener,
+                secondaryText,
+                secondaryListener
+        );
+        guardianReportContentContainer.setVisibility(View.GONE);
+    }
+
+    private void hideBlockingState() {
+        StatePanelHelper.hide(guardianReportStatePanel);
+        guardianReportContentContainer.setVisibility(View.VISIBLE);
+    }
+
+    private void openHome() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 
     private void openRoleSelection() {
