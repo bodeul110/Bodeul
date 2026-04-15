@@ -163,12 +163,14 @@ KAKAO_ALIMTALK_AUTH_SCHEME=Bearer
 
 1. 앱에서 예약 생성
 2. `REQUESTED` 상태에서는 앱에서 같은 요청을 수정하거나 취소 가능
-3. Firestore에 `appointmentRequests` 저장 또는 수정
-4. 매일 오전 9시 `syncAppointmentReminderJobs` 실행
-5. 조건에 맞는 요청의 `appointmentReminderJobs` 생성
-6. 10분마다 `deliverAppointmentReminderJobs`가 큐를 읽어 재검증 후 발송
-7. 예약이 바뀌면 `cleanupAppointmentReminderJobs`가 기존 대기 작업을 정리
-8. 관리자 계정은 `dispatchAppointmentReminderJobs` callable로 수동 발송도 가능
+3. `MATCHED` 상태에서는 수정은 막고 취소만 허용
+4. `MATCHED` 요청을 취소하면 연결된 `companionSessions.currentStatus`도 `CANCELED`로 정리
+5. Firestore에 `appointmentRequests` 저장 또는 수정
+6. 매일 오전 9시 `syncAppointmentReminderJobs` 실행
+7. 조건에 맞는 요청의 `appointmentReminderJobs` 생성
+8. 10분마다 `deliverAppointmentReminderJobs`가 큐를 읽어 재검증 후 발송
+9. 예약이 바뀌면 `cleanupAppointmentReminderJobs`가 기존 대기 작업을 정리
+10. 관리자 계정은 `dispatchAppointmentReminderJobs` callable로 수동 발송도 가능
 
 ## 검증 체크리스트
 
@@ -181,7 +183,8 @@ KAKAO_ALIMTALK_AUTH_SCHEME=Bearer
 7. 연동값이 없으면 작업이 `SIMULATED`로 바뀌는지 확인
 8. 연동값이 있으면 `SENT` 또는 `FAILED`로 기록되는지 확인
 9. 예약을 취소하거나 시간을 바꾸면 기존 대기 작업이 `SKIPPED`로 바뀌는지 확인
-10. `REQUESTED` 요청 카드에서 수정 / 취소 버튼이 보이고, 저장 후 목록이 즉시 갱신되는지 확인
+10. `REQUESTED` 요청 카드에서는 수정 / 취소, `MATCHED` 요청 카드에서는 취소 버튼만 보이는지 확인
+11. `MATCHED` 요청을 취소하면 연결된 세션이 `CANCELED`로 바뀌고 매니저가 다시 가용 상태로 보이는지 확인
 
 ## 데모 계정
 

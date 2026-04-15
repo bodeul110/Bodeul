@@ -14,6 +14,8 @@ public enum SessionStatus {
     IN_TREATMENT,
     // 수납이나 후속 행정 처리를 하는 상태다.
     PAYMENT,
+    // 매칭 이후 일정이 취소되어 더 이상 진행하지 않는 상태다.
+    CANCELED,
     // 전체 동행 절차가 완료된 상태다.
     COMPLETED
 }

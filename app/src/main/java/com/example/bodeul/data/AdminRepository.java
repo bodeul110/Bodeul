@@ -29,6 +29,13 @@ public interface AdminRepository {
             RepositoryCallback<AdminDashboard> callback
     );
 
+    // 등록된 병원 가이드 한 건을 삭제하고 최신 운영 현황을 다시 반환한다.
+    void deleteHospitalGuide(
+            User currentUser,
+            String guideId,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
     // 화면에서 데모 모드 안내를 분기할 때 사용한다.
     boolean isFirebaseBacked();
 }

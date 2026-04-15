@@ -51,5 +51,35 @@
             android:paddingBottom="14dp"
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonAdminGuideEdit"
+                style="@style/BodeulOutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="@string/admin_guide_edit_button"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonAdminGuideDelete"
+                style="@style/BodeulOutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:text="@string/admin_guide_delete_button"
+                android:textSize="14sp" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

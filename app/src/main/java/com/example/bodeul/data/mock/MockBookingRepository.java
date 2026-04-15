@@ -115,7 +115,7 @@ public class MockBookingRepository implements BookingRepository {
 
         AppointmentRequest request = repository.cancelAppointmentRequest(currentUser, requestId);
         if (request == null) {
-            callback.onError("접수 대기 상태 요청만 취소할 수 있습니다.");
+            callback.onError("접수 대기 또는 매니저 배정 완료 상태 요청만 취소할 수 있습니다.");
             return;
         }
         callback.onSuccess(request);

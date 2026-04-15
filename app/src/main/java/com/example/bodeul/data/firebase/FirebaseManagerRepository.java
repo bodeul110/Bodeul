@@ -284,17 +284,24 @@ public class FirebaseManagerRepository implements ManagerRepository {
         // 현재 구현은 매니저당 진행 중인 동행 세션 1건을 기준으로 화면을 구성한다.
         firestore.collection("companionSessions")
                 .whereEqualTo("managerUserId", managerUserId)
-                .limit(1)
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
-                    if (querySnapshot.isEmpty()) {
-                        callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
-                        return;
+                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+                        CompanionSession session = toSession(documentSnapshot);
+                        if (session != null && isActiveSession(session)) {
+                            callback.onSuccess(documentSnapshot);
+                            return;
+                        }
                     }
-                    callback.onSuccess(querySnapshot.getDocuments().get(0));
+                    callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("동행 세션 정보를 불러오지 못했습니다."));
+    }
+
+    private boolean isActiveSession(CompanionSession session) {
+        return session.getStatus() != SessionStatus.COMPLETED
+                && session.getStatus() != SessionStatus.CANCELED;
     }
 
     @Nullable

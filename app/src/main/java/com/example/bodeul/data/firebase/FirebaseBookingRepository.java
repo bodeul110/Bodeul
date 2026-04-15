@@ -6,6 +6,7 @@ import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.util.UserProfileSanitizer;
@@ -15,6 +16,7 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -208,20 +210,43 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest existingRequest = toAppointmentRequest(documentSnapshot);
-                    if (!canMutateRequest(currentUser, existingRequest)) {
-                        callback.onError("접수 대기 상태 요청만 취소할 수 있습니다.");
+                    if (!canCancelRequest(currentUser, existingRequest)) {
+                        callback.onError("접수 대기 또는 매니저 배정 완료 상태 요청만 취소할 수 있습니다.");
                         return;
                     }
 
-                    documentSnapshot.getReference()
-                            .update(
-                                    "status", AppointmentStatus.CANCELED.name(),
-                                    "updatedAt", FieldValue.serverTimestamp()
-                            )
-                            .addOnSuccessListener(unused ->
-                                    reloadAppointmentRequest(documentSnapshot.getReference(), callback))
+                    firestore.collection("companionSessions")
+                            .whereEqualTo("appointmentRequestId", requestId)
+                            .get()
+                            .addOnSuccessListener(sessionSnapshot -> {
+                                WriteBatch batch = firestore.batch();
+                                batch.update(
+                                        documentSnapshot.getReference(),
+                                        "status", AppointmentStatus.CANCELED.name(),
+                                        "updatedAt", FieldValue.serverTimestamp()
+                                );
+
+                                for (DocumentSnapshot sessionDocument : sessionSnapshot.getDocuments()) {
+                                    String currentStatus = sessionDocument.getString("currentStatus");
+                                    if (SessionStatus.COMPLETED.name().equals(currentStatus)
+                                            || SessionStatus.CANCELED.name().equals(currentStatus)) {
+                                        continue;
+                                    }
+                                    batch.update(
+                                            sessionDocument.getReference(),
+                                            "currentStatus", SessionStatus.CANCELED.name(),
+                                            "updatedAt", FieldValue.serverTimestamp()
+                                    );
+                                }
+
+                                batch.commit()
+                                        .addOnSuccessListener(unused ->
+                                                reloadAppointmentRequest(documentSnapshot.getReference(), callback))
+                                        .addOnFailureListener(exception ->
+                                                callback.onError("동행 요청을 취소하지 못했습니다."));
+                            })
                             .addOnFailureListener(exception ->
-                                    callback.onError("동행 요청을 취소하지 못했습니다."));
+                                    callback.onError("연결된 동행 세션을 확인하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("요청 정보를 확인하지 못했습니다."));
@@ -249,6 +274,21 @@ public class FirebaseBookingRepository implements BookingRepository {
         if (request == null || request.getStatus() != AppointmentStatus.REQUESTED) {
             return false;
         }
+        return isRequestOwner(currentUser, request);
+    }
+
+    private boolean canCancelRequest(User currentUser, @Nullable AppointmentRequest request) {
+        if (request == null) {
+            return false;
+        }
+        if (request.getStatus() != AppointmentStatus.REQUESTED
+                && request.getStatus() != AppointmentStatus.MATCHED) {
+            return false;
+        }
+        return isRequestOwner(currentUser, request);
+    }
+
+    private boolean isRequestOwner(User currentUser, AppointmentRequest request) {
         if (currentUser.getRole() == UserRole.PATIENT) {
             return currentUser.getId().equals(request.getPatientUserId());
         }

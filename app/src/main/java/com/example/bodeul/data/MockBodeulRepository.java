@@ -388,12 +388,16 @@ public class MockBodeulRepository implements BodeulRepository {
 
         AppointmentRequest existingRequest = findAppointmentRequest(requestId);
         if (existingRequest == null
-                || existingRequest.getStatus() != AppointmentStatus.REQUESTED
+                || !canCancelRequest(existingRequest)
                 || !matchesRequestOwner(existingRequest, currentUser.getId(), currentUser.getRole())) {
             return null;
         }
 
         existingRequest.setStatus(AppointmentStatus.CANCELED);
+        CompanionSession session = findSessionByRequestId(requestId);
+        if (session != null && session.getStatus() != SessionStatus.COMPLETED) {
+            session.setStatus(SessionStatus.CANCELED);
+        }
         return existingRequest;
     }
 
@@ -555,7 +559,7 @@ public class MockBodeulRepository implements BodeulRepository {
             if (!session.getManagerUserId().equals(managerUserId)) {
                 continue;
             }
-            if (session.getStatus() != SessionStatus.COMPLETED) {
+            if (isActiveSession(session)) {
                 return false;
             }
         }
@@ -618,6 +622,20 @@ public class MockBodeulRepository implements BodeulRepository {
         return updatedGuide;
     }
 
+    public synchronized boolean deleteHospitalGuide(String guideId) {
+        HospitalGuide targetGuide = null;
+        for (HospitalGuide guide : hospitalGuides) {
+            if (guide.getId().equals(guideId)) {
+                targetGuide = guide;
+                break;
+            }
+        }
+        if (targetGuide == null) {
+            return false;
+        }
+        return hospitalGuides.remove(targetGuide);
+    }
+
     @Nullable
     private AppointmentRequest findAppointmentRequest(String appointmentRequestId) {
         for (AppointmentRequest request : appointmentRequests) {
@@ -631,11 +649,21 @@ public class MockBodeulRepository implements BodeulRepository {
     @Nullable
     private CompanionSession getPrimaryManagerSession(String managerUserId) {
         for (CompanionSession session : companionSessions) {
-            if (session.getManagerUserId().equals(managerUserId)) {
+            if (session.getManagerUserId().equals(managerUserId) && isActiveSession(session)) {
                 return session;
             }
         }
         return null;
+    }
+
+    private boolean canCancelRequest(AppointmentRequest request) {
+        return request.getStatus() == AppointmentStatus.REQUESTED
+                || request.getStatus() == AppointmentStatus.MATCHED;
+    }
+
+    private boolean isActiveSession(CompanionSession session) {
+        return session.getStatus() != SessionStatus.COMPLETED
+                && session.getStatus() != SessionStatus.CANCELED;
     }
 
     private SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {

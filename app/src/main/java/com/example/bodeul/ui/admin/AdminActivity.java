@@ -13,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
@@ -25,6 +26,7 @@ import com.example.bodeul.domain.model.AdminDashboard;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -46,12 +48,16 @@ public class AdminActivity extends AppCompatActivity {
     private AuthRepository authRepository;
     private AdminRepository adminRepository;
     private User currentUser;
+    private HospitalGuide editingGuide;
     private boolean loading;
 
     private TextView textAdminMode;
     private TextView textAdminGreeting;
     private TextView textAdminSummary;
     private TextView textAdminManagers;
+    private TextView textAdminGuideFormTitle;
+    private TextView textAdminGuideFormBadge;
+    private TextView textAdminGuideFormHelper;
     private View adminStatePanel;
     private View adminContentContainer;
     private LinearLayout adminPendingRequestsContainer;
@@ -64,6 +70,7 @@ public class AdminActivity extends AppCompatActivity {
     private TextInputEditText inputAdminGuideDepartment;
     private TextInputEditText inputAdminGuideSteps;
     private MaterialButton buttonSubmitAdminGuide;
+    private MaterialButton buttonCancelAdminGuideEdit;
     private ProgressBar progressAdmin;
 
     @Override
@@ -78,6 +85,9 @@ public class AdminActivity extends AppCompatActivity {
         textAdminGreeting = findViewById(R.id.textAdminGreeting);
         textAdminSummary = findViewById(R.id.textAdminSummary);
         textAdminManagers = findViewById(R.id.textAdminManagers);
+        textAdminGuideFormTitle = findViewById(R.id.textAdminGuideFormTitle);
+        textAdminGuideFormBadge = findViewById(R.id.textAdminGuideFormBadge);
+        textAdminGuideFormHelper = findViewById(R.id.textAdminGuideFormHelper);
         adminStatePanel = findViewById(R.id.adminStatePanel);
         adminContentContainer = findViewById(R.id.adminContentContainer);
         adminPendingRequestsContainer = findViewById(R.id.adminPendingRequestsContainer);
@@ -90,6 +100,7 @@ public class AdminActivity extends AppCompatActivity {
         inputAdminGuideDepartment = findViewById(R.id.inputAdminGuideDepartment);
         inputAdminGuideSteps = findViewById(R.id.inputAdminGuideSteps);
         buttonSubmitAdminGuide = findViewById(R.id.buttonSubmitAdminGuide);
+        buttonCancelAdminGuideEdit = findViewById(R.id.buttonCancelAdminGuideEdit);
         progressAdmin = findViewById(R.id.progressAdmin);
 
         textAdminMode.setText(adminRepository.isFirebaseBacked()
@@ -98,8 +109,10 @@ public class AdminActivity extends AppCompatActivity {
 
         findViewById(R.id.buttonBackAdmin).setOnClickListener(view -> finish());
         buttonSubmitAdminGuide.setOnClickListener(view -> submitGuide());
+        buttonCancelAdminGuideEdit.setOnClickListener(view -> exitGuideEditMode());
 
         bindEmptyState();
+        updateGuideFormMode();
     }
 
     @Override
@@ -438,6 +451,8 @@ public class AdminActivity extends AppCompatActivity {
             TextView titleView = itemView.findViewById(R.id.textAdminGuideTitle);
             TextView countView = itemView.findViewById(R.id.textAdminGuideCount);
             TextView previewView = itemView.findViewById(R.id.textAdminGuidePreview);
+            MaterialButton editButton = itemView.findViewById(R.id.buttonAdminGuideEdit);
+            MaterialButton deleteButton = itemView.findViewById(R.id.buttonAdminGuideDelete);
 
             titleView.setText(getString(
                     R.string.admin_guide_title,
@@ -449,6 +464,8 @@ public class AdminActivity extends AppCompatActivity {
                     guide.getSteps().size()
             ));
             previewView.setText(buildGuidePreview(guide));
+            editButton.setOnClickListener(view -> startGuideEdit(guide));
+            deleteButton.setOnClickListener(view -> confirmGuideDelete(guide));
             adminGuideListContainer.addView(itemView);
         }
     }
@@ -473,6 +490,7 @@ public class AdminActivity extends AppCompatActivity {
             return;
         }
 
+        boolean editing = editingGuide != null;
         clearGuideErrors();
         String hospitalName = valueOf(inputAdminGuideHospital);
         String departmentName = valueOf(inputAdminGuideDepartment);
@@ -499,9 +517,83 @@ public class AdminActivity extends AppCompatActivity {
                 new RepositoryCallback<AdminDashboard>() {
                     @Override
                     public void onSuccess(AdminDashboard result) {
-                        Toast.makeText(AdminActivity.this, R.string.admin_guide_saved, Toast.LENGTH_SHORT).show();
-                        clearGuideForm();
                         setLoading(false);
+                        if (editing) {
+                            Toast.makeText(AdminActivity.this, R.string.admin_guide_updated, Toast.LENGTH_SHORT).show();
+                            exitGuideEditMode();
+                        } else {
+                            Toast.makeText(AdminActivity.this, R.string.admin_guide_saved, Toast.LENGTH_SHORT).show();
+                            clearGuideForm();
+                        }
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
+    private void startGuideEdit(HospitalGuide guide) {
+        if (loading) {
+            return;
+        }
+        editingGuide = guide;
+        inputAdminGuideHospital.setText(guide.getHospitalName());
+        inputAdminGuideDepartment.setText(guide.getDepartmentName());
+        inputAdminGuideSteps.setText(buildEditableGuideSteps(guide));
+        clearGuideErrors();
+        updateGuideFormMode();
+    }
+
+    private String buildEditableGuideSteps(HospitalGuide guide) {
+        StringBuilder builder = new StringBuilder();
+        for (GuideStep step : guide.getSteps()) {
+            if (builder.length() > 0) {
+                builder.append('\n');
+            }
+            if (!TextUtils.isEmpty(step.getDescription())) {
+                builder.append(step.getTitle()).append(": ").append(step.getDescription());
+            } else {
+                builder.append(step.getTitle());
+            }
+        }
+        return builder.toString();
+    }
+
+    private void confirmGuideDelete(HospitalGuide guide) {
+        if (currentUser == null || loading) {
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.admin_guide_delete_dialog_title)
+                .setMessage(getString(
+                        R.string.admin_guide_delete_dialog_body,
+                        guide.getHospitalName(),
+                        guide.getDepartmentName()
+                ))
+                .setNegativeButton(R.string.admin_guide_delete_dialog_keep, null)
+                .setPositiveButton(R.string.admin_guide_delete_dialog_confirm, (dialogInterface, which) ->
+                        deleteGuide(guide))
+                .show();
+    }
+
+    private void deleteGuide(HospitalGuide guide) {
+        setLoading(true);
+        adminRepository.deleteHospitalGuide(
+                currentUser,
+                guide.getId(),
+                new RepositoryCallback<AdminDashboard>() {
+                    @Override
+                    public void onSuccess(AdminDashboard result) {
+                        setLoading(false);
+                        if (editingGuide != null && editingGuide.getId().equals(guide.getId())) {
+                            exitGuideEditMode();
+                        }
+                        Toast.makeText(AdminActivity.this, R.string.admin_guide_deleted, Toast.LENGTH_SHORT).show();
                         bindDashboard(result);
                     }
 
@@ -640,6 +732,8 @@ public class AdminActivity extends AppCompatActivity {
                 return getString(R.string.guardian_report_session_treatment);
             case PAYMENT:
                 return getString(R.string.guardian_report_session_payment);
+            case CANCELED:
+                return getString(R.string.guardian_report_session_canceled);
             case COMPLETED:
                 return getString(R.string.guardian_report_session_completed);
             case MEETING:
@@ -668,13 +762,51 @@ public class AdminActivity extends AppCompatActivity {
         inputAdminGuideSteps.setText(null);
     }
 
+    private void exitGuideEditMode() {
+        editingGuide = null;
+        clearGuideForm();
+        clearGuideErrors();
+        updateGuideFormMode();
+    }
+
+    private void updateGuideFormMode() {
+        if (editingGuide == null) {
+            textAdminGuideFormTitle.setText(R.string.admin_guide_form_title);
+            textAdminGuideFormBadge.setText(R.string.admin_guide_form_badge);
+            textAdminGuideFormHelper.setText(R.string.admin_guide_form_helper);
+            buttonSubmitAdminGuide.setText(R.string.admin_guide_submit);
+            buttonCancelAdminGuideEdit.setVisibility(View.GONE);
+        } else {
+            textAdminGuideFormTitle.setText(R.string.admin_guide_form_edit_title);
+            textAdminGuideFormBadge.setText(R.string.admin_guide_form_edit_badge);
+            textAdminGuideFormHelper.setText(getString(
+                    R.string.admin_guide_form_edit_helper,
+                    editingGuide.getHospitalName(),
+                    editingGuide.getDepartmentName()
+            ));
+            buttonSubmitAdminGuide.setText(R.string.admin_guide_submit_update);
+            buttonCancelAdminGuideEdit.setVisibility(View.VISIBLE);
+        }
+        updateGuideFieldEnabledState();
+    }
+
+    private void updateGuideFieldEnabledState() {
+        boolean canEditTarget = !loading && editingGuide == null;
+        boolean canEditSteps = !loading;
+        layoutAdminGuideHospital.setEnabled(canEditTarget);
+        layoutAdminGuideDepartment.setEnabled(canEditTarget);
+        layoutAdminGuideSteps.setEnabled(canEditSteps);
+        inputAdminGuideHospital.setEnabled(canEditTarget);
+        inputAdminGuideDepartment.setEnabled(canEditTarget);
+        inputAdminGuideSteps.setEnabled(canEditSteps);
+        buttonSubmitAdminGuide.setEnabled(!loading);
+        buttonCancelAdminGuideEdit.setEnabled(!loading);
+    }
+
     private void setLoading(boolean loading) {
         this.loading = loading;
         progressAdmin.setVisibility(loading ? View.VISIBLE : View.GONE);
-        buttonSubmitAdminGuide.setEnabled(!loading);
-        inputAdminGuideHospital.setEnabled(!loading);
-        inputAdminGuideDepartment.setEnabled(!loading);
-        inputAdminGuideSteps.setEnabled(!loading);
+        updateGuideFieldEnabledState();
     }
 
     private void showPermissionState() {

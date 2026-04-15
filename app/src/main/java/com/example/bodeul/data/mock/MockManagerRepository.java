@@ -20,7 +20,7 @@ public class MockManagerRepository implements ManagerRepository {
         // 목업 저장소에서 바로 대시보드를 꺼내 화면에 전달한다.
         ManagerDashboard dashboard = repository.getManagerDashboard(managerUserId);
         if (dashboard == null) {
-            callback.onError("매니저 세션을 찾지 못했습니다.");
+            callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
             return;
         }
         callback.onSuccess(dashboard);

@@ -6,7 +6,9 @@ import static org.junit.Assert.assertNotNull;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 
@@ -162,6 +164,46 @@ public class MockBodeulRepositoryTest {
     }
 
     @Test
+    public void cancelAppointmentRequest_matchedOwnerCancelsLinkedSessionTogether() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
+        User manager = repository.registerUser(
+                "manager-cancel-test",
+                "manager-cancel-test@bodeul.app",
+                "010-9999-0002",
+                UserRole.MANAGER,
+                "bodeul1234"
+        );
+        assertNotNull(patient);
+        assertNotNull(guardian);
+        assertNotNull(manager);
+
+        AppointmentRequest linkedRequest = repository.createLinkedAppointmentRequest(
+                patient.getId(),
+                guardian.getId(),
+                "취소연결병원",
+                "재활의학과",
+                "2026-04-27 13:20",
+                "본관 1층 로비",
+                "배정 후 취소 테스트"
+        );
+        assertNotNull(linkedRequest);
+
+        AppointmentRequest matched = repository.assignManagerToRequest(linkedRequest.getId(), manager.getId());
+        assertNotNull(matched);
+        assertEquals(AppointmentStatus.MATCHED, matched.getStatus());
+
+        AppointmentRequest canceled = repository.cancelAppointmentRequest(patient, linkedRequest.getId());
+        CompanionSession session = repository.findSessionByRequestId(linkedRequest.getId());
+
+        assertNotNull(canceled);
+        assertNotNull(session);
+        assertEquals(AppointmentStatus.CANCELED, canceled.getStatus());
+        assertEquals(SessionStatus.CANCELED, session.getStatus());
+    }
+
+    @Test
     public void assignManagerToRequest_createsMatchedRequestAndSession() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");
@@ -213,5 +255,23 @@ public class MockBodeulRepositoryTest {
         assertEquals(2, savedGuide.getSteps().size());
         assertEquals("check-id", savedGuide.getSteps().get(0).getTitle());
         assertEquals("orthopedics", repository.getHospitalGuide("safe-hospital", "orthopedics").getDepartmentName());
+    }
+
+    @Test
+    public void deleteHospitalGuide_existingGuideRemovesItFromRepository() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+
+        HospitalGuide savedGuide = repository.saveHospitalGuide(
+                "삭제병원",
+                "이비인후과",
+                Arrays.asList(
+                        "접수: 예약 정보를 확인합니다.",
+                        "진료: 보호자 공유 내용을 남깁니다."
+                )
+        );
+
+        assertNotNull(savedGuide);
+        assertEquals(true, repository.deleteHospitalGuide(savedGuide.getId()));
+        assertEquals(null, repository.getHospitalGuide("삭제병원", "이비인후과"));
     }
 }

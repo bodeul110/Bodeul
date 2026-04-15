@@ -176,6 +176,25 @@ public class FirebaseAdminRepository implements AdminRepository {
     }
 
     @Override
+    public void deleteHospitalGuide(
+            User currentUser,
+            String guideId,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해주세요.");
+            return;
+        }
+
+        firestore.collection("hospitalGuides")
+                .document(guideId)
+                .delete()
+                .addOnSuccessListener(unused -> loadDashboard(currentUser, callback))
+                .addOnFailureListener(exception ->
+                        callback.onError("병원 가이드를 삭제하지 못했습니다."));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return true;
     }
@@ -224,7 +243,9 @@ public class FirebaseAdminRepository implements AdminRepository {
         List<String> activeManagerIds = new ArrayList<>();
         for (DocumentSnapshot documentSnapshot : sessionSnapshot.getDocuments()) {
             CompanionSession session = toSession(documentSnapshot);
-            if (session != null && session.getStatus() != SessionStatus.COMPLETED) {
+            if (session != null
+                    && session.getStatus() != SessionStatus.COMPLETED
+                    && session.getStatus() != SessionStatus.CANCELED) {
                 activeManagerIds.add(session.getManagerUserId());
             }
         }

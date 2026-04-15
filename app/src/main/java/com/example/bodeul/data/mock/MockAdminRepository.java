@@ -90,6 +90,23 @@ public class MockAdminRepository implements AdminRepository {
     }
 
     @Override
+    public void deleteHospitalGuide(
+            User currentUser,
+            String guideId,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해주세요.");
+            return;
+        }
+        if (!repository.deleteHospitalGuide(guideId)) {
+            callback.onError("삭제할 병원 가이드를 찾지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }

@@ -46,7 +46,9 @@
 
 - `patientUserId`, `guardianUserId`는 아직 계정이 연결되지 않았으면 빈 문자열일 수 있다.
 - 대신 `patientName/Phone/Email`, `guardianName/Phone/Email`에는 신청 시점 입력값 또는 연결된 계정 정보가 항상 남도록 설계한다.
-- 요청을 만든 환자 / 보호자는 `REQUESTED` 상태에서만 병원, 일정, 만남 장소, 연결 대상 정보를 수정하거나 취소할 수 있다.
+- 요청을 만든 환자 / 보호자는 `REQUESTED` 상태에서만 병원, 일정, 만남 장소, 연결 대상 정보를 수정할 수 있다.
+- 요청 취소는 `REQUESTED`, `MATCHED` 상태에서만 가능하다.
+- `MATCHED` 상태 요청을 취소하면 연결된 `companionSessions.currentStatus`도 `CANCELED`로 함께 갱신한다.
 - `users` 문서가 생성되거나 연락처가 바뀌면 서버 트리거가 미연결 요청을 다시 찾아 `patientUserId` 또는 `guardianUserId`를 자동으로 채운다.
 - 예약이 취소 / 삭제되거나 `appointmentAt`이 바뀌면 서버 트리거가 남아 있는 리마인더 작업을 `SKIPPED`로 정리한다.
 
@@ -63,7 +65,7 @@
 - `appointmentRequestId`
 - `managerUserId`
 - `currentStepOrder`
-- `currentStatus`
+- `currentStatus`: `READY`, `MEETING`, `WAITING`, `IN_TREATMENT`, `PAYMENT`, `CANCELED`, `COMPLETED`
 - `guardianUpdate`
 - `medicationNote`
 - `createdAt`
@@ -121,3 +123,4 @@
 - `GET /hospital-guides?hospitalName=&departmentName=`
 - `POST /admin/hospital-guides`
 - `PATCH /admin/hospital-guides/{id}`
+- `DELETE /admin/hospital-guides/{id}`

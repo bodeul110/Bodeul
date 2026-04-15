@@ -14,6 +14,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
@@ -449,7 +450,7 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private void startEditingRequest(AppointmentRequest request) {
-        if (!canMutateRequest(request) || currentUser == null || loading) {
+        if (!canEditRequest(request) || currentUser == null || loading) {
             Toast.makeText(this, R.string.toast_booking_request_locked, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -469,11 +470,23 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private void cancelRequest(AppointmentRequest request) {
-        if (!canMutateRequest(request) || currentUser == null || loading) {
-            Toast.makeText(this, R.string.toast_booking_request_locked, Toast.LENGTH_SHORT).show();
+        if (!canCancelRequest(request) || currentUser == null || loading) {
+            Toast.makeText(this, R.string.toast_booking_request_cancel_locked, Toast.LENGTH_SHORT).show();
             return;
         }
 
+        int messageResId = request.getStatus() == AppointmentStatus.MATCHED
+                ? R.string.booking_cancel_dialog_body_matched
+                : R.string.booking_cancel_dialog_body_requested;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.booking_cancel_dialog_title)
+                .setMessage(messageResId)
+                .setNegativeButton(R.string.booking_cancel_dialog_keep, null)
+                .setPositiveButton(R.string.booking_cancel_dialog_confirm, (dialogInterface, which) -> performCancelRequest(request))
+                .show();
+    }
+
+    private void performCancelRequest(AppointmentRequest request) {
         setLoading(true);
         bookingRepository.cancelAppointmentRequest(
                 currentUser,
@@ -501,8 +514,13 @@ public class BookingActivity extends AppCompatActivity {
         );
     }
 
-    private boolean canMutateRequest(AppointmentRequest request) {
+    private boolean canEditRequest(AppointmentRequest request) {
         return request.getStatus() == AppointmentStatus.REQUESTED;
+    }
+
+    private boolean canCancelRequest(AppointmentRequest request) {
+        return request.getStatus() == AppointmentStatus.REQUESTED
+                || request.getStatus() == AppointmentStatus.MATCHED;
     }
 
     private void updateFormMode() {
@@ -614,15 +632,50 @@ public class BookingActivity extends AppCompatActivity {
             }
 
             cardView.setStrokeColor(getColor(resolveStatusStrokeColor(request.getStatus())));
-            if (canMutateRequest(request)) {
+            boolean editable = canEditRequest(request);
+            boolean cancelable = canCancelRequest(request);
+            if (editable || cancelable) {
                 actionsView.setVisibility(View.VISIBLE);
-                editButton.setOnClickListener(view -> startEditingRequest(request));
-                cancelButton.setOnClickListener(view -> cancelRequest(request));
+                editButton.setVisibility(editable ? View.VISIBLE : View.GONE);
+                cancelButton.setVisibility(cancelable ? View.VISIBLE : View.GONE);
+                updateRequestActionMargins(editButton, cancelButton, editable, cancelable);
+                if (editable) {
+                    editButton.setOnClickListener(view -> startEditingRequest(request));
+                } else {
+                    editButton.setOnClickListener(null);
+                }
+                if (cancelable) {
+                    cancelButton.setOnClickListener(view -> cancelRequest(request));
+                } else {
+                    cancelButton.setOnClickListener(null);
+                }
             } else {
                 actionsView.setVisibility(View.GONE);
             }
             bookingRequestsContainer.addView(requestView);
         }
+    }
+
+    private void updateRequestActionMargins(
+            MaterialButton editButton,
+            MaterialButton cancelButton,
+            boolean editable,
+            boolean cancelable
+    ) {
+        int splitMargin = dpToPx(8);
+        updateActionButtonMargin(editButton, 0, editable && cancelable ? splitMargin : 0);
+        updateActionButtonMargin(cancelButton, editable && cancelable ? splitMargin : 0, 0);
+    }
+
+    private void updateActionButtonMargin(MaterialButton button, int startMargin, int endMargin) {
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) button.getLayoutParams();
+        params.setMarginStart(startMargin);
+        params.setMarginEnd(endMargin);
+        button.setLayoutParams(params);
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     private void renderEmptyRequests() {

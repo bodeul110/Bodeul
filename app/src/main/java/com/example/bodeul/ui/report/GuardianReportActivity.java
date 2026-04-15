@@ -411,6 +411,8 @@ public class GuardianReportActivity extends AppCompatActivity {
                 return getString(R.string.guardian_report_session_treatment);
             case PAYMENT:
                 return getString(R.string.guardian_report_session_payment);
+            case CANCELED:
+                return getString(R.string.guardian_report_session_canceled);
             case COMPLETED:
                 return getString(R.string.guardian_report_session_completed);
             case MEETING:
