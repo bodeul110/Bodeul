@@ -39,12 +39,25 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 
 /**
  * 관리자용 수동 매칭과 병원 가이드 관리 화면이다.
  */
 public class AdminActivity extends AppCompatActivity {
+    private enum ManagedRequestDateFilter {
+        ALL,
+        TODAY,
+        UPCOMING,
+        PAST
+    }
+
     private enum ManagedRequestFilter {
         ALL,
         MATCHED,
@@ -57,8 +70,12 @@ public class AdminActivity extends AppCompatActivity {
     private AdminRepository adminRepository;
     private User currentUser;
     private HospitalGuide editingGuide;
+    private List<AdminRequestOverview> pendingRequestsSnapshot = new ArrayList<>();
     private List<AdminRequestOverview> managedRequestsSnapshot = new ArrayList<>();
+    private List<User> availableManagersSnapshot = new ArrayList<>();
     private ManagedRequestFilter managedRequestFilter = ManagedRequestFilter.ALL;
+    private ManagedRequestDateFilter managedRequestDateFilter = ManagedRequestDateFilter.ALL;
+    private final Set<String> expandedRequestIds = new HashSet<>();
     private boolean loading;
 
     private TextView textAdminMode;
@@ -72,6 +89,7 @@ public class AdminActivity extends AppCompatActivity {
     private View adminStatePanel;
     private View adminContentContainer;
     private LinearLayout adminPendingRequestsContainer;
+    private LinearLayout adminManagedDateFilterContainer;
     private LinearLayout adminManagedFilterContainer;
     private LinearLayout adminManagedRequestsContainer;
     private LinearLayout adminGuideListContainer;
@@ -104,6 +122,7 @@ public class AdminActivity extends AppCompatActivity {
         adminStatePanel = findViewById(R.id.adminStatePanel);
         adminContentContainer = findViewById(R.id.adminContentContainer);
         adminPendingRequestsContainer = findViewById(R.id.adminPendingRequestsContainer);
+        adminManagedDateFilterContainer = findViewById(R.id.adminManagedDateFilterContainer);
         adminManagedFilterContainer = findViewById(R.id.adminManagedFilterContainer);
         adminManagedRequestsContainer = findViewById(R.id.adminManagedRequestsContainer);
         adminGuideListContainer = findViewById(R.id.adminGuideListContainer);
@@ -191,7 +210,9 @@ public class AdminActivity extends AppCompatActivity {
         ));
         textAdminManagers.setText(buildManagerSummary(dashboard));
 
-        renderPendingRequests(dashboard);
+        pendingRequestsSnapshot = new ArrayList<>(dashboard.getPendingRequests());
+        availableManagersSnapshot = new ArrayList<>(dashboard.getAvailableManagers());
+        renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
         managedRequestsSnapshot = new ArrayList<>(dashboard.getManagedRequests());
         renderManagedRequests(managedRequestsSnapshot);
         renderGuides(dashboard.getHospitalGuides());
@@ -225,8 +246,15 @@ public class AdminActivity extends AppCompatActivity {
     }
 
     private void renderPendingRequests(AdminDashboard dashboard) {
+        renderPendingRequests(dashboard.getPendingRequests(), dashboard.getAvailableManagers());
+    }
+
+    private void renderPendingRequests(
+            List<AdminRequestOverview> pendingRequests,
+            List<User> availableManagers
+    ) {
         adminPendingRequestsContainer.removeAllViews();
-        if (dashboard.getPendingRequests().isEmpty()) {
+        if (pendingRequests.isEmpty()) {
             renderEmptyText(
                     adminPendingRequestsContainer,
                     R.string.admin_pending_title,
@@ -236,15 +264,16 @@ public class AdminActivity extends AppCompatActivity {
         }
 
         LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminRequestOverview overview : dashboard.getPendingRequests()) {
+        for (AdminRequestOverview overview : pendingRequests) {
             View itemView = inflater.inflate(R.layout.item_admin_request, adminPendingRequestsContainer, false);
-            bindRequestItem(itemView, overview, dashboard.getAvailableManagers(), true);
+            bindRequestItem(itemView, overview, availableManagers, true);
             adminPendingRequestsContainer.addView(itemView);
         }
     }
 
     private void renderManagedRequests(List<AdminRequestOverview> managedRequests) {
         renderManagedFilters(managedRequests);
+        renderManagedDateFilters(managedRequests);
         bindManagedSummary(managedRequests);
         adminManagedRequestsContainer.removeAllViews();
         List<AdminRequestOverview> filteredRequests = filterManagedRequests(managedRequests);
@@ -309,6 +338,42 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
+    private void renderManagedDateFilters(List<AdminRequestOverview> managedRequests) {
+        adminManagedDateFilterContainer.removeAllViews();
+        if (managedRequests.isEmpty()) {
+            adminManagedDateFilterContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        adminManagedDateFilterContainer.setVisibility(View.VISIBLE);
+        for (ManagedRequestDateFilter filter : ManagedRequestDateFilter.values()) {
+            MaterialButton button = new MaterialButton(
+                    this,
+                    null,
+                    com.google.android.material.R.attr.materialButtonOutlinedStyle
+            );
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            params.setMarginEnd(dpToPx(8));
+            button.setLayoutParams(params);
+            button.setAllCaps(false);
+            button.setCornerRadius(dpToPx(18));
+            button.setText(getString(
+                    R.string.admin_managed_date_filter_button,
+                    toManagedDateFilterLabel(filter),
+                    countManagedRequestsByDate(managedRequests, filter)
+            ));
+            bindManagedFilterButtonStyle(button, filter == managedRequestDateFilter);
+            button.setOnClickListener(view -> {
+                managedRequestDateFilter = filter;
+                renderManagedRequests(managedRequestsSnapshot);
+            });
+            adminManagedDateFilterContainer.addView(button);
+        }
+    }
+
     private void bindManagedFilterButtonStyle(MaterialButton button, boolean selected) {
         if (selected) {
             button.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
@@ -341,6 +406,7 @@ public class AdminActivity extends AppCompatActivity {
                 completedCount,
                 canceledCount,
                 toManagedFilterLabel(managedRequestFilter),
+                toManagedDateFilterLabel(managedRequestDateFilter),
                 visibleCount,
                 totalCount
         ));
@@ -348,6 +414,16 @@ public class AdminActivity extends AppCompatActivity {
 
     private int countManagedRequests(List<AdminRequestOverview> managedRequests, ManagedRequestFilter filter) {
         return filterManagedRequests(managedRequests, filter).size();
+    }
+
+    private int countManagedRequestsByDate(List<AdminRequestOverview> managedRequests, ManagedRequestDateFilter filter) {
+        int count = 0;
+        for (AdminRequestOverview overview : managedRequests) {
+            if (matchesManagedDateFilter(overview, filter)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private List<AdminRequestOverview> filterManagedRequests(List<AdminRequestOverview> managedRequests) {
@@ -360,7 +436,8 @@ public class AdminActivity extends AppCompatActivity {
     ) {
         List<AdminRequestOverview> filteredRequests = new ArrayList<>();
         for (AdminRequestOverview overview : managedRequests) {
-            if (matchesManagedFilter(overview, filter)) {
+            if (matchesManagedFilter(overview, filter)
+                    && matchesManagedDateFilter(overview, managedRequestDateFilter)) {
                 filteredRequests.add(overview);
             }
         }
@@ -384,6 +461,36 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
+    private boolean matchesManagedDateFilter(AdminRequestOverview overview, ManagedRequestDateFilter filter) {
+        if (filter == ManagedRequestDateFilter.ALL) {
+            return true;
+        }
+
+        Calendar appointmentCalendar = parseAppointmentCalendar(overview.getAppointmentRequest().getAppointmentAt());
+        if (appointmentCalendar == null) {
+            return false;
+        }
+
+        Calendar today = Calendar.getInstance();
+        normalizeDate(today);
+
+        Calendar appointmentDate = (Calendar) appointmentCalendar.clone();
+        normalizeDate(appointmentDate);
+
+        int compare = appointmentDate.compareTo(today);
+        switch (filter) {
+            case TODAY:
+                return compare == 0;
+            case UPCOMING:
+                return compare > 0;
+            case PAST:
+                return compare < 0;
+            case ALL:
+            default:
+                return true;
+        }
+    }
+
     private String toManagedFilterLabel(ManagedRequestFilter filter) {
         switch (filter) {
             case MATCHED:
@@ -397,6 +504,20 @@ public class AdminActivity extends AppCompatActivity {
             case ALL:
             default:
                 return getString(R.string.admin_managed_filter_all);
+        }
+    }
+
+    private String toManagedDateFilterLabel(ManagedRequestDateFilter filter) {
+        switch (filter) {
+            case TODAY:
+                return getString(R.string.admin_managed_date_filter_today);
+            case UPCOMING:
+                return getString(R.string.admin_managed_date_filter_upcoming);
+            case PAST:
+                return getString(R.string.admin_managed_date_filter_past);
+            case ALL:
+            default:
+                return getString(R.string.admin_managed_date_filter_all);
         }
     }
 
@@ -414,6 +535,8 @@ public class AdminActivity extends AppCompatActivity {
         TextView progressView = itemView.findViewById(R.id.textAdminRequestProgress);
         TextView noteView = itemView.findViewById(R.id.textAdminRequestNote);
         TextView constraintView = itemView.findViewById(R.id.textAdminRequestConstraint);
+        TextView detailButton = itemView.findViewById(R.id.textAdminRequestDetailToggle);
+        TextView detailPanel = itemView.findViewById(R.id.textAdminRequestDetailPanel);
         LinearLayout managerActionsContainer = itemView.findViewById(R.id.managerActionsContainer);
 
         bindStatusBadge(statusView, overview.getAppointmentRequest().getStatus());
@@ -453,6 +576,14 @@ public class AdminActivity extends AppCompatActivity {
                 buildProgressText(overview)
         ));
 
+        boolean expanded = expandedRequestIds.contains(overview.getAppointmentRequest().getId());
+        detailButton.setText(expanded
+                ? R.string.admin_request_detail_hide
+                : R.string.admin_request_detail_show);
+        detailPanel.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        detailPanel.setText(buildDetailPanelText(overview));
+        detailButton.setOnClickListener(view -> toggleRequestDetail(overview.getAppointmentRequest().getId()));
+
         if (TextUtils.isEmpty(overview.getAppointmentRequest().getSpecialNotes())) {
             noteView.setVisibility(View.GONE);
         } else {
@@ -481,6 +612,75 @@ public class AdminActivity extends AppCompatActivity {
         constraintView.setVisibility(View.GONE);
         managerActionsContainer.setVisibility(View.VISIBLE);
         renderManagerButtons(managerActionsContainer, overview.getAppointmentRequest().getId(), availableManagers);
+    }
+
+    private void toggleRequestDetail(String requestId) {
+        if (expandedRequestIds.contains(requestId)) {
+            expandedRequestIds.remove(requestId);
+        } else {
+            expandedRequestIds.add(requestId);
+        }
+        renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
+        renderManagedRequests(managedRequestsSnapshot);
+    }
+
+    private String buildDetailPanelText(AdminRequestOverview overview) {
+        AppointmentStatus requestStatus = overview.getAppointmentRequest().getStatus();
+        CompanionSession session = overview.getSession();
+        String sessionId = session == null
+                ? getString(R.string.admin_request_detail_missing)
+                : session.getId();
+        String sessionStatus = session == null
+                ? getString(R.string.admin_request_detail_missing)
+                : toSessionStatusLabel(session);
+        String stepText = session == null
+                ? getString(R.string.admin_request_detail_missing)
+                : getString(R.string.admin_request_detail_step_value, session.getCurrentStepOrder());
+        String guardianUpdate = session == null || TextUtils.isEmpty(session.getGuardianUpdate())
+                ? getString(R.string.admin_request_detail_missing)
+                : session.getGuardianUpdate();
+        String medicationNote = session == null || TextUtils.isEmpty(session.getMedicationNote())
+                ? getString(R.string.admin_request_detail_missing)
+                : session.getMedicationNote();
+        String patientLink = buildLinkStateText(
+                overview.getAppointmentRequest().getPatientUserId(),
+                overview.getAppointmentRequest().getPatientEmail()
+        );
+        String guardianLink = buildLinkStateText(
+                overview.getAppointmentRequest().getGuardianUserId(),
+                overview.getAppointmentRequest().getGuardianEmail()
+        );
+        String managerLink = buildLinkStateText(
+                overview.getAppointmentRequest().getManagerUserId(),
+                overview.getManager() == null ? "" : overview.getManager().getEmail()
+        );
+
+        return getString(
+                R.string.admin_request_detail_panel,
+                overview.getAppointmentRequest().getId(),
+                toStatusLabel(requestStatus),
+                sessionId,
+                sessionStatus,
+                stepText,
+                patientLink,
+                guardianLink,
+                managerLink,
+                guardianUpdate,
+                medicationNote
+        );
+    }
+
+    private String buildLinkStateText(String linkedUserId, String email) {
+        if (!TextUtils.isEmpty(linkedUserId)) {
+            if (!TextUtils.isEmpty(email)) {
+                return getString(R.string.admin_request_detail_linked_email, linkedUserId, email);
+            }
+            return getString(R.string.admin_request_detail_linked, linkedUserId);
+        }
+        if (!TextUtils.isEmpty(email)) {
+            return getString(R.string.admin_request_detail_pending_email, email);
+        }
+        return getString(R.string.admin_request_detail_missing);
     }
 
     private String buildProgressText(AdminRequestOverview overview) {
@@ -822,9 +1022,15 @@ public class AdminActivity extends AppCompatActivity {
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
         textAdminManagers.setText(R.string.admin_manager_summary_empty);
+        pendingRequestsSnapshot.clear();
+        availableManagersSnapshot.clear();
+        managedRequestsSnapshot.clear();
         textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);
+        expandedRequestIds.clear();
         adminManagedFilterContainer.removeAllViews();
         adminManagedFilterContainer.setVisibility(View.GONE);
+        adminManagedDateFilterContainer.removeAllViews();
+        adminManagedDateFilterContainer.setVisibility(View.GONE);
         adminPendingRequestsContainer.removeAllViews();
         adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
@@ -957,6 +1163,29 @@ public class AdminActivity extends AppCompatActivity {
         inputAdminGuideSteps.setEnabled(canEditSteps);
         buttonSubmitAdminGuide.setEnabled(!loading);
         buttonCancelAdminGuideEdit.setEnabled(!loading);
+    }
+
+    @Nullable
+    private Calendar parseAppointmentCalendar(String appointmentAt) {
+        if (TextUtils.isEmpty(appointmentAt)) {
+            return null;
+        }
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
+        formatter.setLenient(false);
+        try {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(formatter.parse(appointmentAt));
+            return calendar;
+        } catch (ParseException exception) {
+            return null;
+        }
+    }
+
+    private void normalizeDate(Calendar calendar) {
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
     }
 
     private void setLoading(boolean loading) {

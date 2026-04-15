@@ -227,13 +227,26 @@
     <string name="admin_managed_empty">아직 운영 중인 요청이 없습니다.</string>
     <string name="admin_managed_filtered_empty">선택한 상태의 운영 이력이 아직 없습니다.</string>
     <string name="admin_managed_summary_empty">운영 이력이 생기면 상태별 집계와 필터가 이곳에 표시됩니다.</string>
-    <string name="admin_managed_summary">배정 완료 %1$d건 · 진행 중 %2$d건 · 완료 %3$d건 · 취소 %4$d건\n현재 필터: %5$s · %6$d / %7$d건 표시 중</string>
+    <string name="admin_managed_summary">배정 완료 %1$d건 · 진행 중 %2$d건 · 완료 %3$d건 · 취소 %4$d건\n현재 필터: 상태 %5$s / 날짜 %6$s · %7$d / %8$d건 표시 중</string>
     <string name="admin_managed_filter_all">전체</string>
     <string name="admin_managed_filter_matched">배정 완료</string>
     <string name="admin_managed_filter_in_progress">진행 중</string>
     <string name="admin_managed_filter_completed">동행 완료</string>
     <string name="admin_managed_filter_canceled">취소</string>
     <string name="admin_managed_filter_button">%1$s %2$d</string>
+    <string name="admin_managed_date_filter_all">전체 일정</string>
+    <string name="admin_managed_date_filter_today">오늘 일정</string>
+    <string name="admin_managed_date_filter_upcoming">다가오는 일정</string>
+    <string name="admin_managed_date_filter_past">지난 일정</string>
+    <string name="admin_managed_date_filter_button">%1$s %2$d</string>
+    <string name="admin_request_detail_show">상세 운영 정보 보기</string>
+    <string name="admin_request_detail_hide">상세 운영 정보 접기</string>
+    <string name="admin_request_detail_missing">확인 전</string>
+    <string name="admin_request_detail_step_value">%1$d단계</string>
+    <string name="admin_request_detail_linked">%1$s 연결 완료</string>
+    <string name="admin_request_detail_linked_email">%1$s 연결 완료 · %2$s</string>
+    <string name="admin_request_detail_pending_email">%1$s 기준 연결 대기</string>
+    <string name="admin_request_detail_panel">요청 ID: %1$s\n요청 상태: %2$s\n세션 ID: %3$s\n세션 상태: %4$s\n현재 단계: %5$s\n환자 계정: %6$s\n보호자 계정: %7$s\n매니저 계정: %8$s\n보호자 공유 메시지: %9$s\n복약 메모: %10$s</string>
     <string name="admin_empty_greeting">관리자 운영 화면</string>
     <string name="admin_empty_summary">현재 운영 데이터를 불러오지 못했습니다.</string>
 
