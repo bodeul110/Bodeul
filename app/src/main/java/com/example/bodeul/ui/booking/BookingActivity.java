@@ -93,6 +93,12 @@ public class BookingActivity extends AppCompatActivity {
     private TextInputEditText inputAppointmentAt;
     private TextInputEditText inputMeetingPlace;
     private TextInputEditText inputSpecialNotes;
+    private MaterialButton buttonBookingQuickToday;
+    private MaterialButton buttonBookingQuickTomorrow;
+    private MaterialButton buttonBookingQuickDayAfterTomorrow;
+    private MaterialButton buttonBookingQuickMorning;
+    private MaterialButton buttonBookingQuickAfternoon;
+    private MaterialButton buttonBookingQuickLateAfternoon;
     private MaterialButton buttonSubmitBooking;
     private MaterialButton buttonCancelBookingEdit;
     private ProgressBar progressBooking;
@@ -136,6 +142,12 @@ public class BookingActivity extends AppCompatActivity {
         inputAppointmentAt = findViewById(R.id.inputBookingAppointmentAt);
         inputMeetingPlace = findViewById(R.id.inputBookingMeetingPlace);
         inputSpecialNotes = findViewById(R.id.inputBookingSpecialNotes);
+        buttonBookingQuickToday = findViewById(R.id.buttonBookingQuickToday);
+        buttonBookingQuickTomorrow = findViewById(R.id.buttonBookingQuickTomorrow);
+        buttonBookingQuickDayAfterTomorrow = findViewById(R.id.buttonBookingQuickDayAfterTomorrow);
+        buttonBookingQuickMorning = findViewById(R.id.buttonBookingQuickMorning);
+        buttonBookingQuickAfternoon = findViewById(R.id.buttonBookingQuickAfternoon);
+        buttonBookingQuickLateAfternoon = findViewById(R.id.buttonBookingQuickLateAfternoon);
         buttonSubmitBooking = findViewById(R.id.buttonSubmitBooking);
         buttonCancelBookingEdit = findViewById(R.id.buttonCancelBookingEdit);
         progressBooking = findViewById(R.id.progressBooking);
@@ -148,6 +160,7 @@ public class BookingActivity extends AppCompatActivity {
         buttonSubmitBooking.setOnClickListener(view -> submitAppointmentRequest());
         buttonCancelBookingEdit.setOnClickListener(view -> exitEditMode());
         configureAppointmentPicker();
+        configureQuickAppointmentButtons();
 
         bindEmptySummary();
         renderEmptyRequests();
@@ -219,6 +232,15 @@ public class BookingActivity extends AppCompatActivity {
         layoutAppointmentAt.setOnClickListener(view -> openAppointmentDatePicker());
     }
 
+    private void configureQuickAppointmentButtons() {
+        buttonBookingQuickToday.setOnClickListener(view -> applyQuickAppointmentDate(0));
+        buttonBookingQuickTomorrow.setOnClickListener(view -> applyQuickAppointmentDate(1));
+        buttonBookingQuickDayAfterTomorrow.setOnClickListener(view -> applyQuickAppointmentDate(2));
+        buttonBookingQuickMorning.setOnClickListener(view -> applyQuickAppointmentTime(10, 0));
+        buttonBookingQuickAfternoon.setOnClickListener(view -> applyQuickAppointmentTime(14, 0));
+        buttonBookingQuickLateAfternoon.setOnClickListener(view -> applyQuickAppointmentTime(16, 0));
+    }
+
     private void openAppointmentDatePicker() {
         Long initialSelection = resolveInitialAppointmentDateSelection();
         MaterialDatePicker<Long> datePicker = MaterialDatePicker.Builder.datePicker()
@@ -265,6 +287,42 @@ public class BookingActivity extends AppCompatActivity {
 
         inputAppointmentAt.setText(formatAppointmentAt(seoulCalendar.getTimeInMillis()));
         layoutAppointmentAt.setError(null);
+    }
+
+    private void applyQuickAppointmentDate(int dayOffset) {
+        Calendar baseCalendar = resolveBaseAppointmentCalendar();
+        Calendar todayCalendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
+        todayCalendar.add(Calendar.DAY_OF_MONTH, dayOffset);
+
+        baseCalendar.set(Calendar.YEAR, todayCalendar.get(Calendar.YEAR));
+        baseCalendar.set(Calendar.MONTH, todayCalendar.get(Calendar.MONTH));
+        baseCalendar.set(Calendar.DAY_OF_MONTH, todayCalendar.get(Calendar.DAY_OF_MONTH));
+        inputAppointmentAt.setText(formatAppointmentAt(baseCalendar.getTimeInMillis()));
+        layoutAppointmentAt.setError(null);
+    }
+
+    private void applyQuickAppointmentTime(int hourOfDay, int minute) {
+        Calendar baseCalendar = resolveBaseAppointmentCalendar();
+        baseCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+        baseCalendar.set(Calendar.MINUTE, minute);
+        baseCalendar.set(Calendar.SECOND, 0);
+        baseCalendar.set(Calendar.MILLISECOND, 0);
+        inputAppointmentAt.setText(formatAppointmentAt(baseCalendar.getTimeInMillis()));
+        layoutAppointmentAt.setError(null);
+    }
+
+    private Calendar resolveBaseAppointmentCalendar() {
+        Calendar parsedCalendar = parseAppointmentCalendar(valueOf(inputAppointmentAt));
+        if (parsedCalendar != null) {
+            return parsedCalendar;
+        }
+
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
+        calendar.set(Calendar.HOUR_OF_DAY, 10);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar;
     }
 
     @Nullable
@@ -879,6 +937,12 @@ public class BookingActivity extends AppCompatActivity {
         inputAppointmentAt.setEnabled(!loading);
         inputMeetingPlace.setEnabled(!loading);
         inputSpecialNotes.setEnabled(!loading);
+        buttonBookingQuickToday.setEnabled(!loading);
+        buttonBookingQuickTomorrow.setEnabled(!loading);
+        buttonBookingQuickDayAfterTomorrow.setEnabled(!loading);
+        buttonBookingQuickMorning.setEnabled(!loading);
+        buttonBookingQuickAfternoon.setEnabled(!loading);
+        buttonBookingQuickLateAfternoon.setEnabled(!loading);
     }
 
     private void showPermissionState() {

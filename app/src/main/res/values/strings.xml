@@ -428,4 +428,12 @@
     <string name="manager_document_status_rejected">보완 요청</string>
     <string name="manager_action_docs_status_plain">검토 상태: %1$s</string>
     <string name="manager_action_docs_status_with_note">검토 상태: %1$s\n관리자 메모: %2$s</string>
+    <string name="booking_quick_date_section">빠른 날짜 선택</string>
+    <string name="booking_quick_time_section">빠른 시간 선택</string>
+    <string name="booking_quick_today">오늘</string>
+    <string name="booking_quick_tomorrow">내일</string>
+    <string name="booking_quick_day_after_tomorrow">모레</string>
+    <string name="booking_quick_time_morning">오전 10시</string>
+    <string name="booking_quick_time_afternoon">오후 2시</string>
+    <string name="booking_quick_time_late_afternoon">오후 4시</string>
 </resources>
