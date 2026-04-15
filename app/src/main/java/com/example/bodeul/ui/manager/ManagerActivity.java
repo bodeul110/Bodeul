@@ -19,6 +19,7 @@ import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -53,6 +54,7 @@ public class ManagerActivity extends AppCompatActivity {
     private TextView textAssignmentDetail;
     private TextView textAssignmentNote;
     private TextView textActionDocsDescription;
+    private TextView textActionDocsStatus;
     private TextView textActionScheduleDescription;
     private View managerStatePanel;
     private View managerContentContainer;
@@ -74,6 +76,7 @@ public class ManagerActivity extends AppCompatActivity {
         textAssignmentDetail = findViewById(R.id.textAssignmentDetail);
         textAssignmentNote = findViewById(R.id.textAssignmentNote);
         textActionDocsDescription = findViewById(R.id.textActionDocsDescription);
+        textActionDocsStatus = findViewById(R.id.textActionDocsStatus);
         textActionScheduleDescription = findViewById(R.id.textActionScheduleDescription);
         managerStatePanel = findViewById(R.id.managerStatePanel);
         managerContentContainer = findViewById(R.id.managerContentContainer);
@@ -309,6 +312,7 @@ public class ManagerActivity extends AppCompatActivity {
                 profile.getDocumentSummary(),
                 R.string.manager_action_docs_desc
         ));
+        textActionDocsStatus.setText(buildDocumentStatusText(profile));
         textActionScheduleDescription.setText(buildActionCardDescription(
                 profile.getAvailabilitySummary(),
                 R.string.manager_action_schedule_desc
@@ -324,6 +328,32 @@ public class ManagerActivity extends AppCompatActivity {
 
     private String summarizeCardText(String value) {
         return value.replace('\n', ' ').replace("  ", " ").trim();
+    }
+
+    private String buildDocumentStatusText(ManagerHomeProfile profile) {
+        String statusLabel = toManagerDocumentStatusLabel(profile.getDocumentStatus());
+        if (TextUtils.isEmpty(profile.getDocumentReviewNote())) {
+            return getString(R.string.manager_action_docs_status_plain, statusLabel);
+        }
+        return getString(
+                R.string.manager_action_docs_status_with_note,
+                statusLabel,
+                summarizeCardText(profile.getDocumentReviewNote())
+        );
+    }
+
+    private String toManagerDocumentStatusLabel(ManagerDocumentStatus status) {
+        switch (status) {
+            case APPROVED:
+                return getString(R.string.manager_document_status_approved);
+            case REJECTED:
+                return getString(R.string.manager_document_status_rejected);
+            case PENDING_REVIEW:
+                return getString(R.string.manager_document_status_pending_review);
+            case NOT_SUBMITTED:
+            default:
+                return getString(R.string.manager_document_status_not_submitted);
+        }
     }
 
     private void setGuideAccessEnabled(boolean enabled) {

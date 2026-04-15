@@ -126,3 +126,11 @@
 - `POST /admin/hospital-guides`
 - `PATCH /admin/hospital-guides/{id}`
 - `DELETE /admin/hospital-guides/{id}`
+- `POST /admin/managers/{id}/document-review`
+
+## 추가 메모
+
+- `users` 문서에는 `managerDocumentStatus`, `managerDocumentReviewNote`가 함께 저장된다.
+- 매니저가 서류 요약을 다시 저장하면 `managerDocumentStatus`는 `PENDING_REVIEW`로 재설정된다.
+- 관리자는 `APPROVED`, `REJECTED` 두 상태만 직접 저장한다.
+- `managerDocumentReviewNote`는 승인 메모 또는 보완 요청 사유를 담는다.

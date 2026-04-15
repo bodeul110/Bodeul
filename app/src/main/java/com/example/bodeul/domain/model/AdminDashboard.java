@@ -9,6 +9,7 @@ public class AdminDashboard {
     private final User admin;
     private final List<User> availableManagers;
     private final List<User> busyManagers;
+    private final List<ManagerDocumentOverview> managerDocumentOverviews;
     private final List<AdminRequestOverview> pendingRequests;
     private final List<AdminRequestOverview> managedRequests;
     private final List<HospitalGuide> hospitalGuides;
@@ -17,6 +18,7 @@ public class AdminDashboard {
             User admin,
             List<User> availableManagers,
             List<User> busyManagers,
+            List<ManagerDocumentOverview> managerDocumentOverviews,
             List<AdminRequestOverview> pendingRequests,
             List<AdminRequestOverview> managedRequests,
             List<HospitalGuide> hospitalGuides
@@ -24,6 +26,7 @@ public class AdminDashboard {
         this.admin = admin;
         this.availableManagers = availableManagers;
         this.busyManagers = busyManagers;
+        this.managerDocumentOverviews = managerDocumentOverviews;
         this.pendingRequests = pendingRequests;
         this.managedRequests = managedRequests;
         this.hospitalGuides = hospitalGuides;
@@ -39,6 +42,10 @@ public class AdminDashboard {
 
     public List<User> getBusyManagers() {
         return busyManagers;
+    }
+
+    public List<ManagerDocumentOverview> getManagerDocumentOverviews() {
+        return managerDocumentOverviews;
     }
 
     public List<AdminRequestOverview> getPendingRequests() {

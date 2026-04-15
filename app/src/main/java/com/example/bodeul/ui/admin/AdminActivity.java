@@ -28,6 +28,9 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentOverview;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
@@ -88,6 +91,7 @@ public class AdminActivity extends AppCompatActivity {
     private TextView textAdminManagedSummary;
     private View adminStatePanel;
     private View adminContentContainer;
+    private LinearLayout adminManagerDocumentsContainer;
     private LinearLayout adminPendingRequestsContainer;
     private LinearLayout adminManagedDateFilterContainer;
     private LinearLayout adminManagedFilterContainer;
@@ -121,6 +125,7 @@ public class AdminActivity extends AppCompatActivity {
         textAdminManagedSummary = findViewById(R.id.textAdminManagedSummary);
         adminStatePanel = findViewById(R.id.adminStatePanel);
         adminContentContainer = findViewById(R.id.adminContentContainer);
+        adminManagerDocumentsContainer = findViewById(R.id.adminManagerDocumentsContainer);
         adminPendingRequestsContainer = findViewById(R.id.adminPendingRequestsContainer);
         adminManagedDateFilterContainer = findViewById(R.id.adminManagedDateFilterContainer);
         adminManagedFilterContainer = findViewById(R.id.adminManagedFilterContainer);
@@ -210,6 +215,7 @@ public class AdminActivity extends AppCompatActivity {
         ));
         textAdminManagers.setText(buildManagerSummary(dashboard));
 
+        renderManagerDocuments(dashboard.getManagerDocumentOverviews());
         pendingRequestsSnapshot = new ArrayList<>(dashboard.getPendingRequests());
         availableManagersSnapshot = new ArrayList<>(dashboard.getAvailableManagers());
         renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
@@ -823,6 +829,118 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
+    private void openManagerDocumentReviewDialog(
+            ManagerDocumentOverview overview,
+            ManagerDocumentStatus targetStatus
+    ) {
+        if (currentUser == null || loading) {
+            return;
+        }
+
+        View dialogView = LayoutInflater.from(this).inflate(
+                R.layout.dialog_admin_document_review,
+                null,
+                false
+        );
+        TextInputLayout inputLayout = dialogView.findViewById(R.id.layoutAdminDocumentReviewNote);
+        TextInputEditText inputEditText = dialogView.findViewById(R.id.inputAdminDocumentReviewNote);
+        inputLayout.setHelperText(getString(
+                targetStatus == ManagerDocumentStatus.APPROVED
+                        ? R.string.admin_manager_document_approve_helper
+                        : R.string.admin_manager_document_reject_helper
+        ));
+        inputEditText.setText(overview.getProfile().getDocumentReviewNote());
+        if (inputEditText.getText() != null) {
+            inputEditText.setSelection(inputEditText.getText().length());
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(getString(
+                        targetStatus == ManagerDocumentStatus.APPROVED
+                                ? R.string.admin_manager_document_approve_dialog_title
+                                : R.string.admin_manager_document_reject_dialog_title,
+                        overview.getManager().getName()
+                ))
+                .setView(dialogView)
+                .setNegativeButton(R.string.admin_manager_document_review_cancel, null)
+                .setPositiveButton(R.string.admin_manager_document_review_confirm, null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    String reviewNote = valueOf(inputEditText);
+                    if (targetStatus == ManagerDocumentStatus.REJECTED && TextUtils.isEmpty(reviewNote)) {
+                        inputLayout.setError(getString(R.string.admin_manager_document_review_note_required));
+                        return;
+                    }
+                    inputLayout.setError(null);
+                    dialog.dismiss();
+                    reviewManagerDocument(overview.getManager().getId(), targetStatus, reviewNote);
+                }));
+        dialog.show();
+    }
+
+    private void reviewManagerDocument(
+            String managerUserId,
+            ManagerDocumentStatus status,
+            String reviewNote
+    ) {
+        setLoading(true);
+        adminRepository.reviewManagerDocument(
+                currentUser,
+                managerUserId,
+                status,
+                reviewNote,
+                new RepositoryCallback<AdminDashboard>() {
+                    @Override
+                    public void onSuccess(AdminDashboard result) {
+                        setLoading(false);
+                        Toast.makeText(
+                                AdminActivity.this,
+                                status == ManagerDocumentStatus.APPROVED
+                                        ? R.string.admin_manager_document_approved
+                                        : R.string.admin_manager_document_rejected,
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
+    private String buildManagerDocumentSummaryText(ManagerHomeProfile profile) {
+        if (TextUtils.isEmpty(profile.getDocumentSummary())) {
+            return getString(R.string.admin_manager_document_summary_empty);
+        }
+        return getString(R.string.admin_manager_document_summary_value, profile.getDocumentSummary());
+    }
+
+    private String buildManagerDocumentAvailabilityText(ManagerHomeProfile profile) {
+        if (TextUtils.isEmpty(profile.getAvailabilitySummary())) {
+            return getString(R.string.admin_manager_document_availability_empty);
+        }
+        return getString(
+                R.string.admin_manager_document_availability_value,
+                profile.getAvailabilitySummary()
+        );
+    }
+
+    private String buildManagerDocumentReviewNoteText(ManagerHomeProfile profile) {
+        if (TextUtils.isEmpty(profile.getDocumentReviewNote())) {
+            return getString(R.string.admin_manager_document_review_note_empty);
+        }
+        return getString(
+                R.string.admin_manager_document_review_note_value,
+                profile.getDocumentReviewNote()
+        );
+    }
+
     private String buildGuidePreview(HospitalGuide guide) {
         StringBuilder builder = new StringBuilder();
         int previewCount = Math.min(guide.getSteps().size(), 2);
@@ -915,6 +1033,59 @@ public class AdminActivity extends AppCompatActivity {
             }
         }
         return builder.toString();
+    }
+
+    private void renderManagerDocuments(List<ManagerDocumentOverview> overviews) {
+        adminManagerDocumentsContainer.removeAllViews();
+        if (overviews.isEmpty()) {
+            renderEmptyText(
+                    adminManagerDocumentsContainer,
+                    R.string.admin_manager_documents_title,
+                    R.string.admin_manager_documents_empty
+            );
+            return;
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (ManagerDocumentOverview overview : overviews) {
+            View itemView = inflater.inflate(
+                    R.layout.item_admin_manager_document,
+                    adminManagerDocumentsContainer,
+                    false
+            );
+            bindManagerDocumentItem(itemView, overview);
+            adminManagerDocumentsContainer.addView(itemView);
+        }
+    }
+
+    private void bindManagerDocumentItem(View itemView, ManagerDocumentOverview overview) {
+        TextView titleView = itemView.findViewById(R.id.textAdminManagerDocumentTitle);
+        TextView statusView = itemView.findViewById(R.id.textAdminManagerDocumentStatus);
+        TextView summaryView = itemView.findViewById(R.id.textAdminManagerDocumentSummary);
+        TextView availabilityView = itemView.findViewById(R.id.textAdminManagerDocumentAvailability);
+        TextView reviewNoteView = itemView.findViewById(R.id.textAdminManagerDocumentReviewNote);
+        View actionLayout = itemView.findViewById(R.id.layoutAdminManagerDocumentActions);
+        MaterialButton approveButton = itemView.findViewById(R.id.buttonAdminManagerDocumentApprove);
+        MaterialButton rejectButton = itemView.findViewById(R.id.buttonAdminManagerDocumentReject);
+
+        ManagerHomeProfile profile = overview.getProfile();
+        titleView.setText(getString(
+                R.string.admin_manager_document_title,
+                overview.getManager().getName()
+        ));
+        bindManagerDocumentStatusBadge(statusView, profile.getDocumentStatus());
+        summaryView.setText(buildManagerDocumentSummaryText(profile));
+        availabilityView.setText(buildManagerDocumentAvailabilityText(profile));
+        reviewNoteView.setText(buildManagerDocumentReviewNoteText(profile));
+
+        boolean hasDocumentSummary = !TextUtils.isEmpty(profile.getDocumentSummary());
+        actionLayout.setVisibility(hasDocumentSummary ? View.VISIBLE : View.GONE);
+        approveButton.setEnabled(!loading && hasDocumentSummary);
+        rejectButton.setEnabled(!loading && hasDocumentSummary);
+        approveButton.setOnClickListener(view ->
+                openManagerDocumentReviewDialog(overview, ManagerDocumentStatus.APPROVED));
+        rejectButton.setOnClickListener(view ->
+                openManagerDocumentReviewDialog(overview, ManagerDocumentStatus.REJECTED));
     }
 
     private void confirmGuideDelete(HospitalGuide guide) {
@@ -1031,9 +1202,15 @@ public class AdminActivity extends AppCompatActivity {
         adminManagedFilterContainer.setVisibility(View.GONE);
         adminManagedDateFilterContainer.removeAllViews();
         adminManagedDateFilterContainer.setVisibility(View.GONE);
+        adminManagerDocumentsContainer.removeAllViews();
         adminPendingRequestsContainer.removeAllViews();
         adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
+        renderEmptyText(
+                adminManagerDocumentsContainer,
+                R.string.admin_manager_documents_title,
+                R.string.admin_manager_documents_empty
+        );
         renderEmptyText(adminPendingRequestsContainer, R.string.admin_pending_title, R.string.admin_pending_empty);
         renderEmptyText(adminManagedRequestsContainer, R.string.admin_managed_title, R.string.admin_managed_empty);
         renderEmptyText(adminGuideListContainer, R.string.admin_guide_list_title, R.string.admin_guide_empty);
@@ -1066,6 +1243,48 @@ public class AdminActivity extends AppCompatActivity {
         textView.setText(toStatusLabel(status));
         textView.setBackgroundTintList(ColorStateList.valueOf(getColor(backgroundColor)));
         textView.setTextColor(getColor(textColor));
+    }
+
+    private void bindManagerDocumentStatusBadge(TextView textView, ManagerDocumentStatus status) {
+        int backgroundColor;
+        int textColor;
+        switch (status) {
+            case APPROVED:
+                backgroundColor = R.color.bodeul_success;
+                textColor = R.color.white;
+                break;
+            case REJECTED:
+                backgroundColor = R.color.bodeul_warning;
+                textColor = R.color.bodeul_text_primary;
+                break;
+            case PENDING_REVIEW:
+                backgroundColor = R.color.bodeul_primary;
+                textColor = R.color.white;
+                break;
+            case NOT_SUBMITTED:
+            default:
+                backgroundColor = R.color.bodeul_surface_alt;
+                textColor = R.color.bodeul_text_primary;
+                break;
+        }
+
+        textView.setText(toManagerDocumentStatusLabel(status));
+        textView.setBackgroundTintList(ColorStateList.valueOf(getColor(backgroundColor)));
+        textView.setTextColor(getColor(textColor));
+    }
+
+    private String toManagerDocumentStatusLabel(ManagerDocumentStatus status) {
+        switch (status) {
+            case APPROVED:
+                return getString(R.string.manager_document_status_approved);
+            case REJECTED:
+                return getString(R.string.manager_document_status_rejected);
+            case PENDING_REVIEW:
+                return getString(R.string.manager_document_status_pending_review);
+            case NOT_SUBMITTED:
+            default:
+                return getString(R.string.manager_document_status_not_submitted);
+        }
     }
 
     private String toStatusLabel(AppointmentStatus status) {

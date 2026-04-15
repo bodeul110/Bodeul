@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -214,6 +215,27 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String documentSummary,
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
+        String normalizedSummary = normalizeText(documentSummary);
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("managerDocumentSummary", normalizedSummary);
+        updates.put(
+                "managerDocumentStatus",
+                normalizedSummary.isEmpty()
+                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
+                        : ManagerDocumentStatus.PENDING_REVIEW.name()
+        );
+        updates.put("managerDocumentReviewNote", "");
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+
+        firestore.collection("users")
+                .document(managerUserId)
+                .update(updates)
+                .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                .addOnFailureListener(exception ->
+                        callback.onError("서류 등록 정보를 저장하지 못했습니다."));
+
+        boolean shouldUseLegacyPath = false;
+        if (shouldUseLegacyPath) {
         saveManagerHomeProfileField(
                 managerUserId,
                 "managerDocumentSummary",
@@ -222,6 +244,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 "서류 등록 정보를 저장하지 못했습니다.",
                 callback
         );
+        }
     }
 
     @Override
@@ -375,9 +398,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
     private ManagerHomeProfile toManagerHomeProfile(DocumentSnapshot documentSnapshot) {
         String documentSummary = documentSnapshot.getString("managerDocumentSummary");
         String availabilitySummary = documentSnapshot.getString("managerAvailabilitySummary");
+        String documentStatus = documentSnapshot.getString("managerDocumentStatus");
+        String documentReviewNote = documentSnapshot.getString("managerDocumentReviewNote");
         return new ManagerHomeProfile(
                 documentSummary == null ? "" : documentSummary,
-                availabilitySummary == null ? "" : availabilitySummary
+                availabilitySummary == null ? "" : availabilitySummary,
+                resolveManagerDocumentStatus(documentStatus, documentSummary),
+                documentReviewNote == null ? "" : documentReviewNote
         );
     }
 
@@ -576,6 +603,23 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     private String stringOrEmpty(@Nullable String value) {
         return value == null ? "" : value;
+    }
+
+    private ManagerDocumentStatus resolveManagerDocumentStatus(
+            @Nullable String rawStatus,
+            @Nullable String documentSummary
+    ) {
+        if (rawStatus != null) {
+            try {
+                return ManagerDocumentStatus.valueOf(rawStatus);
+            } catch (IllegalArgumentException ignored) {
+                // 알 수 없는 값은 아래 기본 규칙으로 보정한다.
+            }
+        }
+        if (normalizeText(documentSummary).isEmpty()) {
+            return ManagerDocumentStatus.NOT_SUBMITTED;
+        }
+        return ManagerDocumentStatus.PENDING_REVIEW;
     }
 
     private SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {

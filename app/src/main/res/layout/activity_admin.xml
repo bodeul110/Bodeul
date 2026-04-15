@@ -162,6 +162,30 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="28dp"
+                android:text="@string/admin_manager_documents_title"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/admin_manager_documents_helper"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:id="@+id/adminManagerDocumentsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="vertical" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
                 android:text="@string/admin_pending_title"
                 android:textColor="@color/bodeul_text_primary"
                 android:textSize="20sp"

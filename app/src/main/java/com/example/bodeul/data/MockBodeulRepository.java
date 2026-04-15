@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -35,6 +36,8 @@ public class MockBodeulRepository implements BodeulRepository {
     private final Map<String, String> passwordsByEmail = new HashMap<>();
     private final Map<String, String> managerDocumentSummariesByUserId = new HashMap<>();
     private final Map<String, String> managerAvailabilitySummariesByUserId = new HashMap<>();
+    private final Map<String, ManagerDocumentStatus> managerDocumentStatusesByUserId = new HashMap<>();
+    private final Map<String, String> managerDocumentReviewNotesByUserId = new HashMap<>();
 
     public MockBodeulRepository() {
         seedUsers();
@@ -117,7 +120,9 @@ public class MockBodeulRepository implements BodeulRepository {
         }
         return new ManagerHomeProfile(
                 managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
-                managerAvailabilitySummariesByUserId.getOrDefault(managerUserId, "")
+                managerAvailabilitySummariesByUserId.getOrDefault(managerUserId, ""),
+                resolveManagerDocumentStatus(managerUserId),
+                managerDocumentReviewNotesByUserId.getOrDefault(managerUserId, "")
         );
     }
 
@@ -130,9 +135,12 @@ public class MockBodeulRepository implements BodeulRepository {
         String normalizedSummary = normalizeText(documentSummary);
         if (normalizedSummary.isEmpty()) {
             managerDocumentSummariesByUserId.remove(managerUserId);
+            managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.NOT_SUBMITTED);
         } else {
             managerDocumentSummariesByUserId.put(managerUserId, normalizedSummary);
+            managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.PENDING_REVIEW);
         }
+        managerDocumentReviewNotesByUserId.remove(managerUserId);
         return getManagerHomeProfile(managerUserId);
     }
 
@@ -147,6 +155,33 @@ public class MockBodeulRepository implements BodeulRepository {
             managerAvailabilitySummariesByUserId.remove(managerUserId);
         } else {
             managerAvailabilitySummariesByUserId.put(managerUserId, normalizedSummary);
+        }
+        return getManagerHomeProfile(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerHomeProfile reviewManagerDocument(
+            String managerUserId,
+            ManagerDocumentStatus status,
+            String reviewNote
+    ) {
+        User manager = findUserById(managerUserId);
+        if (manager == null || manager.getRole() != UserRole.MANAGER) {
+            return null;
+        }
+        if (status != ManagerDocumentStatus.APPROVED && status != ManagerDocumentStatus.REJECTED) {
+            return null;
+        }
+        if (normalizeText(managerDocumentSummariesByUserId.get(managerUserId)).isEmpty()) {
+            return null;
+        }
+
+        managerDocumentStatusesByUserId.put(managerUserId, status);
+        String normalizedReviewNote = normalizeText(reviewNote);
+        if (normalizedReviewNote.isEmpty()) {
+            managerDocumentReviewNotesByUserId.remove(managerUserId);
+        } else {
+            managerDocumentReviewNotesByUserId.put(managerUserId, normalizedReviewNote);
         }
         return getManagerHomeProfile(managerUserId);
     }
@@ -805,6 +840,17 @@ public class MockBodeulRepository implements BodeulRepository {
         return value == null ? "" : value.trim();
     }
 
+    private ManagerDocumentStatus resolveManagerDocumentStatus(String managerUserId) {
+        ManagerDocumentStatus savedStatus = managerDocumentStatusesByUserId.get(managerUserId);
+        if (savedStatus != null) {
+            return savedStatus;
+        }
+        if (!normalizeText(managerDocumentSummariesByUserId.get(managerUserId)).isEmpty()) {
+            return ManagerDocumentStatus.PENDING_REVIEW;
+        }
+        return ManagerDocumentStatus.NOT_SUBMITTED;
+    }
+
     private String normalizeKey(String value) {
         // 이메일과 내부 키는 사용자 기기 로케일과 무관하게 동일한 규칙으로 정규화한다.
         return value.toLowerCase(Locale.ROOT);
@@ -849,6 +895,11 @@ public class MockBodeulRepository implements BodeulRepository {
         managerDocumentSummariesByUserId.put(
                 "manager-1",
                 "요양보호사 자격증, 신분증, 통장사본 제출 완료"
+        );
+        managerDocumentStatusesByUserId.put("manager-1", ManagerDocumentStatus.APPROVED);
+        managerDocumentReviewNotesByUserId.put(
+                "manager-1",
+                "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요."
         );
         managerAvailabilitySummariesByUserId.put(
                 "manager-1",

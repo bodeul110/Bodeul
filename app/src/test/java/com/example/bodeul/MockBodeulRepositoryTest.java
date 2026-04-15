@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
@@ -285,6 +286,7 @@ public class MockBodeulRepositoryTest {
 
         ManagerHomeProfile initialProfile = repository.getManagerHomeProfile(manager.getId());
         assertNotNull(initialProfile);
+        assertEquals(ManagerDocumentStatus.APPROVED, initialProfile.getDocumentStatus());
         assertEquals("요양보호사 자격증, 신분증, 통장사본 제출 완료", initialProfile.getDocumentSummary());
 
         ManagerHomeProfile updatedDocumentProfile = repository.saveManagerDocumentSummary(
@@ -298,7 +300,27 @@ public class MockBodeulRepositoryTest {
 
         assertNotNull(updatedDocumentProfile);
         assertNotNull(updatedAvailabilityProfile);
+        assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedDocumentProfile.getDocumentStatus());
+        assertEquals("", updatedDocumentProfile.getDocumentReviewNote());
         assertEquals("추가 서류 검토 중", updatedDocumentProfile.getDocumentSummary());
         assertEquals("월-금 10:00-17:00 가능", updatedAvailabilityProfile.getAvailabilitySummary());
+    }
+
+    @Test
+    public void reviewManagerDocument_updatesStatusAndReviewNote() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        ManagerHomeProfile reviewedProfile = repository.reviewManagerDocument(
+                manager.getId(),
+                ManagerDocumentStatus.REJECTED,
+                "증빙 사진이 흐려 다시 제출해 주세요."
+        );
+
+        assertNotNull(reviewedProfile);
+        assertEquals(ManagerDocumentStatus.REJECTED, reviewedProfile.getDocumentStatus());
+        assertEquals("증빙 사진이 흐려 다시 제출해 주세요.", reviewedProfile.getDocumentReviewNote());
     }
 }

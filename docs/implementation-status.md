@@ -94,3 +94,27 @@
 
 - `.\gradlew.bat assembleDebug --console=plain`
 - `.\gradlew.bat testDebugUnitTest --console=plain`
+
+## 7. 2026-04-15 추가 업데이트
+
+### 구현
+
+- 매니저 홈에 `서류 검토 상태`, `관리자 메모` 표시를 추가했다.
+- 매니저가 서류 요약을 다시 저장하면 상태가 `PENDING_REVIEW`로 바뀌고 기존 관리자 메모는 초기화된다.
+- 관리자 화면에 `매니저 서류 검토` 섹션을 추가했다.
+- 관리자 화면에서 매니저별 `서류 요약`, `가능 일정`, `검토 메모`를 보고 `승인`, `보완 요청`을 저장할 수 있다.
+- 목업 저장소와 Firebase 저장소 모두 같은 상태 모델을 사용하도록 맞췄다.
+
+### 변경 범위
+
+- `domain/model`: `ManagerDocumentStatus`, `ManagerDocumentOverview`, `ManagerHomeProfile`, `AdminDashboard`
+- `data`: `AdminRepository`, `MockBodeulRepository`, `MockAdminRepository`, `FirebaseAdminRepository`, `FirebaseManagerRepository`
+- `ui`: `AdminActivity`, `ManagerActivity`
+- `layout`: `activity_admin.xml`, `activity_manager_home.xml`, `item_admin_manager_document.xml`, `dialog_admin_document_review.xml`
+- `test`: `MockBodeulRepositoryTest`
+
+### 남은 범위
+
+- 매니저 서류 `실제 파일 업로드`와 `증빙 이미지 미리보기`는 아직 없다.
+- 관리자 검토 이력의 `타임라인`과 `담당자 로그`는 아직 없다.
+- 날짜/시간 선택기의 `빠른 선택 UX`는 아직 남아 있다.

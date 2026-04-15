@@ -11,6 +11,9 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentOverview;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -195,6 +198,54 @@ public class FirebaseAdminRepository implements AdminRepository {
     }
 
     @Override
+    public void reviewManagerDocument(
+            User currentUser,
+            String managerUserId,
+            ManagerDocumentStatus status,
+            String reviewNote,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해 주세요.");
+            return;
+        }
+        if (status != ManagerDocumentStatus.APPROVED && status != ManagerDocumentStatus.REJECTED) {
+            callback.onError("서류 검토 상태가 올바르지 않습니다.");
+            return;
+        }
+
+        firestore.collection("users")
+                .document(managerUserId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    User manager = toUser(documentSnapshot);
+                    if (manager == null || manager.getRole() != UserRole.MANAGER) {
+                        callback.onError("매니저 계정을 찾지 못했습니다.");
+                        return;
+                    }
+
+                    ManagerHomeProfile profile = toManagerHomeProfile(documentSnapshot);
+                    if (normalizeText(profile.getDocumentSummary()).isEmpty()) {
+                        callback.onError("검토할 서류 요약이 아직 등록되지 않았습니다.");
+                        return;
+                    }
+
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("managerDocumentStatus", status.name());
+                    updates.put("managerDocumentReviewNote", normalizeText(reviewNote));
+                    updates.put("managerDocumentReviewedAt", FieldValue.serverTimestamp());
+
+                    documentSnapshot.getReference()
+                            .update(updates)
+                            .addOnSuccessListener(unused -> loadDashboard(currentUser, callback))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("매니저 서류 검토 상태를 저장하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 계정 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return true;
     }
@@ -252,6 +303,7 @@ public class FirebaseAdminRepository implements AdminRepository {
 
         List<User> availableManagers = new ArrayList<>();
         List<User> busyManagers = new ArrayList<>();
+        List<ManagerDocumentOverview> managerDocumentOverviews = new ArrayList<>();
         for (DocumentSnapshot documentSnapshot : userSnapshot.getDocuments()) {
             User user = toUser(documentSnapshot);
             if (user == null) {
@@ -266,6 +318,10 @@ public class FirebaseAdminRepository implements AdminRepository {
             } else {
                 availableManagers.add(user);
             }
+            managerDocumentOverviews.add(new ManagerDocumentOverview(
+                    user,
+                    toManagerHomeProfile(documentSnapshot)
+            ));
         }
 
         Map<String, CompanionSession> sessionsByRequestId = new HashMap<>();
@@ -308,6 +364,7 @@ public class FirebaseAdminRepository implements AdminRepository {
                 currentUser,
                 availableManagers,
                 busyManagers,
+                managerDocumentOverviews,
                 pendingRequests,
                 managedRequests,
                 guides
@@ -451,6 +508,19 @@ public class FirebaseAdminRepository implements AdminRepository {
         );
     }
 
+    private ManagerHomeProfile toManagerHomeProfile(DocumentSnapshot documentSnapshot) {
+        String documentSummary = documentSnapshot.getString("managerDocumentSummary");
+        String availabilitySummary = documentSnapshot.getString("managerAvailabilitySummary");
+        String documentStatus = documentSnapshot.getString("managerDocumentStatus");
+        String documentReviewNote = documentSnapshot.getString("managerDocumentReviewNote");
+        return new ManagerHomeProfile(
+                normalizeText(documentSummary),
+                normalizeText(availabilitySummary),
+                resolveManagerDocumentStatus(documentStatus, documentSummary),
+                normalizeText(documentReviewNote)
+        );
+    }
+
     @Nullable
     private AppointmentRequest toAppointmentRequest(DocumentSnapshot documentSnapshot) {
         if (!documentSnapshot.exists()) {
@@ -568,5 +638,22 @@ public class FirebaseAdminRepository implements AdminRepository {
 
     private String normalizeText(@Nullable String rawValue) {
         return rawValue == null ? "" : rawValue.trim();
+    }
+
+    private ManagerDocumentStatus resolveManagerDocumentStatus(
+            @Nullable String rawStatus,
+            @Nullable String documentSummary
+    ) {
+        if (rawStatus != null) {
+            try {
+                return ManagerDocumentStatus.valueOf(rawStatus);
+            } catch (IllegalArgumentException ignored) {
+                // 알 수 없는 값은 기본 규칙으로 보정한다.
+            }
+        }
+        if (normalizeText(documentSummary).isEmpty()) {
+            return ManagerDocumentStatus.NOT_SUBMITTED;
+        }
+        return ManagerDocumentStatus.PENDING_REVIEW;
     }
 }

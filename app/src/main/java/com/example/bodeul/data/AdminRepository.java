@@ -1,6 +1,7 @@
 package com.example.bodeul.data;
 
 import com.example.bodeul.domain.model.AdminDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.User;
 
 import java.util.List;
@@ -33,6 +34,15 @@ public interface AdminRepository {
     void deleteHospitalGuide(
             User currentUser,
             String guideId,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
+    // 매니저 서류 검토 결과를 승인 또는 반려 상태로 저장하고 최신 운영 현황을 반환한다.
+    void reviewManagerDocument(
+            User currentUser,
+            String managerUserId,
+            ManagerDocumentStatus status,
+            String reviewNote,
             RepositoryCallback<AdminDashboard> callback
     );
 

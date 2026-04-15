@@ -9,6 +9,9 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentOverview;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
+import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 
@@ -107,6 +110,29 @@ public class MockAdminRepository implements AdminRepository {
     }
 
     @Override
+    public void reviewManagerDocument(
+            User currentUser,
+            String managerUserId,
+            ManagerDocumentStatus status,
+            String reviewNote,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해 주세요.");
+            return;
+        }
+        if (status != ManagerDocumentStatus.APPROVED && status != ManagerDocumentStatus.REJECTED) {
+            callback.onError("서류 검토 상태가 올바르지 않습니다.");
+            return;
+        }
+        if (repository.reviewManagerDocument(managerUserId, status, reviewNote) == null) {
+            callback.onError("매니저 서류 검토 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }
@@ -114,12 +140,18 @@ public class MockAdminRepository implements AdminRepository {
     private AdminDashboard buildDashboard(User currentUser) {
         List<User> availableManagers = new ArrayList<>();
         List<User> busyManagers = new ArrayList<>();
+        List<ManagerDocumentOverview> managerDocumentOverviews = new ArrayList<>();
         for (User manager : repository.getUsersByRole(UserRole.MANAGER)) {
             if (repository.isManagerAvailable(manager.getId())) {
                 availableManagers.add(manager);
             } else {
                 busyManagers.add(manager);
             }
+            ManagerHomeProfile profile = repository.getManagerHomeProfile(manager.getId());
+            if (profile == null) {
+                profile = new ManagerHomeProfile("", "");
+            }
+            managerDocumentOverviews.add(new ManagerDocumentOverview(manager, profile));
         }
 
         List<AdminRequestOverview> pendingRequests = new ArrayList<>();
@@ -146,6 +178,7 @@ public class MockAdminRepository implements AdminRepository {
                 currentUser,
                 availableManagers,
                 busyManagers,
+                managerDocumentOverviews,
                 pendingRequests,
                 managedRequests,
                 repository.getHospitalGuides()
