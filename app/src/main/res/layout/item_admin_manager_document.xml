@@ -86,6 +86,20 @@
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="13sp" />
 
+        <TextView
+            android:id="@+id/textAdminManagerDocumentTimeline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_surface_pill"
+            android:lineSpacingExtra="4dp"
+            android:paddingStart="16dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="14dp"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="13sp" />
+
         <LinearLayout
             android:id="@+id/layoutAdminManagerDocumentActions"
             android:layout_width="match_parent"
@@ -116,5 +130,15 @@
                 android:text="@string/admin_manager_document_reject"
                 android:textSize="14sp" />
         </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonAdminManagerDocumentHistory"
+            style="@style/BodeulOutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:text="@string/admin_manager_document_history"
+            android:textSize="14sp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

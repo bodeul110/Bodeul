@@ -139,3 +139,70 @@
 - 매니저 서류 `실제 파일 업로드`와 `증빙 이미지 미리보기`
 - 관리자 검토 이력의 `타임라인`, `담당자 로그`
 - 빠른 선택 버튼의 `선택 상태 강조`, `주말/야간 프리셋` 같은 추가 UX
+
+## 9. 2026-04-15 추가 업데이트
+
+### 구현
+
+- 관리자 서류 검토 카드에 `서류 제출 시각`, `최근 검토 시각`, `담당자`를 함께 보여주는 타임라인을 추가했다.
+- 매니저 홈 프로필 모델에 서류 제출/검토 시각과 검토 담당자 이름을 저장하도록 확장했다.
+- 매니저가 서류 요약을 다시 저장하면 기존 검토 이력은 초기화되고, 관리자가 승인 또는 보완 요청을 저장하면 검토 시각과 담당자 이름이 함께 기록된다.
+
+### 변경 범위
+
+- `domain/model`: `ManagerHomeProfile`
+- `data`: `MockBodeulRepository`, `MockAdminRepository`, `FirebaseAdminRepository`, `FirebaseManagerRepository`
+- `ui`: `AdminActivity`
+- `layout`: `item_admin_manager_document.xml`
+- `values`: `strings.xml`
+- `test`: `MockBodeulRepositoryTest`
+
+### 남은 범위
+
+- 매니저 서류 `실제 파일 업로드`, `증빙 이미지 미리보기`
+- 관리자 검토 이력의 별도 `로그/타임라인 화면`
+- 빠른 선택 버튼의 `선택 상태 강조`, `주말/야간 프리셋`
+
+## 10. 2026-04-15 추가 업데이트
+
+### 구현
+
+- 동행 신청의 빠른 날짜/시간 버튼에 현재 선택 상태를 바로 보여주는 강조 스타일을 추가했다.
+- 날짜가 `오늘`, `내일`, `모레` 중 하나와 일치하면 해당 버튼이 선택 상태로 유지된다.
+- 시간이 `오전 10시`, `오후 2시`, `오후 4시` 중 하나와 일치하면 해당 시간 버튼도 함께 강조된다.
+- 달력/시간 선택기, 빠른 선택 버튼, 수정 모드 진입/해제 모두 같은 선택 상태 계산을 재사용한다.
+
+### 변경 범위
+
+- `ui`: `BookingActivity`
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- 매니저 서류 `실제 파일 업로드`, `증빙 이미지 미리보기`
+- 관리자 검토 이력의 별도 `로그/타임라인 화면`
+- 빠른 선택 버튼의 `주말/야간 프리셋`
+
+## 11. 2026-04-15 추가 업데이트
+
+### 구현
+
+- 관리자 서류 카드에 `검토 이력 보기` 버튼을 추가하고, 별도 다이얼로그에서 제출/승인/보완 요청 기록을 시간순으로 확인할 수 있게 했다.
+- 목업 저장소와 Firebase 저장소 모두 `managerDocumentHistory` 배열을 유지하도록 확장했다.
+- 매니저가 서류 요약을 저장하면 `SUBMITTED` 이력이 쌓이고, 관리자가 승인 또는 보완 요청을 저장하면 `APPROVED`, `REJECTED` 이력이 이어서 누적된다.
+
+### 변경 범위
+
+- `domain/model`: `ManagerDocumentHistoryEntry`, `ManagerDocumentHistoryEventType`, `ManagerDocumentOverview`
+- `data`: `MockBodeulRepository`, `MockAdminRepository`, `FirebaseAdminRepository`, `FirebaseManagerRepository`
+- `ui`: `AdminActivity`
+- `layout`: `dialog_admin_document_history.xml`, `item_admin_document_history.xml`, `item_admin_manager_document.xml`
+- `values`: `strings.xml`
+- `test`: `MockBodeulRepositoryTest`
+- `docs`: `data-api-draft.md`, `implementation-status.md`
+
+### 남은 범위
+
+- 매니저 서류 `실제 파일 업로드`, `증빙 이미지 미리보기`
+- 관리자 검토 이력의 `필터/검색`, `운영 메모 고정` 같은 2차 기능
+- 빠른 선택 버튼의 `주말/야간 프리셋`

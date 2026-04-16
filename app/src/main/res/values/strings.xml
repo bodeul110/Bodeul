@@ -436,4 +436,20 @@
     <string name="booking_quick_time_morning">오전 10시</string>
     <string name="booking_quick_time_afternoon">오후 2시</string>
     <string name="booking_quick_time_late_afternoon">오후 4시</string>
+    <string name="admin_manager_document_timeline_empty">검토 이력: 아직 기록이 없습니다.</string>
+    <string name="admin_manager_document_timeline_value">서류 제출: %1$s\n최근 검토: %2$s\n담당자: %3$s</string>
+    <string name="admin_manager_document_timeline_none">기록 없음</string>
+    <string name="admin_manager_document_history">검토 이력 보기</string>
+    <string name="admin_manager_document_history_dialog_title">%1$s 매니저 검토 이력</string>
+    <string name="admin_manager_document_history_helper">서류 제출부터 최근 검토까지 시간순으로 확인할 수 있습니다.</string>
+    <string name="admin_manager_document_history_empty">아직 기록된 검토 이력이 없습니다.</string>
+    <string name="admin_manager_document_history_submitted">서류 제출</string>
+    <string name="admin_manager_document_history_approved">승인</string>
+    <string name="admin_manager_document_history_rejected">보완 요청</string>
+    <string name="admin_manager_document_history_actor">담당자: %1$s</string>
+    <string name="admin_manager_document_history_submitted_body">제출 내용: %1$s</string>
+    <string name="admin_manager_document_history_approved_body">승인 메모: %1$s</string>
+    <string name="admin_manager_document_history_rejected_body">보완 요청: %1$s</string>
+    <string name="admin_manager_document_history_body_empty">기록된 메모가 없습니다.</string>
+    <string name="admin_manager_document_history_close">닫기</string>
 </resources>

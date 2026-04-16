@@ -8,6 +8,8 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -302,8 +304,14 @@ public class MockBodeulRepositoryTest {
         assertNotNull(updatedAvailabilityProfile);
         assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedDocumentProfile.getDocumentStatus());
         assertEquals("", updatedDocumentProfile.getDocumentReviewNote());
+        assertEquals(true, updatedDocumentProfile.getDocumentUpdatedAtMillis() > 0L);
+        assertEquals(0L, updatedDocumentProfile.getDocumentReviewedAtMillis());
         assertEquals("추가 서류 검토 중", updatedDocumentProfile.getDocumentSummary());
         assertEquals("월-금 10:00-17:00 가능", updatedAvailabilityProfile.getAvailabilitySummary());
+        List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
+        assertEquals(3, historyEntries.size());
+        assertEquals(ManagerDocumentHistoryEventType.SUBMITTED, historyEntries.get(0).getEventType());
+        assertEquals(manager.getName(), historyEntries.get(0).getActorName());
     }
 
     @Test
@@ -316,11 +324,18 @@ public class MockBodeulRepositoryTest {
         ManagerHomeProfile reviewedProfile = repository.reviewManagerDocument(
                 manager.getId(),
                 ManagerDocumentStatus.REJECTED,
-                "증빙 사진이 흐려 다시 제출해 주세요."
+                "증빙 사진이 흐려 다시 제출해 주세요.",
+                "관리자"
         );
 
         assertNotNull(reviewedProfile);
         assertEquals(ManagerDocumentStatus.REJECTED, reviewedProfile.getDocumentStatus());
         assertEquals("증빙 사진이 흐려 다시 제출해 주세요.", reviewedProfile.getDocumentReviewNote());
+        assertEquals("관리자", reviewedProfile.getDocumentReviewedByName());
+        assertEquals(true, reviewedProfile.getDocumentReviewedAtMillis() > 0L);
+        List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
+        assertEquals(3, historyEntries.size());
+        assertEquals(ManagerDocumentHistoryEventType.REJECTED, historyEntries.get(0).getEventType());
+        assertEquals(reviewedProfile.getDocumentReviewedByName(), historyEntries.get(0).getActorName());
     }
 }

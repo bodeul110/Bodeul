@@ -134,3 +134,5 @@
 - 매니저가 서류 요약을 다시 저장하면 `managerDocumentStatus`는 `PENDING_REVIEW`로 재설정된다.
 - 관리자는 `APPROVED`, `REJECTED` 두 상태만 직접 저장한다.
 - `managerDocumentReviewNote`는 승인 메모 또는 보완 요청 사유를 담는다.
+- 서류 요약을 저장하면 `managerDocumentUpdatedAt`이 갱신되고, 관리자가 검토를 저장하면 `managerDocumentReviewedAt`, `managerDocumentReviewedByName`이 함께 기록된다.
+- `managerDocumentHistory` 배열에는 `eventType`, `happenedAt`, `actorName`, `summary`, `reviewNote`가 누적되어 관리자 검토 이력 다이얼로그에 바로 사용된다.

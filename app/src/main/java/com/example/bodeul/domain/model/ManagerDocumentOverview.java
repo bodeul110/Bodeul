@@ -1,15 +1,28 @@
 package com.example.bodeul.domain.model;
 
-/**
- * 관리자 화면에서 매니저별 서류 제출 현황과 검토 상태를 함께 보여주기 위한 모델이다.
- */
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class ManagerDocumentOverview {
     private final User manager;
     private final ManagerHomeProfile profile;
+    private final List<ManagerDocumentHistoryEntry> historyEntries;
 
     public ManagerDocumentOverview(User manager, ManagerHomeProfile profile) {
+        this(manager, profile, Collections.emptyList());
+    }
+
+    public ManagerDocumentOverview(
+            User manager,
+            ManagerHomeProfile profile,
+            List<ManagerDocumentHistoryEntry> historyEntries
+    ) {
         this.manager = manager;
         this.profile = profile;
+        this.historyEntries = historyEntries == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(historyEntries));
     }
 
     public User getManager() {
@@ -18,5 +31,9 @@ public class ManagerDocumentOverview {
 
     public ManagerHomeProfile getProfile() {
         return profile;
+    }
+
+    public List<ManagerDocumentHistoryEntry> getHistoryEntries() {
+        return historyEntries;
     }
 }

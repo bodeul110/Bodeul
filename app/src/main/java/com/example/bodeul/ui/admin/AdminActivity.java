@@ -28,6 +28,8 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -914,6 +916,129 @@ public class AdminActivity extends AppCompatActivity {
         );
     }
 
+    private void openManagerDocumentHistoryDialog(ManagerDocumentOverview overview) {
+        View dialogView = LayoutInflater.from(this).inflate(
+                R.layout.dialog_admin_document_history,
+                null,
+                false
+        );
+        TextView helperView = dialogView.findViewById(R.id.textAdminDocumentHistoryHelper);
+        LinearLayout container = dialogView.findViewById(R.id.adminDocumentHistoryContainer);
+        helperView.setText(R.string.admin_manager_document_history_helper);
+        renderManagerDocumentHistoryEntries(container, overview);
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(
+                        R.string.admin_manager_document_history_dialog_title,
+                        overview.getManager().getName()
+                ))
+                .setView(dialogView)
+                .setPositiveButton(R.string.admin_manager_document_history_close, null)
+                .show();
+    }
+
+    private void renderManagerDocumentHistoryEntries(
+            LinearLayout container,
+            ManagerDocumentOverview overview
+    ) {
+        container.removeAllViews();
+        if (overview.getHistoryEntries().isEmpty()) {
+            renderEmptyText(
+                    container,
+                    R.string.admin_manager_document_history,
+                    R.string.admin_manager_document_history_empty
+            );
+            return;
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (ManagerDocumentHistoryEntry historyEntry : overview.getHistoryEntries()) {
+            View itemView = inflater.inflate(
+                    R.layout.item_admin_document_history,
+                    container,
+                    false
+            );
+            bindManagerDocumentHistoryItem(itemView, overview, historyEntry);
+            container.addView(itemView);
+        }
+    }
+
+    private void bindManagerDocumentHistoryItem(
+            View itemView,
+            ManagerDocumentOverview overview,
+            ManagerDocumentHistoryEntry historyEntry
+    ) {
+        TextView badgeView = itemView.findViewById(R.id.textAdminDocumentHistoryBadge);
+        TextView timestampView = itemView.findViewById(R.id.textAdminDocumentHistoryTimestamp);
+        TextView actorView = itemView.findViewById(R.id.textAdminDocumentHistoryActor);
+        TextView bodyView = itemView.findViewById(R.id.textAdminDocumentHistoryBody);
+
+        bindManagerDocumentHistoryBadge(badgeView, historyEntry.getEventType());
+        timestampView.setText(formatManagerDocumentTimestamp(historyEntry.getHappenedAtMillis()));
+
+        String actorName = TextUtils.isEmpty(historyEntry.getActorName())
+                ? overview.getManager().getName()
+                : historyEntry.getActorName();
+        actorView.setText(getString(R.string.admin_manager_document_history_actor, actorName));
+        bodyView.setText(buildManagerDocumentHistoryBody(historyEntry));
+    }
+
+    private void bindManagerDocumentHistoryBadge(
+            TextView textView,
+            ManagerDocumentHistoryEventType eventType
+    ) {
+        int backgroundColor;
+        int textColor;
+        switch (eventType) {
+            case APPROVED:
+                backgroundColor = R.color.bodeul_success;
+                textColor = R.color.white;
+                break;
+            case REJECTED:
+                backgroundColor = R.color.bodeul_warning;
+                textColor = R.color.bodeul_text_primary;
+                break;
+            case SUBMITTED:
+            default:
+                backgroundColor = R.color.bodeul_primary;
+                textColor = R.color.white;
+                break;
+        }
+
+        textView.setText(toManagerDocumentHistoryLabel(eventType));
+        textView.setBackgroundTintList(ColorStateList.valueOf(getColor(backgroundColor)));
+        textView.setTextColor(getColor(textColor));
+    }
+
+    private String toManagerDocumentHistoryLabel(ManagerDocumentHistoryEventType eventType) {
+        switch (eventType) {
+            case APPROVED:
+                return getString(R.string.admin_manager_document_history_approved);
+            case REJECTED:
+                return getString(R.string.admin_manager_document_history_rejected);
+            case SUBMITTED:
+            default:
+                return getString(R.string.admin_manager_document_history_submitted);
+        }
+    }
+
+    private String buildManagerDocumentHistoryBody(ManagerDocumentHistoryEntry historyEntry) {
+        String detail = historyEntry.getEventType() == ManagerDocumentHistoryEventType.SUBMITTED
+                ? historyEntry.getSummary()
+                : historyEntry.getReviewNote();
+        if (TextUtils.isEmpty(detail)) {
+            detail = getString(R.string.admin_manager_document_history_body_empty);
+        }
+
+        if (historyEntry.getEventType() == ManagerDocumentHistoryEventType.APPROVED) {
+            return getString(R.string.admin_manager_document_history_approved_body, detail);
+        }
+        if (historyEntry.getEventType() == ManagerDocumentHistoryEventType.REJECTED) {
+            return getString(R.string.admin_manager_document_history_rejected_body, detail);
+        }
+        return getString(R.string.admin_manager_document_history_submitted_body, detail);
+    }
+
     private String buildManagerDocumentSummaryText(ManagerHomeProfile profile) {
         if (TextUtils.isEmpty(profile.getDocumentSummary())) {
             return getString(R.string.admin_manager_document_summary_empty);
@@ -939,6 +1064,34 @@ public class AdminActivity extends AppCompatActivity {
                 R.string.admin_manager_document_review_note_value,
                 profile.getDocumentReviewNote()
         );
+    }
+
+    private String buildManagerDocumentTimelineText(ManagerHomeProfile profile) {
+        long submittedAtMillis = profile.getDocumentUpdatedAtMillis();
+        long reviewedAtMillis = profile.getDocumentReviewedAtMillis();
+        if (submittedAtMillis <= 0L
+                && reviewedAtMillis <= 0L
+                && TextUtils.isEmpty(profile.getDocumentReviewedByName())) {
+            return getString(R.string.admin_manager_document_timeline_empty);
+        }
+
+        String reviewerName = TextUtils.isEmpty(profile.getDocumentReviewedByName())
+                ? getString(R.string.admin_manager_document_timeline_none)
+                : profile.getDocumentReviewedByName();
+        return getString(
+                R.string.admin_manager_document_timeline_value,
+                formatManagerDocumentTimestamp(submittedAtMillis),
+                formatManagerDocumentTimestamp(reviewedAtMillis),
+                reviewerName
+        );
+    }
+
+    private String formatManagerDocumentTimestamp(long timestampMillis) {
+        if (timestampMillis <= 0L) {
+            return getString(R.string.admin_manager_document_timeline_none);
+        }
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
+        return formatter.format(timestampMillis);
     }
 
     private String buildGuidePreview(HospitalGuide guide) {
@@ -1064,7 +1217,9 @@ public class AdminActivity extends AppCompatActivity {
         TextView summaryView = itemView.findViewById(R.id.textAdminManagerDocumentSummary);
         TextView availabilityView = itemView.findViewById(R.id.textAdminManagerDocumentAvailability);
         TextView reviewNoteView = itemView.findViewById(R.id.textAdminManagerDocumentReviewNote);
+        TextView timelineView = itemView.findViewById(R.id.textAdminManagerDocumentTimeline);
         View actionLayout = itemView.findViewById(R.id.layoutAdminManagerDocumentActions);
+        MaterialButton historyButton = itemView.findViewById(R.id.buttonAdminManagerDocumentHistory);
         MaterialButton approveButton = itemView.findViewById(R.id.buttonAdminManagerDocumentApprove);
         MaterialButton rejectButton = itemView.findViewById(R.id.buttonAdminManagerDocumentReject);
 
@@ -1077,15 +1232,19 @@ public class AdminActivity extends AppCompatActivity {
         summaryView.setText(buildManagerDocumentSummaryText(profile));
         availabilityView.setText(buildManagerDocumentAvailabilityText(profile));
         reviewNoteView.setText(buildManagerDocumentReviewNoteText(profile));
+        timelineView.setText(buildManagerDocumentTimelineText(profile));
 
         boolean hasDocumentSummary = !TextUtils.isEmpty(profile.getDocumentSummary());
         actionLayout.setVisibility(hasDocumentSummary ? View.VISIBLE : View.GONE);
         approveButton.setEnabled(!loading && hasDocumentSummary);
         rejectButton.setEnabled(!loading && hasDocumentSummary);
+        historyButton.setVisibility(overview.getHistoryEntries().isEmpty() ? View.GONE : View.VISIBLE);
+        historyButton.setEnabled(!loading);
         approveButton.setOnClickListener(view ->
                 openManagerDocumentReviewDialog(overview, ManagerDocumentStatus.APPROVED));
         rejectButton.setOnClickListener(view ->
                 openManagerDocumentReviewDialog(overview, ManagerDocumentStatus.REJECTED));
+        historyButton.setOnClickListener(view -> openManagerDocumentHistoryDialog(overview));
     }
 
     private void confirmGuideDelete(HospitalGuide guide) {

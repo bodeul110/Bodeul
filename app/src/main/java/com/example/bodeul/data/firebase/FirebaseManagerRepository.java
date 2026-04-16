@@ -10,6 +10,8 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
@@ -225,12 +227,15 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         : ManagerDocumentStatus.PENDING_REVIEW.name()
         );
         updates.put("managerDocumentReviewNote", "");
+        updates.put("managerDocumentReviewedByName", "");
+        updates.put("managerDocumentReviewedAt", FieldValue.delete());
         updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
 
         firestore.collection("users")
                 .document(managerUserId)
                 .update(updates)
-                .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                .addOnSuccessListener(unused ->
+                        onManagerDocumentSummarySaved(managerUserId, normalizedSummary, callback))
                 .addOnFailureListener(exception ->
                         callback.onError("서류 등록 정보를 저장하지 못했습니다."));
 
@@ -324,6 +329,46 @@ public class FirebaseManagerRepository implements ManagerRepository {
         return true;
     }
 
+    private void onManagerDocumentSummarySaved(
+            String managerUserId,
+            String normalizedSummary,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        if (normalizedSummary.isEmpty()) {
+            getManagerHomeProfile(managerUserId, callback);
+            return;
+        }
+
+        firestore.collection("users")
+                .document(managerUserId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (!documentSnapshot.exists()) {
+                        callback.onError("users 컬렉션에서 매니저 정보를 찾지 못했습니다.");
+                        return;
+                    }
+
+                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
+                            toManagerDocumentHistory(documentSnapshot),
+                            new ManagerDocumentHistoryEntry(
+                                    ManagerDocumentHistoryEventType.SUBMITTED,
+                                    System.currentTimeMillis(),
+                                    normalizeText(documentSnapshot.getString("name")),
+                                    normalizedSummary,
+                                    ""
+                            )
+                    );
+
+                    documentSnapshot.getReference()
+                            .update("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries))
+                            .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("?쒕쪟 寃???대젰????ν븯吏 紐삵뻽?듬땲??"));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("?쒕쪟 寃???대젰????ν븳 ?꾨꿡 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+    }
+
     private void saveManagerHomeProfileField(
             String managerUserId,
             String key,
@@ -400,12 +445,67 @@ public class FirebaseManagerRepository implements ManagerRepository {
         String availabilitySummary = documentSnapshot.getString("managerAvailabilitySummary");
         String documentStatus = documentSnapshot.getString("managerDocumentStatus");
         String documentReviewNote = documentSnapshot.getString("managerDocumentReviewNote");
+        String documentReviewedByName = documentSnapshot.getString("managerDocumentReviewedByName");
+        long documentUpdatedAtMillis = resolveTimestampMillis(documentSnapshot.get("managerDocumentUpdatedAt"));
+        long documentReviewedAtMillis = resolveTimestampMillis(documentSnapshot.get("managerDocumentReviewedAt"));
         return new ManagerHomeProfile(
                 documentSummary == null ? "" : documentSummary,
                 availabilitySummary == null ? "" : availabilitySummary,
                 resolveManagerDocumentStatus(documentStatus, documentSummary),
-                documentReviewNote == null ? "" : documentReviewNote
+                documentReviewNote == null ? "" : documentReviewNote,
+                documentUpdatedAtMillis,
+                documentReviewedAtMillis,
+                documentReviewedByName == null ? "" : documentReviewedByName
         );
+    }
+
+    private List<ManagerDocumentHistoryEntry> toManagerDocumentHistory(DocumentSnapshot documentSnapshot) {
+        Object rawHistory = documentSnapshot.get("managerDocumentHistory");
+        if (!(rawHistory instanceof List)) {
+            return new ArrayList<>();
+        }
+
+        List<ManagerDocumentHistoryEntry> historyEntries = new ArrayList<>();
+        for (Object rawEntry : (List<?>) rawHistory) {
+            if (!(rawEntry instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> entryMap = (Map<?, ?>) rawEntry;
+            historyEntries.add(new ManagerDocumentHistoryEntry(
+                    resolveHistoryEventType(normalizeText(stringValue(entryMap.get("eventType")))),
+                    resolveTimestampMillis(entryMap.get("happenedAt")),
+                    normalizeText(stringValue(entryMap.get("actorName"))),
+                    normalizeText(stringValue(entryMap.get("summary"))),
+                    normalizeText(stringValue(entryMap.get("reviewNote")))
+            ));
+        }
+        historyEntries.sort((left, right) -> Long.compare(right.getHappenedAtMillis(), left.getHappenedAtMillis()));
+        return historyEntries;
+    }
+
+    private List<ManagerDocumentHistoryEntry> appendManagerDocumentHistory(
+            List<ManagerDocumentHistoryEntry> historyEntries,
+            ManagerDocumentHistoryEntry historyEntry
+    ) {
+        List<ManagerDocumentHistoryEntry> updatedEntries = new ArrayList<>(historyEntries);
+        updatedEntries.add(0, historyEntry);
+        return updatedEntries;
+    }
+
+    private List<Map<String, Object>> toManagerDocumentHistoryPayload(
+            List<ManagerDocumentHistoryEntry> historyEntries
+    ) {
+        List<Map<String, Object>> payload = new ArrayList<>();
+        for (ManagerDocumentHistoryEntry historyEntry : historyEntries) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("eventType", historyEntry.getEventType().name());
+            item.put("happenedAt", historyEntry.getHappenedAtMillis());
+            item.put("actorName", historyEntry.getActorName());
+            item.put("summary", historyEntry.getSummary());
+            item.put("reviewNote", historyEntry.getReviewNote());
+            payload.add(item);
+        }
+        return payload;
     }
 
     @Nullable
@@ -590,6 +690,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Nullable
+    private String stringValue(@Nullable Object rawValue) {
+        return rawValue instanceof String ? (String) rawValue : null;
+    }
+
+    @Nullable
     private String stringifyDate(@Nullable Object rawValue) {
         // Timestamp와 문자열 입력을 모두 같은 텍스트 출력으로 맞춘다.
         if (rawValue == null) {
@@ -603,6 +708,27 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     private String stringOrEmpty(@Nullable String value) {
         return value == null ? "" : value;
+    }
+
+    private long resolveTimestampMillis(@Nullable Object rawValue) {
+        if (rawValue instanceof Timestamp) {
+            return ((Timestamp) rawValue).toDate().getTime();
+        }
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).longValue();
+        }
+        return 0L;
+    }
+
+    private ManagerDocumentHistoryEventType resolveHistoryEventType(String rawValue) {
+        if (rawValue.isEmpty()) {
+            return ManagerDocumentHistoryEventType.SUBMITTED;
+        }
+        try {
+            return ManagerDocumentHistoryEventType.valueOf(rawValue);
+        } catch (IllegalArgumentException exception) {
+            return ManagerDocumentHistoryEventType.SUBMITTED;
+        }
     }
 
     private ManagerDocumentStatus resolveManagerDocumentStatus(

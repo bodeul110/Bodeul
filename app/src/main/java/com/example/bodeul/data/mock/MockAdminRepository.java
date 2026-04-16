@@ -125,7 +125,12 @@ public class MockAdminRepository implements AdminRepository {
             callback.onError("서류 검토 상태가 올바르지 않습니다.");
             return;
         }
-        if (repository.reviewManagerDocument(managerUserId, status, reviewNote) == null) {
+        if (repository.reviewManagerDocument(
+                managerUserId,
+                status,
+                reviewNote,
+                currentUser.getName()
+        ) == null) {
             callback.onError("매니저 서류 검토 상태를 저장하지 못했습니다.");
             return;
         }
@@ -151,7 +156,11 @@ public class MockAdminRepository implements AdminRepository {
             if (profile == null) {
                 profile = new ManagerHomeProfile("", "");
             }
-            managerDocumentOverviews.add(new ManagerDocumentOverview(manager, profile));
+            managerDocumentOverviews.add(new ManagerDocumentOverview(
+                    manager,
+                    profile,
+                    repository.getManagerDocumentHistory(manager.getId())
+            ));
         }
 
         List<AdminRequestOverview> pendingRequests = new ArrayList<>();

@@ -11,6 +11,8 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -231,9 +233,23 @@ public class FirebaseAdminRepository implements AdminRepository {
                     }
 
                     Map<String, Object> updates = new HashMap<>();
+                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
+                            toManagerDocumentHistory(documentSnapshot),
+                            new ManagerDocumentHistoryEntry(
+                                    status == ManagerDocumentStatus.APPROVED
+                                            ? ManagerDocumentHistoryEventType.APPROVED
+                                            : ManagerDocumentHistoryEventType.REJECTED,
+                                    System.currentTimeMillis(),
+                                    normalizeText(currentUser.getName()),
+                                    profile.getDocumentSummary(),
+                                    normalizeText(reviewNote)
+                            )
+                    );
                     updates.put("managerDocumentStatus", status.name());
                     updates.put("managerDocumentReviewNote", normalizeText(reviewNote));
                     updates.put("managerDocumentReviewedAt", FieldValue.serverTimestamp());
+                    updates.put("managerDocumentReviewedByName", normalizeText(currentUser.getName()));
+                    updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
 
                     documentSnapshot.getReference()
                             .update(updates)
@@ -320,7 +336,8 @@ public class FirebaseAdminRepository implements AdminRepository {
             }
             managerDocumentOverviews.add(new ManagerDocumentOverview(
                     user,
-                    toManagerHomeProfile(documentSnapshot)
+                    toManagerHomeProfile(documentSnapshot),
+                    toManagerDocumentHistory(documentSnapshot)
             ));
         }
 
@@ -513,12 +530,70 @@ public class FirebaseAdminRepository implements AdminRepository {
         String availabilitySummary = documentSnapshot.getString("managerAvailabilitySummary");
         String documentStatus = documentSnapshot.getString("managerDocumentStatus");
         String documentReviewNote = documentSnapshot.getString("managerDocumentReviewNote");
+        String documentReviewedByName = documentSnapshot.getString("managerDocumentReviewedByName");
+        long documentUpdatedAtMillis = resolveTimestampMillis(documentSnapshot.get("managerDocumentUpdatedAt"));
+        long documentReviewedAtMillis = resolveTimestampMillis(documentSnapshot.get("managerDocumentReviewedAt"));
         return new ManagerHomeProfile(
                 normalizeText(documentSummary),
                 normalizeText(availabilitySummary),
                 resolveManagerDocumentStatus(documentStatus, documentSummary),
-                normalizeText(documentReviewNote)
+                normalizeText(documentReviewNote),
+                documentUpdatedAtMillis,
+                documentReviewedAtMillis,
+                normalizeText(documentReviewedByName)
         );
+    }
+
+    private List<ManagerDocumentHistoryEntry> toManagerDocumentHistory(DocumentSnapshot documentSnapshot) {
+        Object rawHistory = documentSnapshot.get("managerDocumentHistory");
+        if (!(rawHistory instanceof List)) {
+            return new ArrayList<>();
+        }
+
+        List<ManagerDocumentHistoryEntry> historyEntries = new ArrayList<>();
+        for (Object rawEntry : (List<?>) rawHistory) {
+            if (!(rawEntry instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> entryMap = (Map<?, ?>) rawEntry;
+            String eventTypeValue = normalizeText(stringValue(entryMap.get("eventType")));
+            ManagerDocumentHistoryEventType eventType = resolveHistoryEventType(eventTypeValue);
+            long happenedAtMillis = resolveTimestampMillis(entryMap.get("happenedAt"));
+            historyEntries.add(new ManagerDocumentHistoryEntry(
+                    eventType,
+                    happenedAtMillis,
+                    normalizeText(stringValue(entryMap.get("actorName"))),
+                    normalizeText(stringValue(entryMap.get("summary"))),
+                    normalizeText(stringValue(entryMap.get("reviewNote")))
+            ));
+        }
+        historyEntries.sort((left, right) -> Long.compare(right.getHappenedAtMillis(), left.getHappenedAtMillis()));
+        return historyEntries;
+    }
+
+    private List<ManagerDocumentHistoryEntry> appendManagerDocumentHistory(
+            List<ManagerDocumentHistoryEntry> historyEntries,
+            ManagerDocumentHistoryEntry historyEntry
+    ) {
+        List<ManagerDocumentHistoryEntry> updatedEntries = new ArrayList<>(historyEntries);
+        updatedEntries.add(0, historyEntry);
+        return updatedEntries;
+    }
+
+    private List<Map<String, Object>> toManagerDocumentHistoryPayload(
+            List<ManagerDocumentHistoryEntry> historyEntries
+    ) {
+        List<Map<String, Object>> payload = new ArrayList<>();
+        for (ManagerDocumentHistoryEntry historyEntry : historyEntries) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("eventType", historyEntry.getEventType().name());
+            item.put("happenedAt", historyEntry.getHappenedAtMillis());
+            item.put("actorName", historyEntry.getActorName());
+            item.put("summary", historyEntry.getSummary());
+            item.put("reviewNote", historyEntry.getReviewNote());
+            payload.add(item);
+        }
+        return payload;
     }
 
     @Nullable
@@ -638,6 +713,32 @@ public class FirebaseAdminRepository implements AdminRepository {
 
     private String normalizeText(@Nullable String rawValue) {
         return rawValue == null ? "" : rawValue.trim();
+    }
+
+    @Nullable
+    private String stringValue(@Nullable Object rawValue) {
+        return rawValue instanceof String ? (String) rawValue : null;
+    }
+
+    private long resolveTimestampMillis(@Nullable Object rawValue) {
+        if (rawValue instanceof Timestamp) {
+            return ((Timestamp) rawValue).toDate().getTime();
+        }
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).longValue();
+        }
+        return 0L;
+    }
+
+    private ManagerDocumentHistoryEventType resolveHistoryEventType(String rawValue) {
+        if (rawValue.isEmpty()) {
+            return ManagerDocumentHistoryEventType.SUBMITTED;
+        }
+        try {
+            return ManagerDocumentHistoryEventType.valueOf(rawValue);
+        } catch (IllegalArgumentException exception) {
+            return ManagerDocumentHistoryEventType.SUBMITTED;
+        }
     }
 
     private ManagerDocumentStatus resolveManagerDocumentStatus(

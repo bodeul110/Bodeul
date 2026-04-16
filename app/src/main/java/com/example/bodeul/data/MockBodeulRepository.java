@@ -8,6 +8,8 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
+import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
@@ -38,6 +40,10 @@ public class MockBodeulRepository implements BodeulRepository {
     private final Map<String, String> managerAvailabilitySummariesByUserId = new HashMap<>();
     private final Map<String, ManagerDocumentStatus> managerDocumentStatusesByUserId = new HashMap<>();
     private final Map<String, String> managerDocumentReviewNotesByUserId = new HashMap<>();
+    private final Map<String, Long> managerDocumentUpdatedAtByUserId = new HashMap<>();
+    private final Map<String, Long> managerDocumentReviewedAtByUserId = new HashMap<>();
+    private final Map<String, String> managerDocumentReviewedByNameByUserId = new HashMap<>();
+    private final Map<String, List<ManagerDocumentHistoryEntry>> managerDocumentHistoriesByUserId = new HashMap<>();
 
     public MockBodeulRepository() {
         seedUsers();
@@ -122,8 +128,19 @@ public class MockBodeulRepository implements BodeulRepository {
                 managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
                 managerAvailabilitySummariesByUserId.getOrDefault(managerUserId, ""),
                 resolveManagerDocumentStatus(managerUserId),
-                managerDocumentReviewNotesByUserId.getOrDefault(managerUserId, "")
+                managerDocumentReviewNotesByUserId.getOrDefault(managerUserId, ""),
+                managerDocumentUpdatedAtByUserId.getOrDefault(managerUserId, 0L),
+                managerDocumentReviewedAtByUserId.getOrDefault(managerUserId, 0L),
+                managerDocumentReviewedByNameByUserId.getOrDefault(managerUserId, "")
         );
+    }
+
+    public synchronized List<ManagerDocumentHistoryEntry> getManagerDocumentHistory(String managerUserId) {
+        List<ManagerDocumentHistoryEntry> historyEntries = managerDocumentHistoriesByUserId.get(managerUserId);
+        if (historyEntries == null) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(historyEntries));
     }
 
     @Nullable
@@ -140,7 +157,22 @@ public class MockBodeulRepository implements BodeulRepository {
             managerDocumentSummariesByUserId.put(managerUserId, normalizedSummary);
             managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.PENDING_REVIEW);
         }
+        managerDocumentUpdatedAtByUserId.put(managerUserId, System.currentTimeMillis());
         managerDocumentReviewNotesByUserId.remove(managerUserId);
+        managerDocumentReviewedAtByUserId.remove(managerUserId);
+        managerDocumentReviewedByNameByUserId.remove(managerUserId);
+        if (!normalizedSummary.isEmpty()) {
+            appendManagerDocumentHistory(
+                    managerUserId,
+                    new ManagerDocumentHistoryEntry(
+                            ManagerDocumentHistoryEventType.SUBMITTED,
+                            managerDocumentUpdatedAtByUserId.get(managerUserId),
+                            manager.getName(),
+                            normalizedSummary,
+                            ""
+                    )
+            );
+        }
         return getManagerHomeProfile(managerUserId);
     }
 
@@ -163,7 +195,8 @@ public class MockBodeulRepository implements BodeulRepository {
     public synchronized ManagerHomeProfile reviewManagerDocument(
             String managerUserId,
             ManagerDocumentStatus status,
-            String reviewNote
+            String reviewNote,
+            String reviewerName
     ) {
         User manager = findUserById(managerUserId);
         if (manager == null || manager.getRole() != UserRole.MANAGER) {
@@ -183,6 +216,25 @@ public class MockBodeulRepository implements BodeulRepository {
         } else {
             managerDocumentReviewNotesByUserId.put(managerUserId, normalizedReviewNote);
         }
+        managerDocumentReviewedAtByUserId.put(managerUserId, System.currentTimeMillis());
+        String normalizedReviewerName = normalizeText(reviewerName);
+        if (normalizedReviewerName.isEmpty()) {
+            managerDocumentReviewedByNameByUserId.remove(managerUserId);
+        } else {
+            managerDocumentReviewedByNameByUserId.put(managerUserId, normalizedReviewerName);
+        }
+        appendManagerDocumentHistory(
+                managerUserId,
+                new ManagerDocumentHistoryEntry(
+                        status == ManagerDocumentStatus.APPROVED
+                                ? ManagerDocumentHistoryEventType.APPROVED
+                                : ManagerDocumentHistoryEventType.REJECTED,
+                        managerDocumentReviewedAtByUserId.get(managerUserId),
+                        normalizedReviewerName,
+                        managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
+                        normalizedReviewNote
+                )
+        );
         return getManagerHomeProfile(managerUserId);
     }
 
@@ -851,6 +903,18 @@ public class MockBodeulRepository implements BodeulRepository {
         return ManagerDocumentStatus.NOT_SUBMITTED;
     }
 
+    private void appendManagerDocumentHistory(
+            String managerUserId,
+            ManagerDocumentHistoryEntry historyEntry
+    ) {
+        List<ManagerDocumentHistoryEntry> historyEntries = managerDocumentHistoriesByUserId.get(managerUserId);
+        if (historyEntries == null) {
+            historyEntries = new ArrayList<>();
+            managerDocumentHistoriesByUserId.put(managerUserId, historyEntries);
+        }
+        historyEntries.add(0, historyEntry);
+    }
+
     private String normalizeKey(String value) {
         // 이메일과 내부 키는 사용자 기기 로케일과 무관하게 동일한 규칙으로 정규화한다.
         return value.toLowerCase(Locale.ROOT);
@@ -897,9 +961,32 @@ public class MockBodeulRepository implements BodeulRepository {
                 "요양보호사 자격증, 신분증, 통장사본 제출 완료"
         );
         managerDocumentStatusesByUserId.put("manager-1", ManagerDocumentStatus.APPROVED);
+        managerDocumentUpdatedAtByUserId.put("manager-1", 1760490000000L);
+        managerDocumentReviewedAtByUserId.put("manager-1", 1760500800000L);
+        managerDocumentReviewedByNameByUserId.put("manager-1", "관리자");
         managerDocumentReviewNotesByUserId.put(
                 "manager-1",
                 "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요."
+        );
+        appendManagerDocumentHistory(
+                "manager-1",
+                new ManagerDocumentHistoryEntry(
+                        ManagerDocumentHistoryEventType.APPROVED,
+                        1760500800000L,
+                        "관리자",
+                        managerDocumentSummariesByUserId.get("manager-1"),
+                        managerDocumentReviewNotesByUserId.get("manager-1")
+                )
+        );
+        appendManagerDocumentHistory(
+                "manager-1",
+                new ManagerDocumentHistoryEntry(
+                        ManagerDocumentHistoryEventType.SUBMITTED,
+                        1760490000000L,
+                        "김보들",
+                        managerDocumentSummariesByUserId.get("manager-1"),
+                        ""
+                )
         );
         managerAvailabilitySummariesByUserId.put(
                 "manager-1",

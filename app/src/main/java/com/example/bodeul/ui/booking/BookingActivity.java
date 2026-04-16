@@ -239,6 +239,7 @@ public class BookingActivity extends AppCompatActivity {
         buttonBookingQuickMorning.setOnClickListener(view -> applyQuickAppointmentTime(10, 0));
         buttonBookingQuickAfternoon.setOnClickListener(view -> applyQuickAppointmentTime(14, 0));
         buttonBookingQuickLateAfternoon.setOnClickListener(view -> applyQuickAppointmentTime(16, 0));
+        refreshQuickAppointmentButtons();
     }
 
     private void openAppointmentDatePicker() {
@@ -287,6 +288,7 @@ public class BookingActivity extends AppCompatActivity {
 
         inputAppointmentAt.setText(formatAppointmentAt(seoulCalendar.getTimeInMillis()));
         layoutAppointmentAt.setError(null);
+        refreshQuickAppointmentButtons();
     }
 
     private void applyQuickAppointmentDate(int dayOffset) {
@@ -299,6 +301,7 @@ public class BookingActivity extends AppCompatActivity {
         baseCalendar.set(Calendar.DAY_OF_MONTH, todayCalendar.get(Calendar.DAY_OF_MONTH));
         inputAppointmentAt.setText(formatAppointmentAt(baseCalendar.getTimeInMillis()));
         layoutAppointmentAt.setError(null);
+        refreshQuickAppointmentButtons();
     }
 
     private void applyQuickAppointmentTime(int hourOfDay, int minute) {
@@ -309,6 +312,74 @@ public class BookingActivity extends AppCompatActivity {
         baseCalendar.set(Calendar.MILLISECOND, 0);
         inputAppointmentAt.setText(formatAppointmentAt(baseCalendar.getTimeInMillis()));
         layoutAppointmentAt.setError(null);
+        refreshQuickAppointmentButtons();
+    }
+
+    private void refreshQuickAppointmentButtons() {
+        Calendar selectedCalendar = parseAppointmentCalendar(valueOf(inputAppointmentAt));
+        int selectedDateOffset = resolveSelectedDateOffset(selectedCalendar);
+        bindQuickButtonStyle(buttonBookingQuickToday, selectedDateOffset == 0);
+        bindQuickButtonStyle(buttonBookingQuickTomorrow, selectedDateOffset == 1);
+        bindQuickButtonStyle(buttonBookingQuickDayAfterTomorrow, selectedDateOffset == 2);
+
+        boolean hasSelectedTime = selectedCalendar != null;
+        bindQuickButtonStyle(
+                buttonBookingQuickMorning,
+                hasSelectedTime
+                        && selectedCalendar.get(Calendar.HOUR_OF_DAY) == 10
+                        && selectedCalendar.get(Calendar.MINUTE) == 0
+        );
+        bindQuickButtonStyle(
+                buttonBookingQuickAfternoon,
+                hasSelectedTime
+                        && selectedCalendar.get(Calendar.HOUR_OF_DAY) == 14
+                        && selectedCalendar.get(Calendar.MINUTE) == 0
+        );
+        bindQuickButtonStyle(
+                buttonBookingQuickLateAfternoon,
+                hasSelectedTime
+                        && selectedCalendar.get(Calendar.HOUR_OF_DAY) == 16
+                        && selectedCalendar.get(Calendar.MINUTE) == 0
+        );
+    }
+
+    private int resolveSelectedDateOffset(@Nullable Calendar selectedCalendar) {
+        if (selectedCalendar == null) {
+            return -1;
+        }
+
+        Calendar todayCalendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
+        normalizeDateOnly(todayCalendar);
+
+        Calendar selectedDateCalendar = (Calendar) selectedCalendar.clone();
+        normalizeDateOnly(selectedDateCalendar);
+        long diffMillis = selectedDateCalendar.getTimeInMillis() - todayCalendar.getTimeInMillis();
+        long dayMillis = 24L * 60L * 60L * 1000L;
+        if (diffMillis < 0L || diffMillis % dayMillis != 0L) {
+            return -1;
+        }
+
+        long dayOffset = diffMillis / dayMillis;
+        return dayOffset <= 2L ? (int) dayOffset : -1;
+    }
+
+    private void normalizeDateOnly(Calendar calendar) {
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+    }
+
+    private void bindQuickButtonStyle(MaterialButton button, boolean selected) {
+        if (selected) {
+            button.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
+            button.setStrokeColor(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
+            button.setTextColor(getColor(R.color.white));
+            return;
+        }
+        button.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.white)));
+        button.setStrokeColor(ColorStateList.valueOf(getColor(R.color.bodeul_outline)));
+        button.setTextColor(getColor(R.color.bodeul_primary));
     }
 
     private Calendar resolveBaseAppointmentCalendar() {
@@ -524,6 +595,7 @@ public class BookingActivity extends AppCompatActivity {
         inputMeetingPlace.setText(request.getMeetingPlace());
         inputSpecialNotes.setText(request.getSpecialNotes());
         clearErrors();
+        refreshQuickAppointmentButtons();
         updateFormMode();
     }
 
@@ -922,6 +994,7 @@ public class BookingActivity extends AppCompatActivity {
         inputAppointmentAt.setText(null);
         inputMeetingPlace.setText(null);
         inputSpecialNotes.setText(null);
+        refreshQuickAppointmentButtons();
     }
 
     private void setLoading(boolean loading) {
