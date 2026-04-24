@@ -1231,3 +1231,19 @@
 ### 남은 범위
 
 - Node 20 deprecation 경고 대응 시점에 맞춰 GitHub Actions 런타임 정책만 점검
+
+## 57. 2026-04-24 다중 작업자 협업 규칙 문서화
+### 구현
+
+- 여러 작업자가 동시에 들어와도 충돌을 줄일 수 있도록 [collaboration-rules.md](/D:/BoDeul/docs/collaboration-rules.md)를 새로 추가했다.
+- 문서에는 시작 전 확인 순서, 충돌 위험이 큰 파일, 담당 범위 권장안, `implementation-status.md` 갱신 규칙, Firebase 운영 작업 단일 담당 원칙, 종료 전 체크리스트를 정리했다.
+- [README.md](/D:/BoDeul/README.md) 문서 목록과 협업 설정 섹션에도 협업 규칙 문서 링크를 추가해 처음 들어오는 사람이 바로 찾을 수 있게 했다.
+
+### 변경 범위
+
+- `docs`: `collaboration-rules.md`, `implementation-status.md`
+- 루트 문서: `README.md`
+
+### 남은 범위
+
+- 팀 내 실제 담당 방식에 맞춰 역할 구분이나 브랜치 규칙을 필요 시 더 구체화

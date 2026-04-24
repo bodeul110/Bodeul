@@ -19,6 +19,7 @@
 ## 문서
 
 - [현재 구현 상태](docs/implementation-status.md)
+- [협업 규칙](docs/collaboration-rules.md)
 - [전면 개편 목표 정리](docs/restructure-target-map.md)
 - [MVP 범위](docs/mvp-scope.md)
 - [아키텍처 초안](docs/architecture-draft.md)
@@ -36,7 +37,8 @@
 
 - 공용 원격 저장소는 `origin`(`git@github.com:bodeul110/Bodeul.git`) 기준으로 사용합니다.
 - GitHub 저장소에서 팀원을 `Collaborator`로 추가한 뒤 같은 저장소를 함께 사용합니다.
-- `master` 브랜치는 기준 브랜치로 유지하고, 기능 개발은 반드시 별도 브랜치에서 진행합니다.
+- `master` 브랜치는 기준 브랜치로 유지하고, 기능 개발은 가능하면 별도 브랜치에서 진행합니다.
+- 여러 작업자가 동시에 들어올 때의 상세 규칙은 [협업 규칙](docs/collaboration-rules.md)을 기준으로 맞춥니다.
 
 ## 협업 절차
 
