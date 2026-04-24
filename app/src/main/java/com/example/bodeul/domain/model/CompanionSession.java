@@ -13,6 +13,8 @@ public class CompanionSession {
     private int currentStepOrder;
     private SessionStatus status;
     private String guardianUpdate;
+    private String locationSummary;
+    private String fieldPhotoNote;
     private String medicationNote;
 
     public CompanionSession(
@@ -22,6 +24,8 @@ public class CompanionSession {
             int currentStepOrder,
             SessionStatus status,
             String guardianUpdate,
+            String locationSummary,
+            String fieldPhotoNote,
             String medicationNote
     ) {
         this.id = id;
@@ -30,6 +34,8 @@ public class CompanionSession {
         this.currentStepOrder = currentStepOrder;
         this.status = status;
         this.guardianUpdate = guardianUpdate;
+        this.locationSummary = locationSummary;
+        this.fieldPhotoNote = fieldPhotoNote;
         this.medicationNote = medicationNote;
     }
 
@@ -70,6 +76,24 @@ public class CompanionSession {
     // 보호자에게 공유할 현장 메시지를 저장한다.
     public void setGuardianUpdate(String guardianUpdate) {
         this.guardianUpdate = guardianUpdate;
+    }
+
+    public String getLocationSummary() {
+        return locationSummary;
+    }
+
+    // 위치 공유와 이동 상황을 짧게 남겨 다음 화면에서도 재사용한다.
+    public void setLocationSummary(String locationSummary) {
+        this.locationSummary = locationSummary;
+    }
+
+    public String getFieldPhotoNote() {
+        return fieldPhotoNote;
+    }
+
+    // 현장 사진이나 접수 서류 확인 메모를 별도 필드로 관리한다.
+    public void setFieldPhotoNote(String fieldPhotoNote) {
+        this.fieldPhotoNote = fieldPhotoNote;
     }
 
     public String getMedicationNote() {

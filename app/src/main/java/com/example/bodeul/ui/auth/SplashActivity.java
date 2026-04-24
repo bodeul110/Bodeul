@@ -6,19 +6,18 @@ import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.R;
-import com.example.bodeul.data.AuthRepository;
-import com.example.bodeul.data.RepositoryCallback;
-import com.example.bodeul.data.ServiceLocator;
-import com.example.bodeul.domain.model.User;
 
 /**
  * 앱 시작 시 로그인 상태를 확인하고 첫 진입 화면을 결정하는 스플래시 화면이다.
  */
 public class SplashActivity extends AppCompatActivity {
+    private EntryFlowCoordinator entryFlowCoordinator;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
+        entryFlowCoordinator = new EntryFlowCoordinator(this);
     }
 
     @Override
@@ -29,20 +28,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void routeAfterSplash() {
-        AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
-        authRepository.getCurrentUser(new RepositoryCallback<User>() {
-            @Override
-            public void onSuccess(User result) {
-                // 로그인된 사용자는 프로필 보완 여부까지 확인한 뒤 다음 화면으로 보낸다.
-                openNext(AuthFlowRouter.createPostAuthIntent(SplashActivity.this, result));
-            }
-
-            @Override
-            public void onError(String message) {
-                // 로그인 정보가 없으면 역할 선택부터 시작한다.
-                openNext(new Intent(SplashActivity.this, RoleSelectionActivity.class));
-            }
-        });
+        entryFlowCoordinator.resolveLaunchIntent(this::openNext);
     }
 
     private void openNext(Intent intent) {

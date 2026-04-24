@@ -241,7 +241,22 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 stringOrEmpty(documentSnapshot.getString("patientEmail")),
                 stringOrEmpty(documentSnapshot.getString("guardianName")),
                 stringOrEmpty(documentSnapshot.getString("guardianPhone")),
-                stringOrEmpty(documentSnapshot.getString("guardianEmail"))
+                stringOrEmpty(documentSnapshot.getString("guardianEmail")),
+                stringOrEmpty(documentSnapshot.getString("patientConditionSummary")),
+                stringOrEmpty(documentSnapshot.getString("medicationSummary")),
+                stringOrEmpty(documentSnapshot.getString("mobilitySupportCode")),
+                stringOrEmpty(documentSnapshot.getString("tripTypeCode")),
+                stringOrEmpty(documentSnapshot.getString("managerGenderPreferenceCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentMethodCode")),
+                stringOrEmpty(documentSnapshot.getString("couponCode")),
+                numberOrZero(documentSnapshot.get("basePrice")),
+                numberOrZero(documentSnapshot.get("optionSurchargePrice")),
+                numberOrZero(documentSnapshot.get("couponDiscountPrice")),
+                numberOrZero(documentSnapshot.get("finalPrice")),
+                stringOrEmpty(documentSnapshot.getString("paymentStatusCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentApprovalCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentApprovedAt")),
+                stringOrEmpty(documentSnapshot.getString("paymentProviderLabel"))
         );
     }
 
@@ -265,8 +280,10 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 managerUserId,
                 currentStepOrder.intValue(),
                 SessionStatus.valueOf(statusValue),
-                documentSnapshot.getString("guardianUpdate"),
-                documentSnapshot.getString("medicationNote")
+                stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
+                stringOrEmpty(documentSnapshot.getString("locationSummary")),
+                stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
+                stringOrEmpty(documentSnapshot.getString("medicationNote"))
         );
     }
 
@@ -355,5 +372,12 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
 
     private String stringOrEmpty(@Nullable String value) {
         return value == null ? "" : value;
+    }
+
+    private int numberOrZero(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return 0;
     }
 }

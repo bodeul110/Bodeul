@@ -10,13 +10,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingStart="28dp"
-        android:paddingTop="28dp"
-        android:paddingEnd="28dp"
+        android:paddingStart="18dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="18dp"
         android:paddingBottom="24dp">
 
         <ImageView
-            android:layout_width="126dp"
+            android:layout_width="96dp"
             android:layout_height="wrap_content"
             android:adjustViewBounds="true"
             android:contentDescription="@string/app_name"
@@ -25,170 +25,182 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="44dp"
+            android:layout_marginTop="26dp"
             android:text="@string/role_select_title"
             android:textColor="@color/bodeul_text_primary"
-            android:textSize="34sp"
+            android:textSize="28sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="10dp"
             android:lineSpacingExtra="4dp"
             android:text="@string/role_select_subtitle"
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="15sp" />
 
-        <!-- 로그인 흐름 분기를 역할 카드 두 장으로 단순하게 보여준다. -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardManagerType"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="26dp"
             app:cardBackgroundColor="@color/bodeul_surface"
             app:cardCornerRadius="34dp"
-            app:cardElevation="4dp"
+            app:cardElevation="2dp"
             app:strokeColor="@color/bodeul_primary"
             app:strokeWidth="2dp">
 
-            <LinearLayout
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="22dp">
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/textManagerCheck"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/bg_surface_pill"
+                    android:backgroundTint="@color/bodeul_primary"
+                    android:gravity="center"
+                    android:text="@string/role_selected_mark"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="vertical"
+                    android:padding="22dp">
 
                     <TextView
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:background="@drawable/bg_badge_blue"
+                        android:layout_width="54dp"
+                        android:layout_height="54dp"
+                        android:background="@drawable/bg_surface_pill"
+                        android:backgroundTint="@color/bodeul_soft_blue"
                         android:gravity="center"
-                        android:text="@string/login_role_manager"
+                        android:text="@string/role_manager_icon"
                         android:textColor="@color/bodeul_primary"
-                        android:textSize="11sp"
+                        android:textSize="14sp"
                         android:textStyle="bold" />
 
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_weight="1" />
-
                     <TextView
-                        android:id="@+id/textManagerSelected"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_surface_pill"
-                        android:paddingStart="12dp"
-                        android:paddingTop="6dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="6dp"
+                        android:layout_marginTop="22dp"
+                        android:text="@string/role_manager_title"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="26sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="4dp"
+                        android:text="@string/role_manager_desc"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/textManagerAction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:text="@string/role_manager_action"
                         android:textColor="@color/bodeul_primary"
-                        android:textSize="12sp"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
                 </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:text="@string/role_manager_title"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="30sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:lineSpacingExtra="4dp"
-                    android:text="@string/role_manager_desc"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="15sp" />
-            </LinearLayout>
+            </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardPatientType"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="16dp"
             app:cardBackgroundColor="@color/bodeul_surface"
             app:cardCornerRadius="34dp"
-            app:cardElevation="4dp"
+            app:cardElevation="2dp"
             app:strokeColor="@color/bodeul_outline"
             app:strokeWidth="1dp">
 
-            <LinearLayout
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="22dp">
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/textPatientCheck"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/bg_surface_pill"
+                    android:backgroundTint="@color/bodeul_primary"
+                    android:gravity="center"
+                    android:text="@string/role_selected_mark"
+                    android:textColor="@color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:visibility="invisible" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="vertical"
+                    android:padding="22dp">
 
                     <TextView
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:background="@drawable/bg_badge_yellow"
+                        android:layout_width="54dp"
+                        android:layout_height="54dp"
+                        android:background="@drawable/bg_surface_pill"
+                        android:backgroundTint="@color/bodeul_soft_yellow"
                         android:gravity="center"
-                        android:text="@string/role_patient_guardian_title"
+                        android:text="@string/role_patient_icon"
                         android:textColor="@color/bodeul_text_primary"
-                        android:textSize="10sp"
+                        android:textSize="14sp"
                         android:textStyle="bold" />
 
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_weight="1" />
-
                     <TextView
-                        android:id="@+id/textPatientSelected"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_surface_pill"
-                        android:paddingStart="12dp"
-                        android:paddingTop="6dp"
-                        android:paddingEnd="12dp"
-                        android:paddingBottom="6dp"
+                        android:layout_marginTop="22dp"
+                        android:text="@string/role_patient_guardian_title"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="26sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="4dp"
+                        android:text="@string/role_patient_guardian_desc"
                         android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="12sp"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/textPatientAction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:text="@string/role_patient_guardian_action"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
                 </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:text="@string/role_patient_guardian_title"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:lineSpacingExtra="4dp"
-                    android:text="@string/role_patient_guardian_desc"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="15sp" />
-            </LinearLayout>
+            </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonContinueRole"
             style="@style/BodeulHomeButton"
-            android:layout_marginTop="36dp"
+            android:layout_marginTop="34dp"
             android:text="@string/next_step" />
     </LinearLayout>
 </ScrollView>

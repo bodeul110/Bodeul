@@ -18,6 +18,21 @@ public class AppointmentRequest {
     private final String appointmentAt;
     private final String meetingPlace;
     private final String specialNotes;
+    private final String patientConditionSummary;
+    private final String medicationSummary;
+    private final String mobilitySupportCode;
+    private final String tripTypeCode;
+    private final String managerGenderPreferenceCode;
+    private final String paymentMethodCode;
+    private final String couponCode;
+    private final int basePrice;
+    private final int optionSurchargePrice;
+    private final int couponDiscountPrice;
+    private final int finalPrice;
+    private final String paymentStatusCode;
+    private final String paymentApprovalCode;
+    private final String paymentApprovedAt;
+    private final String paymentProviderLabel;
     private AppointmentStatus status;
     private String managerUserId;
 
@@ -49,6 +64,21 @@ public class AppointmentRequest {
                 "",
                 "",
                 "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                0,
+                0,
+                0,
+                0,
+                "",
+                "",
+                "",
                 ""
         );
     }
@@ -71,6 +101,138 @@ public class AppointmentRequest {
             String guardianPhone,
             String guardianEmail
     ) {
+        this(
+                id,
+                patientUserId,
+                guardianUserId,
+                hospitalName,
+                departmentName,
+                appointmentAt,
+                meetingPlace,
+                specialNotes,
+                status,
+                managerUserId,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                0,
+                0,
+                0,
+                0,
+                "",
+                "",
+                "",
+                ""
+        );
+    }
+
+    public AppointmentRequest(
+            String id,
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes,
+            AppointmentStatus status,
+            String managerUserId,
+            String patientName,
+            String patientPhone,
+            String patientEmail,
+            String guardianName,
+            String guardianPhone,
+            String guardianEmail,
+            String patientConditionSummary,
+            String medicationSummary,
+            String mobilitySupportCode,
+            String tripTypeCode,
+            String managerGenderPreferenceCode,
+            String paymentMethodCode,
+            String couponCode,
+            int basePrice,
+            int optionSurchargePrice,
+            int couponDiscountPrice,
+            int finalPrice
+    ) {
+        this(
+                id,
+                patientUserId,
+                guardianUserId,
+                hospitalName,
+                departmentName,
+                appointmentAt,
+                meetingPlace,
+                specialNotes,
+                status,
+                managerUserId,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail,
+                patientConditionSummary,
+                medicationSummary,
+                mobilitySupportCode,
+                tripTypeCode,
+                managerGenderPreferenceCode,
+                paymentMethodCode,
+                couponCode,
+                basePrice,
+                optionSurchargePrice,
+                couponDiscountPrice,
+                finalPrice,
+                "",
+                "",
+                "",
+                ""
+        );
+    }
+
+    public AppointmentRequest(
+            String id,
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes,
+            AppointmentStatus status,
+            String managerUserId,
+            String patientName,
+            String patientPhone,
+            String patientEmail,
+            String guardianName,
+            String guardianPhone,
+            String guardianEmail,
+            String patientConditionSummary,
+            String medicationSummary,
+            String mobilitySupportCode,
+            String tripTypeCode,
+            String managerGenderPreferenceCode,
+            String paymentMethodCode,
+            String couponCode,
+            int basePrice,
+            int optionSurchargePrice,
+            int couponDiscountPrice,
+            int finalPrice,
+            String paymentStatusCode,
+            String paymentApprovalCode,
+            String paymentApprovedAt,
+            String paymentProviderLabel
+    ) {
         this.id = id;
         this.patientUserId = patientUserId;
         this.guardianUserId = guardianUserId;
@@ -85,6 +247,21 @@ public class AppointmentRequest {
         this.appointmentAt = appointmentAt;
         this.meetingPlace = meetingPlace;
         this.specialNotes = specialNotes;
+        this.patientConditionSummary = patientConditionSummary;
+        this.medicationSummary = medicationSummary;
+        this.mobilitySupportCode = mobilitySupportCode;
+        this.tripTypeCode = tripTypeCode;
+        this.managerGenderPreferenceCode = managerGenderPreferenceCode;
+        this.paymentMethodCode = paymentMethodCode;
+        this.couponCode = couponCode;
+        this.basePrice = basePrice;
+        this.optionSurchargePrice = optionSurchargePrice;
+        this.couponDiscountPrice = couponDiscountPrice;
+        this.finalPrice = finalPrice;
+        this.paymentStatusCode = paymentStatusCode;
+        this.paymentApprovalCode = paymentApprovalCode;
+        this.paymentApprovedAt = paymentApprovedAt;
+        this.paymentProviderLabel = paymentProviderLabel;
         this.status = status;
         this.managerUserId = managerUserId;
     }
@@ -143,6 +320,66 @@ public class AppointmentRequest {
 
     public String getSpecialNotes() {
         return specialNotes;
+    }
+
+    public String getPatientConditionSummary() {
+        return patientConditionSummary;
+    }
+
+    public String getMedicationSummary() {
+        return medicationSummary;
+    }
+
+    public String getMobilitySupportCode() {
+        return mobilitySupportCode;
+    }
+
+    public String getTripTypeCode() {
+        return tripTypeCode;
+    }
+
+    public String getManagerGenderPreferenceCode() {
+        return managerGenderPreferenceCode;
+    }
+
+    public String getPaymentMethodCode() {
+        return paymentMethodCode;
+    }
+
+    public String getCouponCode() {
+        return couponCode;
+    }
+
+    public int getBasePrice() {
+        return basePrice;
+    }
+
+    public int getOptionSurchargePrice() {
+        return optionSurchargePrice;
+    }
+
+    public int getCouponDiscountPrice() {
+        return couponDiscountPrice;
+    }
+
+    public int getFinalPrice() {
+        return finalPrice;
+    }
+
+    public String getPaymentStatusCode() {
+        return paymentStatusCode;
+    }
+
+    public String getPaymentApprovalCode() {
+        return paymentApprovalCode;
+    }
+
+    public String getPaymentApprovedAt() {
+        return paymentApprovedAt;
+    }
+
+    public String getPaymentProviderLabel() {
+        return paymentProviderLabel;
     }
 
     public AppointmentStatus getStatus() {

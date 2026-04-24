@@ -24,6 +24,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -60,6 +61,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputEditText inputPhone;
     private TextInputEditText inputEmail;
     private TextInputEditText inputPassword;
+    private ChipGroup roleChipGroup;
     private Chip chipRoleManager;
     private Chip chipRolePatient;
     private Chip chipRoleGuardian;
@@ -99,6 +101,7 @@ public class LoginActivity extends AppCompatActivity {
         inputPhone = findViewById(R.id.inputPhone);
         inputEmail = findViewById(R.id.inputEmail);
         inputPassword = findViewById(R.id.inputPassword);
+        roleChipGroup = findViewById(R.id.roleChipGroup);
         chipRoleManager = findViewById(R.id.chipRoleManager);
         chipRolePatient = findViewById(R.id.chipRolePatient);
         chipRoleGuardian = findViewById(R.id.chipRoleGuardian);
@@ -170,6 +173,7 @@ public class LoginActivity extends AppCompatActivity {
     private void configureRoleChips() {
         // 매니저 로그인은 역할이 고정이고, 일반 사용자 로그인은 환자/보호자 선택을 노출한다.
         if (roleHint == UserRole.MANAGER) {
+            roleChipGroup.setVisibility(View.GONE);
             chipRoleManager.setVisibility(View.VISIBLE);
             chipRoleManager.setChecked(true);
             chipRolePatient.setVisibility(View.GONE);
@@ -177,6 +181,7 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
+        roleChipGroup.setVisibility(View.VISIBLE);
         chipRoleManager.setVisibility(View.GONE);
         chipRolePatient.setVisibility(View.VISIBLE);
         chipRoleGuardian.setVisibility(View.VISIBLE);

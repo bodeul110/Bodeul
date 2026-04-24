@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="admin_action_delivery_title">운영 알림 전송 현황</string>
+    <string name="admin_action_delivery_helper">후속 알림이 관리자 앱 푸시와 운영 피드에 어떻게 반영됐는지, 읽음 확인과 SLA까지 함께 기록합니다.</string>
+    <string name="admin_action_delivery_summary_empty">기록된 운영 알림 전송 이력이 아직 없습니다.</string>
+    <string name="admin_action_delivery_summary">전달 기록 %1$d건 · 확인 대기 %2$d건 · 조치 필요 %3$d건 · 완료/생략 %4$d건 · 앱 푸시 %5$d건 · 운영 피드 %6$d건</string>
+    <string name="admin_action_delivery_empty">표시할 운영 알림 전송 이력이 없습니다.</string>
+    <string name="admin_action_delivery_channel_push">앱 푸시</string>
+    <string name="admin_action_delivery_channel_feed">운영 피드</string>
+    <string name="admin_action_delivery_status_sent">전달 완료</string>
+    <string name="admin_action_delivery_status_confirmed">읽음 확인</string>
+    <string name="admin_action_delivery_status_skipped">전송 생략</string>
+    <string name="admin_action_delivery_status_failed">전송 실패</string>
+    <string name="admin_action_delivery_state_pending">확인 대기</string>
+    <string name="admin_action_delivery_state_follow_up">조치 필요</string>
+    <string name="admin_action_delivery_state_delivered">처리 완료</string>
+    <string name="admin_action_delivery_state_skipped">전송 불필요</string>
+    <string name="admin_action_delivery_priority_immediate">즉시 확인</string>
+    <string name="admin_action_delivery_priority_action_required">조치 필요</string>
+    <string name="admin_action_delivery_priority_monitoring">모니터링</string>
+    <string name="admin_action_delivery_priority_archived">보관</string>
+    <string name="admin_action_delivery_sla_on_track">SLA 정상</string>
+    <string name="admin_action_delivery_sla_attention">SLA 주의</string>
+    <string name="admin_action_delivery_sla_completed">SLA 종료</string>
+    <string name="admin_action_delivery_source_settlement">정산 후속</string>
+    <string name="admin_action_delivery_source_emergency">긴급 대응</string>
+    <string name="admin_action_delivery_source_support">문의 응답</string>
+    <string name="admin_action_delivery_trigger_created">알림 생성</string>
+    <string name="admin_action_delivery_trigger_read">읽음 처리</string>
+    <string name="admin_action_delivery_trigger_resolved">해결 완료</string>
+    <string name="admin_action_delivery_trigger_reopened">재오픈</string>
+    <string name="admin_action_delivery_meta">%1$s · %2$s · %3$s · %4$s</string>
+    <string name="admin_action_delivery_attempt">시도 %1$d/%2$d</string>
+    <string name="admin_action_delivery_detail_pending">읽음 확인 마감: %1$s · %2$s</string>
+    <string name="admin_action_delivery_detail_confirmed">확인 시각: %1$s · %2$s</string>
+    <string name="admin_action_delivery_detail_retry">다음 재시도: %1$s · %2$s</string>
+    <string name="admin_action_delivery_detail_completed">%1$s</string>
+    <string name="admin_action_delivery_body_empty">전송 메모가 없는 기록입니다.</string>
+</resources>

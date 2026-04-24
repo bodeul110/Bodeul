@@ -3,6 +3,16 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <application
         android:name=".BodeulApplication"
@@ -16,6 +26,33 @@
         android:theme="@style/Theme.Bodeul"
         tools:targetApi="31">
 
+        <activity
+            android:name=".ui.auth.PermissionGuideActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingCompletionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingFollowUpActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingPaymentApprovalActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingLocationSelectorActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingHospitalSelectorActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.manager.ManagerSupportActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.manager.ManagerProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.manager.ManagerHistoryActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.manager.ManagerGuideActivity"
             android:exported="false" />
@@ -36,6 +73,9 @@
             android:exported="false" />
         <activity
             android:name=".ui.auth.RoleSelectionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingStatusActivity"
             android:exported="false" />
         <activity
             android:name=".ui.booking.BookingActivity"

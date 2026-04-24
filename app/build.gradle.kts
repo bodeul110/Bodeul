@@ -1,11 +1,11 @@
 import java.util.Properties
 
 plugins {
-    id("com.android.application")
+    alias(libs.plugins.android.application)
 }
 
 if (file("google-services.json").exists()) {
-    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = libs.plugins.google.services.get().pluginId)
 }
 
 // 저장소에 남기지 않을 로그인 키는 local.properties를 우선으로 읽는다.
@@ -30,7 +30,7 @@ val naverClientName = localOrGradleProperty("naverClientName")
 
 android {
     namespace = "com.example.bodeul"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.bodeul"
@@ -58,7 +58,7 @@ android {
     }
 
     buildFeatures {
-        // 카카오 앱 키를 리소스로 주입하기 위해 resValue 생성을 켠다.
+        // 기본값으로 꺼져 있어 defaultConfig의 resValue를 사용하려면 명시적으로 켜야 한다.
         resValues = true
     }
 
@@ -70,19 +70,19 @@ android {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation(platform(libs.firebase.bom))
 
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.material:material:1.11.0")
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-functions")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-    implementation("com.kakao.sdk:v2-user:2.23.3")
-    implementation("com.navercorp.nid:oauth:5.11.2")
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.material)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.functions)
+    implementation(libs.googleid)
+    implementation(libs.kakao.user)
+    implementation(libs.naver.oauth)
+    testImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.espresso.core)
 }

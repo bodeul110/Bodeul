@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-04-24T13:10:00.000Z",
+  "source": "sample_template",
+  "appId": "com.example.bodeul",
+  "buildVariant": "debug",
+  "device": {
+    "serial": "sample-emulator",
+    "manufacturer": "Google",
+    "model": "Pixel 8",
+    "androidVersion": "15"
+  },
+  "screens": [
+    {
+      "id": "splash",
+      "title": "스플래시 진입",
+      "role": "COMMON",
+      "status": "passed",
+      "activity": "com.example.bodeul.ui.auth.SplashActivity",
+      "capturedAt": "2026-04-24T13:10:10.000Z",
+      "note": "앱 시작 후 권한 안내 진입 흐름 확인",
+      "imagePath": ""
+    },
+    {
+      "id": "manager-home",
+      "title": "매니저 홈 진입",
+      "role": "MANAGER",
+      "status": "passed",
+      "activity": "com.example.bodeul.ui.manager.ManagerActivity",
+      "capturedAt": "2026-04-24T13:11:00.000Z",
+      "note": "실시간 동행 카드와 프로모션 영역 표시 확인",
+      "imagePath": ""
+    },
+    {
+      "id": "admin-dashboard",
+      "title": "관리자 운영 대시보드",
+      "role": "ADMIN",
+      "status": "warning",
+      "activity": "com.example.bodeul.ui.admin.AdminActivity",
+      "capturedAt": "2026-04-24T13:12:00.000Z",
+      "note": "전달 기록 카드 증적은 아직 수동 캡처 대기",
+      "imagePath": ""
+    }
+  ]
+}

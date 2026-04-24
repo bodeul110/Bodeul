@@ -1,0 +1,33 @@
+[versions]
+androidGradlePlugin = "9.2.0"
+googleServices = "4.4.4"
+firebaseBom = "34.7.0"
+androidxAppcompat = "1.7.1"
+androidxCredentials = "1.5.0"
+material = "1.11.0"
+googleId = "1.1.1"
+kakao = "2.23.3"
+naverOauth = "5.11.2"
+junit4 = "4.13.2"
+androidxJunit = "1.1.5"
+espresso = "3.5.1"
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+
+[libraries]
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidxAppcompat" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "androidxCredentials" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "androidxCredentials" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-functions = { module = "com.google.firebase:firebase-functions" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleId" }
+kakao-user = { module = "com.kakao.sdk:v2-user", version.ref = "kakao" }
+naver-oauth = { module = "com.navercorp.nid:oauth", version.ref = "naverOauth" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
+espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="booking_follow_up_status_pending">아직 저장되지 않음</string>
+    <string name="booking_follow_up_settlement_follow_up_confirmed">정산 확인 완료</string>
+    <string name="booking_follow_up_settlement_follow_up_needs_help">정산 문의 필요</string>
+    <string name="booking_follow_up_support_status_guide_viewed">긴급 안내 확인</string>
+    <string name="booking_follow_up_support_status_manager_called">매니저 연락 시도</string>
+    <string name="booking_follow_up_support_status_dialed_119">119 연결 시도</string>
+    <string name="booking_follow_up_summary_pending">아직 후기, 정산 확인, SOS 기록이 없습니다.</string>
+    <string name="booking_follow_up_summary_review_format">후기 %1$s</string>
+    <string name="booking_follow_up_summary_settlement_format">정산 %1$s</string>
+    <string name="booking_follow_up_summary_support_format">SOS %1$s</string>
+
+    <string name="booking_follow_up_settlement_action_confirm">정산 확인 저장</string>
+    <string name="booking_follow_up_settlement_action_help">정산 문의 기록</string>
+    <string name="booking_follow_up_settlement_saved_empty">아직 저장된 정산 후속 확인이 없습니다.</string>
+    <string name="booking_follow_up_settlement_saved_value">최근 저장: %1$s (%2$s)</string>
+    <string name="booking_follow_up_settlement_saved_dialog_title">정산 확인 저장</string>
+    <string name="booking_follow_up_settlement_saved_dialog_body">정산 후속 확인 상태가 예약 후속 기록에 반영되었습니다.</string>
+    <string name="booking_follow_up_settlement_follow_up_note_confirm_format">사용자가 정산 상태를 확인했습니다. 기준 메모: %1$s</string>
+    <string name="booking_follow_up_settlement_follow_up_note_help_format">사용자가 정산 문의가 필요하다고 남겼습니다. 기준 메모: %1$s</string>
+
+    <string name="booking_follow_up_support_saved_empty">아직 저장된 SOS 후속 기록이 없습니다.</string>
+    <string name="booking_follow_up_support_saved_value">최근 기록: %1$s (%2$s)</string>
+
+    <string name="booking_status_line_follow_up_state">후속 확인 상태</string>
+    <string name="booking_status_line_follow_up_review">후기 저장</string>
+    <string name="booking_status_line_follow_up_settlement">정산 확인</string>
+    <string name="booking_status_line_follow_up_settlement_note">정산 메모</string>
+    <string name="booking_status_line_follow_up_support">SOS 기록</string>
+    <string name="booking_status_follow_up_value_format">%1$s · %2$s</string>
+
+    <string name="admin_settlement_line_follow_up_review">사용자 후기</string>
+    <string name="admin_settlement_line_follow_up_settlement">사용자 정산 확인</string>
+    <string name="admin_settlement_line_follow_up_note">사용자 정산 메모</string>
+    <string name="admin_settlement_line_follow_up_support">사용자 SOS 기록</string>
+    <string name="admin_follow_up_value_format">%1$s · %2$s</string>
+</resources>

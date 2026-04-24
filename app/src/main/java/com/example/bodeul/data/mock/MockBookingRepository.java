@@ -3,14 +3,27 @@ package com.example.bodeul.data.mock;
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
+import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
+import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
+import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.BookingHospitalOption;
+import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
- * Firebase 없이도 환자와 보호자의 신청 흐름을 확인할 수 있게 하는 목업 저장소다.
+ * Firebase 없이도 환자와 보호자의 요청 흐름을 확인할 수 있게 하는 목업 저장소다.
  */
 public class MockBookingRepository implements BookingRepository {
     private final MockBodeulRepository repository;
@@ -20,45 +33,55 @@ public class MockBookingRepository implements BookingRepository {
     }
 
     @Override
+    public void getHospitalOptions(RepositoryCallback<List<BookingHospitalOption>> callback) {
+        callback.onSuccess(toHospitalOptions(repository.getHospitalGuides()));
+    }
+
+    @Override
     public void getMyAppointmentRequests(User currentUser, RepositoryCallback<List<AppointmentRequest>> callback) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("환자 또는 보호자 계정으로 접근해주세요.");
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return;
         }
         callback.onSuccess(repository.getAppointmentRequestsForUser(currentUser.getId(), currentUser.getRole()));
     }
 
     @Override
+    public void getAppointmentRequestDetail(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
+            return;
+        }
+
+        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
+        if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
+            callback.onError("요청 상세 정보를 확인하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(detail);
+    }
+
+    @Override
     public void createAppointmentRequest(
             User currentUser,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
-            String linkedParticipantName,
-            String linkedParticipantPhone,
-            String linkedParticipantEmail,
+            BookingRequestDraft bookingRequestDraft,
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("환자 또는 보호자 계정으로 접근해주세요.");
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return;
         }
 
         AppointmentRequest request = repository.createAppointmentRequest(
                 currentUser,
-                hospitalName,
-                departmentName,
-                appointmentAt,
-                meetingPlace,
-                specialNotes,
-                linkedParticipantName,
-                linkedParticipantPhone,
-                linkedParticipantEmail
+                bookingRequestDraft
         );
         if (request == null) {
-            callback.onError("동행 신청을 저장하지 못했습니다.");
+            callback.onError("동행 요청을 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(request);
@@ -68,32 +91,18 @@ public class MockBookingRepository implements BookingRepository {
     public void updateAppointmentRequest(
             User currentUser,
             String requestId,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
-            String linkedParticipantName,
-            String linkedParticipantPhone,
-            String linkedParticipantEmail,
+            BookingRequestDraft bookingRequestDraft,
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("환자 또는 보호자 계정으로 접근해주세요.");
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return;
         }
 
         AppointmentRequest request = repository.updateAppointmentRequest(
                 currentUser,
                 requestId,
-                hospitalName,
-                departmentName,
-                appointmentAt,
-                meetingPlace,
-                specialNotes,
-                linkedParticipantName,
-                linkedParticipantPhone,
-                linkedParticipantEmail
+                bookingRequestDraft
         );
         if (request == null) {
             callback.onError("접수 대기 상태 요청만 수정할 수 있습니다.");
@@ -109,7 +118,7 @@ public class MockBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("환자 또는 보호자 계정으로 접근해주세요.");
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return;
         }
 
@@ -122,11 +131,162 @@ public class MockBookingRepository implements BookingRepository {
     }
 
     @Override
+    public void getAppointmentFollowUp(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
+            return;
+        }
+
+        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
+        if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
+            callback.onError("후속 정보 조회 권한이 없습니다.");
+            return;
+        }
+        callback.onSuccess(repository.getAppointmentFollowUpRecord(requestId));
+    }
+
+    @Override
+    public void saveAppointmentFollowUpReview(
+            User currentUser,
+            String requestId,
+            AppointmentFollowUpReviewRating reviewRating,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
+            return;
+        }
+
+        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
+        if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
+            callback.onError("후기 저장 권한이 없습니다.");
+            return;
+        }
+        if (detail.getAppointmentRequest().getStatus() != AppointmentStatus.COMPLETED) {
+            callback.onError("완료된 예약에서만 후기를 저장할 수 있습니다.");
+            return;
+        }
+
+        AppointmentFollowUpRecord record = repository.saveAppointmentFollowUpReview(requestId, reviewRating);
+        if (record == null) {
+            callback.onError("후기 내용을 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(record);
+    }
+
+    @Override
+    public void saveAppointmentFollowUpSettlement(
+            User currentUser,
+            String requestId,
+            AppointmentFollowUpSettlementStatus settlementStatus,
+            String settlementNote,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            return;
+        }
+
+        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
+        if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
+            callback.onError("?뺤궛 ?꾩냽 ???沅뚰븳???놁뒿?덈떎.");
+            return;
+        }
+        if (detail.getAppointmentRequest().getStatus() != AppointmentStatus.COMPLETED) {
+            callback.onError("?꾨즺???덉빟?먯꽌留?留덉감 ?꾩냽 ?뺤씤????ν븷 ???덉뒿?덈떎.");
+            return;
+        }
+
+        AppointmentFollowUpRecord record = repository.saveAppointmentFollowUpSettlement(
+                requestId,
+                settlementStatus,
+                settlementNote
+        );
+        if (record == null) {
+            callback.onError("?뺤궛 ?꾩냽 ?곹깭瑜???ν븯吏 紐삵뻽?듬땲??");
+            return;
+        }
+        callback.onSuccess(record);
+    }
+
+    @Override
+    public void saveAppointmentFollowUpSupportEscalation(
+            User currentUser,
+            String requestId,
+            AppointmentFollowUpSupportEscalationStatus escalationStatus,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            return;
+        }
+
+        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
+        if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
+            callback.onError("SOS ?꾩냽 ???沅뚰븳???놁뒿?덈떎.");
+            return;
+        }
+        if (detail.getAppointmentRequest().getStatus() != AppointmentStatus.COMPLETED) {
+            callback.onError("?꾨즺???덉빟?먯꽌留?SOS ?꾩냽 湲곕줉????ν븷 ???덉뒿?덈떎.");
+            return;
+        }
+
+        AppointmentFollowUpRecord record = repository.saveAppointmentFollowUpSupportEscalation(
+                requestId,
+                escalationStatus
+        );
+        if (record == null) {
+            callback.onError("SOS ?꾩냽 湲곕줉????ν븯吏 紐삵뻽?듬땲??");
+            return;
+        }
+        callback.onSuccess(record);
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }
 
     private boolean supportsRole(UserRole role) {
         return role == UserRole.PATIENT || role == UserRole.GUARDIAN;
+    }
+
+    private boolean isRequestOwner(User currentUser, AppointmentRequest request) {
+        if (currentUser.getRole() == UserRole.PATIENT) {
+            return currentUser.getId().equals(request.getPatientUserId());
+        }
+        if (currentUser.getRole() == UserRole.GUARDIAN) {
+            return currentUser.getId().equals(request.getGuardianUserId());
+        }
+        return false;
+    }
+
+    private List<BookingHospitalOption> toHospitalOptions(List<HospitalGuide> guides) {
+        Map<String, TreeSet<String>> departmentsByHospital = new TreeMap<>();
+        for (HospitalGuide guide : guides) {
+            if (guide == null) {
+                continue;
+            }
+            String hospitalName = guide.getHospitalName();
+            String departmentName = guide.getDepartmentName();
+            if (hospitalName == null || hospitalName.trim().isEmpty()
+                    || departmentName == null || departmentName.trim().isEmpty()) {
+                continue;
+            }
+            departmentsByHospital
+                    .computeIfAbsent(hospitalName.trim(), key -> new TreeSet<>())
+                    .add(departmentName.trim());
+        }
+
+        List<BookingHospitalOption> options = new ArrayList<>();
+        for (Map.Entry<String, TreeSet<String>> entry : departmentsByHospital.entrySet()) {
+            options.add(new BookingHospitalOption(entry.getKey(), new ArrayList<>(entry.getValue())));
+        }
+        return options;
     }
 }

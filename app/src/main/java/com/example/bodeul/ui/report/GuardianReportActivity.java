@@ -1,14 +1,10 @@
 package com.example.bodeul.ui.report;
 
 import android.content.Intent;
-import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,39 +15,30 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.GuardianReportRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
-import com.example.bodeul.domain.model.AppointmentStatus;
-import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportDashboard;
-import com.example.bodeul.domain.model.GuardianReportEntry;
-import com.example.bodeul.domain.model.HospitalGuide;
-import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.ui.booking.BookingStatusActivity;
 import com.example.bodeul.util.StatePanelHelper;
-
-import java.util.List;
+import com.google.android.material.button.MaterialButton;
 
 /**
- * 보호자가 현재 진행 상황과 최종 리포트를 한 화면에서 확인하는 조회 화면이다.
+ * 보호자 진행 화면의 인증, 로딩, 상세 이동만 담당한다.
  */
-public class GuardianReportActivity extends AppCompatActivity {
+public class GuardianReportActivity extends AppCompatActivity implements GuardianReportEntryCardBinder.Listener {
     private AuthRepository authRepository;
     private GuardianReportRepository guardianReportRepository;
+    private GuardianReportCoordinator guardianReportCoordinator;
+    private GuardianReportDashboardBinder guardianReportDashboardBinder;
+
     private User currentUser;
     private boolean loading;
 
-    private TextView textGuardianReportMode;
-    private TextView textGuardianReportGreeting;
-    private TextView textGuardianReportSummary;
-    private TextView textGuardianReportHighlightStatus;
-    private TextView textGuardianReportHighlightTitle;
-    private TextView textGuardianReportHighlightBody;
     private View guardianReportStatePanel;
     private View guardianReportContentContainer;
-    private LinearLayout guardianReportListContainer;
     private ProgressBar progressGuardianReport;
 
     @Override
@@ -61,21 +48,28 @@ public class GuardianReportActivity extends AppCompatActivity {
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         guardianReportRepository = ServiceLocator.provideGuardianReportRepository(this);
+        guardianReportCoordinator = new GuardianReportCoordinator(
+                this,
+                new GuardianReportPresentationFormatter(this)
+        );
 
-        textGuardianReportMode = findViewById(R.id.textGuardianReportMode);
-        textGuardianReportGreeting = findViewById(R.id.textGuardianReportGreeting);
-        textGuardianReportSummary = findViewById(R.id.textGuardianReportSummary);
-        textGuardianReportHighlightStatus = findViewById(R.id.textGuardianReportHighlightStatus);
-        textGuardianReportHighlightTitle = findViewById(R.id.textGuardianReportHighlightTitle);
-        textGuardianReportHighlightBody = findViewById(R.id.textGuardianReportHighlightBody);
         guardianReportStatePanel = findViewById(R.id.guardianReportStatePanel);
         guardianReportContentContainer = findViewById(R.id.guardianReportContentContainer);
-        guardianReportListContainer = findViewById(R.id.guardianReportListContainer);
         progressGuardianReport = findViewById(R.id.progressGuardianReport);
 
-        textGuardianReportMode.setText(guardianReportRepository.isFirebaseBacked()
-                ? R.string.guardian_report_mode_firebase
-                : R.string.guardian_report_mode_demo);
+        guardianReportDashboardBinder = new GuardianReportDashboardBinder(
+                this,
+                getLayoutInflater(),
+                new GuardianReportEntryCardBinder(this, getLayoutInflater(), this),
+                findViewById(R.id.textGuardianReportMode),
+                findViewById(R.id.textGuardianReportGreeting),
+                findViewById(R.id.textGuardianReportSummary),
+                findViewById(R.id.textGuardianReportHighlightStatus),
+                findViewById(R.id.textGuardianReportHighlightTitle),
+                findViewById(R.id.textGuardianReportHighlightBody),
+                (MaterialButton) findViewById(R.id.buttonGuardianReportHighlightAction),
+                findViewById(R.id.guardianReportListContainer)
+        );
 
         findViewById(R.id.buttonBackGuardianReport).setOnClickListener(view -> finish());
         bindEmptyState();
@@ -130,295 +124,28 @@ public class GuardianReportActivity extends AppCompatActivity {
         });
     }
 
-    private void bindDashboard(GuardianReportDashboard dashboard) {
-        List<GuardianReportEntry> entries = dashboard.getEntries();
-        textGuardianReportGreeting.setText(getString(
-                R.string.guardian_report_greeting,
-                dashboard.getGuardian().getName()
-        ));
-        textGuardianReportSummary.setText(getString(
-                R.string.guardian_report_summary,
-                entries.size(),
-                TextUtils.isEmpty(dashboard.getGuardian().getPhone())
-                        ? getString(R.string.guardian_report_phone_missing)
-                        : dashboard.getGuardian().getPhone()
-        ));
-
-        GuardianReportEntry highlightEntry = findHighlightEntry(entries);
-        if (highlightEntry == null) {
-            bindEmptyHighlight();
-        } else {
-            bindHighlight(highlightEntry, entries.size());
-        }
-        renderEntries(entries);
-    }
-
-    private GuardianReportEntry findHighlightEntry(List<GuardianReportEntry> entries) {
-        for (GuardianReportEntry entry : entries) {
-            AppointmentStatus status = entry.getAppointmentRequest().getStatus();
-            if (status != AppointmentStatus.COMPLETED && status != AppointmentStatus.CANCELED) {
-                return entry;
-            }
-        }
-        return entries.isEmpty() ? null : entries.get(0);
-    }
-
-    private void bindHighlight(GuardianReportEntry entry, int count) {
-        bindStatusBadge(textGuardianReportHighlightStatus, entry.getAppointmentRequest().getStatus());
-        textGuardianReportHighlightTitle.setText(getString(
-                R.string.guardian_report_highlight_title,
-                entry.getAppointmentRequest().getHospitalName(),
-                entry.getAppointmentRequest().getDepartmentName()
-        ));
-        textGuardianReportHighlightBody.setText(buildHighlightBody(entry, count));
-    }
-
-    private CharSequence buildHighlightBody(GuardianReportEntry entry, int count) {
-        String patientName = buildPatientDisplay(entry);
-        String managerName = entry.getManager() == null
-                ? getString(R.string.guardian_report_manager_pending)
-                : entry.getManager().getName();
-        String progressLine = buildProgressLine(entry);
-        String updateLine = buildGuardianUpdateLine(entry.getSession());
-        return getString(
-                R.string.guardian_report_highlight_body,
-                count,
-                patientName,
-                entry.getAppointmentRequest().getAppointmentAt(),
-                managerName,
-                progressLine,
-                updateLine
+    private void bindDashboard(@Nullable GuardianReportDashboard dashboard) {
+        guardianReportDashboardBinder.bindScreen(
+                dashboard == null
+                        ? guardianReportCoordinator.createEmptyScreenModel(guardianReportRepository.isFirebaseBacked())
+                        : guardianReportCoordinator.createScreenModel(
+                                dashboard,
+                                guardianReportRepository.isFirebaseBacked()
+                        ),
+                this
         );
-    }
-
-    private String buildProgressLine(GuardianReportEntry entry) {
-        CompanionSession session = entry.getSession();
-        HospitalGuide guide = entry.getHospitalGuide();
-        if (session == null || guide == null) {
-            return toStatusLabel(entry.getAppointmentRequest().getStatus());
-        }
-        return getString(
-                R.string.guardian_report_progress_value,
-                session.getCurrentStepOrder(),
-                guide.getSteps().size(),
-                toSessionStatusLabel(session)
-        );
-    }
-
-    private String buildGuardianUpdateLine(CompanionSession session) {
-        if (session == null || TextUtils.isEmpty(session.getGuardianUpdate())) {
-            return getString(R.string.guardian_report_update_empty);
-        }
-        return session.getGuardianUpdate();
-    }
-
-    private String buildPatientDisplay(GuardianReportEntry entry) {
-        if (entry.getPatient() != null) {
-            return buildContactText(entry.getPatient().getName(), entry.getPatient().getPhone(), false);
-        }
-        return buildContactText(
-                entry.getAppointmentRequest().getPatientName(),
-                entry.getAppointmentRequest().getPatientPhone(),
-                true
-        );
-    }
-
-    private String buildContactText(String name, String phone, boolean pendingLink) {
-        String baseText;
-        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(phone)) {
-            baseText = getString(R.string.guardian_report_contact_name_phone, name, phone);
-        } else if (!TextUtils.isEmpty(name)) {
-            baseText = name;
-        } else if (!TextUtils.isEmpty(phone)) {
-            baseText = phone;
-        } else {
-            return getString(R.string.guardian_report_patient_missing);
-        }
-        return pendingLink
-                ? getString(R.string.guardian_report_contact_pending, baseText)
-                : baseText;
-    }
-
-    private void renderEntries(List<GuardianReportEntry> entries) {
-        guardianReportListContainer.removeAllViews();
-        if (entries.isEmpty()) {
-            renderEmptyEntry();
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (GuardianReportEntry entry : entries) {
-            View entryView = inflater.inflate(R.layout.item_guardian_report, guardianReportListContainer, false);
-            TextView statusView = entryView.findViewById(R.id.textGuardianReportItemStatus);
-            TextView titleView = entryView.findViewById(R.id.textGuardianReportItemTitle);
-            TextView patientView = entryView.findViewById(R.id.textGuardianReportItemPatient);
-            TextView scheduleView = entryView.findViewById(R.id.textGuardianReportItemSchedule);
-            TextView managerView = entryView.findViewById(R.id.textGuardianReportItemManager);
-            TextView progressView = entryView.findViewById(R.id.textGuardianReportItemProgress);
-            TextView updateView = entryView.findViewById(R.id.textGuardianReportItemUpdate);
-            TextView pendingView = entryView.findViewById(R.id.textGuardianReportItemReportPending);
-            TextView summaryView = entryView.findViewById(R.id.textGuardianReportItemReportSummary);
-            TextView treatmentView = entryView.findViewById(R.id.textGuardianReportItemReportTreatment);
-            TextView medicationView = entryView.findViewById(R.id.textGuardianReportItemReportMedication);
-            TextView nextVisitView = entryView.findViewById(R.id.textGuardianReportItemReportNextVisit);
-
-            bindStatusBadge(statusView, entry.getAppointmentRequest().getStatus());
-            titleView.setText(getString(
-                    R.string.guardian_report_item_title,
-                    entry.getAppointmentRequest().getHospitalName(),
-                    entry.getAppointmentRequest().getDepartmentName()
-            ));
-            patientView.setText(getString(
-                    R.string.guardian_report_item_patient,
-                    buildPatientDisplay(entry)
-            ));
-            scheduleView.setText(getString(
-                    R.string.guardian_report_item_schedule,
-                    entry.getAppointmentRequest().getAppointmentAt(),
-                    entry.getAppointmentRequest().getMeetingPlace()
-            ));
-            managerView.setText(getString(
-                    R.string.guardian_report_item_manager,
-                    entry.getManager() == null
-                            ? getString(R.string.guardian_report_manager_pending)
-                            : entry.getManager().getName()
-            ));
-            progressView.setText(getString(
-                    R.string.guardian_report_item_progress,
-                    buildProgressLine(entry)
-            ));
-            updateView.setText(getString(
-                    R.string.guardian_report_item_update,
-                    buildGuardianUpdateLine(entry.getSession())
-            ));
-
-            SessionReport report = entry.getSessionReport();
-            if (report == null) {
-                pendingView.setVisibility(View.VISIBLE);
-                summaryView.setVisibility(View.GONE);
-                treatmentView.setVisibility(View.GONE);
-                medicationView.setVisibility(View.GONE);
-                nextVisitView.setVisibility(View.GONE);
-            } else {
-                pendingView.setVisibility(View.GONE);
-                bindOptionalLine(summaryView, R.string.guardian_report_item_report_summary, report.getSummary());
-                bindOptionalLine(treatmentView, R.string.guardian_report_item_report_treatment, report.getTreatmentNotes());
-                bindOptionalLine(medicationView, R.string.guardian_report_item_report_medication, report.getMedicationNotes());
-                bindOptionalLine(nextVisitView, R.string.guardian_report_item_report_next_visit, report.getNextVisitAt());
-            }
-
-            guardianReportListContainer.addView(entryView);
-        }
-    }
-
-    private void bindOptionalLine(TextView textView, int formatResId, String value) {
-        if (TextUtils.isEmpty(value)) {
-            textView.setVisibility(View.GONE);
-            return;
-        }
-        textView.setVisibility(View.VISIBLE);
-        textView.setText(getString(formatResId, value));
-    }
-
-    private void renderEmptyEntry() {
-        guardianReportListContainer.removeAllViews();
-        View emptyPanel = LayoutInflater.from(this).inflate(
-                R.layout.include_state_panel,
-                guardianReportListContainer,
-                false
-        );
-        StatePanelHelper.show(
-                emptyPanel,
-                StatePanelHelper.Tone.INFO,
-                getString(R.string.state_badge_notice),
-                getString(R.string.guardian_report_empty_title),
-                getString(R.string.guardian_report_list_empty),
-                null,
-                null,
-                null,
-                null
-        );
-        guardianReportListContainer.addView(emptyPanel);
     }
 
     private void bindEmptyState() {
-        textGuardianReportGreeting.setText(R.string.guardian_report_empty_greeting);
-        textGuardianReportSummary.setText(R.string.guardian_report_empty_summary);
-        bindEmptyHighlight();
-        renderEmptyEntry();
+        bindDashboard(null);
     }
 
-    private void bindEmptyHighlight() {
-        textGuardianReportHighlightStatus.setText(R.string.booking_empty_badge);
-        textGuardianReportHighlightStatus.setTextColor(getColor(R.color.bodeul_text_secondary));
-        textGuardianReportHighlightStatus.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.bodeul_surface_alt)));
-        textGuardianReportHighlightTitle.setText(R.string.guardian_report_empty_title);
-        textGuardianReportHighlightBody.setText(R.string.guardian_report_empty_body);
-    }
-
-    private void bindStatusBadge(TextView textView, AppointmentStatus status) {
-        int backgroundColor;
-        int textColor;
-        switch (status) {
-            case MATCHED:
-                backgroundColor = R.color.bodeul_primary;
-                textColor = R.color.white;
-                break;
-            case IN_PROGRESS:
-            case COMPLETED:
-                backgroundColor = R.color.bodeul_success;
-                textColor = R.color.white;
-                break;
-            case CANCELED:
-                backgroundColor = R.color.bodeul_surface_alt;
-                textColor = R.color.bodeul_text_primary;
-                break;
-            case REQUESTED:
-            default:
-                backgroundColor = R.color.bodeul_warning;
-                textColor = R.color.bodeul_text_primary;
-                break;
+    @Override
+    public void onOpenRequestDetail(String requestId) {
+        if (TextUtils.isEmpty(requestId)) {
+            return;
         }
-
-        textView.setText(toStatusLabel(status));
-        textView.setBackgroundTintList(ColorStateList.valueOf(getColor(backgroundColor)));
-        textView.setTextColor(getColor(textColor));
-    }
-
-    private String toStatusLabel(AppointmentStatus status) {
-        switch (status) {
-            case MATCHED:
-                return getString(R.string.booking_status_matched);
-            case IN_PROGRESS:
-                return getString(R.string.booking_status_in_progress);
-            case COMPLETED:
-                return getString(R.string.booking_status_completed);
-            case CANCELED:
-                return getString(R.string.booking_status_canceled);
-            case REQUESTED:
-            default:
-                return getString(R.string.booking_status_requested);
-        }
-    }
-
-    private String toSessionStatusLabel(CompanionSession session) {
-        switch (session.getStatus()) {
-            case READY:
-                return getString(R.string.guardian_report_session_ready);
-            case WAITING:
-                return getString(R.string.guardian_report_session_waiting);
-            case IN_TREATMENT:
-                return getString(R.string.guardian_report_session_treatment);
-            case PAYMENT:
-                return getString(R.string.guardian_report_session_payment);
-            case CANCELED:
-                return getString(R.string.guardian_report_session_canceled);
-            case COMPLETED:
-                return getString(R.string.guardian_report_session_completed);
-            case MEETING:
-            default:
-                return getString(R.string.guardian_report_session_meeting);
-        }
+        startActivity(BookingStatusActivity.createIntent(this, requestId));
     }
 
     private void setLoading(boolean loading) {

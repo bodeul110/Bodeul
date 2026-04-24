@@ -1,0 +1,118 @@
+package com.example.bodeul.ui.booking;
+
+import androidx.annotation.Nullable;
+
+import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
+
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * 예약 상세 화면에 필요한 표시 데이터를 한 번에 전달한다.
+ */
+public final class BookingStatusScreenModel {
+    private final AppointmentStatus status;
+    private final String modeText;
+    private final String heroBadgeText;
+    private final String heroTitleText;
+    private final String heroBodyText;
+    private final String progressTitleText;
+    private final String progressBodyText;
+    private final AppointmentProgressOverviewModel progressOverview;
+    private final List<BookingStatusLineItem> participantLines;
+    private final List<BookingStatusLineItem> summaryLines;
+    private final List<BookingStatusLineItem> reportLines;
+    @Nullable
+    private final BookingStatusActionModel primaryAction;
+    @Nullable
+    private final BookingStatusActionModel secondaryAction;
+
+    public BookingStatusScreenModel(
+            AppointmentStatus status,
+            String modeText,
+            String heroBadgeText,
+            String heroTitleText,
+            String heroBodyText,
+            String progressTitleText,
+            String progressBodyText,
+            AppointmentProgressOverviewModel progressOverview,
+            List<BookingStatusLineItem> participantLines,
+            List<BookingStatusLineItem> summaryLines,
+            List<BookingStatusLineItem> reportLines,
+            @Nullable BookingStatusActionModel primaryAction,
+            @Nullable BookingStatusActionModel secondaryAction
+    ) {
+        this.status = status;
+        this.modeText = modeText;
+        this.heroBadgeText = heroBadgeText;
+        this.heroTitleText = heroTitleText;
+        this.heroBodyText = heroBodyText;
+        this.progressTitleText = progressTitleText;
+        this.progressBodyText = progressBodyText;
+        this.progressOverview = progressOverview;
+        this.participantLines = Collections.unmodifiableList(participantLines);
+        this.summaryLines = Collections.unmodifiableList(summaryLines);
+        this.reportLines = Collections.unmodifiableList(reportLines);
+        this.primaryAction = primaryAction;
+        this.secondaryAction = secondaryAction;
+    }
+
+    public AppointmentStatus getStatus() {
+        return status;
+    }
+
+    public String getModeText() {
+        return modeText;
+    }
+
+    public String getHeroBadgeText() {
+        return heroBadgeText;
+    }
+
+    public String getHeroTitleText() {
+        return heroTitleText;
+    }
+
+    public String getHeroBodyText() {
+        return heroBodyText;
+    }
+
+    public String getProgressTitleText() {
+        return progressTitleText;
+    }
+
+    public String getProgressBodyText() {
+        return progressBodyText;
+    }
+
+    public AppointmentProgressOverviewModel getProgressOverview() {
+        return progressOverview;
+    }
+
+    public List<BookingStatusLineItem> getParticipantLines() {
+        return participantLines;
+    }
+
+    public List<BookingStatusLineItem> getSummaryLines() {
+        return summaryLines;
+    }
+
+    public List<BookingStatusLineItem> getReportLines() {
+        return reportLines;
+    }
+
+    @Nullable
+    public BookingStatusActionModel getPrimaryAction() {
+        return primaryAction;
+    }
+
+    @Nullable
+    public BookingStatusActionModel getSecondaryAction() {
+        return secondaryAction;
+    }
+
+    public boolean hasReportLines() {
+        return !reportLines.isEmpty();
+    }
+}

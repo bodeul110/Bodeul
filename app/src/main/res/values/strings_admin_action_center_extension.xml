@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="admin_action_center_title">후속 알림 및 감사 로그</string>
+    <string name="admin_action_center_helper">정산, 긴급 대응, 문의 응답 이후의 후속 처리 이력을 시간순으로 확인합니다.</string>
+    <string name="admin_action_center_summary_empty">등록된 후속 알림과 감사 로그가 아직 없습니다.</string>
+    <string name="admin_action_center_summary">후속 알림 %1$d건 중 미확인 %2$d건, 해결 대기 %3$d건, 감사 로그 %4$d건</string>
+    <string name="admin_action_center_empty">표시할 운영 이력이 아직 없습니다.</string>
+    <string name="admin_action_center_badge_notification">후속 알림</string>
+    <string name="admin_action_center_badge_audit">감사 로그</string>
+    <string name="admin_action_center_source_settlement">정산 후속</string>
+    <string name="admin_action_center_source_emergency">긴급 대응</string>
+    <string name="admin_action_center_source_support">문의 응답</string>
+    <string name="admin_action_center_actor_fallback">관리자</string>
+    <string name="admin_action_center_meta">%1$s · %2$s · %3$s</string>
+    <string name="admin_action_center_body_empty">등록된 상세 내용이 없습니다.</string>
+    <string name="admin_action_center_audit_note_empty">추가 메모 없이 등록된 운영 이력입니다.</string>
+    <string name="admin_action_center_state_unread">미확인</string>
+    <string name="admin_action_center_state_read">읽음</string>
+    <string name="admin_action_center_state_resolved">해결 완료</string>
+    <string name="admin_action_center_state_audit">기록 보관</string>
+    <string name="admin_action_center_priority_immediate">긴급 확인</string>
+    <string name="admin_action_center_priority_action_required">우선 확인</string>
+    <string name="admin_action_center_priority_monitoring">운영 확인</string>
+    <string name="admin_action_center_priority_archived">해결 보관</string>
+    <string name="admin_action_center_action_mark_read">읽음 처리</string>
+    <string name="admin_action_center_action_resolve">해결 완료</string>
+    <string name="admin_action_center_action_reopen">다시 열기</string>
+    <string name="admin_action_center_filter_button">%1$s %2$d건</string>
+    <string name="admin_action_center_filter_all">전체</string>
+    <string name="admin_action_center_filter_unread">미확인</string>
+    <string name="admin_action_center_filter_unresolved">해결 대기</string>
+    <string name="admin_action_center_filter_resolved">해결 완료</string>
+    <string name="admin_action_center_filter_audit">감사 로그</string>
+    <string name="admin_action_center_filtered_empty">%1$s 기준으로 표시할 운영 이력이 없습니다.</string>
+    <string name="admin_action_center_mark_read_saved">알림을 읽음 상태로 반영했습니다.</string>
+    <string name="admin_action_center_resolved_saved">알림을 해결 완료로 업데이트했습니다.</string>
+    <string name="admin_action_center_reopened_saved">알림을 다시 확인 대상으로 돌렸습니다.</string>
+</resources>

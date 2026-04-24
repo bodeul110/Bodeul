@@ -10,6 +10,7 @@
 - 데이터 저장소: Cloud Firestore
 - Functions: `functions/index.js`
 - Firebase 설정이 없으면 앱은 자동으로 목업 모드로 동작한다.
+- 최신 기능설명서 기준으로 예약 후속, 문의, 관리자 후속 알림/전달 기록 컬렉션까지 확장 중이다.
 
 ## 소셜 로그인 로컬 설정
 
@@ -75,6 +76,8 @@ kakaoNativeAppKey=발급받은_네이티브_앱_키
   "currentStepOrder": 2,
   "currentStatus": "MEETING",
   "guardianUpdate": "환자분을 만나 병원으로 이동 중입니다.",
+  "locationSummary": "본관 접수처로 이동 중입니다.",
+  "fieldPhotoNote": "접수표 확인 사진 업로드 예정입니다.",
   "medicationNote": "처방전 수령 예정입니다."
 }
 ```
@@ -109,6 +112,139 @@ kakaoNativeAppKey=발급받은_네이티브_앱_키
   "treatmentNotes": "진료 메모",
   "medicationNotes": "복약 메모",
   "nextVisitAt": "2026-04-29 10:00"
+}
+```
+
+### `appointmentFollowUps`
+
+```json
+{
+  "requestId": "request-doc-id",
+  "reviewRatingCode": "SATISFIED",
+  "reviewSavedAt": "2026-04-23T13:20:00Z",
+  "settlementFollowUpStatus": "CONFIRMED",
+  "settlementFollowUpNote": "현장 결제 확인 완료",
+  "settlementFollowUpSavedAt": "2026-04-23T13:25:00Z",
+  "supportEscalationStatus": "NONE",
+  "supportEscalatedAt": null
+}
+```
+
+### `supportInquiries`
+
+```json
+{
+  "managerUserId": "manager-uid",
+  "managerName": "김보들",
+  "categoryCode": "PAYMENT",
+  "title": "정산 문의",
+  "body": "출금 신청 가능 시점을 확인하고 싶습니다.",
+  "statusCode": "ANSWERED",
+  "createdAt": "2026-04-23T09:00:00Z",
+  "responseText": "다음 영업일에 확인 가능합니다.",
+  "respondedAt": "2026-04-23T11:00:00Z",
+  "respondedByName": "운영 관리자"
+}
+```
+
+### `adminSettlementRecords`
+
+```json
+{
+  "requestId": "request-doc-id",
+  "statusCode": "CONFIRMED",
+  "note": "사용자 확인 완료",
+  "handledByName": "운영 관리자",
+  "handledAt": "2026-04-23T13:40:00Z"
+}
+```
+
+### `adminEmergencyIssues`
+
+```json
+{
+  "requestId": "request-doc-id",
+  "statusCode": "MONITORING",
+  "note": "현장 연락 유지 중",
+  "handledByName": "운영 관리자",
+  "handledAt": "2026-04-23T13:45:00Z"
+}
+```
+
+### `adminActionNotifications`
+
+```json
+{
+  "sourceType": "EMERGENCY",
+  "level": "WARNING",
+  "requestId": "request-doc-id",
+  "title": "긴급 이슈 확인 필요",
+  "body": "관리자 확인이 필요한 긴급 후속 알림입니다.",
+  "state": "unread",
+  "priority": "immediate",
+  "filterKeys": ["unread", "unresolved"],
+  "createdAt": "2026-04-23T13:45:00Z"
+}
+```
+
+### `adminAuditLogs`
+
+```json
+{
+  "sourceType": "SETTLEMENT",
+  "requestId": "request-doc-id",
+  "actionSummary": "정산 후속 확인 저장",
+  "note": "사용자 문의 확인 후 완료 처리",
+  "actorName": "운영 관리자",
+  "createdAt": "2026-04-23T13:50:00Z"
+}
+```
+
+### `adminActionDeliveries`
+
+```json
+{
+  "notificationId": "notification-doc-id",
+  "sourceType": "EMERGENCY",
+  "trigger": "notification_created",
+  "channel": "operations_feed",
+  "status": "confirmed",
+  "state": "delivered",
+  "priority": "monitoring",
+  "filterKeys": ["completed"],
+  "slaStatus": "completed",
+  "attemptCount": 1,
+  "maxAttemptCount": 1,
+  "requestId": "request-doc-id",
+  "title": "긴급 이슈 확인 필요",
+  "body": "관리자 운영 피드에 노출",
+  "note": "후속 알림 전달 기록",
+  "confirmedAt": 1776951901000,
+  "slaDueAt": 1776951901000,
+  "createdAt": "2026-04-23T13:45:00Z",
+  "processedAt": "2026-04-23T13:45:01Z"
+}
+```
+
+### `adminActionDeliveryJobs`
+
+```json
+{
+  "deliveryId": "delivery-doc-id",
+  "notificationId": "notification-doc-id",
+  "sourceType": "EMERGENCY",
+  "trigger": "notification_created",
+  "channel": "app_push",
+  "recipientRole": "ADMIN",
+  "recipientUserIds": [],
+  "messagePreview": "긴급 이슈 확인 필요 - 관리자 확인이 필요한 긴급 후속 알림입니다.",
+  "state": "PENDING",
+  "deliveryAttempts": 0,
+  "maxAttempts": 3,
+  "lastDeliverySource": "",
+  "lastError": "",
+  "queuedAt": "2026-04-24T09:15:00Z",
+  "updatedAt": "2026-04-24T09:15:00Z"
 }
 ```
 
@@ -161,6 +297,27 @@ KAKAO_ALIMTALK_AUTH_SCHEME=Bearer
 - 값이 모두 없으면 알림은 `SIMULATED` 상태로 처리된다.
 - 현재 payload는 공통 JSON 어댑터 형태라, 실제 대행사 스펙에 맞춰 필드명만 마지막에 조정하면 된다.
 
+## 관리자 후속 알림 푸시 큐
+
+관리자 후속 알림 푸시는 `adminActionDeliveryJobs` 큐를 통해 처리한다.
+
+1. 앱이 `adminActionNotifications`, `adminActionDeliveries`, `adminActionDeliveryJobs`를 함께 저장
+2. `deliverAdminActionDeliveryJobs`가 5분마다 `PENDING`, `FAILED` 작업을 선점
+3. 연동값이 없으면 `SIMULATED`, 있으면 `SENT`, 수신 관리자 없음이면 `SKIPPED`, 오류면 `FAILED`
+4. Functions가 작업 결과를 다시 `adminActionDeliveries`에 반영
+5. 읽음 처리 시점에는 앱이 별도 `confirmed` 전달 기록을 남겨 SLA를 종료
+
+### 환경 변수
+
+```properties
+ADMIN_PUSH_ENDPOINT=https://your-provider.example.com/admin-push
+ADMIN_PUSH_API_KEY=발급받은_API_KEY
+ADMIN_PUSH_AUTH_SCHEME=Bearer
+```
+
+- 값이 없으면 관리자 푸시는 `SIMULATED`로 처리되고 전달 기록 메모에 시뮬레이션 문구를 남긴다.
+- 현재 payload는 `title`, `body`, `recipients[]`, `metadata` 공통 JSON 어댑터 형태다.
+
 ## 연동 순서
 
 1. 앱에서 예약 생성
@@ -193,3 +350,21 @@ KAKAO_ALIMTALK_AUTH_SCHEME=Bearer
 - 매니저: `manager@bodeul.app` / `bodeul1234`
 - 환자: `patient@bodeul.app` / `bodeul1234`
 - 보호자: `guardian@bodeul.app` / `bodeul1234`
+
+## 개발용 기준선 초기화
+
+- Firestore를 비우고 `users`, `hospitalGuides`만 기준선으로 다시 맞추는 절차는 [firebase-reset-baseline.md](/D:/BoDeul/docs/firebase-reset-baseline.md)에 정리했다.
+- 실행 스크립트는 [reset-firestore-baseline.js](/D:/BoDeul/tools/firebase/reset-firestore-baseline.js)이며, `tools/firebase` 폴더에서 `npm run reset:baseline:dry-run`, `npm run reset:baseline:apply`로 사용할 수 있다.
+- 기준선만으로 화면 검증이 어려울 때는 [seed-sample-service-data.js](/D:/BoDeul/tools/firebase/seed-sample-service-data.js)로 `npm run seed:sample:dry-run`, `npm run seed:sample:apply`를 실행해 예약/세션/후속 처리 샘플을 함께 주입할 수 있다.
+- 이 스크립트는 배포 대상인 `functions/`가 아니라 운영 도구 디렉터리에서 관리한다.
+- 이 스크립트는 `Firebase Authentication`은 삭제하지 않고, 기준선 Auth 계정을 확인한 뒤 기존 Auth UID에 맞춰 `users/{uid}` 문서를 다시 만든다.
+- 백업 구조 점검과 현재 상태 diff가 필요할 때는 `npm run validate:backup -- --file ...`, `npm run diff:state -- --file ...`로 관리 대상 컬렉션 변화를 비교할 수 있다.
+- 샘플 데이터를 넣은 뒤 역할별 화면 진입 가능 여부는 `npm run check:readiness`로, 전체 상태를 HTML로 남길 때는 `npm run report:ops -- --file ...`로 확인할 수 있다.
+- 점검부터 리포트 생성까지 한 번에 실행하려면 `npm run workflow:ops -- --file ...`를 사용하면 된다.
+- Firebase 점검과 Android 빌드/테스트까지 한 번에 확인하는 로컬 프리플라이트는 `npm run preflight:local -- --file ...`로 실행할 수 있다.
+- 실제 앱 화면을 운영 리포트에 붙이려면 `npm run capture:app -- --screen-id ... --title ...` 또는 `npm run capture:app -- --preset manager-home`처럼 증적 파일을 만든 뒤 `--app-evidence` 옵션으로 `report:ops`, `workflow:ops`, `preflight:local`에 전달한다.
+- CI에서는 `npm run preflight:ci` 또는 [.github/workflows/android-preflight.yml](/D:/BoDeul/.github/workflows/android-preflight.yml)로 같은 점검 루틴을 재사용한다. Firebase 시크릿이 없으면 자동으로 운영 워크플로를 건너뛰고 빌드/테스트만 수행한다.
+- CI에서 쓰는 `FIREBASE_TOKEN`은 `firebase login:ci` refresh token을 기준으로 보고, [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 access token으로 교환해 사용한다.
+- GitHub Actions 시크릿/변수는 [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)로 한 번에 반영할 수 있다. 현재 GitHub CLI 계정이 저장소 API 접근 권한이 있어야 하며, 권한이 없으면 `gh auth switch` 또는 `gh auth login`으로 계정을 먼저 맞춰야 한다.
+- 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.
+- 운영 도구 전체 목록은 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 정리했다.

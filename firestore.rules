@@ -148,5 +148,49 @@ service cloud.firestore {
           || (isManager() && isSessionParticipant(request.resource.data.sessionId));
       allow delete: if isAdmin();
     }
+
+    match /appointmentFollowUps/{appointmentRequestId} {
+      allow read: if isAppointmentParticipant(appointmentRequestId);
+      allow create, update: if isAdmin() || isAppointmentParticipant(appointmentRequestId);
+      allow delete: if isAdmin();
+    }
+
+    match /supportInquiries/{inquiryId} {
+      allow read: if isAdmin()
+          || (isManager() && resource.data.managerUserId == request.auth.uid);
+      allow create: if isManager()
+          && request.resource.data.managerUserId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /adminSettlementRecords/{appointmentRequestId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /adminEmergencyIssues/{appointmentRequestId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /adminActionNotifications/{notificationId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /adminAuditLogs/{auditLogId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /adminActionDeliveries/{deliveryId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /adminActionDeliveryJobs/{jobId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /appointmentReminderJobs/{jobId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
   }
 }

@@ -15,6 +15,8 @@ public class AdminRequestOverview {
     private final User manager;
     @Nullable
     private final CompanionSession session;
+    @Nullable
+    private final SessionReport sessionReport;
     private final boolean hasGuide;
     private final boolean hasLinkedParticipants;
 
@@ -24,6 +26,7 @@ public class AdminRequestOverview {
             @Nullable User guardian,
             @Nullable User manager,
             @Nullable CompanionSession session,
+            @Nullable SessionReport sessionReport,
             boolean hasGuide,
             boolean hasLinkedParticipants
     ) {
@@ -32,6 +35,7 @@ public class AdminRequestOverview {
         this.guardian = guardian;
         this.manager = manager;
         this.session = session;
+        this.sessionReport = sessionReport;
         this.hasGuide = hasGuide;
         this.hasLinkedParticipants = hasLinkedParticipants;
     }
@@ -58,6 +62,11 @@ public class AdminRequestOverview {
     @Nullable
     public CompanionSession getSession() {
         return session;
+    }
+
+    @Nullable
+    public SessionReport getSessionReport() {
+        return sessionReport;
     }
 
     public boolean hasGuide() {

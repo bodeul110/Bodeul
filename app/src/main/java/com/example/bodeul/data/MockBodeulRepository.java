@@ -2,8 +2,28 @@ package com.example.bodeul.data;
 
 import androidx.annotation.Nullable;
 
+import com.example.bodeul.domain.model.AdminActionContract;
+import com.example.bodeul.domain.model.AdminActionNotification;
+import com.example.bodeul.domain.model.AdminActionDeliveryChannel;
+import com.example.bodeul.domain.model.AdminActionDeliveryRecord;
+import com.example.bodeul.domain.model.AdminActionDeliveryStatus;
+import com.example.bodeul.domain.model.AdminActionDeliveryTrigger;
+import com.example.bodeul.domain.model.AdminActionNotificationLevel;
+import com.example.bodeul.domain.model.AdminActionSourceType;
+import com.example.bodeul.domain.model.AdminAuditLogEntry;
+import com.example.bodeul.domain.model.AdminEmergencyIssueRecord;
+import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
+import com.example.bodeul.domain.model.AdminRequestActionOverview;
+import com.example.bodeul.domain.model.AdminSettlementRecord;
+import com.example.bodeul.domain.model.AdminSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
+import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
+import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
+import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -14,6 +34,9 @@ import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.domain.model.SupportInquiry;
+import com.example.bodeul.domain.model.SupportInquiryCategory;
+import com.example.bodeul.domain.model.SupportInquiryStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.util.UserProfileSanitizer;
@@ -44,12 +67,20 @@ public class MockBodeulRepository implements BodeulRepository {
     private final Map<String, Long> managerDocumentReviewedAtByUserId = new HashMap<>();
     private final Map<String, String> managerDocumentReviewedByNameByUserId = new HashMap<>();
     private final Map<String, List<ManagerDocumentHistoryEntry>> managerDocumentHistoriesByUserId = new HashMap<>();
+    private final Map<String, AppointmentFollowUpRecord> followUpRecordsByRequestId = new HashMap<>();
+    private final Map<String, AdminSettlementRecord> settlementRecordsByRequestId = new HashMap<>();
+    private final Map<String, AdminEmergencyIssueRecord> emergencyIssuesByRequestId = new HashMap<>();
+    private final List<AdminActionNotification> adminActionNotifications = new ArrayList<>();
+    private final List<AdminActionDeliveryRecord> adminActionDeliveries = new ArrayList<>();
+    private final List<AdminAuditLogEntry> adminAuditLogs = new ArrayList<>();
+    private final List<SupportInquiry> supportInquiries = new ArrayList<>();
 
     public MockBodeulRepository() {
         seedUsers();
         seedAppointmentRequests();
         seedCompanionSessions();
         seedHospitalGuides();
+        seedSupportInquiries();
     }
 
     @Override
@@ -70,6 +101,34 @@ public class MockBodeulRepository implements BodeulRepository {
             }
         }
         return Collections.unmodifiableList(result);
+    }
+
+    @Nullable
+    public synchronized AppointmentRequestDetail getAppointmentRequestDetail(String requestId) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null) {
+            return null;
+        }
+
+        User patient = findUserById(request.getPatientUserId());
+        User guardian = findUserById(request.getGuardianUserId());
+        User manager = findUserById(request.getManagerUserId());
+        CompanionSession session = findSessionByRequestId(requestId);
+        SessionReport report = session == null ? null : getSessionReport(session.getId());
+        HospitalGuide guide = getHospitalGuide(request.getHospitalName(), request.getDepartmentName());
+        AppointmentFollowUpRecord followUpRecord = request.getStatus() == AppointmentStatus.COMPLETED
+                ? getAppointmentFollowUpRecord(requestId)
+                : null;
+        return new AppointmentRequestDetail(
+                request,
+                patient,
+                guardian,
+                manager,
+                session,
+                report,
+                guide,
+                followUpRecord
+        );
     }
 
     public synchronized List<User> getUsersByRole(UserRole role) {
@@ -141,6 +200,242 @@ public class MockBodeulRepository implements BodeulRepository {
             return Collections.emptyList();
         }
         return Collections.unmodifiableList(new ArrayList<>(historyEntries));
+    }
+
+    public synchronized List<AdminRequestActionOverview> getAdminRequestActionOverviews() {
+        List<AdminRequestActionOverview> overviews = new ArrayList<>();
+        for (AppointmentRequest request : appointmentRequests) {
+            AdminSettlementRecord settlementRecord = settlementRecordsByRequestId.get(request.getId());
+            AdminEmergencyIssueRecord emergencyIssueRecord = emergencyIssuesByRequestId.get(request.getId());
+            AppointmentFollowUpRecord followUpRecord = followUpRecordsByRequestId.get(request.getId());
+            if (settlementRecord == null && emergencyIssueRecord == null && followUpRecord == null) {
+                continue;
+            }
+            overviews.add(new AdminRequestActionOverview(
+                    request.getId(),
+                    settlementRecord,
+                    emergencyIssueRecord,
+                    followUpRecord
+            ));
+        }
+        return Collections.unmodifiableList(overviews);
+    }
+
+    public synchronized List<AdminActionNotification> getAdminActionNotifications() {
+        return AdminActionContract.sortNotifications(adminActionNotifications);
+    }
+
+    public synchronized List<AdminAuditLogEntry> getAdminAuditLogs() {
+        return AdminActionContract.sortAuditLogs(adminAuditLogs);
+    }
+
+    public synchronized List<AdminActionDeliveryRecord> getAdminActionDeliveries() {
+        return AdminActionContract.sortDeliveries(adminActionDeliveries);
+    }
+
+    @Nullable
+    public synchronized AdminActionNotification markAdminActionNotificationRead(
+            String notificationId
+    ) {
+        for (int index = 0; index < adminActionNotifications.size(); index++) {
+            AdminActionNotification notification = adminActionNotifications.get(index);
+            if (!notification.getId().equals(notificationId)) {
+                continue;
+            }
+            if (notification.isRead()) {
+                return notification;
+            }
+            AdminActionNotification updatedNotification = new AdminActionNotification(
+                    notification.getId(),
+                    notification.getSourceType(),
+                    notification.getLevel(),
+                    notification.getRequestId(),
+                    notification.getInquiryId(),
+                    notification.getTitle(),
+                    notification.getBody(),
+                    notification.getActorName(),
+                    notification.getCreatedAtMillis(),
+                    true,
+                    System.currentTimeMillis(),
+                    notification.isResolved(),
+                    notification.getResolvedAtMillis(),
+                    notification.getResolvedByName()
+            );
+            adminActionNotifications.set(index, updatedNotification);
+            appendActionDeliveryRecords(
+                    updatedNotification,
+                    AdminActionDeliveryTrigger.NOTIFICATION_READ,
+                    AdminActionDeliveryStatus.CONFIRMED,
+                    AdminActionDeliveryStatus.CONFIRMED,
+                    "관리자 앱 푸시 기준 읽음 확인이 완료됐습니다.",
+                    "운영 피드에 읽음 상태 반영을 완료했습니다.",
+                    System.currentTimeMillis()
+            );
+            return updatedNotification;
+        }
+        return null;
+    }
+
+    @Nullable
+    public synchronized AdminActionNotification updateAdminActionNotificationResolved(
+            String notificationId,
+            boolean resolved,
+            String handledByName
+    ) {
+        for (int index = 0; index < adminActionNotifications.size(); index++) {
+            AdminActionNotification notification = adminActionNotifications.get(index);
+            if (!notification.getId().equals(notificationId)) {
+                continue;
+            }
+
+            long now = System.currentTimeMillis();
+            long readAtMillis = notification.isRead() && notification.getReadAtMillis() > 0L
+                    ? notification.getReadAtMillis()
+                    : now;
+            AdminActionNotification updatedNotification = new AdminActionNotification(
+                    notification.getId(),
+                    notification.getSourceType(),
+                    notification.getLevel(),
+                    notification.getRequestId(),
+                    notification.getInquiryId(),
+                    notification.getTitle(),
+                    notification.getBody(),
+                    notification.getActorName(),
+                    notification.getCreatedAtMillis(),
+                    true,
+                    readAtMillis,
+                    resolved,
+                    resolved ? now : 0L,
+                    resolved ? normalizeText(handledByName) : ""
+            );
+            adminActionNotifications.set(index, updatedNotification);
+            adminAuditLogs.add(0, new AdminAuditLogEntry(
+                    "admin-audit-" + now + "-" + adminAuditLogs.size(),
+                    notification.getSourceType(),
+                    notification.getRequestId(),
+                    notification.getInquiryId(),
+                    resolved
+                            ? "후속 알림 해결 처리"
+                            : "후속 알림 다시 열기",
+                    buildNotificationResolutionNote(notification, resolved),
+                    normalizeText(handledByName),
+                    now
+            ));
+            appendActionDeliveryRecords(
+                    updatedNotification,
+                    resolved
+                            ? AdminActionDeliveryTrigger.NOTIFICATION_RESOLVED
+                            : AdminActionDeliveryTrigger.NOTIFICATION_REOPENED,
+                    resolved
+                            ? AdminActionDeliveryStatus.SKIPPED
+                            : AdminActionDeliveryStatus.SENT,
+                    AdminActionDeliveryStatus.CONFIRMED,
+                    resolved
+                            ? "관리자 처리 결과라 추가 푸시를 보내지 않았습니다."
+                            : "재오픈 알림을 관리자 앱 푸시 채널로 다시 전달했습니다.",
+                    resolved
+                            ? "운영 피드에 해결 완료 반영을 마쳤습니다."
+                            : "운영 피드에 재오픈 상태 반영을 마쳤습니다.",
+                    now
+            );
+            return updatedNotification;
+        }
+        return null;
+    }
+
+    public synchronized List<SupportInquiry> getSupportInquiries() {
+        return Collections.unmodifiableList(new ArrayList<>(supportInquiries));
+    }
+
+    public synchronized List<SupportInquiry> getSupportInquiries(String managerUserId) {
+        List<SupportInquiry> inquiries = new ArrayList<>();
+        for (SupportInquiry inquiry : supportInquiries) {
+            if (inquiry.getManagerUserId().equals(managerUserId)) {
+                inquiries.add(inquiry);
+            }
+        }
+        return Collections.unmodifiableList(inquiries);
+    }
+
+    public synchronized AppointmentFollowUpRecord getAppointmentFollowUpRecord(String requestId) {
+        if (findAppointmentRequest(requestId) == null) {
+            return AppointmentFollowUpRecord.empty(requestId);
+        }
+        AppointmentFollowUpRecord record = followUpRecordsByRequestId.get(requestId);
+        return record == null ? AppointmentFollowUpRecord.empty(requestId) : record;
+    }
+
+    @Nullable
+    public synchronized AppointmentFollowUpRecord saveAppointmentFollowUpReview(
+            String requestId,
+            AppointmentFollowUpReviewRating reviewRating
+    ) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null || request.getStatus() != AppointmentStatus.COMPLETED || reviewRating == null) {
+            return null;
+        }
+        AppointmentFollowUpRecord currentRecord = getAppointmentFollowUpRecord(requestId);
+        AppointmentFollowUpRecord record = new AppointmentFollowUpRecord(
+                requestId,
+                reviewRating,
+                System.currentTimeMillis(),
+                currentRecord.getSettlementStatus(),
+                currentRecord.getSettlementNote(),
+                currentRecord.getSettlementSavedAtMillis(),
+                currentRecord.getSupportEscalationStatus(),
+                currentRecord.getSupportEscalatedAtMillis()
+        );
+        followUpRecordsByRequestId.put(requestId, record);
+        return record;
+    }
+
+    @Nullable
+    public synchronized AppointmentFollowUpRecord saveAppointmentFollowUpSettlement(
+            String requestId,
+            AppointmentFollowUpSettlementStatus settlementStatus,
+            String settlementNote
+    ) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null || request.getStatus() != AppointmentStatus.COMPLETED || settlementStatus == null) {
+            return null;
+        }
+        AppointmentFollowUpRecord currentRecord = getAppointmentFollowUpRecord(requestId);
+        AppointmentFollowUpRecord record = new AppointmentFollowUpRecord(
+                requestId,
+                currentRecord.getReviewRating(),
+                currentRecord.getReviewSavedAtMillis(),
+                settlementStatus,
+                normalizeText(settlementNote),
+                System.currentTimeMillis(),
+                currentRecord.getSupportEscalationStatus(),
+                currentRecord.getSupportEscalatedAtMillis()
+        );
+        followUpRecordsByRequestId.put(requestId, record);
+        return record;
+    }
+
+    @Nullable
+    public synchronized AppointmentFollowUpRecord saveAppointmentFollowUpSupportEscalation(
+            String requestId,
+            AppointmentFollowUpSupportEscalationStatus escalationStatus
+    ) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null || request.getStatus() != AppointmentStatus.COMPLETED || escalationStatus == null) {
+            return null;
+        }
+        AppointmentFollowUpRecord currentRecord = getAppointmentFollowUpRecord(requestId);
+        AppointmentFollowUpRecord record = new AppointmentFollowUpRecord(
+                requestId,
+                currentRecord.getReviewRating(),
+                currentRecord.getReviewSavedAtMillis(),
+                currentRecord.getSettlementStatus(),
+                currentRecord.getSettlementNote(),
+                currentRecord.getSettlementSavedAtMillis(),
+                escalationStatus,
+                System.currentTimeMillis()
+        );
+        followUpRecordsByRequestId.put(requestId, record);
+        return record;
     }
 
     @Nullable
@@ -239,6 +534,149 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized AdminSettlementRecord saveSettlementRecord(
+            String requestId,
+            AdminSettlementStatus status,
+            String note,
+            String handledByName
+    ) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null) {
+            return null;
+        }
+        AdminSettlementRecord record = new AdminSettlementRecord(
+                requestId,
+                status,
+                normalizeText(note),
+                normalizeText(handledByName),
+                System.currentTimeMillis()
+        );
+        settlementRecordsByRequestId.put(requestId, record);
+        appendAdminActionArtifacts(
+                AdminActionSourceType.SETTLEMENT,
+                status == AdminSettlementStatus.NEEDS_REVIEW
+                        ? AdminActionNotificationLevel.WARNING
+                        : AdminActionNotificationLevel.INFO,
+                requestId,
+                "",
+                buildSettlementNotificationTitle(status),
+                buildSettlementNotificationBody(request, status),
+                buildSettlementAuditSummary(status),
+                record.getNote(),
+                record.getHandledByName(),
+                record.getHandledAtMillis()
+        );
+        return record;
+    }
+
+    @Nullable
+    public synchronized AdminEmergencyIssueRecord saveEmergencyIssue(
+            String requestId,
+            AdminEmergencyIssueStatus status,
+            String note,
+            String handledByName
+    ) {
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (request == null) {
+            return null;
+        }
+        AdminEmergencyIssueRecord record = new AdminEmergencyIssueRecord(
+                requestId,
+                status,
+                normalizeText(note),
+                normalizeText(handledByName),
+                System.currentTimeMillis()
+        );
+        emergencyIssuesByRequestId.put(requestId, record);
+        appendAdminActionArtifacts(
+                AdminActionSourceType.EMERGENCY,
+                status == AdminEmergencyIssueStatus.REPORTED
+                        ? AdminActionNotificationLevel.WARNING
+                        : AdminActionNotificationLevel.INFO,
+                requestId,
+                "",
+                buildEmergencyNotificationTitle(status),
+                buildEmergencyNotificationBody(request, status),
+                buildEmergencyAuditSummary(status),
+                record.getNote(),
+                record.getHandledByName(),
+                record.getHandledAtMillis()
+        );
+        return record;
+    }
+
+    @Nullable
+    public synchronized SupportInquiry saveSupportInquiry(
+            String managerUserId,
+            SupportInquiryCategory category,
+            String title,
+            String body
+    ) {
+        User manager = findUserById(managerUserId);
+        if (manager == null || manager.getRole() != UserRole.MANAGER) {
+            return null;
+        }
+        long createdAtMillis = System.currentTimeMillis();
+        SupportInquiry inquiry = new SupportInquiry(
+                "support-" + createdAtMillis,
+                managerUserId,
+                manager.getName(),
+                category,
+                normalizeText(title),
+                normalizeText(body),
+                SupportInquiryStatus.RECEIVED,
+                createdAtMillis,
+                "",
+                0L,
+                ""
+        );
+        supportInquiries.add(0, inquiry);
+        return inquiry;
+    }
+
+    @Nullable
+    public synchronized SupportInquiry respondSupportInquiry(
+            String inquiryId,
+            String response,
+            String respondedByName
+    ) {
+        for (int index = 0; index < supportInquiries.size(); index++) {
+            SupportInquiry inquiry = supportInquiries.get(index);
+            if (!inquiry.getId().equals(inquiryId)) {
+                continue;
+            }
+            SupportInquiry updatedInquiry = new SupportInquiry(
+                    inquiry.getId(),
+                    inquiry.getManagerUserId(),
+                    inquiry.getManagerName(),
+                    inquiry.getCategory(),
+                    inquiry.getTitle(),
+                    inquiry.getBody(),
+                    SupportInquiryStatus.ANSWERED,
+                    inquiry.getCreatedAtMillis(),
+                    normalizeText(response),
+                    System.currentTimeMillis(),
+                    normalizeText(respondedByName)
+            );
+            supportInquiries.set(index, updatedInquiry);
+            appendAdminActionArtifacts(
+                    AdminActionSourceType.SUPPORT,
+                    AdminActionNotificationLevel.INFO,
+                    "",
+                    inquiry.getId(),
+                    "문의 응답 저장",
+                    buildSupportNotificationBody(inquiry),
+                    "문의 응답 저장",
+                    updatedInquiry.getResponseText(),
+                    updatedInquiry.getRespondedByName(),
+                    updatedInquiry.getRespondedAtMillis()
+            );
+            return updatedInquiry;
+        }
+        return null;
+    }
+
+    @Nullable
     public synchronized User findUserById(String userId) {
         for (User user : users) {
             if (user.getId().equals(userId)) {
@@ -329,22 +767,15 @@ public class MockBodeulRepository implements BodeulRepository {
     @Nullable
     public synchronized AppointmentRequest createAppointmentRequest(
             User currentUser,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
-            String linkedParticipantName,
-            String linkedParticipantPhone,
-            String linkedParticipantEmail
+            BookingRequestDraft bookingRequestDraft
     ) {
         if (currentUser.getRole() != UserRole.PATIENT && currentUser.getRole() != UserRole.GUARDIAN) {
             return null;
         }
 
-        String normalizedLinkedName = UserProfileSanitizer.normalizeName(linkedParticipantName);
-        String normalizedLinkedPhone = UserProfileSanitizer.normalizePhone(linkedParticipantPhone);
-        String normalizedLinkedEmail = UserProfileSanitizer.normalizeEmail(linkedParticipantEmail);
+        String normalizedLinkedName = UserProfileSanitizer.normalizeName(bookingRequestDraft.getLinkedParticipantName());
+        String normalizedLinkedPhone = UserProfileSanitizer.normalizePhone(bookingRequestDraft.getLinkedParticipantPhone());
+        String normalizedLinkedEmail = UserProfileSanitizer.normalizeEmail(bookingRequestDraft.getLinkedParticipantEmail());
         User linkedParticipant = resolveLinkedParticipant(
                 resolveCounterpartRole(currentUser.getRole()),
                 normalizedLinkedEmail,
@@ -392,17 +823,11 @@ public class MockBodeulRepository implements BodeulRepository {
                     : UserProfileSanitizer.normalizeEmail(linkedParticipant.getEmail());
         }
 
-        AppointmentRequest request = new AppointmentRequest(
+        AppointmentRequest request = createSnapshotBackedRequest(
                 "request-" + (appointmentRequests.size() + 1),
+                bookingRequestDraft,
                 patientUserId,
                 guardianUserId,
-                normalizeText(hospitalName),
-                normalizeText(departmentName),
-                normalizeText(appointmentAt),
-                normalizeText(meetingPlace),
-                normalizeText(specialNotes),
-                AppointmentStatus.REQUESTED,
-                null,
                 patientName,
                 patientPhone,
                 patientEmail,
@@ -419,14 +844,7 @@ public class MockBodeulRepository implements BodeulRepository {
     public synchronized AppointmentRequest updateAppointmentRequest(
             User currentUser,
             String requestId,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
-            String linkedParticipantName,
-            String linkedParticipantPhone,
-            String linkedParticipantEmail
+            BookingRequestDraft bookingRequestDraft
     ) {
         if (currentUser.getRole() != UserRole.PATIENT && currentUser.getRole() != UserRole.GUARDIAN) {
             return null;
@@ -439,9 +857,9 @@ public class MockBodeulRepository implements BodeulRepository {
             return null;
         }
 
-        String normalizedLinkedName = UserProfileSanitizer.normalizeName(linkedParticipantName);
-        String normalizedLinkedPhone = UserProfileSanitizer.normalizePhone(linkedParticipantPhone);
-        String normalizedLinkedEmail = UserProfileSanitizer.normalizeEmail(linkedParticipantEmail);
+        String normalizedLinkedName = UserProfileSanitizer.normalizeName(bookingRequestDraft.getLinkedParticipantName());
+        String normalizedLinkedPhone = UserProfileSanitizer.normalizePhone(bookingRequestDraft.getLinkedParticipantPhone());
+        String normalizedLinkedEmail = UserProfileSanitizer.normalizeEmail(bookingRequestDraft.getLinkedParticipantEmail());
         User linkedParticipant = resolveLinkedParticipant(
                 resolveCounterpartRole(currentUser.getRole()),
                 normalizedLinkedEmail,
@@ -489,17 +907,11 @@ public class MockBodeulRepository implements BodeulRepository {
                     : UserProfileSanitizer.normalizeEmail(linkedParticipant.getEmail());
         }
 
-        AppointmentRequest updatedRequest = new AppointmentRequest(
+        AppointmentRequest updatedRequest = createSnapshotBackedRequest(
                 existingRequest.getId(),
+                bookingRequestDraft,
                 patientUserId,
                 guardianUserId,
-                normalizeText(hospitalName),
-                normalizeText(departmentName),
-                normalizeText(appointmentAt),
-                normalizeText(meetingPlace),
-                normalizeText(specialNotes),
-                AppointmentStatus.REQUESTED,
-                null,
                 patientName,
                 patientPhone,
                 patientEmail,
@@ -629,6 +1041,26 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized ManagerDashboard updateLocationSummary(String managerUserId, String summary) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setLocationSummary(summary);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard updateFieldPhotoNote(String managerUserId, String note) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setFieldPhotoNote(note);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
     public synchronized ManagerDashboard updateMedicationNote(String managerUserId, String note) {
         CompanionSession session = getPrimaryManagerSession(managerUserId);
         if (session == null) {
@@ -719,6 +1151,8 @@ public class MockBodeulRepository implements BodeulRepository {
                 1,
                 SessionStatus.READY,
                 "",
+                "",
+                "",
                 ""
         ));
         return request;
@@ -798,6 +1232,197 @@ public class MockBodeulRepository implements BodeulRepository {
                 && session.getStatus() != SessionStatus.CANCELED;
     }
 
+    private void appendAdminActionArtifacts(
+            AdminActionSourceType sourceType,
+            AdminActionNotificationLevel level,
+            String requestId,
+            String inquiryId,
+            String title,
+            String body,
+            String actionSummary,
+            String note,
+            String actorName,
+            long createdAtMillis
+    ) {
+        AdminActionNotification notification = new AdminActionNotification(
+                "admin-notification-" + createdAtMillis + "-" + adminActionNotifications.size(),
+                sourceType,
+                level,
+                normalizeText(requestId),
+                normalizeText(inquiryId),
+                normalizeText(title),
+                normalizeText(body),
+                normalizeText(actorName),
+                createdAtMillis,
+                false,
+                0L,
+                false,
+                0L,
+                ""
+        );
+        adminActionNotifications.add(0, notification);
+        appendActionDeliveryRecords(
+                notification,
+                AdminActionDeliveryTrigger.NOTIFICATION_CREATED,
+                AdminActionDeliveryStatus.SENT,
+                AdminActionDeliveryStatus.CONFIRMED,
+                buildPushDeliveryNote(notification),
+                "운영 피드 타임라인 반영을 완료했습니다.",
+                createdAtMillis
+        );
+        adminAuditLogs.add(0, new AdminAuditLogEntry(
+                "admin-audit-" + createdAtMillis + "-" + adminAuditLogs.size(),
+                sourceType,
+                normalizeText(requestId),
+                normalizeText(inquiryId),
+                normalizeText(actionSummary),
+                normalizeText(note),
+                normalizeText(actorName),
+                createdAtMillis
+        ));
+    }
+
+    private void appendActionDeliveryRecords(
+            AdminActionNotification notification,
+            AdminActionDeliveryTrigger trigger,
+            AdminActionDeliveryStatus pushStatus,
+            AdminActionDeliveryStatus feedStatus,
+            String pushNote,
+            String feedNote,
+            long createdAtMillis
+    ) {
+        adminActionDeliveries.add(0, new AdminActionDeliveryRecord(
+                "admin-delivery-" + createdAtMillis + "-push-" + adminActionDeliveries.size(),
+                notification.getId(),
+                notification.getSourceType(),
+                trigger,
+                AdminActionDeliveryChannel.APP_PUSH,
+                pushStatus,
+                notification.getRequestId(),
+                notification.getInquiryId(),
+                notification.getTitle(),
+                notification.getBody(),
+                "관리자 앱 푸시",
+                normalizeText(pushNote),
+                createdAtMillis,
+                createdAtMillis
+        ));
+        adminActionDeliveries.add(0, new AdminActionDeliveryRecord(
+                "admin-delivery-" + createdAtMillis + "-feed-" + adminActionDeliveries.size(),
+                notification.getId(),
+                notification.getSourceType(),
+                trigger,
+                AdminActionDeliveryChannel.OPERATIONS_FEED,
+                feedStatus,
+                notification.getRequestId(),
+                notification.getInquiryId(),
+                notification.getTitle(),
+                notification.getBody(),
+                "운영 피드",
+                normalizeText(feedNote),
+                createdAtMillis,
+                createdAtMillis
+        ));
+    }
+
+    private String buildPushDeliveryNote(AdminActionNotification notification) {
+        if (notification.getPriority().getSortOrder() >= 120) {
+            return "관리자 앱 푸시 채널로 우선 확인 알림을 전달했습니다.";
+        }
+        return "관리자 앱 푸시 채널로 운영 확인 알림을 전달했습니다.";
+    }
+
+    private String buildSettlementNotificationTitle(AdminSettlementStatus status) {
+        if (status == AdminSettlementStatus.NEEDS_REVIEW) {
+            return "정산 재확인 요청 저장";
+        }
+        return "정산 후속 확인 저장";
+    }
+
+    private String buildSettlementNotificationBody(
+            AppointmentRequest request,
+            AdminSettlementStatus status
+    ) {
+        if (status == AdminSettlementStatus.NEEDS_REVIEW) {
+            return buildActionRequestLabel(request) + "을 정산 재확인 대상으로 표시했습니다.";
+        }
+        return buildActionRequestLabel(request) + "의 정산 확인 결과를 저장했습니다.";
+    }
+
+    private String buildNotificationResolutionNote(
+            AdminActionNotification notification,
+            boolean resolved
+    ) {
+        String sourceLabel = buildSourceLabel(notification.getSourceType());
+        if (resolved) {
+            return sourceLabel + " 알림을 해결 완료 상태로 정리했습니다.";
+        }
+        return sourceLabel + " 알림을 다시 확인 대상으로 되돌렸습니다.";
+    }
+
+    private String buildSourceLabel(AdminActionSourceType sourceType) {
+        switch (sourceType) {
+            case SETTLEMENT:
+                return "정산";
+            case EMERGENCY:
+                return "긴급 대응";
+            case SUPPORT:
+            default:
+                return "문의 응답";
+        }
+    }
+
+    private String buildSettlementAuditSummary(AdminSettlementStatus status) {
+        if (status == AdminSettlementStatus.NEEDS_REVIEW) {
+            return "정산 후속 상태를 재확인으로 저장";
+        }
+        return "정산 후속 상태를 확인 완료로 저장";
+    }
+
+    private String buildEmergencyNotificationTitle(AdminEmergencyIssueStatus status) {
+        if (status == AdminEmergencyIssueStatus.RESOLVED) {
+            return "긴급 이슈 해결 기록 저장";
+        }
+        return "긴급 대응 기록 저장";
+    }
+
+    private String buildEmergencyNotificationBody(
+            AppointmentRequest request,
+            AdminEmergencyIssueStatus status
+    ) {
+        if (status == AdminEmergencyIssueStatus.RESOLVED) {
+            return buildActionRequestLabel(request) + "의 긴급 대응을 해결 완료로 저장했습니다.";
+        }
+        return buildActionRequestLabel(request) + "에 긴급 대응 기록을 남겼습니다.";
+    }
+
+    private String buildEmergencyAuditSummary(AdminEmergencyIssueStatus status) {
+        if (status == AdminEmergencyIssueStatus.RESOLVED) {
+            return "긴급 이슈를 해결 상태로 저장";
+        }
+        return "긴급 이슈를 보고 상태로 저장";
+    }
+
+    private String buildSupportNotificationBody(SupportInquiry inquiry) {
+        return buildInquiryLabel(inquiry) + "에 관리자 응답을 남겼습니다.";
+    }
+
+    private String buildActionRequestLabel(AppointmentRequest request) {
+        String patientName = normalizeText(request.getPatientName());
+        if (!patientName.isEmpty()) {
+            return patientName + " 예약";
+        }
+        return normalizeText(request.getId());
+    }
+
+    private String buildInquiryLabel(SupportInquiry inquiry) {
+        String managerName = normalizeText(inquiry.getManagerName());
+        if (!managerName.isEmpty()) {
+            return managerName + " 문의";
+        }
+        return normalizeText(inquiry.getId());
+    }
+
     private SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {
         if (stepOrder <= 1) {
             return SessionStatus.MEETING;
@@ -827,6 +1452,53 @@ public class MockBodeulRepository implements BodeulRepository {
     private boolean hasLinkedParticipants(AppointmentRequest request) {
         return !normalizeText(request.getPatientUserId()).isEmpty()
                 && !normalizeText(request.getGuardianUserId()).isEmpty();
+    }
+
+    private AppointmentRequest createSnapshotBackedRequest(
+            String requestId,
+            BookingRequestDraft bookingRequestDraft,
+            String patientUserId,
+            String guardianUserId,
+            String patientName,
+            String patientPhone,
+            String patientEmail,
+            String guardianName,
+            String guardianPhone,
+            String guardianEmail
+    ) {
+        return new AppointmentRequest(
+                requestId,
+                patientUserId,
+                guardianUserId,
+                normalizeText(bookingRequestDraft.getHospitalName()),
+                normalizeText(bookingRequestDraft.getDepartmentName()),
+                normalizeText(bookingRequestDraft.getAppointmentAt()),
+                normalizeText(bookingRequestDraft.getMeetingPlace()),
+                normalizeText(bookingRequestDraft.getSpecialNotes()),
+                AppointmentStatus.REQUESTED,
+                null,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail,
+                normalizeText(bookingRequestDraft.getPatientConditionSummary()),
+                normalizeText(bookingRequestDraft.getMedicationSummary()),
+                bookingRequestDraft.getMobilitySupport().name(),
+                bookingRequestDraft.getTripType().name(),
+                bookingRequestDraft.getManagerGenderPreference().name(),
+                bookingRequestDraft.getPaymentMethod().name(),
+                bookingRequestDraft.getCouponType().name(),
+                bookingRequestDraft.getPriceSummary().getBasePrice(),
+                bookingRequestDraft.getPriceSummary().getOptionSurchargePrice(),
+                bookingRequestDraft.getPriceSummary().getCouponDiscountPrice(),
+                bookingRequestDraft.getPriceSummary().getFinalPrice(),
+                bookingRequestDraft.getPaymentApproval().getStatus().name(),
+                normalizeText(bookingRequestDraft.getPaymentApproval().getApprovalCode()),
+                normalizeText(bookingRequestDraft.getPaymentApproval().getApprovedAt()),
+                normalizeText(bookingRequestDraft.getPaymentApproval().getProviderLabel())
+        );
     }
 
     @Nullable
@@ -1023,6 +1695,8 @@ public class MockBodeulRepository implements BodeulRepository {
                 2,
                 SessionStatus.MEETING,
                 "환자분을 만나 병원으로 이동 중입니다.",
+                "서울시립병원 정문 앞 도착, 접수 창구로 이동 준비 중입니다.",
+                "정문 안내 표지와 접수 대기표를 확인했습니다.",
                 "처방전 수령 전입니다."
         ));
     }
@@ -1041,6 +1715,35 @@ public class MockBodeulRepository implements BodeulRepository {
                         new GuideStep(6, "약국 방문", "처방전을 수령하고 약 복용법을 정리합니다."),
                         new GuideStep(7, "환자 귀가(서비스 종료)", "귀가 동선을 확인하고 보호자에게 최종 상황을 전달합니다.")
                 )
+        ));
+    }
+
+    private void seedSupportInquiries() {
+        supportInquiries.add(new SupportInquiry(
+                "support-seed-2",
+                "manager-1",
+                "源?밸?",
+                SupportInquiryCategory.SETTLEMENT,
+                "泥섎━ ???곷떒 ?뺤씤 ?붿껌",
+                "理쒖쥌 ?섎궔 湲덉븸怨?怨좉컼 ?곗젣 ?댁뿭???ㅼ떆 ?뺤씤?댁빞 ?⑸땲??",
+                SupportInquiryStatus.ANSWERED,
+                1760655600000L,
+                "?댁쁺 移대뱶 ?뺤궛 ?곸뿭?먯꽌 ?뱀씤 踰덊샇???ㅼ떆 ?대젰?댁＜?몄슂. ?ㅽ듃??湲곗??怨좉컼?먯뿉寃?理쒖쥌 ?좎궡瑜??꾨떖?덈뒗??",
+                1760659200000L,
+                "愿由ъ옄"
+        ));
+        supportInquiries.add(new SupportInquiry(
+                "support-seed-1",
+                "manager-1",
+                "源?밸?",
+                SupportInquiryCategory.MATCHING,
+                "留ㅼ묶 ?쒓컙 議곗젙 臾몄쓽",
+                "?ㅼ쓬 二??먯쟾 ?쒓컙? ?대룞 媛???쒓컙???곌껐?섍퀶?듬땲??",
+                SupportInquiryStatus.RECEIVED,
+                1760662800000L,
+                "",
+                0L,
+                ""
         ));
     }
 }

@@ -1,0 +1,22 @@
+{
+  "name": "bodeul-firebase-tools",
+  "private": true,
+  "scripts": {
+    "check:state": "node check-firestore-state.js",
+    "check:readiness": "node check-role-screen-readiness.js",
+    "backup:state": "node backup-firestore-state.js",
+    "validate:backup": "node validate-firestore-backup.js",
+    "capture:app": "node capture-app-navigation-evidence.js",
+    "diff:state": "node diff-firestore-state.js",
+    "report:ops": "node generate-operations-report.js",
+    "workflow:ops": "node run-operations-workflow.js",
+    "preflight:ci": "node run-ci-preflight.js",
+    "preflight:local": "node run-local-preflight.js",
+    "reset:baseline:dry-run": "node reset-firestore-baseline.js --dry-run",
+    "reset:baseline:apply": "node reset-firestore-baseline.js --apply",
+    "seed:sample:dry-run": "node seed-sample-service-data.js --dry-run",
+    "seed:sample:apply": "node seed-sample-service-data.js --apply",
+    "restore:state:dry-run": "node restore-firestore-state.js",
+    "restore:state:apply": "node restore-firestore-state.js --apply"
+  }
+}

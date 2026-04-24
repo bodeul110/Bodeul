@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.ui.admin.AdminActivity;
 import com.example.bodeul.ui.manager.ManagerActivity;
 
 /**
@@ -29,9 +30,14 @@ public final class AuthFlowRouter {
             return ProfileCompletionActivity.createIntent(context);
         }
 
-        Class<?> target = user.getRole() == UserRole.MANAGER
-                ? ManagerActivity.class
-                : MainActivity.class;
+        Class<?> target;
+        if (user.getRole() == UserRole.MANAGER) {
+            target = ManagerActivity.class;
+        } else if (user.getRole() == UserRole.ADMIN) {
+            target = AdminActivity.class;
+        } else {
+            target = MainActivity.class;
+        }
         return new Intent(context, target);
     }
 }

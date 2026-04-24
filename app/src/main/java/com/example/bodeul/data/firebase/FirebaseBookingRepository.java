@@ -4,18 +4,33 @@ import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
+import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
+import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
+import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.BookingHospitalOption;
+import com.example.bodeul.domain.model.BookingPaymentApproval;
+import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.GuideStep;
+import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.util.UserProfileSanitizer;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.SetOptions;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.text.ParseException;
@@ -27,6 +42,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.TimeZone;
 
 /**
@@ -37,6 +54,24 @@ public class FirebaseBookingRepository implements BookingRepository {
 
     public FirebaseBookingRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
+    }
+
+    @Override
+    public void getHospitalOptions(RepositoryCallback<List<BookingHospitalOption>> callback) {
+        firestore.collection("hospitalGuides")
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<HospitalGuide> guides = new ArrayList<>();
+                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+                        HospitalGuide guide = toGuide(documentSnapshot);
+                        if (guide != null) {
+                            guides.add(guide);
+                        }
+                    }
+                    callback.onSuccess(toHospitalOptions(guides));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("병원 선택 목록을 불러오지 못했습니다."));
     }
 
     @Override
@@ -54,16 +89,35 @@ public class FirebaseBookingRepository implements BookingRepository {
     }
 
     @Override
+    public void getAppointmentRequestDetail(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
+            return;
+        }
+
+        firestore.collection("appointmentRequests")
+                .document(requestId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                    if (request == null || !isRequestOwner(currentUser, request)) {
+                        callback.onError("요청 상세 정보를 확인하지 못했습니다.");
+                        return;
+                    }
+                    loadAppointmentRequestDetail(request, callback);
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("요청 상세 정보를 확인하지 못했습니다."));
+    }
+
+    @Override
     public void createAppointmentRequest(
             User currentUser,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
-            String linkedParticipantName,
-            String linkedParticipantPhone,
-            String linkedParticipantEmail,
+            BookingRequestDraft bookingRequestDraft,
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
@@ -72,9 +126,9 @@ public class FirebaseBookingRepository implements BookingRepository {
         }
 
         ParticipantSnapshot linkedParticipantInput = new ParticipantSnapshot(
-                UserProfileSanitizer.normalizeName(linkedParticipantName),
-                UserProfileSanitizer.normalizePhone(linkedParticipantPhone),
-                UserProfileSanitizer.normalizeEmail(linkedParticipantEmail)
+                UserProfileSanitizer.normalizeName(bookingRequestDraft.getLinkedParticipantName()),
+                UserProfileSanitizer.normalizePhone(bookingRequestDraft.getLinkedParticipantPhone()),
+                UserProfileSanitizer.normalizeEmail(bookingRequestDraft.getLinkedParticipantEmail())
         );
 
         resolveLinkedParticipant(
@@ -86,11 +140,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                     public void onResolved(@Nullable User linkedParticipant) {
                         Map<String, Object> requestDocument = buildRequestDocument(
                                 currentUser,
-                                hospitalName,
-                                departmentName,
-                                appointmentAt,
-                                meetingPlace,
-                                specialNotes,
+                                bookingRequestDraft,
                                 linkedParticipantInput,
                                 linkedParticipant
                         );
@@ -125,14 +175,7 @@ public class FirebaseBookingRepository implements BookingRepository {
     public void updateAppointmentRequest(
             User currentUser,
             String requestId,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
-            String linkedParticipantName,
-            String linkedParticipantPhone,
-            String linkedParticipantEmail,
+            BookingRequestDraft bookingRequestDraft,
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
@@ -151,9 +194,9 @@ public class FirebaseBookingRepository implements BookingRepository {
                     }
 
                     ParticipantSnapshot linkedParticipantInput = new ParticipantSnapshot(
-                            UserProfileSanitizer.normalizeName(linkedParticipantName),
-                            UserProfileSanitizer.normalizePhone(linkedParticipantPhone),
-                            UserProfileSanitizer.normalizeEmail(linkedParticipantEmail)
+                            UserProfileSanitizer.normalizeName(bookingRequestDraft.getLinkedParticipantName()),
+                            UserProfileSanitizer.normalizePhone(bookingRequestDraft.getLinkedParticipantPhone()),
+                            UserProfileSanitizer.normalizeEmail(bookingRequestDraft.getLinkedParticipantEmail())
                     );
                     resolveLinkedParticipant(
                             resolveCounterpartRole(currentUser.getRole()),
@@ -164,11 +207,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                                 public void onResolved(@Nullable User linkedParticipant) {
                                     Map<String, Object> requestDocument = buildRequestDocument(
                                             currentUser,
-                                            hospitalName,
-                                            departmentName,
-                                            appointmentAt,
-                                            meetingPlace,
-                                            specialNotes,
+                                            bookingRequestDraft,
                                             linkedParticipantInput,
                                             linkedParticipant
                                     );
@@ -253,6 +292,200 @@ public class FirebaseBookingRepository implements BookingRepository {
     }
 
     @Override
+    public void getAppointmentFollowUp(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
+            return;
+        }
+
+        firestore.collection("appointmentRequests")
+                .document(requestId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                    if (request == null || !isRequestOwner(currentUser, request)) {
+                        callback.onError("후속 정보 조회 권한이 없습니다.");
+                        return;
+                    }
+
+                    firestore.collection("appointmentFollowUps")
+                            .document(requestId)
+                            .get()
+                            .addOnSuccessListener(followUpSnapshot ->
+                                    callback.onSuccess(toAppointmentFollowUpRecord(followUpSnapshot, requestId)))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("후속 정보를 불러오지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("후속 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
+    public void saveAppointmentFollowUpReview(
+            User currentUser,
+            String requestId,
+            AppointmentFollowUpReviewRating reviewRating,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
+            return;
+        }
+
+        firestore.collection("appointmentRequests")
+                .document(requestId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                    if (request == null || !isRequestOwner(currentUser, request)) {
+                        callback.onError("후기 저장 권한이 없습니다.");
+                        return;
+                    }
+                    if (request.getStatus() != AppointmentStatus.COMPLETED) {
+                        callback.onError("완료된 예약에서만 후기를 저장할 수 있습니다.");
+                        return;
+                    }
+
+                    Map<String, Object> followUpDocument = new HashMap<>();
+                    followUpDocument.put("requestId", requestId);
+                    followUpDocument.put("reviewRatingCode", reviewRating.getValue());
+                    followUpDocument.put("reviewSavedByUserId", currentUser.getId());
+                    followUpDocument.put("reviewSavedAt", FieldValue.serverTimestamp());
+                    followUpDocument.put("updatedAt", FieldValue.serverTimestamp());
+
+                    firestore.collection("appointmentFollowUps")
+                            .document(requestId)
+                            .set(followUpDocument, SetOptions.merge())
+                            .addOnSuccessListener(unused ->
+                                    firestore.collection("appointmentFollowUps")
+                                            .document(requestId)
+                                            .get()
+                                            .addOnSuccessListener(followUpSnapshot ->
+                                                    callback.onSuccess(
+                                                            toAppointmentFollowUpRecord(followUpSnapshot, requestId)
+                                                    ))
+                                            .addOnFailureListener(exception ->
+                                                    callback.onError("후기 저장 결과를 다시 불러오지 못했습니다.")))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("후기 내용을 저장하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("후기 저장 대상을 확인하지 못했습니다."));
+    }
+
+    @Override
+    public void saveAppointmentFollowUpSettlement(
+            User currentUser,
+            String requestId,
+            AppointmentFollowUpSettlementStatus settlementStatus,
+            String settlementNote,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            return;
+        }
+
+        firestore.collection("appointmentRequests")
+                .document(requestId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                    if (request == null || !isRequestOwner(currentUser, request)) {
+                        callback.onError("?뺤궛 ?꾩냽 ???沅뚰븳???놁뒿?덈떎.");
+                        return;
+                    }
+                    if (request.getStatus() != AppointmentStatus.COMPLETED) {
+                        callback.onError("?꾨즺???덉빟?먯꽌留?留덉감 ?꾩냽 ?뺤씤????ν븷 ???덉뒿?덈떎.");
+                        return;
+                    }
+
+                    Map<String, Object> followUpDocument = new HashMap<>();
+                    followUpDocument.put("requestId", requestId);
+                    followUpDocument.put("settlementFollowUpStatus", settlementStatus.getValue());
+                    followUpDocument.put("settlementFollowUpNote", normalizeText(settlementNote));
+                    followUpDocument.put("settlementFollowUpSavedByUserId", currentUser.getId());
+                    followUpDocument.put("settlementFollowUpSavedAt", FieldValue.serverTimestamp());
+                    followUpDocument.put("updatedAt", FieldValue.serverTimestamp());
+
+                    firestore.collection("appointmentFollowUps")
+                            .document(requestId)
+                            .set(followUpDocument, SetOptions.merge())
+                            .addOnSuccessListener(unused ->
+                                    firestore.collection("appointmentFollowUps")
+                                            .document(requestId)
+                                            .get()
+                                            .addOnSuccessListener(followUpSnapshot ->
+                                                    callback.onSuccess(
+                                                            toAppointmentFollowUpRecord(followUpSnapshot, requestId)
+                                                    ))
+                                            .addOnFailureListener(exception ->
+                                                    callback.onError("?뺤궛 ?꾩냽 寃곌낵瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??")))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("?뺤궛 ?꾩냽 ?곹깭瑜???ν븯吏 紐삵뻽?듬땲??"));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("?뺤궛 ?꾩냽 ?????곸쓣 ?뺤씤?섏? 紐삵뻽?듬땲??"));
+    }
+
+    @Override
+    public void saveAppointmentFollowUpSupportEscalation(
+            User currentUser,
+            String requestId,
+            AppointmentFollowUpSupportEscalationStatus escalationStatus,
+            RepositoryCallback<AppointmentFollowUpRecord> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            return;
+        }
+
+        firestore.collection("appointmentRequests")
+                .document(requestId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                    if (request == null || !isRequestOwner(currentUser, request)) {
+                        callback.onError("SOS ?꾩냽 ???沅뚰븳???놁뒿?덈떎.");
+                        return;
+                    }
+                    if (request.getStatus() != AppointmentStatus.COMPLETED) {
+                        callback.onError("?꾨즺???덉빟?먯꽌留?SOS ?꾩냽 湲곕줉????ν븷 ???덉뒿?덈떎.");
+                        return;
+                    }
+
+                    Map<String, Object> followUpDocument = new HashMap<>();
+                    followUpDocument.put("requestId", requestId);
+                    followUpDocument.put("supportEscalationStatus", escalationStatus.getValue());
+                    followUpDocument.put("supportEscalatedByUserId", currentUser.getId());
+                    followUpDocument.put("supportEscalatedAt", FieldValue.serverTimestamp());
+                    followUpDocument.put("updatedAt", FieldValue.serverTimestamp());
+
+                    firestore.collection("appointmentFollowUps")
+                            .document(requestId)
+                            .set(followUpDocument, SetOptions.merge())
+                            .addOnSuccessListener(unused ->
+                                    firestore.collection("appointmentFollowUps")
+                                            .document(requestId)
+                                            .get()
+                                            .addOnSuccessListener(followUpSnapshot ->
+                                                    callback.onSuccess(
+                                                            toAppointmentFollowUpRecord(followUpSnapshot, requestId)
+                                                    ))
+                                            .addOnFailureListener(exception ->
+                                                    callback.onError("SOS ?꾩냽 寃곌낵瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??")))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("SOS ?꾩냽 湲곕줉????ν븯吏 紐삵뻽?듬땲??"));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("SOS ?꾩냽 ?????곸쓣 ?뺤씤?섏? 紐삵뻽?듬땲??"));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return true;
     }
@@ -298,6 +531,65 @@ public class FirebaseBookingRepository implements BookingRepository {
         return false;
     }
 
+    private void loadAppointmentRequestDetail(
+            AppointmentRequest request,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        Task<DocumentSnapshot> patientTask = loadUserSnapshot(request.getPatientUserId());
+        Task<DocumentSnapshot> guardianTask = loadUserSnapshot(request.getGuardianUserId());
+        Task<DocumentSnapshot> managerTask = loadUserSnapshot(request.getManagerUserId());
+        Task<QuerySnapshot> sessionTask = firestore.collection("companionSessions")
+                .whereEqualTo("appointmentRequestId", request.getId())
+                .limit(1)
+                .get();
+        Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")
+                .whereEqualTo("hospitalName", request.getHospitalName())
+                .get();
+
+        List<Task<?>> tasks = Arrays.asList(patientTask, guardianTask, managerTask, sessionTask, guideTask);
+        Tasks.whenAllSuccess(tasks)
+                .addOnSuccessListener(results -> {
+                    User patient = toUser((DocumentSnapshot) results.get(0));
+                    User guardian = toUser((DocumentSnapshot) results.get(1));
+                    User manager = toUser((DocumentSnapshot) results.get(2));
+                    CompanionSession session = findSession((QuerySnapshot) results.get(3));
+                    HospitalGuide guide = findGuide((QuerySnapshot) results.get(4), request.getDepartmentName());
+
+                    if (session == null) {
+                        callback.onSuccess(new AppointmentRequestDetail(
+                                request,
+                                patient,
+                                guardian,
+                                manager,
+                                null,
+                                null,
+                                guide
+                        ));
+                        return;
+                    }
+
+                    firestore.collection("sessionReports")
+                            .whereEqualTo("sessionId", session.getId())
+                            .limit(1)
+                            .get()
+                            .addOnSuccessListener(reportSnapshot -> callback.onSuccess(
+                                    new AppointmentRequestDetail(
+                                            request,
+                                            patient,
+                                            guardian,
+                                            manager,
+                                            session,
+                                            findReport(reportSnapshot),
+                                            guide
+                                    )
+                            ))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("진행 리포트를 불러오지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("요청 상세 정보를 불러오지 못했습니다."));
+    }
+
     private void reloadAppointmentRequest(
             com.google.firebase.firestore.DocumentReference documentReference,
             RepositoryCallback<AppointmentRequest> callback
@@ -315,13 +607,18 @@ public class FirebaseBookingRepository implements BookingRepository {
                         callback.onError("요청 정보를 다시 불러오지 못했습니다."));
     }
 
+    private Task<DocumentSnapshot> loadUserSnapshot(@Nullable String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return Tasks.forResult((DocumentSnapshot) null);
+        }
+        return firestore.collection("users")
+                .document(userId)
+                .get();
+    }
+
     private Map<String, Object> buildRequestDocument(
             User currentUser,
-            String hospitalName,
-            String departmentName,
-            String appointmentAt,
-            String meetingPlace,
-            String specialNotes,
+            BookingRequestDraft bookingRequestDraft,
             ParticipantSnapshot linkedParticipantInput,
             @Nullable User linkedParticipant
     ) {
@@ -347,13 +644,29 @@ public class FirebaseBookingRepository implements BookingRepository {
             applyGuardianFields(requestDocument, currentUser.getId(), currentParticipantSnapshot);
         }
 
-        requestDocument.put("hospitalName", normalizeText(hospitalName));
-        requestDocument.put("departmentName", normalizeText(departmentName));
-        requestDocument.put("appointmentAt", normalizeText(appointmentAt));
-        requestDocument.put("meetingPlace", normalizeText(meetingPlace));
-        requestDocument.put("specialNotes", normalizeText(specialNotes));
+        requestDocument.put("hospitalName", normalizeText(bookingRequestDraft.getHospitalName()));
+        requestDocument.put("departmentName", normalizeText(bookingRequestDraft.getDepartmentName()));
+        requestDocument.put("appointmentAt", normalizeText(bookingRequestDraft.getAppointmentAt()));
+        requestDocument.put("meetingPlace", normalizeText(bookingRequestDraft.getMeetingPlace()));
+        requestDocument.put("specialNotes", normalizeText(bookingRequestDraft.getSpecialNotes()));
+        requestDocument.put("patientConditionSummary", normalizeText(bookingRequestDraft.getPatientConditionSummary()));
+        requestDocument.put("medicationSummary", normalizeText(bookingRequestDraft.getMedicationSummary()));
+        requestDocument.put("mobilitySupportCode", bookingRequestDraft.getMobilitySupport().name());
+        requestDocument.put("tripTypeCode", bookingRequestDraft.getTripType().name());
+        requestDocument.put("managerGenderPreferenceCode", bookingRequestDraft.getManagerGenderPreference().name());
+        requestDocument.put("paymentMethodCode", bookingRequestDraft.getPaymentMethod().name());
+        requestDocument.put("couponCode", bookingRequestDraft.getCouponType().name());
+        requestDocument.put("basePrice", bookingRequestDraft.getPriceSummary().getBasePrice());
+        requestDocument.put("optionSurchargePrice", bookingRequestDraft.getPriceSummary().getOptionSurchargePrice());
+        requestDocument.put("couponDiscountPrice", bookingRequestDraft.getPriceSummary().getCouponDiscountPrice());
+        requestDocument.put("finalPrice", bookingRequestDraft.getPriceSummary().getFinalPrice());
+        BookingPaymentApproval paymentApproval = bookingRequestDraft.getPaymentApproval();
+        requestDocument.put("paymentStatusCode", paymentApproval.getStatus().name());
+        requestDocument.put("paymentApprovalCode", normalizeText(paymentApproval.getApprovalCode()));
+        requestDocument.put("paymentApprovedAt", normalizeText(paymentApproval.getApprovedAt()));
+        requestDocument.put("paymentProviderLabel", normalizeText(paymentApproval.getProviderLabel()));
 
-        ParsedAppointmentAt parsedAppointmentAt = parseAppointmentAt(appointmentAt);
+        ParsedAppointmentAt parsedAppointmentAt = parseAppointmentAt(bookingRequestDraft.getAppointmentAt());
         if (parsedAppointmentAt != null) {
             requestDocument.put("appointmentAtEpochMillis", parsedAppointmentAt.epochMillis);
             requestDocument.put("appointmentDateKey", parsedAppointmentAt.dateKey);
@@ -474,6 +787,9 @@ public class FirebaseBookingRepository implements BookingRepository {
 
     @Nullable
     private User toUser(DocumentSnapshot documentSnapshot) {
+        if (documentSnapshot == null) {
+            return null;
+        }
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -535,8 +851,144 @@ public class FirebaseBookingRepository implements BookingRepository {
                 stringOrEmpty(documentSnapshot.getString("patientEmail")),
                 stringOrEmpty(documentSnapshot.getString("guardianName")),
                 stringOrEmpty(documentSnapshot.getString("guardianPhone")),
-                stringOrEmpty(documentSnapshot.getString("guardianEmail"))
+                stringOrEmpty(documentSnapshot.getString("guardianEmail")),
+                stringOrEmpty(documentSnapshot.getString("patientConditionSummary")),
+                stringOrEmpty(documentSnapshot.getString("medicationSummary")),
+                stringOrEmpty(documentSnapshot.getString("mobilitySupportCode")),
+                stringOrEmpty(documentSnapshot.getString("tripTypeCode")),
+                stringOrEmpty(documentSnapshot.getString("managerGenderPreferenceCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentMethodCode")),
+                stringOrEmpty(documentSnapshot.getString("couponCode")),
+                numberOrZero(documentSnapshot.get("basePrice")),
+                numberOrZero(documentSnapshot.get("optionSurchargePrice")),
+                numberOrZero(documentSnapshot.get("couponDiscountPrice")),
+                numberOrZero(documentSnapshot.get("finalPrice")),
+                stringOrEmpty(documentSnapshot.getString("paymentStatusCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentApprovalCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentApprovedAt")),
+                stringOrEmpty(documentSnapshot.getString("paymentProviderLabel"))
         );
+    }
+
+    @Nullable
+    private CompanionSession findSession(QuerySnapshot querySnapshot) {
+        for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+            CompanionSession session = toSession(documentSnapshot);
+            if (session != null) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
+        if (!documentSnapshot.exists()) {
+            return null;
+        }
+
+        String appointmentRequestId = documentSnapshot.getString("appointmentRequestId");
+        String managerUserId = documentSnapshot.getString("managerUserId");
+        Long currentStepOrder = documentSnapshot.getLong("currentStepOrder");
+        String statusValue = documentSnapshot.getString("currentStatus");
+        if (appointmentRequestId == null || managerUserId == null || currentStepOrder == null || statusValue == null) {
+            return null;
+        }
+
+        return new CompanionSession(
+                documentSnapshot.getId(),
+                appointmentRequestId,
+                managerUserId,
+                currentStepOrder.intValue(),
+                SessionStatus.valueOf(statusValue),
+                stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
+                stringOrEmpty(documentSnapshot.getString("locationSummary")),
+                stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
+                stringOrEmpty(documentSnapshot.getString("medicationNote"))
+        );
+    }
+
+    @Nullable
+    private SessionReport findReport(QuerySnapshot querySnapshot) {
+        for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+            SessionReport report = toReport(documentSnapshot);
+            if (report != null) {
+                return report;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private SessionReport toReport(DocumentSnapshot documentSnapshot) {
+        if (!documentSnapshot.exists()) {
+            return null;
+        }
+        String sessionId = documentSnapshot.getString("sessionId");
+        String summary = documentSnapshot.getString("summary");
+        String treatmentNotes = documentSnapshot.getString("treatmentNotes");
+        String medicationNotes = documentSnapshot.getString("medicationNotes");
+        String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
+        if (sessionId == null || summary == null) {
+            return null;
+        }
+
+        return new SessionReport(
+                documentSnapshot.getId(),
+                sessionId,
+                summary,
+                treatmentNotes == null ? "" : treatmentNotes,
+                medicationNotes == null ? "" : medicationNotes,
+                nextVisitAt == null ? "" : nextVisitAt
+        );
+    }
+
+    @Nullable
+    private HospitalGuide findGuide(QuerySnapshot querySnapshot, String departmentName) {
+        for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+            HospitalGuide guide = toGuide(documentSnapshot);
+            if (guide != null && guide.getDepartmentName().equals(departmentName)) {
+                return guide;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private HospitalGuide toGuide(DocumentSnapshot documentSnapshot) {
+        if (!documentSnapshot.exists()) {
+            return null;
+        }
+        String hospitalName = documentSnapshot.getString("hospitalName");
+        String departmentName = documentSnapshot.getString("departmentName");
+        Object stepsValue = documentSnapshot.get("steps");
+        if (hospitalName == null || departmentName == null || !(stepsValue instanceof List)) {
+            return null;
+        }
+
+        List<GuideStep> steps = new ArrayList<>();
+        for (Object rawStep : (List<?>) stepsValue) {
+            if (!(rawStep instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> stepMap = (Map<?, ?>) rawStep;
+            Object orderValue = stepMap.get("order");
+            Object titleValue = stepMap.get("title");
+            Object descriptionValue = stepMap.get("description");
+            if (!(orderValue instanceof Number) || titleValue == null || descriptionValue == null) {
+                continue;
+            }
+            steps.add(new GuideStep(
+                    ((Number) orderValue).intValue(),
+                    String.valueOf(titleValue),
+                    String.valueOf(descriptionValue)
+            ));
+        }
+        if (steps.isEmpty()) {
+            return null;
+        }
+
+        return new HospitalGuide(documentSnapshot.getId(), hospitalName, departmentName, steps);
     }
 
     @Nullable
@@ -554,8 +1006,70 @@ public class FirebaseBookingRepository implements BookingRepository {
         return value == null ? "" : value;
     }
 
+    private AppointmentFollowUpRecord toAppointmentFollowUpRecord(
+            @Nullable DocumentSnapshot documentSnapshot,
+            String requestId
+    ) {
+        if (documentSnapshot == null || !documentSnapshot.exists()) {
+            return AppointmentFollowUpRecord.empty(requestId);
+        }
+        return new AppointmentFollowUpRecord(
+                requestId,
+                AppointmentFollowUpReviewRating.fromValue(
+                        documentSnapshot.getString("reviewRatingCode")
+                ),
+                timestampToMillis(documentSnapshot.get("reviewSavedAt")),
+                AppointmentFollowUpSettlementStatus.fromValue(
+                        documentSnapshot.getString("settlementFollowUpStatus")
+                ),
+                normalizeText(documentSnapshot.getString("settlementFollowUpNote")),
+                timestampToMillis(documentSnapshot.get("settlementFollowUpSavedAt")),
+                AppointmentFollowUpSupportEscalationStatus.fromValue(
+                        documentSnapshot.getString("supportEscalationStatus")
+                ),
+                timestampToMillis(documentSnapshot.get("supportEscalatedAt"))
+        );
+    }
+
+    private int numberOrZero(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return 0;
+    }
+
+    private long timestampToMillis(@Nullable Object value) {
+        if (value instanceof Timestamp) {
+            return ((Timestamp) value).toDate().getTime();
+        }
+        if (value instanceof Date) {
+            return ((Date) value).getTime();
+        }
+        return 0L;
+    }
+
     private String normalizeText(String rawValue) {
         return rawValue == null ? "" : rawValue.trim();
+    }
+
+    private List<BookingHospitalOption> toHospitalOptions(List<HospitalGuide> guides) {
+        Map<String, TreeSet<String>> departmentsByHospital = new TreeMap<>();
+        for (HospitalGuide guide : guides) {
+            String hospitalName = normalizeText(guide.getHospitalName());
+            String departmentName = normalizeText(guide.getDepartmentName());
+            if (hospitalName.isEmpty() || departmentName.isEmpty()) {
+                continue;
+            }
+            departmentsByHospital
+                    .computeIfAbsent(hospitalName, key -> new TreeSet<>())
+                    .add(departmentName);
+        }
+
+        List<BookingHospitalOption> options = new ArrayList<>();
+        for (Map.Entry<String, TreeSet<String>> entry : departmentsByHospital.entrySet()) {
+            options.add(new BookingHospitalOption(entry.getKey(), new ArrayList<>(entry.getValue())));
+        }
+        return options;
     }
 
     @Nullable

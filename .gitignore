@@ -7,6 +7,7 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+.tmp/
 .DS_Store
 /build
 /captures
@@ -16,3 +17,11 @@ local.properties
 app/google-services.json
 .firebaserc
 /functions/node_modules
+/tools/firebase/backups/*.json
+!/tools/firebase/backups/.gitkeep
+/tools/firebase/reports/*.html
+/tools/firebase/reports/*.json
+/tools/firebase/reports/*.md
+/tools/firebase/reports/screenshots/*.png
+!/tools/firebase/reports/.gitkeep
+!/tools/firebase/reports/screenshots/.gitkeep

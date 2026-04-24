@@ -19,7 +19,6 @@ import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.ManagerDashboard;
-import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -28,38 +27,25 @@ import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.card.MaterialCardView;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
 /**
- * 매니저가 현재 동행 현황과 주요 빠른 작업을 확인하는 홈 화면이다.
+ * 매니저 홈은 대기형 홈과 진행형 홈을 분기하고, 실제 뷰 바인딩은 전용 객체에 위임한다.
  */
-public class ManagerActivity extends AppCompatActivity {
-    private enum QuickActionType {
-        DOCUMENT,
-        SCHEDULE
-    }
-
+public class ManagerActivity extends AppCompatActivity implements ManagerHomeDashboardBinder.Listener {
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
+    private ManagerHomeCoordinator managerHomeCoordinator;
+    private ManagerHomeDashboardBinder managerHomeDashboardBinder;
+    private ManagerQuickNoteDialogController quickNoteDialogController;
     private User currentUser;
     private ManagerHomeProfile managerHomeProfile = new ManagerHomeProfile("", "");
-    private boolean hasActiveSession;
+    @Nullable
+    private ManagerDashboard currentDashboard;
 
-    private TextView textManagerMode;
-    private TextView textManagerGreeting;
-    private TextView textManagerCardTitle;
-    private TextView textManagerCardBody;
-    private TextView textAssignmentDetail;
-    private TextView textAssignmentNote;
-    private TextView textActionDocsDescription;
-    private TextView textActionDocsStatus;
-    private TextView textActionScheduleDescription;
     private View managerStatePanel;
     private View managerContentContainer;
-    private MaterialButton buttonOpenGuideFromHero;
-    private MaterialCardView cardActionGuide;
+    private MaterialButton buttonManagerHeroPrimary;
+    private TextView textManagerSectionAction;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,32 +54,52 @@ public class ManagerActivity extends AppCompatActivity {
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
+        managerHomeCoordinator = new ManagerHomeCoordinator(
+                this,
+                new ManagerHomePresentationFormatter(this)
+        );
+        quickNoteDialogController = new ManagerQuickNoteDialogController(this, getLayoutInflater());
 
-        textManagerMode = findViewById(R.id.textManagerMode);
-        textManagerGreeting = findViewById(R.id.textManagerGreeting);
-        textManagerCardTitle = findViewById(R.id.textManagerCardTitle);
-        textManagerCardBody = findViewById(R.id.textManagerCardBody);
-        textAssignmentDetail = findViewById(R.id.textAssignmentDetail);
-        textAssignmentNote = findViewById(R.id.textAssignmentNote);
-        textActionDocsDescription = findViewById(R.id.textActionDocsDescription);
-        textActionDocsStatus = findViewById(R.id.textActionDocsStatus);
-        textActionScheduleDescription = findViewById(R.id.textActionScheduleDescription);
         managerStatePanel = findViewById(R.id.managerStatePanel);
         managerContentContainer = findViewById(R.id.managerContentContainer);
-        buttonOpenGuideFromHero = findViewById(R.id.buttonOpenGuideFromHero);
-        cardActionGuide = findViewById(R.id.cardActionGuide);
+        buttonManagerHeroPrimary = findViewById(R.id.buttonManagerHeroPrimary);
+        textManagerSectionAction = findViewById(R.id.textManagerSectionAction);
 
-        buttonOpenGuideFromHero.setOnClickListener(view -> openGuide());
-        cardActionGuide.setOnClickListener(view -> openGuide());
-        findViewById(R.id.cardActionDocs).setOnClickListener(view -> openQuickActionDialog(QuickActionType.DOCUMENT));
-        findViewById(R.id.cardActionSchedule).setOnClickListener(view -> openQuickActionDialog(QuickActionType.SCHEDULE));
-        findViewById(R.id.cardActionLogout).setOnClickListener(view -> signOut());
+        managerHomeDashboardBinder = new ManagerHomeDashboardBinder(
+                this,
+                LayoutInflater.from(this),
+                this,
+                findViewById(R.id.textManagerMode),
+                findViewById(R.id.textManagerGreeting),
+                findViewById(R.id.textManagerSubtitle),
+                findViewById(R.id.textManagerHeroBadge),
+                findViewById(R.id.textManagerHeroStatus),
+                findViewById(R.id.textManagerHeroTitle),
+                findViewById(R.id.textManagerHeroBody),
+                buttonManagerHeroPrimary,
+                findViewById(R.id.managerActionContainer),
+                findViewById(R.id.textManagerSectionTitle),
+                textManagerSectionAction,
+                findViewById(R.id.managerPromoScroll),
+                findViewById(R.id.managerPromoContainer),
+                findViewById(R.id.cardManagerLiveFeed),
+                findViewById(R.id.viewManagerLiveFeedBanner),
+                findViewById(R.id.textManagerLiveBadge),
+                findViewById(R.id.textManagerLiveTime),
+                findViewById(R.id.textManagerLiveTitle),
+                findViewById(R.id.textManagerLiveSubtitle),
+                findViewById(R.id.textManagerLiveNote),
+                findViewById(R.id.textManagerLiveFooter)
+        );
 
-        textManagerMode.setText(managerRepository.isFirebaseBacked()
-                ? R.string.manager_home_mode_firebase
-                : R.string.manager_home_mode_demo);
-        bindEmptyDashboard();
-        bindManagerHomeProfile(managerHomeProfile);
+        buttonManagerHeroPrimary.setOnClickListener(view -> handleHeroPrimaryAction());
+        textManagerSectionAction.setOnClickListener(view -> openServiceIntroDialog());
+        findViewById(R.id.buttonManagerLogout).setOnClickListener(view -> signOut());
+        findViewById(R.id.navManagerHome).setOnClickListener(view -> renderHome());
+        findViewById(R.id.navManagerHistory).setOnClickListener(view -> openHistoryScreen());
+        findViewById(R.id.navManagerGuide).setOnClickListener(view -> openGuide());
+        findViewById(R.id.navManagerProfile).setOnClickListener(view -> openProfileScreen());
+        bindModeOnly();
     }
 
     @Override
@@ -113,8 +119,10 @@ public class ManagerActivity extends AppCompatActivity {
                 }
 
                 currentUser = result;
+                currentDashboard = null;
+                managerHomeProfile = new ManagerHomeProfile("", "");
                 hideBlockingState();
-                textManagerGreeting.setText(getString(R.string.manager_home_greeting, result.getName()));
+                renderHome();
                 loadManagerHomeProfile();
                 loadDashboard();
             }
@@ -126,18 +134,28 @@ public class ManagerActivity extends AppCompatActivity {
         });
     }
 
+    private void bindModeOnly() {
+        TextView textManagerMode = findViewById(R.id.textManagerMode);
+        textManagerMode.setText(managerRepository.isFirebaseBacked()
+                ? R.string.manager_home_mode_firebase
+                : R.string.manager_home_mode_demo);
+    }
+
     private void loadManagerHomeProfile() {
+        if (currentUser == null) {
+            return;
+        }
         managerRepository.getManagerHomeProfile(currentUser.getId(), new RepositoryCallback<ManagerHomeProfile>() {
             @Override
             public void onSuccess(ManagerHomeProfile result) {
                 managerHomeProfile = result;
-                bindManagerHomeProfile(result);
+                renderHome();
             }
 
             @Override
             public void onError(String message) {
                 managerHomeProfile = new ManagerHomeProfile("", "");
-                bindManagerHomeProfile(managerHomeProfile);
+                renderHome();
                 if (!TextUtils.isEmpty(message)) {
                     Toast.makeText(ManagerActivity.this, message, Toast.LENGTH_SHORT).show();
                 }
@@ -146,47 +164,58 @@ public class ManagerActivity extends AppCompatActivity {
     }
 
     private void loadDashboard() {
-        // 대시보드 데이터를 읽어 상단 카드와 배정 정보 영역을 동시에 갱신한다.
+        if (currentUser == null) {
+            return;
+        }
+
         managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                currentDashboard = result;
                 hideBlockingState();
-                hasActiveSession = true;
-                setGuideAccessEnabled(true);
-                int totalSteps = result.getHospitalGuide().getSteps().size();
-                textManagerCardTitle.setText(getString(
-                        R.string.manager_home_card_title,
-                        result.getSession().getCurrentStepOrder(),
-                        totalSteps
-                ));
-                textManagerCardBody.setText(getString(
-                        R.string.manager_home_card_body,
-                        result.getPatient().getName(),
-                        result.getAppointmentRequest().getHospitalName()
-                ));
-                textAssignmentDetail.setText(getString(
-                        R.string.manager_assignment_detail,
-                        result.getPatient().getName(),
-                        result.getAppointmentRequest().getDepartmentName(),
-                        result.getAppointmentRequest().getAppointmentAt()
-                ));
-                textAssignmentNote.setText(getString(
-                        R.string.manager_assignment_note,
-                        result.getAppointmentRequest().getSpecialNotes()
-                ));
+                renderHome();
             }
 
             @Override
             public void onError(String message) {
                 if (isNoActiveSession(message)) {
+                    currentDashboard = null;
                     hideBlockingState();
-                    bindEmptyDashboard();
+                    renderHome();
                     return;
                 }
-                bindEmptyDashboard();
                 showLoadErrorState(message);
             }
         });
+    }
+
+    private void renderHome() {
+        if (currentUser == null) {
+            bindModeOnly();
+            return;
+        }
+
+        ManagerHomeScreenModel screenModel = managerHomeCoordinator.createScreenModel(
+                currentUser,
+                managerHomeProfile,
+                currentDashboard,
+                managerRepository.isFirebaseBacked()
+        );
+        managerHomeDashboardBinder.bindScreen(screenModel);
+    }
+
+    private void handleHeroPrimaryAction() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+
+        if (currentDashboard == null) {
+            loadDashboard();
+            Toast.makeText(this, R.string.manager_home_matching_refresh_toast, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        openGuide();
     }
 
     private void openGuide() {
@@ -195,69 +224,79 @@ public class ManagerActivity extends AppCompatActivity {
             return;
         }
 
-        if (!hasActiveSession) {
+        if (currentDashboard == null) {
             Toast.makeText(this, R.string.manager_home_empty_toast, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 가이드 화면은 현재 로그인된 매니저 세션을 기준으로 동작한다.
         startActivity(new Intent(this, ManagerGuideActivity.class));
     }
 
-    private void openQuickActionDialog(QuickActionType actionType) {
+    private void openHistoryScreen() {
         if (currentUser == null) {
             showAuthState();
             return;
         }
-
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_manager_quick_note, null, false);
-        TextInputLayout inputLayout = dialogView.findViewById(R.id.layoutManagerQuickNote);
-        TextInputEditText inputEditText = dialogView.findViewById(R.id.inputManagerQuickNote);
-
-        if (actionType == QuickActionType.DOCUMENT) {
-            inputLayout.setHint(getString(R.string.manager_action_docs_input_hint));
-            inputLayout.setHelperText(getString(R.string.manager_action_docs_input_helper));
-            inputEditText.setText(managerHomeProfile.getDocumentSummary());
-        } else {
-            inputLayout.setHint(getString(R.string.manager_action_schedule_input_hint));
-            inputLayout.setHelperText(getString(R.string.manager_action_schedule_input_helper));
-            inputEditText.setText(managerHomeProfile.getAvailabilitySummary());
-        }
-        if (inputEditText.getText() != null) {
-            inputEditText.setSelection(inputEditText.getText().length());
-        }
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(actionType == QuickActionType.DOCUMENT
-                        ? R.string.manager_action_docs_dialog_title
-                        : R.string.manager_action_schedule_dialog_title)
-                .setView(dialogView)
-                .setNegativeButton(R.string.manager_action_dialog_cancel, null)
-                .setPositiveButton(R.string.manager_action_dialog_save, null)
-                .create();
-
-        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(view -> {
-                    String value = inputEditText.getText() == null ? "" : inputEditText.getText().toString().trim();
-                    if (TextUtils.isEmpty(value)) {
-                        inputLayout.setError(getString(R.string.error_required_field));
-                        return;
-                    }
-                    inputLayout.setError(null);
-                    saveQuickAction(actionType, value, dialog);
-                }));
-        dialog.show();
+        startActivity(ManagerHistoryActivity.createIntent(this));
     }
 
-    private void saveQuickAction(QuickActionType actionType, String value, AlertDialog dialog) {
+    private void openSupportScreen() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        startActivity(ManagerSupportActivity.createIntent(this));
+    }
+
+    private void openProfileScreen() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        startActivity(ManagerProfileActivity.createIntent(this));
+    }
+
+    @Override
+    public void onQuickActionSelected(ManagerHomeActionType actionType) {
+        switch (actionType) {
+            case DOCUMENT:
+                openQuickActionDialog(ManagerQuickNoteType.DOCUMENT);
+                return;
+            case SCHEDULE:
+                openQuickActionDialog(ManagerQuickNoteType.SCHEDULE);
+                return;
+            case HISTORY:
+                openHistoryScreen();
+                return;
+            case SUPPORT:
+            default:
+                openSupportScreen();
+        }
+    }
+
+    private void openQuickActionDialog(ManagerQuickNoteType actionType) {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        quickNoteDialogController.show(
+                actionType,
+                actionType == ManagerQuickNoteType.DOCUMENT
+                        ? managerHomeProfile.getDocumentSummary()
+                        : managerHomeProfile.getAvailabilitySummary(),
+                (noteType, value, dialog) -> saveQuickAction(noteType, value, dialog)
+        );
+    }
+
+    private void saveQuickAction(ManagerQuickNoteType actionType, String value, AlertDialog dialog) {
         RepositoryCallback<ManagerHomeProfile> callback = new RepositoryCallback<ManagerHomeProfile>() {
             @Override
             public void onSuccess(ManagerHomeProfile result) {
                 managerHomeProfile = result;
-                bindManagerHomeProfile(result);
+                renderHome();
                 Toast.makeText(
                         ManagerActivity.this,
-                        actionType == QuickActionType.DOCUMENT
+                        actionType == ManagerQuickNoteType.DOCUMENT
                                 ? R.string.manager_action_docs_saved
                                 : R.string.manager_action_schedule_saved,
                         Toast.LENGTH_SHORT
@@ -271,11 +310,27 @@ public class ManagerActivity extends AppCompatActivity {
             }
         };
 
-        if (actionType == QuickActionType.DOCUMENT) {
+        if (actionType == ManagerQuickNoteType.DOCUMENT) {
             managerRepository.saveManagerDocumentSummary(currentUser.getId(), value, callback);
             return;
         }
         managerRepository.saveManagerAvailabilitySummary(currentUser.getId(), value, callback);
+    }
+
+    private void openServiceIntroDialog() {
+        if (currentDashboard != null) {
+            openGuide();
+            return;
+        }
+
+        String message = getString(R.string.manager_home_service_card_body)
+                + "\n\n"
+                + getString(R.string.manager_home_service_card_secondary_body);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.manager_home_service_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.permission_guide_confirm, null)
+                .show();
     }
 
     private void signOut() {
@@ -295,72 +350,6 @@ public class ManagerActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
-    }
-
-    private void bindEmptyDashboard() {
-        // 세션이 없는 경우에도 홈 화면은 정상 상태로 보이도록 기본 안내 문구를 채운다.
-        hasActiveSession = false;
-        setGuideAccessEnabled(false);
-        textManagerCardTitle.setText(R.string.manager_home_empty_card_title);
-        textManagerCardBody.setText(R.string.manager_home_empty_card_body);
-        textAssignmentDetail.setText(R.string.manager_assignment_empty_detail);
-        textAssignmentNote.setText(R.string.manager_assignment_empty_note);
-    }
-
-    private void bindManagerHomeProfile(ManagerHomeProfile profile) {
-        textActionDocsDescription.setText(buildActionCardDescription(
-                profile.getDocumentSummary(),
-                R.string.manager_action_docs_desc
-        ));
-        textActionDocsStatus.setText(buildDocumentStatusText(profile));
-        textActionScheduleDescription.setText(buildActionCardDescription(
-                profile.getAvailabilitySummary(),
-                R.string.manager_action_schedule_desc
-        ));
-    }
-
-    private CharSequence buildActionCardDescription(String savedValue, int emptyResId) {
-        if (TextUtils.isEmpty(savedValue)) {
-            return getString(emptyResId);
-        }
-        return summarizeCardText(savedValue);
-    }
-
-    private String summarizeCardText(String value) {
-        return value.replace('\n', ' ').replace("  ", " ").trim();
-    }
-
-    private String buildDocumentStatusText(ManagerHomeProfile profile) {
-        String statusLabel = toManagerDocumentStatusLabel(profile.getDocumentStatus());
-        if (TextUtils.isEmpty(profile.getDocumentReviewNote())) {
-            return getString(R.string.manager_action_docs_status_plain, statusLabel);
-        }
-        return getString(
-                R.string.manager_action_docs_status_with_note,
-                statusLabel,
-                summarizeCardText(profile.getDocumentReviewNote())
-        );
-    }
-
-    private String toManagerDocumentStatusLabel(ManagerDocumentStatus status) {
-        switch (status) {
-            case APPROVED:
-                return getString(R.string.manager_document_status_approved);
-            case REJECTED:
-                return getString(R.string.manager_document_status_rejected);
-            case PENDING_REVIEW:
-                return getString(R.string.manager_document_status_pending_review);
-            case NOT_SUBMITTED:
-            default:
-                return getString(R.string.manager_document_status_not_submitted);
-        }
-    }
-
-    private void setGuideAccessEnabled(boolean enabled) {
-        buttonOpenGuideFromHero.setEnabled(enabled);
-        buttonOpenGuideFromHero.setAlpha(enabled ? 1f : 0.5f);
-        cardActionGuide.setEnabled(enabled);
-        cardActionGuide.setAlpha(enabled ? 1f : 0.5f);
     }
 
     private boolean isNoActiveSession(String message) {
@@ -410,6 +399,7 @@ public class ManagerActivity extends AppCompatActivity {
                         return;
                     }
                     hideBlockingState();
+                    loadManagerHomeProfile();
                     loadDashboard();
                 },
                 getString(R.string.state_action_open_home),

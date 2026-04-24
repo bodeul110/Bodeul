@@ -1,13 +1,15 @@
 package com.example.bodeul.data;
 
 import com.example.bodeul.domain.model.AdminDashboard;
+import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
+import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.User;
 
 import java.util.List;
 
 /**
- * 관리자 화면에서 수동 매칭과 병원 가이드 관리를 담당하는 저장소 계약이다.
+ * 관리자 화면에서 동행 매칭과 병원 가이드 관리를 담당하는 저장소 계약이다.
  */
 public interface AdminRepository {
     // 현재 관리자 계정 기준으로 운영 현황과 가이드 목록을 조회한다.
@@ -46,6 +48,45 @@ public interface AdminRepository {
             RepositoryCallback<AdminDashboard> callback
     );
 
-    // 화면에서 데모 모드 안내를 분기할 때 사용한다.
+    // 정산 후속 확인 상태와 메모를 요청 단위로 저장한다.
+    void saveSettlementRecord(
+            User currentUser,
+            String requestId,
+            AdminSettlementStatus status,
+            String note,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
+    // 진행 중 요청의 긴급 이슈 대응 상태와 메모를 저장한다.
+    void saveEmergencyIssue(
+            User currentUser,
+            String requestId,
+            AdminEmergencyIssueStatus status,
+            String note,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
+    // 매니저 문의에 대한 관리자 응답을 저장한다.
+    void respondSupportInquiry(
+            User currentUser,
+            String inquiryId,
+            String response,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
+    // 화면에서 데모 모드 안내를 분기하기 위해 사용한다.
+    void markActionNotificationRead(
+            User currentUser,
+            String notificationId,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
+    void updateActionNotificationResolved(
+            User currentUser,
+            String notificationId,
+            boolean resolved,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
     boolean isFirebaseBacked();
 }

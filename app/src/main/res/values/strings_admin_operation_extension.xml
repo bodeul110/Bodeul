@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="admin_operation_filter_button">%1$s %2$d건</string>
+
+    <string name="admin_monitoring_filter_all">전체</string>
+    <string name="admin_monitoring_filter_emergency">긴급 대응</string>
+    <string name="admin_monitoring_filter_payment">수납 단계</string>
+    <string name="admin_monitoring_filter_matched">매칭 완료</string>
+    <string name="admin_monitoring_filter_in_progress">현장 진행</string>
+
+    <string name="admin_settlement_filter_all">전체</string>
+    <string name="admin_settlement_filter_user_help">사용자 문의</string>
+    <string name="admin_settlement_filter_admin_pending">관리자 미처리</string>
+    <string name="admin_settlement_filter_needs_review">재확인 요청</string>
+    <string name="admin_settlement_filter_confirmed">확인 완료</string>
+
+    <string name="admin_monitoring_alert_summary">긴급 대응 %1$d건 · 수납 단계 %2$d건 · 매칭 완료 %3$d건 · 현장 진행 %4$d건\n현재 필터 %5$s · %6$d/%7$d건 표시 중</string>
+    <string name="admin_settlement_alert_summary">즉시 확인 %1$d건 · 사용자 문의 %2$d건 · 관리자 미처리 %3$d건 · 확인 완료 %4$d건\n현재 필터 %5$s · %6$d/%7$d건 표시 중</string>
+
+    <string name="admin_operation_activity_format">최근 기록: %1$s · %2$s</string>
+    <string name="admin_operation_activity_follow_up_review">사용자 후기 %1$s</string>
+    <string name="admin_operation_activity_follow_up_settlement">사용자 정산 %1$s</string>
+    <string name="admin_operation_activity_follow_up_support">사용자 SOS %1$s</string>
+    <string name="admin_operation_activity_admin_settlement">관리자 정산 %1$s</string>
+
+    <string name="admin_monitoring_priority_emergency">긴급 대응 필요</string>
+    <string name="admin_monitoring_priority_resolved">이슈 해결 기록</string>
+    <string name="admin_monitoring_priority_payment">수납 단계</string>
+    <string name="admin_monitoring_priority_in_progress">현장 진행</string>
+    <string name="admin_monitoring_priority_matched">매칭 완료</string>
+
+    <string name="admin_settlement_priority_support">SOS 확인 필요</string>
+    <string name="admin_settlement_priority_help">정산 문의 필요</string>
+    <string name="admin_settlement_priority_recheck">관리자 재확인</string>
+    <string name="admin_settlement_priority_pending">관리자 미처리</string>
+    <string name="admin_settlement_priority_confirmed">확인 완료</string>
+
+    <string name="admin_settlement_card_summary_support">%1$s 건에 사용자 SOS 기록(%2$s)이 있어 우선 확인이 필요합니다.</string>
+    <string name="admin_settlement_card_summary_help">%1$s 건에 사용자 정산 문의 메모가 접수되었습니다. %2$s</string>
+</resources>

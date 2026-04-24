@@ -3,7 +3,14 @@ package com.example.bodeul.data.mock;
 import com.example.bodeul.data.AdminRepository;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.domain.model.AdminActionContract;
+import com.example.bodeul.domain.model.AdminActionDeliveryRecord;
+import com.example.bodeul.domain.model.AdminActionNotification;
+import com.example.bodeul.domain.model.AdminActionOverview;
+import com.example.bodeul.domain.model.AdminAuditLogEntry;
 import com.example.bodeul.domain.model.AdminDashboard;
+import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
+import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
@@ -12,6 +19,7 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
+import com.example.bodeul.domain.model.SupportInquiry;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 
@@ -138,6 +146,101 @@ public class MockAdminRepository implements AdminRepository {
     }
 
     @Override
+    public void saveSettlementRecord(
+            User currentUser,
+            String requestId,
+            AdminSettlementStatus status,
+            String note,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("愿由ъ옄 怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            return;
+        }
+        if (repository.saveSettlementRecord(requestId, status, note, currentUser.getName()) == null) {
+            callback.onError("정산 후속 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
+    public void saveEmergencyIssue(
+            User currentUser,
+            String requestId,
+            AdminEmergencyIssueStatus status,
+            String note,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("愿由ъ옄 怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            return;
+        }
+        if (repository.saveEmergencyIssue(requestId, status, note, currentUser.getName()) == null) {
+            callback.onError("긴급 이슈 대응 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
+    public void respondSupportInquiry(
+            User currentUser,
+            String inquiryId,
+            String response,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("愿由ъ옄 怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            return;
+        }
+        if (repository.respondSupportInquiry(inquiryId, response, currentUser.getName()) == null) {
+            callback.onError("문의 응답을 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
+    public void markActionNotificationRead(
+            User currentUser,
+            String notificationId,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해 주세요.");
+            return;
+        }
+        if (repository.markAdminActionNotificationRead(notificationId) == null) {
+            callback.onError("읽음 처리할 알림을 찾지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
+    public void updateActionNotificationResolved(
+            User currentUser,
+            String notificationId,
+            boolean resolved,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해 주세요.");
+            return;
+        }
+        if (repository.updateAdminActionNotificationResolved(
+                notificationId,
+                resolved,
+                currentUser.getName()
+        ) == null) {
+            callback.onError("상태를 바꿀 알림을 찾지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }
@@ -166,12 +269,14 @@ public class MockAdminRepository implements AdminRepository {
         List<AdminRequestOverview> pendingRequests = new ArrayList<>();
         List<AdminRequestOverview> managedRequests = new ArrayList<>();
         for (AppointmentRequest request : repository.getAppointmentRequests()) {
+            CompanionSession session = repository.findSessionByRequestId(request.getId());
             AdminRequestOverview overview = new AdminRequestOverview(
                     request,
                     repository.findUserById(request.getPatientUserId()),
                     repository.findUserById(request.getGuardianUserId()),
                     repository.findUserById(request.getManagerUserId()),
-                    repository.findSessionByRequestId(request.getId()),
+                    session,
+                    session == null ? null : repository.getSessionReport(session.getId()),
                     repository.getHospitalGuide(request.getHospitalName(), request.getDepartmentName()) != null,
                     hasLinkedParticipants(request)
             );
@@ -183,6 +288,15 @@ public class MockAdminRepository implements AdminRepository {
             }
         }
 
+        List<SupportInquiry> supportInquiries = repository.getSupportInquiries();
+        List<AdminActionNotification> actionNotifications = repository.getAdminActionNotifications();
+        List<AdminAuditLogEntry> auditLogs = repository.getAdminAuditLogs();
+        List<AdminActionDeliveryRecord> actionDeliveries = repository.getAdminActionDeliveries();
+        AdminActionOverview actionOverview = AdminActionContract.createOverview(
+                actionNotifications,
+                auditLogs,
+                actionDeliveries
+        );
         return new AdminDashboard(
                 currentUser,
                 availableManagers,
@@ -190,6 +304,12 @@ public class MockAdminRepository implements AdminRepository {
                 managerDocumentOverviews,
                 pendingRequests,
                 managedRequests,
+                repository.getAdminRequestActionOverviews(),
+                actionNotifications,
+                auditLogs,
+                actionDeliveries,
+                actionOverview,
+                supportInquiries,
                 repository.getHospitalGuides()
         );
     }

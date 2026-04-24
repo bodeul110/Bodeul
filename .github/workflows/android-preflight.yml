@@ -1,0 +1,87 @@
+name: Android Preflight
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      require_firebase_ops:
+        description: "Firebase 운영 점검을 필수로 실행할지 여부"
+        required: false
+        default: false
+        type: boolean
+      backup_file:
+        description: "비교용 백업 파일 경로"
+        required: false
+        default: ""
+        type: string
+      app_evidence_path:
+        description: "앱 화면 증적 파일 경로"
+        required: false
+        default: "tools/firebase/templates/app-navigation-evidence.sample.json"
+        type: string
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      FIREBASERC_JSON: ${{ secrets.FIREBASERC_JSON }}
+      BODEUL_REQUIRE_FIREBASE: ${{ github.event_name == 'workflow_dispatch' && inputs.require_firebase_ops || 'false' }}
+      BODEUL_BACKUP_FILE: ${{ github.event_name == 'workflow_dispatch' && inputs.backup_file || '' }}
+      BODEUL_APP_EVIDENCE_PATH: ${{ github.event_name == 'workflow_dispatch' && inputs.app_evidence_path || 'tools/firebase/templates/app-navigation-evidence.sample.json' }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 17 설정
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Gradle 실행 권한 부여
+        run: chmod +x gradlew
+
+      - name: google-services.json 복원
+        if: env.GOOGLE_SERVICES_JSON != ''
+        shell: bash
+        run: |
+          mkdir -p app
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      - name: .firebaserc 복원
+        if: env.FIREBASERC_JSON != ''
+        shell: bash
+        run: |
+          printf '%s' "$FIREBASERC_JSON" > .firebaserc
+
+      - name: CI 프리플라이트 실행
+        shell: bash
+        run: |
+          ARGS=()
+          if [ -n "$BODEUL_BACKUP_FILE" ]; then
+            ARGS+=(--file "$BODEUL_BACKUP_FILE")
+          fi
+          if [ -n "$BODEUL_APP_EVIDENCE_PATH" ]; then
+            ARGS+=(--app-evidence "$BODEUL_APP_EVIDENCE_PATH")
+          fi
+          if [ "$BODEUL_REQUIRE_FIREBASE" = "true" ]; then
+            ARGS+=(--require-firebase)
+          fi
+          node tools/firebase/run-ci-preflight.js "${ARGS[@]}"
+
+      - name: 운영 리포트 아티팩트 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bodeul-preflight-reports
+          path: tools/firebase/reports/
+          if-no-files-found: warn

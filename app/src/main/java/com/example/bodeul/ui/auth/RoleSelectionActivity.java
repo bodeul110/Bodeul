@@ -2,7 +2,6 @@ package com.example.bodeul.ui.auth;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -16,8 +15,8 @@ import com.google.android.material.card.MaterialCardView;
 public class RoleSelectionActivity extends AppCompatActivity {
     private MaterialCardView managerCard;
     private MaterialCardView patientCard;
-    private TextView managerSelected;
-    private TextView patientSelected;
+    private RoleOptionCardBinder managerCardBinder;
+    private RoleOptionCardBinder patientCardBinder;
     private UserRole selectedRoleHint = UserRole.MANAGER;
 
     @Override
@@ -27,8 +26,18 @@ public class RoleSelectionActivity extends AppCompatActivity {
 
         managerCard = findViewById(R.id.cardManagerType);
         patientCard = findViewById(R.id.cardPatientType);
-        managerSelected = findViewById(R.id.textManagerSelected);
-        patientSelected = findViewById(R.id.textPatientSelected);
+        managerCardBinder = new RoleOptionCardBinder(
+                this,
+                managerCard,
+                findViewById(R.id.textManagerCheck),
+                findViewById(R.id.textManagerAction)
+        );
+        patientCardBinder = new RoleOptionCardBinder(
+                this,
+                patientCard,
+                findViewById(R.id.textPatientCheck),
+                findViewById(R.id.textPatientAction)
+        );
 
         managerCard.setOnClickListener(view -> selectRole(UserRole.MANAGER));
         patientCard.setOnClickListener(view -> selectRole(UserRole.PATIENT));
@@ -46,27 +55,7 @@ public class RoleSelectionActivity extends AppCompatActivity {
 
         // 선택된 카드만 강조해 이후 로그인 대상 역할을 분명하게 보여준다.
         boolean managerSelectedState = roleHint == UserRole.MANAGER;
-        managerCard.setStrokeWidth(managerSelectedState ? 2 : 1);
-        patientCard.setStrokeWidth(managerSelectedState ? 1 : 2);
-        managerCard.setStrokeColor(getColor(managerSelectedState
-                ? R.color.bodeul_primary
-                : R.color.bodeul_outline));
-        patientCard.setStrokeColor(getColor(managerSelectedState
-                ? R.color.bodeul_outline
-                : R.color.bodeul_primary));
-
-        managerSelected.setText(managerSelectedState
-                ? R.string.role_selected
-                : R.string.role_unselected);
-        patientSelected.setText(managerSelectedState
-                ? R.string.role_unselected
-                : R.string.role_selected);
-
-        managerSelected.setTextColor(getColor(managerSelectedState
-                ? R.color.bodeul_primary
-                : R.color.bodeul_text_secondary));
-        patientSelected.setTextColor(getColor(managerSelectedState
-                ? R.color.bodeul_text_secondary
-                : R.color.bodeul_primary));
+        managerCardBinder.render(managerSelectedState);
+        patientCardBinder.render(!managerSelectedState);
     }
 }

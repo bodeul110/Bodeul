@@ -12,6 +12,12 @@ public class AdminDashboard {
     private final List<ManagerDocumentOverview> managerDocumentOverviews;
     private final List<AdminRequestOverview> pendingRequests;
     private final List<AdminRequestOverview> managedRequests;
+    private final List<AdminRequestActionOverview> requestActionOverviews;
+    private final List<AdminActionNotification> actionNotifications;
+    private final List<AdminAuditLogEntry> auditLogs;
+    private final List<AdminActionDeliveryRecord> actionDeliveries;
+    private final AdminActionOverview actionOverview;
+    private final List<SupportInquiry> supportInquiries;
     private final List<HospitalGuide> hospitalGuides;
 
     public AdminDashboard(
@@ -21,6 +27,12 @@ public class AdminDashboard {
             List<ManagerDocumentOverview> managerDocumentOverviews,
             List<AdminRequestOverview> pendingRequests,
             List<AdminRequestOverview> managedRequests,
+            List<AdminRequestActionOverview> requestActionOverviews,
+            List<AdminActionNotification> actionNotifications,
+            List<AdminAuditLogEntry> auditLogs,
+            List<AdminActionDeliveryRecord> actionDeliveries,
+            AdminActionOverview actionOverview,
+            List<SupportInquiry> supportInquiries,
             List<HospitalGuide> hospitalGuides
     ) {
         this.admin = admin;
@@ -29,6 +41,12 @@ public class AdminDashboard {
         this.managerDocumentOverviews = managerDocumentOverviews;
         this.pendingRequests = pendingRequests;
         this.managedRequests = managedRequests;
+        this.requestActionOverviews = requestActionOverviews;
+        this.actionNotifications = actionNotifications;
+        this.auditLogs = auditLogs;
+        this.actionDeliveries = actionDeliveries;
+        this.actionOverview = actionOverview;
+        this.supportInquiries = supportInquiries;
         this.hospitalGuides = hospitalGuides;
     }
 
@@ -54,6 +72,30 @@ public class AdminDashboard {
 
     public List<AdminRequestOverview> getManagedRequests() {
         return managedRequests;
+    }
+
+    public List<AdminRequestActionOverview> getRequestActionOverviews() {
+        return requestActionOverviews;
+    }
+
+    public List<AdminActionNotification> getActionNotifications() {
+        return actionNotifications;
+    }
+
+    public List<AdminAuditLogEntry> getAuditLogs() {
+        return auditLogs;
+    }
+
+    public List<AdminActionDeliveryRecord> getActionDeliveries() {
+        return actionDeliveries;
+    }
+
+    public AdminActionOverview getActionOverview() {
+        return actionOverview;
+    }
+
+    public List<SupportInquiry> getSupportInquiries() {
+        return supportInquiries;
     }
 
     public List<HospitalGuide> getHospitalGuides() {

@@ -4,7 +4,12 @@ import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
+import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
+import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
+import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
@@ -12,10 +17,14 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
+import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.domain.model.SupportInquiry;
+import com.example.bodeul.domain.model.SupportInquiryCategory;
+import com.example.bodeul.domain.model.SupportInquiryStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.google.android.gms.tasks.Task;
@@ -190,6 +199,18 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
+        // 위치 공유 메모도 세션 문서의 별도 필드에 저장한다.
+        updateSessionField(managerUserId, "locationSummary", locationSummary, callback);
+    }
+
+    @Override
+    public void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback) {
+        // 현장 사진이나 서류 확인 메모를 다음 화면에서도 재사용할 수 있게 저장한다.
+        updateSessionField(managerUserId, "fieldPhotoNote", fieldPhotoNote, callback);
+    }
+
+    @Override
     public void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback) {
         // 약 메모도 같은 세션 문서 안에 저장해 리포트 작성 전에 누적한다.
         updateSessionField(managerUserId, "medicationNote", medicationNote, callback);
@@ -209,6 +230,78 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("매니저 홈 요약 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
+    public void getManagerDocumentOverview(
+            String managerUserId,
+            RepositoryCallback<ManagerDocumentOverview> callback
+    ) {
+        firestore.collection("users")
+                .document(managerUserId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    User manager = toUser(documentSnapshot);
+                    if (manager == null) {
+                        callback.onError("매니저 내 페이지 정보를 불러오지 못했습니다.");
+                        return;
+                    }
+
+                    callback.onSuccess(new ManagerDocumentOverview(
+                            manager,
+                            toManagerHomeProfile(documentSnapshot),
+                            toManagerDocumentHistory(documentSnapshot)
+                    ));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 내 페이지 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
+    public void getManagerHistoryDetails(
+            String managerUserId,
+            RepositoryCallback<List<AppointmentRequestDetail>> callback
+    ) {
+        Task<DocumentSnapshot> managerTask = firestore.collection("users")
+                .document(managerUserId)
+                .get();
+        Task<QuerySnapshot> sessionTask = firestore.collection("companionSessions")
+                .whereEqualTo("managerUserId", managerUserId)
+                .get();
+
+        List<Task<?>> tasks = Arrays.asList(managerTask, sessionTask);
+        Tasks.whenAllSuccess(tasks)
+                .addOnSuccessListener(results -> {
+                    User manager = toUser((DocumentSnapshot) results.get(0));
+                    if (manager == null) {
+                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다.");
+                        return;
+                    }
+
+                    List<CompanionSession> completedSessions = new ArrayList<>();
+                    QuerySnapshot querySnapshot = (QuerySnapshot) results.get(1);
+                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+                        CompanionSession session = toSession(documentSnapshot);
+                        if (session != null && session.getStatus() == SessionStatus.COMPLETED) {
+                            completedSessions.add(session);
+                        }
+                    }
+
+                    if (completedSessions.isEmpty()) {
+                        callback.onSuccess(new ArrayList<>());
+                        return;
+                    }
+
+                    loadManagerHistoryDetailsSequentially(
+                            manager,
+                            completedSessions,
+                            0,
+                            new ArrayList<>(),
+                            callback
+                    );
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
     }
 
     @Override
@@ -325,6 +418,72 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void getSupportInquiries(
+            String managerUserId,
+            RepositoryCallback<List<SupportInquiry>> callback
+    ) {
+        firestore.collection("supportInquiries")
+                .whereEqualTo("managerUserId", managerUserId)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<SupportInquiry> inquiries = new ArrayList<>();
+                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+                        SupportInquiry inquiry = toSupportInquiry(documentSnapshot);
+                        if (inquiry != null) {
+                            inquiries.add(inquiry);
+                        }
+                    }
+                    inquiries.sort((left, right) ->
+                            Long.compare(right.getCreatedAtMillis(), left.getCreatedAtMillis()));
+                    callback.onSuccess(inquiries);
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("문의 내역을 불러오지 못했습니다."));
+    }
+
+    @Override
+    public void submitSupportInquiry(
+            String managerUserId,
+            SupportInquiryCategory category,
+            String title,
+            String body,
+            RepositoryCallback<List<SupportInquiry>> callback
+    ) {
+        firestore.collection("users")
+                .document(managerUserId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    User manager = toUser(documentSnapshot);
+                    if (manager == null || manager.getRole() != UserRole.MANAGER) {
+                        callback.onError("매니저 계정을 확인하지 못했습니다.");
+                        return;
+                    }
+
+                    Map<String, Object> inquiryDocument = new HashMap<>();
+                    inquiryDocument.put("managerUserId", managerUserId);
+                    inquiryDocument.put("managerName", normalizeText(manager.getName()));
+                    inquiryDocument.put("category", category == null
+                            ? SupportInquiryCategory.MATCHING.getValue()
+                            : category.getValue());
+                    inquiryDocument.put("title", normalizeText(title));
+                    inquiryDocument.put("body", normalizeText(body));
+                    inquiryDocument.put("status", SupportInquiryStatus.RECEIVED.name());
+                    inquiryDocument.put("responseText", "");
+                    inquiryDocument.put("respondedByName", "");
+                    inquiryDocument.put("respondedAt", FieldValue.delete());
+                    inquiryDocument.put("createdAt", FieldValue.serverTimestamp());
+
+                    firestore.collection("supportInquiries")
+                            .add(inquiryDocument)
+                            .addOnSuccessListener(unused -> getSupportInquiries(managerUserId, callback))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("문의 내용을 저장하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 정보를 확인하지 못했습니다."));
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return true;
     }
@@ -367,6 +526,94 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("?쒕쪟 寃???대젰????ν븳 ?꾨꿡 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+    }
+
+    private void loadManagerHistoryDetailsSequentially(
+            User manager,
+            List<CompanionSession> sessions,
+            int index,
+            List<AppointmentRequestDetail> results,
+            RepositoryCallback<List<AppointmentRequestDetail>> callback
+    ) {
+        if (index >= sessions.size()) {
+            results.sort((left, right) -> right.getAppointmentRequest()
+                    .getAppointmentAt()
+                    .compareTo(left.getAppointmentRequest().getAppointmentAt()));
+            callback.onSuccess(results);
+            return;
+        }
+
+        CompanionSession session = sessions.get(index);
+        firestore.collection("appointmentRequests")
+                .document(session.getAppointmentRequestId())
+                .get()
+                .addOnSuccessListener(requestSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(requestSnapshot);
+                    if (request == null) {
+                        loadManagerHistoryDetailsSequentially(
+                                manager,
+                                sessions,
+                                index + 1,
+                                results,
+                                callback
+                        );
+                        return;
+                    }
+
+                    Task<DocumentSnapshot> patientTask = firestore.collection("users")
+                            .document(request.getPatientUserId())
+                            .get();
+                    Task<DocumentSnapshot> guardianTask = firestore.collection("users")
+                            .document(request.getGuardianUserId())
+                            .get();
+                    Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")
+                            .whereEqualTo("hospitalName", request.getHospitalName())
+                            .get();
+                    Task<QuerySnapshot> reportTask = firestore.collection("sessionReports")
+                            .whereEqualTo("sessionId", session.getId())
+                            .limit(1)
+                            .get();
+                    Task<DocumentSnapshot> followUpTask = firestore.collection("appointmentFollowUps")
+                            .document(request.getId())
+                            .get();
+
+                    Tasks.whenAllSuccess(patientTask, guardianTask, guideTask, reportTask, followUpTask)
+                            .addOnSuccessListener(historyResults -> {
+                                User patient = toUser((DocumentSnapshot) historyResults.get(0));
+                                User guardian = toUser((DocumentSnapshot) historyResults.get(1));
+                                HospitalGuide hospitalGuide = findGuide(
+                                        (QuerySnapshot) historyResults.get(2),
+                                        request.getDepartmentName()
+                                );
+                                SessionReport report = toReport((QuerySnapshot) historyResults.get(3));
+                                AppointmentFollowUpRecord followUpRecord = toAppointmentFollowUpRecord(
+                                        (DocumentSnapshot) historyResults.get(4),
+                                        request.getId()
+                                );
+
+                                results.add(new AppointmentRequestDetail(
+                                        request,
+                                        patient,
+                                        guardian,
+                                        manager,
+                                        session,
+                                        report,
+                                        hospitalGuide,
+                                        followUpRecord
+                                ));
+                                loadManagerHistoryDetailsSequentially(
+                                        manager,
+                                        sessions,
+                                        index + 1,
+                                        results,
+                                        callback
+                                );
+                            })
+                            .addOnFailureListener(exception ->
+                                    callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
     }
 
     private void saveManagerHomeProfileField(
@@ -574,7 +821,22 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 stringOrEmpty(documentSnapshot.getString("patientEmail")),
                 stringOrEmpty(documentSnapshot.getString("guardianName")),
                 stringOrEmpty(documentSnapshot.getString("guardianPhone")),
-                stringOrEmpty(documentSnapshot.getString("guardianEmail"))
+                stringOrEmpty(documentSnapshot.getString("guardianEmail")),
+                stringOrEmpty(documentSnapshot.getString("patientConditionSummary")),
+                stringOrEmpty(documentSnapshot.getString("medicationSummary")),
+                stringOrEmpty(documentSnapshot.getString("mobilitySupportCode")),
+                stringOrEmpty(documentSnapshot.getString("tripTypeCode")),
+                stringOrEmpty(documentSnapshot.getString("managerGenderPreferenceCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentMethodCode")),
+                stringOrEmpty(documentSnapshot.getString("couponCode")),
+                numberOrZero(documentSnapshot.get("basePrice")),
+                numberOrZero(documentSnapshot.get("optionSurchargePrice")),
+                numberOrZero(documentSnapshot.get("couponDiscountPrice")),
+                numberOrZero(documentSnapshot.get("finalPrice")),
+                stringOrEmpty(documentSnapshot.getString("paymentStatusCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentApprovalCode")),
+                stringOrEmpty(documentSnapshot.getString("paymentApprovedAt")),
+                stringOrEmpty(documentSnapshot.getString("paymentProviderLabel"))
         );
     }
 
@@ -600,8 +862,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 managerUserId,
                 currentStepOrder.intValue(),
                 SessionStatus.valueOf(statusValue),
-                documentSnapshot.getString("guardianUpdate"),
-                documentSnapshot.getString("medicationNote")
+                stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
+                stringOrEmpty(documentSnapshot.getString("locationSummary")),
+                stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
+                stringOrEmpty(documentSnapshot.getString("medicationNote"))
         );
     }
 
@@ -685,6 +949,60 @@ public class FirebaseManagerRepository implements ManagerRepository {
         );
     }
 
+    @Nullable
+    private AppointmentFollowUpRecord toAppointmentFollowUpRecord(
+            DocumentSnapshot documentSnapshot,
+            String requestId
+    ) {
+        if (!documentSnapshot.exists()) {
+            return AppointmentFollowUpRecord.empty(requestId);
+        }
+
+        return new AppointmentFollowUpRecord(
+                requestId,
+                AppointmentFollowUpReviewRating.fromValue(documentSnapshot.getString("reviewRatingCode")),
+                resolveTimestampMillis(documentSnapshot.get("reviewSavedAt")),
+                AppointmentFollowUpSettlementStatus.fromValue(
+                        documentSnapshot.getString("settlementFollowUpStatus")
+                ),
+                normalizeText(documentSnapshot.getString("settlementFollowUpNote")),
+                resolveTimestampMillis(documentSnapshot.get("settlementFollowUpSavedAt")),
+                AppointmentFollowUpSupportEscalationStatus.fromValue(
+                        documentSnapshot.getString("supportEscalationStatus")
+                ),
+                resolveTimestampMillis(documentSnapshot.get("supportEscalatedAt"))
+        );
+    }
+
+    @Nullable
+    private SupportInquiry toSupportInquiry(DocumentSnapshot documentSnapshot) {
+        if (!documentSnapshot.exists()) {
+            return null;
+        }
+
+        String managerUserId = documentSnapshot.getString("managerUserId");
+        String managerName = documentSnapshot.getString("managerName");
+        String title = documentSnapshot.getString("title");
+        String body = documentSnapshot.getString("body");
+        if (managerUserId == null || managerName == null || title == null || body == null) {
+            return null;
+        }
+
+        return new SupportInquiry(
+                documentSnapshot.getId(),
+                managerUserId,
+                normalizeText(managerName),
+                SupportInquiryCategory.fromValue(documentSnapshot.getString("category")),
+                normalizeText(title),
+                normalizeText(body),
+                resolveSupportInquiryStatus(documentSnapshot.getString("status")),
+                resolveTimestampMillis(documentSnapshot.get("createdAt")),
+                normalizeText(documentSnapshot.getString("responseText")),
+                resolveTimestampMillis(documentSnapshot.get("respondedAt")),
+                normalizeText(documentSnapshot.getString("respondedByName"))
+        );
+    }
+
     private String normalizeText(String value) {
         return value == null ? "" : value.trim();
     }
@@ -710,6 +1028,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
         return value == null ? "" : value;
     }
 
+    private int numberOrZero(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return 0;
+    }
+
     private long resolveTimestampMillis(@Nullable Object rawValue) {
         if (rawValue instanceof Timestamp) {
             return ((Timestamp) rawValue).toDate().getTime();
@@ -718,6 +1043,17 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return ((Number) rawValue).longValue();
         }
         return 0L;
+    }
+
+    private SupportInquiryStatus resolveSupportInquiryStatus(@Nullable String rawValue) {
+        if (rawValue != null) {
+            try {
+                return SupportInquiryStatus.valueOf(rawValue);
+            } catch (IllegalArgumentException ignored) {
+                // 알 수 없는 상태 값은 접수됨으로 보정한다.
+            }
+        }
+        return SupportInquiryStatus.RECEIVED;
     }
 
     private ManagerDocumentHistoryEventType resolveHistoryEventType(String rawValue) {

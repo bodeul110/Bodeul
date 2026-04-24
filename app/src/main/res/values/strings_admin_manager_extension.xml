@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="manager_support_hero_body_demo">데모 저장소 기준으로 문의를 접수하고 답변 상태를 확인합니다. 현재 세션에서는 샘플 문의와 신규 접수 내역이 함께 보입니다.</string>
+    <string name="manager_support_hero_body_firebase">실제 저장소 기준으로 문의를 접수하고 관리자 답변 상태를 확인합니다. 답변이 등록되면 같은 화면에서 바로 확인할 수 있습니다.</string>
+    <string name="manager_support_latest_answered_value">최근 답변 완료 문의 %1$s · 답변 시각 %2$s</string>
+    <string name="manager_support_status_answered">답변 완료</string>
+    <string name="manager_support_list_helper_live">문의 접수와 답변 내역을 시간순으로 보여줍니다.</string>
+    <string name="manager_support_response_label">관리자 답변</string>
+    <string name="manager_support_response_meta">답변 시각 %1$s · 담당 %2$s</string>
+
+    <string name="admin_support_title">문의 응답</string>
+    <string name="admin_support_helper">매니저가 남긴 운영, 서류, 정산 문의를 확인하고 바로 답변을 남깁니다.</string>
+    <string name="admin_support_summary_empty">응답할 문의가 없습니다.</string>
+    <string name="admin_support_summary">총 %1$d건 · 답변 대기 %2$d건 · 답변 완료 %3$d건</string>
+    <string name="admin_support_empty">접수된 문의가 아직 없습니다.</string>
+    <string name="admin_support_status_received">답변 대기</string>
+    <string name="admin_support_status_answered">답변 완료</string>
+    <string name="admin_support_manager_value">매니저 %1$s</string>
+    <string name="admin_support_response_label">등록된 답변</string>
+    <string name="admin_support_response_meta">답변 시각 %1$s · 담당 %2$s</string>
+    <string name="admin_support_action_reply">답변 등록</string>
+    <string name="admin_support_action_edit">답변 수정</string>
+    <string name="admin_support_response_hint">답변 내용을 입력하세요</string>
+    <string name="admin_support_response_helper">매니저가 현장에서 바로 참고할 수 있도록 구체적으로 안내합니다.</string>
+    <string name="admin_support_response_dialog_title">%1$s 문의 답변</string>
+    <string name="admin_support_response_saved">문의 답변을 저장했습니다.</string>
+
+    <string name="admin_operation_action_pending">처리 대기</string>
+    <string name="admin_operation_action_handled_value">%1$s · %2$s 처리</string>
+    <string name="admin_operation_note_hint">운영 메모를 입력하세요</string>
+    <string name="admin_operation_note_required">메모를 입력해야 저장할 수 있습니다.</string>
+
+    <string name="admin_settlement_line_admin_status">관리자 후속 상태</string>
+    <string name="admin_settlement_line_admin_note">관리자 메모</string>
+    <string name="admin_settlement_line_admin_handled">최근 처리 기록</string>
+    <string name="admin_settlement_follow_up_pending">후속 확인 전</string>
+    <string name="admin_settlement_follow_up_confirmed">정산 확인 완료</string>
+    <string name="admin_settlement_follow_up_recheck">정산 재확인 필요</string>
+    <string name="admin_settlement_follow_up_empty">아직 남겨진 후속 메모가 없습니다.</string>
+    <string name="admin_settlement_action_confirm">정산 확인 완료</string>
+    <string name="admin_settlement_action_recheck">정산 재확인 요청</string>
+    <string name="admin_settlement_action_confirm_helper">정산 검토가 끝났다면 확인 메모를 남기고 상태를 완료로 저장합니다.</string>
+    <string name="admin_settlement_action_recheck_helper">재확인이 필요한 이유를 메모로 남기고 후속 처리를 요청합니다.</string>
+    <string name="admin_settlement_action_saved_confirm">정산 확인 상태를 저장했습니다.</string>
+    <string name="admin_settlement_action_saved_recheck">정산 재확인 요청을 저장했습니다.</string>
+
+    <string name="admin_monitoring_line_emergency_status">긴급 이슈 상태</string>
+    <string name="admin_monitoring_line_emergency_note">긴급 이슈 메모</string>
+    <string name="admin_monitoring_line_emergency_handled">최근 처리 기록</string>
+    <string name="admin_monitoring_card_summary_emergency">긴급 이슈: %1$s · %2$s</string>
+
+    <string name="admin_emergency_issue_empty">등록된 이슈 없음</string>
+    <string name="admin_emergency_issue_reported">이슈 보고됨</string>
+    <string name="admin_emergency_issue_resolved">이슈 해결됨</string>
+    <string name="admin_emergency_action_report">긴급 이슈 보고</string>
+    <string name="admin_emergency_action_resolve">긴급 이슈 해결 처리</string>
+    <string name="admin_emergency_action_report_helper">현장 이슈 상황과 필요한 후속 조치를 메모로 남깁니다.</string>
+    <string name="admin_emergency_action_resolve_helper">이슈 해결 결과와 후속 안내를 메모로 남깁니다.</string>
+    <string name="admin_emergency_action_saved_report">긴급 이슈를 저장했습니다.</string>
+    <string name="admin_emergency_action_saved_resolve">긴급 이슈 해결 처리를 저장했습니다.</string>
+</resources>
