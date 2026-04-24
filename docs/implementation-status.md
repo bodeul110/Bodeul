@@ -1247,3 +1247,19 @@
 ### 남은 범위
 
 - 팀 내 실제 담당 방식에 맞춰 역할 구분이나 브랜치 규칙을 필요 시 더 구체화
+
+## 58. 2026-04-24 협업 규칙에 작업 전 확인 절차 구체화
+### 구현
+
+- [collaboration-rules.md](/D:/BoDeul/docs/collaboration-rules.md)에 `누가 최근에 작업했는지`, `로컬과 원격 중 어느 쪽이 최신인지`, `안전하게 pull --rebase 하는 방법`을 구체적인 명령과 판별 기준까지 포함해 추가했다.
+- `git log --format="%h %an %ad %s" --date=short -10`, `git rev-list --left-right --count HEAD...origin/master`, `git diff --stat HEAD..origin/master`, `git stash push -u` 같은 실사용 명령을 그대로 넣어 처음 보는 작업자도 바로 따라 할 수 있게 정리했다.
+- [README.md](/D:/BoDeul/README.md) 협업 절차에도 시작 전에 최근 작업자와 로컬/원격 최신 여부를 먼저 확인하라는 안내와 핵심 명령을 추가했다.
+
+### 변경 범위
+
+- `docs`: `collaboration-rules.md`, `implementation-status.md`
+- 루트 문서: `README.md`
+
+### 남은 범위
+
+- 팀에서 실제 사용하는 공유 채널 기준으로 `현재 작업 선언` 위치만 필요 시 문서에 추가

@@ -50,9 +50,14 @@ cd BoDeul
 git checkout -b feature/작업이름
 ```
 
+작업 전에 `누가 최근에 작업했는지`, `로컬과 원격 중 어느 쪽이 최신인지`부터 확인합니다. 상세 명령과 판별 기준은 [협업 규칙](docs/collaboration-rules.md)에 정리돼 있습니다.
+
 작업 중에는 기준 브랜치 변경 사항을 먼저 반영하고, 푸시 전 빌드를 확인합니다.
 
 ```powershell
+git fetch origin
+git log --format="%h %an %ad %s" --date=short -10
+git rev-list --left-right --count HEAD...origin/master
 git pull --rebase origin master
 .\gradlew.bat assembleDebug
 git add .
