@@ -210,3 +210,4 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispat
 - `--dispatch`를 붙이면 `android-preflight.yml`을 `workflow_dispatch`로 즉시 실행한다.
 - `--backup-file`, `--app-evidence`, `--workflow`로 dispatch 입력값을 조정할 수 있다.
 - 현재 로컬 원격은 `git@github.com:bodeul110/Bodeul.git`이지만, GitHub CLI 계정이 해당 저장소 API 접근 권한이 없는 상태면 시크릿 반영은 실패한다. 이 경우 `gh auth login` 또는 `gh auth switch`로 저장소 권한이 있는 계정으로 바꾼 뒤 다시 실행한다.
+- `--app-evidence` 경로는 repo 루트 기준 경로와 `tools/firebase` 작업 디렉터리 기준 경로를 둘 다 허용한다. CI에서는 `tools/firebase/templates/app-navigation-evidence.sample.json`처럼 repo 루트 기준 경로를 그대로 써도 된다.

@@ -1196,3 +1196,21 @@
 
 - 로컬의 `.github/workflows/android-preflight.yml`을 원격 기본 브랜치에 반영
 - 반영 후 `gh workflow run android-preflight.yml --repo bodeul110/Bodeul --ref master --field require_firebase_ops=true`로 실제 전체 모드 실행 검증
+
+## 55. 2026-04-24 GitHub Actions `app_evidence` 경로 보정
+### 구현
+
+- 첫 번째 GitHub Actions 전체 모드 실행에서 `CI 프리플라이트 실행` 단계가 `tools/firebase/tools/firebase/templates/app-navigation-evidence.sample.json`를 찾다가 실패하는 것을 확인했다.
+- 원인은 [app-navigation-evidence.js](/D:/BoDeul/tools/firebase/lib/app-navigation-evidence.js)가 `--app-evidence` 입력을 현재 작업 디렉터리 기준으로만 해석해서, `tools/firebase` 내부에서 실행될 때 repo 루트 기준 경로를 중복으로 붙이던 점이었다.
+- 이를 수정해 `--app-evidence`가 들어오면 현재 작업 디렉터리 기준 경로와 repo 루트 기준 경로를 모두 검사하고, 실제 존재하는 파일을 우선 사용하도록 보정했다.
+- 검증은 `node --check tools/firebase/lib/app-navigation-evidence.js`, `node tools/firebase/run-ci-preflight.js --require-firebase --app-evidence tools/firebase/templates/app-navigation-evidence.sample.json`, `.\gradlew.bat assembleDebug --console=plain`로 진행했고 모두 통과했다.
+
+### 변경 범위
+
+- `tools/firebase/lib`: `app-navigation-evidence.js`
+- `docs`: `firebase-operations-tools.md`, `implementation-status.md`
+
+### 남은 범위
+
+- 경로 보정 커밋을 원격에 반영
+- GitHub Actions `android-preflight.yml` 전체 모드를 재실행해 성공 여부 확인

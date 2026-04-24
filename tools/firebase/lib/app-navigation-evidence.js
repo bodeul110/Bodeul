@@ -7,7 +7,19 @@ function resolveDefaultEvidencePath(reportsRoot) {
 
 function resolveAppNavigationEvidencePath(reportsRoot, inputPath) {
   if (inputPath) {
-    return path.resolve(process.cwd(), inputPath);
+    const repoRoot = path.resolve(__dirname, "..", "..", "..");
+    const candidates = [
+      path.resolve(process.cwd(), inputPath),
+      path.resolve(repoRoot, inputPath),
+    ];
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return candidates[0];
   }
 
   const defaultPath = resolveDefaultEvidencePath(reportsRoot);
