@@ -1214,3 +1214,20 @@
 
 - 경로 보정 커밋을 원격에 반영
 - GitHub Actions `android-preflight.yml` 전체 모드를 재실행해 성공 여부 확인
+
+## 56. 2026-04-24 GitHub Actions 전체 모드 실검증 성공
+### 구현
+
+- 경로 보정 커밋 `340a109`를 원격 `master`에 push한 뒤 `gh workflow run android-preflight.yml --repo bodeul110/Bodeul --ref master --field require_firebase_ops=true --field app_evidence_path=tools/firebase/templates/app-navigation-evidence.sample.json`로 GitHub Actions 전체 모드를 다시 실행했다.
+- 실행 런은 [24873140407](https://github.com/bodeul110/Bodeul/actions/runs/24873140407)이며, `preflight` 잡이 `2026-04-24T05:02:31Z`에 시작해 `2026-04-24T05:07:14Z`에 성공으로 종료된 것을 확인했다.
+- 이 런에서 `google-services.json` 복원, `.firebaserc` 복원, `CI 프리플라이트 실행`, `운영 리포트 아티팩트 업로드`까지 모두 성공했고, Firebase 운영 워크플로 포함 모드가 GitHub Actions에서도 실제로 동작하는 것을 검증했다.
+- 현재 남은 경고는 GitHub-hosted runner의 JavaScript action 런타임이 Node 20 deprecation 경고를 띄우는 점뿐이다. 워크플로 실패 원인은 아니며, 추후 `actions/checkout`, `actions/setup-java`, `actions/setup-node`, `actions/upload-artifact`의 Node 24 호환 버전 정책만 따라가면 된다.
+
+### 변경 범위
+
+- `docs`: `firebase-operations-tools.md`, `implementation-status.md`
+- 외부 상태: GitHub Actions run `24873140407` 성공
+
+### 남은 범위
+
+- Node 20 deprecation 경고 대응 시점에 맞춰 GitHub Actions 런타임 정책만 점검
