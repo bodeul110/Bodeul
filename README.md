@@ -69,6 +69,7 @@ git push -u origin feature/작업이름
 
 ## 데모 로그인
 
+- 관리자: `admin@bodeul.app` / `bodeul1234`
 - 매니저: `manager@bodeul.app` / `bodeul1234`
 - 환자: `patient@bodeul.app` / `bodeul1234`
 - 보호자: `guardian@bodeul.app` / `bodeul1234`
