@@ -16,6 +16,7 @@
         android:paddingBottom="24dp">
 
         <ImageView
+            android:id="@+id/imageRoleLogo"
             android:layout_width="96dp"
             android:layout_height="wrap_content"
             android:adjustViewBounds="true"

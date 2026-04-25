@@ -1010,4 +1010,10 @@
     <string name="admin_settlement_line_next_visit">다음 방문</string>
     <string name="admin_settlement_line_report">최종 리포트</string>
     <string name="admin_settlement_card_summary">%1$s · %2$s · %3$s</string>
+    <string name="login_title_admin">관리자 로그인</string>
+    <string name="demo_banner_admin">Firebase 설정 전 데모 모드입니다. 관리자 계정: admin@bodeul.app / bodeul1234</string>
+    <string name="demo_account_admin_email" translatable="false">admin@bodeul.app</string>
+    <string name="toast_admin_email_login_only">관리자 계정은 이메일 로그인만 지원합니다.</string>
+    <string name="toast_admin_register_unavailable">관리자 계정은 별도 발급된 계정으로만 로그인할 수 있습니다.</string>
+    <string name="toast_admin_entry_opened">관리자 로그인 화면으로 이동합니다.</string>
 </resources>

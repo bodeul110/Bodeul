@@ -53,6 +53,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView textSwitchMode;
     private TextView textForgotPassword;
     private TextView textResendVerification;
+    private TextView textSocialHelper;
     private TextInputLayout layoutName;
     private TextInputLayout layoutPhone;
     private TextInputLayout layoutEmail;
@@ -61,6 +62,8 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputEditText inputPhone;
     private TextInputEditText inputEmail;
     private TextInputEditText inputPassword;
+    private View layoutSocialDivider;
+    private View layoutSocialButtons;
     private ChipGroup roleChipGroup;
     private Chip chipRoleManager;
     private Chip chipRolePatient;
@@ -93,6 +96,7 @@ public class LoginActivity extends AppCompatActivity {
         textSwitchMode = findViewById(R.id.textSwitchMode);
         textForgotPassword = findViewById(R.id.textForgotPassword);
         textResendVerification = findViewById(R.id.textResendVerification);
+        textSocialHelper = findViewById(R.id.textSocialHelper);
         layoutName = findViewById(R.id.layoutName);
         layoutPhone = findViewById(R.id.layoutPhone);
         layoutEmail = findViewById(R.id.layoutEmail);
@@ -101,6 +105,8 @@ public class LoginActivity extends AppCompatActivity {
         inputPhone = findViewById(R.id.inputPhone);
         inputEmail = findViewById(R.id.inputEmail);
         inputPassword = findViewById(R.id.inputPassword);
+        layoutSocialDivider = findViewById(R.id.layoutSocialDivider);
+        layoutSocialButtons = findViewById(R.id.layoutSocialButtons);
         roleChipGroup = findViewById(R.id.roleChipGroup);
         chipRoleManager = findViewById(R.id.chipRoleManager);
         chipRolePatient = findViewById(R.id.chipRolePatient);
@@ -150,7 +156,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void restoreSelectedRole(@Nullable String savedRoleName) {
-        if (TextUtils.isEmpty(savedRoleName)) {
+        if (isFixedRoleHint() || TextUtils.isEmpty(savedRoleName)) {
             return;
         }
 
@@ -172,10 +178,10 @@ public class LoginActivity extends AppCompatActivity {
 
     private void configureRoleChips() {
         // 매니저 로그인은 역할이 고정이고, 일반 사용자 로그인은 환자/보호자 선택을 노출한다.
-        if (roleHint == UserRole.MANAGER) {
+        if (isFixedRoleHint()) {
             roleChipGroup.setVisibility(View.GONE);
-            chipRoleManager.setVisibility(View.VISIBLE);
-            chipRoleManager.setChecked(true);
+            chipRoleManager.setVisibility(roleHint == UserRole.MANAGER ? View.VISIBLE : View.GONE);
+            chipRoleManager.setChecked(roleHint == UserRole.MANAGER);
             chipRolePatient.setVisibility(View.GONE);
             chipRoleGuardian.setVisibility(View.GONE);
             return;
@@ -189,10 +195,12 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void bindMode() {
+        if (isAdminRoleHint()) {
+            registerMode = false;
+        }
+
         // 로그인과 회원가입 모드에 따라 필요한 입력 필드만 노출한다.
-        textLoginTitle.setText(roleHint == UserRole.MANAGER
-                ? R.string.login_title_manager
-                : R.string.login_title_general);
+        textLoginTitle.setText(getLoginTitleResId());
         textLoginSubtitle.setText(registerMode
                 ? R.string.login_subtitle_register
                 : R.string.login_subtitle);
@@ -201,9 +209,11 @@ public class LoginActivity extends AppCompatActivity {
         textSwitchMode.setText(registerMode
                 ? R.string.switch_to_login
                 : R.string.switch_to_register);
+        textSwitchMode.setVisibility(isAdminRoleHint() ? View.GONE : View.VISIBLE);
         layoutName.setVisibility(registerMode ? View.VISIBLE : View.GONE);
         layoutPhone.setVisibility(registerMode ? View.VISIBLE : View.GONE);
         textForgotPassword.setVisibility(registerMode ? View.GONE : View.VISIBLE);
+        bindSocialAccess();
         updateVerificationResendState();
     }
 
@@ -215,9 +225,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // Firebase 설정 전에는 바로 체험할 수 있도록 데모 계정을 화면에 안내한다.
         textDemoBanner.setVisibility(View.VISIBLE);
-        textDemoBanner.setText(roleHint == UserRole.MANAGER
-                ? R.string.demo_banner_manager
-                : R.string.demo_banner_general);
+        textDemoBanner.setText(getDemoBannerResId());
     }
 
     private void applyDemoCredentials() {
@@ -226,6 +234,12 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         // 데모 모드에서는 역할에 맞는 기본 계정을 자동으로 채워준다.
+        if (isAdminRoleHint()) {
+            inputEmail.setText(R.string.demo_account_admin_email);
+            inputPassword.setText(R.string.demo_account_password);
+            return;
+        }
+
         if (roleHint == UserRole.MANAGER || chipRoleManager.isChecked()) {
             inputEmail.setText(R.string.demo_account_manager_email);
             inputPassword.setText(R.string.demo_account_password);
@@ -260,6 +274,12 @@ public class LoginActivity extends AppCompatActivity {
 
         setLoading(true);
         if (registerMode) {
+            if (selectedRole == UserRole.ADMIN) {
+                setLoading(false);
+                Toast.makeText(this, R.string.toast_admin_register_unavailable, Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             String name = UserProfileSanitizer.normalizeName(valueOf(inputName));
             String phone = UserProfileSanitizer.normalizePhone(valueOf(inputPhone));
             if (!validateName(name) || !validatePhone(phone)) {
@@ -279,6 +299,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void submitGoogleAuth() {
+        if (isAdminRoleHint()) {
+            Toast.makeText(this, R.string.toast_admin_email_login_only, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         clearErrors();
 
         // 구글 로그인도 현재 선택한 역할을 기준으로 Firestore 프로필을 맞춘다.
@@ -293,6 +318,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void submitKakaoAuth() {
+        if (isAdminRoleHint()) {
+            Toast.makeText(this, R.string.toast_admin_email_login_only, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         clearErrors();
 
         // 카카오 로그인도 현재 선택한 역할을 기준으로 Firestore 프로필을 맞춘다.
@@ -307,6 +337,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void submitNaverAuth() {
+        if (isAdminRoleHint()) {
+            Toast.makeText(this, R.string.toast_admin_email_login_only, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         clearErrors();
 
         // 네이버 로그인도 현재 선택한 역할을 기준으로 Firestore 프로필을 맞춘다.
@@ -429,6 +464,12 @@ public class LoginActivity extends AppCompatActivity {
     @Nullable
     private UserRole getSelectedRole() {
         // 현재 노출된 칩 중 선택된 항목을 읽어 실제 로그인 대상 역할로 변환한다.
+        if (isAdminRoleHint()) {
+            return UserRole.ADMIN;
+        }
+        if (roleHint == UserRole.MANAGER) {
+            return UserRole.MANAGER;
+        }
         if (chipRoleManager.getVisibility() == View.VISIBLE && chipRoleManager.isChecked()) {
             return UserRole.MANAGER;
         }
@@ -439,6 +480,41 @@ public class LoginActivity extends AppCompatActivity {
             return UserRole.PATIENT;
         }
         return null;
+    }
+
+    private int getLoginTitleResId() {
+        if (isAdminRoleHint()) {
+            return R.string.login_title_admin;
+        }
+        if (roleHint == UserRole.MANAGER) {
+            return R.string.login_title_manager;
+        }
+        return R.string.login_title_general;
+    }
+
+    private int getDemoBannerResId() {
+        if (isAdminRoleHint()) {
+            return R.string.demo_banner_admin;
+        }
+        if (roleHint == UserRole.MANAGER) {
+            return R.string.demo_banner_manager;
+        }
+        return R.string.demo_banner_general;
+    }
+
+    private void bindSocialAccess() {
+        int visibility = isAdminRoleHint() ? View.GONE : View.VISIBLE;
+        layoutSocialDivider.setVisibility(visibility);
+        layoutSocialButtons.setVisibility(visibility);
+        textSocialHelper.setVisibility(visibility);
+    }
+
+    private boolean isFixedRoleHint() {
+        return roleHint == UserRole.MANAGER || roleHint == UserRole.ADMIN;
+    }
+
+    private boolean isAdminRoleHint() {
+        return roleHint == UserRole.ADMIN;
     }
 
     private void setLoading(boolean loading) {

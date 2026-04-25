@@ -213,6 +213,7 @@
             android:visibility="gone" />
 
         <LinearLayout
+            android:id="@+id/layoutSocialDivider"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
@@ -242,6 +243,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/layoutSocialButtons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
@@ -321,6 +323,7 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/textSocialHelper"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"

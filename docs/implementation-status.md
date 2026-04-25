@@ -1278,3 +1278,43 @@
 ### 남은 범위
 
 - 없음
+
+## 60. 2026-04-25 관리자 로그인 역할 선택 경로 보완
+### 구현
+
+- 다른 팀원이 관리자 계정 로그인 시 `선택한 사용자 유형과 계정 유형이 일치하지 않습니다.` 오류를 재현했고, 원인이 로그인 검증이 아니라 인증 UI에 관리자 역할 선택 경로가 없던 점임을 확인했다.
+- [RoleSelectionActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java)와 [activity_role_selection.xml](/D:/BoDeul/app/src/main/res/layout/activity_role_selection.xml)에 관리자 카드와 선택 상태 바인딩을 추가해 관리자도 역할 힌트를 `ADMIN`으로 넘길 수 있게 정리했다.
+- [LoginActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)에서 관리자 역할을 고정 로그인 역할로 처리하고, 관리자 진입에서는 회원가입 전환과 소셜 로그인 버튼을 숨기며 이메일 로그인만 허용하도록 보완했다.
+- [activity_login.xml](/D:/BoDeul/app/src/main/res/layout/activity_login.xml), [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 관리자 로그인 전용 문구와 관리자 역할용 뷰 ID를 추가했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/auth`: `RoleSelectionActivity.java`, `LoginActivity.java`
+- `app/src/main/res/layout`: `activity_role_selection.xml`, `activity_login.xml`
+- `app/src/main/res/values`: `strings.xml`
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- 현재 작업 환경에는 연결된 `adb` 디바이스가 없어 실제 단말 수동 로그인까지는 이번 턴에서 재검증하지 못했다.
+- 팀원은 최신 `master`를 당겨서 관리자 카드 선택 후 `admin@bodeul.app / bodeul1234`로 다시 확인하면 된다.
+
+## 61. 2026-04-25 관리자 로그인 숨김 진입 전환
+### 구현
+
+- 공개 역할 선택 화면에 노출했던 관리자 카드는 일반 사용자 관점에서 불필요하게 관리자 진입 경로를 드러내므로 제거했다.
+- [RoleSelectionActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java)와 [activity_role_selection.xml](/D:/BoDeul/app/src/main/res/layout/activity_role_selection.xml)을 정리해 역할 선택 화면에는 다시 `매니저`, `환자/보호자` 카드만 남겼다.
+- 대신 역할 선택 화면 상단 로고를 `1.5초 안에 5회 탭`하면 관리자 로그인 화면으로 이동하는 숨김 진입을 추가했다.
+- 관리자 로그인 화면 자체는 계속 [LoginActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)의 `ADMIN` 고정 모드를 사용하며, 이메일 로그인만 허용하고 회원가입/소셜 로그인 노출은 막아 일반 사용자 플로우와 분리했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/auth`: `RoleSelectionActivity.java`
+- `app/src/main/res/layout`: `activity_role_selection.xml`
+- `app/src/main/res/values`: `strings.xml`
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- 실제 단말에서는 역할 선택 화면 로고를 5회 탭해 관리자 로그인으로 들어가는 동작만 한 번 더 눌러서 확인하면 된다.
+- 관리자 권한 자체의 보안 판단은 숨김 진입이 아니라 기존 `Auth + users/{uid}.role == ADMIN + Firebase 권한 규칙`이 계속 담당한다.
