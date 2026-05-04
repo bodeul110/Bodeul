@@ -378,6 +378,8 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
   - 관리자(`ADMIN`): 모든 매니저 서류 읽기 가능
   - 매니저 본인: 본인 경로 읽기/쓰기 가능
   - 그 외 사용자: 접근 불가
+- 업로드 허용 형식은 `application/pdf`, `image/*`만 허용한다.
+- 업로드 최대 크기는 `10MB`다.
 - [firebase.json](/D:/BoDeul/firebase.json)에 `storage.rules` 연결을 추가했으므로, 실제 프로젝트 반영 시에는 `firebase deploy --only storage`로 별도 배포해야 한다.
 - `users/{uid}.managerDocumentFiles` 메타데이터가 있으면 관리자 웹이 해당 `fullPath`를 우선 사용하고, 메타데이터가 없으면 위 폴더 규약으로 파일을 탐색한다.
 ## 2026-05-04 매니저 앱 서류 업로드 연동 메모

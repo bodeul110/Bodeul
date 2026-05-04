@@ -1673,3 +1673,55 @@
 ### 남은 범위
 
 - 팀이 실제 QA를 돌리면서 실패 사례가 쌓이면 `실패 시 기록 항목` 아래에 반복되는 유형을 추가하면 된다.
+
+## 76. 2026-05-04 보안 리뷰 최신화와 Storage 업로드 제약 강화
+### 구현
+
+- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)를 현재 코드 기준으로 전면 최신화했다.
+- 기존 지적 사항을 `해결`, `부분 해결`, `미해결`로 다시 분류하고, 런타임 앱 / 관리자 웹 / Firebase 운영 도구 기준 남은 위험을 재정리했다.
+- [storage.rules](/D:/BoDeul/storage.rules)에 매니저 서류 업로드 제약을 추가했다.
+  - 허용 MIME: `application/pdf`, `image/*`
+  - 최대 크기: `10MB`
+- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 Storage 업로드 제약을 문서화했다.
+
+### 변경 범위
+
+- `docs/security-review-2026-04-29.md`
+- `storage.rules`
+- `docs/firebase-setup.md`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `firebase deploy --only storage --project bodeul-dev --non-interactive`
+- `npm --prefix tools/firebase run check:manager-storage -- --strict`
+
+### 남은 범위
+
+- 현재 가장 큰 남은 위험은 `App Check 미도입`, `평문 필드 저장`, `운영 도구 토큰 처리`, `권한 최소화 검토`다.
+
+## 77. 2026-05-04 AES 적용 범위 판단 정리
+### 구현
+
+- [aes-scope-assessment.md](/D:/BoDeul/docs/aes-scope-assessment.md)를 추가해 `AES-256 이상의 보안` 요구를 현재 프로젝트 구조 기준으로 다시 해석했다.
+- 실제 코드 기준으로 로컬 영속 저장 지점을 다시 확인했다.
+  - [PermissionGuidePreferences.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java): 권한 안내 완료 여부만 저장
+  - [ServiceLocator.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ServiceLocator.java): Firestore 디스크 캐시 비활성화
+  - [FirebaseManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java): 원본 서류를 로컬 복사 없이 바로 Storage 업로드
+  - [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts), [App.tsx](/D:/BoDeul/admin-web/src/App.tsx): 관리자 웹은 Firebase Auth 세션만 사용
+- 결론은 `지금 릴리스 경로에는 앱이 직접 영속 저장하는 민감 비즈니스 데이터가 거의 없으므로, 전면 AES 도입보다 로컬 저장 금지 원칙과 App Check가 우선`이라는 점으로 정리했다.
+- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 AES 적용 범위 판단 링크를 추가했다.
+
+### 변경 범위
+
+- `docs/aes-scope-assessment.md`
+- `docs/security-review-2026-04-29.md`
+- `docs/implementation-status.md`
+
+### 검증
+
+- 문서 정리 작업이라 별도 빌드 없이 코드 참조 경로와 판단 기준만 교차 확인했다.
+
+### 남은 범위
+
+- `오프라인 저장`, `문서 다운로드`, `자동저장` 기능이 추가되면 이 문서를 기준으로 `AES-256-GCM + Android Keystore` 적용 범위를 바로 구체화해야 한다.

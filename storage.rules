@@ -35,11 +35,28 @@ service firebase.storage {
           || documentKey == 'criminalRecord';
     }
 
+    function isAllowedDocumentContentType() {
+      return request.resource != null
+          && request.resource.contentType is string
+          && (
+            request.resource.contentType == 'application/pdf'
+            || request.resource.contentType.matches('image/.*')
+          );
+    }
+
+    function isAllowedDocumentSize() {
+      return request.resource != null
+          && request.resource.size is int
+          && request.resource.size <= 10485760;
+    }
+
     match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
       allow read: if isAdmin() || (isManager() && isSelf(managerUserId));
       allow write: if isManager()
           && isSelf(managerUserId)
-          && isAllowedDocumentKey(documentKey);
+          && isAllowedDocumentKey(documentKey)
+          && isAllowedDocumentContentType()
+          && isAllowedDocumentSize();
     }
 
     match /{allPaths=**} {
