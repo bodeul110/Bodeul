@@ -1999,3 +1999,29 @@
 ### 남은 범위
 
 - 권한 안내 화면은 현재 정책과 더 잘 맞게 정리됐고, 이후에는 실제 위치/카메라/연락처 기능이 들어올 때 권한 설명 카드만 같은 구조로 확장하면 된다.
+
+## 90. 2026-05-05 매니저 내 페이지 서류 업로드 위계 polish
+### 구현
+
+- [activity_manager_profile.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_profile.xml)의 서류 영역을 `업로드 준비 안내 -> 원본 파일 현황 -> 요약/타임라인/검토 메모` 순서로 재구성했다.
+- 업로드 CTA를 상단 강조 블록으로 올리고, 신분증/자격증/범죄경력 조회서를 각각 상태 카드로 분리해 현재 업로드 여부와 최근 업로드 시각이 바로 보이게 바꿨다.
+- [ManagerProfileScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileScreenModel.java), [ManagerProfileCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java), [ManagerProfileBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileBinder.java)에 업로드 강조 문구와 원본 파일 카드 모델을 추가했다.
+- [ManagerDocumentFileCardModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardModel.java), [ManagerDocumentFileCardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardBinder.java), [item_manager_document_file_status.xml](/D:/BoDeul/app/src/main/res/layout/item_manager_document_file_status.xml)로 파일 상태 표시를 분리했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileScreenModel.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardModel.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardBinder.java`
+- `app/src/main/res/layout/activity_manager_profile.xml`
+- `app/src/main/res/layout/item_manager_document_file_status.xml`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 매니저 내 페이지는 기본 위계 정리가 끝났고, 이후 남은 polish는 카드 간격과 문구 미세 조정 정도다.
+- 실제 시연 전에는 관리자 웹에서 보이는 문서 상태와 매니저 앱 업로드 카드 문구가 과하게 어긋나지 않는지만 한 번 더 같이 확인하면 된다.

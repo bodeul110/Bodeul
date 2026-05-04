@@ -5,6 +5,8 @@ import android.text.TextUtils;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -41,6 +43,9 @@ public final class ManagerProfileCoordinator {
                         safeValue(currentUser.getPhone(), R.string.manager_profile_contact_missing),
                         safeValue(currentUser.getEmail(), R.string.manager_profile_contact_missing)
                 ),
+                context.getString(R.string.manager_profile_upload_highlight_title),
+                context.getString(R.string.manager_profile_upload_highlight_body),
+                createDocumentFileCards(profile),
                 createAccountLines(currentUser),
                 createDocumentLines(profile),
                 formatter.buildDocumentReviewNote(profile.getDocumentReviewNote()),
@@ -91,12 +96,51 @@ public final class ManagerProfileCoordinator {
                 safeValue(profile.getAvailabilitySummary(), R.string.manager_profile_schedule_summary_empty),
                 false
         ));
-        items.add(new ManagerInfoLineItem(
-                context.getString(R.string.manager_profile_line_document_files),
-                formatter.buildDocumentFileSummary(profile),
-                false
-        ));
         return items;
+    }
+
+    private List<ManagerDocumentFileCardModel> createDocumentFileCards(ManagerHomeProfile profile) {
+        List<ManagerDocumentFileCardModel> cards = new ArrayList<>();
+        cards.add(createDocumentFileCard(
+                context.getString(R.string.manager_profile_document_type_id_card),
+                profile.getDocumentFile(ManagerDocumentFileType.ID_CARD)
+        ));
+        cards.add(createDocumentFileCard(
+                context.getString(R.string.manager_profile_document_type_license),
+                profile.getDocumentFile(ManagerDocumentFileType.LICENSE)
+        ));
+        cards.add(createDocumentFileCard(
+                context.getString(R.string.manager_profile_document_type_criminal_record),
+                profile.getDocumentFile(ManagerDocumentFileType.CRIMINAL_RECORD)
+        ));
+        return cards;
+    }
+
+    private ManagerDocumentFileCardModel createDocumentFileCard(
+            String titleText,
+            ManagerDocumentFileMetadata metadata
+    ) {
+        if (metadata == null || metadata.isEmpty()) {
+            return new ManagerDocumentFileCardModel(
+                    titleText,
+                    context.getString(R.string.manager_profile_document_state_missing),
+                    R.color.bodeul_soft_yellow,
+                    R.color.bodeul_text_primary,
+                    context.getString(R.string.manager_profile_document_file_card_missing_body, titleText),
+                    ""
+            );
+        }
+        return new ManagerDocumentFileCardModel(
+                titleText,
+                context.getString(R.string.manager_profile_document_state_uploaded),
+                R.color.bodeul_soft_blue,
+                R.color.bodeul_primary,
+                metadata.getFileName(),
+                context.getString(
+                        R.string.manager_profile_document_file_card_uploaded_at,
+                        formatter.formatTimestamp(metadata.getUploadedAtMillis())
+                )
+        );
     }
 
     private List<ManagerDocumentHistoryItemModel> createHistoryItems(
