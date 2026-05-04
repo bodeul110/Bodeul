@@ -462,6 +462,27 @@ async function resolveDocumentPreview(
   }
 }
 
+function getUploadedDocumentCount(manager: Manager): number {
+  return DOCUMENTS.filter((documentInfo) => Boolean(manager.documentFiles[documentInfo.key]?.fullPath)).length;
+}
+
+function getUploadedDocumentLabels(manager: Manager): string[] {
+  return DOCUMENTS
+    .filter((documentInfo) => Boolean(manager.documentFiles[documentInfo.key]?.fullPath))
+    .map((documentInfo) => documentInfo.label);
+}
+
+function summarizeManagerText(value: string, maxLength = 72): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
 function Dashboard({ managers }: { managers: Manager[] }) {
   const pendingCount = useMemo(
     () => managers.filter((manager) => manager.status === "대기").length,
@@ -550,6 +571,22 @@ function ManagerApproval({
   const allDocsChecked = Object.values(docStatus).every((status) => status === "확인 완료");
   const hasDocumentSummary = Boolean(selectedManager?.documentSummary.trim());
   const activePreview = documentPreviews[activeDoc];
+  const checkedCount = Object.values(docStatus).filter((status) => status === "확인 완료").length;
+  const totalManagers = managers.length;
+  const summaryReadyCount = useMemo(
+    () => managers.filter((manager) => Boolean(manager.documentSummary.trim())).length,
+    [managers],
+  );
+  const fullyUploadedCount = useMemo(
+    () => managers.filter((manager) => getUploadedDocumentCount(manager) === DOCUMENTS.length).length,
+    [managers],
+  );
+  const reviewNoteCount = useMemo(
+    () => managers.filter((manager) => Boolean(manager.reviewNote.trim())).length,
+    [managers],
+  );
+  const selectedManagerUploadedCount = selectedManager ? getUploadedDocumentCount(selectedManager) : 0;
+  const selectedManagerMissingCount = DOCUMENTS.length - selectedManagerUploadedCount;
 
   useEffect(() => {
     let cancelled = false;
@@ -687,25 +724,86 @@ function ManagerApproval({
         </p>
       </header>
 
+      <div className="grid gap-3 lg:grid-cols-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">전체 대상</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">{totalManagers}</p>
+          <p className="mt-1 text-xs text-gray-500">현재 심사 목록에 있는 매니저 수</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">요약 제출</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">{summaryReadyCount}</p>
+          <p className="mt-1 text-xs text-gray-500">서류 요약까지 입력을 마친 계정</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">원본 3종 완료</p>
+          <p className="mt-2 text-2xl font-semibold text-blue-700">{fullyUploadedCount}</p>
+          <p className="mt-1 text-xs text-gray-500">신분증, 자격증, 범죄경력 조회서 업로드 완료</p>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">검토 메모 있음</p>
+          <p className="mt-2 text-2xl font-semibold text-amber-600">{reviewNoteCount}</p>
+          <p className="mt-1 text-xs text-gray-500">보완 이력이나 운영 메모가 남아 있는 계정</p>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
             <tr>
-              <th className="px-4 py-3 text-left">이름</th>
-              <th className="px-4 py-3 text-left">이메일</th>
-              <th className="px-4 py-3 text-left">전화번호</th>
-              <th className="px-4 py-3 text-left">가입일</th>
+              <th className="px-4 py-3 text-left">매니저</th>
+              <th className="px-4 py-3 text-left">연락처</th>
+              <th className="px-4 py-3 text-left">서류 요약</th>
+              <th className="px-4 py-3 text-left">원본 파일</th>
               <th className="px-4 py-3 text-left">상태</th>
               <th className="px-4 py-3 text-left">관리</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {managers.map((manager) => (
-              <tr key={manager.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-gray-900">{manager.name}</td>
-                <td className="px-4 py-3 text-gray-600">{maskEmail(manager.email)}</td>
-                <td className="px-4 py-3 text-gray-600">{maskPhone(manager.phone)}</td>
-                <td className="px-4 py-3 text-gray-600">{manager.date || "-"}</td>
+            {managers.map((manager) => {
+              const uploadedDocumentCount = getUploadedDocumentCount(manager);
+              const uploadedDocumentLabels = getUploadedDocumentLabels(manager);
+              const missingDocumentCount = DOCUMENTS.length - uploadedDocumentCount;
+              const summarySnippet = summarizeManagerText(manager.documentSummary, 84);
+
+              return (
+              <tr key={manager.id} className="align-top hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <p className="font-semibold text-gray-900">{manager.name}</p>
+                  <p className="mt-1 text-xs text-gray-500">가입일 {manager.date || "-"}</p>
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  <p>{maskEmail(manager.email)}</p>
+                  <p className="mt-1 text-xs text-gray-500">{maskPhone(manager.phone)}</p>
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  {summarySnippet ? (
+                    <>
+                      <p className="leading-5 text-gray-700">{summarySnippet}</p>
+                      {manager.reviewNote && (
+                        <p className="mt-2 text-xs text-amber-700">최근 보완 메모 있음</p>
+                      )}
+                    </>
+                  ) : (
+                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                      요약 미제출
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                    missingDocumentCount === 0
+                      ? "bg-green-100 text-green-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}>
+                    원본 {uploadedDocumentCount}/{DOCUMENTS.length}
+                  </span>
+                  <p className="mt-2 text-xs leading-5 text-gray-500">
+                    {uploadedDocumentLabels.length
+                      ? uploadedDocumentLabels.join(", ")
+                      : "아직 업로드된 원본 파일이 없습니다."}
+                  </p>
+                </td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusBadgeClass[manager.status]}`}>
                     {manager.status}
@@ -721,7 +819,7 @@ function ManagerApproval({
                   </button>
                 </td>
               </tr>
-            ))}
+            )})}
             {!managers.length && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
@@ -735,7 +833,7 @@ function ManagerApproval({
 
       {selectedManager && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-[1280px] overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">{selectedManager.name} 서류 심사</h2>
@@ -752,8 +850,34 @@ function ManagerApproval({
               </button>
             </div>
 
-            <div className="grid gap-6 px-6 py-5 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
-              <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="grid gap-3 border-b border-gray-100 bg-gray-50 px-6 py-4 md:grid-cols-4">
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">현재 상태</p>
+                <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusBadgeClass[selectedManager.status]}`}>
+                  {selectedManager.status}
+                </span>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">원본 파일</p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">{selectedManagerUploadedCount}/{DOCUMENTS.length}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {selectedManagerMissingCount === 0 ? "필수 파일 업로드 완료" : `${selectedManagerMissingCount}개 파일이 더 필요합니다.`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">체크리스트 진행</p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">{checkedCount}/{DOCUMENTS.length}</p>
+                <p className="mt-1 text-xs text-gray-500">실제 원본을 확인한 항목 수</p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">제출 상태</p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">{hasDocumentSummary ? "요약 제출됨" : "요약 미제출"}</p>
+                <p className="mt-1 text-xs text-gray-500">가입일 {selectedManager.date || "-"}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-6 px-6 py-5 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+              <section className="space-y-4 self-start rounded-2xl border border-gray-200 bg-gray-50 p-4">
                 <h3 className="text-sm font-semibold text-gray-900">제출 정보</h3>
                 <div className="space-y-2 text-xs text-gray-600">
                   <p><span className="font-medium text-gray-800">이메일</span> {selectedManager.email || "-"}</p>
@@ -761,14 +885,14 @@ function ManagerApproval({
                   <p><span className="font-medium text-gray-800">가입일</span> {selectedManager.date || "-"}</p>
                   <p><span className="font-medium text-gray-800">현재 상태</span> {selectedManager.status}</p>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700">
+                <div className="rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-700 shadow-sm">
                   <p className="mb-1 font-medium text-gray-900">제출 요약</p>
                   <p className="whitespace-pre-wrap leading-5">
                     {selectedManager.documentSummary || "제출된 서류 요약이 없습니다."}
                   </p>
                 </div>
                 {selectedManager.reviewNote && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
                     <p className="mb-1 font-medium">최근 검토 메모</p>
                     <p className="whitespace-pre-wrap leading-5">{selectedManager.reviewNote}</p>
                   </div>
@@ -776,7 +900,7 @@ function ManagerApproval({
               </section>
 
               <section className="space-y-4">
-                <div className="flex flex-wrap gap-2">
+                <div className="grid gap-3 md:grid-cols-3">
                   {DOCUMENTS.map((documentInfo) => {
                     const preview = documentPreviews[documentInfo.key];
                     const isActive = activeDoc === documentInfo.key;
@@ -785,14 +909,17 @@ function ManagerApproval({
                         key={documentInfo.key}
                         type="button"
                         onClick={() => setActiveDoc(documentInfo.key)}
-                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                        className={`rounded-xl border px-4 py-3 text-left text-xs transition ${
                           isActive
-                            ? "border-blue-600 bg-blue-50 text-blue-700"
+                            ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
                             : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                         }`}
                       >
                         <p className="font-semibold">{documentInfo.label}</p>
                         <p className="mt-1 text-[11px] leading-4 text-gray-500">{documentInfo.helper}</p>
+                        <p className="mt-2 truncate text-[11px] text-gray-500">
+                          {preview.fileName || "원본 파일 없음"}
+                        </p>
                         <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${previewBadgeClass[preview.status]}`}>
                           {previewBadgeLabel[preview.status]}
                         </span>
@@ -801,17 +928,27 @@ function ManagerApproval({
                   })}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between">
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-start md:justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">{DOCUMENT_LABEL_MAP[activeDoc]} 원본</h3>
+                      <h3 className="text-base font-semibold text-gray-900">{DOCUMENT_LABEL_MAP[activeDoc]} 원본</h3>
                       <p className="mt-1 text-xs text-gray-500">
                         경로 규약: <span className="font-mono">{getDocumentFolderPath(selectedManager.id, activeDoc)}/파일명</span>
                       </p>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${previewBadgeClass[activePreview.status]}`}>
-                      {previewBadgeLabel[activePreview.status]}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${previewBadgeClass[activePreview.status]}`}>
+                        {previewBadgeLabel[activePreview.status]}
+                      </span>
+                      <a
+                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                      >
+                        Storage 폴더 열기
+                      </a>
+                    </div>
                   </div>
 
                   {activePreview.status === "loading" && (
@@ -847,7 +984,7 @@ function ManagerApproval({
 
                   {activePreview.status === "ready" && (
                     <div className="space-y-4">
-                      <div className="grid gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 md:grid-cols-2">
+                      <div className="grid gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-600 md:grid-cols-2">
                         <p><span className="font-medium text-gray-800">파일명</span> {activePreview.fileName || "-"}</p>
                         <p><span className="font-medium text-gray-800">형식</span> {activePreview.contentType || "-"}</p>
                         <p><span className="font-medium text-gray-800">업로드 시각</span> {activePreview.uploadedAtLabel || "-"}</p>
@@ -895,7 +1032,7 @@ function ManagerApproval({
                 </div>
               </section>
 
-              <section className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <section className="space-y-4 self-start rounded-2xl border border-gray-200 bg-gray-50 p-4 lg:sticky lg:top-5">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">검토 체크리스트</h3>
                   <p className="mt-1 text-xs text-gray-500">
@@ -903,11 +1040,19 @@ function ManagerApproval({
                   </p>
                 </div>
 
+                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">검토 진행</p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">{checkedCount}/{DOCUMENTS.length}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {allDocsChecked ? "세 항목 모두 확인 완료" : "확인한 원본 파일만 체크해 주세요."}
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   {DOCUMENTS.map((documentInfo) => (
                     <label
                       key={documentInfo.key}
-                      className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm"
                     >
                       <input
                         type="checkbox"
@@ -942,7 +1087,7 @@ function ManagerApproval({
                   </div>
                 )}
 
-                <div className="grid gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => void saveReview("REJECTED")}
@@ -960,6 +1105,10 @@ function ManagerApproval({
                     최종 승인
                   </button>
                 </div>
+
+                <p className="text-[11px] leading-5 text-gray-500">
+                  승인 전에는 세 개 문서의 원본 상태와 제출 요약을 함께 확인하세요. 요약이 없으면 심사 결과를 저장하지 않습니다.
+                </p>
               </section>
             </div>
           </div>
