@@ -12,6 +12,7 @@ import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,9 +41,7 @@ public final class GuardianReportCoordinator {
         List<GuardianReportEntry> entries = dashboard.getEntries();
         GuardianReportEntry highlightEntry = findHighlightEntry(entries);
         return new GuardianReportScreenModel(
-                context.getString(isFirebaseBacked
-                        ? R.string.guardian_report_mode_firebase
-                        : R.string.guardian_report_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(
                         R.string.guardian_report_greeting,
                         dashboard.getGuardian().getName()
@@ -61,9 +60,7 @@ public final class GuardianReportCoordinator {
 
     public GuardianReportScreenModel createEmptyScreenModel(boolean isFirebaseBacked) {
         return new GuardianReportScreenModel(
-                context.getString(isFirebaseBacked
-                        ? R.string.guardian_report_mode_firebase
-                        : R.string.guardian_report_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.guardian_report_empty_greeting),
                 context.getString(R.string.guardian_report_empty_summary),
                 new GuardianReportHighlightModel(

@@ -24,6 +24,7 @@ import com.example.bodeul.ui.home.ClientHomeDashboard;
 import com.example.bodeul.ui.home.ClientHomeDashboardBinder;
 import com.example.bodeul.ui.home.ClientHomeNoticeProvider;
 import com.example.bodeul.ui.report.GuardianReportActivity;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.StatePanelHelper;
 
 /**
@@ -86,9 +87,13 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.buttonOpenRecent).setOnClickListener(view -> openPrimaryAction());
         findViewById(R.id.buttonHomeSignOut).setOnClickListener(view -> signOut());
 
-        textHomeMode.setText(clientHomeCoordinator.isFirebaseBacked()
-                ? R.string.client_home_mode_firebase
-                : R.string.client_home_mode_demo);
+        EnvironmentModeBadgeHelper.bind(
+                textHomeMode,
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(
+                        this,
+                        clientHomeCoordinator.isFirebaseBacked()
+                )
+        );
         homeContentContainer.setTag(dashboardBinder);
         homeContentContainer.setVisibility(View.GONE);
     }

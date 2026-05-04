@@ -36,6 +36,7 @@ public final class PermissionGuideItemBinder {
     private void bindItem(View itemView, PermissionGuideItem item) {
         View iconBackground = itemView.findViewById(R.id.viewPermissionIconBackground);
         ImageView iconView = itemView.findViewById(R.id.imagePermissionIcon);
+        TextView badgeView = itemView.findViewById(R.id.textPermissionBadge);
         TextView titleView = itemView.findViewById(R.id.textPermissionTitle);
         TextView descriptionView = itemView.findViewById(R.id.textPermissionDescription);
 
@@ -48,6 +49,7 @@ public final class PermissionGuideItemBinder {
         );
         iconView.setImageResource(item.getIconResId());
         iconView.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.bodeul_text_primary));
+        badgeView.setText(item.getBadgeResId());
         titleView.setText(item.getTitleResId());
         descriptionView.setText(item.getDescriptionResId());
     }

@@ -8,6 +8,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,9 +37,7 @@ public final class ManagerHomeCoordinator {
                 : createActiveHeroModel(dashboard);
 
         return new ManagerHomeScreenModel(
-                isFirebaseBacked
-                        ? context.getString(R.string.manager_home_mode_firebase)
-                        : context.getString(R.string.manager_home_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.manager_home_greeting, currentUser.getName()),
                 context.getString(dashboard == null
                         ? R.string.manager_home_subtitle

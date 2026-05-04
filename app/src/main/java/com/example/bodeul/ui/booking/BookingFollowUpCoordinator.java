@@ -17,6 +17,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,9 +46,7 @@ public final class BookingFollowUpCoordinator {
                 ? selectedRating
                 : followUpRecord.getReviewRating();
         return new BookingFollowUpScreenModel(
-                context.getString(isFirebaseBacked
-                        ? R.string.booking_mode_firebase
-                        : R.string.booking_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.booking_follow_up_hero_badge),
                 context.getString(
                         R.string.booking_follow_up_hero_title,

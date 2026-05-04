@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.List;
@@ -111,7 +112,7 @@ public final class ManagerHomeDashboardBinder {
     }
 
     private void bindHeader(ManagerHomeScreenModel screenModel) {
-        textManagerMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textManagerMode, screenModel.getModeText());
         textManagerGreeting.setText(screenModel.getGreetingText());
         textManagerSubtitle.setText(screenModel.getSubtitleText());
     }

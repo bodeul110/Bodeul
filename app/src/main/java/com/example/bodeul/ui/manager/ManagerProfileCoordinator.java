@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,9 +33,7 @@ public final class ManagerProfileCoordinator {
     ) {
         ManagerHomeProfile profile = overview.getProfile();
         return new ManagerProfileScreenModel(
-                context.getString(firebaseBacked
-                        ? R.string.manager_home_mode_firebase
-                        : R.string.manager_home_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, firebaseBacked),
                 formatter.toDocumentStatusLabel(profile.getDocumentStatus()),
                 context.getString(R.string.manager_profile_hero_title, currentUser.getName()),
                 context.getString(

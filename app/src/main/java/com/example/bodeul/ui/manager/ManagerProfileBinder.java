@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 /**
  * 매니저 내 페이지 화면 모델을 실제 뷰 계층에 바인딩한다.
@@ -55,7 +56,7 @@ public final class ManagerProfileBinder {
     }
 
     public void bindScreen(ManagerProfileScreenModel screenModel) {
-        textMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeText());
         textHeroBadge.setText(screenModel.getHeroBadgeText());
         textHeroTitle.setText(screenModel.getHeroTitleText());
         textHeroBody.setText(screenModel.getHeroBodyText());

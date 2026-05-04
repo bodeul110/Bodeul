@@ -32,6 +32,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -219,9 +220,13 @@ public class BookingActivity extends AppCompatActivity {
         ((MaterialButton) findViewById(R.id.buttonSubmitBooking)).setOnClickListener(view -> submitAppointmentRequest());
         ((MaterialButton) findViewById(R.id.buttonCancelBookingEdit)).setOnClickListener(view -> exitEditMode());
 
-        textBookingMode.setText(bookingCoordinator.isFirebaseBacked()
-                ? R.string.booking_mode_firebase
-                : R.string.booking_mode_demo);
+        EnvironmentModeBadgeHelper.bind(
+                textBookingMode,
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(
+                        this,
+                        bookingCoordinator.isFirebaseBacked()
+                )
+        );
         bookingContentContainer.setVisibility(View.GONE);
     }
 

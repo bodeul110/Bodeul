@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 
 /**
@@ -61,7 +62,7 @@ public final class ManagerHistoryBinder {
     }
 
     public void bindScreen(ManagerHistoryScreenModel screenModel, Listener listener) {
-        textMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeText());
         textHeroBadge.setText(screenModel.getHeroBadgeText());
         textHeroTitle.setText(screenModel.getHeroTitleText());
         textHeroBody.setText(screenModel.getHeroBodyText());

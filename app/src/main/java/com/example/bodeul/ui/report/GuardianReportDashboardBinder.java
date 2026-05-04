@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -57,7 +58,7 @@ public final class GuardianReportDashboardBinder {
     }
 
     public void bindScreen(GuardianReportScreenModel screenModel, GuardianReportEntryCardBinder.Listener listener) {
-        textMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeText());
         textGreeting.setText(screenModel.getGreetingText());
         textSummary.setText(screenModel.getSummaryText());
         bindHighlight(screenModel.getHighlightModel(), listener);

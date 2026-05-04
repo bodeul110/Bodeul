@@ -39,6 +39,7 @@ public final class PermissionGuideCatalog {
         result.add(new PermissionGuideItem(
                 android.R.drawable.ic_menu_info_details,
                 R.color.bodeul_soft_blue,
+                R.string.permission_item_badge_data,
                 R.string.permission_data_title,
                 R.string.permission_data_description,
                 false
@@ -46,6 +47,7 @@ public final class PermissionGuideCatalog {
         result.add(new PermissionGuideItem(
                 android.R.drawable.ic_menu_save,
                 R.color.bodeul_soft_yellow,
+                R.string.permission_item_badge_document,
                 R.string.permission_document_title,
                 R.string.permission_document_description,
                 false
@@ -53,6 +55,7 @@ public final class PermissionGuideCatalog {
         result.add(new PermissionGuideItem(
                 android.R.drawable.ic_lock_lock,
                 R.color.bodeul_soft_green,
+                R.string.permission_item_badge_future,
                 R.string.permission_future_title,
                 R.string.permission_future_description,
                 false

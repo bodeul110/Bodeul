@@ -17,6 +17,8 @@ public final class PermissionGuideItem {
     @ColorRes
     private final int iconBackgroundColorResId;
     @StringRes
+    private final int badgeResId;
+    @StringRes
     private final int titleResId;
     @StringRes
     private final int descriptionResId;
@@ -26,6 +28,7 @@ public final class PermissionGuideItem {
     public PermissionGuideItem(
             @DrawableRes int iconResId,
             @ColorRes int iconBackgroundColorResId,
+            @StringRes int badgeResId,
             @StringRes int titleResId,
             @StringRes int descriptionResId,
             boolean required,
@@ -33,6 +36,7 @@ public final class PermissionGuideItem {
     ) {
         this.iconResId = iconResId;
         this.iconBackgroundColorResId = iconBackgroundColorResId;
+        this.badgeResId = badgeResId;
         this.titleResId = titleResId;
         this.descriptionResId = descriptionResId;
         this.required = required;
@@ -47,6 +51,10 @@ public final class PermissionGuideItem {
 
     public int getIconBackgroundColorResId() {
         return iconBackgroundColorResId;
+    }
+
+    public int getBadgeResId() {
+        return badgeResId;
     }
 
     public int getTitleResId() {

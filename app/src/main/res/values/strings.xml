@@ -22,8 +22,14 @@
 
     <string name="permission_guide_title">서비스 준비 안내</string>
     <string name="permission_guide_description">현재 버전의 보들은 기본 기능 이용에 별도 시스템 권한을 먼저 요청하지 않습니다.</string>
+    <string name="permission_guide_highlight_badge">권한 원칙</string>
+    <string name="permission_guide_highlight_title">필요한 시점에만 최소 권한을 요청합니다</string>
+    <string name="permission_guide_highlight_body">예약, 리포트, 원본 서류 업로드는 지금 구조에서 시스템 권한을 미리 넓게 열지 않고 처리합니다. 향후 위치, 카메라, 연락처 같은 기능이 실제로 추가될 때만 필요한 권한을 다시 요청합니다.</string>
     <string name="permission_guide_footer">민감한 일정 정보와 리포트는 기기에 장기 저장하지 않고, 필요한 기능이 추가되면 그 시점에만 최소 권한을 다시 요청합니다.</string>
     <string name="permission_guide_confirm">계속</string>
+    <string name="permission_item_badge_data">데이터 보호</string>
+    <string name="permission_item_badge_document">문서 업로드</string>
+    <string name="permission_item_badge_future">추후 확장</string>
     <string name="permission_data_title">예약과 리포트는 서버에서만 관리합니다</string>
     <string name="permission_data_description">예약 메모와 진행 리포트는 Firebase에서 불러오며, 앱 재시작 뒤 디스크에 남지 않도록 캐시를 줄여두었습니다.</string>
     <string name="permission_document_title">서류 업로드는 시스템 문서 선택기를 사용합니다</string>

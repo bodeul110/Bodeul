@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 /**
  * 지원팀 문의 화면 모델을 레이아웃에 바인딩한다.
@@ -45,7 +46,7 @@ public final class ManagerSupportBinder {
     }
 
     public void bindScreen(ManagerSupportScreenModel screenModel) {
-        textMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeText());
         textHeroBadge.setText(screenModel.getHeroBadgeText());
         textHeroTitle.setText(screenModel.getHeroTitleText());
         textHeroBody.setText(screenModel.getHeroBodyText());
@@ -60,4 +61,3 @@ public final class ManagerSupportBinder {
         }
     }
 }
-

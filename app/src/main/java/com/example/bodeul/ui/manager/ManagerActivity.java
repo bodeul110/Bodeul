@@ -25,6 +25,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -136,9 +137,13 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
 
     private void bindModeOnly() {
         TextView textManagerMode = findViewById(R.id.textManagerMode);
-        textManagerMode.setText(managerRepository.isFirebaseBacked()
-                ? R.string.manager_home_mode_firebase
-                : R.string.manager_home_mode_demo);
+        EnvironmentModeBadgeHelper.bind(
+                textManagerMode,
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(
+                        this,
+                        managerRepository.isFirebaseBacked()
+                )
+        );
     }
 
     private void loadManagerHomeProfile() {

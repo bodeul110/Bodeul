@@ -7,6 +7,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.domain.model.SupportInquiry;
 import com.example.bodeul.domain.model.SupportInquiryCategory;
 import com.example.bodeul.domain.model.SupportInquiryStatus;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,9 +29,7 @@ public final class ManagerSupportCoordinator {
             boolean firebaseBacked
     ) {
         return new ManagerSupportScreenModel(
-                context.getString(firebaseBacked
-                        ? R.string.manager_home_mode_firebase
-                        : R.string.manager_home_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, firebaseBacked),
                 context.getString(R.string.manager_support_hero_badge),
                 context.getString(R.string.manager_support_hero_title),
                 context.getString(firebaseBacked

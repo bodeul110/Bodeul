@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,9 +38,7 @@ public final class ManagerHistoryCoordinator {
     ) {
         List<AppointmentRequestDetail> filteredDetails = filterDetails(details, selectedFilter);
         return new ManagerHistoryScreenModel(
-                context.getString(firebaseBacked
-                        ? R.string.manager_home_mode_firebase
-                        : R.string.manager_home_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, firebaseBacked),
                 context.getString(R.string.manager_history_hero_badge, details.size()),
                 context.getString(R.string.manager_history_hero_title, currentUser.getName()),
                 buildHeroBody(details),

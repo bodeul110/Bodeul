@@ -1940,3 +1940,62 @@
 
 - 이 검토는 화면 완성도 보강 우선순위를 정리한 단계다.
 - 실제 적용은 `Firebase 연동 모드` 표시 축소, 권한 안내 polish, 매니저 서류 업로드 카드 정리 같은 항목부터 순차적으로 들어가면 된다.
+
+## 88. 2026-05-05 사용자·매니저 환경 배지 숨김 정리
+### 구현
+
+- 사용자와 매니저 경로에서는 `Firebase 연동 모드`/`데모 데이터 기반` 배지를 기본으로 숨기고, 관리자 화면만 유지하도록 [EnvironmentModeBadgeHelper.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/util/EnvironmentModeBadgeHelper.java)를 추가했다.
+- [MainActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/MainActivity.java), [BookingActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingActivity.java)에서 상단 모드 배지를 공통 helper 기준으로 바꿨다.
+- 예약 상세/후속, 보호자 리포트, 매니저 홈/가이드/이력/내 페이지/문의 화면의 binder와 coordinator가 빈 모드 라벨을 받으면 배지를 자동으로 숨기도록 정리했다.
+- 관리자 화면은 내부 운영 성격이 강하므로 기존 환경 배지를 그대로 유지했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/util/EnvironmentModeBadgeHelper.java`
+- `app/src/main/java/com/example/bodeul/MainActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingStatusBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingFollowUpCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingFollowUpBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/report/GuardianReportDashboardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerHomeCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerHomeDashboardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerHistoryCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerHistoryBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerSupportCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerSupportBinder.java`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 내부 테스트에서 환경 배지가 다시 필요해지면 관리자 화면과 같은 별도 조건부 노출 스위치를 추가하면 된다.
+- 다음 화면 polish는 권한 안내 화면과 매니저 서류 업로드 카드 위계 정리 쪽이 우선이다.
+
+## 89. 2026-05-05 권한 안내 화면 위계 polish
+### 구현
+
+- [activity_permission_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_permission_guide.xml)에 상단 요약 카드를 추가해 `필요한 시점에만 최소 권한 요청` 원칙을 먼저 보여주도록 정리했다.
+- [item_permission_guide.xml](/D:/BoDeul/app/src/main/res/layout/item_permission_guide.xml)에 카드 주제 배지를 추가해 `데이터 보호`, `문서 업로드`, `추후 확장` 구분이 바로 보이게 바꿨다.
+- [PermissionGuideItem.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItem.java), [PermissionGuideCatalog.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java), [PermissionGuideItemBinder.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItemBinder.java)를 배지 텍스트까지 다루도록 확장했다.
+- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 권한 안내 요약 카드와 배지 문구를 추가했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItem.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItemBinder.java`
+- `app/src/main/res/layout/activity_permission_guide.xml`
+- `app/src/main/res/layout/item_permission_guide.xml`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 권한 안내 화면은 현재 정책과 더 잘 맞게 정리됐고, 이후에는 실제 위치/카메라/연락처 기능이 들어올 때 권한 설명 카드만 같은 구조로 확장하면 된다.

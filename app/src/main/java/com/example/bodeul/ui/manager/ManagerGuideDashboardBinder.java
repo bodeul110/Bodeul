@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -109,7 +110,7 @@ public final class ManagerGuideDashboardBinder {
     }
 
     public void bindScreen(ManagerGuideScreenModel screenModel) {
-        textGuideMode.setText(screenModel.getModeLabel());
+        EnvironmentModeBadgeHelper.bind(textGuideMode, screenModel.getModeLabel());
         textGuideTitle.setText(screenModel.getTitle());
         textGuideSubtitle.setText(screenModel.getSubtitle());
         textGuideHeroBadge.setText(screenModel.getHeroBadge());

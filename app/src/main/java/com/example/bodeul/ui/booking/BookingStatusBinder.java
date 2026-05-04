@@ -15,6 +15,7 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
 import com.example.bodeul.ui.common.AppointmentProgressStageItemBinder;
 import com.example.bodeul.ui.common.AppointmentProgressStageModel;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.List;
@@ -85,7 +86,7 @@ public final class BookingStatusBinder {
     }
 
     public void bindScreen(BookingStatusScreenModel screenModel) {
-        textMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeText());
         bindHero(screenModel);
         textProgressTitle.setText(screenModel.getProgressTitleText());
         textProgressBody.setText(screenModel.getProgressBodyText());

@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.List;
@@ -92,7 +93,7 @@ public final class BookingFollowUpBinder {
             BookingFollowUpScreenModel screenModel,
             BookingFollowUpRatingOptionBinder.Listener listener
     ) {
-        textMode.setText(screenModel.getModeText());
+        EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeText());
         textHeroBadge.setText(screenModel.getHeroBadgeText());
         textHeroTitle.setText(screenModel.getHeroTitleText());
         textHeroBody.setText(screenModel.getHeroBodyText());

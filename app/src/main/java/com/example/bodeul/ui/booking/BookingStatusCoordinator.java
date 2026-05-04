@@ -17,6 +17,7 @@ import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,9 +57,7 @@ public final class BookingStatusCoordinator {
         );
         return new BookingStatusScreenModel(
                 request.getStatus(),
-                context.getString(isFirebaseBacked
-                        ? R.string.booking_mode_firebase
-                        : R.string.booking_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 formatter.toStatusLabel(request.getStatus()),
                 buildHeroTitle(detail),
                 buildHeroBody(detail),

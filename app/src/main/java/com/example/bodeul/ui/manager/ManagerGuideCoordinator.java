@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,9 +39,7 @@ public final class ManagerGuideCoordinator {
         GuideStep focusStep = findFocusStep(dashboard);
 
         return new ManagerGuideScreenModel(
-                context.getString(isFirebaseBacked
-                        ? R.string.manager_home_mode_firebase
-                        : R.string.manager_home_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.guide_progress_title),
                 context.getString(R.string.guide_progress_subtitle),
                 formatter.toSessionStatusLabel(session.getStatus()),
@@ -67,9 +66,7 @@ public final class ManagerGuideCoordinator {
 
     private ManagerGuideScreenModel createEmptyScreenModel(boolean isFirebaseBacked) {
         return new ManagerGuideScreenModel(
-                context.getString(isFirebaseBacked
-                        ? R.string.manager_home_mode_firebase
-                        : R.string.manager_home_mode_demo),
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.guide_progress_title),
                 context.getString(R.string.guide_progress_subtitle),
                 context.getString(R.string.guide_status_pending),
