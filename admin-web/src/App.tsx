@@ -81,6 +81,8 @@ const DOCUMENT_LABEL_MAP: Record<ManagerDocumentKey, string> = {
   criminalRecord: "범죄경력 조회",
 };
 
+const ADMIN_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+
 function createPreview(status: PreviewStatus, overrides: Partial<DocumentPreview> = {}): DocumentPreview {
   return {
     status,
@@ -168,6 +170,36 @@ function formatDate(rawValue: unknown): string {
 function formatDateTime(rawValue: unknown): string {
   const date = resolveDate(rawValue);
   return date ? date.toLocaleString("ko-KR") : "";
+}
+
+function maskEmail(email: string): string {
+  if (!email) {
+    return "-";
+  }
+
+  const [localPart, domainPart] = email.split("@");
+  if (!localPart || !domainPart) {
+    return email;
+  }
+
+  if (localPart.length <= 2) {
+    return `${localPart[0] || "*"}*@${domainPart}`;
+  }
+
+  return `${localPart.slice(0, 2)}***@${domainPart}`;
+}
+
+function maskPhone(phone: string): string {
+  if (!phone) {
+    return "-";
+  }
+
+  const digitsOnly = phone.replace(/\D/g, "");
+  if (digitsOnly.length < 7) {
+    return phone;
+  }
+
+  return `${digitsOnly.slice(0, 3)}-****-${digitsOnly.slice(-4)}`;
 }
 
 function mapManagerStatus(rawStatus: unknown): ManagerStatus {
@@ -671,8 +703,8 @@ function ManagerApproval({
             {managers.map((manager) => (
               <tr key={manager.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-gray-900">{manager.name}</td>
-                <td className="px-4 py-3 text-gray-600">{manager.email || "-"}</td>
-                <td className="px-4 py-3 text-gray-600">{manager.phone || "-"}</td>
+                <td className="px-4 py-3 text-gray-600">{maskEmail(manager.email)}</td>
+                <td className="px-4 py-3 text-gray-600">{maskPhone(manager.phone)}</td>
                 <td className="px-4 py-3 text-gray-600">{manager.date || "-"}</td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusBadgeClass[manager.status]}`}>
@@ -948,6 +980,15 @@ function App() {
   const [managerSnapshot, setManagerSnapshot] = useState<Manager[]>([]);
   const [managerLoadError, setManagerLoadError] = useState("");
 
+  function clearAdminSession(message = "") {
+    setIsLoggedIn(false);
+    setAdminName("");
+    setManagerSnapshot([]);
+    setManagerLoadError("");
+    setCurrentMenu("dashboard");
+    setAuthError(message);
+  }
+
   useEffect(() => {
     let active = true;
 
@@ -959,10 +1000,7 @@ function App() {
       setIsCheckingSession(true);
 
       if (!user) {
-        setIsLoggedIn(false);
-        setAdminName("");
-        setManagerSnapshot([]);
-        setManagerLoadError("");
+        clearAdminSession(authError);
         setIsCheckingSession(false);
         return;
       }
@@ -974,11 +1012,7 @@ function App() {
         }
 
         if (!session.isAdmin) {
-          setIsLoggedIn(false);
-          setAdminName("");
-          setManagerSnapshot([]);
-          setManagerLoadError("");
-          setAuthError(session.message);
+          clearAdminSession(session.message);
           await signOut(auth);
           return;
         }
@@ -989,11 +1023,7 @@ function App() {
         setManagerLoadError("");
       } catch (error) {
         console.error("Admin session validation failed:", error);
-        setIsLoggedIn(false);
-        setAdminName("");
-        setManagerSnapshot([]);
-        setManagerLoadError("");
-        setAuthError("관리자 세션을 확인하지 못했습니다.");
+        clearAdminSession("관리자 세션을 확인하지 못했습니다.");
       } finally {
         if (active) {
           setIsCheckingSession(false);
@@ -1005,7 +1035,53 @@ function App() {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [authError]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+
+    const resetIdleTimer = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+
+      timeoutId = window.setTimeout(() => {
+        void signOut(auth)
+          .catch((error) => {
+            console.error("Admin idle logout failed:", error);
+          })
+          .finally(() => {
+            clearAdminSession("보안을 위해 15분 동안 활동이 없어 자동 로그아웃했습니다.");
+          });
+      }, ADMIN_IDLE_TIMEOUT_MS);
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      "click",
+      "keydown",
+      "mousemove",
+      "scroll",
+      "touchstart",
+    ];
+
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, resetIdleTimer, { passive: true });
+    });
+    resetIdleTimer();
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, resetIdleTimer);
+      });
+    };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -1053,12 +1129,7 @@ function App() {
     } catch (error) {
       console.error("Admin logout failed:", error);
     } finally {
-      setIsLoggedIn(false);
-      setAdminName("");
-      setManagerSnapshot([]);
-      setManagerLoadError("");
-      setAuthError("");
-      setCurrentMenu("dashboard");
+      clearAdminSession("");
     }
   }
 
