@@ -943,16 +943,13 @@ public class FirebaseAuthRepository implements AuthRepository {
     private String resolveKakaoCallableMessage(Exception exception) {
         if (exception instanceof FirebaseFunctionsException) {
             FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
-            Object details = functionsException.getDetails();
-            if (details instanceof Map) {
-                String message = asString(((Map<?, ?>) details).get("message"));
-                if (!TextUtils.isEmpty(message)) {
-                    return message;
-                }
-            }
-            if (!TextUtils.isEmpty(functionsException.getMessage())) {
-                return "카카오 로그인 처리에 실패했습니다. " + functionsException.getMessage();
-            }
+            return resolveFunctionsErrorMessage(
+                    functionsException,
+                    "카카오 로그인 요청 정보를 확인하지 못했습니다.",
+                    "카카오 로그인 권한을 확인하지 못했습니다.",
+                    "카카오 로그인 처리 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+                    "카카오 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요."
+            );
         }
         return "카카오 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
     }
@@ -961,25 +958,24 @@ public class FirebaseAuthRepository implements AuthRepository {
         if (!TextUtils.isEmpty(errorCode) && errorCode.contains("CANCEL")) {
             return "네이버 로그인 요청이 취소되었습니다.";
         }
-        if (!TextUtils.isEmpty(errorDesc)) {
-            return "네이버 로그인에 실패했습니다. " + errorDesc;
+        String normalizedErrorCode = errorCode == null ? "" : errorCode.toUpperCase(Locale.ROOT);
+        if (normalizedErrorCode.contains("NETWORK")
+                || normalizedErrorCode.contains("CONNECTION")) {
+            return "네이버 로그인 요청에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.";
         }
-        return "네이버 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        return "네이버 로그인 요청을 완료하지 못했습니다. 잠시 후 다시 시도해주세요.";
     }
 
     private String resolveNaverCallableMessage(Exception exception) {
         if (exception instanceof FirebaseFunctionsException) {
             FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
-            Object details = functionsException.getDetails();
-            if (details instanceof Map) {
-                String message = asString(((Map<?, ?>) details).get("message"));
-                if (!TextUtils.isEmpty(message)) {
-                    return message;
-                }
-            }
-            if (!TextUtils.isEmpty(functionsException.getMessage())) {
-                return "네이버 로그인 처리에 실패했습니다. " + functionsException.getMessage();
-            }
+            return resolveFunctionsErrorMessage(
+                    functionsException,
+                    "네이버 로그인 요청 정보를 확인하지 못했습니다.",
+                    "네이버 로그인 권한을 확인하지 못했습니다.",
+                    "네이버 로그인 처리 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+                    "네이버 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요."
+            );
         }
         return "네이버 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
     }
@@ -1000,18 +996,45 @@ public class FirebaseAuthRepository implements AuthRepository {
     private String resolveSocialDuplicateEmailMessage(Exception exception) {
         if (exception instanceof FirebaseFunctionsException) {
             FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
-            Object details = functionsException.getDetails();
-            if (details instanceof Map) {
-                String message = asString(((Map<?, ?>) details).get("message"));
-                if (!TextUtils.isEmpty(message)) {
-                    return message;
-                }
-            }
-            if (!TextUtils.isEmpty(functionsException.getMessage())) {
-                return "기존 계정 정보를 확인하지 못했습니다. " + functionsException.getMessage();
-            }
+            return resolveFunctionsErrorMessage(
+                    functionsException,
+                    "기존 계정 중복 확인 요청이 올바르지 않습니다.",
+                    "기존 계정 중복 확인 권한이 없습니다.",
+                    "기존 계정 정보를 확인하는 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+                    "기존 계정 정보를 확인하지 못했습니다."
+            );
         }
         return "기존 계정 정보를 확인하지 못했습니다.";
+    }
+
+    private String resolveFunctionsErrorMessage(
+            FirebaseFunctionsException functionsException,
+            String invalidArgumentMessage,
+            String permissionMessage,
+            String unavailableMessage,
+            String defaultMessage
+    ) {
+        Object details = functionsException.getDetails();
+        if (details instanceof Map) {
+            String message = asString(((Map<?, ?>) details).get("message"));
+            if (!TextUtils.isEmpty(message)) {
+                return message;
+            }
+        }
+
+        switch (functionsException.getCode()) {
+            case INVALID_ARGUMENT:
+                return invalidArgumentMessage;
+            case PERMISSION_DENIED:
+                return permissionMessage;
+            case UNAUTHENTICATED:
+                return "로그인 상태가 만료되었습니다. 다시 로그인해주세요.";
+            case DEADLINE_EXCEEDED:
+            case UNAVAILABLE:
+                return unavailableMessage;
+            default:
+                return defaultMessage;
+        }
     }
 
     private String resolveDuplicateEmailMessage(String provider) {

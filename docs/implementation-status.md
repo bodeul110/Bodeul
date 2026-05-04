@@ -1812,3 +1812,57 @@
 ### 남은 범위
 
 - 추후 실제 카메라/위치/연락처 기능을 추가하면 그 시점에만 권한을 다시 선언하고, 기능/문구/검증 절차를 함께 추가해야 한다.
+
+## 81. 2026-05-04 매니저 서류 업로드 사전 검증 보강
+### 구현
+
+- [ManagerDocumentUploadPolicy.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java)를 추가해 매니저 원본 서류 업로드 전에 파일 형식과 용량을 먼저 검사하도록 정리했다.
+- [FirebaseManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 `PDF` 또는 `image/*`만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다.
+- 서버 규칙에서 막히기 전에 앱에서 같은 기준으로 먼저 안내해, 매니저가 업로드 실패 이유를 바로 이해할 수 있게 맞췄다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java`
+- `app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 현재는 파일 형식과 용량만 사전 검증한다. 추후 서류 종류별 추가 제약이 필요하면 같은 정책 객체에 확장하는 쪽이 맞다.
+
+## 82. 2026-05-04 미사용 placeholder 경로 정리
+### 구현
+
+- 더 이상 어떤 화면에서도 쓰지 않는 [FeaturePlaceholderActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/common/FeaturePlaceholderActivity.java)와 전용 레이아웃을 제거했다.
+- 함께 남아 있던 미사용 안내 문구 `social_login_pending`, `toast_placeholder`도 정리해 현재 로그인/예외 흐름과 맞지 않는 dead resource를 줄였다.
+- 실제 사용자 경로에는 이미 구체적인 상태 화면과 오류 메시지가 들어가 있으므로, 공용 placeholder를 유지할 이유가 없다고 판단했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/common/FeaturePlaceholderActivity.java`
+- `app/src/main/res/layout/activity_feature_placeholder.xml`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 이후 새 기능을 추가할 때는 공용 placeholder로 우회하지 말고, 실제 상태 패널 또는 역할별 오류 흐름 안에서 닫는 쪽이 맞다.
+
+## 83. 2026-05-04 인증 예외 문구와 미사용 문의 문구 정리
+### 구현
+
+- [FirebaseAuthRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 카카오/네이버/Firebase Functions 로그인 예외를 원문 메시지 그대로 노출하지 않고, 코드 기준 사용자 안내 문구로 정리했다.
+- Functions가 직접 내려주는 `details.message`는 계속 우선 사용하되, 그 외에는 `INVALID_ARGUMENT`, `PERMISSION_DENIED`, `UNAUTHENTICATED`, `UNAVAILABLE` 기준으로 한국어 문구를 고정했다.
+- 네이버 SDK 요청 실패도 내부 `errorDesc`를 그대로 붙이지 않고, 취소/네트워크/일반 실패로 나눠 안내한다.
+- 더 이상 쓰지 않는 `manager_support_hero_body` 문구를 제거해 문의 화면 문자열도 현재 구조에 맞췄다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 실제 운영 시 소셜 로그인 공급자별 상세 실패 사유가 더 필요하면 서버 `details.message` 사전만 늘리고, SDK 원문 메시지를 그대로 노출하는 방향으로는 돌아가지 않는 편이 맞다.

@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
 
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
@@ -30,6 +31,15 @@ public final class MockManagerDocumentStorageUploader implements ManagerDocument
     ) {
         if (TextUtils.isEmpty(managerUserId) || fileType == null || fileUri == null) {
             callback.onError("업로드할 서류 정보가 올바르지 않습니다.");
+            return;
+        }
+
+        String validationError = ManagerDocumentUploadPolicy.validate(
+                appContext.getContentResolver(),
+                fileUri
+        );
+        if (!TextUtils.isEmpty(validationError)) {
+            callback.onError(validationError);
             return;
         }
 

@@ -51,7 +51,6 @@
     <string name="resend_verification_email_countdown">인증 메일 다시 보내기 (%1$d초)</string>
     <string name="social_login_label">또는 간편 로그인</string>
     <string name="social_login_divider">또는 간편 로그인</string>
-    <string name="social_login_pending">소셜 로그인은 추후 연동 예정입니다.</string>
     <string name="social_login_helper">처음 소셜 로그인 시 현재 선택한 역할로 계정이 생성됩니다. 전화번호는 제공자 동의 시 자동 반영됩니다.</string>
     <string name="social_login_kakao_short" translatable="false">K</string>
     <string name="social_login_google_short" translatable="false">G</string>
@@ -531,7 +530,6 @@
     <string name="guide_photo_saved">현장 사진 메모를 저장했습니다.</string>
     <string name="guide_step_advanced">다음 단계로 진행 상태를 갱신했습니다.</string>
 
-    <string name="toast_placeholder">이 기능은 다음 단계에서 연동합니다.</string>
     <string name="toast_login_required">로그인이 필요합니다.</string>
     <string name="toast_fill_required">필수 항목을 입력해주세요.</string>
     <string name="toast_role_required">사용자 유형을 선택해주세요.</string>
@@ -968,7 +966,6 @@
     <string name="manager_support_subtitle">지원팀 문의를 남기고 최근 접수 내역을 한 화면에서 확인합니다.</string>
     <string name="manager_support_hero_badge">지원 접수</string>
     <string name="manager_support_hero_title">문의하기</string>
-    <string name="manager_support_hero_body">현재 문의 내역은 기기 로컬에 저장됩니다. 서버 연동은 다음 단계에서 연결할 예정입니다.</string>
     <string name="manager_support_latest_empty">최근 접수된 문의가 없습니다.</string>
     <string name="manager_support_latest_value">최근 문의 유형 %1$s · 접수 시각 %2$s</string>
     <string name="manager_support_form_title">새 문의 접수</string>

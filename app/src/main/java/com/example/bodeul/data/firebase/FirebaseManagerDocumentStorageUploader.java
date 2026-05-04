@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
 
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
@@ -43,6 +44,12 @@ public final class FirebaseManagerDocumentStorageUploader implements ManagerDocu
         }
 
         ContentResolver resolver = appContext.getContentResolver();
+        String validationError = ManagerDocumentUploadPolicy.validate(resolver, fileUri);
+        if (!TextUtils.isEmpty(validationError)) {
+            callback.onError(validationError);
+            return;
+        }
+
         String fileName = resolveFileName(resolver, fileUri);
         String sanitizedFileName = sanitizeFileName(fileName);
         String contentType = normalizeText(resolver.getType(fileUri));
