@@ -15,30 +15,37 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.google.firebase.functions.FirebaseFunctionsException;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Firestore에 저장된 보호자 진행 현황과 리포트를 한 화면에 조합해 전달한다.
+ * Firestore 기반 보호자 진행 현황과 리포트를 화면용 모델로 조합한다.
  */
 public class FirebaseGuardianReportRepository implements GuardianReportRepository {
+    private static final String FUNCTIONS_REGION = "asia-northeast3";
     private final FirebaseFirestore firestore;
+    private final FirebaseFunctions functions;
 
     public FirebaseGuardianReportRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
+        this.functions = FirebaseFunctions.getInstance(FUNCTIONS_REGION);
     }
 
     @Override
     public void getGuardianDashboard(User currentUser, RepositoryCallback<GuardianReportDashboard> callback) {
         if (currentUser.getRole() != UserRole.GUARDIAN) {
-            callback.onError("보호자 계정으로 접근해주세요.");
+            callback.onError("보호자 계정으로 로그인해주세요.");
             return;
         }
 
@@ -61,7 +68,13 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                         return;
                     }
 
-                    loadRelatedCollections(currentUser, requestDocuments, callback);
+                    loadEntriesSequentially(
+                            currentUser,
+                            requestDocuments,
+                            0,
+                            new ArrayList<>(),
+                            callback
+                    );
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("보호자 진행 현황을 불러오지 못했습니다."));
@@ -72,100 +85,101 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
         return true;
     }
 
-    private void loadRelatedCollections(
+    private void loadEntriesSequentially(
             User currentUser,
             List<DocumentSnapshot> requestDocuments,
+            int index,
+            List<GuardianReportEntry> entries,
             RepositoryCallback<GuardianReportDashboard> callback
     ) {
-        firestore.collection("companionSessions")
-                .get()
-                .addOnSuccessListener(sessionSnapshot ->
-                        firestore.collection("sessionReports")
-                                .get()
-                                .addOnSuccessListener(reportSnapshot ->
-                                        firestore.collection("users")
-                                                .get()
-                                                .addOnSuccessListener(userSnapshot ->
-                                                        firestore.collection("hospitalGuides")
-                                                                .get()
-                                                                .addOnSuccessListener(guideSnapshot -> callback.onSuccess(
-                                                                        new GuardianReportDashboard(
-                                                                                currentUser,
-                                                                                buildEntries(
-                                                                                        requestDocuments,
-                                                                                        sessionSnapshot,
-                                                                                        reportSnapshot,
-                                                                                        userSnapshot,
-                                                                                        guideSnapshot
-                                                                                )
-                                                                        )
-                                                                ))
-                                                                .addOnFailureListener(exception ->
-                                                                        callback.onError("병원 가이드를 불러오지 못했습니다.")))
-                                                .addOnFailureListener(exception ->
-                                                        callback.onError("사용자 정보를 불러오지 못했습니다.")))
-                                .addOnFailureListener(exception ->
-                                        callback.onError("세션 리포트를 불러오지 못했습니다.")))
-                .addOnFailureListener(exception ->
-                        callback.onError("동행 세션 정보를 불러오지 못했습니다."));
+        if (index >= requestDocuments.size()) {
+            callback.onSuccess(new GuardianReportDashboard(currentUser, entries));
+            return;
+        }
+
+        AppointmentRequest request = toAppointmentRequest(requestDocuments.get(index));
+        if (request == null) {
+            loadEntriesSequentially(currentUser, requestDocuments, index + 1, entries, callback);
+            return;
+        }
+
+        loadGuardianReportEntry(request, new RepositoryCallback<GuardianReportEntry>() {
+            @Override
+            public void onSuccess(GuardianReportEntry entry) {
+                entries.add(entry);
+                loadEntriesSequentially(currentUser, requestDocuments, index + 1, entries, callback);
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
     }
 
-    private List<GuardianReportEntry> buildEntries(
-            List<DocumentSnapshot> requestDocuments,
-            QuerySnapshot sessionSnapshot,
-            QuerySnapshot reportSnapshot,
-            QuerySnapshot userSnapshot,
-            QuerySnapshot guideSnapshot
+    private void loadGuardianReportEntry(
+            AppointmentRequest request,
+            RepositoryCallback<GuardianReportEntry> callback
     ) {
-        Map<String, CompanionSession> sessionsByRequestId = new HashMap<>();
-        for (DocumentSnapshot documentSnapshot : sessionSnapshot.getDocuments()) {
-            CompanionSession session = toSession(documentSnapshot);
-            if (session != null) {
-                sessionsByRequestId.put(session.getAppointmentRequestId(), session);
-            }
-        }
+        Task<QuerySnapshot> sessionTask = firestore.collection("companionSessions")
+                .whereEqualTo("appointmentRequestId", request.getId())
+                .limit(1)
+                .get();
+        Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")
+                .whereEqualTo("hospitalName", request.getHospitalName())
+                .get();
+        Task<User> managerTask = loadAssignedManagerProfile(request.getId());
 
-        Map<String, SessionReport> reportsBySessionId = new HashMap<>();
-        for (DocumentSnapshot documentSnapshot : reportSnapshot.getDocuments()) {
-            SessionReport report = toReport(documentSnapshot);
-            if (report != null) {
-                reportsBySessionId.put(report.getSessionId(), report);
-            }
-        }
+        Tasks.whenAllSuccess(Arrays.asList(sessionTask, guideTask, managerTask))
+                .addOnSuccessListener(results -> {
+                    CompanionSession session = toSession((QuerySnapshot) results.get(0));
+                    HospitalGuide guide = findGuide(
+                            (QuerySnapshot) results.get(1),
+                            request.getDepartmentName()
+                    );
+                    User manager = (User) results.get(2);
+                    User patient = toParticipantUser(
+                            request.getPatientUserId(),
+                            UserRole.PATIENT,
+                            request.getPatientName(),
+                            request.getPatientEmail(),
+                            request.getPatientPhone()
+                    );
 
-        Map<String, User> usersById = new HashMap<>();
-        for (DocumentSnapshot documentSnapshot : userSnapshot.getDocuments()) {
-            User user = toUser(documentSnapshot);
-            if (user != null) {
-                usersById.put(user.getId(), user);
-            }
-        }
+                    if (session == null) {
+                        callback.onSuccess(new GuardianReportEntry(
+                                request,
+                                patient,
+                                manager,
+                                null,
+                                null,
+                                guide
+                        ));
+                        return;
+                    }
 
-        List<HospitalGuide> guides = new ArrayList<>();
-        for (DocumentSnapshot documentSnapshot : guideSnapshot.getDocuments()) {
-            HospitalGuide guide = toGuide(documentSnapshot);
-            if (guide != null) {
-                guides.add(guide);
-            }
-        }
-
-        List<GuardianReportEntry> entries = new ArrayList<>();
-        for (DocumentSnapshot requestDocument : requestDocuments) {
-            AppointmentRequest request = toAppointmentRequest(requestDocument);
-            if (request == null) {
-                continue;
-            }
-            CompanionSession session = sessionsByRequestId.get(request.getId());
-            entries.add(new GuardianReportEntry(
-                    request,
-                    usersById.get(request.getPatientUserId()),
-                    usersById.get(request.getManagerUserId()),
-                    session,
-                    session == null ? null : reportsBySessionId.get(session.getId()),
-                    findGuide(guides, request.getHospitalName(), request.getDepartmentName())
-            ));
-        }
-        return entries;
+                    firestore.collection("sessionReports")
+                            .whereEqualTo("sessionId", session.getId())
+                            .limit(1)
+                            .get()
+                            .addOnSuccessListener(reportSnapshot -> callback.onSuccess(
+                                    new GuardianReportEntry(
+                                            request,
+                                            patient,
+                                            manager,
+                                            session,
+                                            toReport(reportSnapshot),
+                                            guide
+                                    )
+                            ))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("세션 리포트를 불러오지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError(resolveAssignedManagerProfileMessage(
+                                exception,
+                                "보호자 진행 현황을 불러오지 못했습니다."
+                        )));
     }
 
     private long resolveCreatedAt(DocumentSnapshot documentSnapshot) {
@@ -179,26 +193,82 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
         return 0L;
     }
 
-    @Nullable
-    private User toUser(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
+    private User toParticipantUser(
+            @Nullable String userId,
+            UserRole role,
+            @Nullable String name,
+            @Nullable String email,
+            @Nullable String phone
+    ) {
+        if (userId == null || userId.trim().isEmpty()) {
             return null;
         }
-        String roleValue = documentSnapshot.getString("role");
-        String name = documentSnapshot.getString("name");
-        String email = documentSnapshot.getString("email");
-        String phone = documentSnapshot.getString("phone");
-        if (roleValue == null || name == null || email == null) {
+        return new User(
+                userId,
+                role,
+                stringOrEmpty(name),
+                stringOrEmpty(email),
+                stringOrEmpty(phone)
+        );
+    }
+
+    private Task<User> loadAssignedManagerProfile(String requestId) {
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("requestId", requestId);
+        return functions.getHttpsCallable("resolveAssignedManagerProfile")
+                .call(payload)
+                .continueWith(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception exception = task.getException();
+                        if (exception != null) {
+                            throw exception;
+                        }
+                        throw new IllegalStateException("매니저 정보를 불러오지 못했습니다.");
+                    }
+                    return toAssignedManagerUser(task.getResult().getData());
+                });
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private User toAssignedManagerUser(@Nullable Object rawData) {
+        if (!(rawData instanceof Map)) {
             return null;
         }
 
-        return new User(
-                documentSnapshot.getId(),
-                UserRole.valueOf(roleValue),
-                name,
-                email,
-                phone == null ? "" : phone
-        );
+        Object managerValue = ((Map<String, Object>) rawData).get("manager");
+        if (!(managerValue instanceof Map)) {
+            return null;
+        }
+
+        Map<String, Object> manager = (Map<String, Object>) managerValue;
+        String userId = stringOrEmpty(asString(manager.get("userId"))).trim();
+        String roleValue = stringOrEmpty(asString(manager.get("role"))).trim();
+        String name = stringOrEmpty(asString(manager.get("name"))).trim();
+        String email = stringOrEmpty(asString(manager.get("email"))).trim();
+        String phone = stringOrEmpty(asString(manager.get("phone"))).trim();
+        if (userId.isEmpty() || name.isEmpty() || email.isEmpty()) {
+            return null;
+        }
+        if (!roleValue.isEmpty() && !UserRole.MANAGER.name().equals(roleValue)) {
+            return null;
+        }
+
+        return new User(userId, UserRole.MANAGER, name, email, phone);
+    }
+
+    private String resolveAssignedManagerProfileMessage(Exception exception, String fallbackMessage) {
+        if (exception instanceof FirebaseFunctionsException) {
+            FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
+            Object details = functionsException.getDetails();
+            if (details instanceof Map) {
+                String message = asString(((Map<?, ?>) details).get("message"));
+                if (message != null && !message.trim().isEmpty()) {
+                    return message;
+                }
+            }
+        }
+        return fallbackMessage;
     }
 
     @Nullable
@@ -261,8 +331,8 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
     }
 
     @Nullable
-    private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
+    private CompanionSession toSession(@Nullable DocumentSnapshot documentSnapshot) {
+        if (documentSnapshot == null || !documentSnapshot.exists()) {
             return null;
         }
 
@@ -288,8 +358,16 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
     }
 
     @Nullable
-    private SessionReport toReport(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
+    private CompanionSession toSession(@Nullable QuerySnapshot querySnapshot) {
+        if (querySnapshot == null || querySnapshot.isEmpty()) {
+            return null;
+        }
+        return toSession(querySnapshot.getDocuments().get(0));
+    }
+
+    @Nullable
+    private SessionReport toReport(@Nullable DocumentSnapshot documentSnapshot) {
+        if (documentSnapshot == null || !documentSnapshot.exists()) {
             return null;
         }
         String sessionId = documentSnapshot.getString("sessionId");
@@ -309,6 +387,14 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 medicationNotes == null ? "" : medicationNotes,
                 nextVisitAt == null ? "" : nextVisitAt
         );
+    }
+
+    @Nullable
+    private SessionReport toReport(@Nullable QuerySnapshot querySnapshot) {
+        if (querySnapshot == null || querySnapshot.isEmpty()) {
+            return null;
+        }
+        return toReport(querySnapshot.getDocuments().get(0));
     }
 
     @Nullable
@@ -349,10 +435,13 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
     }
 
     @Nullable
-    private HospitalGuide findGuide(List<HospitalGuide> guides, String hospitalName, String departmentName) {
-        for (HospitalGuide guide : guides) {
-            if (guide.getHospitalName().equals(hospitalName)
-                    && guide.getDepartmentName().equals(departmentName)) {
+    private HospitalGuide findGuide(@Nullable QuerySnapshot querySnapshot, String departmentName) {
+        if (querySnapshot == null) {
+            return null;
+        }
+        for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+            HospitalGuide guide = toGuide(documentSnapshot);
+            if (guide != null && guide.getDepartmentName().equals(departmentName)) {
                 return guide;
             }
         }
@@ -372,6 +461,11 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
 
     private String stringOrEmpty(@Nullable String value) {
         return value == null ? "" : value;
+    }
+
+    @Nullable
+    private String asString(@Nullable Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private int numberOrZero(@Nullable Object value) {

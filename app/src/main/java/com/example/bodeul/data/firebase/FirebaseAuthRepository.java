@@ -180,7 +180,7 @@ public class FirebaseAuthRepository implements AuthRepository {
     public void signInWithNaver(Activity activity, UserRole expectedRole, RepositoryCallback<User> callback) {
         // 네이버 로그인도 SDK 로그인 후 Firebase Functions에서 custom token을 발급받는다.
         if (!isNaverConfigured()) {
-            callback.onError("네이버 로그인 설정이 아직 완료되지 않았습니다.");
+            callback.onError("네이버 로그인은 보안 설정 정비 중이라 잠시 사용할 수 없습니다.");
             return;
         }
 
@@ -627,19 +627,18 @@ public class FirebaseAuthRepository implements AuthRepository {
             SocialProfile socialProfile,
             RepositoryCallback<User> callback
     ) {
-        // 같은 이메일로 다른 로그인 방식 계정이 이미 있으면 중복 가입 대신 기존 방식을 안내한다.
-        firestore.collection("users")
-                .whereEqualTo("email", socialProfile.email)
-                .limit(1)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    if (!querySnapshot.isEmpty()) {
-                        DocumentSnapshot duplicateDocument = querySnapshot.getDocuments().get(0);
-                        if (!firebaseUser.getUid().equals(duplicateDocument.getId())) {
-                            signOut();
-                            callback.onError(resolveDuplicateEmailMessage(duplicateDocument));
-                            return;
-                        }
+        // 같은 이메일로 다른 로그인 방식 계정이 있으면 Functions 중계로 중복 여부를 확인한다.
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("email", socialProfile.email);
+
+        functions.getHttpsCallable("findSocialDuplicateEmailProvider")
+                .call(payload)
+                .addOnSuccessListener(result -> {
+                    String duplicateProvider = extractDuplicateProvider(result.getData());
+                    if (!TextUtils.isEmpty(duplicateProvider)) {
+                        signOut();
+                        callback.onError(resolveDuplicateEmailMessage(duplicateProvider));
+                        return;
                     }
 
                     Map<String, Object> userDocument = new HashMap<>();
@@ -671,7 +670,7 @@ public class FirebaseAuthRepository implements AuthRepository {
                 })
                 .addOnFailureListener(exception -> {
                     signOut();
-                    callback.onError("기존 계정 정보를 확인하지 못했습니다.");
+                    callback.onError(resolveSocialDuplicateEmailMessage(exception));
                 });
     }
 
@@ -860,8 +859,8 @@ public class FirebaseAuthRepository implements AuthRepository {
     }
 
     private boolean isNaverConfigured() {
-        return !TextUtils.isEmpty(appContext.getString(R.string.naver_client_id))
-                && !TextUtils.isEmpty(appContext.getString(R.string.naver_client_secret))
+        return appContext.getResources().getBoolean(R.bool.naver_login_enabled)
+                && !TextUtils.isEmpty(appContext.getString(R.string.naver_client_id))
                 && !TextUtils.isEmpty(appContext.getString(R.string.naver_client_name));
     }
 
@@ -985,8 +984,37 @@ public class FirebaseAuthRepository implements AuthRepository {
         return "네이버 로그인 처리에 실패했습니다. 잠시 후 다시 시도해주세요.";
     }
 
-    private String resolveDuplicateEmailMessage(DocumentSnapshot duplicateDocument) {
-        String provider = duplicateDocument.getString("provider");
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private String extractDuplicateProvider(@Nullable Object rawData) {
+        if (!(rawData instanceof Map)) {
+            return null;
+        }
+        Object duplicateValue = ((Map<String, Object>) rawData).get("duplicate");
+        if (!(duplicateValue instanceof Map)) {
+            return null;
+        }
+        return asString(((Map<?, ?>) duplicateValue).get("provider"));
+    }
+
+    private String resolveSocialDuplicateEmailMessage(Exception exception) {
+        if (exception instanceof FirebaseFunctionsException) {
+            FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
+            Object details = functionsException.getDetails();
+            if (details instanceof Map) {
+                String message = asString(((Map<?, ?>) details).get("message"));
+                if (!TextUtils.isEmpty(message)) {
+                    return message;
+                }
+            }
+            if (!TextUtils.isEmpty(functionsException.getMessage())) {
+                return "기존 계정 정보를 확인하지 못했습니다. " + functionsException.getMessage();
+            }
+        }
+        return "기존 계정 정보를 확인하지 못했습니다.";
+    }
+
+    private String resolveDuplicateEmailMessage(String provider) {
         if (TextUtils.isEmpty(provider) || PROVIDER_EMAIL.equals(provider)) {
             return "같은 이메일로 이미 이메일 로그인 계정이 있습니다. 기존 로그인 방식으로 로그인해주세요.";
         }

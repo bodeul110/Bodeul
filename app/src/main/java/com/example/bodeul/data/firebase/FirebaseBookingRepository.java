@@ -32,6 +32,8 @@ import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.google.firebase.firestore.WriteBatch;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.google.firebase.functions.FirebaseFunctionsException;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -50,10 +52,13 @@ import java.util.TimeZone;
  * Firestore에 병원 동행 신청을 저장하고 환자/보호자 계정 연결을 시도하는 저장소다.
  */
 public class FirebaseBookingRepository implements BookingRepository {
+    private static final String FUNCTIONS_REGION = "asia-northeast3";
     private final FirebaseFirestore firestore;
+    private final FirebaseFunctions functions;
 
     public FirebaseBookingRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
+        this.functions = FirebaseFunctions.getInstance(FUNCTIONS_REGION);
     }
 
     @Override
@@ -535,9 +540,21 @@ public class FirebaseBookingRepository implements BookingRepository {
             AppointmentRequest request,
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
-        Task<DocumentSnapshot> patientTask = loadUserSnapshot(request.getPatientUserId());
-        Task<DocumentSnapshot> guardianTask = loadUserSnapshot(request.getGuardianUserId());
-        Task<DocumentSnapshot> managerTask = loadUserSnapshot(request.getManagerUserId());
+        User patient = toParticipantUser(
+                request.getPatientUserId(),
+                UserRole.PATIENT,
+                request.getPatientName(),
+                request.getPatientEmail(),
+                request.getPatientPhone()
+        );
+        User guardian = toParticipantUser(
+                request.getGuardianUserId(),
+                UserRole.GUARDIAN,
+                request.getGuardianName(),
+                request.getGuardianEmail(),
+                request.getGuardianPhone()
+        );
+        Task<User> managerTask = loadAssignedManagerProfile(request.getId());
         Task<QuerySnapshot> sessionTask = firestore.collection("companionSessions")
                 .whereEqualTo("appointmentRequestId", request.getId())
                 .limit(1)
@@ -546,14 +563,12 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .whereEqualTo("hospitalName", request.getHospitalName())
                 .get();
 
-        List<Task<?>> tasks = Arrays.asList(patientTask, guardianTask, managerTask, sessionTask, guideTask);
+        List<Task<?>> tasks = Arrays.asList(managerTask, sessionTask, guideTask);
         Tasks.whenAllSuccess(tasks)
                 .addOnSuccessListener(results -> {
-                    User patient = toUser((DocumentSnapshot) results.get(0));
-                    User guardian = toUser((DocumentSnapshot) results.get(1));
-                    User manager = toUser((DocumentSnapshot) results.get(2));
-                    CompanionSession session = findSession((QuerySnapshot) results.get(3));
-                    HospitalGuide guide = findGuide((QuerySnapshot) results.get(4), request.getDepartmentName());
+                    User manager = (User) results.get(0);
+                    CompanionSession session = findSession((QuerySnapshot) results.get(1));
+                    HospitalGuide guide = findGuide((QuerySnapshot) results.get(2), request.getDepartmentName());
 
                     if (session == null) {
                         callback.onSuccess(new AppointmentRequestDetail(
@@ -587,7 +602,10 @@ public class FirebaseBookingRepository implements BookingRepository {
                                     callback.onError("진행 리포트를 불러오지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("요청 상세 정보를 불러오지 못했습니다."));
+                        callback.onError(resolveAssignedManagerProfileMessage(
+                                exception,
+                                "요청 상세 정보를 불러오지 못했습니다."
+                        )));
     }
 
     private void reloadAppointmentRequest(
@@ -605,15 +623,6 @@ public class FirebaseBookingRepository implements BookingRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("요청 정보를 다시 불러오지 못했습니다."));
-    }
-
-    private Task<DocumentSnapshot> loadUserSnapshot(@Nullable String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            return Tasks.forResult((DocumentSnapshot) null);
-        }
-        return firestore.collection("users")
-                .document(userId)
-                .get();
     }
 
     private Map<String, Object> buildRequestDocument(
@@ -703,54 +712,148 @@ public class FirebaseBookingRepository implements BookingRepository {
             String phone,
             LinkedParticipantCallback callback
     ) {
-        if (!email.isEmpty()) {
-            firestore.collection("users")
-                    .whereEqualTo("email", email)
-                    .get()
-                    .addOnSuccessListener(querySnapshot -> {
-                        User matchedUser = findMatchedUser(querySnapshot, expectedRole);
-                        if (matchedUser != null || phone.isEmpty()) {
-                            callback.onResolved(matchedUser);
-                            return;
-                        }
-                        resolveLinkedParticipantByPhone(expectedRole, phone, callback);
-                    })
-                    .addOnFailureListener(exception ->
-                            callback.onError("연결할 계정 정보를 확인하지 못했습니다."));
-            return;
-        }
-
-        resolveLinkedParticipantByPhone(expectedRole, phone, callback);
-    }
-
-    private void resolveLinkedParticipantByPhone(
-            UserRole expectedRole,
-            String phone,
-            LinkedParticipantCallback callback
-    ) {
-        if (phone.isEmpty()) {
+        if (email.isEmpty() && phone.isEmpty()) {
             callback.onResolved(null);
             return;
         }
 
-        firestore.collection("users")
-                .whereEqualTo("phone", phone)
-                .get()
-                .addOnSuccessListener(querySnapshot ->
-                        callback.onResolved(findMatchedUser(querySnapshot, expectedRole)))
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("expectedRole", expectedRole.name());
+        payload.put("email", email);
+        payload.put("phone", phone);
+
+        functions.getHttpsCallable("resolveLinkedParticipant")
+                .call(payload)
+                .addOnSuccessListener(result ->
+                        callback.onResolved(toLinkedParticipantUser(result.getData(), expectedRole)))
                 .addOnFailureListener(exception ->
-                        callback.onError("연결할 계정 정보를 확인하지 못했습니다."));
+                        callback.onError(resolveLinkedParticipantMessage(exception)));
     }
 
     @Nullable
-    private User findMatchedUser(QuerySnapshot querySnapshot, UserRole expectedRole) {
-        for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
-            User user = toUser(documentSnapshot);
-            if (user != null && user.getRole() == expectedRole) {
-                return user;
+    @SuppressWarnings("unchecked")
+    private User toLinkedParticipantUser(@Nullable Object rawData, UserRole expectedRole) {
+        if (!(rawData instanceof Map)) {
+            return null;
+        }
+
+        Object participantValue = ((Map<String, Object>) rawData).get("participant");
+        if (!(participantValue instanceof Map)) {
+            return null;
+        }
+
+        Map<String, Object> participant = (Map<String, Object>) participantValue;
+        String userId = normalizeText(asString(participant.get("userId")));
+        String roleValue = normalizeText(asString(participant.get("role")));
+        String name = normalizeText(asString(participant.get("name")));
+        String email = normalizeText(asString(participant.get("email")));
+        String phone = normalizeText(asString(participant.get("phone")));
+        if (userId.isEmpty() || roleValue.isEmpty() || name.isEmpty() || email.isEmpty()) {
+            return null;
+        }
+
+        UserRole resolvedRole;
+        try {
+            resolvedRole = UserRole.valueOf(roleValue);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+
+        if (resolvedRole != expectedRole) {
+            return null;
+        }
+
+        return new User(
+                userId,
+                resolvedRole,
+                UserProfileSanitizer.normalizeName(name),
+                UserProfileSanitizer.normalizeEmail(email),
+                UserProfileSanitizer.normalizePhone(phone)
+        );
+    }
+
+    private String resolveLinkedParticipantMessage(Exception exception) {
+        if (exception instanceof FirebaseFunctionsException) {
+            FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
+            Object details = functionsException.getDetails();
+            if (details instanceof Map) {
+                String message = asString(((Map<?, ?>) details).get("message"));
+                if (message != null && !message.trim().isEmpty()) {
+                    return message;
+                }
             }
         }
-        return null;
+        return "연결할 계정 정보를 확인하지 못했습니다.";
+    }
+
+    private Task<User> loadAssignedManagerProfile(String requestId) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("requestId", requestId);
+        return functions.getHttpsCallable("resolveAssignedManagerProfile")
+                .call(payload)
+                .continueWith(task -> {
+                    if (!task.isSuccessful()) {
+                        Exception exception = task.getException();
+                        if (exception != null) {
+                            throw exception;
+                        }
+                        throw new IllegalStateException("매니저 정보를 불러오지 못했습니다.");
+                    }
+                    return toAssignedManagerUser(task.getResult().getData());
+                });
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private User toAssignedManagerUser(@Nullable Object rawData) {
+        if (!(rawData instanceof Map)) {
+            return null;
+        }
+
+        Object managerValue = ((Map<String, Object>) rawData).get("manager");
+        if (!(managerValue instanceof Map)) {
+            return null;
+        }
+
+        Map<String, Object> manager = (Map<String, Object>) managerValue;
+        String userId = normalizeText(asString(manager.get("userId")));
+        String roleValue = normalizeText(asString(manager.get("role")));
+        String name = normalizeText(asString(manager.get("name")));
+        String email = normalizeText(asString(manager.get("email")));
+        String phone = normalizeText(asString(manager.get("phone")));
+        if (userId.isEmpty() || name.isEmpty() || email.isEmpty()) {
+            return null;
+        }
+        if (!roleValue.isEmpty() && !UserRole.MANAGER.name().equals(roleValue)) {
+            return null;
+        }
+
+        return new User(
+                userId,
+                UserRole.MANAGER,
+                UserProfileSanitizer.normalizeName(name),
+                UserProfileSanitizer.normalizeEmail(email),
+                UserProfileSanitizer.normalizePhone(phone)
+        );
+    }
+
+    private String resolveAssignedManagerProfileMessage(Exception exception, String fallbackMessage) {
+        if (exception instanceof FirebaseFunctionsException) {
+            FirebaseFunctionsException functionsException = (FirebaseFunctionsException) exception;
+            Object details = functionsException.getDetails();
+            if (details instanceof Map) {
+                String message = asString(((Map<?, ?>) details).get("message"));
+                if (message != null && !message.trim().isEmpty()) {
+                    return message;
+                }
+            }
+        }
+        return fallbackMessage;
+    }
+
+    @Nullable
+    private String asString(@Nullable Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private List<AppointmentRequest> toSortedRequests(QuerySnapshot querySnapshot) {
@@ -808,6 +911,27 @@ public class FirebaseBookingRepository implements BookingRepository {
                 UserProfileSanitizer.normalizeName(name),
                 UserProfileSanitizer.normalizeEmail(email),
                 UserProfileSanitizer.normalizePhone(phone)
+        );
+    }
+
+    @Nullable
+    private User toParticipantUser(
+            @Nullable String userId,
+            UserRole role,
+            @Nullable String name,
+            @Nullable String email,
+            @Nullable String phone
+    ) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return null;
+        }
+
+        return new User(
+                userId,
+                role,
+                UserProfileSanitizer.normalizeName(stringOrEmpty(name)),
+                UserProfileSanitizer.normalizeEmail(stringOrEmpty(email)),
+                UserProfileSanitizer.normalizePhone(stringOrEmpty(phone))
         );
     }
 

@@ -1531,3 +1531,94 @@
 ### 남은 범위
 
 - 현재는 vendor 분리까지 반영한 상태고, 이후 화면 수가 더 늘어나면 메뉴 단위 lazy loading까지 검토할 수 있다.
+
+## 71. 2026-05-04 users 공개 검색 제거 1차
+### 구현
+
+- [FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)에서 예약 연결 참여자 탐색을 직접 `users` 쿼리 대신 Firebase callable `resolveLinkedParticipant`로 전환했다.
+- [FirebaseAuthRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 소셜 로그인 첫 가입 시 중복 이메일 확인을 callable `findSocialDuplicateEmailProvider`로 옮겼다.
+- [functions/index.js](/D:/BoDeul/functions/index.js)에 두 callable 함수를 추가해 예약 연결 탐색과 소셜 중복 이메일 판별을 관리자 SDK 쿼리로 중계하도록 구현했다.
+- [firestore.rules](/D:/BoDeul/firestore.rules)에서 `users` 컬렉션 규칙을 `get`/`list`로 분리해 비관리자 클라이언트의 `users` 목록 조회를 차단했다.
+- 보안 작업 정리는 [firestore-security-hardening.md](/D:/BoDeul/docs/firestore-security-hardening.md)에 이어서 기록했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
+- `functions/index.js`
+- `firestore.rules`
+- `docs/firestore-security-hardening.md`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `node --check functions/index.js`
+- `.\gradlew.bat assembleDebug --console=plain`
+- `.\gradlew.bat testDebugUnitTest --console=plain`
+- `firebase deploy --only functions:resolveLinkedParticipant,functions:findSocialDuplicateEmailProvider,firestore:rules --project bodeul-dev --non-interactive`
+- `guardian@bodeul.app` 기준 `resolveLinkedParticipant` 호출 성공
+- `guardian@bodeul.app` 기준 `users` 이메일 쿼리 `PERMISSION_DENIED`
+- `guardian@bodeul.app` 기준 `findSocialDuplicateEmailProvider` 호출 `PERMISSION_DENIED`
+
+### 남은 범위
+
+- 비관리자 사용자의 `users/{uid}` 직접 조회는 아직 허용하므로, 화면 요구사항이 정리되면 self/admin/참여 관계 기준으로 한 번 더 줄일 수 있다.
+
+## 72. 2026-05-04 네이버 로그인 앱 시크릿 제거
+### 구현
+
+- [app/build.gradle.kts](/D:/BoDeul/app/build.gradle.kts)에서 `naver_client_secret` 리소스 주입을 제거했다.
+- 네이버 로그인은 서버 중계 플로우가 준비될 때까지 비활성화하도록 `naver_login_enabled=false` 빌드 리소스를 추가했다.
+- [BodeulApplication.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/BodeulApplication.java)에서 네이버 SDK 초기화를 제거했다.
+- [FirebaseAuthRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 네이버 로그인 가능 여부 판단을 `R.bool.naver_login_enabled` 기준으로 바꾸고, 비활성화 상태 안내 메시지를 정리했다.
+- [LoginActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)에서 네이버 로그인 버튼을 숨기고, 코드 경로로 호출되더라도 안내 토스트만 표시하도록 막았다.
+
+### 변경 범위
+
+- `app/build.gradle.kts`
+- `app/src/main/java/com/example/bodeul/BodeulApplication.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `.\gradlew.bat assembleDebug --console=plain`
+
+### 남은 범위
+
+- 네이버 로그인은 현재 앱에서 비활성화된 상태다. 다시 열려면 클라이언트 시크릿을 앱에 넣지 않는 서버 중계형 OAuth 흐름을 별도로 설계해야 한다.
+
+## 73. 2026-05-04 users 직접 조회 self/admin 제한
+### 구현
+
+- [FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)에서 예약 상세의 환자/보호자 프로필을 `appointmentRequests` 문서 스냅샷으로 복원하도록 바꾸고, 배정 매니저 정보는 callable `resolveAssignedManagerProfile`로 가져오게 정리했다.
+- [FirebaseGuardianReportRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java)에서도 보호자 리포트의 매니저 프로필을 직접 `users/{uid}` 읽기 대신 callable로 전환했다.
+- [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java)에서 매니저 대시보드와 과거 이력의 환자/보호자 프로필을 요청 문서 스냅샷으로 구성하도록 바꿨다.
+- [firestore.rules](/D:/BoDeul/firestore.rules)에서 `users` 직접 읽기 권한을 본인과 관리자만 허용하도록 축소했다.
+- 보안 작업 정리는 [firestore-security-hardening.md](/D:/BoDeul/docs/firestore-security-hardening.md)에 이어서 기록했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
+- `firestore.rules`
+- `docs/firestore-security-hardening.md`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `.\gradlew.bat assembleDebug --console=plain`
+- `.\gradlew.bat testDebugUnitTest --console=plain`
+- `firebase deploy --only functions:resolveAssignedManagerProfile,firestore:rules --project bodeul-dev --non-interactive`
+- Firebase Web SDK 실계정 검증
+  - `guardian@bodeul.app` 기준 `resolveAssignedManagerProfile(request-seed-progress)` 호출 성공
+  - `guardian@bodeul.app` 기준 본인 `users/{uid}` 문서 읽기 성공
+  - `guardian@bodeul.app` 기준 매니저 `users/{uid}` 문서 직접 읽기 `permission-denied`
+  - `patient@bodeul.app` 기준 보호자 `users/{uid}` 문서 직접 읽기 `permission-denied`
+
+### 남은 범위
+
+- 타 사용자 프로필이 더 필요한 화면은 Firestore 규칙을 다시 넓히지 말고, 요청 문서 스냅샷이나 Functions 중계로 풀어야 한다.

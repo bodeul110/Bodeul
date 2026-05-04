@@ -341,6 +341,10 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.toast_admin_email_login_only, Toast.LENGTH_SHORT).show();
             return;
         }
+        if (!isNaverLoginEnabled()) {
+            Toast.makeText(this, R.string.toast_naver_login_unavailable, Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         clearErrors();
 
@@ -507,6 +511,13 @@ public class LoginActivity extends AppCompatActivity {
         layoutSocialDivider.setVisibility(visibility);
         layoutSocialButtons.setVisibility(visibility);
         textSocialHelper.setVisibility(visibility);
+        buttonSocialNaver.setVisibility(
+                visibility == View.VISIBLE && isNaverLoginEnabled() ? View.VISIBLE : View.GONE
+        );
+    }
+
+    private boolean isNaverLoginEnabled() {
+        return getResources().getBoolean(R.bool.naver_login_enabled);
     }
 
     private boolean isFixedRoleHint() {

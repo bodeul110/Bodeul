@@ -84,9 +84,40 @@ service cloud.firestore {
           );
     }
 
+    function canGetUser(userId) {
+      return isSelf(userId)
+          || isAdmin();
+    }
+
+    function canReadAppointmentRequest() {
+      return signedIn()
+          && (
+            resource.data.patientUserId == request.auth.uid
+            || resource.data.guardianUserId == request.auth.uid
+            || resource.data.managerUserId == request.auth.uid
+            || isAdmin()
+          );
+    }
+
+    function canReadCompanionSession() {
+      return signedIn()
+          && (
+            resource.data.managerUserId == request.auth.uid
+            || isAdmin()
+            || isAppointmentParticipant(resource.data.appointmentRequestId)
+          );
+    }
+
+    function canReadSessionReport() {
+      return signedIn()
+          && resource.data.sessionId is string
+          && isSessionParticipant(resource.data.sessionId);
+    }
+
     match /users/{userId} {
-      // 개발 단계에서는 로그인 사용자라면 프로필을 읽을 수 있게 두고 쓰기만 제한한다.
-      allow read: if signedIn();
+      // 사용자 문서는 본인과 관리자만 직접 읽고, 교차 프로필 참조는 Functions 중계를 사용한다.
+      allow get: if canGetUser(userId);
+      allow list: if isAdmin();
       allow create: if isSelf(userId)
           && isClientCreatableRole(request.resource.data.role);
       allow update: if isAdmin()
@@ -99,7 +130,7 @@ service cloud.firestore {
 
     match /appointmentRequests/{appointmentRequestId} {
       // 매니저 대시보드와 후속 화면에서 참조가 많아 개발 중에는 로그인 사용자 읽기를 허용한다.
-      allow read: if signedIn();
+      allow read: if canReadAppointmentRequest();
 
       // 신규 신청은 환자, 보호자, 관리자만 생성할 수 있다.
       allow create: if isAdmin()
@@ -120,7 +151,7 @@ service cloud.firestore {
 
     match /companionSessions/{sessionId} {
       // 세션 조회는 쿼리 기반으로 이루어져 개발 중에는 로그인 사용자 읽기를 허용한다.
-      allow read: if signedIn();
+      allow read: if canReadCompanionSession();
 
       // 세션 생성과 수정은 배정된 매니저 또는 관리자가 수행한다.
       allow create: if isAdmin()
@@ -141,7 +172,7 @@ service cloud.firestore {
 
     match /sessionReports/{reportId} {
       // 리포트도 화면 결합도가 높아 개발 단계에서는 로그인 사용자 읽기를 허용한다.
-      allow read: if signedIn();
+      allow read: if canReadSessionReport();
 
       // 최종 리포트 작성은 배정된 매니저 또는 관리자만 가능하다.
       allow create, update: if isAdmin()

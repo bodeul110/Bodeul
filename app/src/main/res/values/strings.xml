@@ -62,6 +62,7 @@
     <string name="social_login_kakao_short" translatable="false">K</string>
     <string name="social_login_google_short" translatable="false">G</string>
     <string name="social_login_naver_short" translatable="false">N</string>
+    <string name="toast_naver_login_unavailable">네이버 로그인은 보안 설정 정비 중이라 잠시 사용할 수 없습니다.</string>
     <string name="demo_banner_manager">Firebase 설정 전 데모 모드입니다. 매니저 계정: manager@bodeul.app / bodeul1234</string>
     <string name="demo_banner_general">Firebase 설정 전 데모 모드입니다. 환자 계정: patient@bodeul.app / bodeul1234</string>
     <string name="demo_account_manager_email" translatable="false">manager@bodeul.app</string>

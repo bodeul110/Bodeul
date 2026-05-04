@@ -24,7 +24,6 @@ fun localOrGradleProperty(name: String): String {
 
 val kakaoNativeAppKey = localOrGradleProperty("kakaoNativeAppKey")
 val naverClientId = localOrGradleProperty("naverClientId")
-val naverClientSecret = localOrGradleProperty("naverClientSecret")
 val naverClientName = localOrGradleProperty("naverClientName")
     .ifEmpty { "보들" }
 
@@ -41,8 +40,9 @@ android {
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
         resValue("string", "naver_client_id", naverClientId)
-        resValue("string", "naver_client_secret", naverClientSecret)
         resValue("string", "naver_client_name", naverClientName)
+        // 네이버 클라이언트 시크릿은 앱에 포함하지 않고, 서버 중계 플로우가 준비될 때까지 로그인을 비활성화한다.
+        resValue("bool", "naver_login_enabled", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

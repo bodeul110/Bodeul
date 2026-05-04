@@ -80,12 +80,6 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             Task<DocumentSnapshot> managerTask = firestore.collection("users")
                                     .document(managerUserId)
                                     .get();
-                            Task<DocumentSnapshot> patientTask = firestore.collection("users")
-                                    .document(request.getPatientUserId())
-                                    .get();
-                            Task<DocumentSnapshot> guardianTask = firestore.collection("users")
-                                    .document(request.getGuardianUserId())
-                                    .get();
                             Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")
                                     .whereEqualTo("hospitalName", request.getHospitalName())
                                     .get();
@@ -96,8 +90,6 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
                             List<Task<?>> tasks = Arrays.asList(
                                     managerTask,
-                                    patientTask,
-                                    guardianTask,
                                     guideTask,
                                     reportTask
                             );
@@ -105,13 +97,25 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             Tasks.whenAllSuccess(tasks)
                                     .addOnSuccessListener(results -> {
                                         User manager = toUser((DocumentSnapshot) results.get(0));
-                                        User patient = toUser((DocumentSnapshot) results.get(1));
-                                        User guardian = toUser((DocumentSnapshot) results.get(2));
+                                        User patient = toParticipantUser(
+                                                request.getPatientUserId(),
+                                                UserRole.PATIENT,
+                                                request.getPatientName(),
+                                                request.getPatientEmail(),
+                                                request.getPatientPhone()
+                                        );
+                                        User guardian = toParticipantUser(
+                                                request.getGuardianUserId(),
+                                                UserRole.GUARDIAN,
+                                                request.getGuardianName(),
+                                                request.getGuardianEmail(),
+                                                request.getGuardianPhone()
+                                        );
                                         HospitalGuide guide = findGuide(
-                                                (QuerySnapshot) results.get(3),
+                                                (QuerySnapshot) results.get(1),
                                                 request.getDepartmentName()
                                         );
-                                        SessionReport report = toReport((QuerySnapshot) results.get(4));
+                                        SessionReport report = toReport((QuerySnapshot) results.get(2));
 
                                         if (manager == null || patient == null || guardian == null || guide == null) {
                                             callback.onError("Firebase 컬렉션(users, hospitalGuides) 데이터를 확인해주세요.");
@@ -633,12 +637,6 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         return;
                     }
 
-                    Task<DocumentSnapshot> patientTask = firestore.collection("users")
-                            .document(request.getPatientUserId())
-                            .get();
-                    Task<DocumentSnapshot> guardianTask = firestore.collection("users")
-                            .document(request.getGuardianUserId())
-                            .get();
                     Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")
                             .whereEqualTo("hospitalName", request.getHospitalName())
                             .get();
@@ -650,17 +648,29 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             .document(request.getId())
                             .get();
 
-                    Tasks.whenAllSuccess(patientTask, guardianTask, guideTask, reportTask, followUpTask)
+                    Tasks.whenAllSuccess(guideTask, reportTask, followUpTask)
                             .addOnSuccessListener(historyResults -> {
-                                User patient = toUser((DocumentSnapshot) historyResults.get(0));
-                                User guardian = toUser((DocumentSnapshot) historyResults.get(1));
+                                User patient = toParticipantUser(
+                                        request.getPatientUserId(),
+                                        UserRole.PATIENT,
+                                        request.getPatientName(),
+                                        request.getPatientEmail(),
+                                        request.getPatientPhone()
+                                );
+                                User guardian = toParticipantUser(
+                                        request.getGuardianUserId(),
+                                        UserRole.GUARDIAN,
+                                        request.getGuardianName(),
+                                        request.getGuardianEmail(),
+                                        request.getGuardianPhone()
+                                );
                                 HospitalGuide hospitalGuide = findGuide(
-                                        (QuerySnapshot) historyResults.get(2),
+                                        (QuerySnapshot) historyResults.get(0),
                                         request.getDepartmentName()
                                 );
-                                SessionReport report = toReport((QuerySnapshot) historyResults.get(3));
+                                SessionReport report = toReport((QuerySnapshot) historyResults.get(1));
                                 AppointmentFollowUpRecord followUpRecord = toAppointmentFollowUpRecord(
-                                        (DocumentSnapshot) historyResults.get(4),
+                                        (DocumentSnapshot) historyResults.get(2),
                                         request.getId()
                                 );
 
@@ -954,6 +964,27 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 name,
                 email,
                 phone == null ? "" : phone
+        );
+    }
+
+    @Nullable
+    private User toParticipantUser(
+            @Nullable String userId,
+            UserRole role,
+            @Nullable String name,
+            @Nullable String email,
+            @Nullable String phone
+    ) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return null;
+        }
+
+        return new User(
+                userId,
+                role,
+                normalizeText(name),
+                normalizeText(email),
+                normalizeText(phone)
         );
     }
 

@@ -138,6 +138,152 @@ exports.naverCustomToken = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
   };
 });
 
+exports.resolveLinkedParticipant = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+  const uid = sanitizeText(request.auth?.uid);
+  if (!uid) {
+    throw unauthenticated("로그인이 필요합니다.");
+  }
+
+  const callerSnapshot = await getFirestore().collection("users").doc(uid).get();
+  const callerRole = sanitizeText(callerSnapshot.get("role"));
+  if (!["PATIENT", "GUARDIAN", "ADMIN"].includes(callerRole)) {
+    throw new HttpsError("permission-denied", "연결 계정 조회 권한이 없습니다.");
+  }
+
+  const expectedRole = sanitizeText(request.data?.expectedRole);
+  if (!["PATIENT", "GUARDIAN"].includes(expectedRole)) {
+    throw invalidArgument("연결할 사용자 유형이 올바르지 않습니다.");
+  }
+
+  const email = normalizeComparableEmail(request.data?.email);
+  const phone = normalizeProfilePhone(request.data?.phone);
+  if (!email && !phone) {
+    return {participant: null};
+  }
+
+  const firestore = getFirestore();
+  let matchedUser = null;
+  if (email) {
+    const emailSnapshot = await firestore.collection("users")
+        .where("role", "==", expectedRole)
+        .where("email", "==", email)
+        .limit(1)
+        .get();
+    matchedUser = emailSnapshot.docs.length > 0 ? emailSnapshot.docs[0] : null;
+  }
+
+  if (!matchedUser && phone) {
+    const phoneSnapshot = await firestore.collection("users")
+        .where("role", "==", expectedRole)
+        .where("phone", "==", phone)
+        .limit(1)
+        .get();
+    matchedUser = phoneSnapshot.docs.length > 0 ? phoneSnapshot.docs[0] : null;
+  }
+
+  if (!matchedUser) {
+    return {participant: null};
+  }
+
+  return {
+    participant: {
+      userId: matchedUser.id,
+      role: sanitizeText(matchedUser.get("role")),
+      name: sanitizeText(matchedUser.get("name")),
+      email: sanitizeText(matchedUser.get("email")),
+      phone: sanitizeText(matchedUser.get("phone")),
+    },
+  };
+});
+
+exports.findSocialDuplicateEmailProvider = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+  const uid = sanitizeText(request.auth?.uid);
+  if (!uid) {
+    throw unauthenticated("로그인이 필요합니다.");
+  }
+
+  const signInProvider = sanitizeText(request.auth?.token?.firebase?.sign_in_provider);
+  if (!signInProvider || signInProvider === "password") {
+    throw new HttpsError("permission-denied", "소셜 로그인 계정만 중복 확인을 요청할 수 있습니다.");
+  }
+
+  const email = normalizeComparableEmail(request.data?.email);
+  if (!email) {
+    throw invalidArgument("이메일이 필요합니다.");
+  }
+
+  const duplicateSnapshot = await getFirestore().collection("users")
+      .where("email", "==", email)
+      .limit(5)
+      .get();
+
+  const duplicateDocument = duplicateSnapshot.docs.find((documentSnapshot) =>
+    documentSnapshot.id !== uid,
+  );
+
+  if (!duplicateDocument) {
+    return {duplicate: null};
+  }
+
+  return {
+    duplicate: {
+      userId: duplicateDocument.id,
+      provider: sanitizeText(duplicateDocument.get("provider")) || "EMAIL",
+    },
+  };
+});
+
+exports.resolveAssignedManagerProfile = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+  const uid = sanitizeText(request.auth?.uid);
+  if (!uid) {
+    throw unauthenticated("로그인이 필요합니다.");
+  }
+
+  const requestId = sanitizeText(request.data?.requestId);
+  if (!requestId) {
+    throw invalidArgument("예약 요청 ID가 필요합니다.");
+  }
+
+  const firestore = getFirestore();
+  const callerSnapshot = await firestore.collection("users").doc(uid).get();
+  const callerRole = sanitizeText(callerSnapshot.get("role"));
+  if (!["PATIENT", "GUARDIAN", "MANAGER", "ADMIN"].includes(callerRole)) {
+    throw new HttpsError("permission-denied", "매니저 정보를 조회할 권한이 없습니다.");
+  }
+
+  const requestSnapshot = await firestore.collection("appointmentRequests").doc(requestId).get();
+  if (!requestSnapshot.exists) {
+    throw invalidArgument("예약 요청 정보를 확인하지 못했습니다.");
+  }
+
+  const patientUserId = sanitizeText(requestSnapshot.get("patientUserId"));
+  const guardianUserId = sanitizeText(requestSnapshot.get("guardianUserId"));
+  const managerUserId = sanitizeText(requestSnapshot.get("managerUserId"));
+  const isParticipant = uid === patientUserId || uid === guardianUserId || uid === managerUserId;
+  if (!isParticipant && callerRole !== "ADMIN") {
+    throw new HttpsError("permission-denied", "매니저 정보를 조회할 권한이 없습니다.");
+  }
+
+  if (!managerUserId) {
+    return {manager: null};
+  }
+
+  const managerSnapshot = await firestore.collection("users").doc(managerUserId).get();
+  if (!managerSnapshot.exists || sanitizeText(managerSnapshot.get("role")) !== "MANAGER") {
+    return {manager: null};
+  }
+
+  return {
+    manager: {
+      userId: managerSnapshot.id,
+      role: "MANAGER",
+      name: sanitizeText(managerSnapshot.get("name")),
+      email: sanitizeText(managerSnapshot.get("email")),
+      phone: sanitizeText(managerSnapshot.get("phone")),
+    },
+  };
+});
+
 // 매일 오전 9시에 예약 일정을 스캔해서 D-7, D-3, D-1 알림 작업 문서를 만든다.
 exports.syncAppointmentReminderJobs = onSchedule(REMINDER_SYNC_SCHEDULE_OPTIONS, async (event) => {
   const firestore = getFirestore();
