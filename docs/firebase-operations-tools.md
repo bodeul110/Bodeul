@@ -4,6 +4,8 @@
 
 `tools/firebase`는 앱 런타임 코드와 분리된 Firebase 운영용 로컬 스크립트를 모아두는 디렉터리다.
 
+관리자 웹/앱 권한 검증 순서는 [admin-access-qa-checklist.md](/D:/BoDeul/docs/admin-access-qa-checklist.md)를 기준으로 맞춘다.
+
 ## 목적
 
 - 개발용 기준선 초기화
@@ -221,12 +223,17 @@ cd D:\BoDeul\tools\firebase
 npm run check:manager-storage
 npm run check:manager-storage -- --json
 npm run check:manager-storage -- --strict
+npm run cleanup:manager-storage:dry-run
+npm run cleanup:manager-storage:apply
 ```
 
 - [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)는 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 아래 실제 Storage 객체를 비교한다.
 - 점검 결과는 기본적으로 `tools/firebase/reports/manager-document-storage-check-YYYYMMDD-HHMMSS.json`에 저장된다.
 - `--strict`를 주면 누락 객체나 경로 불일치가 있을 때 비정상 종료해 CI나 수동 점검에서 바로 걸 수 있다.
-- `--delete-orphans`는 고아 파일만 삭제하는 위험 옵션이다. 기본값은 보고 전용이며, 실제 삭제는 점검 결과를 확인한 뒤 수동으로만 실행한다.
+- `cleanup:manager-storage:dry-run`은 고아 파일 삭제 후보만 계산하고 실제 삭제는 하지 않는다.
+- `cleanup:manager-storage:apply`는 실제 삭제를 수행하지만, 누락 객체나 경로 불일치가 있으면 기본적으로 중단한다.
+- 정말 예외적으로 계속 진행해야 할 때만 `--delete-orphans --apply --force`를 수동 실행한다.
+- 대량 삭제 방지를 위해 기본 최대 삭제 수는 20건이며, 필요하면 `--max-delete`로 조정한다.
 
 ### 매니저 서류 샘플 업로드
 

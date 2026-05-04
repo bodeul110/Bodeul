@@ -390,6 +390,9 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 
 - 운영 도구 [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)를 추가해 `users/{uid}.managerDocumentFiles`와 `manager-documents/` 실제 Storage 객체의 일치 여부를 점검할 수 있게 했다.
 - 기본 명령은 `cd D:\BoDeul\tools\firebase && npm run check:manager-storage` 이고, 결과 JSON은 `tools/firebase/reports/manager-document-storage-check-YYYYMMDD-HHMMSS.json`에 남긴다.
-- `--strict` 옵션으로 누락 객체/경로 불일치를 실패 조건으로 둘 수 있고, `--delete-orphans`는 점검 후 수동 승인 하에서만 쓰는 정리 옵션으로 둔다.
+- `--strict` 옵션으로 누락 객체/경로 불일치를 실패 조건으로 둘 수 있다.
+- 고아 파일 정리는 `npm run cleanup:manager-storage:dry-run` -> `npm run cleanup:manager-storage:apply` 순서로 실행한다.
+- 실제 삭제는 `--apply`가 있어야만 수행되고, 누락 객체나 경로 불일치가 있으면 기본적으로 차단한다.
+- 정말 예외적으로 강제 삭제가 필요할 때만 `--delete-orphans --apply --force`를 수동으로 사용한다.
 - `seed-manager-document-storage-sample.js`로 `manager@bodeul.app` 샘플 서류 3종을 Storage와 Firestore에 함께 올려 실제 관리자 웹 미리보기 데이터를 검증할 수 있다.
 - Firebase 운영 도구의 Firestore 부분 업데이트는 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 `updateMask.fieldPaths`를 함께 붙여 문서 전체 덮어쓰기를 피한다.

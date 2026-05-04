@@ -20,6 +20,7 @@
 
 - [현재 구현 상태](docs/implementation-status.md)
 - [협업 규칙](docs/collaboration-rules.md)
+- [관리자 권한 QA 체크리스트](docs/admin-access-qa-checklist.md)
 - [전면 개편 목표 정리](docs/restructure-target-map.md)
 - [MVP 범위](docs/mvp-scope.md)
 - [아키텍처 초안](docs/architecture-draft.md)

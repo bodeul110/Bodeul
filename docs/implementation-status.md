@@ -1622,3 +1622,54 @@
 ### 남은 범위
 
 - 타 사용자 프로필이 더 필요한 화면은 Firestore 규칙을 다시 넓히지 말고, 요청 문서 스냅샷이나 Functions 중계로 풀어야 한다.
+
+## 74. 2026-05-04 매니저 서류 Storage 고아 파일 정리 흐름 보강
+### 구현
+
+- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)에 고아 파일 정리용 `dry-run -> apply` 흐름을 추가했다.
+- `--delete-orphans`만으로는 삭제를 수행하지 않고, `--apply`가 함께 있을 때만 실제 삭제를 수행하도록 바꿨다.
+- 누락 객체나 경로 불일치가 있으면 기본적으로 삭제를 차단하고, 예외 상황에서만 `--force`로 우회할 수 있게 했다.
+- 대량 삭제 방지를 위해 기본 최대 삭제 수 20건 제한을 추가하고, `--max-delete`로만 조정하게 했다.
+- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `cleanup:manager-storage:dry-run`, `cleanup:manager-storage:apply` 실행점을 추가했다.
+- 운영 절차는 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 반영했다.
+
+### 변경 범위
+
+- `tools/firebase/check-manager-document-storage.js`
+- `tools/firebase/package.json`
+- `docs/firebase-operations-tools.md`
+- `docs/firebase-setup.md`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `node tools/firebase/check-manager-document-storage.js --help`
+- `npm run check:manager-storage -- --json`
+- `npm run cleanup:manager-storage:dry-run`
+- `npm run cleanup:manager-storage:apply`
+
+### 남은 범위
+
+- 실제 운영 기준으로는 정리 전 마지막 백업 생성 여부와 리포트 보관 기간만 팀 규칙으로 정하면 된다.
+
+## 75. 2026-05-04 관리자 권한 QA 체크리스트 정리
+### 구현
+
+- [admin-access-qa-checklist.md](/D:/BoDeul/docs/admin-access-qa-checklist.md)를 추가해 관리자 앱 숨김 진입, 관리자 웹 로그인, 매니저 서류 검토, 권한 실패 시나리오를 한 문서에서 점검할 수 있게 정리했다.
+- [README.md](/D:/BoDeul/README.md) 문서 목록에 관리자 권한 QA 체크리스트 링크를 추가했다.
+- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 관리자 권한 검증 기준 문서 연결을 추가했다.
+
+### 변경 범위
+
+- `docs/admin-access-qa-checklist.md`
+- `README.md`
+- `docs/firebase-operations-tools.md`
+- `docs/implementation-status.md`
+
+### 검증
+
+- 문서 정리 작업이라 별도 빌드 없이 내용과 링크 연결만 점검했다.
+
+### 남은 범위
+
+- 팀이 실제 QA를 돌리면서 실패 사례가 쌓이면 `실패 시 기록 항목` 아래에 반복되는 유형을 추가하면 된다.

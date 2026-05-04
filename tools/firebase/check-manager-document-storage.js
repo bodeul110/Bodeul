@@ -28,8 +28,17 @@ async function main() {
   const storageObjects = await listStorageObjects(context, STORAGE_PREFIX);
   const orphanObjects = resolveOrphanObjects(storageObjects, references);
 
+  const deletionDecision = resolveDeletionDecision(
+      {
+        managerDocuments,
+        objectChecks,
+        orphanObjects,
+      },
+      options,
+  );
+
   let deletedOrphanCount = 0;
-  if (options.deleteOrphans) {
+  if (deletionDecision.shouldDelete) {
     deletedOrphanCount = await deleteOrphanObjects(context, orphanObjects);
   }
 
@@ -40,6 +49,7 @@ async function main() {
       objectChecks,
       orphanObjects,
       deletedOrphanCount,
+      deletionDecision,
   );
   const reportPath = writeReport(summary, options.outputPath);
   summary.reportPath = reportPath;
@@ -61,6 +71,9 @@ function parseOptions(args) {
     json: false,
     strict: false,
     deleteOrphans: false,
+    apply: false,
+    force: false,
+    maxDelete: 20,
     outputPath: "",
   };
 
@@ -74,6 +87,13 @@ function parseOptions(args) {
       options.strict = true;
     } else if (argument === "--delete-orphans") {
       options.deleteOrphans = true;
+    } else if (argument === "--apply") {
+      options.apply = true;
+    } else if (argument === "--force") {
+      options.force = true;
+    } else if (argument === "--max-delete" && args[index + 1]) {
+      options.maxDelete = Math.max(Number(args[index + 1]) || 0, 0);
+      index += 1;
     } else if (argument === "--output" && args[index + 1]) {
       options.outputPath = args[index + 1];
       index += 1;
@@ -91,10 +111,13 @@ function printHelp() {
   console.log("  node check-manager-document-storage.js --json");
   console.log("  node check-manager-document-storage.js --strict");
   console.log("  node check-manager-document-storage.js --delete-orphans");
+  console.log("  node check-manager-document-storage.js --delete-orphans --apply");
   console.log("");
   console.log("- users 컬렉션의 MANAGER 문서에서 managerDocumentFiles / managerDocumentFilePaths / 레거시 경로를 읽습니다.");
   console.log("- manager-documents/ 아래 실제 Storage 객체와 비교해 누락, 경로 불일치, 고아 파일 후보를 찾습니다.");
-  console.log("- --delete-orphans 는 고아 파일만 삭제하며 기본값은 보고 전용입니다.");
+  console.log("- --delete-orphans 는 삭제 후보만 계산하고, 실제 삭제는 --apply 를 함께 줘야 합니다.");
+  console.log("- 누락 객체나 경로 불일치가 있으면 기본적으로 삭제를 막고, 정말 필요할 때만 --force 로 우회합니다.");
+  console.log("- 대량 삭제 방지를 위해 기본 최대 삭제 수는 20개이며, --max-delete 로 조정할 수 있습니다.");
 }
 
 async function loadManagerDocuments(context) {
@@ -200,6 +223,52 @@ async function deleteOrphanObjects(context, orphanObjects) {
   return deletedCount;
 }
 
+function resolveDeletionDecision(input, options) {
+  const missingObjectCount = input.objectChecks.filter((item) => !item.objectExists).length;
+  const pathMismatchCount = input.objectChecks.filter((item) => item.pathMismatch).length;
+  const candidateCount = input.orphanObjects.length;
+  const blockedReasons = [];
+
+  if (!options.deleteOrphans) {
+    return {
+      requested: false,
+      applyRequested: false,
+      shouldDelete: false,
+      blocked: false,
+      blockedReasons,
+      candidateCount,
+      maxDelete: options.maxDelete,
+    };
+  }
+
+  if (!candidateCount) {
+    blockedReasons.push("삭제할 고아 파일이 없습니다.");
+  }
+  if (!options.apply) {
+    blockedReasons.push("--apply 없이 실행되어 삭제를 수행하지 않았습니다.");
+  }
+  if (!options.force && missingObjectCount > 0) {
+    blockedReasons.push("누락 객체가 있어 메타데이터와 Storage 상태를 먼저 정리해야 합니다.");
+  }
+  if (!options.force && pathMismatchCount > 0) {
+    blockedReasons.push("경로 불일치가 있어 잘못된 파일 삭제를 막기 위해 중단했습니다.");
+  }
+  if (options.maxDelete > 0 && candidateCount > options.maxDelete) {
+    blockedReasons.push(`삭제 후보가 ${candidateCount}건이라 최대 삭제 수 ${options.maxDelete}건을 넘습니다.`);
+  }
+
+  return {
+    requested: true,
+    applyRequested: options.apply,
+    shouldDelete: blockedReasons.length === 0,
+    blocked: blockedReasons.length > 0,
+    blockedReasons,
+    candidateCount,
+    maxDelete: options.maxDelete,
+    force: options.force,
+  };
+}
+
 function buildSummary(
     context,
     managerDocuments,
@@ -207,6 +276,7 @@ function buildSummary(
     objectChecks,
     orphanObjects,
     deletedOrphanCount,
+    deletionDecision,
 ) {
   const missingObjects = objectChecks.filter((item) => !item.objectExists);
   const pathMismatches = objectChecks.filter((item) => item.pathMismatch);
@@ -228,6 +298,16 @@ function buildSummary(
     legacyOnlyReferenceCount: legacyOnlyReferences.length,
     orphanObjectCount: orphanObjects.length,
     deletedOrphanCount,
+    orphanDeletion: {
+      requested: Boolean(deletionDecision?.requested),
+      applyRequested: Boolean(deletionDecision?.applyRequested),
+      applied: Boolean(deletionDecision?.shouldDelete),
+      blocked: Boolean(deletionDecision?.blocked),
+      blockedReasons: deletionDecision?.blockedReasons || [],
+      candidateCount: deletionDecision?.candidateCount || 0,
+      maxDelete: deletionDecision?.maxDelete || 0,
+      force: Boolean(deletionDecision?.force),
+    },
     missingObjects,
     pathMismatches,
     legacyOnlyReferences,
@@ -262,6 +342,12 @@ function printSummary(summary, deleteOrphans) {
   console.log(`- 고아 파일 수: ${summary.orphanObjectCount}`);
   if (deleteOrphans) {
     console.log(`- 삭제한 고아 파일 수: ${summary.deletedOrphanCount}`);
+    if (summary.orphanDeletion.blockedReasons.length) {
+      console.log("- 삭제 차단 사유:");
+      for (const reason of summary.orphanDeletion.blockedReasons) {
+        console.log(`  - ${reason}`);
+      }
+    }
   }
   console.log(`- 리포트: ${summary.reportPath}`);
 

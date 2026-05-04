@@ -4,6 +4,8 @@
   "scripts": {
     "check:state": "node check-firestore-state.js",
     "check:manager-storage": "node check-manager-document-storage.js",
+    "cleanup:manager-storage:dry-run": "node check-manager-document-storage.js --delete-orphans",
+    "cleanup:manager-storage:apply": "node check-manager-document-storage.js --delete-orphans --apply",
     "check:readiness": "node check-role-screen-readiness.js",
     "backup:state": "node backup-firestore-state.js",
     "validate:backup": "node validate-firestore-backup.js",
