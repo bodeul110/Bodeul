@@ -15,6 +15,8 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
@@ -343,6 +345,77 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 callback
         );
         }
+    }
+
+    @Override
+    public void saveManagerDocumentFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
+            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
+            return;
+        }
+
+        firestore.collection("users")
+                .document(managerUserId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    User manager = toUser(documentSnapshot);
+                    if (manager == null || manager.getRole() != UserRole.MANAGER) {
+                        callback.onError("매니저 계정을 확인하지 못했습니다.");
+                        return;
+                    }
+
+                    String documentSummary = normalizeText(documentSnapshot.getString("managerDocumentSummary"));
+                    if (documentSummary.isEmpty()) {
+                        callback.onError("서류 요약을 먼저 저장한 뒤 원본 파일을 올려주세요.");
+                        return;
+                    }
+
+                    long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
+                            ? documentFileMetadata.getUploadedAtMillis()
+                            : System.currentTimeMillis();
+                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
+                            toManagerDocumentHistory(documentSnapshot),
+                            new ManagerDocumentHistoryEntry(
+                                    ManagerDocumentHistoryEventType.SUBMITTED,
+                                    uploadedAtMillis,
+                                    normalizeText(manager.getName()),
+                                    documentSummary,
+                                    ""
+                            )
+                    );
+
+                    Map<String, Object> updates = new HashMap<>();
+                    String fileKeyPrefix = "managerDocumentFiles."
+                            + documentFileMetadata.getFileType().getStorageKey();
+                    updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
+                    updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
+                    updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
+                    updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
+                    updates.put(
+                            "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
+                            documentFileMetadata.getFullPath()
+                    );
+                    updates.put(resolveLegacyDocumentStoragePathKey(documentFileMetadata.getFileType()),
+                            documentFileMetadata.getFullPath());
+                    updates.put("managerDocumentStatus", ManagerDocumentStatus.PENDING_REVIEW.name());
+                    updates.put("managerDocumentReviewNote", "");
+                    updates.put("managerDocumentReviewedByName", "");
+                    updates.put("managerDocumentReviewedAt", FieldValue.delete());
+                    updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+                    updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
+
+                    documentSnapshot.getReference()
+                            .update(updates)
+                            .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("원본 서류 파일 정보를 저장하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -702,7 +775,112 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 documentReviewNote == null ? "" : documentReviewNote,
                 documentUpdatedAtMillis,
                 documentReviewedAtMillis,
-                documentReviewedByName == null ? "" : documentReviewedByName
+                documentReviewedByName == null ? "" : documentReviewedByName,
+                toManagerDocumentFiles(documentSnapshot)
+        );
+    }
+
+    private List<ManagerDocumentFileMetadata> toManagerDocumentFiles(DocumentSnapshot documentSnapshot) {
+        Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileByType = new HashMap<>();
+
+        Object rawMetadataMap = documentSnapshot.get("managerDocumentFiles");
+        if (rawMetadataMap instanceof Map) {
+            Map<?, ?> metadataMap = (Map<?, ?>) rawMetadataMap;
+            for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+                ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadata(
+                        fileType,
+                        metadataMap.get(fileType.getStorageKey())
+                );
+                if (metadata != null) {
+                    fileByType.put(fileType, metadata);
+                }
+            }
+        }
+
+        Object rawPathMap = documentSnapshot.get("managerDocumentFilePaths");
+        if (rawPathMap instanceof Map) {
+            Map<?, ?> pathMap = (Map<?, ?>) rawPathMap;
+            for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+                if (fileByType.containsKey(fileType)) {
+                    continue;
+                }
+                ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadataFromPath(
+                        fileType,
+                        stringValue(pathMap.get(fileType.getStorageKey()))
+                );
+                if (metadata != null) {
+                    fileByType.put(fileType, metadata);
+                }
+            }
+        }
+
+        for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+            if (fileByType.containsKey(fileType)) {
+                continue;
+            }
+            ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadataFromPath(
+                    fileType,
+                    documentSnapshot.getString(resolveLegacyDocumentStoragePathKey(fileType))
+            );
+            if (metadata != null) {
+                fileByType.put(fileType, metadata);
+            }
+        }
+
+        List<ManagerDocumentFileMetadata> documentFiles = new ArrayList<>();
+        for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+            ManagerDocumentFileMetadata metadata = fileByType.get(fileType);
+            if (metadata != null) {
+                documentFiles.add(metadata);
+            }
+        }
+        return documentFiles;
+    }
+
+    @Nullable
+    private ManagerDocumentFileMetadata toManagerDocumentFileMetadata(
+            ManagerDocumentFileType fileType,
+            @Nullable Object rawValue
+    ) {
+        if (!(rawValue instanceof Map)) {
+            return null;
+        }
+
+        Map<?, ?> valueMap = (Map<?, ?>) rawValue;
+        String fullPath = normalizeText(stringValue(valueMap.get("fullPath")));
+        if (fullPath.isEmpty()) {
+            return null;
+        }
+
+        String fileName = normalizeText(stringValue(valueMap.get("fileName")));
+        if (fileName.isEmpty()) {
+            fileName = resolveFileNameFromPath(fullPath);
+        }
+
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                fullPath,
+                fileName,
+                normalizeText(stringValue(valueMap.get("contentType"))),
+                resolveTimestampMillis(valueMap.get("uploadedAt"))
+        );
+    }
+
+    @Nullable
+    private ManagerDocumentFileMetadata toManagerDocumentFileMetadataFromPath(
+            ManagerDocumentFileType fileType,
+            @Nullable String fullPath
+    ) {
+        String normalizedPath = normalizeText(fullPath);
+        if (normalizedPath.isEmpty()) {
+            return null;
+        }
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                normalizedPath,
+                resolveFileNameFromPath(normalizedPath),
+                "",
+                0L
         );
     }
 
@@ -1001,6 +1179,24 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 resolveTimestampMillis(documentSnapshot.get("respondedAt")),
                 normalizeText(documentSnapshot.getString("respondedByName"))
         );
+    }
+
+    private String resolveLegacyDocumentStoragePathKey(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.ID_CARD) {
+            return "managerIdCardStoragePath";
+        }
+        if (fileType == ManagerDocumentFileType.LICENSE) {
+            return "managerLicenseStoragePath";
+        }
+        return "managerCriminalRecordStoragePath";
+    }
+
+    private String resolveFileNameFromPath(String fullPath) {
+        int separatorIndex = fullPath.lastIndexOf('/');
+        if (separatorIndex < 0 || separatorIndex >= fullPath.length() - 1) {
+            return fullPath;
+        }
+        return fullPath.substring(separatorIndex + 1);
     }
 
     private String normalizeText(String value) {

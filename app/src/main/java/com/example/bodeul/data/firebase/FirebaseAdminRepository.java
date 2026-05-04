@@ -40,6 +40,8 @@ import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -1389,7 +1391,112 @@ public class FirebaseAdminRepository implements AdminRepository {
                 normalizeText(documentReviewNote),
                 documentUpdatedAtMillis,
                 documentReviewedAtMillis,
-                normalizeText(documentReviewedByName)
+                normalizeText(documentReviewedByName),
+                toManagerDocumentFiles(documentSnapshot)
+        );
+    }
+
+    private List<ManagerDocumentFileMetadata> toManagerDocumentFiles(DocumentSnapshot documentSnapshot) {
+        Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileByType = new HashMap<>();
+
+        Object rawMetadataMap = documentSnapshot.get("managerDocumentFiles");
+        if (rawMetadataMap instanceof Map) {
+            Map<?, ?> metadataMap = (Map<?, ?>) rawMetadataMap;
+            for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+                ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadata(
+                        fileType,
+                        metadataMap.get(fileType.getStorageKey())
+                );
+                if (metadata != null) {
+                    fileByType.put(fileType, metadata);
+                }
+            }
+        }
+
+        Object rawPathMap = documentSnapshot.get("managerDocumentFilePaths");
+        if (rawPathMap instanceof Map) {
+            Map<?, ?> pathMap = (Map<?, ?>) rawPathMap;
+            for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+                if (fileByType.containsKey(fileType)) {
+                    continue;
+                }
+                ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadataFromPath(
+                        fileType,
+                        stringValue(pathMap.get(fileType.getStorageKey()))
+                );
+                if (metadata != null) {
+                    fileByType.put(fileType, metadata);
+                }
+            }
+        }
+
+        for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+            if (fileByType.containsKey(fileType)) {
+                continue;
+            }
+            ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadataFromPath(
+                    fileType,
+                    documentSnapshot.getString(resolveLegacyDocumentStoragePathKey(fileType))
+            );
+            if (metadata != null) {
+                fileByType.put(fileType, metadata);
+            }
+        }
+
+        List<ManagerDocumentFileMetadata> documentFiles = new ArrayList<>();
+        for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
+            ManagerDocumentFileMetadata metadata = fileByType.get(fileType);
+            if (metadata != null) {
+                documentFiles.add(metadata);
+            }
+        }
+        return documentFiles;
+    }
+
+    @Nullable
+    private ManagerDocumentFileMetadata toManagerDocumentFileMetadata(
+            ManagerDocumentFileType fileType,
+            @Nullable Object rawValue
+    ) {
+        if (!(rawValue instanceof Map)) {
+            return null;
+        }
+
+        Map<?, ?> valueMap = (Map<?, ?>) rawValue;
+        String fullPath = normalizeText(stringValue(valueMap.get("fullPath")));
+        if (fullPath.isEmpty()) {
+            return null;
+        }
+
+        String fileName = normalizeText(stringValue(valueMap.get("fileName")));
+        if (fileName.isEmpty()) {
+            fileName = resolveFileNameFromPath(fullPath);
+        }
+
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                fullPath,
+                fileName,
+                normalizeText(stringValue(valueMap.get("contentType"))),
+                resolveTimestampMillis(valueMap.get("uploadedAt"))
+        );
+    }
+
+    @Nullable
+    private ManagerDocumentFileMetadata toManagerDocumentFileMetadataFromPath(
+            ManagerDocumentFileType fileType,
+            @Nullable String fullPath
+    ) {
+        String normalizedPath = normalizeText(fullPath);
+        if (normalizedPath.isEmpty()) {
+            return null;
+        }
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                normalizedPath,
+                resolveFileNameFromPath(normalizedPath),
+                "",
+                0L
         );
     }
 
@@ -2188,6 +2295,24 @@ public class FirebaseAdminRepository implements AdminRepository {
 
     private String normalizeText(@Nullable String rawValue) {
         return rawValue == null ? "" : rawValue.trim();
+    }
+
+    private String resolveLegacyDocumentStoragePathKey(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.ID_CARD) {
+            return "managerIdCardStoragePath";
+        }
+        if (fileType == ManagerDocumentFileType.LICENSE) {
+            return "managerLicenseStoragePath";
+        }
+        return "managerCriminalRecordStoragePath";
+    }
+
+    private String resolveFileNameFromPath(String fullPath) {
+        int separatorIndex = fullPath.lastIndexOf('/');
+        if (separatorIndex < 0 || separatorIndex >= fullPath.length() - 1) {
+            return fullPath;
+        }
+        return fullPath.substring(separatorIndex + 1);
     }
 
     private int numberOrZero(@Nullable Object value) {

@@ -1318,3 +1318,216 @@
 
 - 실제 단말에서는 역할 선택 화면 로고를 5회 탭해 관리자 로그인으로 들어가는 동작만 한 번 더 눌러서 확인하면 된다.
 - 관리자 권한 자체의 보안 판단은 숨김 진입이 아니라 기존 `Auth + users/{uid}.role == ADMIN + Firebase 권한 규칙`이 계속 담당한다.
+
+## 62. 2026-05-04 관리자 웹 인증/심사 계약 정리
+### 구현
+
+- `admin-web` 브랜치의 관리자 웹이 `localStorage` 플래그만으로 로그인 상태를 유지하고 실제 Firebase 세션을 종료하지 않던 문제를 정리했다.
+- [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts)에서 `auth` 인스턴스를 함께 내보내고, [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)는 `onAuthStateChanged`로 실제 관리자 세션을 검증하도록 바꿨다.
+- 로그인 후에는 `users/{uid}.role == ADMIN`을 다시 확인하고, 관리자가 아니면 즉시 `signOut()` 처리하도록 보강했다.
+- 로그아웃도 `localStorage` 대신 실제 Firebase Auth `signOut()`을 호출하도록 수정했다.
+- 매니저 승인/반려 저장은 기존 앱 계약에 맞춰 `managerDocumentStatus`, `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentHistory`를 함께 저장하도록 맞췄다.
+- 아직 Firebase Storage가 연결되지 않았으므로, 관리자 웹에서는 서류 원본 미리보기 대신 `제출 요약 + 체크리스트` 기준 심사임을 명시했다.
+
+### 변경 범위
+
+- `admin-web`: `firebase.ts`, `src/App.tsx`
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- Firebase Storage 연결 후 서류 원본 미리보기와 체크리스트를 실제 업로드 파일 기준으로 묶어야 한다.
+- 웹 번들 크기가 `500kB` 경고를 넘기므로, 관리자 웹을 실제 배포 단계로 가져갈 때는 코드 스플리팅을 검토해야 한다.
+
+## 63. 2026-05-04 관리자 웹 서류 Storage 미리보기 연동
+### 구현
+
+- [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts)에 `storage` 인스턴스를 추가하고, [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)는 매니저 심사 모달에서 `Storage` 원본을 직접 읽어 미리보기 하도록 확장했다.
+- 관리자 웹은 `users/{uid}.managerDocumentFiles` 메타데이터가 있으면 해당 `fullPath`를 우선 사용하고, 없으면 `manager-documents/{managerUserId}/{documentKey}/파일명` 폴더 규약을 기준으로 최신 파일을 탐색한다.
+- 이미지 파일은 인라인 미리보기, PDF는 `iframe` 미리보기, 그 외 형식은 `원본 열기` 링크로 정리해 운영자가 서류 원본을 바로 검토할 수 있게 맞췄다.
+- `ManagerApproval`은 더 이상 별도 Firestore 리스너를 만들지 않고, 상위 `App`이 구독한 매니저 목록과 파일 메타데이터를 그대로 받아 사용하도록 정리했다.
+- [storage.rules](/D:/BoDeul/storage.rules), [firebase.json](/D:/BoDeul/firebase.json)에 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로 규칙을 추가해, 관리자 읽기 / 본인 매니저 쓰기 정책을 저장소 설정으로 버전 관리하게 바꿨다.
+
+### 변경 범위
+
+- `admin-web`: `firebase.ts`, `src/App.tsx`
+- Firebase 설정: `firebase.json`, `storage.rules`
+- `docs`: `implementation-status.md`, `data-api-draft.md`, `firebase-setup.md`
+
+### 남은 범위
+
+- Android 매니저 앱에는 아직 실제 파일 업로드 UI와 `managerDocumentFiles` 메타데이터 저장이 없다. 현재 관리자 웹은 메타데이터가 없을 때 폴더 규약만으로 파일을 찾는다.
+- `storage.rules`는 저장소 파일로 정리만 된 상태이므로, 실제 Firebase 프로젝트에는 별도 배포가 필요하다.
+- 관리자 웹 번들 크기 `500kB` 경고는 그대로 남아 있어, 배포 단계로 가져갈 때는 코드 스플리팅을 검토해야 한다.
+
+## 64. 2026-05-04 storage.rules 실제 배포
+### 구현
+
+- [storage.rules](/D:/BoDeul/storage.rules)를 Firebase 프로젝트 `bodeul-dev`에 실제 배포했다.
+- `firebase deploy --only storage --project bodeul-dev --non-interactive` 명령으로 Storage Rules 컴파일과 릴리스를 확인했다.
+- 관리자 웹이 사용하는 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로 규칙이 이제 콘솔 설정이 아니라 배포된 Storage Rules 기준으로 적용된다.
+
+### 변경 범위
+
+- Firebase Storage 프로젝트 설정
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- 매니저 앱에 실제 파일 업로드와 `managerDocumentFiles` 메타데이터 저장을 붙여야 관리자 웹이 폴더 탐색 대신 명시 경로를 우선 사용할 수 있다.
+- 필요하면 Storage에 기준선 테스트 파일을 올려 관리자 웹 미리보기를 실데이터로 한 번 더 검증해야 한다.
+
+## 65. 2026-05-04 storage.rules 권한 범위 축소
+### 구현
+
+- Firebase Rules API로 `projects/bodeul-dev/releases/firebase.storage/bodeul-dev.firebasestorage.app` 릴리스를 직접 조회해, 원격 Storage 규칙이 로컬과 동일한 상태로 배포돼 있음을 먼저 확인했다.
+- [storage.rules](/D:/BoDeul/storage.rules)에 `currentUserExists()`, `isManager()`, `isAllowedDocumentKey()`를 추가해 권한 범위를 좁혔다.
+- 이제 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로는 아래 조건으로만 접근된다.
+  - 읽기: 관리자 전체 또는 본인 매니저
+  - 쓰기: 본인 매니저 + 허용된 `documentKey(idCard, license, criminalRecord)`만 가능
+- 수정 후 `firebase deploy --only storage --project bodeul-dev --non-interactive`로 다시 배포했고, Firebase Rules API로 새 ruleset 반영까지 재확인했다.
+
+### 변경 범위
+
+- Firebase 설정: `storage.rules`
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- Android 매니저 앱에 실제 업로드를 붙일 때, Storage 경로와 `managerDocumentFiles` 메타데이터 저장 규약을 같은 기준으로 맞춰야 한다.
+- 필요하면 실제 매니저 계정으로 업로드/관리자 계정으로 읽기까지 권한 시나리오를 한 번 더 실측 검증하면 된다.
+## 66. 2026-05-04 매니저 앱 원본 서류 업로드 연동
+### 구현
+
+- [ManagerProfileActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 `원본 파일 업로드` 버튼과 SAF 문서 선택 흐름을 추가했다.
+- 업로드 대상은 `신분증`, `자격증`, `범죄경력 조회서` 3종으로 제한하고, 선택 가능한 MIME은 `application/pdf`, `image/*`로 묶었다.
+- [FirebaseManagerDocumentStorageUploader](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)를 추가해 Storage 업로드와 목업 메타데이터 생성을 분리했다.
+- [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 `managerDocumentFiles` 메타데이터 저장 흐름을 추가했다.
+- Firestore 저장 형식은 `managerDocumentFiles.{documentKey}`, `managerDocumentFilePaths.{documentKey}`, 레거시 경로 필드(`managerIdCardStoragePath` 등)를 함께 갱신하도록 맞췄다.
+- 매니저 내 페이지 문서 카드에는 원본 파일 요약 라인을 추가해서 업로드 여부와 최신 파일명을 바로 볼 수 있게 했다.
+- [MockBodeulRepositoryTest](/D:/BoDeul/app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java)에 업로드 메타데이터 저장 후 심사 상태 초기화와 파일명 반영을 검증하는 테스트를 추가했다.
+
+### 변경 범위
+
+- `app`
+  - `data`: `ManagerRepository`, `ManagerDocumentStorageUploader`, `ServiceLocator`, `MockBodeulRepository`
+  - `data/firebase`: `FirebaseManagerRepository`, `FirebaseManagerDocumentStorageUploader`, `FirebaseAdminRepository`
+  - `data/mock`: `MockManagerRepository`, `MockManagerDocumentStorageUploader`
+  - `domain/model`: `ManagerHomeProfile`, `ManagerDocumentFileType`, `ManagerDocumentFileMetadata`
+  - `ui/manager`: `ManagerProfileActivity`, `ManagerProfileCoordinator`, `ManagerHomePresentationFormatter`
+  - `res`: `activity_manager_profile.xml`, `strings.xml`
+  - `test`: `MockBodeulRepositoryTest`
+- `docs`: `implementation-status.md`, `data-api-draft.md`, `firebase-setup.md`
+
+### 검증
+
+- `.\gradlew.bat assembleDebug --console=plain`
+- `.\gradlew.bat testDebugUnitTest --console=plain`
+
+### 남은 범위
+
+- 실제 매니저 계정으로 파일 업로드 후 관리자 웹 미리보기와 같은 경로를 읽는지 실데이터 시나리오를 한 번 더 확인해야 한다.
+- Storage 업로드 성공 후 Firestore 저장이 실패했을 때 정리 정책(재시도 또는 고아 파일 정리)은 아직 운영 도구로 자동화하지 않았다.
+## 67. 2026-05-04 매니저 서류 Storage 감사 도구 추가
+### 구현
+
+- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)를 추가해 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 실제 Storage 객체를 비교하도록 했다.
+- [seed-manager-document-storage-sample.js](/D:/BoDeul/tools/firebase/seed-manager-document-storage-sample.js)를 추가해 `manager@bodeul.app` 기준 샘플 PNG 3종을 업로드하고 같은 경로를 Firestore 메타데이터에 반영하도록 했다.
+- 공용 도구 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에 Storage 조회/목록/업로드 API와 Firestore `updateMask.fieldPaths` 기반 부분 업데이트를 추가했다.
+- 샘플 업로드 직후 매니저 사용자 문서 일부 필드가 누락되는 문제가 확인돼, `patchDocumentFields()`를 부분 업데이트로 고친 뒤 `manager@bodeul.app` 사용자 문서의 `name/email/phone/role/provider/providerUserId`를 복구했다.
+- 실제 Firebase 검증 결과 `manager@bodeul.app` 기준 참조 파일 3건, 일치 객체 3건, 누락 0건, 경로 불일치 0건으로 확인했다.
+
+### 변경 범위
+
+- `tools/firebase`
+  - `check-manager-document-storage.js`
+  - `seed-manager-document-storage-sample.js`
+  - `lib/firebase-toolkit.js`
+  - `package.json`
+- `docs`
+  - `implementation-status.md`
+  - `firebase-setup.md`
+  - `firebase-operations-tools.md`
+
+### 검증
+
+- `node --check tools/firebase/lib/firebase-toolkit.js`
+- `node --check tools/firebase/check-manager-document-storage.js`
+- `node --check tools/firebase/seed-manager-document-storage-sample.js`
+- `npm run seed:manager-docs:dry-run`
+- `npm run seed:manager-docs:apply`
+- `npm run check:manager-storage -- --json`
+
+### 남은 범위
+
+- 실제 Android 매니저 앱에서 업로드한 파일을 관리자 웹에서 직접 열어보는 UI 시나리오는 아직 수동 확인이 남아 있다.
+- 고아 파일 삭제는 도구 옵션으로만 열어두었고, 정식 운영 절차나 CI 자동 삭제로는 아직 연결하지 않았다.
+
+## 68. 2026-05-04 디버그 자동 업로드로 매니저 원본 파일 실기기 검증
+### 구현
+
+- [AutomationEntryActivity](/D:/BoDeul/app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)에 `uploadDocumentType`, `uploadDocumentPath` extra를 추가해 디버그 자동 진입에서 매니저 원본 파일 업로드와 Firestore 메타데이터 저장까지 같은 앱 코드 경로로 실행할 수 있게 했다.
+- 디바이스 파일 경로가 없거나 접근이 막히는 경우를 대비해 디버그 캐시에 1x1 PNG 샘플 파일을 생성해 업로드하도록 보강했다.
+- 실기기에서 `MANAGER / MANAGER_PROFILE / idCard` 자동 업로드를 실행한 뒤 매니저 프로필 화면으로 복귀하는 것까지 확인했다.
+- 실기기 화면 덤프 기준 `원본 파일` 항목이 `신분증: automation-idCard.png (2026-05-04 17:10)`으로 갱신된 것을 확인했다.
+
+### 변경 범위
+
+- `app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `.\gradlew.bat assembleDebug --console=plain`
+- `.\gradlew.bat installDebug --console=plain`
+- `adb shell am start -S -W -n com.example.bodeul/com.example.bodeul.debug.AutomationEntryActivity --es role MANAGER --es screen MANAGER_PROFILE --ez forceSignIn true --es uploadDocumentType idCard --es uploadDocumentPath /no-such-file.png`
+- `npm run check:manager-storage -- --json`
+
+### 남은 범위
+
+- 관리자 웹에서 같은 매니저 계정의 원본 파일 미리보기가 `automation-idCard.png` 기준으로 열리는지 수동 확인이 남아 있다.
+
+## 69. 2026-05-04 관리자 웹 승인/미리보기 안정화
+### 구현
+
+- [App.tsx](/D:/BoDeul/admin-web/src/App.tsx)에서 Storage 메타데이터 경로가 끊긴 경우 폴더의 다른 파일로 자동 대체하지 않고 오류 상태로 멈추도록 수정했다.
+- 문서 미리보기 로딩을 `Promise.allSettled` 기반으로 바꿔 일부 문서 미리보기 실패가 전체 모달 무한 로딩으로 이어지지 않도록 보강했다.
+- 반려 버튼의 가짜 2단계 동작을 제거하고 즉시 반려 저장 로직만 타도록 정리했다.
+- 매니저 Firestore 구독에 에러 콜백과 상단 오류 배너를 추가해 권한/네트워크 실패를 화면에서 바로 확인할 수 있게 했다.
+- Firebase Console Storage 링크가 프로젝트/버킷 하드코딩 문자열에 의존하지 않도록 [firebase.ts](/D:/BoDeul/admin-web/firebase.ts) 설정값을 사용하게 바꿨다.
+
+### 변경 범위
+
+- `admin-web/src/App.tsx`
+- `admin-web/firebase.ts`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `npm --prefix admin-web run lint`
+- `npm --prefix admin-web run build`
+- `.\gradlew.bat assembleDebug --console=plain`
+
+### 남은 범위
+
+- 관리자 웹 번들 크기 경고(`>500kB`)는 그대로 남아 있어, 이후 코드 스플리팅이나 메뉴 단위 lazy loading 검토가 필요하다.
+
+## 70. 2026-05-04 관리자 웹 번들 청크 분리
+### 구현
+
+- [vite.config.ts](/D:/BoDeul/admin-web/vite.config.ts)에 `manualChunks`를 추가해 `firebase`와 `react` 계열 의존성을 별도 vendor 청크로 분리했다.
+- 관리자 웹 메인 청크를 줄여 초기 로드 파일을 가볍게 하고, 빌드 시 `500kB` 초과 경고가 다시 뜨지 않도록 정리했다.
+
+### 변경 범위
+
+- `admin-web/vite.config.ts`
+- `docs/implementation-status.md`
+
+### 검증
+
+- `npm --prefix admin-web run build`
+- `.\gradlew.bat assembleDebug --console=plain`
+
+### 남은 범위
+
+- 현재는 vendor 분리까지 반영한 상태고, 이후 화면 수가 더 늘어나면 메뉴 단위 lazy loading까지 검토할 수 있다.

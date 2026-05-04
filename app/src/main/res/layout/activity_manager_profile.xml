@@ -243,29 +243,44 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="18dp"
-                        android:orientation="horizontal">
+                        android:orientation="vertical">
 
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonManagerProfileDocumentEdit"
+                            android:id="@+id/buttonManagerProfileDocumentUpload"
                             style="@style/BodeulOutlinedButton"
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/manager_profile_document_edit"
+                            android:text="@string/manager_profile_document_upload"
                             android:textAllCaps="false" />
 
-                        <Space
-                            android:layout_width="12dp"
-                            android:layout_height="1dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonManagerProfileScheduleEdit"
-                            style="@style/BodeulOutlinedButton"
-                            android:layout_width="0dp"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/manager_profile_schedule_edit"
-                            android:textAllCaps="false" />
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/buttonManagerProfileDocumentEdit"
+                                style="@style/BodeulOutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/manager_profile_document_edit"
+                                android:textAllCaps="false" />
+
+                            <Space
+                                android:layout_width="12dp"
+                                android:layout_height="1dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/buttonManagerProfileScheduleEdit"
+                                style="@style/BodeulOutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/manager_profile_schedule_edit"
+                                android:textAllCaps="false" />
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

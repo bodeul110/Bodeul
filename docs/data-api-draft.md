@@ -583,3 +583,29 @@
   - `auditLogs[]`: `createdAt desc`
   - `actionDeliveries[]`: `priority desc, max(processedAt, createdAt) desc`
 - 클라이언트는 액션센터 필터 칩 카운트와 전달 기록 요약 문구를 위 `actionOverview`만 보고 렌더링하고, 개별 카드 렌더링에만 원본 목록을 사용하면 저장소 구현이 바뀌어도 같은 운영 기준을 유지하기 쉽다.
+
+### 2026-05-04 관리자 서류 Storage 메모
+
+- `users` 문서에는 선택적으로 `managerDocumentFiles` 맵을 둘 수 있다.
+- 권장 구조는 아래와 같다.
+  - `managerDocumentFiles.idCard.fullPath`
+  - `managerDocumentFiles.idCard.fileName`
+  - `managerDocumentFiles.idCard.contentType`
+  - `managerDocumentFiles.idCard.uploadedAt`
+  - `managerDocumentFiles.license.*`
+  - `managerDocumentFiles.criminalRecord.*`
+- 관리자 웹은 `managerDocumentFiles`가 있으면 해당 `fullPath`를 우선 읽고, 없으면 `manager-documents/{managerUserId}/{documentKey}/{fileName}` Storage 폴더를 탐색한다.
+- 현재 관리자 웹에서 사용하는 `documentKey` 값은 `idCard`, `license`, `criminalRecord` 세 가지다.
+- 매니저 앱이 추후 실제 파일 업로드를 붙일 때는 Storage 업로드 후 같은 `users/{uid}` 문서에 `managerDocumentFiles` 메타데이터를 함께 저장하는 구성을 기준선으로 삼는다.
+### 2026-05-04 매니저 앱 서류 업로드 반영 메모
+
+- 매니저 앱 내 페이지에서 `원본 파일 업로드` 버튼으로 `application/pdf`, `image/*` 파일을 선택해 바로 Storage 업로드를 시작한다.
+- 업로드 성공 후 `users/{uid}` 문서에는 아래 필드를 함께 저장한다.
+  - `managerDocumentFiles.{documentKey}.fullPath`
+  - `managerDocumentFiles.{documentKey}.fileName`
+  - `managerDocumentFiles.{documentKey}.contentType`
+  - `managerDocumentFiles.{documentKey}.uploadedAt`
+  - `managerDocumentFilePaths.{documentKey}`
+  - 레거시 호환 경로: `managerIdCardStoragePath`, `managerLicenseStoragePath`, `managerCriminalRecordStoragePath`
+- 업로드 후에는 `managerDocumentStatus=PENDING_REVIEW`, `managerDocumentReviewNote=""`, `managerDocumentReviewedAt` 삭제, `managerDocumentReviewedByName=""`, `managerDocumentUpdatedAt` 갱신으로 심사 상태를 다시 대기 상태로 돌린다.
+- 업로드 전제 조건은 `managerDocumentSummary`가 비어 있지 않은 상태다. 요약이 없으면 앱과 저장소 모두 업로드 메타데이터 저장을 거부한다.

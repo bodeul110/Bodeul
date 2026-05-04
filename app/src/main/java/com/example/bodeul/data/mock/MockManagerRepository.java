@@ -7,6 +7,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -161,6 +162,23 @@ public class MockManagerRepository implements ManagerRepository {
         ManagerHomeProfile profile = repository.saveManagerDocumentSummary(managerUserId, documentSummary);
         if (profile == null) {
             callback.onError("서류 등록 정보를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(profile);
+    }
+
+    @Override
+    public void saveManagerDocumentFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        ManagerHomeProfile profile = repository.saveManagerDocumentFileMetadata(
+                managerUserId,
+                documentFileMetadata
+        );
+        if (profile == null) {
+            callback.onError("원본 서류 파일 정보를 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(profile);

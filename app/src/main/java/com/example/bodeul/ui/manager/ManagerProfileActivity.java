@@ -2,12 +2,15 @@ package com.example.bodeul.ui.manager;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,9 +18,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
+import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.User;
@@ -33,13 +39,17 @@ import com.example.bodeul.util.StatePanelHelper;
 public class ManagerProfileActivity extends AppCompatActivity implements ManagerQuickNoteDialogController.Listener {
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
+    private ManagerDocumentStorageUploader managerDocumentStorageUploader;
     private ManagerProfileCoordinator managerProfileCoordinator;
     private ManagerProfileBinder managerProfileBinder;
     private ManagerQuickNoteDialogController quickNoteDialogController;
+    private ActivityResultLauncher<String[]> documentPickerLauncher;
 
     private User currentUser;
     @Nullable
     private ManagerHomeProfile currentProfile;
+    @Nullable
+    private ManagerDocumentFileType pendingDocumentFileType;
 
     private View managerProfileStatePanel;
     private View managerProfileContentContainer;
@@ -56,9 +66,14 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
+        managerDocumentStorageUploader = ServiceLocator.provideManagerDocumentStorageUploader(this);
         ManagerHomePresentationFormatter formatter = new ManagerHomePresentationFormatter(this);
         managerProfileCoordinator = new ManagerProfileCoordinator(this, formatter);
         quickNoteDialogController = new ManagerQuickNoteDialogController(this, getLayoutInflater());
+        documentPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                this::handleDocumentPicked
+        );
 
         managerProfileStatePanel = findViewById(R.id.managerProfileStatePanel);
         managerProfileContentContainer = findViewById(R.id.managerProfileContentContainer);
@@ -86,6 +101,9 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
                         currentProfile == null ? "" : currentProfile.getDocumentSummary(),
                         this
                 )
+        );
+        findViewById(R.id.buttonManagerProfileDocumentUpload).setOnClickListener(view ->
+                openDocumentTypeSelector()
         );
         findViewById(R.id.buttonManagerProfileScheduleEdit).setOnClickListener(view ->
                 quickNoteDialogController.show(
@@ -137,6 +155,109 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
             return;
         }
         managerRepository.saveManagerAvailabilitySummary(currentUser.getId(), value, callback);
+    }
+
+    private void openDocumentTypeSelector() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        if (currentProfile == null
+                || TextUtils.isEmpty(currentProfile.getDocumentSummary())) {
+            Toast.makeText(
+                    this,
+                    R.string.manager_profile_document_upload_requires_summary,
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+
+        CharSequence[] items = new CharSequence[]{
+                getString(R.string.manager_profile_document_type_id_card),
+                getString(R.string.manager_profile_document_type_license),
+                getString(R.string.manager_profile_document_type_criminal_record)
+        };
+        ManagerDocumentFileType[] fileTypes = new ManagerDocumentFileType[]{
+                ManagerDocumentFileType.ID_CARD,
+                ManagerDocumentFileType.LICENSE,
+                ManagerDocumentFileType.CRIMINAL_RECORD
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.manager_profile_document_upload_title)
+                .setItems(items, (dialog, which) -> {
+                    pendingDocumentFileType = fileTypes[which];
+                    documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void handleDocumentPicked(@Nullable Uri fileUri) {
+        ManagerDocumentFileType selectedFileType = pendingDocumentFileType;
+        pendingDocumentFileType = null;
+        if (fileUri == null || selectedFileType == null) {
+            return;
+        }
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+
+        setLoading(true);
+        managerDocumentStorageUploader.uploadDocument(
+                currentUser.getId(),
+                selectedFileType,
+                fileUri,
+                new RepositoryCallback<ManagerDocumentFileMetadata>() {
+                    @Override
+                    public void onSuccess(ManagerDocumentFileMetadata uploadedMetadata) {
+                        saveDocumentFileMetadata(selectedFileType, uploadedMetadata);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(ManagerProfileActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
+    private void saveDocumentFileMetadata(
+            ManagerDocumentFileType fileType,
+            ManagerDocumentFileMetadata documentFileMetadata
+    ) {
+        if (currentUser == null) {
+            setLoading(false);
+            showAuthState();
+            return;
+        }
+        managerRepository.saveManagerDocumentFileMetadata(
+                currentUser.getId(),
+                documentFileMetadata,
+                new RepositoryCallback<ManagerHomeProfile>() {
+                    @Override
+                    public void onSuccess(ManagerHomeProfile result) {
+                        currentProfile = result;
+                        Toast.makeText(
+                                ManagerProfileActivity.this,
+                                getString(
+                                        R.string.manager_profile_document_upload_saved,
+                                        getDocumentTypeLabel(fileType)
+                                ),
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        loadOverview();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(ManagerProfileActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
     }
 
     private void loadProfile() {
@@ -287,5 +408,15 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private String getDocumentTypeLabel(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.ID_CARD) {
+            return getString(R.string.manager_profile_document_type_id_card);
+        }
+        if (fileType == ManagerDocumentFileType.LICENSE) {
+            return getString(R.string.manager_profile_document_type_license);
+        }
+        return getString(R.string.manager_profile_document_type_criminal_record);
     }
 }

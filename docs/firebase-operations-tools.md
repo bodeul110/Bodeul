@@ -212,3 +212,35 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispat
 - 현재 로컬 원격은 `git@github.com:bodeul110/Bodeul.git`이지만, GitHub CLI 계정이 해당 저장소 API 접근 권한이 없는 상태면 시크릿 반영은 실패한다. 이 경우 `gh auth login` 또는 `gh auth switch`로 저장소 권한이 있는 계정으로 바꾼 뒤 다시 실행한다.
 - `--app-evidence` 경로는 repo 루트 기준 경로와 `tools/firebase` 작업 디렉터리 기준 경로를 둘 다 허용한다. CI에서는 `tools/firebase/templates/app-navigation-evidence.sample.json`처럼 repo 루트 기준 경로를 그대로 써도 된다.
 - 원격 전체 모드 검증은 `gh workflow run android-preflight.yml --repo bodeul110/Bodeul --ref master --field require_firebase_ops=true --field app_evidence_path=tools/firebase/templates/app-navigation-evidence.sample.json`로 수행했고, 실행 결과는 [GitHub Actions run 24873140407](https://github.com/bodeul110/Bodeul/actions/runs/24873140407)에서 확인할 수 있다.
+## 2026-05-04 추가된 도구
+
+### 매니저 서류 Storage 점검
+
+```powershell
+cd D:\BoDeul\tools\firebase
+npm run check:manager-storage
+npm run check:manager-storage -- --json
+npm run check:manager-storage -- --strict
+```
+
+- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)는 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 아래 실제 Storage 객체를 비교한다.
+- 점검 결과는 기본적으로 `tools/firebase/reports/manager-document-storage-check-YYYYMMDD-HHMMSS.json`에 저장된다.
+- `--strict`를 주면 누락 객체나 경로 불일치가 있을 때 비정상 종료해 CI나 수동 점검에서 바로 걸 수 있다.
+- `--delete-orphans`는 고아 파일만 삭제하는 위험 옵션이다. 기본값은 보고 전용이며, 실제 삭제는 점검 결과를 확인한 뒤 수동으로만 실행한다.
+
+### 매니저 서류 샘플 업로드
+
+```powershell
+cd D:\BoDeul\tools\firebase
+npm run seed:manager-docs:dry-run
+npm run seed:manager-docs:apply
+```
+
+- [seed-manager-document-storage-sample.js](/D:/BoDeul/tools/firebase/seed-manager-document-storage-sample.js)는 `manager@bodeul.app` 기준으로 신분증/자격증/범죄경력 조회서 샘플 PNG 3개를 업로드하고, 같은 경로를 `users/{uid}` 메타데이터에도 저장한다.
+- 기본값은 dry-run이며, `--apply`를 줘야 실제 Storage 업로드와 Firestore 메타데이터 반영을 수행한다.
+- 이 스크립트는 관리자 웹 미리보기나 Storage 경로 점검을 실데이터로 검증할 때만 사용한다.
+
+### 패치 주의
+
+- [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)의 `patchDocumentFields()`는 `updateMask.fieldPaths`를 함께 붙여 부분 업데이트로 동작한다.
+- 운영 도구에서 Firestore 문서를 수정할 때는 필요한 필드만 넘기는 방식을 전제로 하고, 전체 문서 덮어쓰기가 필요한 경우에는 별도 전용 스크립트로 다루는 편이 안전하다.

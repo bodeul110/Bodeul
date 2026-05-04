@@ -2,6 +2,7 @@ package com.example.bodeul.data;
 
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SupportInquiry;
@@ -10,7 +11,7 @@ import com.example.bodeul.domain.model.SupportInquiryCategory;
 import java.util.List;
 
 /**
- * 매니저 홈, 과거 이력, 동행 가이드 화면에서 사용하는 기능 전용 저장소 계약이다.
+ * 매니저 홈, 내 페이지, 과거 이력 화면에서 사용하는 기능 전용 저장소 계약이다.
  */
 public interface ManagerRepository {
     // 매니저에게 아직 배정된 동행 세션이 없을 때 공통으로 사용하는 안내 문구다.
@@ -31,7 +32,7 @@ public interface ManagerRepository {
     // 현장 사진이나 서류 확인 메모를 세션에 저장한다.
     void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback);
 
-    // 진료 이후 소견과 복약 관련 메모를 저장한다.
+    // 진료 이후 특이사항과 복약 관련 메모를 저장한다.
     void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback);
 
     // 내 페이지에서 보여줄 서류 및 일정 요약 정보를 불러온다.
@@ -53,7 +54,14 @@ public interface ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     );
 
-    // 내 페이지에서 수동 가능 일정 요약을 저장한다.
+    // 내 페이지에서 매니저 원본 서류 파일 메타데이터를 저장한다.
+    void saveManagerDocumentFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata,
+            RepositoryCallback<ManagerHomeProfile> callback
+    );
+
+    // 내 페이지에서 활동 가능 일정 요약을 저장한다.
     void saveManagerAvailabilitySummary(
             String managerUserId,
             String availabilitySummary,

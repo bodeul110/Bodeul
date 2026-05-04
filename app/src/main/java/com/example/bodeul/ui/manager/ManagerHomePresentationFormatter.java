@@ -4,6 +4,8 @@ import android.content.Context;
 import android.text.TextUtils;
 
 import com.example.bodeul.R;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -54,6 +56,22 @@ public final class ManagerHomePresentationFormatter {
             return context.getString(R.string.manager_profile_review_note_empty);
         }
         return summarizeCardText(reviewNote);
+    }
+
+    public String buildDocumentFileSummary(ManagerHomeProfile profile) {
+        if (profile.getDocumentFiles().isEmpty()) {
+            return context.getString(R.string.manager_profile_document_files_empty);
+        }
+
+        StringBuilder builder = new StringBuilder();
+        appendDocumentFileLine(builder, ManagerDocumentFileType.ID_CARD, profile.getDocumentFile(ManagerDocumentFileType.ID_CARD));
+        appendDocumentFileLine(builder, ManagerDocumentFileType.LICENSE, profile.getDocumentFile(ManagerDocumentFileType.LICENSE));
+        appendDocumentFileLine(
+                builder,
+                ManagerDocumentFileType.CRIMINAL_RECORD,
+                profile.getDocumentFile(ManagerDocumentFileType.CRIMINAL_RECORD)
+        );
+        return builder.toString();
     }
 
     public String buildDocumentTimelineText(ManagerHomeProfile profile) {
@@ -138,5 +156,45 @@ public final class ManagerHomePresentationFormatter {
                 dashboard.getGuardian().getName(),
                 dashboard.getGuardian().getPhone()
         );
+    }
+
+    private void appendDocumentFileLine(
+            StringBuilder builder,
+            ManagerDocumentFileType fileType,
+            ManagerDocumentFileMetadata documentFile
+    ) {
+        if (builder.length() > 0) {
+            builder.append('\n');
+        }
+
+        String label = toDocumentFileLabel(fileType);
+        if (documentFile == null || documentFile.isEmpty()) {
+            builder.append(context.getString(R.string.manager_profile_document_file_missing, label));
+            return;
+        }
+
+        String fileDescription = documentFile.getFileName();
+        if (documentFile.getUploadedAtMillis() > 0L) {
+            fileDescription = context.getString(
+                    R.string.manager_profile_document_file_uploaded_with_time,
+                    documentFile.getFileName(),
+                    formatTimestamp(documentFile.getUploadedAtMillis())
+            );
+        }
+        builder.append(context.getString(
+                R.string.manager_profile_document_file_uploaded,
+                label,
+                fileDescription
+        ));
+    }
+
+    private String toDocumentFileLabel(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.ID_CARD) {
+            return context.getString(R.string.manager_profile_document_type_id_card);
+        }
+        if (fileType == ManagerDocumentFileType.LICENSE) {
+            return context.getString(R.string.manager_profile_document_type_license);
+        }
+        return context.getString(R.string.manager_profile_document_type_criminal_record);
     }
 }

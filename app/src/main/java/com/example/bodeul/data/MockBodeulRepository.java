@@ -28,6 +28,8 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
@@ -66,6 +68,8 @@ public class MockBodeulRepository implements BodeulRepository {
     private final Map<String, Long> managerDocumentUpdatedAtByUserId = new HashMap<>();
     private final Map<String, Long> managerDocumentReviewedAtByUserId = new HashMap<>();
     private final Map<String, String> managerDocumentReviewedByNameByUserId = new HashMap<>();
+    private final Map<String, Map<ManagerDocumentFileType, ManagerDocumentFileMetadata>> managerDocumentFilesByUserId =
+            new HashMap<>();
     private final Map<String, List<ManagerDocumentHistoryEntry>> managerDocumentHistoriesByUserId = new HashMap<>();
     private final Map<String, AppointmentFollowUpRecord> followUpRecordsByRequestId = new HashMap<>();
     private final Map<String, AdminSettlementRecord> settlementRecordsByRequestId = new HashMap<>();
@@ -190,7 +194,8 @@ public class MockBodeulRepository implements BodeulRepository {
                 managerDocumentReviewNotesByUserId.getOrDefault(managerUserId, ""),
                 managerDocumentUpdatedAtByUserId.getOrDefault(managerUserId, 0L),
                 managerDocumentReviewedAtByUserId.getOrDefault(managerUserId, 0L),
-                managerDocumentReviewedByNameByUserId.getOrDefault(managerUserId, "")
+                managerDocumentReviewedByNameByUserId.getOrDefault(managerUserId, ""),
+                getManagerDocumentFiles(managerUserId)
         );
     }
 
@@ -200,6 +205,15 @@ public class MockBodeulRepository implements BodeulRepository {
             return Collections.emptyList();
         }
         return Collections.unmodifiableList(new ArrayList<>(historyEntries));
+    }
+
+    public synchronized List<ManagerDocumentFileMetadata> getManagerDocumentFiles(String managerUserId) {
+        Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileMap =
+                managerDocumentFilesByUserId.get(managerUserId);
+        if (fileMap == null || fileMap.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(fileMap.values()));
     }
 
     public synchronized List<AdminRequestActionOverview> getAdminRequestActionOverviews() {
@@ -468,6 +482,52 @@ public class MockBodeulRepository implements BodeulRepository {
                     )
             );
         }
+        return getManagerHomeProfile(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerHomeProfile saveManagerDocumentFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata
+    ) {
+        User manager = findUserById(managerUserId);
+        if (manager == null || manager.getRole() != UserRole.MANAGER) {
+            return null;
+        }
+        if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
+            return null;
+        }
+        if (normalizeText(managerDocumentSummariesByUserId.get(managerUserId)).isEmpty()) {
+            return null;
+        }
+
+        Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileMap =
+                managerDocumentFilesByUserId.get(managerUserId);
+        if (fileMap == null) {
+            fileMap = new HashMap<>();
+            managerDocumentFilesByUserId.put(managerUserId, fileMap);
+        }
+        fileMap.put(documentFileMetadata.getFileType(), documentFileMetadata);
+        managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.PENDING_REVIEW);
+        managerDocumentUpdatedAtByUserId.put(
+                managerUserId,
+                documentFileMetadata.getUploadedAtMillis() > 0L
+                        ? documentFileMetadata.getUploadedAtMillis()
+                        : System.currentTimeMillis()
+        );
+        managerDocumentReviewNotesByUserId.remove(managerUserId);
+        managerDocumentReviewedAtByUserId.remove(managerUserId);
+        managerDocumentReviewedByNameByUserId.remove(managerUserId);
+        appendManagerDocumentHistory(
+                managerUserId,
+                new ManagerDocumentHistoryEntry(
+                        ManagerDocumentHistoryEventType.SUBMITTED,
+                        managerDocumentUpdatedAtByUserId.get(managerUserId),
+                        manager.getName(),
+                        managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
+                        ""
+                )
+        );
         return getManagerHomeProfile(managerUserId);
     }
 

@@ -25,6 +25,7 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 firebase-functions = { module = "com.google.firebase:firebase-functions" }
+firebase-storage = { module = "com.google.firebase:firebase-storage" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleId" }
 kakao-user = { module = "com.kakao.sdk:v2-user", version.ref = "kakao" }
 naver-oauth = { module = "com.navercorp.nid:oauth", version.ref = "naverOauth" }

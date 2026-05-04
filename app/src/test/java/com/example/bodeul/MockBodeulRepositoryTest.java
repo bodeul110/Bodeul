@@ -49,6 +49,8 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -1176,6 +1178,41 @@ public class MockBodeulRepositoryTest {
 
         List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
         assertEquals(3, historyEntries.size());
+        assertEquals(ManagerDocumentHistoryEventType.SUBMITTED, historyEntries.get(0).getEventType());
+        assertEquals(manager.getName(), historyEntries.get(0).getActorName());
+    }
+
+    @Test
+    public void managerHomeProfile_saveDocumentFileMetadataStoresUploadedFileAndResetsReview() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        ManagerHomeProfile updatedProfile = repository.saveManagerDocumentFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.ID_CARD,
+                        "manager-documents/" + manager.getId() + "/idCard/1760500900000-id-card.pdf",
+                        "id-card.pdf",
+                        "application/pdf",
+                        1760500900000L
+                )
+        );
+
+        assertNotNull(updatedProfile);
+        assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedProfile.getDocumentStatus());
+        assertEquals("", updatedProfile.getDocumentReviewNote());
+        assertEquals(0L, updatedProfile.getDocumentReviewedAtMillis());
+        assertEquals("", updatedProfile.getDocumentReviewedByName());
+        assertNotNull(updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD));
+        assertEquals(
+                "id-card.pdf",
+                updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD).getFileName()
+        );
+
+        List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
+        assertFalse(historyEntries.isEmpty());
         assertEquals(ManagerDocumentHistoryEventType.SUBMITTED, historyEntries.get(0).getEventType());
         assertEquals(manager.getName(), historyEntries.get(0).getActorName());
     }

@@ -368,3 +368,28 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - GitHub Actions 시크릿/변수는 [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)로 한 번에 반영할 수 있다. 현재 GitHub CLI 계정이 저장소 API 접근 권한이 있어야 하며, 권한이 없으면 `gh auth switch` 또는 `gh auth login`으로 계정을 먼저 맞춰야 한다.
 - 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.
 - 운영 도구 전체 목록은 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 정리했다.
+
+## 2026-05-04 관리자 서류 Storage 설정 메모
+
+- 관리자 웹은 Firebase Storage 버킷 `bodeul-dev.firebasestorage.app`을 사용한다.
+- 서류 원본 기본 경로 규약은 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 이다.
+- `documentKey`는 `idCard`, `license`, `criminalRecord` 세 가지를 사용한다.
+- [storage.rules](/D:/BoDeul/storage.rules) 기준 권한은 아래와 같다.
+  - 관리자(`ADMIN`): 모든 매니저 서류 읽기 가능
+  - 매니저 본인: 본인 경로 읽기/쓰기 가능
+  - 그 외 사용자: 접근 불가
+- [firebase.json](/D:/BoDeul/firebase.json)에 `storage.rules` 연결을 추가했으므로, 실제 프로젝트 반영 시에는 `firebase deploy --only storage`로 별도 배포해야 한다.
+- `users/{uid}.managerDocumentFiles` 메타데이터가 있으면 관리자 웹이 해당 `fullPath`를 우선 사용하고, 메타데이터가 없으면 위 폴더 규약으로 파일을 탐색한다.
+## 2026-05-04 매니저 앱 서류 업로드 연동 메모
+
+- 매니저 앱은 `ManagerProfileActivity`에서 SAF `OpenDocument`로 PDF/이미지 파일을 선택하고, `FirebaseManagerDocumentStorageUploader`가 `manager-documents/{managerUserId}/{documentKey}/{timestamp-fileName}` 경로로 업로드한다.
+- 업로드 직후 `FirebaseManagerRepository.saveManagerDocumentFileMetadata()`가 `users/{uid}` 문서에 `managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드를 함께 저장한다.
+- Storage 업로드만 성공하고 Firestore 메타데이터 저장이 실패할 수 있으므로, 운영 점검 시에는 `users/{uid}.managerDocumentFiles`와 실제 Storage 경로가 같이 있는지 확인하는 절차가 필요하다.
+- 심사 상태는 업로드마다 `PENDING_REVIEW`로 재설정되므로, 관리자 웹은 별도 추가 처리 없이 기존 심사 대기 목록에서 다시 확인할 수 있다.
+## 2026-05-04 매니저 서류 Storage 점검 메모
+
+- 운영 도구 [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)를 추가해 `users/{uid}.managerDocumentFiles`와 `manager-documents/` 실제 Storage 객체의 일치 여부를 점검할 수 있게 했다.
+- 기본 명령은 `cd D:\BoDeul\tools\firebase && npm run check:manager-storage` 이고, 결과 JSON은 `tools/firebase/reports/manager-document-storage-check-YYYYMMDD-HHMMSS.json`에 남긴다.
+- `--strict` 옵션으로 누락 객체/경로 불일치를 실패 조건으로 둘 수 있고, `--delete-orphans`는 점검 후 수동 승인 하에서만 쓰는 정리 옵션으로 둔다.
+- `seed-manager-document-storage-sample.js`로 `manager@bodeul.app` 샘플 서류 3종을 Storage와 Firestore에 함께 올려 실제 관리자 웹 미리보기 데이터를 검증할 수 있다.
+- Firebase 운영 도구의 Firestore 부분 업데이트는 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 `updateMask.fieldPaths`를 함께 붙여 문서 전체 덮어쓰기를 피한다.

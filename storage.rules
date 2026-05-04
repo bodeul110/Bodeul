@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserExists() {
+      return signedIn()
+          && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function currentRole() {
+      return currentUserExists()
+          ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+          : null;
+    }
+
+    function isAdmin() {
+      return currentRole() == 'ADMIN';
+    }
+
+    function isManager() {
+      return currentRole() == 'MANAGER';
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAllowedDocumentKey(documentKey) {
+      return documentKey == 'idCard'
+          || documentKey == 'license'
+          || documentKey == 'criminalRecord';
+    }
+
+    match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
+      allow read: if isAdmin() || (isManager() && isSelf(managerUserId));
+      allow write: if isManager()
+          && isSelf(managerUserId)
+          && isAllowedDocumentKey(documentKey);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

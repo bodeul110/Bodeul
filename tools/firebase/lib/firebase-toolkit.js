@@ -12,6 +12,7 @@ async function createCliContext() {
     throw new Error("프로젝트 ID를 찾지 못했습니다. .firebaserc 또는 app/google-services.json을 확인해 주세요.");
   }
 
+  const storageBucket = resolveStorageBucket(projectId);
   const accessToken = await resolveFirebaseAccessToken();
   if (!accessToken) {
     throw new Error("firebase login 토큰을 찾지 못했습니다. `firebase login`으로 다시 로그인한 뒤 실행해 주세요.");
@@ -19,9 +20,11 @@ async function createCliContext() {
 
   return {
     projectId,
+    storageBucket,
     accessToken,
     firestoreBaseUrl: `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`,
     identityToolkitBaseUrl: `https://identitytoolkit.googleapis.com/v1/projects/${projectId}`,
+    storageBaseUrl: `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(storageBucket)}`,
   };
 }
 
@@ -48,6 +51,24 @@ function resolveProjectId() {
       path.join(repoRoot, "app", "google-services.json"),
       (data) => data?.project_info?.project_id,
   );
+}
+
+function resolveStorageBucket(projectId) {
+  const envBucket = sanitizeText(process.env.FIREBASE_STORAGE_BUCKET);
+  if (envBucket) {
+    return envBucket;
+  }
+
+  const repoRoot = resolveRepoRoot();
+  const configuredBucket = resolveJsonValue(
+      path.join(repoRoot, "app", "google-services.json"),
+      (data) => data?.project_info?.storage_bucket,
+  );
+  if (configuredBucket) {
+    return configuredBucket;
+  }
+
+  return `${projectId}.firebasestorage.app`;
 }
 
 async function resolveFirebaseAccessToken() {
@@ -354,13 +375,121 @@ async function deleteDocument(context, documentName) {
   }
 }
 
+async function getStorageObject(context, objectName) {
+  const response = await fetch(
+      `${context.storageBaseUrl}/o/${encodeURIComponent(objectName)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`,
+        },
+      },
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(`Storage 객체 조회 실패: ${response.status} ${JSON.stringify(payload)}`);
+  }
+  return payload;
+}
+
+async function listStorageObjects(context, prefix) {
+  const objects = [];
+  let pageToken = "";
+
+  while (true) {
+    const query = new URLSearchParams();
+    if (prefix) {
+      query.set("prefix", prefix);
+    }
+    if (pageToken) {
+      query.set("pageToken", pageToken);
+    }
+
+    const response = await fetch(
+        `${context.storageBaseUrl}/o?${query.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`,
+          },
+        },
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(`Storage 목록 조회 실패: ${response.status} ${JSON.stringify(payload)}`);
+    }
+
+    if (Array.isArray(payload.items)) {
+      objects.push(...payload.items);
+    }
+
+    pageToken = sanitizeText(payload.nextPageToken);
+    if (!pageToken) {
+      return objects;
+    }
+  }
+}
+
+async function deleteStorageObject(context, objectName) {
+  const response = await fetch(
+      `${context.storageBaseUrl}/o/${encodeURIComponent(objectName)}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`,
+        },
+      },
+  );
+
+  if (response.status === 404) {
+    return false;
+  }
+
+  if (!response.ok) {
+    const payload = await response.json();
+    throw new Error(`Storage 객체 삭제 실패: ${response.status} ${JSON.stringify(payload)}`);
+  }
+  return true;
+}
+
+async function uploadStorageObject(context, objectName, contentType, body) {
+  const query = new URLSearchParams();
+  query.set("uploadType", "media");
+  query.set("name", objectName);
+
+  const response = await fetch(
+      `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(context.storageBucket)}/o?${query.toString()}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`,
+          "Content-Type": contentType || "application/octet-stream",
+        },
+        body,
+      },
+  );
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(`Storage 객체 업로드 실패: ${response.status} ${JSON.stringify(payload)}`);
+  }
+  return payload;
+}
+
 async function patchDocumentData(context, relativePath, data) {
   return patchDocumentFields(context, relativePath, toFirestoreMap(data));
 }
 
 async function patchDocumentFields(context, relativePath, fields) {
+  const query = new URLSearchParams();
+  for (const fieldPath of Object.keys(fields || {})) {
+    query.append("updateMask.fieldPaths", fieldPath);
+  }
+
   const response = await fetch(
-      `${context.firestoreBaseUrl}/${relativePath}`,
+      `${context.firestoreBaseUrl}/${relativePath}${query.toString() ? `?${query.toString()}` : ""}`,
       {
         method: "PATCH",
         headers: {
@@ -470,14 +599,19 @@ module.exports = {
   buildBackupFileName,
   createCliContext,
   deleteCollectionDocuments,
+  deleteStorageObject,
   extractRelativeDocumentPath,
   getCollectionCounts,
   getDocument,
+  getStorageObject,
   listCollectionDocuments,
+  listStorageObjects,
   lookupAuthUserByEmail,
   patchDocumentData,
   patchDocumentFields,
   resolveFirebaseCiToken,
   resolveBaselineUsers,
   resolveProjectId,
+  resolveStorageBucket,
+  uploadStorageObject,
 };

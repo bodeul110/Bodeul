@@ -7,11 +7,13 @@ import com.example.bodeul.data.firebase.FirebaseBookingRepository;
 import com.example.bodeul.data.firebase.FirebaseAdminRepository;
 import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
+import com.example.bodeul.data.firebase.FirebaseManagerDocumentStorageUploader;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockBookingRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
 import com.example.bodeul.data.mock.MockGuardianReportRepository;
+import com.example.bodeul.data.mock.MockManagerDocumentStorageUploader;
 import com.example.bodeul.data.mock.MockManagerRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -27,6 +29,7 @@ public final class ServiceLocator {
     private static GuardianReportRepository guardianReportRepository;
     private static ManagerRepository managerRepository;
     private static AdminRepository adminRepository;
+    private static ManagerDocumentStorageUploader managerDocumentStorageUploader;
 
     private ServiceLocator() {
     }
@@ -57,6 +60,19 @@ public final class ServiceLocator {
             }
         }
         return managerRepository;
+    }
+
+    public static synchronized ManagerDocumentStorageUploader provideManagerDocumentStorageUploader(Context context) {
+        if (managerDocumentStorageUploader == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                managerDocumentStorageUploader =
+                        new FirebaseManagerDocumentStorageUploader(context.getApplicationContext());
+            } else {
+                managerDocumentStorageUploader =
+                        new MockManagerDocumentStorageUploader(context.getApplicationContext());
+            }
+        }
+        return managerDocumentStorageUploader;
     }
 
     public static synchronized BookingRepository provideBookingRepository(Context context) {

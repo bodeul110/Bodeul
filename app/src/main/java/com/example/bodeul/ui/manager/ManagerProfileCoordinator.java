@@ -92,6 +92,11 @@ public final class ManagerProfileCoordinator {
                 safeValue(profile.getAvailabilitySummary(), R.string.manager_profile_schedule_summary_empty),
                 false
         ));
+        items.add(new ManagerInfoLineItem(
+                context.getString(R.string.manager_profile_line_document_files),
+                formatter.buildDocumentFileSummary(profile),
+                false
+        ));
         return items;
     }
 
@@ -174,4 +179,3 @@ public final class ManagerProfileCoordinator {
         return formatter.summarizeCardText(value);
     }
 }
-
