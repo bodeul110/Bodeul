@@ -14,6 +14,15 @@ const HTTP_FUNCTIONS_OPTIONS = {
   invoker: "public",
 };
 
+const APP_CHECK_ENFORCEMENT_ENABLED =
+  `${process.env.ENABLE_APPCHECK_ENFORCEMENT ?? ""}`.trim() === "true";
+
+const CALLABLE_FUNCTIONS_OPTIONS = {
+  ...HTTP_FUNCTIONS_OPTIONS,
+  // App Check 클라이언트 배포가 끝날 때까지 기본값은 끄고, 환경 변수로만 강제한다.
+  enforceAppCheck: APP_CHECK_ENFORCEMENT_ENABLED,
+};
+
 const REMINDER_SYNC_SCHEDULE_OPTIONS = {
   region: "asia-northeast3",
   schedule: "0 9 * * *",
@@ -77,7 +86,7 @@ const ACTION_DELIVERY_FAILED_STATE = "FAILED";
 const ACTION_DELIVERY_CHANNEL_PUSH = "app_push";
 const ACTION_DELIVERY_BATCH_SIZE = 20;
 
-exports.kakaoCustomToken = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.kakaoCustomToken = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   const accessToken = `${request.data?.accessToken ?? ""}`.trim();
   const role = `${request.data?.role ?? ""}`.trim();
 
@@ -108,7 +117,7 @@ exports.kakaoCustomToken = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
   };
 });
 
-exports.naverCustomToken = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.naverCustomToken = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   const accessToken = `${request.data?.accessToken ?? ""}`.trim();
   const role = `${request.data?.role ?? ""}`.trim();
 
@@ -138,7 +147,7 @@ exports.naverCustomToken = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
   };
 });
 
-exports.resolveLinkedParticipant = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.resolveLinkedParticipant = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   const uid = sanitizeText(request.auth?.uid);
   if (!uid) {
     throw unauthenticated("로그인이 필요합니다.");
@@ -196,7 +205,7 @@ exports.resolveLinkedParticipant = onCall(HTTP_FUNCTIONS_OPTIONS, async (request
   };
 });
 
-exports.findSocialDuplicateEmailProvider = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.findSocialDuplicateEmailProvider = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   const uid = sanitizeText(request.auth?.uid);
   if (!uid) {
     throw unauthenticated("로그인이 필요합니다.");
@@ -233,7 +242,7 @@ exports.findSocialDuplicateEmailProvider = onCall(HTTP_FUNCTIONS_OPTIONS, async 
   };
 });
 
-exports.resolveAssignedManagerProfile = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.resolveAssignedManagerProfile = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   const uid = sanitizeText(request.auth?.uid);
   if (!uid) {
     throw unauthenticated("로그인이 필요합니다.");
@@ -362,7 +371,7 @@ exports.deliverAppointmentReminderJobs = onSchedule(
 );
 
 // 관리자 계정으로 수동 발송을 실행할 수 있게 열어둔다.
-exports.dispatchAppointmentReminderJobs = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.dispatchAppointmentReminderJobs = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   await assertAdminCaller(request);
   const batchSize = sanitizeBatchSize(request.data?.batchSize);
   const summary = await processAppointmentReminderJobs({
@@ -385,7 +394,7 @@ exports.deliverAdminActionDeliveryJobs = onSchedule(
 );
 
 // 관리자 계정은 후속 알림 전달 큐를 수동으로 다시 돌릴 수 있다.
-exports.dispatchAdminActionDeliveryJobs = onCall(HTTP_FUNCTIONS_OPTIONS, async (request) => {
+exports.dispatchAdminActionDeliveryJobs = onCall(CALLABLE_FUNCTIONS_OPTIONS, async (request) => {
   await assertAdminCaller(request);
   const batchSize = sanitizeBatchSize(request.data?.batchSize);
   return processAdminActionDeliveryJobs({

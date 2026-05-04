@@ -398,3 +398,34 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - 정말 예외적으로 강제 삭제가 필요할 때만 `--delete-orphans --apply --force`를 수동으로 사용한다.
 - `seed-manager-document-storage-sample.js`로 `manager@bodeul.app` 샘플 서류 3종을 Storage와 Firestore에 함께 올려 실제 관리자 웹 미리보기 데이터를 검증할 수 있다.
 - Firebase 운영 도구의 Firestore 부분 업데이트는 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 `updateMask.fieldPaths`를 함께 붙여 문서 전체 덮어쓰기를 피한다.
+
+## 2026-05-04 App Check 1단계 메모
+
+- 현재 단계는 `클라이언트 App Check 토큰 발급 준비`와 `Functions enforcement 전환 스위치 추가`까지 반영한 상태다.
+- 아직 Firebase Console enforcement를 바로 켜지 않은 이유는 Android 앱, 관리자 웹, 개발용 디버그 토큰을 먼저 안정화해야 하기 때문이다.
+
+### Android 앱
+
+- [BodeulApplication.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/BodeulApplication.java) 시작 시 App Check를 설치한다.
+- `debug` 변형:
+  - [app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java](/D:/BoDeul/app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java)
+  - Debug provider 사용
+- `release` 변형:
+  - [app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java](/D:/BoDeul/app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java)
+  - Play Integrity provider 사용
+- Firebase Console에서 Android 앱을 App Check 대상으로 등록한 뒤, 디버그 실행 시 logcat에 출력되는 debug token을 allowlist에 등록해야 한다.
+
+### 관리자 웹
+
+- [admin-web/src/appCheck.ts](/D:/BoDeul/admin-web/src/appCheck.ts)가 관리자 웹 App Check 초기화를 담당한다.
+- 필요한 환경 변수:
+  - `VITE_FIREBASE_APPCHECK_SITE_KEY`
+  - 선택: `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`
+- `localhost`, `127.0.0.1` 개발 환경에서는 디버그 토큰이 없으면 `FIREBASE_APPCHECK_DEBUG_TOKEN=true`로 토큰을 발급받는다.
+- 실제 reCAPTCHA 사이트 키가 없으면 관리자 웹은 App Check 초기화를 건너뛴다.
+
+### Functions callable
+
+- [functions/index.js](/D:/BoDeul/functions/index.js)의 callable 함수들은 `CALLABLE_FUNCTIONS_OPTIONS`를 공통 사용한다.
+- `ENABLE_APPCHECK_ENFORCEMENT=true` 환경 변수로만 `enforceAppCheck`를 켜게 했다.
+- 즉 지금 배포해도 기본값은 기존과 동일하고, 클라이언트 준비가 끝나면 환경 변수만으로 enforcement 전환이 가능하다.

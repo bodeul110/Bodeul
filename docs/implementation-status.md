@@ -1725,3 +1725,39 @@
 ### 남은 범위
 
 - `오프라인 저장`, `문서 다운로드`, `자동저장` 기능이 추가되면 이 문서를 기준으로 `AES-256-GCM + Android Keystore` 적용 범위를 바로 구체화해야 한다.
+
+## 78. 2026-05-04 App Check 1단계 적용 시작
+### 구현
+
+- Android 앱에 App Check 초기화 경로를 추가했다.
+  - [BodeulApplication.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/BodeulApplication.java)에서 시작 시 App Check를 설치한다.
+  - `debug` 변형은 [app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java](/D:/BoDeul/app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Debug provider를 사용한다.
+  - `release` 변형은 [app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java](/D:/BoDeul/app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Play Integrity provider를 사용한다.
+- [app/build.gradle.kts](/D:/BoDeul/app/build.gradle.kts), [libs.versions.toml](/D:/BoDeul/gradle/libs.versions.toml)에 App Check 의존성을 추가했다.
+- 관리자 웹에 선택적 App Check 초기화 경로를 추가했다.
+  - [admin-web/src/appCheck.ts](/D:/BoDeul/admin-web/src/appCheck.ts)
+  - [admin-web/src/main.tsx](/D:/BoDeul/admin-web/src/main.tsx)
+  - [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts)
+  - `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있을 때만 reCAPTCHA 기반 App Check를 활성화하고, 로컬 개발에서는 디버그 토큰을 허용한다.
+- [functions/index.js](/D:/BoDeul/functions/index.js)에 callable 공통 옵션 `CALLABLE_FUNCTIONS_OPTIONS`를 추가하고, `ENABLE_APPCHECK_ENFORCEMENT=true`일 때만 `enforceAppCheck`를 켜게 정리했다.
+- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md), [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 App Check 1단계 메모를 반영했다.
+
+### 변경 범위
+
+- `gradle/libs.versions.toml`
+- `app/build.gradle.kts`
+- `app/src/main/java/com/example/bodeul/BodeulApplication.java`
+- `app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java`
+- `app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java`
+- `admin-web/firebase.ts`
+- `admin-web/src/appCheck.ts`
+- `admin-web/src/main.tsx`
+- `functions/index.js`
+- `docs/firebase-setup.md`
+- `docs/security-review-2026-04-29.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- Firebase Console에서 Android 앱 App Check 등록, 디버그 토큰 allowlist, 관리자 웹용 reCAPTCHA 사이트 키 등록이 필요하다.
+- Firestore / Storage / Functions enforcement는 클라이언트 토큰이 안정화된 뒤 단계적으로 켜야 한다.

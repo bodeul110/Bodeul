@@ -120,7 +120,7 @@
 
 심각도: `중간`
 
-- Android 앱, 관리자 웹, Functions callable, Firestore, Storage 어디에도 `App Check` 연결이 없다.
+- Android 앱, 관리자 웹, Functions callable, Firestore, Storage enforcement는 아직 켜져 있지 않다.
 - 현재 callable은 인증/역할 검증으로 막고 있지만, 프로젝트 설정값과 로그인 계정이 있으면 자동화된 남용 시도 표면은 여전히 존재한다.
 - 특히 `resolveLinkedParticipant`, `findSocialDuplicateEmailProvider`, `resolveAssignedManagerProfile` 같은 중계 함수는 보안상 올바르게 제한돼 있어도, 남용 방지 측면에서는 `App Check`가 없는 상태다.
 
@@ -129,6 +129,14 @@
 1. Android: Play Integrity 기반 App Check
 2. 관리자 웹: reCAPTCHA Enterprise 또는 디버그/개발용 분리
 3. Functions / Firestore / Storage: 단계적 enforcement
+
+최신 상태:
+
+- 2026-05-04 기준 1단계 준비 작업을 시작했다.
+  - Android 앱: Debug provider / Play Integrity provider 설치 코드 반영
+  - 관리자 웹: reCAPTCHA 사이트 키 기반 초기화 경로 반영
+  - Functions callable: `ENABLE_APPCHECK_ENFORCEMENT` 전환 스위치 반영
+- 따라서 현재 상태는 `완전 미도입`이 아니라 `강제 적용 전 준비 단계`다.
 
 ### 2. 평문 필드 저장 구조
 
