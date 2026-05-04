@@ -2043,3 +2043,25 @@
 
 - 관리자 웹은 기본 심사 위계 정리가 끝났고, 이후 남은 polish는 테이블 반응형 처리나 검색/필터 추가 같은 확장 작업이다.
 - 지금 단계에서는 실데이터 기준으로 목록 길이가 길어졌을 때도 스캔성이 유지되는지만 추가 QA 하면 된다.
+## 92. 2026-05-05 내부 테스트 가이드와 운영 문서 연결 정리
+### 구현
+
+- [internal-test-guide.md](/D:/BoDeul/docs/internal-test-guide.md)를 추가해 기획/내부 QA가 바로 사용할 테스트 계정, 더미 데이터, 역할별 테스트 순서를 한 문서에 정리했습니다.
+- 샘플 예약 시나리오 `request-seed-requested`, `request-seed-progress`, `request-seed-completed`와 매니저 서류 샘플 상태를 내부 테스트 기준선으로 명시했습니다.
+- 관리자 앱 숨김 진입 방식(역할 선택 화면 로고 1.5초 안에 5회 탭)과 관리자 웹 로컬 실행 주소를 내부 테스트 가이드에 함께 적었습니다.
+- [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md), [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 내부 테스트 가이드 링크와 운영 도구 실행 전제 조건을 반영했습니다.
+- `check:state`, `check:readiness`, `preflight:local` 같은 운영 명령이 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 설정이 없으면 실행되지 않는 점을 문서에 분리해 적었습니다.
+
+### 변경 범위
+
+- `README.md`
+- `docs/document-guide.md`
+- `docs/firebase-setup.md`
+- `docs/firebase-operations-tools.md`
+- `docs/implementation-status.md`
+- `docs/internal-test-guide.md`
+
+### 남은 범위
+
+- 기획측 내부 테스트가 실제로 시작되면 자주 나온 질문이나 실패 사례를 `internal-test-guide.md`에 FAQ 형태로 계속 누적하면 됩니다.
+- Firebase 운영 도구를 직접 돌릴 개발자 PC에는 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수를 별도로 맞춰야 합니다.

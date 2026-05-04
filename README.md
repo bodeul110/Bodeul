@@ -20,6 +20,7 @@
 
 - [문서 안내](docs/document-guide.md)
 - [현재 구현 상태](docs/implementation-status.md)
+- [내부 테스트 가이드](docs/internal-test-guide.md)
 - [협업 규칙](docs/collaboration-rules.md)
 - [관리자 권한 QA 체크리스트](docs/admin-access-qa-checklist.md)
 - [전면 개편 목표 정리](docs/restructure-target-map.md)
@@ -40,8 +41,9 @@
 
 1. [문서 안내](docs/document-guide.md)
 2. [현재 구현 상태](docs/implementation-status.md)
-3. [협업 규칙](docs/collaboration-rules.md)
-4. [전면 개편 목표 정리](docs/restructure-target-map.md)
+3. [내부 테스트 가이드](docs/internal-test-guide.md)
+4. [협업 규칙](docs/collaboration-rules.md)
+5. [전면 개편 목표 정리](docs/restructure-target-map.md)
 
 ## 실행
 
@@ -89,3 +91,5 @@ git push -u origin feature/작업이름
 - 매니저: `manager@bodeul.app` / `bodeul1234`
 - 환자: `patient@bodeul.app` / `bodeul1234`
 - 보호자: `guardian@bodeul.app` / `bodeul1234`
+
+내부 테스트용 더미 데이터와 역할별 테스트 순서는 [내부 테스트 가이드](docs/internal-test-guide.md)에 정리했다.

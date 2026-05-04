@@ -371,6 +371,20 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.
 - 운영 도구 전체 목록은 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 정리했다.
 
+## 2026-05-05 내부 테스트 빠른 시작 메모
+
+- 기획/내부 QA용 계정, 더미 데이터, 역할별 테스트 순서는 [internal-test-guide.md](/D:/BoDeul/docs/internal-test-guide.md)를 기준으로 본다.
+- 개발자가 기준선 데이터를 다시 넣어야 할 때는 아래 순서를 사용한다.
+
+```powershell
+cd D:\BoDeul\tools\firebase
+npm run reset:baseline:apply
+npm run seed:sample:apply
+npm run seed:manager-docs:apply
+```
+
+- `check:state`, `check:readiness`, `preflight:local` 같은 운영 점검 명령은 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 설정이 없으면 실행되지 않는다.
+
 ## 2026-05-04 관리자 서류 Storage 설정 메모
 
 - 관리자 웹은 Firebase Storage 버킷 `bodeul-dev.firebasestorage.app`을 사용한다.

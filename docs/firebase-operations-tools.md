@@ -26,6 +26,12 @@
 4. 기준 백업 생성: `npm run backup:state`
 5. 전체 운영 워크플로: `npm run workflow:ops -- --file backups/...json`
 
+주의:
+
+- `check:state`, `check:readiness`, `workflow:ops`, `preflight:local` 같은 Firebase 운영 점검 명령은 로컬 권한 설정이 필요하다.
+- refresh token 기반이면 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수가 없을 때 실행이 실패한다.
+- 기획/내부 QA가 바로 볼 계정/시나리오는 [internal-test-guide.md](/D:/BoDeul/docs/internal-test-guide.md)에 따로 정리했다.
+
 ## 위치
 
 - 도구 루트: [tools/firebase](/D:/BoDeul/tools/firebase)

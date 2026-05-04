@@ -10,8 +10,9 @@
 
 1. [현재 구현 상태](implementation-status.md)
 2. [협업 규칙](collaboration-rules.md)
-3. [전면 개편 목표 정리](restructure-target-map.md)
-4. [Firebase 설정](firebase-setup.md)
+3. [내부 테스트 가이드](internal-test-guide.md)
+4. [전면 개편 목표 정리](restructure-target-map.md)
+5. [Firebase 설정](firebase-setup.md)
 
 ## 문서 우선순위
 
@@ -30,6 +31,8 @@
   - 가장 최근 작업 범위, 변경 파일, 남은 범위를 기록한다.
 - [협업 규칙](collaboration-rules.md)
   - 여러 작업자가 동시에 수정할 때의 시작 절차, 동기화, 충돌 방지 규칙을 다룬다.
+- [내부 테스트 가이드](internal-test-guide.md)
+  - 기획/내부 QA가 바로 사용할 테스트 계정, 더미 데이터, 역할별 테스트 순서를 정리한다.
 - [관리자 권한 QA 체크리스트](admin-access-qa-checklist.md)
   - 관리자 앱/웹, 권한 실패 시나리오, 매니저 서류 검토 흐름을 반복 점검할 때 쓴다.
 
