@@ -3,8 +3,8 @@ const os = require("os");
 const path = require("path");
 
 const {DEFAULT_PASSWORD, LIST_PAGE_SIZE} = require("./baseline-config");
-const FIREBASE_CLIENT_ID = "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
-const FIREBASE_CLIENT_SECRET = "j9iVZfS8kkCEFUPaAeJV0sAi";
+const DEFAULT_FIREBASE_OAUTH_CLIENT_ID =
+  "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
 
 async function createCliContext() {
   const projectId = resolveProjectId();
@@ -179,10 +179,20 @@ function isLikelyAccessToken(token) {
 }
 
 async function refreshFirebaseAccessToken(storedToken) {
+  const clientId = resolveFirebaseOAuthClientId();
+  const clientSecret = resolveFirebaseOAuthClientSecret();
+  if (!clientSecret) {
+    throw new Error(
+        "Firebase OAuth client secret을 찾지 못했습니다. " +
+        "FIREBASE_OAUTH_CLIENT_SECRET 환경 변수 또는 local.properties의 " +
+        "firebaseOauthClientSecret 값을 설정해 주세요.",
+    );
+  }
+
   const body = new URLSearchParams();
   body.set("refresh_token", storedToken.refreshToken);
-  body.set("client_id", FIREBASE_CLIENT_ID);
-  body.set("client_secret", FIREBASE_CLIENT_SECRET);
+  body.set("client_id", clientId);
+  body.set("client_secret", clientSecret);
   body.set("grant_type", "refresh_token");
   if (storedToken.scope) {
     body.set("scope", storedToken.scope);
@@ -595,6 +605,51 @@ function resolveFirebaseCiToken() {
   return sanitizeText(storedToken?.refreshToken || storedToken?.accessToken);
 }
 
+function resolveFirebaseOAuthClientId() {
+  return sanitizeText(
+      process.env.FIREBASE_OAUTH_CLIENT_ID ||
+      readLocalProperty("firebaseOauthClientId") ||
+      DEFAULT_FIREBASE_OAUTH_CLIENT_ID,
+  );
+}
+
+function resolveFirebaseOAuthClientSecret() {
+  return sanitizeText(
+      process.env.FIREBASE_OAUTH_CLIENT_SECRET ||
+      readLocalProperty("firebaseOauthClientSecret"),
+  );
+}
+
+function readLocalProperty(key) {
+  const localPropertiesPath = path.join(resolveRepoRoot(), "local.properties");
+  if (!fs.existsSync(localPropertiesPath)) {
+    return "";
+  }
+
+  try {
+    const lines = fs.readFileSync(localPropertiesPath, "utf8").split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex < 0) {
+        continue;
+      }
+      const propertyKey = trimmed.slice(0, separatorIndex).trim();
+      if (propertyKey !== key) {
+        continue;
+      }
+      return trimmed.slice(separatorIndex + 1).trim();
+    }
+  } catch (error) {
+    return "";
+  }
+
+  return "";
+}
+
 module.exports = {
   buildBackupFileName,
   createCliContext,
@@ -610,6 +665,7 @@ module.exports = {
   patchDocumentData,
   patchDocumentFields,
   resolveFirebaseCiToken,
+  resolveFirebaseOAuthClientSecret,
   resolveBaselineUsers,
   resolveProjectId,
   resolveStorageBucket,

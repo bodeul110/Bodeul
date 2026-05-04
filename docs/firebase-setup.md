@@ -364,7 +364,9 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - Firebase 점검과 Android 빌드/테스트까지 한 번에 확인하는 로컬 프리플라이트는 `npm run preflight:local -- --file ...`로 실행할 수 있다.
 - 실제 앱 화면을 운영 리포트에 붙이려면 `npm run capture:app -- --screen-id ... --title ...` 또는 `npm run capture:app -- --preset manager-home`처럼 증적 파일을 만든 뒤 `--app-evidence` 옵션으로 `report:ops`, `workflow:ops`, `preflight:local`에 전달한다.
 - CI에서는 `npm run preflight:ci` 또는 [.github/workflows/android-preflight.yml](/D:/BoDeul/.github/workflows/android-preflight.yml)로 같은 점검 루틴을 재사용한다. Firebase 시크릿이 없으면 자동으로 운영 워크플로를 건너뛰고 빌드/테스트만 수행한다.
-- CI에서 쓰는 `FIREBASE_TOKEN`은 `firebase login:ci` refresh token을 기준으로 보고, [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 access token으로 교환해 사용한다.
+- CI에서 쓰는 `FIREBASE_TOKEN`은 `firebase login:ci` refresh token 또는 access token을 받을 수 있다.
+- refresh token을 쓰는 경우 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)가 access token으로 교환해야 하므로 `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 필요하다.
+- 이 값은 저장소에 두지 않고, 로컬 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수로만 관리한다.
 - GitHub Actions 시크릿/변수는 [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)로 한 번에 반영할 수 있다. 현재 GitHub CLI 계정이 저장소 API 접근 권한이 있어야 하며, 권한이 없으면 `gh auth switch` 또는 `gh auth login`으로 계정을 먼저 맞춰야 한다.
 - 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.
 - 운영 도구 전체 목록은 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 정리했다.

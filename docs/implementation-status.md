@@ -1761,3 +1761,54 @@
 
 - Firebase Console에서 Android 앱 App Check 등록, 디버그 토큰 allowlist, 관리자 웹용 reCAPTCHA 사이트 키 등록이 필요하다.
 - Firestore / Storage / Functions enforcement는 클라이언트 토큰이 안정화된 뒤 단계적으로 켜야 한다.
+
+## 79. 2026-05-04 Firebase 운영 도구 OAuth secret 분리
+### 구현
+
+- [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 refresh token 교환용 OAuth client secret 하드코딩을 제거했다.
+- 이제 Firebase 운영 도구는 아래 우선순위로 OAuth client secret을 읽는다.
+  - `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수
+  - `local.properties`의 `firebaseOauthClientSecret`
+- OAuth client id는 비밀값이 아니므로 기본값을 코드에 두고, 필요하면 `FIREBASE_OAUTH_CLIENT_ID` 또는 `local.properties`의 `firebaseOauthClientId`로 덮어쓸 수 있게 했다.
+- [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)는 `FIREBASE_TOKEN`이 refresh token일 때 `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 GitHub Actions secret으로 반영하게 바꿨다.
+- [.github/workflows/android-preflight.yml](/D:/BoDeul/.github/workflows/android-preflight.yml)에 `secrets.FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수를 추가했다.
+- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md), [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 운영 도구 secret 분리 기준을 반영했다.
+
+### 변경 범위
+
+- `tools/firebase/lib/firebase-toolkit.js`
+- `tools/github/configure-actions-firebase.js`
+- `.github/workflows/android-preflight.yml`
+- `docs/firebase-operations-tools.md`
+- `docs/firebase-setup.md`
+- `docs/security-review-2026-04-29.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- GitHub Actions 저장소 시크릿에 `FIREBASE_OAUTH_CLIENT_SECRET` 실제 값을 넣어 기존 refresh token 기반 운영 워크플로가 계속 동작하도록 맞춰야 한다.
+- 장기적으로는 Firebase CLI refresh token 의존 자체를 줄이거나, 서비스 계정 기반 운영 경로를 분리하는 쪽이 더 낫다.
+
+## 80. 2026-05-04 Android 권한 표면 최소화
+### 구현
+
+- [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml)에서 현재 기능이 실제로 쓰지 않는 위험 권한을 제거했다.
+  - 제거 대상: 위치, 카메라, 외부 저장소 읽기, 블루투스, 전화, 연락처
+- [PermissionGuideCatalog.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java)를 현재 버전 안내 기준으로 바꿨다.
+  - 시스템 권한을 실제로 요청하지 않음
+  - 서버 중심 데이터 처리, 시스템 문서 선택기 사용, 추후 기능 추가 시 재요청 원칙만 안내
+- [PermissionGuideActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java) 주석과 [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml) 문구를 현재 구조에 맞게 정리했다.
+- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 권한 표면 이슈 최신 상태를 반영했다.
+
+### 변경 범위
+
+- `app/src/main/AndroidManifest.xml`
+- `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java`
+- `app/src/main/res/values/strings.xml`
+- `docs/security-review-2026-04-29.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 추후 실제 카메라/위치/연락처 기능을 추가하면 그 시점에만 권한을 다시 선언하고, 기능/문구/검증 절차를 함께 추가해야 한다.

@@ -190,10 +190,13 @@ npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.
 - `workflow_dispatch`로 실제 실행하려면 이 워크플로 파일이 원격 기본 브랜치에도 올라가 있어야 한다. 로컬에만 있고 아직 push하지 않았다면 `gh workflow run`은 `workflow ... not found on the default branch`로 실패한다.
 - GitHub Actions에서 전체 점검을 돌리려면 아래 시크릿/변수를 맞춘다.
   - `secrets.FIREBASE_TOKEN`
+  - `secrets.FIREBASE_OAUTH_CLIENT_SECRET` (`FIREBASE_TOKEN`이 refresh token일 때만)
   - `secrets.GOOGLE_SERVICES_JSON`
   - `secrets.FIREBASERC_JSON`
   - `vars.FIREBASE_PROJECT_ID`
-- `FIREBASE_TOKEN`은 Firebase 공식 문서 기준 `firebase login:ci`로 발급받는 refresh token을 기준으로 보고, [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 access token으로 자동 교환해 사용한다. 로컬 `firebase login` 상태에서 [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)를 실행하면 같은 값을 GitHub 시크릿으로 올릴 수 있다.
+- `FIREBASE_TOKEN`은 Firebase 공식 문서 기준 `firebase login:ci`로 발급받는 refresh token 또는 access token을 받을 수 있다.
+- refresh token을 쓰는 경우 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)가 access token으로 교환해야 하므로, `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 필요하다.
+- 이 OAuth client secret은 저장소에 하드코딩하지 않고, 로컬에서는 `local.properties`의 `firebaseOauthClientSecret`, CI에서는 `secrets.FIREBASE_OAUTH_CLIENT_SECRET`으로 분리한다.
 - 시크릿이 없으면 워크플로는 기본적으로 Android 빌드/테스트만 수행하고, 생성된 `tools/firebase/reports/` 산출물은 아티팩트로 업로드한다.
 
 ### GitHub Actions 시크릿 반영
@@ -206,9 +209,11 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispat
 
 - [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)는 origin 원격 또는 `--repo` 값 기준으로 저장소를 해석하고, 아래 항목을 GitHub Actions에 반영한다.
   - `secrets.FIREBASE_TOKEN`
+  - `secrets.FIREBASE_OAUTH_CLIENT_SECRET` (`FIREBASE_TOKEN`이 refresh token일 때)
   - `secrets.GOOGLE_SERVICES_JSON`
   - `secrets.FIREBASERC_JSON`
   - `vars.FIREBASE_PROJECT_ID`
+- 로컬에서는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수 또는 `local.properties`의 `firebaseOauthClientSecret` 값을 읽어 위 시크릿으로 올린다.
 - `--dispatch`를 붙이면 `android-preflight.yml`을 `workflow_dispatch`로 즉시 실행한다.
 - `--backup-file`, `--app-evidence`, `--workflow`로 dispatch 입력값을 조정할 수 있다.
 - 현재 로컬 원격은 `git@github.com:bodeul110/Bodeul.git`이지만, GitHub CLI 계정이 해당 저장소 API 접근 권한이 없는 상태면 시크릿 반영은 실패한다. 이 경우 `gh auth login` 또는 `gh auth switch`로 저장소 권한이 있는 계정으로 바꾼 뒤 다시 실행한다.

@@ -26,6 +26,7 @@ jobs:
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_OAUTH_CLIENT_SECRET: ${{ secrets.FIREBASE_OAUTH_CLIENT_SECRET }}
       GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
       FIREBASERC_JSON: ${{ secrets.FIREBASERC_JSON }}
       BODEUL_REQUIRE_FIREBASE: ${{ github.event_name == 'workflow_dispatch' && inputs.require_firebase_ops || 'false' }}

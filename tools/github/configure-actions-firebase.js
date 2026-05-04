@@ -5,6 +5,7 @@ const path = require("path");
 
 const {
   resolveFirebaseCiToken,
+  resolveFirebaseOAuthClientSecret,
   resolveProjectId,
 } = require("../firebase/lib/firebase-toolkit");
 const {
@@ -29,6 +30,8 @@ async function main() {
   const repository = resolveGitHubRepository(options.repo);
   const projectId = options.projectId || resolveProjectId();
   const firebaseToken = options.firebaseToken || resolveFirebaseCiToken();
+  const firebaseOauthClientSecret =
+    options.firebaseOauthClientSecret || resolveFirebaseOAuthClientSecret();
   const googleServicesJson = readRequiredFile(path.join(repoRoot, "app", "google-services.json"));
   const firebasercJson = readRequiredFile(path.join(repoRoot, ".firebaserc"));
 
@@ -37,6 +40,12 @@ async function main() {
   }
   if (!firebaseToken) {
     throw new Error("GitHub Actions에 넣을 FIREBASE_TOKEN을 찾지 못했습니다. `firebase login:ci` 토큰 또는 로컬 firebase 로그인 상태를 확인해 주세요.");
+  }
+  if (requiresOAuthClientSecret(firebaseToken) && !firebaseOauthClientSecret) {
+    throw new Error(
+        "refresh token 기반 FIREBASE_TOKEN을 쓰려면 FIREBASE_OAUTH_CLIENT_SECRET이 필요합니다. " +
+        "환경 변수 또는 local.properties의 firebaseOauthClientSecret 값을 확인해 주세요.",
+    );
   }
 
   if (!options.skipAccessCheck) {
@@ -58,6 +67,9 @@ async function main() {
   if (options.dryRun) {
     process.stdout.write("설정 예정 항목:\n");
     process.stdout.write("- secrets.FIREBASE_TOKEN\n");
+    if (requiresOAuthClientSecret(firebaseToken)) {
+      process.stdout.write("- secrets.FIREBASE_OAUTH_CLIENT_SECRET\n");
+    }
     process.stdout.write("- secrets.GOOGLE_SERVICES_JSON\n");
     process.stdout.write("- secrets.FIREBASERC_JSON\n");
     process.stdout.write("- vars.FIREBASE_PROJECT_ID\n");
@@ -65,6 +77,13 @@ async function main() {
   }
 
   setRepositorySecret(repository, "FIREBASE_TOKEN", firebaseToken);
+  if (requiresOAuthClientSecret(firebaseToken)) {
+    setRepositorySecret(
+        repository,
+        "FIREBASE_OAUTH_CLIENT_SECRET",
+        firebaseOauthClientSecret,
+    );
+  }
   setRepositorySecret(repository, "GOOGLE_SERVICES_JSON", googleServicesJson);
   setRepositorySecret(repository, "FIREBASERC_JSON", firebasercJson);
   setRepositoryVariable(repository, "FIREBASE_PROJECT_ID", projectId);
@@ -108,6 +127,9 @@ function parseArgs(args) {
         break;
       case "--firebase-token":
         options.firebaseToken = requireValue(args, ++index, arg);
+        break;
+      case "--firebase-oauth-client-secret":
+        options.firebaseOauthClientSecret = requireValue(args, ++index, arg);
         break;
       case "--workflow":
         options.workflow = requireValue(args, ++index, arg);
@@ -166,6 +188,7 @@ function printUsage() {
     "  --repo <owner/repo>          GitHub 저장소. 기본값은 origin 원격",
     "  --project-id <id>            Firebase 프로젝트 ID",
     "  --firebase-token <token>     GitHub secret으로 넣을 Firebase CI 토큰",
+    "  --firebase-oauth-client-secret <value>  refresh token 교환용 OAuth client secret",
     "  --workflow <file>            실행할 workflow 파일명",
     "  --backup-file <path>         workflow_dispatch 입력 backup_file 값",
     "  --app-evidence <path>        workflow_dispatch 입력 app_evidence_path 값",
@@ -178,6 +201,11 @@ function printUsage() {
     "  node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dry-run",
     "  node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispatch",
   ].join("\n"));
+}
+
+function requiresOAuthClientSecret(token) {
+  const trimmed = `${token || ""}`.trim();
+  return Boolean(trimmed) && !trimmed.startsWith("ya29.");
 }
 
 main().catch((error) => {

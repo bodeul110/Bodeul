@@ -154,8 +154,7 @@
 
 심각도: `중간`
 
-- [tools/firebase/lib/firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에 Firebase CLI용 데스크톱 OAuth `client_id`, `client_secret`가 하드코딩돼 있다.
-- 이 값은 `앱 런타임 비밀`은 아니고 `개발용 도구 설정`에 가깝지만, 저장소에 상수로 들어가 있다는 점은 운영 도구 보안상 좋지 않다.
+- 현재는 refresh token 교환에 필요한 OAuth client secret을 저장소에 하드코딩하지 않고, 로컬 `local.properties` 또는 환경 변수, CI secret으로 분리하는 방향으로 정리 중이다.
 - 또한 이 도구는 로컬 `firebase-tools.json`의 refresh token을 읽고 access token으로 갱신한다.
 
 판단:
@@ -165,24 +164,25 @@
 
 권장:
 
-- 가능하면 환경 변수 또는 로컬 비추적 설정으로 분리
+- 현재도 환경 변수 또는 로컬 비추적 설정 분리 방향으로 정리 중이며, CI는 `FIREBASE_OAUTH_CLIENT_SECRET` secret을 별도로 둔다.
 - 장기적으로는 Firebase CLI 프로세스 호출이나 서비스 계정 기반 분리 검토
 
 ### 4. 권한 표면이 넓다
 
 심각도: `낮음`
 
-- [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml)에는 위치, 카메라, 저장소, 블루투스, 전화, 연락처 권한이 선언돼 있다.
-- 현재 코드 기준으로 이 권한들은 [PermissionGuideCatalog.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java)에 안내용으로 묶여 있지만, 실제 기능 사용 흔적은 제한적이다.
+- 최신 기준으로는 [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml)에 위험 권한을 남기지 않고 `INTERNET`만 유지한다.
+- [PermissionGuideCatalog.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java)는 현재 버전에서 시스템 권한을 미리 요청하지 않는다는 안내만 보여주고, 실제 권한 요청은 수행하지 않는다.
 
 판단:
 
-- 바로 취약점이라고 보긴 어렵지만, 최소 권한 원칙 측면에서는 재검토 대상이다.
+- 기존 우려는 상당 부분 해소됐다.
+- 다만 추후 카메라, 위치, 연락처 같은 기능을 다시 넣을 때는 `기능 추가 시점 재검토` 원칙을 유지해야 한다.
 
 권장:
 
-- 실제 사용하는 기능과 권한 매핑을 다시 확인
-- 시연용/후속 예정 기능이면 manifest에서 일단 제거하거나, 적어도 필수/선택 권한 경계를 더 명확히 분리
+- 새 기능이 생겨 권한이 필요해질 때만 manifest와 안내 문구를 함께 다시 추가
+- 권한이 생기면 `필수/선택`, `수집 목적`, `대체 경로`를 같이 문서화
 
 ## 보안상 오해하지 말아야 할 항목
 

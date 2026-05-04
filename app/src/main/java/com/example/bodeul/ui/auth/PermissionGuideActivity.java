@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.bodeul.R;
 
 /**
- * 서비스 진입 전에 권한 목적을 설명하고 필요한 권한 요청을 모아 처리하는 화면이다.
+ * 서비스 진입 전에 현재 버전의 보안/저장 원칙을 설명하는 안내 화면이다.
  */
 public class PermissionGuideActivity extends AppCompatActivity {
     private final ActivityResultLauncher<String[]> permissionRequestLauncher =

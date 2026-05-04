@@ -20,23 +20,17 @@
     <string name="role_patient_guardian_action">시작하기 →</string>
     <string name="next_step">다음 단계로</string>
 
-    <string name="permission_guide_title">권한 안내</string>
-    <string name="permission_guide_description">보들 서비스를 원활하게 이용하기 위해 다음 접근 권한 허용이 필요합니다.</string>
-    <string name="permission_guide_footer">보들은 고객님의 개인정보를 소중하게 생각하며, 서비스 제공에 꼭 필요한 권한만 요청합니다.</string>
-    <string name="permission_guide_confirm">확인</string>
-    <string name="permission_location_title">위치 정보 (필수)</string>
-    <string name="permission_location_description">병원 동행 서비스 매칭 및 현재 위치 기반 서비스 제공을 위해 필요합니다.</string>
-    <string name="permission_camera_title">카메라 (필수)</string>
-    <string name="permission_camera_description">프로필 사진과 동행 중 사진을 등록할 때 사용됩니다.</string>
-    <string name="permission_storage_title">저장공간 (필수)</string>
-    <string name="permission_storage_description">기기 내 사진 및 파일을 불러오거나 저장할 때 사용됩니다.</string>
-    <string name="permission_bluetooth_title">블루투스 (선택)</string>
-    <string name="permission_bluetooth_description">주변 기기와의 연결 및 원활한 데이터 통신을 위해 사용됩니다.</string>
-    <string name="permission_phone_title">전화 (선택)</string>
-    <string name="permission_phone_description">고객센터 연결 및 매니저와의 통화를 위해 필요합니다.</string>
-    <string name="permission_contacts_title">주소록 (선택)</string>
-    <string name="permission_contacts_description">비상 연락처 등록 시 기기 정보를 불러오기 위해 사용됩니다.</string>
-    <string name="permission_required_missing_notice">필수 권한이 아직 허용되지 않았습니다. 필요한 시점에 다시 요청됩니다.</string>
+    <string name="permission_guide_title">서비스 준비 안내</string>
+    <string name="permission_guide_description">현재 버전의 보들은 기본 기능 이용에 별도 시스템 권한을 먼저 요청하지 않습니다.</string>
+    <string name="permission_guide_footer">민감한 일정 정보와 리포트는 기기에 장기 저장하지 않고, 필요한 기능이 추가되면 그 시점에만 최소 권한을 다시 요청합니다.</string>
+    <string name="permission_guide_confirm">계속</string>
+    <string name="permission_data_title">예약과 리포트는 서버에서만 관리합니다</string>
+    <string name="permission_data_description">예약 메모와 진행 리포트는 Firebase에서 불러오며, 앱 재시작 뒤 디스크에 남지 않도록 캐시를 줄여두었습니다.</string>
+    <string name="permission_document_title">서류 업로드는 시스템 문서 선택기를 사용합니다</string>
+    <string name="permission_document_description">매니저 원본 서류 업로드는 Android 시스템 문서 선택기를 사용하므로 저장공간 권한을 별도로 요청하지 않습니다.</string>
+    <string name="permission_future_title">추후 기능이 생기면 필요한 시점에만 묻습니다</string>
+    <string name="permission_future_description">카메라, 위치, 연락처 같은 권한은 현재 버전에서 사용하지 않으며, 실제 기능이 추가될 때만 다시 요청할 예정입니다.</string>
+    <string name="permission_required_missing_notice">현재 버전에서는 별도 시스템 권한 없이 기본 기능을 이용할 수 있습니다.</string>
     <string name="common_close">닫기</string>
 
     <string name="login_title_manager">매니저 로그인</string>
