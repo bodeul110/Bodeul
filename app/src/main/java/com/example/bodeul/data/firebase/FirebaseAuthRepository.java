@@ -44,7 +44,7 @@ import com.kakao.sdk.auth.model.OAuthToken;
 import com.kakao.sdk.common.model.ClientError;
 import com.kakao.sdk.common.model.ClientErrorCause;
 import com.kakao.sdk.user.UserApiClient;
-import com.navercorp.nid.NaverIdLoginSDK;
+import com.navercorp.nid.NidOAuth;
 import com.navercorp.nid.oauth.util.NidOAuthCallback;
 
 import java.util.HashMap;
@@ -184,10 +184,10 @@ public class FirebaseAuthRepository implements AuthRepository {
             return;
         }
 
-        NaverIdLoginSDK.INSTANCE.authenticate(activity, new NidOAuthCallback() {
+        NidOAuth.INSTANCE.requestLogin(activity, new NidOAuthCallback() {
             @Override
             public void onSuccess() {
-                String accessToken = NaverIdLoginSDK.INSTANCE.getAccessToken();
+                String accessToken = NidOAuth.INSTANCE.getAccessToken();
                 if (TextUtils.isEmpty(accessToken)) {
                     callback.onError("네이버 로그인 토큰을 확인하지 못했습니다.");
                     return;
@@ -845,7 +845,7 @@ public class FirebaseAuthRepository implements AuthRepository {
             return;
         }
 
-        NaverIdLoginSDK.INSTANCE.logout(new NidOAuthCallback() {
+        NidOAuth.INSTANCE.logout(new NidOAuthCallback() {
             @Override
             public void onSuccess() {
                 // 로그아웃 후 추가 작업은 없다.

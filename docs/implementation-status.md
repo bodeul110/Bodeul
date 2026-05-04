@@ -1866,3 +1866,19 @@
 ### 남은 범위
 
 - 실제 운영 시 소셜 로그인 공급자별 상세 실패 사유가 더 필요하면 서버 `details.message` 사전만 늘리고, SDK 원문 메시지를 그대로 노출하는 방향으로는 돌아가지 않는 편이 맞다.
+
+## 84. 2026-05-04 네이버 로그인 deprecated SDK 경로 정리
+### 구현
+
+- [FirebaseAuthRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 `NaverIdLoginSDK` 사용 경로를 `NidOAuth` 기준으로 교체했다.
+- 네이버 로그인 요청, 토큰 조회, 로그아웃 모두 동일한 동작을 유지하면서 deprecated SDK 래퍼 의존만 제거했다.
+- 이 변경으로 빌드 로그에 남던 `FirebaseAuthRepository` 경고 원인 하나를 현재 SDK 권장 경로로 맞췄다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 인증 영역의 나머지 경고는 없었고, 추후 SDK 버전 정책이 바뀌면 네이버 로그인 경로도 같은 방식으로 공급자 권장 API를 우선 적용하는 쪽이 맞다.
