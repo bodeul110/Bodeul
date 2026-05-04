@@ -12,21 +12,36 @@
 
 ## 현재 프로젝트 상태
 
-이 저장소는 Java, XML 레이아웃, Gradle 기반의 네이티브 Android 프로젝트입니다.
+이 저장소는 Java, XML 레이아웃, Gradle 기반 Android 앱과 관리자 웹, Firebase 운영 도구를 함께 관리하는 저장소입니다.
 
-로그인, 예약, 보호자 진행 현황, 매니저 홈과 가이드, 관리자 운영 화면은 동작하며 Firebase 설정이 없을 때는 데모 모드로 실행됩니다. 일부 외부 연동 기능은 기능설명서 구조를 먼저 맞추고, 실제 서비스 연동은 Firebase 또는 후속 API 계약에 맞춰 확장합니다.
+로그인, 예약, 보호자 진행 현황, 매니저 홈과 가이드, 관리자 운영 화면은 동작하며 Firebase 설정이 없을 때는 데모 모드로 실행됩니다. 관리자 웹은 Firebase Auth와 Firestore 기준으로 매니저 서류 심사를 수행하고, `tools/firebase`는 기준선 초기화·리포트·백업/복원 같은 운영 점검 스크립트를 제공합니다.
 
 ## 문서
 
+- [문서 안내](docs/document-guide.md)
 - [현재 구현 상태](docs/implementation-status.md)
 - [협업 규칙](docs/collaboration-rules.md)
 - [관리자 권한 QA 체크리스트](docs/admin-access-qa-checklist.md)
 - [전면 개편 목표 정리](docs/restructure-target-map.md)
+- [데이터 및 API 초안](docs/data-api-draft.md)
+- [Firebase 설정](docs/firebase-setup.md)
+- [Firebase 운영 도구](docs/firebase-operations-tools.md)
+- [Firestore 보안 정리](docs/firestore-security-hardening.md)
+- [보안 리뷰 최신화 메모](docs/security-review-2026-04-29.md)
+- [AES 적용 범위 판단](docs/aes-scope-assessment.md)
+- [디자인 레퍼런스 검토 메모](docs/design-reference-review-2026-05-05.md)
 - [MVP 범위](docs/mvp-scope.md)
 - [아키텍처 초안](docs/architecture-draft.md)
 - [팀 작업 분담](docs/team-task-breakdown.md)
-- [데이터 및 API 초안](docs/data-api-draft.md)
-- [Firebase 설정](docs/firebase-setup.md)
+
+## 문서 시작 순서
+
+새로 들어온 작업자는 아래 순서로 보는 것을 기준으로 합니다.
+
+1. [문서 안내](docs/document-guide.md)
+2. [현재 구현 상태](docs/implementation-status.md)
+3. [협업 규칙](docs/collaboration-rules.md)
+4. [전면 개편 목표 정리](docs/restructure-target-map.md)
 
 ## 실행
 

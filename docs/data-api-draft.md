@@ -171,7 +171,7 @@
 - 카드/간편결제는 `AUTHORIZED`, 현장 결제는 `DEFERRED` 상태로 저장해 예약 상세와 완료 화면에서 같은 기준으로 표시한다.
 ### 2026-04-23 종료 후 후기/정산/SOS 메모
 
-- 현재 앱은 완료된 예약의 만족도 후기를 `BookingFollowUpPreferences`로 기기 로컬에 저장한다.
+- 현재 앱은 완료된 예약의 후기, 정산 후속, SOS 기록을 `appointmentFollowUps` 저장소 흐름 기준으로 조회/저장한다.
 - 서버 연동 시 초안 API:
   - `GET /appointments/{id}/follow-up`
   - 응답:
@@ -596,7 +596,7 @@
   - `managerDocumentFiles.criminalRecord.*`
 - 관리자 웹은 `managerDocumentFiles`가 있으면 해당 `fullPath`를 우선 읽고, 없으면 `manager-documents/{managerUserId}/{documentKey}/{fileName}` Storage 폴더를 탐색한다.
 - 현재 관리자 웹에서 사용하는 `documentKey` 값은 `idCard`, `license`, `criminalRecord` 세 가지다.
-- 매니저 앱이 추후 실제 파일 업로드를 붙일 때는 Storage 업로드 후 같은 `users/{uid}` 문서에 `managerDocumentFiles` 메타데이터를 함께 저장하는 구성을 기준선으로 삼는다.
+- 현재 매니저 앱은 실제 Storage 업로드 후 같은 `users/{uid}` 문서에 `managerDocumentFiles` 메타데이터를 함께 저장한다.
 ### 2026-05-04 매니저 앱 서류 업로드 반영 메모
 
 - 매니저 앱 내 페이지에서 `원본 파일 업로드` 버튼으로 `application/pdf`, `image/*` 파일을 선택해 바로 Storage 업로드를 시작한다.

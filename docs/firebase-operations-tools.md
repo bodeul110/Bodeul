@@ -1,6 +1,6 @@
 # Firebase 운영 도구
 
-기준일: 2026-04-24
+기준일: 2026-05-05
 
 `tools/firebase`는 앱 런타임 코드와 분리된 Firebase 운영용 로컬 스크립트를 모아두는 디렉터리다.
 
@@ -12,6 +12,19 @@
 - 컬렉션 상태 점검
 - Firestore 백업
 - Firestore 복원
+- 역할별 화면 진입 준비도 확인
+- 운영 리포트와 프리플라이트 자동화
+- 매니저 서류 Storage 정합성 점검과 고아 파일 정리
+
+## 먼저 볼 흐름
+
+운영 도구를 처음 쓸 때는 아래 순서로 보는 것을 권장한다.
+
+1. 기준선 상태 확인: `npm run check:state`
+2. 역할 준비도 확인: `npm run check:readiness`
+3. 매니저 서류 Storage 점검: `npm run check:manager-storage -- --strict`
+4. 기준 백업 생성: `npm run backup:state`
+5. 전체 운영 워크플로: `npm run workflow:ops -- --file backups/...json`
 
 ## 위치
 

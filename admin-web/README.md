@@ -1,37 +1,74 @@
-🏢 보들(Bodeul) 관리자 웹 앱 (Admin Dashboard)
-보들 서비스의 전반적인 운영을 관리하고 매니저를 승인/관리하는 어드민 페이지입니다.
+# 보들 관리자 웹
 
-🚀 주요 기능
-매니저 승인 관리: 신규 매니저의 서류(신분증, 자격증)를 검토하고 승인 또는 반려 처리합니다.
+`admin-web`은 매니저 서류 승인과 관리자 세션 검증을 담당하는 React/Vite 기반 관리자 웹이다.
 
-사용자 모니터링: 환자, 보호자, 매니저의 정보를 조회하고 관리합니다.
+## 현재 기능
 
-실시간 데이터 연동: Firebase Firestore를 통해 앱 사용자의 데이터를 실시간으로 동기화합니다.
+- Firebase Auth 기준 관리자 로그인
+- `users/{uid}.role == ADMIN` 검증
+- 매니저 서류 요약 조회
+- Firebase Storage 원본 파일 미리보기
+- 승인 / 반려 저장
+- 목록 기본 마스킹
+- 15분 유휴 세션 자동 로그아웃
 
-🛠 기술 스택 (Tech Stack)
-Frontend: React, TypeScript, Vite
+## 기술 스택
 
-Styling: Tailwind CSS
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Firebase Authentication / Firestore / Storage
 
-Backend/Infrastructure: Firebase (Firestore, Authentication, Storage)
+## 실행
 
-IDE/Tools: Cursor AI
-
-📦 프로젝트 시작하기
-Bash
-# 패키지 설치
+```powershell
+cd D:\BoDeul\admin-web
 npm install
-
-# 로컬 서버 실행
 npm run dev
-📂 주요 폴더 구조
-src/firebase.ts: Firebase 앱 초기화 및 서비스 설정
+```
 
-src/pages/: 각 기능별 페이지 컴포넌트
+기본 주소:
 
-src/components/: 재사용 가능한 UI 컴포넌트
+- `http://localhost:5173`
 
-⚠️ 주의사항
-보안: .env 파일에 Firebase API Key가 노출되지 않도록 주의하세요.
+## 확인용 계정
 
-규칙: Firestore 보안 규칙에 따라 ADMIN 권한이 있는 계정으로 로그인해야 정상적인 데이터 수정이 가능합니다.
+- 관리자: `admin@bodeul.app` / `bodeul1234`
+
+## 주요 파일
+
+- [firebase.ts](/D:/BoDeul/admin-web/firebase.ts)
+  - Firebase 앱과 서비스 초기화
+- [src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)
+  - 관리자 로그인, 세션 검증, 매니저 승인 UI
+- [src/appCheck.ts](/D:/BoDeul/admin-web/src/appCheck.ts)
+  - 선택적 App Check 초기화
+- [vite.config.ts](/D:/BoDeul/admin-web/vite.config.ts)
+  - 빌드와 vendor chunk 분리 설정
+
+## 환경 변수
+
+실제 App Check를 웹에 붙일 때만 아래 값을 사용한다.
+
+```env
+VITE_FIREBASE_APPCHECK_SITE_KEY=...
+VITE_FIREBASE_APPCHECK_DEBUG_TOKEN=...
+```
+
+사이트 키가 없으면 관리자 웹은 App Check 초기화를 건너뛴다.
+
+## 검증
+
+```powershell
+npm run lint
+npm run build
+```
+
+## 보안 메모
+
+- 관리자 계정으로만 로그인해야 한다.
+- 목록 화면의 이메일/전화번호는 기본 마스킹된다.
+- 상세 심사 모달에서만 원문을 확인한다.
+- 15분 동안 활동이 없으면 자동 로그아웃된다.
+- 세부 검증 절차는 [관리자 권한 QA 체크리스트](../docs/admin-access-qa-checklist.md)를 따른다.

@@ -1900,3 +1900,43 @@
 ### 남은 범위
 
 - 현재 마스킹은 목록 화면에만 적용했다. 추후 관리자 상세 화면, 리포트 내보내기, 감사 로그까지 같은 기준을 확장할지 결정하면 된다.
+
+## 86. 2026-05-05 프로젝트 문서 인덱스와 오래된 설명 정리
+### 구현
+
+- [document-guide.md](/D:/BoDeul/docs/document-guide.md)를 추가해 문서 우선순위, 시작 순서, 문서 분류, 현재 저장소 구성 요약을 한 곳에 모았다.
+- [README.md](/D:/BoDeul/README.md)의 문서 목록을 현재 구조에 맞게 다시 정리하고, 새로 들어온 작업자가 먼저 볼 순서를 명시했다.
+- [admin-web/README.md](/D:/BoDeul/admin-web/README.md)를 실제 관리자 웹 구조와 현재 기능 기준으로 다시 작성했다.
+- [data-api-draft.md](/D:/BoDeul/docs/data-api-draft.md)에서 이미 구현된 후기 저장소 흐름과 매니저 원본 서류 업로드를 아직 미래 계획처럼 적어둔 문장을 현재형으로 수정했다.
+- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 현재 운영 도구 범위와 시작 흐름을 추가해 문서 역할을 더 분명하게 맞췄다.
+
+### 변경 범위
+
+- `docs/document-guide.md`
+- `README.md`
+- `admin-web/README.md`
+- `docs/data-api-draft.md`
+- `docs/firebase-operations-tools.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 문서 구조는 현재 기준으로 정리됐고, 이후에는 새 기능을 추가할 때 `implementation-status`와 관련 상세 문서를 같은 턴에 함께 갱신하는 규칙만 유지하면 된다.
+
+## 87. 2026-05-05 최신 디자인 레퍼런스 검토 메모 정리
+### 구현
+
+- `design_refs/보들 가이드.zip`의 합본 이미지와 개별 화면 PNG를 현재 실기기 캡처, 관리자 웹 구현과 대조해 [design-reference-review-2026-05-05.md](/D:/BoDeul/docs/design-reference-review-2026-05-05.md)로 정리했다.
+- 이 문서에는 `확정 명세가 아닌 참고 디자인`이라는 전제를 두고, 현재 구현과 맞는 축, 바로 반영 가치가 있는 차이, 지금은 유지하는 것이 맞는 차이를 구분해 적었다.
+- [README.md](/D:/BoDeul/README.md) 문서 목록에도 디자인 검토 메모를 추가해 나중에 화면 polish 작업을 할 때 바로 찾을 수 있게 맞췄다.
+
+### 변경 범위
+
+- `docs/design-reference-review-2026-05-05.md`
+- `README.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 이 검토는 화면 완성도 보강 우선순위를 정리한 단계다.
+- 실제 적용은 `Firebase 연동 모드` 표시 축소, 권한 안내 polish, 매니저 서류 업로드 카드 정리 같은 항목부터 순차적으로 들어가면 된다.
