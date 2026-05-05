@@ -11,7 +11,7 @@ const {
   listStorageObjects,
 } = require("./lib/firebase-toolkit");
 
-const DOCUMENT_KEYS = ["idCard", "license", "criminalRecord"];
+const DOCUMENT_KEYS = ["idCard", "license", "healthCertificate", "criminalRecord"];
 const STORAGE_PREFIX = "manager-documents/";
 
 async function main() {
@@ -138,6 +138,7 @@ async function loadManagerDocuments(context) {
       legacyPaths: {
         idCard: sanitizeText(data.managerIdCardStoragePath),
         license: sanitizeText(data.managerLicenseStoragePath),
+        healthCertificate: "",
         criminalRecord: sanitizeText(data.managerCriminalRecordStoragePath),
       },
     });

@@ -105,15 +105,35 @@ public final class ManagerProfileCoordinator {
                 context.getString(R.string.manager_profile_document_type_id_card),
                 profile.getDocumentFile(ManagerDocumentFileType.ID_CARD)
         ));
-        cards.add(createDocumentFileCard(
-                context.getString(R.string.manager_profile_document_type_license),
-                profile.getDocumentFile(ManagerDocumentFileType.LICENSE)
-        ));
+        cards.add(createCombinedLicenseFileCard(profile));
         cards.add(createDocumentFileCard(
                 context.getString(R.string.manager_profile_document_type_criminal_record),
                 profile.getDocumentFile(ManagerDocumentFileType.CRIMINAL_RECORD)
         ));
         return cards;
+    }
+
+    private ManagerDocumentFileCardModel createCombinedLicenseFileCard(ManagerHomeProfile profile) {
+        ManagerDocumentFileMetadata nursingMetadata = profile.getDocumentFile(ManagerDocumentFileType.HEALTH_CERTIFICATE);
+        if (nursingMetadata != null && !nursingMetadata.isEmpty()) {
+            return createDocumentFileCard(
+                    context.getString(R.string.manager_document_registration_document_nursing_license),
+                    nursingMetadata
+            );
+        }
+
+        ManagerDocumentFileMetadata elderlyCareMetadata = profile.getDocumentFile(ManagerDocumentFileType.LICENSE);
+        if (elderlyCareMetadata != null && !elderlyCareMetadata.isEmpty()) {
+            return createDocumentFileCard(
+                    context.getString(R.string.manager_document_registration_document_elderly_care_license),
+                    elderlyCareMetadata
+            );
+        }
+
+        return createDocumentFileCard(
+                context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license),
+                null
+        );
     }
 
     private ManagerDocumentFileCardModel createDocumentFileCard(

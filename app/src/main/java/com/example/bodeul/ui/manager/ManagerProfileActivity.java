@@ -177,23 +177,48 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
 
         CharSequence[] items = new CharSequence[]{
                 getString(R.string.manager_profile_document_type_id_card),
-                getString(R.string.manager_profile_document_type_license),
+                getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license),
                 getString(R.string.manager_profile_document_type_criminal_record)
-        };
-        ManagerDocumentFileType[] fileTypes = new ManagerDocumentFileType[]{
-                ManagerDocumentFileType.ID_CARD,
-                ManagerDocumentFileType.LICENSE,
-                ManagerDocumentFileType.CRIMINAL_RECORD
         };
 
         new AlertDialog.Builder(this)
                 .setTitle(R.string.manager_profile_document_upload_title)
                 .setItems(items, (dialog, which) -> {
-                    pendingDocumentFileType = fileTypes[which];
-                    documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
+                    if (which == 1) {
+                        openLicenseTypeSelector();
+                        return;
+                    }
+                    pendingDocumentFileType = which == 0
+                            ? ManagerDocumentFileType.ID_CARD
+                            : ManagerDocumentFileType.CRIMINAL_RECORD;
+                    openDocumentPicker();
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    private void openLicenseTypeSelector() {
+        String[] options = new String[]{
+                getString(R.string.manager_document_registration_document_nursing_license),
+                getString(R.string.manager_document_registration_document_elderly_care_license)
+        };
+        ManagerDocumentFileType[] fileTypes = new ManagerDocumentFileType[]{
+                ManagerDocumentFileType.HEALTH_CERTIFICATE,
+                ManagerDocumentFileType.LICENSE
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.manager_document_registration_document_nursing_or_elderly_care_license)
+                .setItems(options, (dialog, which) -> {
+                    pendingDocumentFileType = fileTypes[which];
+                    openDocumentPicker();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void openDocumentPicker() {
+        documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
     }
 
     private void handleDocumentPicked(@Nullable Uri fileUri) {
@@ -418,7 +443,10 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
             return getString(R.string.manager_profile_document_type_id_card);
         }
         if (fileType == ManagerDocumentFileType.LICENSE) {
-            return getString(R.string.manager_profile_document_type_license);
+            return getString(R.string.manager_document_registration_document_elderly_care_license);
+        }
+        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+            return getString(R.string.manager_document_registration_document_nursing_license);
         }
         return getString(R.string.manager_profile_document_type_criminal_record);
     }

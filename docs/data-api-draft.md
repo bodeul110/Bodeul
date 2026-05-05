@@ -593,9 +593,10 @@
   - `managerDocumentFiles.idCard.contentType`
   - `managerDocumentFiles.idCard.uploadedAt`
   - `managerDocumentFiles.license.*`
+  - `managerDocumentFiles.healthCertificate.*`
   - `managerDocumentFiles.criminalRecord.*`
 - 관리자 웹은 `managerDocumentFiles`가 있으면 해당 `fullPath`를 우선 읽고, 없으면 `manager-documents/{managerUserId}/{documentKey}/{fileName}` Storage 폴더를 탐색한다.
-- 현재 관리자 웹에서 사용하는 `documentKey` 값은 `idCard`, `license`, `criminalRecord` 세 가지다.
+- 현재 관리자 웹은 `idCard`, `criminalRecord`를 그대로 사용하고, `자격증` 슬롯에서는 `license`, `healthCertificate`를 함께 해석한다.
 - 현재 매니저 앱은 실제 Storage 업로드 후 같은 `users/{uid}` 문서에 `managerDocumentFiles` 메타데이터를 함께 저장한다.
 ### 2026-05-04 매니저 앱 서류 업로드 반영 메모
 

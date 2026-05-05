@@ -106,7 +106,7 @@
 - [storage.rules](/D:/BoDeul/storage.rules)에서 경로는 `manager-documents/{managerUserId}/{documentKey}/{fileName}`로 제한돼 있다.
 - 읽기 권한은 `ADMIN` 전체 또는 `본인 MANAGER`로 제한돼 있다.
 - 이번 최신화에서 업로드 제약도 추가했다.
-  - 허용 문서 키: `idCard`, `license`, `criminalRecord`
+  - 허용 문서 키: `idCard`, `license`, `healthCertificate`, `criminalRecord`
   - 허용 MIME: `application/pdf`, `image/*`
   - 허용 최대 크기: `10MB`
 - [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)와 정리 흐름으로 메타데이터-실객체 불일치와 고아 파일도 점검 가능하다.

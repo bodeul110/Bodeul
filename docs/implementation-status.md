@@ -2106,3 +2106,26 @@
 ### 남은 범위
 
 - 관리자 웹은 여전히 `자격증`을 단일 카드로 보여주므로, 간호사/요양보호사 자격증을 동시에 올렸을 때 두 파일을 모두 노출하는 UI는 아직 없습니다.
+
+## 95. 2026-05-05 건강 자격증 점검과 매니저 내 페이지 업로드 통합
+
+### 구현
+
+- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)에서 `healthCertificate`를 점검 대상 문서 키에 포함해, 간호사 자격증 파일이 고아 파일로 잘못 분류되지 않도록 보정했다.
+- [ManagerProfileActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 기존 내 페이지 업로드 경로를 새 서류 등록 규칙과 맞췄다. `자격증`을 누르면 `간호사 자격증`과 `요양보호사 자격증`을 한 번 더 고르게 하고, 선택 결과에 따라 `HEALTH_CERTIFICATE` 또는 `LICENSE`로 업로드한다.
+- [ManagerProfileCoordinator.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java)에서 원본 파일 카드도 새 규칙을 반영해 `간호사 자격증` 또는 `요양보호사 자격증` 중 실제 업로드된 파일을 우선 보여주도록 정리했다.
+- [data-api-draft.md](/D:/BoDeul/docs/data-api-draft.md), [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 `healthCertificate`를 현재 운영 기준 문서 키로 반영했다.
+
+### 변경 범위
+
+- `tools/firebase/check-manager-document-storage.js`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java`
+- `docs/data-api-draft.md`
+- `docs/security-review-2026-04-29.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 관리자 웹은 여전히 `자격증`을 단일 슬롯으로 보여준다. 간호사 자격증과 요양보호사 자격증을 동시에 보관할 때 둘을 별도 카드로 분리해 보여줄지는 이후 운영 UX 결정이 필요하다.
+- `tools/firebase` 점검 명령은 계속 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 설정이 있어야 실계정 검증까지 수행할 수 있다.
