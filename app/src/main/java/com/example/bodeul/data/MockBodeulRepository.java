@@ -532,6 +532,39 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized ManagerHomeProfile saveManagerDocumentDraftFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata
+    ) {
+        User manager = findUserById(managerUserId);
+        if (manager == null
+                || manager.getRole() != UserRole.MANAGER
+                || documentFileMetadata == null
+                || documentFileMetadata.isEmpty()) {
+            return null;
+        }
+
+        Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileMap =
+                managerDocumentFilesByUserId.get(managerUserId);
+        if (fileMap == null) {
+            fileMap = new HashMap<>();
+            managerDocumentFilesByUserId.put(managerUserId, fileMap);
+        }
+        fileMap.put(documentFileMetadata.getFileType(), documentFileMetadata);
+        managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.NOT_SUBMITTED);
+        managerDocumentUpdatedAtByUserId.put(
+                managerUserId,
+                documentFileMetadata.getUploadedAtMillis() > 0L
+                        ? documentFileMetadata.getUploadedAtMillis()
+                        : System.currentTimeMillis()
+        );
+        managerDocumentReviewNotesByUserId.remove(managerUserId);
+        managerDocumentReviewedAtByUserId.remove(managerUserId);
+        managerDocumentReviewedByNameByUserId.remove(managerUserId);
+        return getManagerHomeProfile(managerUserId);
+    }
+
+    @Nullable
     public synchronized ManagerHomeProfile saveManagerAvailabilitySummary(String managerUserId, String availabilitySummary) {
         User manager = findUserById(managerUserId);
         if (manager == null || manager.getRole() != UserRole.MANAGER) {

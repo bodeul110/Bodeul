@@ -65,7 +65,23 @@ public final class ManagerHomePresentationFormatter {
 
         StringBuilder builder = new StringBuilder();
         appendDocumentFileLine(builder, ManagerDocumentFileType.ID_CARD, profile.getDocumentFile(ManagerDocumentFileType.ID_CARD));
-        appendDocumentFileLine(builder, ManagerDocumentFileType.LICENSE, profile.getDocumentFile(ManagerDocumentFileType.LICENSE));
+        
+        // Handle combined license for summary
+        ManagerDocumentFileMetadata licenseMetadata = profile.getDocumentFile(ManagerDocumentFileType.LICENSE);
+        ManagerDocumentFileMetadata nursingMetadata = profile.getDocumentFile(ManagerDocumentFileType.HEALTH_CERTIFICATE);
+        
+        boolean licenseUploaded = licenseMetadata != null && !licenseMetadata.isEmpty();
+        boolean nursingUploaded = nursingMetadata != null && !nursingMetadata.isEmpty();
+        
+        if (licenseUploaded || nursingUploaded) {
+            ManagerDocumentFileMetadata activeMetadata = nursingUploaded ? nursingMetadata : licenseMetadata;
+            String label = context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license);
+            appendDocumentFileLine(builder, label, activeMetadata);
+        } else {
+            String label = context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license);
+            builder.append(context.getString(R.string.manager_profile_document_file_missing, label));
+        }
+
         appendDocumentFileLine(
                 builder,
                 ManagerDocumentFileType.CRIMINAL_RECORD,
@@ -163,11 +179,18 @@ public final class ManagerHomePresentationFormatter {
             ManagerDocumentFileType fileType,
             ManagerDocumentFileMetadata documentFile
     ) {
+        appendDocumentFileLine(builder, toDocumentFileLabel(fileType), documentFile);
+    }
+
+    private void appendDocumentFileLine(
+            StringBuilder builder,
+            String label,
+            ManagerDocumentFileMetadata documentFile
+    ) {
         if (builder.length() > 0) {
             builder.append('\n');
         }
 
-        String label = toDocumentFileLabel(fileType);
         if (documentFile == null || documentFile.isEmpty()) {
             builder.append(context.getString(R.string.manager_profile_document_file_missing, label));
             return;

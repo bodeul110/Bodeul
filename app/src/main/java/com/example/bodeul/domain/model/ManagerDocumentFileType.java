@@ -6,7 +6,10 @@ package com.example.bodeul.domain.model;
 public enum ManagerDocumentFileType {
     ID_CARD("idCard"),
     LICENSE("license"),
-    CRIMINAL_RECORD("criminalRecord");
+    CRIMINAL_RECORD("criminalRecord"),
+    HEALTH_CERTIFICATE("healthCertificate"),
+    RESIDENT_REGISTRATION("residentRegistration"),
+    BANKBOOK_COPY("bankbookCopy");
 
     private final String storageKey;
 

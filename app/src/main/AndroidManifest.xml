@@ -38,6 +38,9 @@
             android:name=".ui.manager.ManagerSupportActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.manager.ManagerDocumentRegistrationActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.manager.ManagerProfileActivity"
             android:exported="false" />
         <activity
