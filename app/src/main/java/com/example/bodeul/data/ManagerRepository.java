@@ -61,6 +61,13 @@ public interface ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     );
 
+    // 서류 등록 전용 화면에서 심사 요청 전 단계의 원본 파일 초안을 저장한다.
+    void saveManagerDocumentDraftFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata,
+            RepositoryCallback<ManagerHomeProfile> callback
+    );
+
     // 내 페이지에서 활동 가능 일정 요약을 저장한다.
     void saveManagerAvailabilitySummary(
             String managerUserId,

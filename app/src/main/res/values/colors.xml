@@ -21,5 +21,9 @@
     <color name="bodeul_soft_purple">#E9E4FF</color>
     <color name="bodeul_error">#D95C4E</color>
     <color name="bodeul_soft_red">#FDE2DE</color>
+    <color name="bodeul_dark_background">#0A0B0F</color>
+    <color name="bodeul_dark_text_muted">#7D8498</color>
+    <color name="bodeul_light_card">#F3F4F6</color>
+    <color name="bodeul_dark_button_outline">#314878</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

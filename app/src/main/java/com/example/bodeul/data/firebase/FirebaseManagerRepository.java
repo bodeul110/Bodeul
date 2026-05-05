@@ -403,8 +403,12 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
                             documentFileMetadata.getFullPath()
                     );
-                    updates.put(resolveLegacyDocumentStoragePathKey(documentFileMetadata.getFileType()),
-                            documentFileMetadata.getFullPath());
+                    String legacyPathKey = resolveLegacyDocumentStoragePathKey(
+                            documentFileMetadata.getFileType()
+                    );
+                    if (legacyPathKey != null) {
+                        updates.put(legacyPathKey, documentFileMetadata.getFullPath());
+                    }
                     updates.put("managerDocumentStatus", ManagerDocumentStatus.PENDING_REVIEW.name());
                     updates.put("managerDocumentReviewNote", "");
                     updates.put("managerDocumentReviewedByName", "");
@@ -420,6 +424,48 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
+    }
+
+    @Override
+    public void saveManagerDocumentDraftFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
+            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
+            return;
+        }
+
+        long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
+                ? documentFileMetadata.getUploadedAtMillis()
+                : System.currentTimeMillis();
+        Map<String, Object> updates = new HashMap<>();
+        String fileKeyPrefix = "managerDocumentFiles." + documentFileMetadata.getFileType().getStorageKey();
+        updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
+        updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
+        updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
+        updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
+        updates.put(
+                "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
+                documentFileMetadata.getFullPath()
+        );
+        String legacyPathKey = resolveLegacyDocumentStoragePathKey(documentFileMetadata.getFileType());
+        if (legacyPathKey != null) {
+            updates.put(legacyPathKey, documentFileMetadata.getFullPath());
+        }
+        updates.put("managerDocumentStatus", ManagerDocumentStatus.NOT_SUBMITTED.name());
+        updates.put("managerDocumentReviewNote", "");
+        updates.put("managerDocumentReviewedByName", "");
+        updates.put("managerDocumentReviewedAt", FieldValue.delete());
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+
+        firestore.collection("users")
+                .document(managerUserId)
+                .update(updates)
+                .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                .addOnFailureListener(exception ->
+                        callback.onError("원본 서류 파일 초안을 저장하지 못했습니다."));
     }
 
     @Override
@@ -828,9 +874,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
             if (fileByType.containsKey(fileType)) {
                 continue;
             }
+            String legacyPathKey = resolveLegacyDocumentStoragePathKey(fileType);
+            if (legacyPathKey == null) {
+                continue;
+            }
             ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadataFromPath(
                     fileType,
-                    documentSnapshot.getString(resolveLegacyDocumentStoragePathKey(fileType))
+                    documentSnapshot.getString(legacyPathKey)
             );
             if (metadata != null) {
                 fileByType.put(fileType, metadata);
@@ -1212,6 +1262,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
         );
     }
 
+    @Nullable
     private String resolveLegacyDocumentStoragePathKey(ManagerDocumentFileType fileType) {
         if (fileType == ManagerDocumentFileType.ID_CARD) {
             return "managerIdCardStoragePath";
@@ -1219,7 +1270,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
         if (fileType == ManagerDocumentFileType.LICENSE) {
             return "managerLicenseStoragePath";
         }
-        return "managerCriminalRecordStoragePath";
+        if (fileType == ManagerDocumentFileType.CRIMINAL_RECORD) {
+            return "managerCriminalRecordStoragePath";
+        }
+        return null;
     }
 
     private String resolveFileNameFromPath(String fullPath) {
