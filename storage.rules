@@ -32,6 +32,7 @@ service firebase.storage {
     function isAllowedDocumentKey(documentKey) {
       return documentKey == 'idCard'
           || documentKey == 'license'
+          || documentKey == 'healthCertificate'
           || documentKey == 'criminalRecord';
     }
 

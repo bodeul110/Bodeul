@@ -389,7 +389,8 @@ npm run seed:manager-docs:apply
 
 - 관리자 웹은 Firebase Storage 버킷 `bodeul-dev.firebasestorage.app`을 사용한다.
 - 서류 원본 기본 경로 규약은 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 이다.
-- `documentKey`는 `idCard`, `license`, `criminalRecord` 세 가지를 사용한다.
+- `documentKey`는 `idCard`, `license`, `healthCertificate`, `criminalRecord`를 사용한다.
+- 관리자 웹은 `license`와 `healthCertificate`를 모두 `자격증` 슬롯으로 묶어서 읽는다.
 - [storage.rules](/D:/BoDeul/storage.rules) 기준 권한은 아래와 같다.
   - 관리자(`ADMIN`): 모든 매니저 서류 읽기 가능
   - 매니저 본인: 본인 경로 읽기/쓰기 가능

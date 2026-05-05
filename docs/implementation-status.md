@@ -2085,3 +2085,24 @@
 ### 남은 범위
 
 - 없음
+
+## 94. 2026-05-05 간호사 자격증 Storage 규칙과 관리자 웹 연동 보정
+
+### 구현
+
+- [storage.rules](/D:/BoDeul/storage.rules)에 `healthCertificate` 키를 추가해 간호사 자격증 파일도 실제 Firebase Storage 업로드 허용 대상에 포함했습니다.
+- [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)에서 관리자 웹의 `자격증` 슬롯이 `license`뿐 아니라 `healthCertificate` 메타데이터와 Storage 폴더도 함께 읽도록 보정했습니다.
+- 관리자 웹의 Storage 콘솔 링크와 경로 안내도 실제 메타데이터 경로나 `license / healthCertificate` 대체 경로를 기준으로 보이게 맞췄습니다.
+- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)와 [manager-document-registration-2026-05-05.md](/D:/BoDeul/docs/manager-document-registration-2026-05-05.md)에 연동 상태를 반영했습니다.
+
+### 변경 범위
+
+- `admin-web/src/App.tsx`
+- `storage.rules`
+- `docs/firebase-setup.md`
+- `docs/implementation-status.md`
+- `docs/manager-document-registration-2026-05-05.md`
+
+### 남은 범위
+
+- 관리자 웹은 여전히 `자격증`을 단일 카드로 보여주므로, 간호사/요양보호사 자격증을 동시에 올렸을 때 두 파일을 모두 노출하는 UI는 아직 없습니다.

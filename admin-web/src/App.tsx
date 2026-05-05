@@ -32,6 +32,7 @@ type AdminSessionResult = {
 };
 
 type ManagerDocumentKey = "idCard" | "license" | "criminalRecord";
+type ManagerDocumentStorageKey = ManagerDocumentKey | "healthCertificate";
 type ChecklistStatus = "미확인" | "확인 완료";
 type ManagerStatus = "대기" | "검토중" | "승인됨" | "반려";
 type ReviewStatus = "APPROVED" | "REJECTED";
@@ -79,6 +80,12 @@ const DOCUMENT_LABEL_MAP: Record<ManagerDocumentKey, string> = {
   idCard: "신분증",
   license: "자격증",
   criminalRecord: "범죄경력 조회",
+};
+
+const DOCUMENT_STORAGE_KEY_CANDIDATES: Record<ManagerDocumentKey, ManagerDocumentStorageKey[]> = {
+  idCard: ["idCard"],
+  license: ["license", "healthCertificate"],
+  criminalRecord: ["criminalRecord"],
 };
 
 const ADMIN_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
@@ -256,7 +263,9 @@ function parseManagerDocumentFiles(data: DocumentData): Partial<Record<ManagerDo
   const metadataMap = data.managerDocumentFiles;
   if (metadataMap && typeof metadataMap === "object" && !Array.isArray(metadataMap)) {
     for (const key of Object.keys(DOCUMENT_LABEL_MAP) as ManagerDocumentKey[]) {
-      const parsed = parseStoredDocumentFile((metadataMap as Record<string, unknown>)[key]);
+      const parsed = DOCUMENT_STORAGE_KEY_CANDIDATES[key]
+        .map((storageKey) => parseStoredDocumentFile((metadataMap as Record<string, unknown>)[storageKey]))
+        .find((value) => value !== null);
       if (parsed) {
         files[key] = parsed;
       }
@@ -269,7 +278,9 @@ function parseManagerDocumentFiles(data: DocumentData): Partial<Record<ManagerDo
       if (files[key]) {
         continue;
       }
-      const parsed = parseStoredDocumentFile((pathMap as Record<string, unknown>)[key]);
+      const parsed = DOCUMENT_STORAGE_KEY_CANDIDATES[key]
+        .map((storageKey) => parseStoredDocumentFile((pathMap as Record<string, unknown>)[storageKey]))
+        .find((value) => value !== null);
       if (parsed) {
         files[key] = parsed;
       }
@@ -286,6 +297,9 @@ function parseManagerDocumentFiles(data: DocumentData): Partial<Record<ManagerDo
       data.managerLicenseFilePath,
       data.licenseFilePath,
       data.managerLicenseStoragePath,
+      data.managerHealthCertificateFilePath,
+      data.healthCertificateFilePath,
+      data.managerHealthCertificateStoragePath,
     ],
     criminalRecord: [
       data.managerCriminalRecordFilePath,
@@ -323,12 +337,20 @@ function toManager(snapshotData: DocumentData, id: string): Manager {
   };
 }
 
-function getDocumentFolderPath(managerId: string, documentKey: ManagerDocumentKey): string {
-  return `manager-documents/${managerId}/${documentKey}`;
+function getDocumentFolderPaths(managerId: string, documentKey: ManagerDocumentKey): string[] {
+  return DOCUMENT_STORAGE_KEY_CANDIDATES[documentKey].map(
+    (storageKey) => `manager-documents/${managerId}/${storageKey}`,
+  );
 }
 
-function getFirebaseStorageConsoleFolderUrl(managerId: string, documentKey: ManagerDocumentKey): string {
-  const folderPath = getDocumentFolderPath(managerId, documentKey);
+function getFirebaseStorageConsoleFolderUrl(
+  managerId: string,
+  documentKey: ManagerDocumentKey,
+  explicitPath?: string,
+): string {
+  const folderPath = explicitPath && explicitPath.includes("/")
+    ? explicitPath.split("/").slice(0, -1).join("/")
+    : getDocumentFolderPaths(managerId, documentKey)[0];
   return `https://console.firebase.google.com/project/${firebaseConfig.projectId}/storage/${firebaseConfig.storageBucket}/files/~2F${encodeURIComponent(folderPath).replace(/%2F/g, "~2F")}`;
 }
 
@@ -375,17 +397,24 @@ async function buildPreviewFromFolder(
   managerId: string,
   documentKey: ManagerDocumentKey,
 ): Promise<DocumentPreview> {
-  const folderPath = getDocumentFolderPath(managerId, documentKey);
-  const folderRef = ref(storage, folderPath);
-  const listResult = await listAll(folderRef);
+  const folderPaths = getDocumentFolderPaths(managerId, documentKey);
+  const listResults = await Promise.all(folderPaths.map(async (folderPath) => {
+    const folderRef = ref(storage, folderPath);
+    const listResult = await listAll(folderRef);
+    return {
+      folderPath,
+      items: listResult.items,
+    };
+  }));
+  const allItems = listResults.flatMap((result) => result.items);
 
-  if (!listResult.items.length) {
+  if (!allItems.length) {
     return createPreview("missing", {
-      message: `${DOCUMENT_LABEL_MAP[documentKey]} 파일이 아직 업로드되지 않았습니다. ${folderPath}/ 아래에 파일을 올리면 관리자 웹에서 바로 확인할 수 있습니다.`,
+      message: `${DOCUMENT_LABEL_MAP[documentKey]} 파일이 아직 업로드되지 않았습니다. ${folderPaths.join(", ")} 경로를 확인해주세요.`,
     });
   }
 
-  const itemsWithMetadata = await Promise.all(listResult.items.map(async (item) => ({
+  const itemsWithMetadata = await Promise.all(allItems.map(async (item) => ({
     item,
     metadata: await getMetadata(item),
   })));
@@ -415,9 +444,9 @@ function resolveStorageErrorMessage(
 
   if (errorCode === "storage/object-not-found") {
     if (explicitPath) {
-      return `저장된 경로(${explicitPath})에 파일이 없습니다. 기본 경로 ${getDocumentFolderPath(managerId, documentKey)}/도 함께 확인해주세요.`;
+      return `저장된 경로(${explicitPath})에 파일이 없습니다. 기본 경로 ${getDocumentFolderPaths(managerId, documentKey).join(", ")}도 함께 확인해주세요.`;
     }
-    return `${DOCUMENT_LABEL_MAP[documentKey]} 파일을 찾지 못했습니다. ${getDocumentFolderPath(managerId, documentKey)}/ 경로를 확인해주세요.`;
+    return `${DOCUMENT_LABEL_MAP[documentKey]} 파일을 찾지 못했습니다. ${getDocumentFolderPaths(managerId, documentKey).join(", ")} 경로를 확인해주세요.`;
   }
 
   return `${DOCUMENT_LABEL_MAP[documentKey]} 파일을 읽지 못했습니다. Storage 경로와 권한을 확인해주세요.`;
@@ -933,7 +962,7 @@ function ManagerApproval({
                     <div>
                       <h3 className="text-base font-semibold text-gray-900">{DOCUMENT_LABEL_MAP[activeDoc]} 원본</h3>
                       <p className="mt-1 text-xs text-gray-500">
-                        경로 규약: <span className="font-mono">{getDocumentFolderPath(selectedManager.id, activeDoc)}/파일명</span>
+                        경로 규약: <span className="font-mono">{getDocumentFolderPaths(selectedManager.id, activeDoc).join(" 또는 ")}/파일명</span>
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -941,7 +970,7 @@ function ManagerApproval({
                         {previewBadgeLabel[activePreview.status]}
                       </span>
                       <a
-                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc)}
+                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc, activePreview.fullPath)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
@@ -961,7 +990,7 @@ function ManagerApproval({
                     <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                       <p>{activePreview.message}</p>
                       <a
-                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc)}
+                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc, activePreview.fullPath)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-100"
