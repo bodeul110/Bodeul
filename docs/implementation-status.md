@@ -2065,3 +2065,23 @@
 
 - 기획측 내부 테스트가 실제로 시작되면 자주 나온 질문이나 실패 사례를 `internal-test-guide.md`에 FAQ 형태로 계속 누적하면 됩니다.
 - Firebase 운영 도구를 직접 돌릴 개발자 PC에는 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수를 별도로 맞춰야 합니다.
+
+## 93. 2026-05-05 매니저 서류 등록 간호사/요양보호사 자격증 통합
+
+### 구현
+
+- 서류 등록 페이지에서 `간호사 자격증`과 `요양보호사 자격증`을 하나의 `간호사/요양보호사 자격증` 항목으로 통합했다.
+- 필수 서류 체크 로직을 수정하여 두 자격증 중 하나만 업로드해도 `검토 요청`이 가능하도록 변경했다.
+- 통합된 항목의 업로드 버튼 클릭 시, 업로드할 자격증 종류를 선택할 수 있는 다이얼로그를 추가했다.
+- 매니저 홈의 서류 요약 정보에서도 통합된 항목명으로 표시되도록 `ManagerHomePresentationFormatter`를 업데이트했다.
+- `ManagerDocumentRegistrationItemModel`의 필드명과 Getter 메서드 불일치로 인한 컴파일 에러를 수정했다.
+
+### 변경 범위
+
+- `ui/manager`: `ManagerDocumentRegistrationActivity`, `ManagerDocumentRegistrationCoordinator`, `ManagerDocumentRegistrationBinder`, `ManagerDocumentRegistrationItemModel`, `ManagerHomePresentationFormatter`
+- `values`: `strings.xml`
+- `docs`: `implementation-status.md`
+
+### 남은 범위
+
+- 없음
