@@ -185,6 +185,23 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void saveManagerDocumentDraftFileMetadata(
+            String managerUserId,
+            ManagerDocumentFileMetadata documentFileMetadata,
+            RepositoryCallback<ManagerHomeProfile> callback
+    ) {
+        ManagerHomeProfile profile = repository.saveManagerDocumentDraftFileMetadata(
+                managerUserId,
+                documentFileMetadata
+        );
+        if (profile == null) {
+            callback.onError("원본 서류 파일 초안을 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(profile);
+    }
+
+    @Override
     public void saveManagerAvailabilitySummary(
             String managerUserId,
             String availabilitySummary,

@@ -265,7 +265,7 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
     public void onQuickActionSelected(ManagerHomeActionType actionType) {
         switch (actionType) {
             case DOCUMENT:
-                openQuickActionDialog(ManagerQuickNoteType.DOCUMENT);
+                openDocumentRegistration();
                 return;
             case SCHEDULE:
                 openQuickActionDialog(ManagerQuickNoteType.SCHEDULE);
@@ -277,6 +277,14 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
             default:
                 openSupportScreen();
         }
+    }
+
+    private void openDocumentRegistration() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        startActivity(ManagerDocumentRegistrationActivity.createIntent(this));
     }
 
     private void openQuickActionDialog(ManagerQuickNoteType actionType) {
