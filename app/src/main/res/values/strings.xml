@@ -473,7 +473,7 @@
     <string name="guide_progress_title">보들 동행 가이드</string>
     <string name="guide_progress_subtitle">현재 진행 단계와 현장 기록을 한 화면에서 정리합니다.</string>
     <string name="guide_map_section_title">병원 지도 fallback</string>
-    <string name="guide_map_section_helper">지도 API가 완전히 연결되기 전에는 외부 지도 앱이나 병원 안내 링크로 만남 위치와 약국 동선을 확인합니다.</string>
+    <string name="guide_map_section_helper">지도 API가 완전히 연결되기 전에는 카카오맵 앱과 모바일웹을 우선 열고, 필요하면 외부 지도 검색으로 만남 위치와 약국 동선을 확인합니다.</string>
     <string name="guide_map_action_hospital_title">병원 안내도 바로 열기</string>
     <string name="guide_map_action_hospital_body">%1$s %2$s 동선을 먼저 확인하고, 병원 공식 안내도나 지도 검색 결과를 빠르게 엽니다.</string>
     <string name="guide_map_action_hospital_button">병원 지도 열기</string>
@@ -1147,7 +1147,7 @@
     <string name="booking_live_location_section_status">현재 공유 상태</string>
     <string name="booking_live_location_section_memo">현장 메모</string>
     <string name="booking_live_location_section_map">지도 fallback</string>
-    <string name="booking_live_location_section_map_helper">실시간 GPS 지도가 완전히 연결되기 전에는 현재 메모와 예약 위치를 기준으로 외부 지도 앱에서 길을 확인합니다.</string>
+    <string name="booking_live_location_section_map_helper">실시간 GPS 지도가 완전히 연결되기 전에는 현재 메모와 예약 위치를 기준으로 카카오맵 앱과 모바일웹을 우선 열어 길을 확인합니다.</string>
     <string name="booking_live_location_line_session_status">동행 상태</string>
     <string name="booking_live_location_line_step">현재 단계</string>
     <string name="booking_live_location_line_manager">담당 매니저</string>

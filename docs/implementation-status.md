@@ -2383,3 +2383,25 @@
 ### ?? ??
 - ?? ??? ?? ?? ??? ?????.
 - ?? ?? ?? ??, ?? ??, ??/?? ??, GPS ?? ??? ??? ?? ?? ???.
+
+## 105. 2026-05-22 카카오 지도 fallback 우선화
+
+### 구현
+
+- [KakaoMapExternalLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/util/KakaoMapExternalLauncher.java)를 추가해 외부 지도 fallback 검색을 카카오맵 앱 -> 카카오맵 모바일웹 -> 카카오 지도 웹 링크 -> 일반 지도 검색 순서로 통일했다.
+- [ManagerGuideMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java)와 [BookingLiveLocationMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java)가 공용 카카오 지도 런처를 사용하도록 바꿨다.
+- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)과 [feature-spec-gap-checklist-2026-05-22.md](/D:/BoDeul/docs/feature-spec-gap-checklist-2026-05-22.md)에 지도 fallback이 카카오 기준이라는 점을 반영했다.
+
+### 변경 범위
+
+- pp/src/main/java/com/example/bodeul/util/KakaoMapExternalLauncher.java`r
+- pp/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java`r
+- pp/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java`r
+- pp/src/main/res/values/strings.xml`r
+- docs/feature-spec-gap-checklist-2026-05-22.md`r
+- docs/implementation-status.md`r
+
+### 남은 범위
+
+- 이번 단계는 외부 지도 fallback 우선순위만 카카오 기준으로 맞춘 것이다.
+- 실제 카카오 지도 API 내장 지도, 좌표 기반 마커, 실시간 GPS 스트림 표시는 아직 후속 범위다.
