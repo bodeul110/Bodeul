@@ -122,8 +122,7 @@ public class BookingFollowUpActivity extends AppCompatActivity
         buttonReviewSave.setOnClickListener(view -> saveReviewSelection());
         buttonSettlementConfirm.setOnClickListener(view ->
                 saveSettlementSelection(AppointmentFollowUpSettlementStatus.CONFIRMED));
-        buttonSettlementHelp.setOnClickListener(view ->
-                saveSettlementSelection(AppointmentFollowUpSettlementStatus.NEEDS_HELP));
+        buttonSettlementHelp.setOnClickListener(view -> showSettlementInquiryDialog());
         buttonCallManager.setOnClickListener(view -> {
             recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus.MANAGER_CALLED);
             callManager();
@@ -325,6 +324,32 @@ public class BookingFollowUpActivity extends AppCompatActivity
                     }
                 }
         );
+    }
+
+    private void showSettlementInquiryDialog() {
+        if (currentDetail == null) {
+            return;
+        }
+        final AppointmentFollowUpSettlementStatus[] statuses = new AppointmentFollowUpSettlementStatus[]{
+                AppointmentFollowUpSettlementStatus.OVERTIME_REVIEW,
+                AppointmentFollowUpSettlementStatus.REFUND_REVIEW,
+                AppointmentFollowUpSettlementStatus.NEEDS_HELP
+        };
+        final CharSequence[] labels = new CharSequence[]{
+                getString(R.string.booking_follow_up_settlement_inquiry_overtime),
+                getString(R.string.booking_follow_up_settlement_inquiry_refund),
+                getString(R.string.booking_follow_up_settlement_inquiry_general)
+        };
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.booking_follow_up_settlement_inquiry_dialog_title)
+                .setItems(labels, (dialog, which) -> {
+                    if (which < 0 || which >= statuses.length) {
+                        return;
+                    }
+                    saveSettlementSelection(statuses[which]);
+                })
+                .setNegativeButton(R.string.booking_follow_up_dialog_cancel, null)
+                .show();
     }
 
     private void recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus escalationStatus) {

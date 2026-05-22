@@ -7,7 +7,9 @@ import androidx.annotation.Nullable;
  */
 public enum AppointmentFollowUpSettlementStatus {
     CONFIRMED("CONFIRMED"),
-    NEEDS_HELP("NEEDS_HELP");
+    NEEDS_HELP("NEEDS_HELP"),
+    OVERTIME_REVIEW("OVERTIME_REVIEW"),
+    REFUND_REVIEW("REFUND_REVIEW");
 
     private final String value;
 
@@ -17,6 +19,10 @@ public enum AppointmentFollowUpSettlementStatus {
 
     public String getValue() {
         return value;
+    }
+
+    public boolean requiresAdminFollowUp() {
+        return this != CONFIRMED;
     }
 
     @Nullable

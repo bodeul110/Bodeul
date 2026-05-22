@@ -770,7 +770,7 @@ public final class AdminOperationsCoordinator {
         }
         if (needsSettlementHelp(followUpRecord)) {
             return new AdminOperationBadgeModel(
-                    context.getString(R.string.admin_settlement_priority_help),
+                    resolveSettlementHelpPriorityLabel(followUpRecord),
                     AdminOperationBadgeTone.WARNING
             );
         }
@@ -798,7 +798,9 @@ public final class AdminOperationsCoordinator {
 
     private boolean needsSettlementHelp(AppointmentFollowUpRecord followUpRecord) {
         return followUpRecord != null
-                && followUpRecord.getSettlementStatus() == AppointmentFollowUpSettlementStatus.NEEDS_HELP;
+                && followUpRecord.hasSavedSettlement()
+                && followUpRecord.getSettlementStatus() != null
+                && followUpRecord.getSettlementStatus().requiresAdminFollowUp();
     }
 
     private boolean hasAnySupportEscalation(AppointmentFollowUpRecord followUpRecord) {
@@ -869,7 +871,7 @@ public final class AdminOperationsCoordinator {
         }
         if (needsSettlementHelp(followUpRecord)) {
             return context.getString(
-                    R.string.admin_settlement_card_summary_help,
+                    resolveSettlementHelpSummaryText(followUpRecord),
                     formatter.formatPrice(request.getFinalPrice()),
                     formatter.formatFallbackValue(followUpRecord.getSettlementNote())
             );
@@ -883,6 +885,32 @@ public final class AdminOperationsCoordinator {
                 formatter.formatPaymentMethod(request.getPaymentMethodCode()),
                 adminSummary
         );
+    }
+
+    private String resolveSettlementHelpPriorityLabel(AppointmentFollowUpRecord followUpRecord) {
+        AppointmentFollowUpSettlementStatus status = followUpRecord == null
+                ? null
+                : followUpRecord.getSettlementStatus();
+        if (status == AppointmentFollowUpSettlementStatus.OVERTIME_REVIEW) {
+            return context.getString(R.string.admin_settlement_priority_overtime);
+        }
+        if (status == AppointmentFollowUpSettlementStatus.REFUND_REVIEW) {
+            return context.getString(R.string.admin_settlement_priority_refund);
+        }
+        return context.getString(R.string.admin_settlement_priority_help);
+    }
+
+    private int resolveSettlementHelpSummaryText(AppointmentFollowUpRecord followUpRecord) {
+        AppointmentFollowUpSettlementStatus status = followUpRecord == null
+                ? null
+                : followUpRecord.getSettlementStatus();
+        if (status == AppointmentFollowUpSettlementStatus.OVERTIME_REVIEW) {
+            return R.string.admin_settlement_card_summary_overtime;
+        }
+        if (status == AppointmentFollowUpSettlementStatus.REFUND_REVIEW) {
+            return R.string.admin_settlement_card_summary_refund;
+        }
+        return R.string.admin_settlement_card_summary_help;
     }
 
     private String buildStepValue(CompanionSession session) {

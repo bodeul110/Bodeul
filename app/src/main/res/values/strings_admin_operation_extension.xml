@@ -31,10 +31,14 @@
 
     <string name="admin_settlement_priority_support">SOS 확인 필요</string>
     <string name="admin_settlement_priority_help">정산 문의 필요</string>
+    <string name="admin_settlement_priority_overtime">초과 시간 문의</string>
+    <string name="admin_settlement_priority_refund">환불 문의</string>
     <string name="admin_settlement_priority_recheck">관리자 재확인</string>
     <string name="admin_settlement_priority_pending">관리자 미처리</string>
     <string name="admin_settlement_priority_confirmed">확인 완료</string>
 
     <string name="admin_settlement_card_summary_support">%1$s 건에 사용자 SOS 기록(%2$s)이 있어 우선 확인이 필요합니다.</string>
     <string name="admin_settlement_card_summary_help">%1$s 건에 사용자 정산 문의 메모가 접수되었습니다. %2$s</string>
+    <string name="admin_settlement_card_summary_overtime">%1$s 건에 초과 시간 정산 문의가 접수되었습니다. %2$s</string>
+    <string name="admin_settlement_card_summary_refund">%1$s 건에 환불 또는 할인 문의가 접수되었습니다. %2$s</string>
 </resources>

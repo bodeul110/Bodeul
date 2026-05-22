@@ -63,7 +63,7 @@ public final class BookingFollowUpCoordinator {
                         ? R.string.booking_follow_up_review_action_update
                         : R.string.booking_follow_up_review_action_save),
                 selectedRating != null,
-                createSettlementLines(detail),
+                createSettlementLines(detail, followUpRecord),
                 buildSettlementSavedState(followUpRecord),
                 context.getString(R.string.booking_follow_up_settlement_action_confirm),
                 true,
@@ -163,7 +163,10 @@ public final class BookingFollowUpCoordinator {
         );
     }
 
-    private List<BookingStatusLineItem> createSettlementLines(AppointmentRequestDetail detail) {
+    private List<BookingStatusLineItem> createSettlementLines(
+            AppointmentRequestDetail detail,
+            AppointmentFollowUpRecord followUpRecord
+    ) {
         AppointmentRequest request = detail.getAppointmentRequest();
         SessionReport report = detail.getSessionReport();
         List<BookingStatusLineItem> items = new ArrayList<>();
@@ -211,6 +214,20 @@ public final class BookingFollowUpCoordinator {
                 formatter.buildSettlementNote(request),
                 false
         ));
+        if (followUpRecord.hasSavedSettlement()) {
+            items.add(new BookingStatusLineItem(
+                    context.getString(R.string.booking_follow_up_settlement_line_follow_up_type),
+                    formatter.formatFollowUpSettlementStatus(followUpRecord.getSettlementStatus()),
+                    false
+            ));
+            if (!TextUtils.isEmpty(followUpRecord.getSettlementNote())) {
+                items.add(new BookingStatusLineItem(
+                        context.getString(R.string.booking_follow_up_settlement_line_follow_up_note),
+                        followUpRecord.getSettlementNote(),
+                        false
+                ));
+            }
+        }
         return items;
     }
 

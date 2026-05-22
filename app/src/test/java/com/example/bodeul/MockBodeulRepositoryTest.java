@@ -971,6 +971,75 @@ public class MockBodeulRepositoryTest {
     }
 
     @Test
+    public void bookingRepository_followUpSettlementSupportsOvertimeReviewStatus() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        MockBookingRepository bookingRepository = new MockBookingRepository(repository);
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
+        User manager = repository.registerUser(
+                "follow-up-manager-4",
+                "follow-up-manager-4@bodeul.app",
+                "010-2222-9876",
+                UserRole.MANAGER,
+                "bodeul1234"
+        );
+
+        assertNotNull(patient);
+        assertNotNull(guardian);
+        assertNotNull(manager);
+
+        AppointmentRequest completedRequest = repository.createLinkedAppointmentRequest(
+                patient.getId(),
+                guardian.getId(),
+                "follow-up-hospital-4",
+                "internal",
+                "2026-05-05 09:40",
+                "west-gate",
+                "follow-up-overtime-test"
+        );
+        assertNotNull(completedRequest);
+        assertNotNull(repository.assignManagerToRequest(completedRequest.getId(), manager.getId()));
+        repository.saveSessionReport(
+                manager.getId(),
+                "진료와 수납까지 모두 마무리했습니다.",
+                "추가 처치는 없었습니다.",
+                "기존 복약 일정을 안내했습니다.",
+                "2026-05-12 11:30"
+        );
+        assertEquals(AppointmentStatus.COMPLETED, completedRequest.getStatus());
+
+        AtomicReference<AppointmentFollowUpRecord> settlementRecordRef = new AtomicReference<>();
+        bookingRepository.saveAppointmentFollowUpSettlement(
+                patient,
+                completedRequest.getId(),
+                AppointmentFollowUpSettlementStatus.OVERTIME_REVIEW,
+                "예상보다 대기 시간이 길어 초과 비용 확인이 필요합니다.",
+                new RepositoryCallback<AppointmentFollowUpRecord>() {
+                    @Override
+                    public void onSuccess(AppointmentFollowUpRecord result) {
+                        settlementRecordRef.set(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                    }
+                }
+        );
+
+        assertNotNull(settlementRecordRef.get());
+        assertTrue(settlementRecordRef.get().hasSavedSettlement());
+        assertEquals(
+                AppointmentFollowUpSettlementStatus.OVERTIME_REVIEW,
+                settlementRecordRef.get().getSettlementStatus()
+        );
+        assertTrue(settlementRecordRef.get().getSettlementStatus().requiresAdminFollowUp());
+        assertEquals(
+                "예상보다 대기 시간이 길어 초과 비용 확인이 필요합니다.",
+                settlementRecordRef.get().getSettlementNote()
+        );
+    }
+
+    @Test
     public void adminActionOverview_includesFollowUpRecordWithoutAdminActionWrite() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");

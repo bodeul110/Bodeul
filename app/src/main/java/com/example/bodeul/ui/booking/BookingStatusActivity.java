@@ -220,6 +220,9 @@ public class BookingStatusActivity extends AppCompatActivity {
             case CANCEL:
                 confirmCancelRequest();
                 return;
+            case OPEN_LIVE_TRACKING:
+                openLiveTracking();
+                return;
             case OPEN_REPORT:
                 openGuardianReport();
                 return;
@@ -281,6 +284,16 @@ public class BookingStatusActivity extends AppCompatActivity {
 
     private void openGuardianReport() {
         startActivity(new Intent(this, GuardianReportActivity.class));
+    }
+
+    private void openLiveTracking() {
+        if (currentDetail == null) {
+            return;
+        }
+        startActivity(BookingLiveLocationActivity.createIntent(
+                this,
+                currentDetail.getAppointmentRequest().getId()
+        ));
     }
 
     private void openFollowUp() {

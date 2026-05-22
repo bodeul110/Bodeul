@@ -19,6 +19,7 @@ import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
+import com.example.bodeul.ui.health.HealthInfoActivity;
 import com.example.bodeul.ui.home.ClientHomeCoordinator;
 import com.example.bodeul.ui.home.ClientHomeDashboard;
 import com.example.bodeul.ui.home.ClientHomeDashboardBinder;
@@ -171,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
             openGuardianReport();
             return;
         }
-        openBooking();
+        openHealthInfo();
     }
 
     private void openBooking() {
@@ -191,6 +192,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void openGuardianReport() {
         startActivity(new Intent(this, GuardianReportActivity.class));
+    }
+
+    private void openHealthInfo() {
+        startActivity(HealthInfoActivity.createIntent(this));
     }
 
     private void signOut() {

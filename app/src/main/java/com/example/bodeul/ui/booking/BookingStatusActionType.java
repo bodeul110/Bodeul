@@ -7,6 +7,7 @@ public enum BookingStatusActionType {
     REFRESH,
     EDIT,
     CANCEL,
+    OPEN_LIVE_TRACKING,
     OPEN_REPORT,
     OPEN_FOLLOW_UP,
     OPEN_BOOKING

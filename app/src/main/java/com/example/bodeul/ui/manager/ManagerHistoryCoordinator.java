@@ -138,7 +138,7 @@ public final class ManagerHistoryCoordinator {
             if (record.hasAnySavedAction()) {
                 followUpSavedCount++;
             }
-            if (record.getSettlementStatus() == AppointmentFollowUpSettlementStatus.NEEDS_HELP) {
+            if (needsSettlementHelp(record)) {
                 settlementHelpCount++;
             }
             if (record.hasSavedSupportEscalation()) {
@@ -308,9 +308,9 @@ public final class ManagerHistoryCoordinator {
                     ManagerHistoryBadgeTone.WARNING
             );
         }
-        if (followUpRecord.getSettlementStatus() == AppointmentFollowUpSettlementStatus.NEEDS_HELP) {
+        if (needsSettlementHelp(followUpRecord)) {
             return new ManagerHistoryBadgeModel(
-                    context.getString(R.string.manager_history_badge_settlement_help),
+                    resolveSettlementHelpBadgeLabel(followUpRecord),
                     ManagerHistoryBadgeTone.WARNING
             );
         }
@@ -330,6 +330,23 @@ public final class ManagerHistoryCoordinator {
                 context.getString(R.string.manager_history_badge_follow_up_pending),
                 ManagerHistoryBadgeTone.PRIMARY
         );
+    }
+
+    private boolean needsSettlementHelp(AppointmentFollowUpRecord followUpRecord) {
+        return followUpRecord.hasSavedSettlement()
+                && followUpRecord.getSettlementStatus() != null
+                && followUpRecord.getSettlementStatus().requiresAdminFollowUp();
+    }
+
+    private String resolveSettlementHelpBadgeLabel(AppointmentFollowUpRecord followUpRecord) {
+        AppointmentFollowUpSettlementStatus status = followUpRecord.getSettlementStatus();
+        if (status == AppointmentFollowUpSettlementStatus.OVERTIME_REVIEW) {
+            return context.getString(R.string.manager_history_badge_settlement_overtime);
+        }
+        if (status == AppointmentFollowUpSettlementStatus.REFUND_REVIEW) {
+            return context.getString(R.string.manager_history_badge_settlement_refund);
+        }
+        return context.getString(R.string.manager_history_badge_settlement_help);
     }
 
     private List<ManagerInfoLineItem> createDetailLines(

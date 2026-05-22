@@ -379,15 +379,9 @@ public final class BookingStatusCoordinator {
                         context.getString(R.string.booking_status_action_refresh)
                 );
             case IN_PROGRESS:
-                if (currentUser.getRole() == UserRole.GUARDIAN) {
-                    return new BookingStatusActionModel(
-                            BookingStatusActionType.OPEN_REPORT,
-                            context.getString(R.string.booking_status_action_open_report)
-                    );
-                }
                 return new BookingStatusActionModel(
-                        BookingStatusActionType.REFRESH,
-                        context.getString(R.string.booking_status_action_refresh)
+                        BookingStatusActionType.OPEN_LIVE_TRACKING,
+                        context.getString(R.string.booking_status_action_open_live_tracking)
                 );
             case COMPLETED:
                 return new BookingStatusActionModel(
@@ -413,9 +407,15 @@ public final class BookingStatusCoordinator {
                         context.getString(R.string.booking_status_action_cancel)
                 );
             case IN_PROGRESS:
+                if (currentUser.getRole() == UserRole.GUARDIAN) {
+                    return new BookingStatusActionModel(
+                            BookingStatusActionType.OPEN_REPORT,
+                            context.getString(R.string.booking_status_action_open_report)
+                    );
+                }
                 return new BookingStatusActionModel(
-                        BookingStatusActionType.OPEN_BOOKING,
-                        context.getString(R.string.booking_status_action_open_booking)
+                        BookingStatusActionType.REFRESH,
+                        context.getString(R.string.booking_status_action_refresh)
                 );
             case COMPLETED:
                 if (currentUser.getRole() == UserRole.GUARDIAN) {

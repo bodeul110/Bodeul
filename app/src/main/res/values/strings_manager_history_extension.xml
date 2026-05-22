@@ -13,21 +13,23 @@
 
     <string name="manager_history_metric_completed_label">완료 동행</string>
     <string name="manager_history_metric_completed_value">%1$d건</string>
-    <string name="manager_history_metric_completed_helper">지금까지 완료 처리된 동행 기준입니다.</string>
+    <string name="manager_history_metric_completed_helper">지금까지 완료 처리한 동행 기준입니다.</string>
     <string name="manager_history_metric_follow_up_label">후속 기록률</string>
     <string name="manager_history_metric_follow_up_value">%1$d%%</string>
     <string name="manager_history_metric_follow_up_helper">후기·정산·SOS 중 1개 이상 입력 %1$d/%2$d건</string>
     <string name="manager_history_metric_settlement_label">정산 문의</string>
     <string name="manager_history_metric_settlement_value">%1$d건</string>
-    <string name="manager_history_metric_settlement_helper">정산 후속 확인이 더 필요한 건수입니다.</string>
+    <string name="manager_history_metric_settlement_helper">정산 후속 확인 중 도움이 필요한 건수입니다.</string>
     <string name="manager_history_metric_support_label">SOS 기록</string>
     <string name="manager_history_metric_support_value">%1$d건</string>
-    <string name="manager_history_metric_support_helper">운영 대응이 남을 수 있는 긴급 기록 건수입니다.</string>
+    <string name="manager_history_metric_support_helper">운영 대응이 필요할 수 있는 긴급 기록 건수입니다.</string>
 
     <string name="manager_history_badge_follow_up_pending">후속 미기록</string>
     <string name="manager_history_badge_review_saved">후기 저장</string>
     <string name="manager_history_badge_settlement_saved">정산 확인</string>
     <string name="manager_history_badge_settlement_help">정산 문의</string>
+    <string name="manager_history_badge_settlement_overtime">초과 시간 문의</string>
+    <string name="manager_history_badge_settlement_refund">환불 문의</string>
     <string name="manager_history_badge_support">SOS 기록</string>
 
     <string name="manager_history_activity_format">최근 후속 기록: %1$s · %2$s</string>
@@ -40,5 +42,5 @@
     <string name="manager_history_line_follow_up_settlement">정산 확인</string>
     <string name="manager_history_line_follow_up_note">정산 메모</string>
     <string name="manager_history_line_follow_up_support">SOS 기록</string>
-    <string name="manager_history_follow_up_pending">아직 저장된 후기, 정산, SOS 기록이 없습니다.</string>
+    <string name="manager_history_follow_up_pending">아직 등록한 후기, 정산, SOS 기록이 없습니다.</string>
 </resources>

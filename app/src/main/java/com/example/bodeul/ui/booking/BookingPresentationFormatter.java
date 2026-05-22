@@ -193,10 +193,17 @@ public final class BookingPresentationFormatter {
         if (status == null) {
             return context.getString(R.string.booking_follow_up_status_pending);
         }
-        if (status == AppointmentFollowUpSettlementStatus.CONFIRMED) {
-            return context.getString(R.string.booking_follow_up_settlement_follow_up_confirmed);
+        switch (status) {
+            case CONFIRMED:
+                return context.getString(R.string.booking_follow_up_settlement_follow_up_confirmed);
+            case OVERTIME_REVIEW:
+                return context.getString(R.string.booking_follow_up_settlement_follow_up_overtime_review);
+            case REFUND_REVIEW:
+                return context.getString(R.string.booking_follow_up_settlement_follow_up_refund_review);
+            case NEEDS_HELP:
+            default:
+                return context.getString(R.string.booking_follow_up_settlement_follow_up_needs_help);
         }
-        return context.getString(R.string.booking_follow_up_settlement_follow_up_needs_help);
     }
 
     public String formatFollowUpSupportEscalationStatus(
@@ -251,16 +258,29 @@ public final class BookingPresentationFormatter {
             AppointmentFollowUpSettlementStatus status
     ) {
         String paymentSummary = buildSettlementNote(request);
-        if (status == AppointmentFollowUpSettlementStatus.CONFIRMED) {
-            return context.getString(
-                    R.string.booking_follow_up_settlement_follow_up_note_confirm_format,
-                    paymentSummary
-            );
+        switch (status) {
+            case CONFIRMED:
+                return context.getString(
+                        R.string.booking_follow_up_settlement_follow_up_note_confirm_format,
+                        paymentSummary
+                );
+            case OVERTIME_REVIEW:
+                return context.getString(
+                        R.string.booking_follow_up_settlement_follow_up_note_overtime_format,
+                        paymentSummary
+                );
+            case REFUND_REVIEW:
+                return context.getString(
+                        R.string.booking_follow_up_settlement_follow_up_note_refund_format,
+                        paymentSummary
+                );
+            case NEEDS_HELP:
+            default:
+                return context.getString(
+                        R.string.booking_follow_up_settlement_follow_up_note_help_format,
+                        paymentSummary
+                );
         }
-        return context.getString(
-                R.string.booking_follow_up_settlement_follow_up_note_help_format,
-                paymentSummary
-        );
     }
 
     public String buildSettlementNote(AppointmentRequest request) {
