@@ -318,6 +318,8 @@
     <string name="guardian_report_report_section_title">최종 리포트</string>
     <string name="guardian_report_line_progress">진행 상태</string>
     <string name="guardian_report_line_location">위치 공유 메모</string>
+    <string name="guardian_report_line_live_status">실시간 공유 상태</string>
+    <string name="guardian_report_line_location_history">좌표 변경 이력</string>
     <string name="guardian_report_line_update">최근 공유</string>
     <string name="guardian_report_line_location_updated_at">최근 위치 공유 시각</string>
     <string name="guardian_report_line_photo">현장 사진 메모</string>
@@ -562,6 +564,13 @@
     <string name="guide_share_location_done">현재 위치를 공유했습니다.</string>
     <string name="guide_share_location_error">현재 위치를 확인하지 못했습니다. 실외에서 다시 시도해 주세요.</string>
     <string name="guide_share_location_permission_denied">현재 위치 공유를 위해 위치 권한이 필요합니다.</string>
+    <string name="guide_live_location_start">실시간 공유 시작</string>
+    <string name="guide_live_location_stop">실시간 공유 중지</string>
+    <string name="guide_live_location_started">실시간 위치 공유를 시작했습니다.</string>
+    <string name="guide_live_location_stopped">실시간 위치 공유를 중지했습니다.</string>
+    <string name="guide_live_location_provider_error">실시간 위치 공유를 시작하려면 GPS 또는 네트워크 위치를 켜 주세요.</string>
+    <string name="guide_live_location_status_label">실시간 공유 상태</string>
+    <string name="guide_live_location_history_label">좌표 변경 이력</string>
     <string name="guide_photo_section">현장 사진 및 서류 메모</string>
     <string name="guide_photo_hint">예: 접수표 확인 완료, 검사실 안내문 촬영 메모</string>
     <string name="guide_photo_save">현장 메모 저장</string>
@@ -1130,6 +1139,8 @@
     <string name="admin_monitoring_line_step">현재 단계</string>
     <string name="admin_monitoring_line_guardian_update">보호자 공유</string>
     <string name="admin_monitoring_line_location">위치 공유</string>
+    <string name="admin_monitoring_line_live_status">실시간 공유 상태</string>
+    <string name="admin_monitoring_line_location_history">좌표 변경 이력</string>
     <string name="admin_monitoring_line_field_photo">현장 사진</string>
     <string name="admin_monitoring_line_medication">복약 메모</string>
     <string name="admin_monitoring_line_step_value">%1$d단계 · %2$s</string>
@@ -1171,6 +1182,8 @@
     <string name="booking_live_location_line_schedule">예약 시간</string>
     <string name="booking_live_location_line_meeting_place">만남 위치</string>
     <string name="booking_live_location_line_location">공유 위치 메모</string>
+    <string name="booking_live_location_line_live_status">실시간 공유 상태</string>
+    <string name="booking_live_location_line_location_history">좌표 변경 이력</string>
     <string name="booking_live_location_line_location_updated_at">최근 위치 공유 시각</string>
     <string name="booking_live_location_line_guardian_update">보호자 전달 메모</string>
     <string name="booking_live_location_line_photo_note">현장 사진 메모</string>
@@ -1178,6 +1191,13 @@
     <string name="booking_live_location_line_pharmacy_summary">약국 진행 메모</string>
     <string name="booking_live_location_line_pharmacy_state">약국 단계 상태</string>
     <string name="booking_live_location_value_pending">아직 공유된 내용이 없습니다.</string>
+    <string name="live_location_status_active">실시간 위치를 자동 공유 중입니다.</string>
+    <string name="live_location_status_active_with_time">%1$s부터 실시간 위치를 자동 공유 중입니다.</string>
+    <string name="live_location_status_inactive_with_time">실시간 위치 공유는 중지되었습니다. 마지막 전송 시각은 %1$s입니다.</string>
+    <string name="live_location_status_inactive_empty">아직 실시간 위치 공유를 시작하지 않았습니다.</string>
+    <string name="live_location_history_empty">좌표 변경 이력이 아직 없습니다.</string>
+    <string name="live_location_history_item">%1$s · %2$s</string>
+    <string name="live_location_history_item_coordinate">%1$s · 위도 %2$.5f, 경도 %3$.5f</string>
     <string name="booking_live_location_step_format">%1$d / %2$d 단계 진행 중</string>
     <string name="booking_live_location_step_simple_format">%1$d단계 진행 중</string>
     <string name="booking_live_location_action_open_booking_status">예약 상세로 돌아가기</string>

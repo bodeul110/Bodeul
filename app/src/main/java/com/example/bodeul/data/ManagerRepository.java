@@ -36,6 +36,12 @@ public interface ManagerRepository {
             RepositoryCallback<ManagerDashboard> callback
     );
 
+    void updateLiveLocationSharingState(
+            String managerUserId,
+            boolean active,
+            RepositoryCallback<ManagerDashboard> callback
+    );
+
     void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback);
 
     void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback);

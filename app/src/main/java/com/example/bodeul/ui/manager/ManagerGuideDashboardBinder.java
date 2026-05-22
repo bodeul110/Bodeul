@@ -35,6 +35,8 @@ public final class ManagerGuideDashboardBinder {
     private final TextView textGuideFocusPreviewLabel;
     private final TextView textGuideFocusPreviewBody;
     private final View viewGuideFocusPreview;
+    private final TextView textGuideLiveLocationStatus;
+    private final TextView textGuideLiveLocationHistory;
     private final TextInputEditText inputGuideLocationSummary;
     private final TextInputEditText inputGuardianUpdate;
     private final TextInputEditText inputGuidePhotoNote;
@@ -46,6 +48,8 @@ public final class ManagerGuideDashboardBinder {
     private final MaterialButton buttonAdvanceGuide;
     private final MaterialButton buttonSaveLocationSummary;
     private final MaterialButton buttonShareCurrentLocation;
+    private final MaterialButton buttonStartLiveLocationSharing;
+    private final MaterialButton buttonStopLiveLocationSharing;
     private final MaterialButton buttonSaveGuardianUpdate;
     private final MaterialButton buttonSaveGuidePhotoNote;
     private final MaterialButton buttonSaveMedicationNote;
@@ -72,6 +76,8 @@ public final class ManagerGuideDashboardBinder {
             TextView textGuideFocusPreviewLabel,
             TextView textGuideFocusPreviewBody,
             View viewGuideFocusPreview,
+            TextView textGuideLiveLocationStatus,
+            TextView textGuideLiveLocationHistory,
             TextInputEditText inputGuideLocationSummary,
             TextInputEditText inputGuardianUpdate,
             TextInputEditText inputGuidePhotoNote,
@@ -83,6 +89,8 @@ public final class ManagerGuideDashboardBinder {
             MaterialButton buttonAdvanceGuide,
             MaterialButton buttonSaveLocationSummary,
             MaterialButton buttonShareCurrentLocation,
+            MaterialButton buttonStartLiveLocationSharing,
+            MaterialButton buttonStopLiveLocationSharing,
             MaterialButton buttonSaveGuardianUpdate,
             MaterialButton buttonSaveGuidePhotoNote,
             MaterialButton buttonSaveMedicationNote,
@@ -108,6 +116,8 @@ public final class ManagerGuideDashboardBinder {
         this.textGuideFocusPreviewLabel = textGuideFocusPreviewLabel;
         this.textGuideFocusPreviewBody = textGuideFocusPreviewBody;
         this.viewGuideFocusPreview = viewGuideFocusPreview;
+        this.textGuideLiveLocationStatus = textGuideLiveLocationStatus;
+        this.textGuideLiveLocationHistory = textGuideLiveLocationHistory;
         this.inputGuideLocationSummary = inputGuideLocationSummary;
         this.inputGuardianUpdate = inputGuardianUpdate;
         this.inputGuidePhotoNote = inputGuidePhotoNote;
@@ -119,6 +129,8 @@ public final class ManagerGuideDashboardBinder {
         this.buttonAdvanceGuide = buttonAdvanceGuide;
         this.buttonSaveLocationSummary = buttonSaveLocationSummary;
         this.buttonShareCurrentLocation = buttonShareCurrentLocation;
+        this.buttonStartLiveLocationSharing = buttonStartLiveLocationSharing;
+        this.buttonStopLiveLocationSharing = buttonStopLiveLocationSharing;
         this.buttonSaveGuardianUpdate = buttonSaveGuardianUpdate;
         this.buttonSaveGuidePhotoNote = buttonSaveGuidePhotoNote;
         this.buttonSaveMedicationNote = buttonSaveMedicationNote;
@@ -139,6 +151,8 @@ public final class ManagerGuideDashboardBinder {
         bindMapActions(screenModel.getMapActions());
         bindStages(screenModel.getStages());
         bindFocus(screenModel.getFocusModel());
+        textGuideLiveLocationStatus.setText(screenModel.getLiveLocationStatus());
+        textGuideLiveLocationHistory.setText(screenModel.getLiveLocationHistory());
 
         setTextIfDifferent(inputGuideLocationSummary, screenModel.getLocationSummary());
         setTextIfDifferent(inputGuardianUpdate, screenModel.getGuardianUpdate());
@@ -160,6 +174,12 @@ public final class ManagerGuideDashboardBinder {
         inputNextVisit.setEnabled(inputsEnabled);
         buttonSaveLocationSummary.setEnabled(inputsEnabled);
         buttonShareCurrentLocation.setEnabled(inputsEnabled);
+        buttonStartLiveLocationSharing.setEnabled(
+                inputsEnabled && !screenModel.isLiveLocationSharingActive()
+        );
+        buttonStopLiveLocationSharing.setEnabled(
+                inputsEnabled && screenModel.isLiveLocationSharingActive()
+        );
         buttonSaveGuardianUpdate.setEnabled(inputsEnabled);
         buttonSaveGuidePhotoNote.setEnabled(inputsEnabled);
         buttonSaveMedicationNote.setEnabled(inputsEnabled);

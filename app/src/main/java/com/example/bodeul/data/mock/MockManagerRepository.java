@@ -85,7 +85,21 @@ public class MockManagerRepository implements ManagerRepository {
                 locationSummary
         );
         if (dashboard == null) {
-            callback.onError("?꾩옱 ?꾩튂瑜?怨듭쑀?섏? 紐삵뻽?듬땲??");
+            callback.onError("실시간 위치를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
+    public void updateLiveLocationSharingState(
+            String managerUserId,
+            boolean active,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = repository.updateLiveLocationSharingState(managerUserId, active);
+        if (dashboard == null) {
+            callback.onError("실시간 위치 공유 상태를 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(dashboard);

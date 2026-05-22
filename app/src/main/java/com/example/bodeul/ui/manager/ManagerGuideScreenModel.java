@@ -16,6 +16,8 @@ public final class ManagerGuideScreenModel {
     private final List<ManagerGuideMapActionModel> mapActions;
     private final List<ManagerGuideStageModel> stages;
     private final ManagerGuideFocusModel focusModel;
+    private final String liveLocationStatus;
+    private final String liveLocationHistory;
     private final String locationSummary;
     private final String guardianUpdate;
     private final String fieldPhotoNote;
@@ -28,6 +30,7 @@ public final class ManagerGuideScreenModel {
     private final String advanceButtonLabel;
     private final boolean advanceEnabled;
     private final String reportButtonLabel;
+    private final boolean liveLocationSharingActive;
     private final boolean inputsEnabled;
 
     public ManagerGuideScreenModel(
@@ -41,6 +44,8 @@ public final class ManagerGuideScreenModel {
             List<ManagerGuideMapActionModel> mapActions,
             List<ManagerGuideStageModel> stages,
             ManagerGuideFocusModel focusModel,
+            String liveLocationStatus,
+            String liveLocationHistory,
             String locationSummary,
             String guardianUpdate,
             String fieldPhotoNote,
@@ -53,6 +58,7 @@ public final class ManagerGuideScreenModel {
             String advanceButtonLabel,
             boolean advanceEnabled,
             String reportButtonLabel,
+            boolean liveLocationSharingActive,
             boolean inputsEnabled
     ) {
         this.modeLabel = modeLabel;
@@ -65,6 +71,8 @@ public final class ManagerGuideScreenModel {
         this.mapActions = mapActions;
         this.stages = stages;
         this.focusModel = focusModel;
+        this.liveLocationStatus = liveLocationStatus;
+        this.liveLocationHistory = liveLocationHistory;
         this.locationSummary = locationSummary;
         this.guardianUpdate = guardianUpdate;
         this.fieldPhotoNote = fieldPhotoNote;
@@ -77,6 +85,7 @@ public final class ManagerGuideScreenModel {
         this.advanceButtonLabel = advanceButtonLabel;
         this.advanceEnabled = advanceEnabled;
         this.reportButtonLabel = reportButtonLabel;
+        this.liveLocationSharingActive = liveLocationSharingActive;
         this.inputsEnabled = inputsEnabled;
     }
 
@@ -118,6 +127,14 @@ public final class ManagerGuideScreenModel {
 
     public ManagerGuideFocusModel getFocusModel() {
         return focusModel;
+    }
+
+    public String getLiveLocationStatus() {
+        return liveLocationStatus;
+    }
+
+    public String getLiveLocationHistory() {
+        return liveLocationHistory;
     }
 
     public String getLocationSummary() {
@@ -166,6 +183,10 @@ public final class ManagerGuideScreenModel {
 
     public String getReportButtonLabel() {
         return reportButtonLabel;
+    }
+
+    public boolean isLiveLocationSharingActive() {
+        return liveLocationSharingActive;
     }
 
     public boolean isInputsEnabled() {

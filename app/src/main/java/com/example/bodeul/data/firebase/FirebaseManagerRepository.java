@@ -213,12 +213,81 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String locationSummary,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("locationSummary", normalizeText(locationSummary));
-        updates.put("sharedLatitude", latitude);
-        updates.put("sharedLongitude", longitude);
-        updates.put("sharedLocationUpdatedAt", FieldValue.serverTimestamp());
-        updateSessionFields(managerUserId, updates, callback);
+        loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot sessionSnapshot) {
+                CompanionSession session = FirebaseCompanionSessionMapper.toSession(
+                        sessionSnapshot,
+                        UserRole.MANAGER
+                );
+                if (session == null) {
+                    callback.onError("세션 정보를 찾지 못했습니다.");
+                    return;
+                }
+
+                long capturedAtMillis = System.currentTimeMillis();
+                String normalizedSummary = normalizeText(locationSummary);
+                session.recordSharedLocation(latitude, longitude, normalizedSummary, capturedAtMillis);
+
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("locationSummary", normalizedSummary);
+                updates.put("sharedLatitude", latitude);
+                updates.put("sharedLongitude", longitude);
+                updates.put("sharedLocationUpdatedAt", FieldValue.serverTimestamp());
+                updates.put(
+                        "sharedLocationHistory",
+                        FirebaseCompanionSessionMapper.toSharedLocationHistoryPayload(
+                                session.getSharedLocationHistory()
+                        )
+                );
+                updates.put("updatedAt", FieldValue.serverTimestamp());
+
+                sessionSnapshot.getReference()
+                        .update(updates)
+                        .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
+                        .addOnFailureListener(exception ->
+                                callback.onError("실시간 위치를 저장하지 못했습니다."));
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
+    @Override
+    public void updateLiveLocationSharingState(
+            String managerUserId,
+            boolean active,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot sessionSnapshot) {
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("liveLocationSharingActive", active);
+                if (active) {
+                    if (!Boolean.TRUE.equals(sessionSnapshot.getBoolean("liveLocationSharingActive"))) {
+                        updates.put("liveLocationSharingStartedAt", FieldValue.serverTimestamp());
+                    }
+                } else {
+                    updates.put("liveLocationSharingStartedAt", FieldValue.delete());
+                }
+                updates.put("updatedAt", FieldValue.serverTimestamp());
+
+                sessionSnapshot.getReference()
+                        .update(updates)
+                        .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
+                        .addOnFailureListener(exception ->
+                                callback.onError("실시간 위치 공유 상태를 저장하지 못했습니다."));
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
     }
 
     @Override
@@ -550,6 +619,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 batch.set(reportReference, reportDocument);
                 batch.update(sessionSnapshot.getReference(), "currentStatus", SessionStatus.COMPLETED.name());
                 batch.update(sessionSnapshot.getReference(), "medicationNote", medicationNotes);
+                batch.update(sessionSnapshot.getReference(), "liveLocationSharingActive", false);
+                batch.update(sessionSnapshot.getReference(), "liveLocationSharingStartedAt", FieldValue.delete());
                 batch.update(sessionSnapshot.getReference(), "updatedAt", FieldValue.serverTimestamp());
                 batch.update(
                         firestore.collection("appointmentRequests")
@@ -1178,36 +1249,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
     @Nullable
     private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
         // currentStepOrder와 currentStatus를 읽어 단계형 UI 상태를 복원한다.
-        if (!documentSnapshot.exists()) {
-            return null;
-        }
-
-        String appointmentRequestId = documentSnapshot.getString("appointmentRequestId");
-        String managerUserId = documentSnapshot.getString("managerUserId");
-        Long currentStepOrder = documentSnapshot.getLong("currentStepOrder");
-        String statusValue = documentSnapshot.getString("currentStatus");
-
-        if (appointmentRequestId == null || managerUserId == null || currentStepOrder == null || statusValue == null) {
-            return null;
-        }
-
-        return new CompanionSession(
-                documentSnapshot.getId(),
-                appointmentRequestId,
-                managerUserId,
-                currentStepOrder.intValue(),
-                SessionStatus.valueOf(statusValue),
-                stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
-                stringOrEmpty(documentSnapshot.getString("locationSummary")),
-                stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
-                stringOrEmpty(documentSnapshot.getString("medicationNote")),
-                stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
-                doubleOrNull(documentSnapshot.get("sharedLatitude")),
-                doubleOrNull(documentSnapshot.get("sharedLongitude")),
-                resolveTimestampMillis(documentSnapshot.get("sharedLocationUpdatedAt")),
-                toChatMessages(documentSnapshot.get("chatMessages"))
-        );
+        return FirebaseCompanionSessionMapper.toSession(documentSnapshot, UserRole.MANAGER);
     }
 
     private Map<String, Object> buildChatMessagePayload(UserRole senderRole, String body) {

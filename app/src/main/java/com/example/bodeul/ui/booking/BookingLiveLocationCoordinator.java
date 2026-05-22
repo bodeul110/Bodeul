@@ -12,11 +12,10 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -133,6 +132,16 @@ public final class BookingLiveLocationCoordinator {
                         session == null ? null : session.getLocationSummary(),
                         R.string.booking_live_location_value_pending
                 ),
+                false
+        ));
+        items.add(new BookingStatusLineItem(
+                context.getString(R.string.booking_live_location_line_live_status),
+                CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
+                false
+        ));
+        items.add(new BookingStatusLineItem(
+                context.getString(R.string.booking_live_location_line_location_history),
+                CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
                 false
         ));
         if (session != null && session.getSharedLocationUpdatedAtMillis() > 0L) {
@@ -321,7 +330,6 @@ public final class BookingLiveLocationCoordinator {
     }
 
     private String formatSharedLocationTime(long updatedAtMillis) {
-        return new SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
-                .format(new Date(updatedAtMillis));
+        return CompanionLocationDisplayHelper.formatSharedLocationTime(updatedAtMillis);
     }
 }

@@ -11,12 +11,11 @@ import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -53,6 +52,8 @@ public final class ManagerGuideCoordinator {
                 createMapActions(dashboard),
                 stages,
                 createFocusModel(focusStep, session),
+                CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
+                CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
                 session.getLocationSummary(),
                 session.getGuardianUpdate(),
                 session.getFieldPhotoNote(),
@@ -67,6 +68,7 @@ public final class ManagerGuideCoordinator {
                 context.getString(report == null
                         ? R.string.guide_report_submit
                         : R.string.guide_report_update),
+                session.isLiveLocationSharingActive(),
                 true
         );
     }
@@ -90,6 +92,8 @@ public final class ManagerGuideCoordinator {
                         context.getString(R.string.guide_focus_preview_empty),
                         R.drawable.bg_service_thumb_cool
                 ),
+                context.getString(R.string.live_location_status_inactive_empty),
+                context.getString(R.string.live_location_history_empty),
                 "",
                 "",
                 "",
@@ -102,6 +106,7 @@ public final class ManagerGuideCoordinator {
                 context.getString(R.string.guide_button_waiting),
                 false,
                 context.getString(R.string.guide_report_submit),
+                false,
                 false
         );
     }
@@ -262,7 +267,9 @@ public final class ManagerGuideCoordinator {
         return context.getString(
                 R.string.guide_map_action_shared_body_with_time,
                 locationText,
-                formatSharedLocationTime(session.getSharedLocationUpdatedAtMillis())
+                CompanionLocationDisplayHelper.formatSharedLocationTime(
+                        session.getSharedLocationUpdatedAtMillis()
+                )
         );
     }
 
@@ -277,10 +284,5 @@ public final class ManagerGuideCoordinator {
                 session.getSharedLatitude(),
                 session.getSharedLongitude()
         );
-    }
-
-    private String formatSharedLocationTime(long updatedAtMillis) {
-        return new SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
-                .format(new Date(updatedAtMillis));
     }
 }

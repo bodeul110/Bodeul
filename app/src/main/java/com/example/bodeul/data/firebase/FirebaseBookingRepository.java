@@ -280,6 +280,8 @@ public class FirebaseBookingRepository implements BookingRepository {
                                     batch.update(
                                             sessionDocument.getReference(),
                                             "currentStatus", SessionStatus.CANCELED.name(),
+                                            "liveLocationSharingActive", false,
+                                            "liveLocationSharingStartedAt", FieldValue.delete(),
                                             "updatedAt", FieldValue.serverTimestamp()
                                     );
                                 }
@@ -1082,35 +1084,7 @@ public class FirebaseBookingRepository implements BookingRepository {
 
     @Nullable
     private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
-            return null;
-        }
-
-        String appointmentRequestId = documentSnapshot.getString("appointmentRequestId");
-        String managerUserId = documentSnapshot.getString("managerUserId");
-        Long currentStepOrder = documentSnapshot.getLong("currentStepOrder");
-        String statusValue = documentSnapshot.getString("currentStatus");
-        if (appointmentRequestId == null || managerUserId == null || currentStepOrder == null || statusValue == null) {
-            return null;
-        }
-
-        return new CompanionSession(
-                documentSnapshot.getId(),
-                appointmentRequestId,
-                managerUserId,
-                currentStepOrder.intValue(),
-                SessionStatus.valueOf(statusValue),
-                stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
-                stringOrEmpty(documentSnapshot.getString("locationSummary")),
-                stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
-                stringOrEmpty(documentSnapshot.getString("medicationNote")),
-                stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
-                doubleOrNull(documentSnapshot.get("sharedLatitude")),
-                doubleOrNull(documentSnapshot.get("sharedLongitude")),
-                timestampToMillis(documentSnapshot.get("sharedLocationUpdatedAt")),
-                toChatMessages(documentSnapshot.get("chatMessages"))
-        );
+        return FirebaseCompanionSessionMapper.toSession(documentSnapshot, UserRole.GUARDIAN);
     }
 
     private Map<String, Object> buildChatMessagePayload(UserRole senderRole, String body) {

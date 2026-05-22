@@ -20,6 +20,7 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -36,12 +37,25 @@ import com.google.android.material.textfield.TextInputEditText;
  */
 public class ManagerGuideActivity extends AppCompatActivity {
     private static final int REQUEST_FINE_LOCATION = 1001;
+    private static final int LOCATION_ACTION_NONE = 0;
+    private static final int LOCATION_ACTION_SHARE_ONCE = 1;
+    private static final int LOCATION_ACTION_START_LIVE = 2;
+
+    private final ManagerLiveLocationTracker liveLocationTracker = new ManagerLiveLocationTracker();
 
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private ManagerGuideCoordinator managerGuideCoordinator;
     private ManagerGuideDashboardBinder managerGuideDashboardBinder;
     private User currentUser;
+    @Nullable
+    private ManagerDashboard latestDashboard;
+    private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
+    private boolean liveLocationActivationInFlight;
+    private boolean liveLocationShareInFlight;
+    private boolean activityVisible;
+    @Nullable
+    private PendingLocationUpdate pendingLiveLocationUpdate;
 
     private View managerGuideStatePanel;
     private View managerGuideContentContainer;
@@ -96,6 +110,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.textGuideFocusPreviewLabel),
                 findViewById(R.id.textGuideFocusPreviewBody),
                 findViewById(R.id.viewGuideFocusPreview),
+                findViewById(R.id.textGuideLiveLocationStatus),
+                findViewById(R.id.textGuideLiveLocationHistory),
                 inputGuideLocationSummary,
                 inputGuardianUpdate,
                 inputGuidePhotoNote,
@@ -107,6 +123,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonAdvanceGuide),
                 (MaterialButton) findViewById(R.id.buttonSaveLocationSummary),
                 (MaterialButton) findViewById(R.id.buttonShareCurrentLocation),
+                (MaterialButton) findViewById(R.id.buttonStartLiveLocationSharing),
+                (MaterialButton) findViewById(R.id.buttonStopLiveLocationSharing),
                 (MaterialButton) findViewById(R.id.buttonSaveGuardianUpdate),
                 (MaterialButton) findViewById(R.id.buttonSaveGuidePhotoNote),
                 (MaterialButton) findViewById(R.id.buttonSaveMedicationNote),
@@ -126,6 +144,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> submitReport());
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
+        findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
+        findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
 
         bindEmptyState();
     }
@@ -144,11 +164,25 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (currentUser == null) {
             return;
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_FINE_LOCATION);
+        if (!hasLocationPermission()) {
+            requestLocationPermission(LOCATION_ACTION_SHARE_ONCE);
             return;
         }
+        performSingleLocationShare();
+    }
+
+    private void startLiveLocationSharing() {
+        if (currentUser == null) {
+            return;
+        }
+        if (!hasLocationPermission()) {
+            requestLocationPermission(LOCATION_ACTION_START_LIVE);
+            return;
+        }
+        performStartLiveLocationSharing();
+    }
+
+    private void performSingleLocationShare() {
         ManagerCurrentLocationSharer.share(this, new ManagerCurrentLocationSharer.Callback() {
             @Override
             public void onSuccess(double latitude, double longitude, String summary) {
@@ -183,9 +217,164 @@ public class ManagerGuideActivity extends AppCompatActivity {
         });
     }
 
+    private void performStartLiveLocationSharing() {
+        if (!startLocalLiveLocationTracker()) {
+            return;
+        }
+        liveLocationActivationInFlight = true;
+        managerRepository.updateLiveLocationSharingState(
+                currentUser.getId(),
+                true,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        liveLocationActivationInFlight = false;
+                        Toast.makeText(
+                                ManagerGuideActivity.this,
+                                R.string.guide_live_location_started,
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        liveLocationActivationInFlight = false;
+                        stopTrackerOnly();
+                        Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
+    private boolean startLocalLiveLocationTracker() {
+        if (liveLocationTracker.isRunning()) {
+            return true;
+        }
+        return liveLocationTracker.start(this, new ManagerLiveLocationTracker.Callback() {
+            @Override
+            public void onLocationReceived(double latitude, double longitude, String summary) {
+                enqueueLiveLocationShare(latitude, longitude, summary);
+            }
+
+            @Override
+            public void onError(String message) {
+                handleLiveLocationTrackingError(message);
+            }
+        });
+    }
+
+    private void enqueueLiveLocationShare(double latitude, double longitude, String summary) {
+        if (currentUser == null) {
+            return;
+        }
+        PendingLocationUpdate update = new PendingLocationUpdate(latitude, longitude, summary);
+        if (liveLocationShareInFlight) {
+            pendingLiveLocationUpdate = update;
+            return;
+        }
+        dispatchLiveLocationShare(update);
+    }
+
+    private void dispatchLiveLocationShare(PendingLocationUpdate update) {
+        if (currentUser == null) {
+            return;
+        }
+        liveLocationShareInFlight = true;
+        managerRepository.shareCurrentLocation(
+                currentUser.getId(),
+                update.latitude,
+                update.longitude,
+                update.summary,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        liveLocationShareInFlight = false;
+                        bindDashboard(result);
+                        flushPendingLiveLocationShare();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        liveLocationShareInFlight = false;
+                        Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+                        flushPendingLiveLocationShare();
+                    }
+                }
+        );
+    }
+
+    private void flushPendingLiveLocationShare() {
+        PendingLocationUpdate nextUpdate = pendingLiveLocationUpdate;
+        pendingLiveLocationUpdate = null;
+        if (nextUpdate != null && liveLocationTracker.isRunning()) {
+            dispatchLiveLocationShare(nextUpdate);
+        }
+    }
+
+    private void handleLiveLocationTrackingError(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        boolean shouldPersistStop = latestDashboard != null
+                && latestDashboard.getSession().isLiveLocationSharingActive();
+        if (currentUser != null && shouldPersistStop) {
+            stopLiveLocationSharing(true, false);
+            return;
+        }
+        stopTrackerOnly();
+    }
+
+    private void stopLiveLocationSharing(boolean persistRemoteState, boolean showToast) {
+        stopTrackerOnly();
+        if (!persistRemoteState || currentUser == null) {
+            return;
+        }
+        managerRepository.updateLiveLocationSharingState(
+                currentUser.getId(),
+                false,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        if (showToast) {
+                            Toast.makeText(
+                                    ManagerGuideActivity.this,
+                                    R.string.guide_live_location_stopped,
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        }
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (showToast) {
+                            Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
+    }
+
+    private void stopTrackerOnly() {
+        liveLocationTracker.stop();
+        liveLocationActivationInFlight = false;
+        liveLocationShareInFlight = false;
+        pendingLiveLocationUpdate = null;
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestLocationPermission(int action) {
+        pendingLocationPermissionAction = action;
+        requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_FINE_LOCATION);
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
+        activityVisible = true;
         hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
@@ -209,6 +398,22 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 showAuthState();
             }
         });
+    }
+
+    @Override
+    protected void onStop() {
+        activityVisible = false;
+        super.onStop();
+        if (isChangingConfigurations()) {
+            stopTrackerOnly();
+            return;
+        }
+        if (latestDashboard != null
+                && latestDashboard.getSession().isLiveLocationSharingActive()) {
+            stopLiveLocationSharing(true, false);
+            return;
+        }
+        stopTrackerOnly();
     }
 
     private void loadDashboard() {
@@ -238,12 +443,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void bindDashboard(@Nullable ManagerDashboard dashboard) {
+        latestDashboard = dashboard;
         managerGuideDashboardBinder.bindScreen(
                 managerGuideCoordinator.createScreenModel(
                         dashboard,
                         managerRepository.isFirebaseBacked()
                 )
         );
+        syncLiveLocationTrackingWithDashboard(dashboard);
     }
 
     private void bindEmptyState() {
@@ -472,9 +679,17 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (requestCode != REQUEST_FINE_LOCATION) {
             return;
         }
+        int action = pendingLocationPermissionAction;
+        pendingLocationPermissionAction = LOCATION_ACTION_NONE;
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            shareCurrentLocation();
-            return;
+            if (action == LOCATION_ACTION_START_LIVE) {
+                startLiveLocationSharing();
+                return;
+            }
+            if (action == LOCATION_ACTION_SHARE_ONCE) {
+                shareCurrentLocation();
+                return;
+            }
         }
         Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
     }
@@ -570,8 +785,40 @@ public class ManagerGuideActivity extends AppCompatActivity {
         finish();
     }
 
+    private void syncLiveLocationTrackingWithDashboard(@Nullable ManagerDashboard dashboard) {
+        CompanionSession session = dashboard == null ? null : dashboard.getSession();
+        if (!activityVisible) {
+            stopTrackerOnly();
+            return;
+        }
+        if (session == null || !session.isLiveLocationSharingActive()) {
+            if (liveLocationActivationInFlight && liveLocationTracker.isRunning()) {
+                return;
+            }
+            stopTrackerOnly();
+            return;
+        }
+        if (!hasLocationPermission()) {
+            stopLiveLocationSharing(true, false);
+            return;
+        }
+        startLocalLiveLocationTracker();
+    }
+
     private boolean isNoActiveSession(String message) {
         return ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message);
+    }
+
+    private static final class PendingLocationUpdate {
+        private final double latitude;
+        private final double longitude;
+        private final String summary;
+
+        private PendingLocationUpdate(double latitude, double longitude, String summary) {
+            this.latitude = latitude;
+            this.longitude = longitude;
+            this.summary = summary;
+        }
     }
 
     private String valueOf(TextInputEditText editText) {

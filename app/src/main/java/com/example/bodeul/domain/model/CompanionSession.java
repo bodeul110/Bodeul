@@ -10,6 +10,8 @@ import java.util.List;
  * 매니저가 실제로 수행 중인 동행 세션의 진행 상태와 공유 메모를 담는다.
  */
 public class CompanionSession {
+    private static final int MAX_SHARED_LOCATION_HISTORY = 10;
+
     // 어떤 요청에 어떤 매니저가 수행 중인지 연결하는 핵심 정보다.
     private final String id;
     private final String appointmentRequestId;
@@ -29,6 +31,9 @@ public class CompanionSession {
     @Nullable
     private Double sharedLongitude;
     private long sharedLocationUpdatedAtMillis;
+    private boolean liveLocationSharingActive;
+    private long liveLocationSharingStartedAtMillis;
+    private final List<CompanionLocationHistoryEntry> sharedLocationHistory;
     private final List<CompanionChatMessage> chatMessages;
 
     public CompanionSession(
@@ -59,6 +64,9 @@ public class CompanionSession {
                 null,
                 null,
                 0L,
+                false,
+                0L,
+                Collections.emptyList(),
                 Collections.emptyList()
         );
     }
@@ -92,6 +100,9 @@ public class CompanionSession {
                 null,
                 null,
                 0L,
+                false,
+                0L,
+                Collections.emptyList(),
                 chatMessages
         );
     }
@@ -127,6 +138,9 @@ public class CompanionSession {
                 sharedLatitude,
                 sharedLongitude,
                 sharedLocationUpdatedAtMillis,
+                false,
+                0L,
+                Collections.emptyList(),
                 Collections.emptyList()
         );
     }
@@ -148,6 +162,48 @@ public class CompanionSession {
             long sharedLocationUpdatedAtMillis,
             List<CompanionChatMessage> chatMessages
     ) {
+        this(
+                id,
+                appointmentRequestId,
+                managerUserId,
+                currentStepOrder,
+                status,
+                guardianUpdate,
+                locationSummary,
+                fieldPhotoNote,
+                medicationNote,
+                pharmacySummary,
+                pharmacyCompleted,
+                sharedLatitude,
+                sharedLongitude,
+                sharedLocationUpdatedAtMillis,
+                false,
+                0L,
+                Collections.emptyList(),
+                chatMessages
+        );
+    }
+
+    public CompanionSession(
+            String id,
+            String appointmentRequestId,
+            String managerUserId,
+            int currentStepOrder,
+            SessionStatus status,
+            String guardianUpdate,
+            String locationSummary,
+            String fieldPhotoNote,
+            String medicationNote,
+            String pharmacySummary,
+            boolean pharmacyCompleted,
+            @Nullable Double sharedLatitude,
+            @Nullable Double sharedLongitude,
+            long sharedLocationUpdatedAtMillis,
+            boolean liveLocationSharingActive,
+            long liveLocationSharingStartedAtMillis,
+            List<CompanionLocationHistoryEntry> sharedLocationHistory,
+            List<CompanionChatMessage> chatMessages
+    ) {
         this.id = id;
         this.appointmentRequestId = appointmentRequestId;
         this.managerUserId = managerUserId;
@@ -162,6 +218,9 @@ public class CompanionSession {
         this.sharedLatitude = sharedLatitude;
         this.sharedLongitude = sharedLongitude;
         this.sharedLocationUpdatedAtMillis = sharedLocationUpdatedAtMillis;
+        this.liveLocationSharingActive = liveLocationSharingActive;
+        this.liveLocationSharingStartedAtMillis = liveLocationSharingStartedAtMillis;
+        this.sharedLocationHistory = new ArrayList<>(sharedLocationHistory);
         this.chatMessages = new ArrayList<>(chatMessages);
     }
 
@@ -190,7 +249,7 @@ public class CompanionSession {
         return status;
     }
 
-    // 단계 전환에 맞춰 세션 전체의 상태를 갱신한다.
+    // 단계 전환에 맞춰 세션 전체 상태를 갱신한다.
     public void setStatus(SessionStatus status) {
         this.status = status;
     }
@@ -199,7 +258,7 @@ public class CompanionSession {
         return guardianUpdate;
     }
 
-    // 보호자에게 공유할 현장 메시지를 저장한다.
+    // 보호자에게 공유할 현장 메시지를 덮어쓴다.
     public void setGuardianUpdate(String guardianUpdate) {
         this.guardianUpdate = guardianUpdate;
     }
@@ -208,7 +267,7 @@ public class CompanionSession {
         return locationSummary;
     }
 
-    // 위치 공유나 이동 상황을 짧게 적어 다음 화면에서도 재사용한다.
+    // 위치 공유와 이동 상황을 짧게 적어 다음 화면에서도 재사용한다.
     public void setLocationSummary(String locationSummary) {
         this.locationSummary = locationSummary;
     }
@@ -227,15 +286,54 @@ public class CompanionSession {
         return sharedLocationUpdatedAtMillis;
     }
 
+    public boolean isLiveLocationSharingActive() {
+        return liveLocationSharingActive;
+    }
+
+    public long getLiveLocationSharingStartedAtMillis() {
+        return liveLocationSharingStartedAtMillis;
+    }
+
     public boolean hasSharedLocationCoordinates() {
         return sharedLatitude != null && sharedLongitude != null;
     }
 
-    // 실제 좌표 공유 시각을 같이 남겨 보호자 화면과 지도 이동에 재사용한다.
-    public void updateSharedLocation(@Nullable Double sharedLatitude, @Nullable Double sharedLongitude, long sharedLocationUpdatedAtMillis) {
+    // 실제 좌표와 공유 시각을 함께 담아 보호자와 관리자 화면에서 재사용한다.
+    public void updateSharedLocation(
+            @Nullable Double sharedLatitude,
+            @Nullable Double sharedLongitude,
+            long sharedLocationUpdatedAtMillis
+    ) {
         this.sharedLatitude = sharedLatitude;
         this.sharedLongitude = sharedLongitude;
         this.sharedLocationUpdatedAtMillis = sharedLocationUpdatedAtMillis;
+    }
+
+    public void updateLiveLocationSharing(boolean liveLocationSharingActive, long startedAtMillis) {
+        this.liveLocationSharingActive = liveLocationSharingActive;
+        this.liveLocationSharingStartedAtMillis = liveLocationSharingActive ? startedAtMillis : 0L;
+    }
+
+    public List<CompanionLocationHistoryEntry> getSharedLocationHistory() {
+        return Collections.unmodifiableList(sharedLocationHistory);
+    }
+
+    public void recordSharedLocation(
+            double latitude,
+            double longitude,
+            String summary,
+            long capturedAtMillis
+    ) {
+        updateSharedLocation(latitude, longitude, capturedAtMillis);
+        sharedLocationHistory.add(0, new CompanionLocationHistoryEntry(
+                latitude,
+                longitude,
+                summary == null ? "" : summary,
+                capturedAtMillis
+        ));
+        while (sharedLocationHistory.size() > MAX_SHARED_LOCATION_HISTORY) {
+            sharedLocationHistory.remove(sharedLocationHistory.size() - 1);
+        }
     }
 
     public String getFieldPhotoNote() {
@@ -251,7 +349,7 @@ public class CompanionSession {
         return medicationNote;
     }
 
-    // 수령 약과 복약 관련 메모를 저장한다.
+    // 수령 결과와 복약 관련 메모를 덮어쓴다.
     public void setMedicationNote(String medicationNote) {
         this.medicationNote = medicationNote;
     }

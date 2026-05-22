@@ -25,6 +25,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.CompanionChatMessage;
+import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -1192,8 +1193,23 @@ public class MockBodeulRepository implements BodeulRepository {
         if (session == null) {
             return null;
         }
+        long capturedAtMillis = System.currentTimeMillis();
         session.setLocationSummary(summary);
-        session.updateSharedLocation(latitude, longitude, System.currentTimeMillis());
+        session.recordSharedLocation(latitude, longitude, summary, capturedAtMillis);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard updateLiveLocationSharingState(String managerUserId, boolean active) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        long startedAtMillis = session.getLiveLocationSharingStartedAtMillis();
+        if (active && startedAtMillis <= 0L) {
+            startedAtMillis = System.currentTimeMillis();
+        }
+        session.updateLiveLocationSharing(active, startedAtMillis);
         return getManagerDashboard(managerUserId);
     }
 
@@ -1265,6 +1281,7 @@ public class MockBodeulRepository implements BodeulRepository {
                 nextVisitAt
         );
         sessionReports.add(report);
+        session.updateLiveLocationSharing(false, 0L);
         session.setStatus(SessionStatus.COMPLETED);
 
         AppointmentRequest request = findAppointmentRequest(session.getAppointmentRequestId());
@@ -1863,12 +1880,32 @@ public class MockBodeulRepository implements BodeulRepository {
                 "manager-1",
                 2,
                 SessionStatus.MEETING,
-                "환자분을 만나 병원으로 이동 중입니다.",
-                "서울시립병원 정문 앞 도착, 접수 창구로 이동 준비 중입니다.",
-                "정문 안내 표지와 접수 대기표를 확인했습니다.",
-                "처방전 수령 전입니다.",
+                "???? ?? ???? ?? ????.",
+                "?????? ?? ? ??, ?? ??? ?? ?? ????.",
+                "?? ?? ??? ?? ???? ??????.",
+                "??? ?? ????.",
                 "",
-                false
+                false,
+                37.56650,
+                126.97800,
+                1760503200000L,
+                false,
+                0L,
+                Arrays.asList(
+                        new CompanionLocationHistoryEntry(
+                                37.56591,
+                                126.97795,
+                                "?????? ?? ?? ??????.",
+                                1760502600000L
+                        ),
+                        new CompanionLocationHistoryEntry(
+                                37.56650,
+                                126.97800,
+                                "?? ?? ???? ?? ????.",
+                                1760503200000L
+                        )
+                ),
+                Collections.emptyList()
         ));
     }
 

@@ -12,12 +12,11 @@ import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
+import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -178,6 +177,16 @@ public final class GuardianReportCoordinator {
         addOptionalLine(items, R.string.guardian_report_line_location, entry.getSession() == null
                 ? ""
                 : entry.getSession().getLocationSummary(), false);
+        items.add(new GuardianReportLineItem(
+                context.getString(R.string.guardian_report_line_live_status),
+                CompanionLocationDisplayHelper.buildLiveSharingStatus(context, entry.getSession()),
+                false
+        ));
+        items.add(new GuardianReportLineItem(
+                context.getString(R.string.guardian_report_line_location_history),
+                CompanionLocationDisplayHelper.buildLocationHistory(context, entry.getSession(), 3),
+                false
+        ));
         if (entry.getSession() != null && entry.getSession().getSharedLocationUpdatedAtMillis() > 0L) {
             items.add(new GuardianReportLineItem(
                     context.getString(R.string.guardian_report_line_location_updated_at),
@@ -280,7 +289,6 @@ public final class GuardianReportCoordinator {
     }
 
     private String formatSharedLocationTime(long updatedAtMillis) {
-        return new SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
-                .format(new Date(updatedAtMillis));
+        return CompanionLocationDisplayHelper.formatSharedLocationTime(updatedAtMillis);
     }
 }

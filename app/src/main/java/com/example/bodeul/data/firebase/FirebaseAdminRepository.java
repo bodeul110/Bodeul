@@ -142,6 +142,8 @@ public class FirebaseAdminRepository implements AdminRepository {
                 sessionDocument.put("medicationNote", "");
                 sessionDocument.put("pharmacySummary", "");
                 sessionDocument.put("pharmacyCompleted", false);
+                sessionDocument.put("liveLocationSharingActive", false);
+                sessionDocument.put("sharedLocationHistory", new ArrayList<>());
                 sessionDocument.put("createdAt", FieldValue.serverTimestamp());
                 sessionDocument.put("updatedAt", FieldValue.serverTimestamp());
                 batch.set(sessionReference, sessionDocument);
@@ -1787,33 +1789,7 @@ public class FirebaseAdminRepository implements AdminRepository {
 
     @Nullable
     private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
-            return null;
-        }
-        String appointmentRequestId = documentSnapshot.getString("appointmentRequestId");
-        String managerUserId = documentSnapshot.getString("managerUserId");
-        Long currentStepOrder = documentSnapshot.getLong("currentStepOrder");
-        String statusValue = documentSnapshot.getString("currentStatus");
-        if (appointmentRequestId == null || managerUserId == null || currentStepOrder == null || statusValue == null) {
-            return null;
-        }
-
-        return new CompanionSession(
-                documentSnapshot.getId(),
-                appointmentRequestId,
-                managerUserId,
-                currentStepOrder.intValue(),
-                SessionStatus.valueOf(statusValue),
-                documentSnapshot.getString("guardianUpdate") == null ? "" : documentSnapshot.getString("guardianUpdate"),
-                documentSnapshot.getString("locationSummary") == null ? "" : documentSnapshot.getString("locationSummary"),
-                documentSnapshot.getString("fieldPhotoNote") == null ? "" : documentSnapshot.getString("fieldPhotoNote"),
-                documentSnapshot.getString("medicationNote") == null ? "" : documentSnapshot.getString("medicationNote"),
-                documentSnapshot.getString("pharmacySummary") == null ? "" : documentSnapshot.getString("pharmacySummary"),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
-                doubleOrNull(documentSnapshot.get("sharedLatitude")),
-                doubleOrNull(documentSnapshot.get("sharedLongitude")),
-                resolveTimestampMillis(documentSnapshot.get("sharedLocationUpdatedAt"))
-        );
+        return FirebaseCompanionSessionMapper.toSession(documentSnapshot, UserRole.MANAGER);
     }
 
     @Nullable

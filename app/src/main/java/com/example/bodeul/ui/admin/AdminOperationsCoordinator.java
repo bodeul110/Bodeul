@@ -20,6 +20,7 @@ import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.BookingPaymentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.SessionReport;
+import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.domain.model.SessionStatus;
 
 import java.util.ArrayList;
@@ -320,6 +321,16 @@ public final class AdminOperationsCoordinator {
                     context.getString(R.string.admin_monitoring_line_location),
                     session == null ? formatter.formatFallbackValue(null)
                             : formatter.formatFallbackValue(session.getLocationSummary()),
+                    false
+            ));
+            items.add(new AdminOperationLineItem(
+                    context.getString(R.string.admin_monitoring_line_live_status),
+                    CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
+                    false
+            ));
+            items.add(new AdminOperationLineItem(
+                    context.getString(R.string.admin_monitoring_line_location_history),
+                    CompanionLocationDisplayHelper.buildLocationHistory(context, session, 2),
                     false
             ));
             items.add(new AdminOperationLineItem(
