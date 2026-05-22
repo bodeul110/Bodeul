@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatu
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -619,6 +620,41 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void sendCompanionChatMessage(
+            String managerUserId,
+            String message,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        String normalizedMessage = normalizeText(message);
+        if (normalizedMessage.isEmpty()) {
+            callback.onError("메시지를 입력해주세요.");
+            return;
+        }
+
+        loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot sessionSnapshot) {
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("chatMessages", FieldValue.arrayUnion(
+                        buildChatMessagePayload(UserRole.MANAGER, normalizedMessage)
+                ));
+                updates.put("updatedAt", FieldValue.serverTimestamp());
+
+                sessionSnapshot.getReference()
+                        .update(updates)
+                        .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
+                        .addOnFailureListener(exception ->
+                                callback.onError("메시지를 전송하지 못했습니다."));
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return true;
     }
@@ -1147,8 +1183,44 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
                 stringOrEmpty(documentSnapshot.getString("medicationNote")),
                 stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
+                toChatMessages(documentSnapshot.get("chatMessages"))
         );
+    }
+
+    private Map<String, Object> buildChatMessagePayload(UserRole senderRole, String body) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("senderRole", senderRole == null ? UserRole.MANAGER.name() : senderRole.name());
+        payload.put("body", normalizeText(body));
+        payload.put("sentAtMillis", System.currentTimeMillis());
+        return payload;
+    }
+
+    private List<CompanionChatMessage> toChatMessages(@Nullable Object rawValue) {
+        List<CompanionChatMessage> messages = new ArrayList<>();
+        if (!(rawValue instanceof List)) {
+            return messages;
+        }
+        for (Object rawMessage : (List<?>) rawValue) {
+            if (!(rawMessage instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> valueMap = (Map<?, ?>) rawMessage;
+            String roleValue = normalizeText(stringValue(valueMap.get("senderRole")));
+            String body = normalizeText(stringValue(valueMap.get("body")));
+            if (body.isEmpty()) {
+                continue;
+            }
+            long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
+            UserRole senderRole;
+            try {
+                senderRole = roleValue.isEmpty() ? UserRole.MANAGER : UserRole.valueOf(roleValue);
+            } catch (IllegalArgumentException exception) {
+                senderRole = UserRole.MANAGER;
+            }
+            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis));
+        }
+        return messages;
     }
 
     @Nullable

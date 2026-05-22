@@ -1,0 +1,149 @@
+package com.example.bodeul.ui.chat;
+
+import android.content.Context;
+import android.text.TextUtils;
+
+import com.example.bodeul.R;
+import com.example.bodeul.domain.model.AppointmentRequest;
+import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionChatMessage;
+import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.domain.model.User;
+import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+public final class CompanionChatCoordinator {
+    private final Context context;
+    private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.KOREA);
+
+    public CompanionChatCoordinator(Context context) {
+        this.context = context.getApplicationContext();
+    }
+
+    public CompanionChatScreenModel createForBooking(
+            User currentUser,
+            AppointmentRequestDetail detail,
+            boolean isFirebaseBacked
+    ) {
+        return createScreenModel(
+                currentUser,
+                detail.getAppointmentRequest(),
+                detail.getPatient(),
+                detail.getGuardian(),
+                detail.getManager(),
+                detail.getSession(),
+                isFirebaseBacked
+        );
+    }
+
+    public CompanionChatScreenModel createForManager(
+            User currentUser,
+            ManagerDashboard dashboard,
+            boolean isFirebaseBacked
+    ) {
+        return createScreenModel(
+                currentUser,
+                dashboard.getAppointmentRequest(),
+                dashboard.getPatient(),
+                dashboard.getGuardian(),
+                dashboard.getManager(),
+                dashboard.getSession(),
+                isFirebaseBacked
+        );
+    }
+
+    private CompanionChatScreenModel createScreenModel(
+            User currentUser,
+            AppointmentRequest request,
+            User patient,
+            User guardian,
+            User manager,
+            CompanionSession session,
+            boolean isFirebaseBacked
+    ) {
+        String patientName = patient != null && !TextUtils.isEmpty(patient.getName())
+                ? patient.getName()
+                : request.getPatientName();
+        String managerName = manager != null && !TextUtils.isEmpty(manager.getName())
+                ? manager.getName()
+                : context.getString(R.string.companion_chat_role_manager);
+
+        return new CompanionChatScreenModel(
+                EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
+                context.getString(R.string.companion_chat_title),
+                context.getString(
+                        currentUser.getRole() == UserRole.MANAGER
+                                ? R.string.companion_chat_subtitle_manager
+                                : R.string.companion_chat_subtitle_user
+                ),
+                toSessionStatusLabel(session.getStatus()),
+                context.getString(R.string.companion_chat_hero_title, patientName),
+                context.getString(
+                        R.string.companion_chat_hero_body,
+                        request.getHospitalName(),
+                        request.getDepartmentName(),
+                        request.getAppointmentAt(),
+                        managerName
+                ),
+                context.getString(R.string.companion_chat_section_title),
+                context.getString(R.string.companion_chat_empty_body),
+                context.getString(R.string.companion_chat_input_hint),
+                context.getString(R.string.companion_chat_send),
+                toMessageItems(currentUser, session)
+        );
+    }
+
+    private List<CompanionChatMessageItemModel> toMessageItems(User currentUser, CompanionSession session) {
+        List<CompanionChatMessageItemModel> items = new ArrayList<>();
+        for (CompanionChatMessage message : session.getChatMessages()) {
+            items.add(new CompanionChatMessageItemModel(
+                    toRoleLabel(message.getSenderRole()),
+                    message.getBody(),
+                    timeFormat.format(new Date(message.getSentAtMillis())),
+                    currentUser.getRole() == message.getSenderRole()
+            ));
+        }
+        return items;
+    }
+
+    private String toRoleLabel(UserRole role) {
+        if (role == UserRole.PATIENT) {
+            return context.getString(R.string.companion_chat_role_patient);
+        }
+        if (role == UserRole.GUARDIAN) {
+            return context.getString(R.string.companion_chat_role_guardian);
+        }
+        if (role == UserRole.MANAGER) {
+            return context.getString(R.string.companion_chat_role_manager);
+        }
+        return context.getString(R.string.companion_chat_role_admin);
+    }
+
+    private String toSessionStatusLabel(SessionStatus status) {
+        switch (status) {
+            case READY:
+                return context.getString(R.string.companion_chat_status_ready);
+            case MEETING:
+                return context.getString(R.string.companion_chat_status_meeting);
+            case WAITING:
+                return context.getString(R.string.companion_chat_status_waiting);
+            case IN_TREATMENT:
+                return context.getString(R.string.companion_chat_status_treatment);
+            case PAYMENT:
+                return context.getString(R.string.companion_chat_status_payment);
+            case COMPLETED:
+                return context.getString(R.string.companion_chat_status_completed);
+            case CANCELED:
+            default:
+                return context.getString(R.string.companion_chat_status_canceled);
+        }
+    }
+}

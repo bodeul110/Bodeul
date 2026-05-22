@@ -248,6 +248,30 @@ public class MockBookingRepository implements BookingRepository {
     }
 
     @Override
+    public void sendCompanionChatMessage(
+            User currentUser,
+            String requestId,
+            String message,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
+            return;
+        }
+
+        AppointmentRequestDetail detail = repository.appendBookingCompanionChatMessage(
+                currentUser,
+                requestId,
+                message
+        );
+        if (detail == null) {
+            callback.onError("안심 채팅 메시지를 전송하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(detail);
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }

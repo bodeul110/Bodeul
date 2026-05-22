@@ -1,5 +1,9 @@
 package com.example.bodeul.domain.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * 매니저가 실제로 수행 중인 동행 세션의 진행 상태를 담는다.
  */
@@ -18,6 +22,7 @@ public class CompanionSession {
     private String medicationNote;
     private String pharmacySummary;
     private boolean pharmacyCompleted;
+    private final List<CompanionChatMessage> chatMessages;
 
     public CompanionSession(
             String id,
@@ -32,6 +37,36 @@ public class CompanionSession {
             String pharmacySummary,
             boolean pharmacyCompleted
     ) {
+        this(
+                id,
+                appointmentRequestId,
+                managerUserId,
+                currentStepOrder,
+                status,
+                guardianUpdate,
+                locationSummary,
+                fieldPhotoNote,
+                medicationNote,
+                pharmacySummary,
+                pharmacyCompleted,
+                Collections.emptyList()
+        );
+    }
+
+    public CompanionSession(
+            String id,
+            String appointmentRequestId,
+            String managerUserId,
+            int currentStepOrder,
+            SessionStatus status,
+            String guardianUpdate,
+            String locationSummary,
+            String fieldPhotoNote,
+            String medicationNote,
+            String pharmacySummary,
+            boolean pharmacyCompleted,
+            List<CompanionChatMessage> chatMessages
+    ) {
         this.id = id;
         this.appointmentRequestId = appointmentRequestId;
         this.managerUserId = managerUserId;
@@ -43,6 +78,7 @@ public class CompanionSession {
         this.medicationNote = medicationNote;
         this.pharmacySummary = pharmacySummary;
         this.pharmacyCompleted = pharmacyCompleted;
+        this.chatMessages = new ArrayList<>(chatMessages);
     }
 
     public String getId() {
@@ -125,5 +161,13 @@ public class CompanionSession {
 
     public void setPharmacyCompleted(boolean pharmacyCompleted) {
         this.pharmacyCompleted = pharmacyCompleted;
+    }
+
+    public List<CompanionChatMessage> getChatMessages() {
+        return Collections.unmodifiableList(chatMessages);
+    }
+
+    public void addChatMessage(CompanionChatMessage chatMessage) {
+        this.chatMessages.add(chatMessage);
     }
 }

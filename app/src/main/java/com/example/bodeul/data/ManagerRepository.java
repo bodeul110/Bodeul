@@ -26,6 +26,12 @@ public interface ManagerRepository {
     // 보호자에게 공유할 현장 메시지를 저장한다.
     void saveGuardianUpdate(String managerUserId, String guardianUpdate, RepositoryCallback<ManagerDashboard> callback);
 
+    void sendCompanionChatMessage(
+            String managerUserId,
+            String message,
+            RepositoryCallback<ManagerDashboard> callback
+    );
+
     // 현재 위치와 이동 상황 요약을 세션에 저장한다.
     void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback);
 

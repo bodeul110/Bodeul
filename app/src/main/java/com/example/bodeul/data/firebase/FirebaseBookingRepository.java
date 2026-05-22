@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingPaymentApproval;
 import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -488,6 +489,64 @@ public class FirebaseBookingRepository implements BookingRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("SOS ?꾩냽 ?????곸쓣 ?뺤씤?섏? 紐삵뻽?듬땲??"));
+    }
+
+    @Override
+    public void sendCompanionChatMessage(
+            User currentUser,
+            String requestId,
+            String message,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("현재 계정은 동행 채팅을 사용할 수 없습니다.");
+            return;
+        }
+
+        String normalizedMessage = normalizeText(message);
+        if (normalizedMessage.isEmpty()) {
+            callback.onError("메시지를 입력해주세요.");
+            return;
+        }
+
+        firestore.collection("appointmentRequests")
+                .document(requestId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                    if (request == null || !isRequestOwner(currentUser, request)) {
+                        callback.onError("동행 요청 정보를 확인하지 못했습니다.");
+                        return;
+                    }
+
+                    firestore.collection("companionSessions")
+                            .whereEqualTo("appointmentRequestId", requestId)
+                            .get()
+                            .addOnSuccessListener(querySnapshot -> {
+                                DocumentSnapshot activeSessionSnapshot = findActiveSessionDocument(querySnapshot);
+                                if (activeSessionSnapshot == null) {
+                                    callback.onError("진행 중인 동행 세션이 없습니다.");
+                                    return;
+                                }
+
+                                Map<String, Object> updates = new HashMap<>();
+                                updates.put("chatMessages", FieldValue.arrayUnion(
+                                        buildChatMessagePayload(currentUser.getRole(), normalizedMessage)
+                                ));
+                                updates.put("updatedAt", FieldValue.serverTimestamp());
+
+                                activeSessionSnapshot.getReference()
+                                        .update(updates)
+                                        .addOnSuccessListener(unused ->
+                                                loadAppointmentRequestDetail(request, callback))
+                                        .addOnFailureListener(exception ->
+                                                callback.onError("메시지를 전송하지 못했습니다."));
+                            })
+                            .addOnFailureListener(exception ->
+                                    callback.onError("진행 중인 동행 세션을 확인하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("동행 요청 정보를 확인하지 못했습니다."));
     }
 
     @Override
@@ -1006,6 +1065,22 @@ public class FirebaseBookingRepository implements BookingRepository {
     }
 
     @Nullable
+    private DocumentSnapshot findActiveSessionDocument(QuerySnapshot querySnapshot) {
+        for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+            CompanionSession session = toSession(documentSnapshot);
+            if (session == null) {
+                continue;
+            }
+            if (session.getStatus() == SessionStatus.COMPLETED
+                    || session.getStatus() == SessionStatus.CANCELED) {
+                continue;
+            }
+            return documentSnapshot;
+        }
+        return null;
+    }
+
+    @Nullable
     private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
         if (!documentSnapshot.exists()) {
             return null;
@@ -1030,8 +1105,44 @@ public class FirebaseBookingRepository implements BookingRepository {
                 stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
                 stringOrEmpty(documentSnapshot.getString("medicationNote")),
                 stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
+                toChatMessages(documentSnapshot.get("chatMessages"))
         );
+    }
+
+    private Map<String, Object> buildChatMessagePayload(UserRole senderRole, String body) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("senderRole", senderRole == null ? UserRole.GUARDIAN.name() : senderRole.name());
+        payload.put("body", normalizeText(body));
+        payload.put("sentAtMillis", System.currentTimeMillis());
+        return payload;
+    }
+
+    private List<CompanionChatMessage> toChatMessages(@Nullable Object rawValue) {
+        List<CompanionChatMessage> messages = new ArrayList<>();
+        if (!(rawValue instanceof List)) {
+            return messages;
+        }
+        for (Object rawMessage : (List<?>) rawValue) {
+            if (!(rawMessage instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> valueMap = (Map<?, ?>) rawMessage;
+            String roleValue = normalizeText(asString(valueMap.get("senderRole")));
+            String body = normalizeText(asString(valueMap.get("body")));
+            if (body.isEmpty()) {
+                continue;
+            }
+            long sentAtMillis = numberOrZero(valueMap.get("sentAtMillis"));
+            UserRole senderRole;
+            try {
+                senderRole = roleValue.isEmpty() ? UserRole.GUARDIAN : UserRole.valueOf(roleValue);
+            } catch (IllegalArgumentException exception) {
+                senderRole = UserRole.GUARDIAN;
+            }
+            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis));
+        }
+        return messages;
     }
 
     @Nullable

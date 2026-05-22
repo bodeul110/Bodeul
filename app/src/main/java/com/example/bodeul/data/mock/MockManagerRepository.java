@@ -61,6 +61,16 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void sendCompanionChatMessage(String managerUserId, String message, RepositoryCallback<ManagerDashboard> callback) {
+        ManagerDashboard dashboard = repository.appendManagerCompanionChatMessage(managerUserId, message);
+        if (dashboard == null) {
+            callback.onError("안심 채팅 메시지를 전송하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
     public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
         ManagerDashboard dashboard = repository.updateLocationSummary(managerUserId, locationSummary);
         if (dashboard == null) {
@@ -215,7 +225,7 @@ public class MockManagerRepository implements ManagerRepository {
                 documentFileMetadata
         );
         if (profile == null) {
-            callback.onError("원본 서류 파일 초안을 저장하지 못했습니다.");
+            callback.onError("원본 서류 파일 초안 정보를 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(profile);
@@ -229,7 +239,7 @@ public class MockManagerRepository implements ManagerRepository {
     ) {
         ManagerHomeProfile profile = repository.saveManagerAvailabilitySummary(managerUserId, availabilitySummary);
         if (profile == null) {
-            callback.onError("활동 가능 일정을 저장하지 못했습니다.");
+            callback.onError("선호 가능 일정을 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(profile);

@@ -26,6 +26,9 @@
             android:name=".ui.booking.BookingFollowUpActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.chat.CompanionChatActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.booking.BookingLiveLocationActivity"
             android:exported="false" />
         <activity

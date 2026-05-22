@@ -23,6 +23,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -117,6 +118,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSavePharmacySummary).setOnClickListener(view -> savePharmacySummary());
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> togglePharmacyCompleted());
         findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> submitReport());
+        findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
 
         bindEmptyState();
     }
@@ -125,6 +127,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (!ManagerGuideMapFallbackLauncher.open(this, model)) {
             Toast.makeText(this, R.string.guide_map_open_error, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void openCompanionChat() {
+        startActivity(CompanionChatActivity.createIntent(this));
     }
 
     @Override

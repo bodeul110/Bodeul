@@ -2349,3 +2349,37 @@
 
 - 이번 단계는 `실시간 위치 확인 전용 화면 + 지도 fallback`까지다.
 - 실제 GPS 좌표 실시간 추적, 안심 채팅, 지도 SDK 기반 마커/경로 표시는 여전히 후속 범위다.
+## 104. 2026-05-22 ?? ?? ?? ?? ??
+### ??
+- [CompanionChatActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java), [CompanionChatCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatCoordinator.java), [CompanionChatBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatBinder.java)? ??? ??????????? ?? ?? ?? ??? ? ? ?? ?? ?? ??? ????.
+- [CompanionSession](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java), [CompanionChatMessage](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionChatMessage.java), [BookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/BookingRepository.java), [ManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ManagerRepository.java)? ??? ?? ?? ?? ???? ????? ??.
+- Firebase/Mock ???? chatMessages ??? ?? ??? ???, ??? ?? ??? ??? ??? ???? ?? [CompanionChatActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java)? ??? ? ?? ??? ????.
+- [MockBodeulRepositoryTest](/D:/BoDeul/app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java)? ???/??? ?? ?? ???? ????.
+### ?? ??
+- pp/src/main/java/com/example/bodeul/domain/model/CompanionChatMessage.java
+- pp/src/main/java/com/example/bodeul/domain/model/CompanionSession.java
+- pp/src/main/java/com/example/bodeul/data/BookingRepository.java
+- pp/src/main/java/com/example/bodeul/data/ManagerRepository.java
+- pp/src/main/java/com/example/bodeul/data/MockBodeulRepository.java
+- pp/src/main/java/com/example/bodeul/data/mock/MockBookingRepository.java
+- pp/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java
+- pp/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java
+- pp/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java
+- pp/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java
+- pp/src/main/java/com/example/bodeul/ui/chat/CompanionChatCoordinator.java
+- pp/src/main/java/com/example/bodeul/ui/chat/CompanionChatBinder.java
+- pp/src/main/java/com/example/bodeul/ui/chat/CompanionChatScreenModel.java
+- pp/src/main/java/com/example/bodeul/ui/chat/CompanionChatMessageItemModel.java
+- pp/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java
+- pp/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java
+- pp/src/main/res/layout/activity_companion_chat.xml
+- pp/src/main/res/layout/item_companion_chat_message.xml
+- pp/src/main/res/layout/activity_booking_live_location.xml
+- pp/src/main/res/layout/activity_manager_guide.xml
+- pp/src/main/res/values/strings.xml
+- pp/src/main/AndroidManifest.xml
+- pp/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java
+- docs/implementation-status.md
+### ?? ??
+- ?? ??? ?? ?? ??? ?????.
+- ?? ?? ?? ??, ?? ??, ??/?? ??, GPS ?? ??? ??? ?? ?? ???.

@@ -144,6 +144,14 @@
                         android:paddingBottom="14dp"
                         android:textColor="@color/bodeul_text_secondary"
                         android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonGuideOpenChat"
+                        style="@style/BodeulOutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="@string/companion_chat_open_action" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

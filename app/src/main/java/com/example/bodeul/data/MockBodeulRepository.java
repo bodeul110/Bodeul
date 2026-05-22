@@ -24,6 +24,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -1131,6 +1132,43 @@ public class MockBodeulRepository implements BodeulRepository {
         }
         session.setGuardianUpdate(message);
         return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard appendManagerCompanionChatMessage(String managerUserId, String message) {
+        User manager = findUserById(managerUserId);
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (manager == null || session == null) {
+            return null;
+        }
+        session.addChatMessage(new CompanionChatMessage(
+                manager.getRole(),
+                normalizeText(message),
+                System.currentTimeMillis()
+        ));
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
+    public synchronized AppointmentRequestDetail appendBookingCompanionChatMessage(
+            User currentUser,
+            String requestId,
+            String message
+    ) {
+        AppointmentRequestDetail detail = getAppointmentRequestDetail(requestId);
+        if (detail == null || !matchesRequestOwner(detail.getAppointmentRequest(), currentUser.getId(), currentUser.getRole())) {
+            return null;
+        }
+        CompanionSession session = detail.getSession();
+        if (session == null) {
+            return null;
+        }
+        session.addChatMessage(new CompanionChatMessage(
+                currentUser.getRole(),
+                normalizeText(message),
+                System.currentTimeMillis()
+        ));
+        return getAppointmentRequestDetail(requestId);
     }
 
     @Nullable

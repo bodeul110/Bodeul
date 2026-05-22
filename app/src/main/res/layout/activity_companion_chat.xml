@@ -38,7 +38,7 @@
                     android:layout_weight="1" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonBackBookingLiveLocation"
+                    android:id="@+id/buttonBackCompanionChat"
                     style="@style/BodeulOutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -47,7 +47,7 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/textBookingLiveLocationMode"
+                android:id="@+id/textCompanionChatMode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
@@ -61,7 +61,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/textBookingLiveLocationTitle"
+                android:id="@+id/textCompanionChatTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
@@ -70,7 +70,7 @@
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/textBookingLiveLocationSubtitle"
+                android:id="@+id/textCompanionChatSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
@@ -79,11 +79,11 @@
                 android:textSize="14sp" />
 
             <include
-                android:id="@+id/bookingLiveLocationStatePanel"
+                android:id="@+id/companionChatStatePanel"
                 layout="@layout/include_state_panel" />
 
             <LinearLayout
-                android:id="@+id/bookingLiveLocationContentContainer"
+                android:id="@+id/companionChatContentContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
@@ -105,7 +105,7 @@
                         android:padding="22dp">
 
                         <TextView
-                            android:id="@+id/textBookingLiveLocationHeroBadge"
+                            android:id="@+id/textCompanionChatHeroBadge"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:background="@drawable/bg_badge_blue"
@@ -118,7 +118,7 @@
                             android:textStyle="bold" />
 
                         <TextView
-                            android:id="@+id/textBookingLiveLocationHeroTitle"
+                            android:id="@+id/textCompanionChatHeroTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
@@ -127,133 +127,96 @@
                             android:textStyle="bold" />
 
                         <TextView
-                            android:id="@+id/textBookingLiveLocationHeroBody"
+                            android:id="@+id/textCompanionChatHeroBody"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp"
                             android:lineSpacingExtra="4dp"
                             android:textColor="@color/bodeul_text_secondary"
                             android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonBookingLiveLocationPrimary"
-                            style="@style/BodeulHomeButton"
-                            android:layout_marginTop="18dp" />
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonBookingLiveLocationChat"
-                            style="@style/BodeulOutlinedButton"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="22dp">
+
+                        <TextView
+                            android:id="@+id/textCompanionChatSectionTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textCompanionChatEmptyBody"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
-                            android:text="@string/companion_chat_open_action" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="@color/bodeul_surface"
-                    app:cardCornerRadius="28dp"
-                    app:cardElevation="6dp"
-                    app:strokeColor="@color/bodeul_outline"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="22dp">
-
-                        <TextView
-                            android:id="@+id/textBookingLiveLocationStatusSectionTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/bodeul_text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <LinearLayout
-                            android:id="@+id/layoutBookingLiveLocationStatusLines"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:orientation="vertical" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="@color/bodeul_surface"
-                    app:cardCornerRadius="28dp"
-                    app:cardElevation="6dp"
-                    app:strokeColor="@color/bodeul_outline"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="22dp">
-
-                        <TextView
-                            android:id="@+id/textBookingLiveLocationMemoSectionTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/bodeul_text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <LinearLayout
-                            android:id="@+id/layoutBookingLiveLocationMemoLines"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:orientation="vertical" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    app:cardBackgroundColor="@color/bodeul_surface"
-                    app:cardCornerRadius="28dp"
-                    app:cardElevation="6dp"
-                    app:strokeColor="@color/bodeul_outline"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="22dp">
-
-                        <TextView
-                            android:id="@+id/textBookingLiveLocationMapSectionTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/bodeul_text_primary"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/textBookingLiveLocationMapSectionHelper"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
                             android:lineSpacingExtra="3dp"
                             android:textColor="@color/bodeul_text_secondary"
                             android:textSize="13sp" />
 
                         <LinearLayout
-                            android:id="@+id/layoutBookingLiveLocationMapActions"
+                            android:id="@+id/layoutCompanionChatMessages"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
                             android:orientation="vertical" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="22dp">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/layoutCompanionChatInput"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/inputCompanionChatMessage"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="top|start"
+                                android:inputType="textMultiLine|textCapSentences"
+                                android:maxLines="4"
+                                android:minLines="3" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonCompanionChatSend"
+                            style="@style/BodeulHomeButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -261,7 +224,7 @@
     </ScrollView>
 
     <ProgressBar
-        android:id="@+id/progressBookingLiveLocation"
+        android:id="@+id/progressCompanionChat"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center" />

@@ -24,6 +24,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -86,6 +87,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
 
         findViewById(R.id.buttonBackBookingLiveLocation).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBookingLiveLocationPrimary).setOnClickListener(view -> openBookingStatus());
+        findViewById(R.id.buttonBookingLiveLocationChat).setOnClickListener(view -> openCompanionChat());
         contentContainer.setVisibility(View.GONE);
     }
 
@@ -166,6 +168,14 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 this,
                 currentDetail.getAppointmentRequest().getId()
         ));
+    }
+
+    private void openCompanionChat() {
+        if (TextUtils.isEmpty(requestId)) {
+            Toast.makeText(this, R.string.booking_status_request_missing, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        startActivity(CompanionChatActivity.createIntent(this, requestId));
     }
 
     private void setLoading(boolean loading) {

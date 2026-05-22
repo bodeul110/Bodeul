@@ -73,5 +73,12 @@ public interface BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     );
 
+    void sendCompanionChatMessage(
+            User currentUser,
+            String requestId,
+            String message,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    );
+
     boolean isFirebaseBacked();
 }

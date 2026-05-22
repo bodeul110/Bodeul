@@ -38,6 +38,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingCouponType;
+import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingManagerGenderPreference;
 import com.example.bodeul.domain.model.BookingMobilitySupport;
@@ -1310,6 +1311,52 @@ public class MockBodeulRepositoryTest {
         assertEquals(3, historyEntries.size());
         assertEquals(ManagerDocumentHistoryEventType.REJECTED, historyEntries.get(0).getEventType());
         assertEquals(reviewedProfile.getDocumentReviewedByName(), historyEntries.get(0).getActorName());
+    }
+
+    @Test
+    public void appendBookingCompanionChatMessage_addsGuardianMessageToSession() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
+
+        assertNotNull(guardian);
+
+        AppointmentRequestDetail updatedDetail = repository.appendBookingCompanionChatMessage(
+                guardian,
+                "request-1",
+                "보호자가 동행 진행 상황을 확인했습니다."
+        );
+
+        assertNotNull(updatedDetail);
+        assertNotNull(updatedDetail.getSession());
+        assertFalse(updatedDetail.getSession().getChatMessages().isEmpty());
+        assertEquals(
+                "보호자가 동행 진행 상황을 확인했습니다.",
+                updatedDetail.getSession().getChatMessages().get(
+                        updatedDetail.getSession().getChatMessages().size() - 1
+                ).getBody()
+        );
+    }
+
+    @Test
+    public void appendManagerCompanionChatMessage_addsManagerMessageToDashboardSession() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        ManagerDashboard updatedDashboard = repository.appendManagerCompanionChatMessage(
+                manager.getId(),
+                "매니저가 병원 도착 예정 시간을 공유했습니다."
+        );
+
+        assertNotNull(updatedDashboard);
+        assertFalse(updatedDashboard.getSession().getChatMessages().isEmpty());
+        assertEquals(
+                "매니저가 병원 도착 예정 시간을 공유했습니다.",
+                updatedDashboard.getSession().getChatMessages().get(
+                        updatedDashboard.getSession().getChatMessages().size() - 1
+                ).getBody()
+        );
     }
 
     private BookingRequestDraft createDraft(
