@@ -14,9 +14,12 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 보호자 진행 데이터를 화면 모델로 조합한다.
@@ -175,6 +178,13 @@ public final class GuardianReportCoordinator {
         addOptionalLine(items, R.string.guardian_report_line_location, entry.getSession() == null
                 ? ""
                 : entry.getSession().getLocationSummary(), false);
+        if (entry.getSession() != null && entry.getSession().getSharedLocationUpdatedAtMillis() > 0L) {
+            items.add(new GuardianReportLineItem(
+                    context.getString(R.string.guardian_report_line_location_updated_at),
+                    formatSharedLocationTime(entry.getSession().getSharedLocationUpdatedAtMillis()),
+                    false
+            ));
+        }
         addOptionalLine(items, R.string.guardian_report_line_update, entry.getSession() == null
                 ? ""
                 : entry.getSession().getGuardianUpdate(), false);
@@ -267,5 +277,10 @@ public final class GuardianReportCoordinator {
         return context.getString(session.isPharmacyCompleted()
                 ? R.string.guide_pharmacy_state_completed
                 : R.string.guide_pharmacy_state_pending);
+    }
+
+    private String formatSharedLocationTime(long updatedAtMillis) {
+        return new SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
+                .format(new Date(updatedAtMillis));
     }
 }

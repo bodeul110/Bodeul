@@ -2441,3 +2441,24 @@
 
 - 이번 단계는 매니저 1회 위치 공유 + 카카오 좌표 열기까지다.
 - 연속 GPS 스트림 추적, 좌표 변경 이력, 푸시형 위치 알림, 카카오 지도 SDK 내장 마커 표시는 여전히 후속 범위다.
+## 107. 2026-05-22 공유 위치 시각 노출과 가이드 직행 링크 보강
+
+### 구현
+
+- [ManagerGuideCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java)가 공유 위치 메모나 좌표가 있을 때 현재 공유 위치 바로 열기 카드를 먼저 노출하고, 좌표가 있으면 카카오맵 look 링크를 직접 열도록 보강했다.
+- [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)에 최근 위치 공유 시각 상태 줄을 추가해 보호자/환자 화면에서 마지막 위치 공유 시각을 바로 확인할 수 있게 했다.
+- [GuardianReportCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java)에도 같은 시각 정보를 노출해 보호자 리포트 카드에서 위치 공유 최신성을 바로 판단할 수 있게 했다.
+- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 공유 위치 직행 카드와 위치 공유 시각 문구를 추가했다.
+
+### 변경 범위
+
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java
+- app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java
+- app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java
+- app/src/main/res/values/strings.xml
+- docs/implementation-status.md
+
+### 남은 범위
+
+- 현재는 최근 1회 좌표 공유 + 시각 노출 단계다.
+- 연속 위치 스트림, 백그라운드 추적, 카카오 지도 SDK 내장 화면은 여전히 후속 범위다.

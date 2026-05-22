@@ -319,6 +319,7 @@
     <string name="guardian_report_line_progress">진행 상태</string>
     <string name="guardian_report_line_location">위치 공유 메모</string>
     <string name="guardian_report_line_update">최근 공유</string>
+    <string name="guardian_report_line_location_updated_at">최근 위치 공유 시각</string>
     <string name="guardian_report_line_photo">현장 사진 메모</string>
     <string name="guardian_report_line_medication">현장 복약 메모</string>
     <string name="guardian_report_line_pharmacy">현장 약국 진행</string>
@@ -477,8 +478,12 @@
     <string name="guide_map_action_hospital_title">병원 안내도 바로 열기</string>
     <string name="guide_map_action_hospital_body">%1$s %2$s 동선을 먼저 확인하고, 병원 공식 안내도나 지도 검색 결과를 빠르게 엽니다.</string>
     <string name="guide_map_action_hospital_button">병원 지도 열기</string>
+    <string name="guide_map_action_shared_title">현재 공유 위치 바로 열기</string>
+    <string name="guide_map_action_shared_body">최근에 공유한 위치 메모는 %1$s입니다. 카카오맵으로 바로 열어 현장 위치를 다시 확인합니다.</string>
+    <string name="guide_map_action_shared_body_with_time">최근에 공유한 위치 메모는 %1$s이고, 마지막 공유 시각은 %2$s입니다. 카카오맵으로 바로 열어 현장 위치를 다시 확인합니다.</string>
+    <string name="guide_map_action_shared_button">공유 위치 열기</string>
     <string name="guide_map_action_meeting_title">만남 위치 다시 확인</string>
-    <string name="guide_map_action_meeting_body">현재 예약된 만남 위치는 `%1$s`입니다. 길 안내가 애매하면 바로 검색해 다시 확인하세요.</string>
+    <string name="guide_map_action_meeting_body">현재 예약된 만남 위치는 %1$s입니다. 길 안내가 애매하면 바로 검색해 다시 확인하세요.</string>
     <string name="guide_map_action_meeting_button">만남 위치 검색</string>
     <string name="guide_map_action_pharmacy_title">인근 약국 위치 확인</string>
     <string name="guide_map_action_pharmacy_body">%1$s 일정 종료 후 약국 동행이 이어질 수 있으니, 인근 약국 후보를 미리 열어봅니다.</string>
@@ -1159,6 +1164,7 @@
     <string name="booking_live_location_line_schedule">예약 시간</string>
     <string name="booking_live_location_line_meeting_place">만남 위치</string>
     <string name="booking_live_location_line_location">공유 위치 메모</string>
+    <string name="booking_live_location_line_location_updated_at">최근 위치 공유 시각</string>
     <string name="booking_live_location_line_guardian_update">보호자 전달 메모</string>
     <string name="booking_live_location_line_photo_note">현장 사진 메모</string>
     <string name="booking_live_location_line_medication_note">현장 복약 메모</string>
@@ -1169,10 +1175,10 @@
     <string name="booking_live_location_step_simple_format">%1$d단계 진행 중</string>
     <string name="booking_live_location_action_open_booking_status">예약 상세로 돌아가기</string>
     <string name="booking_live_location_map_shared_title">현재 공유 위치 기준 검색</string>
-    <string name="booking_live_location_map_shared_body">가장 최근 위치 메모는 `%1$s`입니다. 지도 앱에서 바로 검색해 현재 동선을 다시 확인합니다.</string>
+    <string name="booking_live_location_map_shared_body">가장 최근 위치 메모는 %1$s입니다. 지도 앱에서 바로 검색해 현재 동선을 다시 확인합니다.</string>
     <string name="booking_live_location_map_shared_button">공유 위치 검색</string>
     <string name="booking_live_location_map_meeting_title">만남 위치 다시 열기</string>
-    <string name="booking_live_location_map_meeting_body">예약된 만남 위치 `%1$s`를 기준으로 다시 길을 확인합니다.</string>
+    <string name="booking_live_location_map_meeting_body">예약된 만남 위치 %1$s를 기준으로 다시 길을 확인합니다.</string>
     <string name="booking_live_location_map_meeting_button">만남 위치 열기</string>
     <string name="booking_live_location_map_hospital_title">병원 위치 확인</string>
     <string name="booking_live_location_map_hospital_body">%1$s %2$s 위치를 검색해 병원 진입 경로를 빠르게 확인합니다.</string>

@@ -13,9 +13,12 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 매니저 동행 가이드 화면에 필요한 상태를 화면 모델로 조합한다.
@@ -107,16 +110,28 @@ public final class ManagerGuideCoordinator {
         String hospitalName = dashboard.getAppointmentRequest().getHospitalName();
         String departmentName = dashboard.getAppointmentRequest().getDepartmentName();
         String meetingPlace = dashboard.getAppointmentRequest().getMeetingPlace();
+        CompanionSession session = dashboard.getSession();
         if (TextUtils.isEmpty(meetingPlace)) {
             meetingPlace = context.getString(R.string.guide_map_default_meeting_place, hospitalName);
         }
 
         List<ManagerGuideMapActionModel> actions = new ArrayList<>();
+        if (!TextUtils.isEmpty(session.getLocationSummary()) || session.hasSharedLocationCoordinates()) {
+            actions.add(new ManagerGuideMapActionModel(
+                    context.getString(R.string.guide_map_action_shared_title),
+                    buildSharedLocationBody(session, meetingPlace),
+                    context.getString(R.string.guide_map_action_shared_button),
+                    TextUtils.isEmpty(session.getLocationSummary())
+                            ? hospitalName + " " + meetingPlace
+                            : session.getLocationSummary(),
+                    buildSharedLocationDirectUrl(session)
+            ));
+        }
         actions.add(new ManagerGuideMapActionModel(
                 context.getString(R.string.guide_map_action_hospital_title),
                 context.getString(R.string.guide_map_action_hospital_body, hospitalName, departmentName),
                 context.getString(R.string.guide_map_action_hospital_button),
-                hospitalName + " " + departmentName + " 원내 지도",
+                hospitalName + " " + departmentName + " 안내 지도",
                 resolveHospitalFallbackUrl(hospitalName)
         ));
         actions.add(new ManagerGuideMapActionModel(
@@ -235,5 +250,37 @@ public final class ManagerGuideCoordinator {
         return context.getString(session.isPharmacyCompleted()
                 ? R.string.guide_pharmacy_mark_incomplete
                 : R.string.guide_pharmacy_mark_completed);
+    }
+
+    private String buildSharedLocationBody(CompanionSession session, String fallbackPlace) {
+        String locationText = TextUtils.isEmpty(session.getLocationSummary())
+                ? fallbackPlace
+                : session.getLocationSummary();
+        if (session.getSharedLocationUpdatedAtMillis() <= 0L) {
+            return context.getString(R.string.guide_map_action_shared_body, locationText);
+        }
+        return context.getString(
+                R.string.guide_map_action_shared_body_with_time,
+                locationText,
+                formatSharedLocationTime(session.getSharedLocationUpdatedAtMillis())
+        );
+    }
+
+    @Nullable
+    private String buildSharedLocationDirectUrl(CompanionSession session) {
+        if (!session.hasSharedLocationCoordinates()) {
+            return null;
+        }
+        return String.format(
+                Locale.US,
+                "kakaomap://look?p=%1$.6f,%2$.6f",
+                session.getSharedLatitude(),
+                session.getSharedLongitude()
+        );
+    }
+
+    private String formatSharedLocationTime(long updatedAtMillis) {
+        return new SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
+                .format(new Date(updatedAtMillis));
     }
 }
