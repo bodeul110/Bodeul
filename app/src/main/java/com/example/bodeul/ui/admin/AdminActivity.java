@@ -2,6 +2,7 @@ package com.example.bodeul.ui.admin;
 
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -20,6 +21,7 @@ import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AdminRepository;
 import com.example.bodeul.data.AuthRepository;
+import com.example.bodeul.data.ManagerDocumentPreviewResolver;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.AdminDashboard;
@@ -28,6 +30,8 @@ import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.SupportInquiry;
@@ -36,6 +40,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.DocumentPreviewLauncher;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -52,6 +57,7 @@ import java.util.Set;
 public class AdminActivity extends AppCompatActivity {
     private AuthRepository authRepository;
     private AdminRepository adminRepository;
+    private ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
     private User currentUser;
     private HospitalGuide editingGuide;
     @Nullable
@@ -132,6 +138,7 @@ public class AdminActivity extends AppCompatActivity {
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         adminRepository = ServiceLocator.provideAdminRepository(this);
+        managerDocumentPreviewResolver = ServiceLocator.provideManagerDocumentPreviewResolver(this);
         adminOperationsCoordinator = new AdminOperationsCoordinator(
                 this,
                 new AdminOperationsPresentationFormatter(this)
@@ -1258,6 +1265,17 @@ public class AdminActivity extends AppCompatActivity {
                         }
 
                         @Override
+                        public void onOpenFiles(String managerUserId) {
+                            ManagerDocumentOverview overview = findManagerDocumentOverview(
+                                    managerUserId,
+                                    overviews
+                            );
+                            if (overview != null) {
+                                openManagerDocumentFilesDialog(overview);
+                            }
+                        }
+
+                        @Override
                         public void onOpenHistory(String managerUserId) {
                             ManagerDocumentOverview overview = findManagerDocumentOverview(
                                     managerUserId,
@@ -1271,6 +1289,67 @@ public class AdminActivity extends AppCompatActivity {
             );
             adminManagerDocumentsContainer.addView(itemView);
         }
+    }
+
+    private void openManagerDocumentFilesDialog(ManagerDocumentOverview overview) {
+        List<ManagerDocumentFileMetadata> documentFiles = overview.getProfile().getDocumentFiles();
+        if (documentFiles.isEmpty()) {
+            Toast.makeText(this, R.string.admin_manager_document_files_empty, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        CharSequence[] items = new CharSequence[documentFiles.size()];
+        for (int index = 0; index < documentFiles.size(); index++) {
+            ManagerDocumentFileMetadata metadata = documentFiles.get(index);
+            items[index] = getString(
+                    R.string.admin_manager_document_file_item_format,
+                    getManagerDocumentLabel(metadata.getFileType()),
+                    metadata.getFileName()
+            );
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(
+                        R.string.admin_manager_document_files_dialog_title,
+                        overview.getManager().getName()
+                ))
+                .setItems(items, (dialogInterface, which) ->
+                        openManagerDocumentPreview(documentFiles.get(which)))
+                .setNegativeButton(R.string.admin_manager_document_history_close, null)
+                .show();
+    }
+
+    private void openManagerDocumentPreview(ManagerDocumentFileMetadata metadata) {
+        if (loading) {
+            return;
+        }
+        setLoading(true);
+        managerDocumentPreviewResolver.resolvePreviewUri(
+                metadata,
+                new RepositoryCallback<Uri>() {
+                    @Override
+                    public void onSuccess(Uri result) {
+                        setLoading(false);
+                        if (!DocumentPreviewLauncher.open(
+                                AdminActivity.this,
+                                result,
+                                metadata.getContentType()
+                        )) {
+                            Toast.makeText(
+                                    AdminActivity.this,
+                                    R.string.manager_document_preview_open_failed,
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
     }
 
     private void confirmGuideDelete(HospitalGuide guide) {
@@ -1346,6 +1425,19 @@ public class AdminActivity extends AppCompatActivity {
             }
         }
         return null;
+    }
+
+    private String getManagerDocumentLabel(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.ID_CARD) {
+            return getString(R.string.manager_document_registration_document_id_card);
+        }
+        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+            return getString(R.string.manager_document_registration_document_nursing_license);
+        }
+        if (fileType == ManagerDocumentFileType.LICENSE) {
+            return getString(R.string.manager_document_registration_document_elderly_care_license);
+        }
+        return getString(R.string.manager_document_registration_document_criminal_record);
     }
 
     private void assignManager(String requestId, String managerUserId) {

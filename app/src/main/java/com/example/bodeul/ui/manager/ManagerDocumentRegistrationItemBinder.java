@@ -21,6 +21,7 @@ public final class ManagerDocumentRegistrationItemBinder {
         TextView helperView = itemView.findViewById(R.id.textManagerDocumentRegistrationHelper);
         TextView fileNameView = itemView.findViewById(R.id.textManagerDocumentRegistrationFileName);
         TextView fileMetaView = itemView.findViewById(R.id.textManagerDocumentRegistrationFileMeta);
+        MaterialButton previewButton = itemView.findViewById(R.id.buttonManagerDocumentRegistrationPreview);
         MaterialButton actionButton = itemView.findViewById(R.id.buttonManagerDocumentRegistrationUpload);
 
         titleView.setText(itemModel.getTitleText());
@@ -54,6 +55,7 @@ public final class ManagerDocumentRegistrationItemBinder {
             fileMetaView.setText(itemModel.getFileMetaText());
         }
 
+        previewButton.setVisibility(itemModel.isPreviewAvailable() ? View.VISIBLE : View.GONE);
         actionButton.setText(itemModel.getActionText());
     }
 }

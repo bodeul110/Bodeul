@@ -15,6 +15,8 @@ public final class AdminManagerDocumentCardModel {
     private final String timelineText;
     private final boolean showActions;
     private final boolean actionsEnabled;
+    private final boolean showFilesButton;
+    private final boolean filesButtonEnabled;
     private final boolean showHistoryButton;
     private final boolean historyButtonEnabled;
 
@@ -30,6 +32,8 @@ public final class AdminManagerDocumentCardModel {
             String timelineText,
             boolean showActions,
             boolean actionsEnabled,
+            boolean showFilesButton,
+            boolean filesButtonEnabled,
             boolean showHistoryButton,
             boolean historyButtonEnabled
     ) {
@@ -44,6 +48,8 @@ public final class AdminManagerDocumentCardModel {
         this.timelineText = timelineText;
         this.showActions = showActions;
         this.actionsEnabled = actionsEnabled;
+        this.showFilesButton = showFilesButton;
+        this.filesButtonEnabled = filesButtonEnabled;
         this.showHistoryButton = showHistoryButton;
         this.historyButtonEnabled = historyButtonEnabled;
     }
@@ -90,6 +96,14 @@ public final class AdminManagerDocumentCardModel {
 
     public boolean isActionsEnabled() {
         return actionsEnabled;
+    }
+
+    public boolean isShowFilesButton() {
+        return showFilesButton;
+    }
+
+    public boolean isFilesButtonEnabled() {
+        return filesButtonEnabled;
     }
 
     public boolean isShowHistoryButton() {

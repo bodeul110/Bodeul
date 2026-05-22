@@ -661,6 +661,10 @@
     <string name="admin_manager_document_timeline_value">서류 제출: %1$s\n최근 검토: %2$s\n담당자: %3$s</string>
     <string name="admin_manager_document_timeline_none">기록 없음</string>
     <string name="admin_manager_document_history">검토 이력 보기</string>
+    <string name="admin_manager_document_files">제출 파일 보기</string>
+    <string name="admin_manager_document_files_dialog_title">%1$s 매니저 제출 파일</string>
+    <string name="admin_manager_document_files_empty">아직 업로드된 제출 파일이 없습니다.</string>
+    <string name="admin_manager_document_file_item_format">%1$s · %2$s</string>
     <string name="admin_manager_document_history_dialog_title">%1$s 매니저 검토 이력</string>
     <string name="admin_manager_document_history_helper">서류 제출부터 최근 검토까지 시간순으로 확인할 수 있습니다.</string>
     <string name="admin_manager_document_history_empty">아직 기록된 검토 이력이 없습니다.</string>
@@ -1032,6 +1036,9 @@
     <string name="manager_document_registration_missing_file_body">%1$s 파일이 아직 없습니다. 최신 원본을 업로드해주세요.</string>
     <string name="manager_document_registration_upload_button">파일 선택하기</string>
     <string name="manager_document_registration_replace_button">다시 선택</string>
+    <string name="manager_document_preview_button">파일 열기</string>
+    <string name="manager_document_preview_missing">다시 열 수 있는 서류 파일이 없습니다.</string>
+    <string name="manager_document_preview_open_failed">서류 파일을 열 수 있는 앱을 찾지 못했습니다.</string>
     <string name="manager_document_registration_review_title">최근 검토 메모</string>
     <string name="manager_document_registration_review_rejected_title">보완 요청 메모</string>
     <string name="manager_document_registration_guide_title">서류 가이드</string>

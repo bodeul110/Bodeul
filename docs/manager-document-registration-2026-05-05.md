@@ -30,3 +30,43 @@
 ## 남은 범위
 
 - 이번 작업 범위에는 파일 미리보기, 업로드한 문서 재열기, 삭제 기능은 포함하지 않았다.
+
+## 2026-05-22 추가 업데이트
+
+### 구현한 내용
+
+- 매니저 서류 등록 화면에서 업로드된 파일은 `파일 열기`로 바로 다시 열 수 있게 했다.
+- 관리자 서류 검토 카드에 `제출 파일 보기`를 추가해 실제 제출 파일 목록을 보고 선택한 파일을 바로 열 수 있게 했다.
+- 목업 모드에서는 SAF `content://` URI를 저장해 같은 기기에서 다시 열 수 있게 했고, Firebase 모드에서는 Storage 경로를 다운로드 URI로 해석해 미리보기를 열도록 연결했다.
+
+### 변경된 범위
+
+- `app/src/main/java/com/example/bodeul/domain/model/ManagerDocumentFileMetadata.java`
+- `app/src/main/java/com/example/bodeul/data/ManagerDocumentPreviewResolver.java`
+- `app/src/main/java/com/example/bodeul/data/ServiceLocator.java`
+- `app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java`
+- `app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentPreviewResolver.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentPreviewResolver.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationItemBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationItemModel.java`
+- `app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/admin/AdminManagerDocumentCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/admin/AdminManagerDocumentCardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/admin/AdminManagerDocumentCardModel.java`
+- `app/src/main/java/com/example/bodeul/util/DocumentPreviewLauncher.java`
+- `app/src/main/res/layout/activity_manager_document_registration.xml`
+- `app/src/main/res/layout/item_manager_document_registration.xml`
+- `app/src/main/res/layout/item_admin_manager_document.xml`
+- `app/src/main/res/values/strings.xml`
+- `app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java`
+- `docs/manager-document-registration-2026-05-05.md`
+
+### 남은 범위
+
+- 업로드한 파일 삭제와 Storage 정리 정책은 아직 없다.
+- 과거 목업 데이터처럼 `previewUri`가 저장되지 않은 기존 샘플 파일은 목업 모드에서 다시 열 수 없다.

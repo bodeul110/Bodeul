@@ -1266,7 +1266,8 @@ public class MockBodeulRepositoryTest {
                         "manager-documents/" + manager.getId() + "/idCard/1760500900000-id-card.pdf",
                         "id-card.pdf",
                         "application/pdf",
-                        1760500900000L
+                        1760500900000L,
+                        "content://manager-documents/id-card"
                 )
         );
 
@@ -1279,6 +1280,10 @@ public class MockBodeulRepositoryTest {
         assertEquals(
                 "id-card.pdf",
                 updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD).getFileName()
+        );
+        assertEquals(
+                "content://manager-documents/id-card",
+                updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD).getPreviewUri()
         );
 
         List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());

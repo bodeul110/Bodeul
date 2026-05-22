@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
+import com.example.bodeul.data.ManagerDocumentPreviewResolver;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
@@ -31,6 +32,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.util.DocumentPreviewLauncher;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -42,6 +44,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private ManagerDocumentStorageUploader managerDocumentStorageUploader;
+    private ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
     private ManagerDocumentRegistrationCoordinator coordinator;
     private ManagerDocumentRegistrationBinder binder;
     private ActivityResultLauncher<String[]> documentPickerLauncher;
@@ -69,6 +72,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         authRepository = ServiceLocator.provideAuthRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
         managerDocumentStorageUploader = ServiceLocator.provideManagerDocumentStorageUploader(this);
+        managerDocumentPreviewResolver = ServiceLocator.provideManagerDocumentPreviewResolver(this);
         coordinator = new ManagerDocumentRegistrationCoordinator(
                 this,
                 new ManagerHomePresentationFormatter(this)
@@ -95,6 +99,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 findViewById(R.id.textManagerDocumentPrimaryHelper),
                 findViewById(R.id.textManagerDocumentPrimaryFileName),
                 findViewById(R.id.textManagerDocumentPrimaryFileMeta),
+                findViewById(R.id.buttonManagerDocumentPrimaryPreview),
                 findViewById(R.id.buttonManagerDocumentPrimaryUpload),
                 (LinearLayout) findViewById(R.id.managerDocumentRegistrationContainer),
                 findViewById(R.id.cardManagerDocumentReview),
@@ -130,6 +135,20 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
     }
 
+    @Override
+    public void onDocumentPreviewRequested(@Nullable ManagerDocumentFileType fileType) {
+        ManagerDocumentFileMetadata metadata = findDocumentMetadata(fileType);
+        if (metadata == null) {
+            Toast.makeText(
+                    this,
+                    R.string.manager_document_preview_missing,
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+        openDocumentPreview(metadata);
+    }
+
     private void showLicenseTypeSelector() {
         String[] options = new String[]{
                 getString(R.string.manager_document_registration_document_nursing_license),
@@ -160,6 +179,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
 
+        persistDocumentReadPermission(fileUri);
         setLoading(true);
         managerDocumentStorageUploader.uploadDocument(
                 currentUser.getId(),
@@ -178,6 +198,62 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                     }
                 }
         );
+    }
+
+    private void openDocumentPreview(ManagerDocumentFileMetadata metadata) {
+        setLoading(true);
+        managerDocumentPreviewResolver.resolvePreviewUri(
+                metadata,
+                new RepositoryCallback<Uri>() {
+                    @Override
+                    public void onSuccess(Uri result) {
+                        setLoading(false);
+                        if (!DocumentPreviewLauncher.open(
+                                ManagerDocumentRegistrationActivity.this,
+                                result,
+                                metadata.getContentType()
+                        )) {
+                            Toast.makeText(
+                                    ManagerDocumentRegistrationActivity.this,
+                                    R.string.manager_document_preview_open_failed,
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(
+                                ManagerDocumentRegistrationActivity.this,
+                                message,
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+        );
+    }
+
+    @Nullable
+    private ManagerDocumentFileMetadata findDocumentMetadata(@Nullable ManagerDocumentFileType fileType) {
+        if (currentOverview == null || fileType == null) {
+            return null;
+        }
+        return currentOverview.getProfile().getDocumentFile(fileType);
+    }
+
+    private void persistDocumentReadPermission(@Nullable Uri fileUri) {
+        if (fileUri == null) {
+            return;
+        }
+        try {
+            getContentResolver().takePersistableUriPermission(
+                    fileUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+            );
+        } catch (SecurityException | IllegalArgumentException ignored) {
+            // 일부 공급자는 지속 권한을 주지 않아도 현재 세션 업로드는 가능하다.
+        }
     }
 
     private void saveDraftDocumentFile(

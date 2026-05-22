@@ -132,6 +132,17 @@
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonAdminManagerDocumentFiles"
+            style="@style/BodeulOutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:text="@string/admin_manager_document_files"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonAdminManagerDocumentHistory"
             style="@style/BodeulOutlinedButton"
             android:layout_width="match_parent"

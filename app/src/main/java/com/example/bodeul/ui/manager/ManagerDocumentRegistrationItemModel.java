@@ -9,7 +9,9 @@ import com.example.bodeul.domain.model.ManagerDocumentFileType;
  */
 public final class ManagerDocumentRegistrationItemModel {
     @Nullable
-    private final ManagerDocumentFileType fileType;
+    private final ManagerDocumentFileType uploadFileType;
+    @Nullable
+    private final ManagerDocumentFileType previewFileType;
     private final String titleText;
     private final String helperText;
     private final String badgeText;
@@ -20,7 +22,8 @@ public final class ManagerDocumentRegistrationItemModel {
     private final String actionText;
 
     public ManagerDocumentRegistrationItemModel(
-            @Nullable ManagerDocumentFileType fileType,
+            @Nullable ManagerDocumentFileType uploadFileType,
+            @Nullable ManagerDocumentFileType previewFileType,
             String titleText,
             String helperText,
             String badgeText,
@@ -30,7 +33,8 @@ public final class ManagerDocumentRegistrationItemModel {
             String fileMetaText,
             String actionText
     ) {
-        this.fileType = fileType;
+        this.uploadFileType = uploadFileType;
+        this.previewFileType = previewFileType;
         this.titleText = titleText;
         this.helperText = helperText;
         this.badgeText = badgeText;
@@ -42,8 +46,17 @@ public final class ManagerDocumentRegistrationItemModel {
     }
 
     @Nullable
-    public ManagerDocumentFileType getFileType() {
-        return fileType;
+    public ManagerDocumentFileType getUploadFileType() {
+        return uploadFileType;
+    }
+
+    @Nullable
+    public ManagerDocumentFileType getPreviewFileType() {
+        return previewFileType;
+    }
+
+    public boolean isPreviewAvailable() {
+        return previewFileType != null;
     }
 
     public String getTitleText() {

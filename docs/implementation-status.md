@@ -2512,3 +2512,46 @@
 - 기능 우선순위 자체는 바꾸지 않았다.
 - 다음 UI polish는 `인증/공통 -> 환자/보호자 홈/진행 -> 매니저 홈/가이드 -> 서류/내 페이지 -> 설정` 순서로 진행한다.
 - GPS, 결제, 정산, OCR/AI는 디자인보다 실제 연동 범위를 먼저 확정하는 축으로 유지한다.
+
+## 110. 2026-05-22 서류 파일 미리보기와 재열기 연결
+
+### 구현
+
+- `ManagerDocumentFileMetadata`에 `previewUri`를 추가하고 `ManagerDocumentPreviewResolver` 계층을 도입해, 저장된 서류 메타데이터만으로 다시 열 수 있는 미리보기 URI를 해석하도록 정리했다.
+- 매니저 서류 등록 화면에 `파일 열기` 버튼을 추가해 업로드된 PDF/이미지 원본을 바로 다시 확인할 수 있게 했다.
+- 관리자 서류 검토 카드에 `제출 파일 보기`를 추가해 매니저가 올린 신분증/자격증/범죄경력 조회서를 목록에서 선택해 바로 열 수 있게 했다.
+- 목업 모드에서는 SAF `content://` URI를 함께 저장하고, Firebase 모드에서는 Storage 경로를 다운로드 URI로 해석해 같은 화면 흐름으로 미리보기를 열도록 맞췄다.
+- 관련 문자열과 서류 등록 문서를 업데이트했다.
+
+### 변경 범위
+
+- app/src/main/java/com/example/bodeul/domain/model/ManagerDocumentFileMetadata.java
+- app/src/main/java/com/example/bodeul/data/ManagerDocumentPreviewResolver.java
+- app/src/main/java/com/example/bodeul/data/ServiceLocator.java
+- app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java
+- app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentPreviewResolver.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentPreviewResolver.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationActivity.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationBinder.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationCoordinator.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationItemBinder.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentRegistrationItemModel.java
+- app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java
+- app/src/main/java/com/example/bodeul/ui/admin/AdminManagerDocumentCoordinator.java
+- app/src/main/java/com/example/bodeul/ui/admin/AdminManagerDocumentCardBinder.java
+- app/src/main/java/com/example/bodeul/ui/admin/AdminManagerDocumentCardModel.java
+- app/src/main/java/com/example/bodeul/util/DocumentPreviewLauncher.java
+- app/src/main/res/layout/activity_manager_document_registration.xml
+- app/src/main/res/layout/item_manager_document_registration.xml
+- app/src/main/res/layout/item_admin_manager_document.xml
+- app/src/main/res/values/strings.xml
+- app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java
+- docs/manager-document-registration-2026-05-05.md
+- docs/implementation-status.md
+
+### 남은 범위
+
+- 업로드한 파일 삭제와 Storage 정리 정책은 아직 없다.
+- 과거 목업 데이터처럼 `previewUri`가 없는 기존 샘플 파일은 목업 모드에서 다시 열 수 없다.

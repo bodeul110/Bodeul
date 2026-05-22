@@ -268,10 +268,20 @@
                         android:visibility="gone" />
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonManagerDocumentPrimaryPreview"
+                        style="@style/BodeulOutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="14dp"
+                        android:text="@string/manager_document_preview_button"
+                        android:textAllCaps="false"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/buttonManagerDocumentPrimaryUpload"
                         android:layout_width="132dp"
                         android:layout_height="44dp"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="10dp"
                         android:text="@string/manager_document_registration_upload_button"
                         android:textAllCaps="false"
                         android:textColor="@color/white"

@@ -427,6 +427,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
                     updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
                     updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
+                    updates.put(fileKeyPrefix + ".previewUri", documentFileMetadata.getPreviewUri());
                     updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
                     updates.put(
                             "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
@@ -474,6 +475,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
         updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
         updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
         updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
+        updates.put(fileKeyPrefix + ".previewUri", documentFileMetadata.getPreviewUri());
         updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
         updates.put(
                 "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
@@ -995,7 +997,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 fullPath,
                 fileName,
                 normalizeText(stringValue(valueMap.get("contentType"))),
-                resolveTimestampMillis(valueMap.get("uploadedAt"))
+                resolveTimestampMillis(valueMap.get("uploadedAt")),
+                normalizeText(stringValue(valueMap.get("previewUri")))
         );
     }
 

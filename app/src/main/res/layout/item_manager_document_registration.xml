@@ -90,19 +90,40 @@
             android:textSize="10sp"
             android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonManagerDocumentRegistrationUpload"
+        <LinearLayout
             android:layout_width="88dp"
-            android:layout_height="36dp"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/manager_document_registration_upload_button"
-            android:textAllCaps="false"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="11sp"
-            app:backgroundTint="@color/white"
-            app:cornerRadius="18dp"
-            app:strokeColor="@color/bodeul_outline"
-            app:strokeWidth="1dp" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonManagerDocumentRegistrationPreview"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/manager_document_preview_button"
+                android:textAllCaps="false"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="10sp"
+                android:visibility="gone"
+                app:backgroundTint="@color/bodeul_soft_yellow"
+                app:cornerRadius="18dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonManagerDocumentRegistrationUpload"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="8dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/manager_document_registration_upload_button"
+                android:textAllCaps="false"
+                android:textColor="@color/bodeul_primary"
+                android:textSize="11sp"
+                app:backgroundTint="@color/white"
+                app:cornerRadius="18dp"
+                app:strokeColor="@color/bodeul_outline"
+                app:strokeWidth="1dp" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -18,6 +18,8 @@ public final class AdminManagerDocumentCardBinder {
 
         void onReject(String managerUserId);
 
+        void onOpenFiles(String managerUserId);
+
         void onOpenHistory(String managerUserId);
     }
 
@@ -29,6 +31,7 @@ public final class AdminManagerDocumentCardBinder {
         TextView reviewNoteView = itemView.findViewById(R.id.textAdminManagerDocumentReviewNote);
         TextView timelineView = itemView.findViewById(R.id.textAdminManagerDocumentTimeline);
         View actionLayout = itemView.findViewById(R.id.layoutAdminManagerDocumentActions);
+        MaterialButton filesButton = itemView.findViewById(R.id.buttonAdminManagerDocumentFiles);
         MaterialButton historyButton = itemView.findViewById(R.id.buttonAdminManagerDocumentHistory);
         MaterialButton approveButton = itemView.findViewById(R.id.buttonAdminManagerDocumentApprove);
         MaterialButton rejectButton = itemView.findViewById(R.id.buttonAdminManagerDocumentReject);
@@ -49,11 +52,14 @@ public final class AdminManagerDocumentCardBinder {
         actionLayout.setVisibility(model.isShowActions() ? View.VISIBLE : View.GONE);
         approveButton.setEnabled(model.isActionsEnabled());
         rejectButton.setEnabled(model.isActionsEnabled());
+        filesButton.setVisibility(model.isShowFilesButton() ? View.VISIBLE : View.GONE);
+        filesButton.setEnabled(model.isFilesButtonEnabled());
         historyButton.setVisibility(model.isShowHistoryButton() ? View.VISIBLE : View.GONE);
         historyButton.setEnabled(model.isHistoryButtonEnabled());
 
         approveButton.setOnClickListener(view -> listener.onApprove(model.getManagerUserId()));
         rejectButton.setOnClickListener(view -> listener.onReject(model.getManagerUserId()));
+        filesButton.setOnClickListener(view -> listener.onOpenFiles(model.getManagerUserId()));
         historyButton.setOnClickListener(view -> listener.onOpenHistory(model.getManagerUserId()));
     }
 }

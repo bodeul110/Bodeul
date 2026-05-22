@@ -51,7 +51,8 @@ public final class MockManagerDocumentStorageUploader implements ManagerDocument
                 "manager-documents/" + managerUserId + "/" + fileType.getStorageKey() + "/" + uploadedAtMillis + "-" + fileName,
                 fileName,
                 contentType,
-                uploadedAtMillis
+                uploadedAtMillis,
+                fileUri.toString()
         ));
     }
 

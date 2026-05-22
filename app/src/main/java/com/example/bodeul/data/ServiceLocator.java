@@ -7,12 +7,14 @@ import com.example.bodeul.data.firebase.FirebaseAuthRepository;
 import com.example.bodeul.data.firebase.FirebaseBookingRepository;
 import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentStorageUploader;
+import com.example.bodeul.data.firebase.FirebaseManagerDocumentPreviewResolver;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
 import com.example.bodeul.data.mock.MockBookingRepository;
 import com.example.bodeul.data.mock.MockGuardianReportRepository;
+import com.example.bodeul.data.mock.MockManagerDocumentPreviewResolver;
 import com.example.bodeul.data.mock.MockManagerDocumentStorageUploader;
 import com.example.bodeul.data.mock.MockManagerRepository;
 import com.google.firebase.auth.FirebaseAuth;
@@ -32,6 +34,7 @@ public final class ServiceLocator {
     private static ManagerRepository managerRepository;
     private static AdminRepository adminRepository;
     private static ManagerDocumentStorageUploader managerDocumentStorageUploader;
+    private static ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
     private static FirebaseFirestore firestore;
 
     private ServiceLocator() {
@@ -76,6 +79,19 @@ public final class ServiceLocator {
             }
         }
         return managerDocumentStorageUploader;
+    }
+
+    public static synchronized ManagerDocumentPreviewResolver provideManagerDocumentPreviewResolver(
+            Context context
+    ) {
+        if (managerDocumentPreviewResolver == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                managerDocumentPreviewResolver = new FirebaseManagerDocumentPreviewResolver();
+            } else {
+                managerDocumentPreviewResolver = new MockManagerDocumentPreviewResolver();
+            }
+        }
+        return managerDocumentPreviewResolver;
     }
 
     public static synchronized BookingRepository provideBookingRepository(Context context) {

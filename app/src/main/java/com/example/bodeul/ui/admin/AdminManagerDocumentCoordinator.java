@@ -27,6 +27,7 @@ public final class AdminManagerDocumentCoordinator {
         for (ManagerDocumentOverview overview : overviews) {
             ManagerHomeProfile profile = overview.getProfile();
             boolean hasDocumentSummary = !TextUtils.isEmpty(profile.getDocumentSummary());
+            boolean hasDocumentFiles = !profile.getDocumentFiles().isEmpty();
             cards.add(new AdminManagerDocumentCardModel(
                     overview.getManager().getId(),
                     formatter.buildTitle(overview.getManager()),
@@ -39,6 +40,8 @@ public final class AdminManagerDocumentCoordinator {
                     formatter.buildTimelineText(profile),
                     hasDocumentSummary,
                     !loading && hasDocumentSummary,
+                    hasDocumentFiles,
+                    !loading && hasDocumentFiles,
                     !overview.getHistoryEntries().isEmpty(),
                     !loading
             ));

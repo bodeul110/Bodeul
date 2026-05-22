@@ -107,6 +107,7 @@ public final class ManagerDocumentRegistrationCoordinator {
         boolean uploaded = isUploaded(metadata);
         return new ManagerDocumentRegistrationItemModel(
                 fileType,
+                uploaded ? fileType : null,
                 getDocumentLabel(fileType),
                 getDocumentHelper(fileType),
                 context.getString(uploaded
@@ -142,7 +143,8 @@ public final class ManagerDocumentRegistrationCoordinator {
         String label = context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license);
         
         return new ManagerDocumentRegistrationItemModel(
-                null, // Use null to indicate special handling in Activity
+                null,
+                uploaded && activeMetadata != null ? activeMetadata.getFileType() : null,
                 label,
                 context.getString(R.string.manager_document_registration_nursing_or_elderly_care_license_helper),
                 context.getString(uploaded

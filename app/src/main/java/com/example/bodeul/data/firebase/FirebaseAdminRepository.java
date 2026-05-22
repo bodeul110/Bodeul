@@ -1480,7 +1480,8 @@ public class FirebaseAdminRepository implements AdminRepository {
                 fullPath,
                 fileName,
                 normalizeText(stringValue(valueMap.get("contentType"))),
-                resolveTimestampMillis(valueMap.get("uploadedAt"))
+                resolveTimestampMillis(valueMap.get("uploadedAt")),
+                normalizeText(stringValue(valueMap.get("previewUri")))
         );
     }
 

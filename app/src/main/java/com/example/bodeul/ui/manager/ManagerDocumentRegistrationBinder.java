@@ -18,6 +18,8 @@ import com.google.android.material.button.MaterialButton;
 public final class ManagerDocumentRegistrationBinder {
     public interface Listener {
         void onDocumentUploadRequested(@Nullable ManagerDocumentFileType fileType);
+
+        void onDocumentPreviewRequested(@Nullable ManagerDocumentFileType fileType);
     }
 
     private final LayoutInflater inflater;
@@ -31,6 +33,7 @@ public final class ManagerDocumentRegistrationBinder {
     private final TextView textPrimaryHelper;
     private final TextView textPrimaryFileName;
     private final TextView textPrimaryFileMeta;
+    private final MaterialButton buttonPrimaryPreview;
     private final MaterialButton buttonPrimaryUpload;
     private final LinearLayout documentContainer;
     private final View reviewCard;
@@ -51,6 +54,7 @@ public final class ManagerDocumentRegistrationBinder {
             TextView textPrimaryHelper,
             TextView textPrimaryFileName,
             TextView textPrimaryFileMeta,
+            MaterialButton buttonPrimaryPreview,
             MaterialButton buttonPrimaryUpload,
             LinearLayout documentContainer,
             View reviewCard,
@@ -69,6 +73,7 @@ public final class ManagerDocumentRegistrationBinder {
         this.textPrimaryHelper = textPrimaryHelper;
         this.textPrimaryFileName = textPrimaryFileName;
         this.textPrimaryFileMeta = textPrimaryFileMeta;
+        this.buttonPrimaryPreview = buttonPrimaryPreview;
         this.buttonPrimaryUpload = buttonPrimaryUpload;
         this.documentContainer = documentContainer;
         this.reviewCard = reviewCard;
@@ -99,6 +104,7 @@ public final class ManagerDocumentRegistrationBinder {
             textPrimaryHelper.setText("");
             textPrimaryFileName.setVisibility(View.GONE);
             textPrimaryFileMeta.setVisibility(View.GONE);
+            buttonPrimaryPreview.setVisibility(View.GONE);
             buttonPrimaryUpload.setEnabled(false);
             return;
         }
@@ -122,8 +128,12 @@ public final class ManagerDocumentRegistrationBinder {
             textPrimaryFileMeta.setVisibility(View.VISIBLE);
             textPrimaryFileMeta.setText(itemModel.getFileMetaText());
         }
+        buttonPrimaryPreview.setVisibility(itemModel.isPreviewAvailable() ? View.VISIBLE : View.GONE);
+        buttonPrimaryPreview.setOnClickListener(view ->
+                listener.onDocumentPreviewRequested(itemModel.getPreviewFileType()));
         buttonPrimaryUpload.setText(itemModel.getActionText());
-        buttonPrimaryUpload.setOnClickListener(view -> listener.onDocumentUploadRequested(itemModel.getFileType()));
+        buttonPrimaryUpload.setOnClickListener(view ->
+                listener.onDocumentUploadRequested(itemModel.getUploadFileType()));
     }
 
     private void bindDocumentItems(ManagerDocumentRegistrationScreenModel screenModel) {
@@ -136,9 +146,19 @@ public final class ManagerDocumentRegistrationBinder {
                     false
             );
             documentItemBinder.bind(itemView, itemModel);
-            itemView.setOnClickListener(view -> listener.onDocumentUploadRequested(itemModel.getFileType()));
+            itemView.setOnClickListener(view -> {
+                if (itemModel.isPreviewAvailable()) {
+                    listener.onDocumentPreviewRequested(itemModel.getPreviewFileType());
+                    return;
+                }
+                listener.onDocumentUploadRequested(itemModel.getUploadFileType());
+            });
+            itemView.findViewById(R.id.buttonManagerDocumentRegistrationPreview)
+                    .setOnClickListener(view ->
+                            listener.onDocumentPreviewRequested(itemModel.getPreviewFileType()));
             itemView.findViewById(R.id.buttonManagerDocumentRegistrationUpload)
-                    .setOnClickListener(view -> listener.onDocumentUploadRequested(itemModel.getFileType()));
+                    .setOnClickListener(view ->
+                            listener.onDocumentUploadRequested(itemModel.getUploadFileType()));
             documentContainer.addView(itemView);
         }
     }
