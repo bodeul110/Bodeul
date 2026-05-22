@@ -16,6 +16,7 @@ import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 실시간 위치 확인 화면에 필요한 표시 모델을 조합한다.
@@ -187,6 +188,7 @@ public final class BookingLiveLocationCoordinator {
         String liveQuery = !TextUtils.isEmpty(session == null ? null : session.getLocationSummary())
                 ? request.getHospitalName() + " " + session.getLocationSummary()
                 : request.getHospitalName() + " " + meetingPlace;
+        String sharedDirectUrl = buildSharedLocationDirectUrl(session);
 
         items.add(new BookingLiveLocationMapActionModel(
                 context.getString(R.string.booking_live_location_map_shared_title),
@@ -196,7 +198,7 @@ public final class BookingLiveLocationCoordinator {
                 ),
                 context.getString(R.string.booking_live_location_map_shared_button),
                 liveQuery,
-                null
+                sharedDirectUrl
         ));
         items.add(new BookingLiveLocationMapActionModel(
                 context.getString(R.string.booking_live_location_map_meeting_title),
@@ -285,6 +287,19 @@ public final class BookingLiveLocationCoordinator {
         return context.getString(session.isPharmacyCompleted()
                 ? R.string.guide_pharmacy_state_completed
                 : R.string.guide_pharmacy_state_pending);
+    }
+
+    @Nullable
+    private String buildSharedLocationDirectUrl(@Nullable CompanionSession session) {
+        if (session == null || !session.hasSharedLocationCoordinates()) {
+            return null;
+        }
+        return String.format(
+                Locale.US,
+                "kakaomap://look?p=%1$.6f,%2$.6f",
+                session.getSharedLatitude(),
+                session.getSharedLongitude()
+        );
     }
 
     private String fallbackValue(@Nullable String value, int fallbackResId) {

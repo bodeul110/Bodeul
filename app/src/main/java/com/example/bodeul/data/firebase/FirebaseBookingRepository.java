@@ -1106,6 +1106,9 @@ public class FirebaseBookingRepository implements BookingRepository {
                 stringOrEmpty(documentSnapshot.getString("medicationNote")),
                 stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
+                doubleOrNull(documentSnapshot.get("sharedLatitude")),
+                doubleOrNull(documentSnapshot.get("sharedLongitude")),
+                timestampToMillis(documentSnapshot.get("sharedLocationUpdatedAt")),
                 toChatMessages(documentSnapshot.get("chatMessages"))
         );
     }
@@ -1273,6 +1276,14 @@ public class FirebaseBookingRepository implements BookingRepository {
             return ((Number) value).intValue();
         }
         return 0;
+    }
+
+    @Nullable
+    private Double doubleOrNull(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return null;
     }
 
     private long timestampToMillis(@Nullable Object value) {

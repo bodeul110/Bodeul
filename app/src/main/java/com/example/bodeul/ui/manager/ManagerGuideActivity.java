@@ -1,6 +1,8 @@
 package com.example.bodeul.ui.manager;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -10,6 +12,7 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
@@ -32,6 +35,8 @@ import com.google.android.material.textfield.TextInputEditText;
  * 매니저 동행 진행 화면의 인증, 저장, 라우팅만 담당한다.
  */
 public class ManagerGuideActivity extends AppCompatActivity {
+    private static final int REQUEST_FINE_LOCATION = 1001;
+
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private ManagerGuideCoordinator managerGuideCoordinator;
@@ -101,6 +106,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 inputNextVisit,
                 (MaterialButton) findViewById(R.id.buttonAdvanceGuide),
                 (MaterialButton) findViewById(R.id.buttonSaveLocationSummary),
+                (MaterialButton) findViewById(R.id.buttonShareCurrentLocation),
                 (MaterialButton) findViewById(R.id.buttonSaveGuardianUpdate),
                 (MaterialButton) findViewById(R.id.buttonSaveGuidePhotoNote),
                 (MaterialButton) findViewById(R.id.buttonSaveMedicationNote),
@@ -119,6 +125,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> togglePharmacyCompleted());
         findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> submitReport());
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
+        findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
 
         bindEmptyState();
     }
@@ -131,6 +138,49 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void openCompanionChat() {
         startActivity(CompanionChatActivity.createIntent(this));
+    }
+
+    private void shareCurrentLocation() {
+        if (currentUser == null) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_FINE_LOCATION);
+            return;
+        }
+        ManagerCurrentLocationSharer.share(this, new ManagerCurrentLocationSharer.Callback() {
+            @Override
+            public void onSuccess(double latitude, double longitude, String summary) {
+                managerRepository.shareCurrentLocation(
+                        currentUser.getId(),
+                        latitude,
+                        longitude,
+                        summary,
+                        new RepositoryCallback<ManagerDashboard>() {
+                            @Override
+                            public void onSuccess(ManagerDashboard result) {
+                                Toast.makeText(
+                                        ManagerGuideActivity.this,
+                                        R.string.guide_share_location_done,
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                                bindDashboard(result);
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                );
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -414,6 +464,19 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     }
                 }
         );
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQUEST_FINE_LOCATION) {
+            return;
+        }
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            shareCurrentLocation();
+            return;
+        }
+        Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
     }
 
     private void showPermissionState() {

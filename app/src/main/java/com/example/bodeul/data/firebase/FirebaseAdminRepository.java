@@ -1808,7 +1808,10 @@ public class FirebaseAdminRepository implements AdminRepository {
                 documentSnapshot.getString("fieldPhotoNote") == null ? "" : documentSnapshot.getString("fieldPhotoNote"),
                 documentSnapshot.getString("medicationNote") == null ? "" : documentSnapshot.getString("medicationNote"),
                 documentSnapshot.getString("pharmacySummary") == null ? "" : documentSnapshot.getString("pharmacySummary"),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
+                doubleOrNull(documentSnapshot.get("sharedLatitude")),
+                doubleOrNull(documentSnapshot.get("sharedLongitude")),
+                resolveTimestampMillis(documentSnapshot.get("sharedLocationUpdatedAt"))
         );
     }
 
@@ -2324,6 +2327,14 @@ public class FirebaseAdminRepository implements AdminRepository {
             return ((Number) value).intValue();
         }
         return 0;
+    }
+
+    @Nullable
+    private Double doubleOrNull(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return null;
     }
 
     @Nullable

@@ -45,6 +45,7 @@ public final class ManagerGuideDashboardBinder {
     private final TextInputEditText inputNextVisit;
     private final MaterialButton buttonAdvanceGuide;
     private final MaterialButton buttonSaveLocationSummary;
+    private final MaterialButton buttonShareCurrentLocation;
     private final MaterialButton buttonSaveGuardianUpdate;
     private final MaterialButton buttonSaveGuidePhotoNote;
     private final MaterialButton buttonSaveMedicationNote;
@@ -81,6 +82,7 @@ public final class ManagerGuideDashboardBinder {
             TextInputEditText inputNextVisit,
             MaterialButton buttonAdvanceGuide,
             MaterialButton buttonSaveLocationSummary,
+            MaterialButton buttonShareCurrentLocation,
             MaterialButton buttonSaveGuardianUpdate,
             MaterialButton buttonSaveGuidePhotoNote,
             MaterialButton buttonSaveMedicationNote,
@@ -116,6 +118,7 @@ public final class ManagerGuideDashboardBinder {
         this.inputNextVisit = inputNextVisit;
         this.buttonAdvanceGuide = buttonAdvanceGuide;
         this.buttonSaveLocationSummary = buttonSaveLocationSummary;
+        this.buttonShareCurrentLocation = buttonShareCurrentLocation;
         this.buttonSaveGuardianUpdate = buttonSaveGuardianUpdate;
         this.buttonSaveGuidePhotoNote = buttonSaveGuidePhotoNote;
         this.buttonSaveMedicationNote = buttonSaveMedicationNote;
@@ -156,6 +159,7 @@ public final class ManagerGuideDashboardBinder {
         inputReportTreatment.setEnabled(inputsEnabled);
         inputNextVisit.setEnabled(inputsEnabled);
         buttonSaveLocationSummary.setEnabled(inputsEnabled);
+        buttonShareCurrentLocation.setEnabled(inputsEnabled);
         buttonSaveGuardianUpdate.setEnabled(inputsEnabled);
         buttonSaveGuidePhotoNote.setEnabled(inputsEnabled);
         buttonSaveMedicationNote.setEnabled(inputsEnabled);

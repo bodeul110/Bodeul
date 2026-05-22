@@ -71,6 +71,27 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void shareCurrentLocation(
+            String managerUserId,
+            double latitude,
+            double longitude,
+            String locationSummary,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = repository.updateSharedLocation(
+                managerUserId,
+                latitude,
+                longitude,
+                locationSummary
+        );
+        if (dashboard == null) {
+            callback.onError("?꾩옱 ?꾩튂瑜?怨듭쑀?섏? 紐삵뻽?듬땲??");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
     public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
         ManagerDashboard dashboard = repository.updateLocationSummary(managerUserId, locationSummary);
         if (dashboard == null) {

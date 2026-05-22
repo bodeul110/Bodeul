@@ -553,6 +553,10 @@
     <string name="guide_location_hint">예: 병원 정문 도착, 접수 창구로 이동 중입니다.</string>
     <string name="guide_location_save">위치 메모 저장</string>
     <string name="guide_location_saved">위치 공유 메모를 저장했습니다.</string>
+    <string name="guide_share_location_action">현재 위치 공유</string>
+    <string name="guide_share_location_done">현재 위치를 공유했습니다.</string>
+    <string name="guide_share_location_error">현재 위치를 확인하지 못했습니다. 실외에서 다시 시도해 주세요.</string>
+    <string name="guide_share_location_permission_denied">현재 위치 공유를 위해 위치 권한이 필요합니다.</string>
     <string name="guide_photo_section">현장 사진 및 서류 메모</string>
     <string name="guide_photo_hint">예: 접수표 확인 완료, 검사실 안내문 촬영 메모</string>
     <string name="guide_photo_save">현장 메모 저장</string>

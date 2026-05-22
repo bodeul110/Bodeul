@@ -2405,3 +2405,39 @@
 
 - 이번 단계는 외부 지도 fallback 우선순위만 카카오 기준으로 맞춘 것이다.
 - 실제 카카오 지도 API 내장 지도, 좌표 기반 마커, 실시간 GPS 스트림 표시는 아직 후속 범위다.
+
+## 106. 2026-05-22 매니저 현재 위치 공유와 카카오 좌표 열기 연결
+
+### 구현
+
+- [CompanionSession](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java)에 sharedLatitude, sharedLongitude, sharedLocationUpdatedAtMillis를 추가해 세션이 실제 위치 좌표와 갱신 시각을 같이 보관하도록 확장했다.
+- [ManagerCurrentLocationSharer](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerCurrentLocationSharer.java)를 추가해 매니저 가이드 화면에서 기기 현재 위치를 한 번 읽어 위치 요약과 좌표를 함께 저장하도록 만들었다.
+- [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java), [activity_manager_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_guide.xml), [ManagerGuideDashboardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java)에 현재 위치 공유 버튼과 위치 권한 요청 흐름을 추가했다.
+- [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java), [FirebaseGuardianReportRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java), [FirebaseAdminRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java), [MockBodeulRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java), [MockManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java)가 공유 좌표를 저장하고 읽도록 맞췄다.
+- [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)가 좌표가 있을 때 kakaomap://look 링크를 우선 열어 보호자/환자 화면에서 공유 위치를 바로 카카오맵으로 보낼 수 있게 했다.
+- [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml)에 ACCESS_FINE_LOCATION을 추가했고, [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml), [feature-spec-gap-checklist-2026-05-22.md](/D:/BoDeul/docs/feature-spec-gap-checklist-2026-05-22.md)에 현재 수준을 반영했다.
+
+### 변경 범위
+
+- app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java
+- app/src/main/java/com/example/bodeul/data/ManagerRepository.java
+- app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java
+- app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java
+- app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerCurrentLocationSharer.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java
+- app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java
+- app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java
+- app/src/main/res/layout/activity_manager_guide.xml
+- app/src/main/res/values/strings.xml
+- app/src/main/AndroidManifest.xml
+- docs/feature-spec-gap-checklist-2026-05-22.md
+- docs/implementation-status.md
+
+### 남은 범위
+
+- 이번 단계는 매니저 1회 위치 공유 + 카카오 좌표 열기까지다.
+- 연속 GPS 스트림 추적, 좌표 변경 이력, 푸시형 위치 알림, 카카오 지도 SDK 내장 마커 표시는 여전히 후속 범위다.

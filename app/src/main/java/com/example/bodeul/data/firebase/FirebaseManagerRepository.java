@@ -206,6 +206,22 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void shareCurrentLocation(
+            String managerUserId,
+            double latitude,
+            double longitude,
+            String locationSummary,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("locationSummary", normalizeText(locationSummary));
+        updates.put("sharedLatitude", latitude);
+        updates.put("sharedLongitude", longitude);
+        updates.put("sharedLocationUpdatedAt", FieldValue.serverTimestamp());
+        updateSessionFields(managerUserId, updates, callback);
+    }
+
+    @Override
     public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
         // 위치 공유 메모도 세션 문서의 별도 필드에 저장한다.
         updateSessionField(managerUserId, "locationSummary", locationSummary, callback);
@@ -1184,6 +1200,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 stringOrEmpty(documentSnapshot.getString("medicationNote")),
                 stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
+                doubleOrNull(documentSnapshot.get("sharedLatitude")),
+                doubleOrNull(documentSnapshot.get("sharedLongitude")),
+                resolveTimestampMillis(documentSnapshot.get("sharedLocationUpdatedAt")),
                 toChatMessages(documentSnapshot.get("chatMessages"))
         );
     }
@@ -1409,6 +1428,14 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return ((Number) value).intValue();
         }
         return 0;
+    }
+
+    @Nullable
+    private Double doubleOrNull(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return null;
     }
 
     private long resolveTimestampMillis(@Nullable Object rawValue) {

@@ -355,7 +355,10 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
                 stringOrEmpty(documentSnapshot.getString("medicationNote")),
                 stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted")),
+                doubleOrNull(documentSnapshot.get("sharedLatitude")),
+                doubleOrNull(documentSnapshot.get("sharedLongitude")),
+                timestampToMillis(documentSnapshot.get("sharedLocationUpdatedAt"))
         );
     }
 
@@ -475,5 +478,20 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
             return ((Number) value).intValue();
         }
         return 0;
+    }
+
+    @Nullable
+    private Double doubleOrNull(@Nullable Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return null;
+    }
+
+    private long timestampToMillis(@Nullable Object value) {
+        if (value instanceof Timestamp) {
+            return ((Timestamp) value).toDate().getTime();
+        }
+        return 0L;
     }
 }

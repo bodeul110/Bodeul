@@ -1182,6 +1182,22 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized ManagerDashboard updateSharedLocation(
+            String managerUserId,
+            double latitude,
+            double longitude,
+            String summary
+    ) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setLocationSummary(summary);
+        session.updateSharedLocation(latitude, longitude, System.currentTimeMillis());
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
     public synchronized ManagerDashboard updateFieldPhotoNote(String managerUserId, String note) {
         CompanionSession session = getPrimaryManagerSession(managerUserId);
         if (session == null) {

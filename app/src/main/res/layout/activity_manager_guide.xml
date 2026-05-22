@@ -386,6 +386,12 @@
                         android:layout_marginTop="14dp"
                         android:text="@string/guide_location_save" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonShareCurrentLocation"
+                        style="@style/BodeulOutlinedButton"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/guide_share_location_action" />
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
