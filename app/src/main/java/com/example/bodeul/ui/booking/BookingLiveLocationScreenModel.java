@@ -20,6 +20,7 @@ public final class BookingLiveLocationScreenModel {
     private final List<BookingStatusLineItem> memoLines;
     private final List<BookingLiveLocationMapActionModel> mapActions;
     private final String primaryActionLabel;
+    private final String refreshActionLabel;
 
     public BookingLiveLocationScreenModel(
             String modeLabel,
@@ -35,7 +36,8 @@ public final class BookingLiveLocationScreenModel {
             List<BookingStatusLineItem> statusLines,
             List<BookingStatusLineItem> memoLines,
             List<BookingLiveLocationMapActionModel> mapActions,
-            String primaryActionLabel
+            String primaryActionLabel,
+            String refreshActionLabel
     ) {
         this.modeLabel = modeLabel;
         this.title = title;
@@ -51,6 +53,7 @@ public final class BookingLiveLocationScreenModel {
         this.memoLines = memoLines;
         this.mapActions = mapActions;
         this.primaryActionLabel = primaryActionLabel;
+        this.refreshActionLabel = refreshActionLabel;
     }
 
     public String getModeLabel() {
@@ -107,5 +110,9 @@ public final class BookingLiveLocationScreenModel {
 
     public String getPrimaryActionLabel() {
         return primaryActionLabel;
+    }
+
+    public String getRefreshActionLabel() {
+        return refreshActionLabel;
     }
 }

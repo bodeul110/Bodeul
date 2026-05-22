@@ -49,7 +49,7 @@
 - [Firestore 보안 정리](docs/firestore-security-hardening.md)
 - [보안 리뷰 최신화 메모](docs/security-review-2026-04-29.md)
 - [AES 적용 범위 판단](docs/aes-scope-assessment.md)
-- [디자인 레퍼런스 검토 메모](docs/design-reference-review-2026-05-05.md)
+- [디자인 레퍼런스 재정리 메모](docs/design-reference-review-2026-05-22.md)
 - [기능서/피그마 전체 점검 메모](docs/feature-spec-figma-audit-2026-05-22.md)
 - [기능설명서 항목별 구현 체크리스트](docs/feature-spec-gap-checklist-2026-05-22.md)
 

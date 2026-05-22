@@ -63,8 +63,8 @@
 
 ### 5. 디자인/기능 비교 문서
 
-- [디자인 레퍼런스 검토 메모](design-reference-review-2026-05-05.md)
-  - 최신 피그마 ZIP을 화면 polish 기준으로 읽은 메모
+- [디자인 레퍼런스 재정리 메모](design-reference-review-2026-05-22.md)
+  - 최신 분할 화면 세트 기준으로 UI polish 우선순위를 다시 잡은 메모
 - [기능서/피그마 전체 점검 메모](feature-spec-figma-audit-2026-05-22.md)
   - 최신 기능설명서와 최신 피그마를 각각 다시 읽고 차이를 분리한 문서
 - [기능설명서 항목별 구현 체크리스트](feature-spec-gap-checklist-2026-05-22.md)

@@ -141,6 +141,13 @@
                             android:layout_marginTop="18dp" />
 
                         <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonBookingLiveLocationRefresh"
+                            style="@style/BodeulOutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp" />
+
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonBookingLiveLocationChat"
                             style="@style/BodeulOutlinedButton"
                             android:layout_width="match_parent"

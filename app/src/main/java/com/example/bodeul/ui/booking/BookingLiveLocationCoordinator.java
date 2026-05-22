@@ -55,7 +55,8 @@ public final class BookingLiveLocationCoordinator {
                 createStatusLines(detail),
                 createMemoLines(detail),
                 createMapActions(detail),
-                context.getString(R.string.booking_live_location_action_open_booking_status)
+                context.getString(R.string.booking_live_location_action_open_booking_status),
+                context.getString(R.string.booking_live_location_action_refresh)
         );
     }
 

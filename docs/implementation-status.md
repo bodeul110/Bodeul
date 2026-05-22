@@ -2462,3 +2462,53 @@
 
 - 현재는 최근 1회 좌표 공유 + 시각 노출 단계다.
 - 연속 위치 스트림, 백그라운드 추적, 카카오 지도 SDK 내장 화면은 여전히 후속 범위다.
+## 108. 2026-05-22 실시간 위치 수동 새로고침 보강
+
+### 구현
+
+- [BookingLiveLocationActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java)와 [activity_booking_live_location.xml](/D:/BoDeul/app/src/main/res/layout/activity_booking_live_location.xml)에 `현재 위치 다시 불러오기` 버튼을 추가해 보호자/환자가 실시간 위치 확인 화면에서 수동 재조회할 수 있게 했다.
+- [BookingLiveLocationBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationBinder.java), [BookingLiveLocationScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationScreenModel.java), [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)를 확장해 새로고침 버튼 문구를 화면 모델에서 같이 관리하도록 맞췄다.
+- [GuardianReportActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/report/GuardianReportActivity.java)와 [activity_guardian_report.xml](/D:/BoDeul/app/src/main/res/layout/activity_guardian_report.xml)에 `진행 현황 다시 불러오기` 버튼을 추가해 보호자 리포트도 같은 기준으로 재조회할 수 있게 했다.
+- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 위치 확인/보호자 리포트 새로고침 문구를 추가했다.
+
+### 변경 범위
+
+- app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java
+- app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationBinder.java
+- app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java
+- app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationScreenModel.java
+- app/src/main/java/com/example/bodeul/ui/report/GuardianReportActivity.java
+- app/src/main/res/layout/activity_booking_live_location.xml
+- app/src/main/res/layout/activity_guardian_report.xml
+- app/src/main/res/values/strings.xml
+- docs/implementation-status.md
+
+### 남은 범위
+
+- 연속 GPS 좌표 스트림과 위치 변경 이력은 아직 없다.
+- 카카오 지도 SDK 내장 지도와 백그라운드 위치 추적은 후속 범위다.
+
+## 109. 2026-05-22 최신 디자인 세트 기준 문서와 UI 우선순위 재정립
+
+### 구현
+
+- `design_refs/`에 새로 추가된 `bodeul_original_resolution_screens.zip`, `bodeul_split_screens/`, `index.csv`, `contact_sheet.png`를 기준으로 디자인 참조 구조를 다시 정리했다.
+- [design_refs/README.md](/D:/BoDeul/design_refs/README.md)를 최신 원본/분할 화면/보조 참조/비사용 파일 기준으로 전면 정리했다.
+- [design-reference-review-2026-05-22.md](/D:/BoDeul/docs/design-reference-review-2026-05-22.md)를 새로 추가해 인증/공통, 환자 홈, 환자 진행 화면, 매니저 홈/가이드, 서류 등록 기준의 UI polish 우선순위를 다시 정했다.
+- [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 최신 분할 화면 세트 기준으로 다시 작성해 기능 기준과 디자인 기준을 명확히 분리했다.
+- [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md)의 디자인 문서 링크를 최신 메모 기준으로 교체했다.
+
+### 변경 범위
+
+- README.md
+- design_refs/README.md
+- docs/design-reference-review-2026-05-22.md
+- docs/feature-spec-figma-audit-2026-05-22.md
+- docs/document-guide.md
+- docs/implementation-status.md
+
+### 남은 범위
+
+- 기능 우선순위 자체는 바꾸지 않았다.
+- 다음 UI polish는 `인증/공통 -> 환자/보호자 홈/진행 -> 매니저 홈/가이드 -> 서류/내 페이지 -> 설정` 순서로 진행한다.
+- GPS, 결제, 정산, OCR/AI는 디자인보다 실제 연동 범위를 먼저 확정하는 축으로 유지한다.

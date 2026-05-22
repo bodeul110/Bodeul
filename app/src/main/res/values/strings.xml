@@ -1210,4 +1210,6 @@
     <string name="companion_chat_status_payment">약국/결제 진행</string>
     <string name="companion_chat_status_completed">동행 완료</string>
     <string name="companion_chat_status_canceled">동행 취소</string>
+    <string name="guardian_report_action_refresh">진행 현황 다시 불러오기</string>
+    <string name="booking_live_location_action_refresh">현재 위치 다시 불러오기</string>
 </resources>

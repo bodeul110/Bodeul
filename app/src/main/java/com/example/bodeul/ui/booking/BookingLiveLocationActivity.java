@@ -82,11 +82,13 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationMemoLines),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationMapActions),
                 (MaterialButton) findViewById(R.id.buttonBookingLiveLocationPrimary),
+                (MaterialButton) findViewById(R.id.buttonBookingLiveLocationRefresh),
                 new BookingLiveLocationMapActionBinder(this::openMapFallback)
         );
 
         findViewById(R.id.buttonBackBookingLiveLocation).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBookingLiveLocationPrimary).setOnClickListener(view -> openBookingStatus());
+        findViewById(R.id.buttonBookingLiveLocationRefresh).setOnClickListener(view -> reload());
         findViewById(R.id.buttonBookingLiveLocationChat).setOnClickListener(view -> openCompanionChat());
         contentContainer.setVisibility(View.GONE);
     }

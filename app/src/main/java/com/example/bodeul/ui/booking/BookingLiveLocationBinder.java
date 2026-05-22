@@ -35,6 +35,7 @@ public final class BookingLiveLocationBinder {
     private final LinearLayout memoLineContainer;
     private final LinearLayout mapActionContainer;
     private final MaterialButton buttonPrimary;
+    private final MaterialButton buttonRefresh;
     private final BookingLiveLocationMapActionBinder mapActionBinder;
 
     public BookingLiveLocationBinder(
@@ -54,6 +55,7 @@ public final class BookingLiveLocationBinder {
             LinearLayout memoLineContainer,
             LinearLayout mapActionContainer,
             MaterialButton buttonPrimary,
+            MaterialButton buttonRefresh,
             BookingLiveLocationMapActionBinder mapActionBinder
     ) {
         this.context = context;
@@ -72,6 +74,7 @@ public final class BookingLiveLocationBinder {
         this.memoLineContainer = memoLineContainer;
         this.mapActionContainer = mapActionContainer;
         this.buttonPrimary = buttonPrimary;
+        this.buttonRefresh = buttonRefresh;
         this.mapActionBinder = mapActionBinder;
     }
 
@@ -87,6 +90,7 @@ public final class BookingLiveLocationBinder {
         textMapSectionTitle.setText(screenModel.getMapSectionTitle());
         textMapSectionHelper.setText(screenModel.getMapSectionHelper());
         buttonPrimary.setText(screenModel.getPrimaryActionLabel());
+        buttonRefresh.setText(screenModel.getRefreshActionLabel());
 
         bindLines(statusLineContainer, screenModel.getStatusLines());
         bindLines(memoLineContainer, screenModel.getMemoLines());

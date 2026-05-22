@@ -72,6 +72,7 @@ public class GuardianReportActivity extends AppCompatActivity implements Guardia
         );
 
         findViewById(R.id.buttonBackGuardianReport).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonGuardianReportRefresh).setOnClickListener(view -> refreshDashboard());
         bindEmptyState();
     }
 
@@ -95,7 +96,7 @@ public class GuardianReportActivity extends AppCompatActivity implements Guardia
 
                 currentUser = result;
                 hideBlockingState();
-                loadDashboard();
+                refreshDashboard();
             }
 
             @Override
@@ -122,6 +123,16 @@ public class GuardianReportActivity extends AppCompatActivity implements Guardia
                 showLoadErrorState(message);
             }
         });
+    }
+
+    private void refreshDashboard() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        setLoading(true);
+        hideBlockingState();
+        loadDashboard();
     }
 
     private void bindDashboard(@Nullable GuardianReportDashboard dashboard) {
@@ -190,15 +201,7 @@ public class GuardianReportActivity extends AppCompatActivity implements Guardia
                 getString(R.string.state_load_error_title, getString(R.string.feature_guardian_report_title)),
                 body,
                 getString(R.string.state_action_retry),
-                view -> {
-                    if (currentUser == null) {
-                        showAuthState();
-                        return;
-                    }
-                    setLoading(true);
-                    hideBlockingState();
-                    loadDashboard();
-                },
+                view -> refreshDashboard(),
                 getString(R.string.state_action_open_home),
                 view -> openHome()
         );
