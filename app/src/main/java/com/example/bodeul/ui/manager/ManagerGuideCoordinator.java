@@ -1,6 +1,7 @@
 package com.example.bodeul.ui.manager;
 
 import android.content.Context;
+import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 
@@ -46,12 +47,15 @@ public final class ManagerGuideCoordinator {
                 context.getString(R.string.guide_hero_title_format, dashboard.getPatient().getName()),
                 formatter.buildHeroBody(dashboard),
                 formatter.buildHeroNote(dashboard),
+                createMapActions(dashboard),
                 stages,
                 createFocusModel(focusStep, session),
                 session.getLocationSummary(),
                 session.getGuardianUpdate(),
                 session.getFieldPhotoNote(),
                 session.getMedicationNote(),
+                session.getPharmacySummary(),
+                buildPharmacyActionLabel(session),
                 report == null ? "" : report.getSummary(),
                 report == null ? "" : report.getTreatmentNotes(),
                 report == null ? "" : report.getNextVisitAt(),
@@ -74,6 +78,7 @@ public final class ManagerGuideCoordinator {
                 context.getString(R.string.guide_hero_body_empty),
                 context.getString(R.string.guide_hero_note_empty),
                 Collections.emptyList(),
+                Collections.emptyList(),
                 new ManagerGuideFocusModel(
                         context.getString(R.string.guide_focus_badge_empty),
                         context.getString(R.string.guide_focus_title_empty),
@@ -87,6 +92,8 @@ public final class ManagerGuideCoordinator {
                 "",
                 "",
                 "",
+                context.getString(R.string.guide_pharmacy_mark_completed),
+                "",
                 "",
                 "",
                 context.getString(R.string.guide_button_waiting),
@@ -94,6 +101,50 @@ public final class ManagerGuideCoordinator {
                 context.getString(R.string.guide_report_submit),
                 false
         );
+    }
+
+    private List<ManagerGuideMapActionModel> createMapActions(ManagerDashboard dashboard) {
+        String hospitalName = dashboard.getAppointmentRequest().getHospitalName();
+        String departmentName = dashboard.getAppointmentRequest().getDepartmentName();
+        String meetingPlace = dashboard.getAppointmentRequest().getMeetingPlace();
+        if (TextUtils.isEmpty(meetingPlace)) {
+            meetingPlace = context.getString(R.string.guide_map_default_meeting_place, hospitalName);
+        }
+
+        List<ManagerGuideMapActionModel> actions = new ArrayList<>();
+        actions.add(new ManagerGuideMapActionModel(
+                context.getString(R.string.guide_map_action_hospital_title),
+                context.getString(R.string.guide_map_action_hospital_body, hospitalName, departmentName),
+                context.getString(R.string.guide_map_action_hospital_button),
+                hospitalName + " " + departmentName + " 원내 지도",
+                resolveHospitalFallbackUrl(hospitalName)
+        ));
+        actions.add(new ManagerGuideMapActionModel(
+                context.getString(R.string.guide_map_action_meeting_title),
+                context.getString(R.string.guide_map_action_meeting_body, meetingPlace),
+                context.getString(R.string.guide_map_action_meeting_button),
+                hospitalName + " " + meetingPlace,
+                null
+        ));
+        actions.add(new ManagerGuideMapActionModel(
+                context.getString(R.string.guide_map_action_pharmacy_title),
+                context.getString(R.string.guide_map_action_pharmacy_body, hospitalName),
+                context.getString(R.string.guide_map_action_pharmacy_button),
+                hospitalName + " 인근 약국",
+                null
+        ));
+        return actions;
+    }
+
+    @Nullable
+    private String resolveHospitalFallbackUrl(String hospitalName) {
+        if (TextUtils.isEmpty(hospitalName)) {
+            return null;
+        }
+        if (hospitalName.contains("서울대") || hospitalName.contains("서울대학교병원")) {
+            return "https://www.snuh.org/intro/locations/map.do";
+        }
+        return null;
     }
 
     private List<ManagerGuideStageModel> buildStages(ManagerDashboard dashboard) {
@@ -178,5 +229,11 @@ public final class ManagerGuideCoordinator {
         int totalSteps = dashboard.getHospitalGuide().getSteps().size();
         return session.getStatus() != SessionStatus.COMPLETED
                 && session.getCurrentStepOrder() < totalSteps;
+    }
+
+    private String buildPharmacyActionLabel(CompanionSession session) {
+        return context.getString(session.isPharmacyCompleted()
+                ? R.string.guide_pharmacy_mark_incomplete
+                : R.string.guide_pharmacy_mark_completed);
     }
 }

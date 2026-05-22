@@ -35,6 +35,12 @@ public interface ManagerRepository {
     // 진료 이후 특이사항과 복약 관련 메모를 저장한다.
     void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback);
 
+    // 약국 동행 진행 요약을 저장한다.
+    void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback);
+
+    // 약국 동행 단계를 완료 또는 진행 중 상태로 갱신한다.
+    void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback);
+
     // 내 페이지에서 보여줄 서류 및 일정 요약 정보를 불러온다.
     void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback);
 

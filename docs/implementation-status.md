@@ -2129,3 +2129,131 @@
 
 - 관리자 웹은 여전히 `자격증`을 단일 슬롯으로 보여준다. 간호사 자격증과 요양보호사 자격증을 동시에 보관할 때 둘을 별도 카드로 분리해 보여줄지는 이후 운영 UX 결정이 필요하다.
 - `tools/firebase` 점검 명령은 계속 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 설정이 있어야 실계정 검증까지 수행할 수 있다.
+
+## 96. 2026-05-22 최신 기능설명서 기준 문서 재정렬
+
+### 구현
+
+- [보들 플랫폼 기능설명서](./보들_플랫폼_기능설명서.pdf)를 기준으로 문서 우선순위를 다시 맞췄다.
+- [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 최신 기능설명서를 최상위 기준으로 명시하고 문서 진입 순서를 정리했다.
+- [restructure-target-map.md](/D:/BoDeul/docs/restructure-target-map.md)를 최신 기능설명서의 20개 항목 기준으로 다시 정리하고, 현재 구현 상태를 `구현 완료`, `부분 구현`, `후속 설계`로 구분했다.
+- [mvp-scope.md](/D:/BoDeul/docs/mvp-scope.md)를 최신 기능설명서 기준 MVP 범위와 후속 범위로 다시 정리했다.
+- [architecture-draft.md](/D:/BoDeul/docs/architecture-draft.md)에 Android 앱, 관리자 웹, Firebase 운영 도구를 포함한 현재 아키텍처 경계를 최신 기능 축 기준으로 다시 정리했다.
+
+### 변경 범위
+
+- `README.md`
+- `docs/document-guide.md`
+- `docs/restructure-target-map.md`
+- `docs/mvp-scope.md`
+- `docs/architecture-draft.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 최신 기능설명서의 추가 메모인 AI 음성 정리, OCR 복약 비교, 건강정보 화면, 초과 시간 자동 정산은 아직 `후속 설계` 범위다.
+- 지도 API, 실결제, 실시간 GPS/채팅, 약국 동행 상세 흐름은 계속 `부분 구현` 상태로 관리해야 한다.
+
+## 97. 2026-05-22 최신 기능설명서와 피그마 전체 재점검
+
+### 구현
+
+- [보들_플랫폼_기능설명서.pdf](/D:/BoDeul/docs/보들_플랫폼_기능설명서.pdf)와 최신 피그마 ZIP [보들 가이드.zip](/D:/BoDeul/design_refs/보들%20가이드.zip)을 각각 다시 확인해 기준을 분리했다.
+- 새 문서 [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 추가해 기능설명서의 20개 항목, 추가 기획 메모, GPS/지도 요구와 피그마 화면 보드 범위를 따로 정리했다.
+- [README.md](/D:/BoDeul/README.md)와 [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 새 점검 문서 링크를 추가해, 기능 기준과 디자인 기준을 혼동하지 않게 진입 경로를 정리했다.
+
+### 변경 범위
+
+- `README.md`
+- `docs/document-guide.md`
+- `docs/implementation-status.md`
+- `docs/feature-spec-figma-audit-2026-05-22.md`
+
+### 남은 범위
+
+- 기능 기준은 계속 기능설명서를 우선하고, 디자인 ZIP은 화면 polish 참고본으로 유지한다.
+- 실시간 GPS/지도/안심 채팅/약국 지도/건강정보/AI-OCR 계열은 문서상 계속 `부분 구현 또는 후속 설계` 범위로 관리해야 한다.
+
+## 98. 2026-05-22 기능설명서 항목별 구현 체크리스트 정리
+
+### 구현
+
+- 새 문서 [feature-spec-gap-checklist-2026-05-22.md](/D:/BoDeul/docs/feature-spec-gap-checklist-2026-05-22.md)를 추가해 기능설명서의 20개 항목을 `완료`, `부분 완료`, `미구현`, `후속 설계`로 다시 잘랐다.
+- 이 체크리스트는 [restructure-target-map.md](/D:/BoDeul/docs/restructure-target-map.md)의 구조 정리와 [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)의 원문 재점검 결과를 바탕으로 작성했다.
+- [README.md](/D:/BoDeul/README.md)와 [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 새 체크리스트 링크를 추가해, 기능 기준 gap을 바로 확인할 수 있게 정리했다.
+
+### 변경 범위
+
+- `README.md`
+- `docs/document-guide.md`
+- `docs/implementation-status.md`
+- `docs/feature-spec-gap-checklist-2026-05-22.md`
+
+### 남은 범위
+
+- 기능설명서 기준 남은 큰 gap은 `미구현 화면`보다 `부분 완료 항목의 실제 연동`이다.
+- 특히 지도 API, 실시간 GPS/채팅, 결제/PG, 약국 상세, 정산 규칙은 계속 별도 우선순위로 관리해야 한다.
+
+## 99. 2026-05-22 동행 가이드 병원 지도 fallback 추가
+
+### 구현
+
+- [ManagerGuideMapActionModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionModel.java), [ManagerGuideMapActionBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionBinder.java), [ManagerGuideMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java)를 추가해 동행 가이드의 외부 지도 fallback 액션을 화면 모델과 런처로 분리했다.
+- [ManagerGuideCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java)에서 병원명, 진료과, 만남 위치를 기준으로 `병원 안내도`, `만남 위치`, `인근 약국` 3개 fallback 액션을 조합하도록 확장했다.
+- [activity_manager_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_guide.xml)에 `병원 지도 fallback` 섹션을 추가했고, [ManagerGuideDashboardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java)가 동적으로 액션 카드를 렌더링하도록 바꿨다.
+- [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java)는 액션 클릭 시 외부 지도 앱, Google Maps 검색, 일반 웹 검색 순서로 실행만 담당하도록 정리했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideScreenModel.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionModel.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java`
+- `app/src/main/res/layout/activity_manager_guide.xml`
+- `app/src/main/res/layout/item_manager_guide_map_action.xml`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 현재는 지도 API 대신 외부 앱/검색 기반 fallback만 제공한다.
+- 보호자 예약 상세나 환자 화면까지 같은 fallback을 확장할지는 다음 단계에서 별도로 결정해야 한다.
+
+## 100. 2026-05-22 약국 진행 요약과 완료 상태 보강
+
+### 구현
+
+- [CompanionSession](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java)에 `pharmacySummary`, `pharmacyCompleted` 필드를 추가해 약국 단계 진행 메모와 완료 여부를 세션 상태로 같이 관리하도록 확장했다.
+- [ManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ManagerRepository.java), [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 약국 진행 저장/완료 토글 경로를 추가했다.
+- [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java), [ManagerGuideDashboardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java), [ManagerGuideCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java), [activity_manager_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_guide.xml)에 `약국 진행 요약` 입력과 `약국 단계 완료` 토글을 추가했다.
+- [BookingStatusCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java), [GuardianReportCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java)에 현장 약국 진행 요약과 단계 상태를 함께 노출하도록 반영했다.
+- Firebase 세션 읽기/생성 경로([FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java), [FirebaseGuardianReportRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java), [FirebaseAdminRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java))도 같은 필드를 읽도록 맞췄다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java`
+- `app/src/main/java/com/example/bodeul/data/ManagerRepository.java`
+- `app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java`
+- `app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideScreenModel.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuidePresentationFormatter.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java`
+- `app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java`
+- `app/src/main/res/layout/activity_manager_guide.xml`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 현재는 약국 진행 상태를 텍스트 요약과 완료 여부로만 관리한다.
+- 약국 지도 API, 복약 입력 구조화, 영수증/약품 목록 OCR은 계속 후속 설계 범위다.

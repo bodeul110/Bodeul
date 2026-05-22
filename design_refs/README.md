@@ -1,31 +1,39 @@
 # 디자인 참조 정리
 
-기준일: 2026-04-22
+기준일: 2026-05-22
 
-## 현재 기준본
+## 최신 기준 파일
 
-- `assets/logo-icon.png`
-- `auth/splash-logo.png`
-- `auth/splash-loading.png`
-- `auth/role-selection.png`
-- `auth/login-form-simple.png`
-- `auth/login-form-hero.png`
-- `common/permission-sheet.png`
-- `common/permission-legacy-board.png`
-- `common/permission-legacy-screen.png`
-- `manager/manager-guide-flow.png`
-- `manager/manager-home-service-feed.png`
-- `manager/manager-home-live-match.png`
+- `보들 가이드.zip`
+  - 최신 피그마 산출물 ZIP
+  - 수정 시각: `2026-05-21 13:47`
+
+## ZIP 내부 보드
+
+- `보들 가이드.png`
+- `매니저 홈 화면.png`
+- `환자 홈 화면.png`
+- `환자 홈 화면 (예약 완료 후).png`
+- `환자 홈 화면 (예약 완료 후)-1.png`
+- `권한 설정.png`
+- `사용자 설정.png`
+- `첫 화면.png`
+- `Main.png`
+- `Body.png`
+
+## 기존 정리본
+
 - `overview/all-boards-20260422.png`
+- `auth/`
+- `common/`
+- `manager/`
+- `assets/`
 
-## 정리 원칙
+이 폴더들은 2026-04-22 기준 정리본이다.  
+최신 참조는 우선 `보들 가이드.zip`을 본다.
 
-- 2026-04-22에 받은 피그마 캡처를 최신 기준본으로 사용한다.
-- 의미 없는 첨부 파일명은 화면 목적이 드러나는 이름으로 바꾼다.
-- 중복이거나 용도가 끝난 임시 추출 파일은 제거한다.
+## 사용 원칙
 
-## 이번 정리 범위
-
-- 로그인 화면 `a/b` 파일명을 의미 있는 이름으로 재정리
-- 매니저 홈 변형안을 목적이 보이는 이름으로 재정리
-- 루트와 `design_refs`에 남아 있던 임시 추출 파일 정리
+- 디자인 파일은 참고 자료다.
+- 기능 구조와 우선순위는 `docs/보들_플랫폼_기능설명서.pdf`와 `docs/restructure-target-map.md`를 먼저 따른다.
+- 화면 반영 판단은 `docs/design-reference-review-2026-05-05.md` 메모를 기준으로 한다.

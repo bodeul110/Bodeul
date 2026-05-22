@@ -43,6 +43,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputGuardianUpdate;
     private TextInputEditText inputGuidePhotoNote;
     private TextInputEditText inputMedicationNote;
+    private TextInputEditText inputPharmacySummary;
     private TextInputEditText inputReportSummary;
     private TextInputEditText inputReportTreatment;
     private TextInputEditText inputNextVisit;
@@ -65,6 +66,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         inputGuardianUpdate = findViewById(R.id.inputGuardianUpdate);
         inputGuidePhotoNote = findViewById(R.id.inputGuidePhotoNote);
         inputMedicationNote = findViewById(R.id.inputMedicationNote);
+        inputPharmacySummary = findViewById(R.id.inputPharmacySummary);
         inputReportSummary = findViewById(R.id.inputReportSummary);
         inputReportTreatment = findViewById(R.id.inputReportTreatment);
         inputNextVisit = findViewById(R.id.inputNextVisit);
@@ -79,6 +81,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.textGuideHeroTitle),
                 findViewById(R.id.textGuideHeroBody),
                 findViewById(R.id.textGuideHeroNote),
+                findViewById(R.id.guideMapActionContainer),
+                new ManagerGuideMapActionBinder(this::openMapFallback),
                 (LinearLayout) findViewById(R.id.guideStageRailContainer),
                 findViewById(R.id.textGuideFocusBadge),
                 findViewById(R.id.textGuideFocusTitle),
@@ -90,6 +94,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 inputGuardianUpdate,
                 inputGuidePhotoNote,
                 inputMedicationNote,
+                inputPharmacySummary,
                 inputReportSummary,
                 inputReportTreatment,
                 inputNextVisit,
@@ -98,6 +103,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonSaveGuardianUpdate),
                 (MaterialButton) findViewById(R.id.buttonSaveGuidePhotoNote),
                 (MaterialButton) findViewById(R.id.buttonSaveMedicationNote),
+                (MaterialButton) findViewById(R.id.buttonSavePharmacySummary),
+                (MaterialButton) findViewById(R.id.buttonTogglePharmacyCompleted),
                 (MaterialButton) findViewById(R.id.buttonSubmitReport)
         );
 
@@ -107,9 +114,17 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> saveGuardianUpdate());
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> saveFieldPhotoNote());
         findViewById(R.id.buttonSaveMedicationNote).setOnClickListener(view -> saveMedicationNote());
+        findViewById(R.id.buttonSavePharmacySummary).setOnClickListener(view -> savePharmacySummary());
+        findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> togglePharmacyCompleted());
         findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> submitReport());
 
         bindEmptyState();
+    }
+
+    private void openMapFallback(ManagerGuideMapActionModel model) {
+        if (!ManagerGuideMapFallbackLauncher.open(this, model)) {
+            Toast.makeText(this, R.string.guide_map_open_error, Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -289,6 +304,71 @@ public class ManagerGuideActivity extends AppCompatActivity {
             public void onSuccess(ManagerDashboard result) {
                 Toast.makeText(ManagerGuideActivity.this, R.string.guide_medication_save, Toast.LENGTH_SHORT).show();
                 bindDashboard(result);
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void savePharmacySummary() {
+        if (currentUser == null) {
+            return;
+        }
+
+        String summary = valueOf(inputPharmacySummary);
+        if (TextUtils.isEmpty(summary)) {
+            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        managerRepository.savePharmacySummary(currentUser.getId(), summary, new RepositoryCallback<ManagerDashboard>() {
+            @Override
+            public void onSuccess(ManagerDashboard result) {
+                Toast.makeText(ManagerGuideActivity.this, R.string.guide_pharmacy_save_done, Toast.LENGTH_SHORT).show();
+                bindDashboard(result);
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void togglePharmacyCompleted() {
+        if (currentUser == null) {
+            return;
+        }
+
+        managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
+            @Override
+            public void onSuccess(ManagerDashboard result) {
+                boolean nextValue = !result.getSession().isPharmacyCompleted();
+                managerRepository.updatePharmacyCompleted(
+                        currentUser.getId(),
+                        nextValue,
+                        new RepositoryCallback<ManagerDashboard>() {
+                            @Override
+                            public void onSuccess(ManagerDashboard updated) {
+                                Toast.makeText(
+                                        ManagerGuideActivity.this,
+                                        nextValue
+                                                ? R.string.guide_pharmacy_complete_done
+                                                : R.string.guide_pharmacy_incomplete_done,
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                                bindDashboard(updated);
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                );
             }
 
             @Override

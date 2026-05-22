@@ -13,12 +13,15 @@ public final class ManagerGuideScreenModel {
     private final String heroTitle;
     private final String heroBody;
     private final String heroNote;
+    private final List<ManagerGuideMapActionModel> mapActions;
     private final List<ManagerGuideStageModel> stages;
     private final ManagerGuideFocusModel focusModel;
     private final String locationSummary;
     private final String guardianUpdate;
     private final String fieldPhotoNote;
     private final String medicationNote;
+    private final String pharmacySummary;
+    private final String pharmacyActionLabel;
     private final String reportSummary;
     private final String reportTreatment;
     private final String nextVisitAt;
@@ -35,12 +38,15 @@ public final class ManagerGuideScreenModel {
             String heroTitle,
             String heroBody,
             String heroNote,
+            List<ManagerGuideMapActionModel> mapActions,
             List<ManagerGuideStageModel> stages,
             ManagerGuideFocusModel focusModel,
             String locationSummary,
             String guardianUpdate,
             String fieldPhotoNote,
             String medicationNote,
+            String pharmacySummary,
+            String pharmacyActionLabel,
             String reportSummary,
             String reportTreatment,
             String nextVisitAt,
@@ -56,12 +62,15 @@ public final class ManagerGuideScreenModel {
         this.heroTitle = heroTitle;
         this.heroBody = heroBody;
         this.heroNote = heroNote;
+        this.mapActions = mapActions;
         this.stages = stages;
         this.focusModel = focusModel;
         this.locationSummary = locationSummary;
         this.guardianUpdate = guardianUpdate;
         this.fieldPhotoNote = fieldPhotoNote;
         this.medicationNote = medicationNote;
+        this.pharmacySummary = pharmacySummary;
+        this.pharmacyActionLabel = pharmacyActionLabel;
         this.reportSummary = reportSummary;
         this.reportTreatment = reportTreatment;
         this.nextVisitAt = nextVisitAt;
@@ -99,6 +108,10 @@ public final class ManagerGuideScreenModel {
         return heroNote;
     }
 
+    public List<ManagerGuideMapActionModel> getMapActions() {
+        return mapActions;
+    }
+
     public List<ManagerGuideStageModel> getStages() {
         return stages;
     }
@@ -121,6 +134,14 @@ public final class ManagerGuideScreenModel {
 
     public String getMedicationNote() {
         return medicationNote;
+    }
+
+    public String getPharmacySummary() {
+        return pharmacySummary;
+    }
+
+    public String getPharmacyActionLabel() {
+        return pharmacyActionLabel;
     }
 
     public String getReportSummary() {

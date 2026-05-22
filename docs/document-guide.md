@@ -1,85 +1,84 @@
 # 문서 안내
 
-기준일: 2026-05-05
+기준일: 2026-05-22
 
-이 문서는 현재 저장소에서 어떤 문서를 먼저 보고, 어떤 상황에서 어느 문서를 기준으로 삼아야 하는지 정리한 안내서다.
+이 문서는 현재 저장소에서 어떤 문서를 먼저 보고, 어떤 문서를 기준으로 판단해야 하는지 정리한 안내서다.
+
+## 최상위 기준
+
+1. [보들 플랫폼 기능설명서](보들_플랫폼_기능설명서.pdf)
+2. [화면 개편 목표 정리](restructure-target-map.md)
+3. [현재 구현 상태](implementation-status.md)
+4. [데이터 및 API 초안](data-api-draft.md)
+
+기능 방향이 충돌하면 위 순서대로 판단한다.  
+다만 기능설명서 마지막의 AI, 결제 세부 정책, 건강정보 화면 메모는 `추가 기획 메모`로 보고 별도 확정 전까지 구현 기준으로 바로 승격하지 않는다.
 
 ## 먼저 볼 문서
 
-새로 작업을 시작할 때는 아래 순서로 보는 것을 기준으로 한다.
+새로 작업을 시작할 때는 아래 순서를 기본으로 한다.
 
 1. [현재 구현 상태](implementation-status.md)
 2. [협업 규칙](collaboration-rules.md)
 3. [내부 테스트 가이드](internal-test-guide.md)
-4. [전면 개편 목표 정리](restructure-target-map.md)
+4. [화면 개편 목표 정리](restructure-target-map.md)
 5. [Firebase 설정](firebase-setup.md)
-
-## 문서 우선순위
-
-기능 방향과 작업 기준이 충돌하면 아래 순서로 판단한다.
-
-1. 최신 기능설명서
-2. [전면 개편 목표 정리](restructure-target-map.md)
-3. [현재 구현 상태](implementation-status.md)
-4. [데이터 및 API 초안](data-api-draft.md)
 
 ## 문서 분류
 
-### 1. 현재 작업 기준
+### 1. 제품 기준 문서
+
+- [보들 플랫폼 기능설명서](보들_플랫폼_기능설명서.pdf)
+  - 최신 화면/기능 요구사항 원본
+- [화면 개편 목표 정리](restructure-target-map.md)
+  - 기능설명서를 현재 앱 구조에 맞게 다시 푼 문서
+- [MVP 범위](mvp-scope.md)
+  - 최신 기능설명서를 기준으로 현재 단계에서 실제로 닫을 범위를 정리한 문서
+
+### 2. 구현 기준 문서
 
 - [현재 구현 상태](implementation-status.md)
-  - 가장 최근 작업 범위, 변경 파일, 남은 범위를 기록한다.
-- [협업 규칙](collaboration-rules.md)
-  - 여러 작업자가 동시에 수정할 때의 시작 절차, 동기화, 충돌 방지 규칙을 다룬다.
-- [내부 테스트 가이드](internal-test-guide.md)
-  - 기획/내부 QA가 바로 사용할 테스트 계정, 더미 데이터, 역할별 테스트 순서를 정리한다.
-- [관리자 권한 QA 체크리스트](admin-access-qa-checklist.md)
-  - 관리자 앱/웹, 권한 실패 시나리오, 매니저 서류 검토 흐름을 반복 점검할 때 쓴다.
-
-### 2. 제품 구조와 범위
-
-- [전면 개편 목표 정리](restructure-target-map.md)
-  - 기능설명서를 현재 앱 화면과 도메인 구조로 풀어놓은 기준 문서다.
-- [MVP 범위](mvp-scope.md)
-  - 초기 MVP 기준을 정리한 문서다. 현재 구현보다 범위가 좁으므로 역사적 참고용에 가깝다.
+  - 최근 작업 내역, 변경 파일, 남은 범위
 - [아키텍처 초안](architecture-draft.md)
-  - 프로젝트 초반 구조 설명 문서다. 현재는 역할 분리 원칙 참고용으로 본다.
-- [팀 작업 분담](team-task-breakdown.md)
-  - 팀별 역할 분담과 초기 계획을 확인할 때 쓴다.
-
-### 3. 데이터와 Firebase 운영
-
+  - Android 앱, 관리자 웹, Firebase 도구의 현재 역할 분리 기준
 - [데이터 및 API 초안](data-api-draft.md)
-  - Firestore 문서 구조, 서버 계약 초안, 관리자/후속 처리 응답 모델 기준을 다룬다.
+  - Firestore 문서 구조와 서버 계약 초안
+
+### 3. 운영/테스트 문서
+
+- [내부 테스트 가이드](internal-test-guide.md)
+  - 테스트 계정, 더미 데이터, 역할별 테스트 순서
+- [관리자 권한 QA 체크리스트](admin-access-qa-checklist.md)
+  - 관리자 앱/웹 권한 테스트 기준
 - [Firebase 설정](firebase-setup.md)
-  - Firebase 프로젝트 연결, 컬렉션 구조, Storage/App Check 운영 메모를 모아둔다.
+  - Firebase 프로젝트, 규칙, Storage, App Check 준비 상태
 - [Firebase 운영 도구](firebase-operations-tools.md)
-  - `tools/firebase` 스크립트 사용법, 기준선 초기화, 백업/복원, 운영 리포트 흐름을 다룬다.
+  - `tools/firebase` 사용 기준
+
+### 4. 보안/정책 문서
+
 - [Firestore 보안 정리](firestore-security-hardening.md)
-  - Firestore rules 축소, callable 전환, 권한 검증 기록을 다룬다.
-- [Firebase 기준선 초기화](firebase-reset-baseline.md)
-  - Firestore 기준선 리셋 절차만 따로 빠르게 볼 때 쓴다.
-
-### 4. 보안 기준
-
 - [보안 리뷰 최신화 메모](security-review-2026-04-29.md)
-  - 현재 남은 보안 위험과 우선순위를 요약한다.
 - [AES 적용 범위 판단](aes-scope-assessment.md)
-  - `AES-256 이상` 요구를 현재 구조에서 어떻게 해석할지 정리한다.
+
+### 5. 디자인/기능 비교 문서
+
+- [디자인 레퍼런스 검토 메모](design-reference-review-2026-05-05.md)
+  - 최신 피그마 ZIP을 화면 polish 기준으로 읽은 메모
+- [기능서/피그마 전체 점검 메모](feature-spec-figma-audit-2026-05-22.md)
+  - 최신 기능설명서와 최신 피그마를 각각 다시 읽고 차이를 분리한 문서
+- [기능설명서 항목별 구현 체크리스트](feature-spec-gap-checklist-2026-05-22.md)
+  - 기능설명서의 20개 항목과 추가 메모를 완료도 기준으로 자른 문서
 
 ## 현재 저장소 구성 요약
 
-- `app/`
-  - Android 앱 본체
-- `admin-web/`
-  - 관리자 승인/운영 웹
-- `functions/`
-  - Firebase Functions
-- `tools/firebase/`
-  - 기준선 초기화, 상태 점검, 리포트, 백업/복원 같은 로컬 운영 도구
+- `app/`: Android 앱
+- `admin-web/`: 관리자 심사/운영 웹
+- `functions/`: Firebase Functions
+- `tools/firebase/`: 기준선 초기화, 점검, 리포트, 백업/복원 도구
 
-## 현재 상태 한 줄 요약
+## 현재 문서 운용 원칙
 
-- Android 앱, 관리자 웹, Firebase 운영 도구, CI 프리플라이트까지 기준선이 잡혀 있다.
-- Play Console 준비 전에는 App Check 실제 enforcement만 보류 상태다.
-- 현재 남은 큰 일은 신규 기능 구현보다 QA, 운영 절차, 보안 강제 적용 준비에 가깝다.
+- 기능 방향은 기능설명서와 `restructure-target-map`을 먼저 본다.
+- 실제로 무엇이 구현됐는지는 `implementation-status`를 기준으로 본다.
+- 새 기능 또는 보안 변경이 들어가면 같은 턴에 `implementation-status`와 관련 상세 문서를 같이 갱신한다.

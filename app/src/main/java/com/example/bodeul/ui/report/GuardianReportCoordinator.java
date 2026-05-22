@@ -184,6 +184,18 @@ public final class GuardianReportCoordinator {
         addOptionalLine(items, R.string.guardian_report_line_medication, entry.getSession() == null
                 ? ""
                 : entry.getSession().getMedicationNote(), false);
+        addOptionalLine(items, R.string.guardian_report_line_pharmacy, entry.getSession() == null
+                ? ""
+                : entry.getSession().getPharmacySummary(), false);
+        if (entry.getSession() != null
+                && (!TextUtils.isEmpty(entry.getSession().getPharmacySummary())
+                || entry.getSession().isPharmacyCompleted())) {
+            items.add(new GuardianReportLineItem(
+                    context.getString(R.string.guardian_report_line_pharmacy_state),
+                    buildPharmacyStateLabel(entry.getSession()),
+                    false
+            ));
+        }
         addOptionalLine(items, R.string.guardian_report_line_guide, buildGuideLine(entry.getHospitalGuide()), false);
         return items;
     }
@@ -249,5 +261,11 @@ public final class GuardianReportCoordinator {
                 R.string.guardian_report_guide_line,
                 guide.getSteps().size()
         );
+    }
+
+    private String buildPharmacyStateLabel(CompanionSession session) {
+        return context.getString(session.isPharmacyCompleted()
+                ? R.string.guide_pharmacy_state_completed
+                : R.string.guide_pharmacy_state_pending);
     }
 }

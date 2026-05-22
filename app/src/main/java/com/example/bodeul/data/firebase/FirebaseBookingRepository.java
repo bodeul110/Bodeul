@@ -1028,7 +1028,9 @@ public class FirebaseBookingRepository implements BookingRepository {
                 stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
                 stringOrEmpty(documentSnapshot.getString("locationSummary")),
                 stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
-                stringOrEmpty(documentSnapshot.getString("medicationNote"))
+                stringOrEmpty(documentSnapshot.getString("medicationNote")),
+                stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
         );
     }
 

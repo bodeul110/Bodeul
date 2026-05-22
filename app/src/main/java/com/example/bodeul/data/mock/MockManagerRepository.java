@@ -91,6 +91,26 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback) {
+        ManagerDashboard dashboard = repository.updatePharmacySummary(managerUserId, pharmacySummary);
+        if (dashboard == null) {
+            callback.onError("약국 진행 요약을 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
+    public void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback) {
+        ManagerDashboard dashboard = repository.updatePharmacyCompleted(managerUserId, pharmacyCompleted);
+        if (dashboard == null) {
+            callback.onError("약국 단계 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
     public void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback) {
         ManagerHomeProfile profile = repository.getManagerHomeProfile(managerUserId);
         if (profile == null) {

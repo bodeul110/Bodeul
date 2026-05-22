@@ -16,6 +16,8 @@ public class CompanionSession {
     private String locationSummary;
     private String fieldPhotoNote;
     private String medicationNote;
+    private String pharmacySummary;
+    private boolean pharmacyCompleted;
 
     public CompanionSession(
             String id,
@@ -26,7 +28,9 @@ public class CompanionSession {
             String guardianUpdate,
             String locationSummary,
             String fieldPhotoNote,
-            String medicationNote
+            String medicationNote,
+            String pharmacySummary,
+            boolean pharmacyCompleted
     ) {
         this.id = id;
         this.appointmentRequestId = appointmentRequestId;
@@ -37,6 +41,8 @@ public class CompanionSession {
         this.locationSummary = locationSummary;
         this.fieldPhotoNote = fieldPhotoNote;
         this.medicationNote = medicationNote;
+        this.pharmacySummary = pharmacySummary;
+        this.pharmacyCompleted = pharmacyCompleted;
     }
 
     public String getId() {
@@ -103,5 +109,21 @@ public class CompanionSession {
     // 약 수령 및 복약 관련 메모를 저장한다.
     public void setMedicationNote(String medicationNote) {
         this.medicationNote = medicationNote;
+    }
+
+    public String getPharmacySummary() {
+        return pharmacySummary;
+    }
+
+    public void setPharmacySummary(String pharmacySummary) {
+        this.pharmacySummary = pharmacySummary;
+    }
+
+    public boolean isPharmacyCompleted() {
+        return pharmacyCompleted;
+    }
+
+    public void setPharmacyCompleted(boolean pharmacyCompleted) {
+        this.pharmacyCompleted = pharmacyCompleted;
     }
 }

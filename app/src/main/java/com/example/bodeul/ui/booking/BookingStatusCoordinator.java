@@ -276,6 +276,14 @@ public final class BookingStatusCoordinator {
             addOptionalLine(items, R.string.booking_status_line_guardian_update, session.getGuardianUpdate(), false);
             addOptionalLine(items, R.string.booking_status_line_live_photo, session.getFieldPhotoNote(), false);
             addOptionalLine(items, R.string.booking_status_line_live_medication, session.getMedicationNote(), false);
+            addOptionalLine(items, R.string.booking_status_line_live_pharmacy, session.getPharmacySummary(), false);
+            if (!TextUtils.isEmpty(session.getPharmacySummary()) || session.isPharmacyCompleted()) {
+                items.add(new BookingStatusLineItem(
+                        context.getString(R.string.booking_status_line_live_pharmacy_state),
+                        buildPharmacyStateLabel(session),
+                        false
+                ));
+            }
         }
 
         if (report != null) {
@@ -491,5 +499,11 @@ public final class BookingStatusCoordinator {
                 R.string.booking_status_guide_ready,
                 hospitalGuide.getSteps().size()
         );
+    }
+
+    private String buildPharmacyStateLabel(CompanionSession session) {
+        return context.getString(session.isPharmacyCompleted()
+                ? R.string.guide_pharmacy_state_completed
+                : R.string.guide_pharmacy_state_pending);
     }
 }

@@ -1,29 +1,48 @@
 # 보들
 
-보들은 환자, 보호자, 동행 매니저를 연결하는 병원 동행 플랫폼입니다.
+보들은 환자, 보호자, 매니저를 연결하는 병원 동행 플랫폼입니다.
 
-현재 프로젝트의 최상위 기능 기준은 최신 `보들 플랫폼 기능설명서`를 따른다. 문서와 구현은 아래 다섯 축을 기준으로 정렬한다.
+## 기준 문서
+
+- 최신 기능 기준: [보들 플랫폼 기능설명서](docs/보들_플랫폼_기능설명서.pdf)
+- 화면/흐름 재구성 기준: [화면 개편 목표 정리](docs/restructure-target-map.md)
+- 실제 구현 기준: [현재 구현 상태](docs/implementation-status.md)
+
+## 현재 저장소 구성
+
+- `app/`: Android 앱 본체
+- `admin-web/`: 관리자 서류 심사 및 운영 웹
+- `functions/`: Firebase Functions
+- `tools/firebase/`: 기준선 초기화, 상태 점검, 백업/복원, 운영 리포트 도구
+
+## 기능 축
 
 1. 진입 및 계정 설정
 2. 서비스 요청 및 예약
 3. 매칭 및 홈 화면
-4. 실시간 동행
+4. 실시간 동행 중
 5. 서비스 종료 및 정산
 
-## 현재 프로젝트 상태
+최신 기능설명서에는 AI 음성 정리, OCR 기반 복약 정보 정리, 건강정보 화면, 결제 세부 정책 같은 후속 기획 메모도 포함되어 있습니다. 이 항목들은 별도 확정 전까지 `기획 메모`로 취급합니다.
 
-이 저장소는 Java, XML 레이아웃, Gradle 기반 Android 앱과 관리자 웹, Firebase 운영 도구를 함께 관리하는 저장소입니다.
+## 먼저 볼 문서
 
-로그인, 예약, 보호자 진행 현황, 매니저 홈과 가이드, 관리자 운영 화면은 동작하며 Firebase 설정이 없을 때는 데모 모드로 실행됩니다. 관리자 웹은 Firebase Auth와 Firestore 기준으로 매니저 서류 심사를 수행하고, `tools/firebase`는 기준선 초기화·리포트·백업/복원 같은 운영 점검 스크립트를 제공합니다.
+1. [문서 안내](docs/document-guide.md)
+2. [현재 구현 상태](docs/implementation-status.md)
+3. [내부 테스트 가이드](docs/internal-test-guide.md)
+4. [화면 개편 목표 정리](docs/restructure-target-map.md)
+5. [협업 규칙](docs/collaboration-rules.md)
 
-## 문서
+## 주요 문서
 
 - [문서 안내](docs/document-guide.md)
 - [현재 구현 상태](docs/implementation-status.md)
 - [내부 테스트 가이드](docs/internal-test-guide.md)
 - [협업 규칙](docs/collaboration-rules.md)
 - [관리자 권한 QA 체크리스트](docs/admin-access-qa-checklist.md)
-- [전면 개편 목표 정리](docs/restructure-target-map.md)
+- [화면 개편 목표 정리](docs/restructure-target-map.md)
+- [MVP 범위](docs/mvp-scope.md)
+- [아키텍처 초안](docs/architecture-draft.md)
 - [데이터 및 API 초안](docs/data-api-draft.md)
 - [Firebase 설정](docs/firebase-setup.md)
 - [Firebase 운영 도구](docs/firebase-operations-tools.md)
@@ -31,19 +50,8 @@
 - [보안 리뷰 최신화 메모](docs/security-review-2026-04-29.md)
 - [AES 적용 범위 판단](docs/aes-scope-assessment.md)
 - [디자인 레퍼런스 검토 메모](docs/design-reference-review-2026-05-05.md)
-- [MVP 범위](docs/mvp-scope.md)
-- [아키텍처 초안](docs/architecture-draft.md)
-- [팀 작업 분담](docs/team-task-breakdown.md)
-
-## 문서 시작 순서
-
-새로 들어온 작업자는 아래 순서로 보는 것을 기준으로 합니다.
-
-1. [문서 안내](docs/document-guide.md)
-2. [현재 구현 상태](docs/implementation-status.md)
-3. [내부 테스트 가이드](docs/internal-test-guide.md)
-4. [협업 규칙](docs/collaboration-rules.md)
-5. [전면 개편 목표 정리](docs/restructure-target-map.md)
+- [기능서/피그마 전체 점검 메모](docs/feature-spec-figma-audit-2026-05-22.md)
+- [기능설명서 항목별 구현 체크리스트](docs/feature-spec-gap-checklist-2026-05-22.md)
 
 ## 실행
 
@@ -51,39 +59,15 @@
 .\gradlew.bat assembleDebug
 ```
 
-## 협업 설정
-
-- 공용 원격 저장소는 `origin`(`git@github.com:bodeul110/Bodeul.git`) 기준으로 사용합니다.
-- GitHub 저장소에서 팀원을 `Collaborator`로 추가한 뒤 같은 저장소를 함께 사용합니다.
-- `master` 브랜치는 기준 브랜치로 유지하고, 기능 개발은 가능하면 별도 브랜치에서 진행합니다.
-- 여러 작업자가 동시에 들어올 때의 상세 규칙은 [협업 규칙](docs/collaboration-rules.md)을 기준으로 맞춥니다.
-
-## 협업 절차
-
-새로 작업을 시작할 때는 아래 순서로 진행합니다.
-
-```powershell
-git clone git@github.com:bodeul110/Bodeul.git
-cd BoDeul
-git checkout -b feature/작업이름
-```
-
-작업 전에 `누가 최근에 작업했는지`, `로컬과 원격 중 어느 쪽이 최신인지`부터 확인합니다. 상세 명령과 판별 기준은 [협업 규칙](docs/collaboration-rules.md)에 정리돼 있습니다.
-
-작업 중에는 기준 브랜치 변경 사항을 먼저 반영하고, 푸시 전 빌드를 확인합니다.
+## 작업 시작 순서
 
 ```powershell
 git fetch origin
-git log --format="%h %an %ad %s" --date=short -10
-git rev-list --left-right --count HEAD...origin/master
 git pull --rebase origin master
 .\gradlew.bat assembleDebug
-git add .
-git commit -m "기능 설명"
-git push -u origin feature/작업이름
 ```
 
-브랜치를 푸시한 뒤에는 GitHub에서 Pull Request를 생성하고, 리뷰 후 `master`에 머지합니다.
+작업 전 동기화와 최근 작업자 확인 절차는 [협업 규칙](docs/collaboration-rules.md)을 기준으로 합니다.
 
 ## 데모 로그인
 
@@ -92,4 +76,4 @@ git push -u origin feature/작업이름
 - 환자: `patient@bodeul.app` / `bodeul1234`
 - 보호자: `guardian@bodeul.app` / `bodeul1234`
 
-내부 테스트용 더미 데이터와 역할별 테스트 순서는 [내부 테스트 가이드](docs/internal-test-guide.md)에 정리했다.
+더미 데이터와 테스트 순서는 [내부 테스트 가이드](docs/internal-test-guide.md)에 정리되어 있습니다.

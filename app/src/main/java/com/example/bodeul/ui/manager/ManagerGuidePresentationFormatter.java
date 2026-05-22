@@ -110,10 +110,10 @@ public final class ManagerGuidePresentationFormatter {
                 summary = firstNonEmpty(session.getGuardianUpdate(), session.getFieldPhotoNote());
                 return context.getString(R.string.guide_focus_preview_treatment, fallback(summary));
             case 6:
-                summary = firstNonEmpty(session.getMedicationNote(), session.getFieldPhotoNote());
+                summary = firstNonEmpty(session.getPharmacySummary(), session.getMedicationNote(), session.getFieldPhotoNote());
                 return context.getString(R.string.guide_focus_preview_medication, fallback(summary));
             default:
-                summary = firstNonEmpty(session.getGuardianUpdate(), session.getMedicationNote());
+                summary = firstNonEmpty(session.getGuardianUpdate(), session.getPharmacySummary(), session.getMedicationNote());
                 return context.getString(R.string.guide_focus_preview_finish, fallback(summary));
         }
     }
@@ -132,10 +132,12 @@ public final class ManagerGuidePresentationFormatter {
         return value;
     }
 
-    private String firstNonEmpty(String first, String second) {
-        if (!TextUtils.isEmpty(first)) {
-            return summarize(first);
+    private String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (!TextUtils.isEmpty(value)) {
+                return summarize(value);
+            }
         }
-        return summarize(second);
+        return "";
     }
 }

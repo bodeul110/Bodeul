@@ -166,6 +166,47 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="@string/guide_map_section_title"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/guide_map_section_helper"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:id="@+id/guideMapActionContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/bodeul_surface"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="6dp"
+                app:strokeColor="@color/bodeul_outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="22dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="@string/guide_steps_title"
                         android:textColor="@color/bodeul_text_primary"
                         android:textSize="18sp"
@@ -443,6 +484,42 @@
                         style="@style/BodeulOutlinedButton"
                         android:layout_marginTop="14dp"
                         android:text="@string/guide_medication_save" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:text="@string/guide_pharmacy_section"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="17sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/BodeulFilledInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:hint="@string/guide_pharmacy_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/inputPharmacySummary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textMultiLine"
+                            android:minLines="3" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonSavePharmacySummary"
+                        style="@style/BodeulOutlinedButton"
+                        android:layout_marginTop="14dp"
+                        android:text="@string/guide_pharmacy_save" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonTogglePharmacyCompleted"
+                        style="@style/BodeulOutlinedButton"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/guide_pharmacy_mark_completed" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

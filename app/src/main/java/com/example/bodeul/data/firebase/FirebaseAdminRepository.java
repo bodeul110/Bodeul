@@ -140,6 +140,8 @@ public class FirebaseAdminRepository implements AdminRepository {
                 sessionDocument.put("locationSummary", "");
                 sessionDocument.put("fieldPhotoNote", "");
                 sessionDocument.put("medicationNote", "");
+                sessionDocument.put("pharmacySummary", "");
+                sessionDocument.put("pharmacyCompleted", false);
                 sessionDocument.put("createdAt", FieldValue.serverTimestamp());
                 sessionDocument.put("updatedAt", FieldValue.serverTimestamp());
                 batch.set(sessionReference, sessionDocument);
@@ -1804,7 +1806,9 @@ public class FirebaseAdminRepository implements AdminRepository {
                 documentSnapshot.getString("guardianUpdate") == null ? "" : documentSnapshot.getString("guardianUpdate"),
                 documentSnapshot.getString("locationSummary") == null ? "" : documentSnapshot.getString("locationSummary"),
                 documentSnapshot.getString("fieldPhotoNote") == null ? "" : documentSnapshot.getString("fieldPhotoNote"),
-                documentSnapshot.getString("medicationNote") == null ? "" : documentSnapshot.getString("medicationNote")
+                documentSnapshot.getString("medicationNote") == null ? "" : documentSnapshot.getString("medicationNote"),
+                documentSnapshot.getString("pharmacySummary") == null ? "" : documentSnapshot.getString("pharmacySummary"),
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
         );
     }
 

@@ -1164,6 +1164,26 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized ManagerDashboard updatePharmacySummary(String managerUserId, String summary) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setPharmacySummary(summary);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setPharmacyCompleted(pharmacyCompleted);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
     public synchronized ManagerDashboard saveSessionReport(
             String managerUserId,
             String summary,
@@ -1246,7 +1266,9 @@ public class MockBodeulRepository implements BodeulRepository {
                 "",
                 "",
                 "",
-                ""
+                "",
+                "",
+                false
         ));
         return request;
     }
@@ -1790,7 +1812,9 @@ public class MockBodeulRepository implements BodeulRepository {
                 "환자분을 만나 병원으로 이동 중입니다.",
                 "서울시립병원 정문 앞 도착, 접수 창구로 이동 준비 중입니다.",
                 "정문 안내 표지와 접수 대기표를 확인했습니다.",
-                "처방전 수령 전입니다."
+                "처방전 수령 전입니다.",
+                "",
+                false
         ));
     }
 

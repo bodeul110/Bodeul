@@ -223,6 +223,18 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback) {
+        updateSessionField(managerUserId, "pharmacySummary", pharmacySummary, callback);
+    }
+
+    @Override
+    public void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("pharmacyCompleted", pharmacyCompleted);
+        updateSessionFields(managerUserId, updates, callback);
+    }
+
+    @Override
     public void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback) {
         firestore.collection("users")
                 .document(managerUserId)
@@ -770,16 +782,25 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String value,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        // 단일 메모 수정도 저장 후 대시보드를 다시 읽어 화면 상태를 한 구조로 유지한다.
+        Map<String, Object> updates = new HashMap<>();
+        updates.put(key, value);
+        updateSessionFields(managerUserId, updates, callback);
+    }
+
+    private void updateSessionFields(
+            String managerUserId,
+            Map<String, Object> updates,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        // 세션 메모와 약국 단계 상태는 저장 후 대시보드를 다시 읽어 한 구조로 유지한다.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
-                Map<String, Object> updates = new HashMap<>();
-                updates.put(key, value);
-                updates.put("updatedAt", FieldValue.serverTimestamp());
+                Map<String, Object> updatesWithTimestamp = new HashMap<>(updates);
+                updatesWithTimestamp.put("updatedAt", FieldValue.serverTimestamp());
 
                 sessionSnapshot.getReference()
-                        .update(updates)
+                        .update(updatesWithTimestamp)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
                                 callback.onError("세션 정보를 저장하지 못했습니다."));
@@ -1124,7 +1145,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
                 stringOrEmpty(documentSnapshot.getString("locationSummary")),
                 stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
-                stringOrEmpty(documentSnapshot.getString("medicationNote"))
+                stringOrEmpty(documentSnapshot.getString("medicationNote")),
+                stringOrEmpty(documentSnapshot.getString("pharmacySummary")),
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("pharmacyCompleted"))
         );
     }
 
