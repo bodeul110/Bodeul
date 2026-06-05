@@ -28,6 +28,19 @@ import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
+import com.kakao.vectormap.KakaoMap;
+import com.kakao.vectormap.KakaoMapReadyCallback;
+import com.kakao.vectormap.LatLng;
+import com.kakao.vectormap.MapLifeCycleCallback;
+import com.kakao.vectormap.MapView;
+import com.kakao.vectormap.camera.CameraUpdateFactory;
+import com.kakao.vectormap.label.Label;
+import com.kakao.vectormap.label.LabelOptions;
+import com.kakao.vectormap.label.LabelStyle;
+import com.kakao.vectormap.label.LabelStyles;
+import com.kakao.vectormap.label.LabelManager;
+import com.kakao.vectormap.label.LabelLayer;
+
 /**
  * 환자와 보호자가 현재 동행 위치 공유와 현장 메모를 한 화면에서 확인한다.
  */
@@ -45,6 +58,10 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     private String requestId;
     private AppointmentRequestDetail currentDetail;
     private Runnable detailObserverRegistration;
+
+    private MapView mapView;
+    private KakaoMap kakaoMap;
+    private Label managerMarker;
 
     public static Intent createIntent(Context context, String requestId) {
         Intent intent = new Intent(context, BookingLiveLocationActivity.class);
@@ -92,12 +109,46 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
         findViewById(R.id.buttonBookingLiveLocationRefresh).setOnClickListener(view -> startObserving());
         findViewById(R.id.buttonBookingLiveLocationChat).setOnClickListener(view -> openCompanionChat());
         contentContainer.setVisibility(View.GONE);
+
+        mapView = findViewById(R.id.mapViewBookingLiveLocation);
+        mapView.start(new MapLifeCycleCallback() {
+            @Override
+            public void onMapDestroy() {
+            }
+
+            @Override
+            public void onMapError(Exception e) {
+            }
+        }, new KakaoMapReadyCallback() {
+            @Override
+            public void onMapReady(KakaoMap map) {
+                kakaoMap = map;
+                mapView.setVisibility(View.VISIBLE);
+                updateMapMarker();
+            }
+        });
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         startObserving();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mapView != null) {
+            mapView.resume();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mapView != null) {
+            mapView.pause();
+        }
     }
 
     @Override
@@ -147,6 +198,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                                         detail,
                                         bookingRepository.isFirebaseBacked()
                                 ));
+                                updateMapMarker();
                                 contentContainer.setVisibility(View.VISIBLE);
                                 hideBlockingState();
                                 setLoading(false);
@@ -199,6 +251,28 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
         if (loading) {
             contentContainer.setVisibility(View.GONE);
+        }
+    }
+
+    private void updateMapMarker() {
+        if (kakaoMap == null || currentDetail == null) return;
+        
+        Double lat = currentDetail.getSession().getSharedLatitude();
+        Double lng = currentDetail.getSession().getSharedLongitude();
+        
+        if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+            LatLng position = LatLng.from(lat, lng);
+            LabelManager labelManager = kakaoMap.getLabelManager();
+            LabelLayer layer = labelManager.getLayer();
+            
+            if (managerMarker == null) {
+                LabelOptions options = LabelOptions.from(position)
+                        .setStyles(LabelStyle.from(R.drawable.bodeul_logo_full)); // 임시 마커 아이콘으로 대체
+                managerMarker = layer.addLabel(options);
+            } else {
+                managerMarker.moveTo(position);
+            }
+            kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position));
         }
     }
 

@@ -56,6 +56,28 @@
 - 사용자 문서 생성 / 수정 시 기존 신청 문서 자동 재연결
 - 예약 취소 / 삭제 / 일정 변경 시 남아 있는 `appointmentReminderJobs` 자동 정리
 
+## 68. 2026-06-05 추가 업데이트 (카카오 맵 SDK 네이티브 연동)
+
+### 구현
+
+- 환자 실시간 동행 화면(`BookingLiveLocationActivity`)과 매니저 가이드 화면(`ManagerGuideActivity`)에 **카카오 네이티브 맵 SDK (v2.13.2)**를 삽입하여 앱 외부 이동 없이 지도를 볼 수 있게 개선했다.
+- 백그라운드 위치 서비스나 실시간 동기화로 갱신되는 `sharedLatitude`, `sharedLongitude` 정보를 기반으로 카카오맵 마커 위치와 카메라 중심이 동적으로 변경되게 연동했다.
+- 카카오맵 라이프사이클에 맞춰 Activity의 `onResume()`, `onPause()` 시점에 지도를 재개/정지 하도록 처리해 메모리 누수를 방지했다.
+
+### 변경 범위
+
+- `gradle/libs.versions.toml`
+- `app/build.gradle.kts`
+- `app/src/main/java/com/example/bodeul/BodeulApplication.java`
+- `app/src/main/res/layout/activity_booking_live_location.xml`
+- `app/src/main/res/layout/activity_manager_guide.xml`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
+
+### 남은 범위
+
+- 앱 해시 키가 카카오 플랫폼에 미등록되었을 때의 예외 처리 (현재는 미등록 시 지도가 안 나타날 수 있음)
+
 ## 2. 이번 작업에서 구현한 내용
 
 - 관리자 운영 이력에 `오늘`, `다가오는 일정`, `지난 일정` 날짜 필터를 추가했다.

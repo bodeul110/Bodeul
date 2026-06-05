@@ -29,6 +29,18 @@ import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
+import com.kakao.vectormap.KakaoMap;
+import com.kakao.vectormap.KakaoMapReadyCallback;
+import com.kakao.vectormap.LatLng;
+import com.kakao.vectormap.MapLifeCycleCallback;
+import com.kakao.vectormap.MapView;
+import com.kakao.vectormap.camera.CameraUpdateFactory;
+import com.kakao.vectormap.label.Label;
+import com.kakao.vectormap.label.LabelOptions;
+import com.kakao.vectormap.label.LabelStyle;
+import com.kakao.vectormap.label.LabelManager;
+import com.kakao.vectormap.label.LabelLayer;
+
 public class ManagerGuideActivity extends AppCompatActivity {
     private static final int REQUEST_FINE_LOCATION = 1001;
     private static final int LOCATION_ACTION_NONE = 0;
@@ -52,6 +64,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputReportSummary;
     private TextInputEditText inputReportTreatment;
     private TextInputEditText inputNextVisit;
+
+    private MapView mapView;
+    private KakaoMap kakaoMap;
+    private Label managerMarker;
+    private ManagerDashboard currentDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,6 +159,24 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
         findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
 
+        mapView = findViewById(R.id.mapViewManagerGuide);
+        mapView.start(new MapLifeCycleCallback() {
+            @Override
+            public void onMapDestroy() {
+            }
+
+            @Override
+            public void onMapError(Exception e) {
+            }
+        }, new KakaoMapReadyCallback() {
+            @Override
+            public void onMapReady(KakaoMap map) {
+                kakaoMap = map;
+                mapView.setVisibility(View.VISIBLE);
+                updateMapMarker();
+            }
+        });
+
         viewModel.getUiState().observe(this, this::handleUiState);
         viewModel.getToastMessage().observe(this, message -> {
             if (message != null) {
@@ -187,6 +222,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
             if (state.screenModel != null) {
                 managerGuideContentContainer.setVisibility(View.VISIBLE);
                 managerGuideDashboardBinder.bindScreen(state.screenModel);
+                currentDashboard = state.dashboard;
+                updateMapMarker();
             } else {
                 managerGuideContentContainer.setVisibility(View.GONE);
             }
@@ -197,6 +234,31 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private String valueOf(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
+    }
+
+    private void updateMapMarker() {
+        if (kakaoMap == null || currentDashboard == null) return;
+        
+        CompanionSession session = currentDashboard.getSession();
+        if (session == null) return;
+
+        Double lat = session.getSharedLatitude();
+        Double lng = session.getSharedLongitude();
+        
+        if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+            LatLng position = LatLng.from(lat, lng);
+            LabelManager labelManager = kakaoMap.getLabelManager();
+            LabelLayer layer = labelManager.getLayer();
+            
+            if (managerMarker == null) {
+                LabelOptions options = LabelOptions.from(position)
+                        .setStyles(LabelStyle.from(R.drawable.bodeul_logo_full)); // 임시 마커 아이콘
+                managerMarker = layer.addLabel(options);
+            } else {
+                managerMarker.moveTo(position);
+            }
+            kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position));
+        }
     }
 
     private void openMapFallback(ManagerGuideMapActionModel model) {
@@ -305,6 +367,22 @@ public class ManagerGuideActivity extends AppCompatActivity {
         activityVisible = true;
         StatePanelHelper.hide(managerGuideStatePanel);
         viewModel.reload();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mapView != null) {
+            mapView.resume();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mapView != null) {
+            mapView.pause();
+        }
     }
 
     @Override
