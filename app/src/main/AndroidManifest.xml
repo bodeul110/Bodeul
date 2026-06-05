@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".BodeulApplication"
@@ -17,6 +20,10 @@
         android:theme="@style/Theme.Bodeul"
         tools:targetApi="31">
 
+        <service
+            android:name=".ui.manager.ManagerLocationService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
         <activity
             android:name=".ui.auth.PermissionGuideActivity"
             android:exported="false" />

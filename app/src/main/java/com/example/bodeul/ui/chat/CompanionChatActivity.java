@@ -11,19 +11,14 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.ManagerRepository;
-import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
-import com.example.bodeul.domain.model.AppointmentRequestDetail;
-import com.example.bodeul.domain.model.ManagerDashboard;
-import com.example.bodeul.domain.model.User;
-import com.example.bodeul.domain.model.UserRole;
-import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.util.StatePanelHelper;
@@ -34,22 +29,13 @@ import com.google.android.material.textfield.TextInputLayout;
 public class CompanionChatActivity extends AppCompatActivity {
     private static final String EXTRA_REQUEST_ID = "requestId";
 
-    private AuthRepository authRepository;
-    private BookingRepository bookingRepository;
-    private ManagerRepository managerRepository;
-    private CompanionChatCoordinator coordinator;
+    private CompanionChatViewModel viewModel;
     private CompanionChatBinder binder;
 
     private View statePanel;
     private View contentContainer;
     private ProgressBar progressBar;
     private TextInputEditText inputMessage;
-    private User currentUser;
-    private String requestId;
-    @Nullable
-    private AppointmentRequestDetail currentDetail;
-    @Nullable
-    private ManagerDashboard currentDashboard;
 
     public static Intent createIntent(Context context) {
         return new Intent(context, CompanionChatActivity.class);
@@ -66,11 +52,17 @@ public class CompanionChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_companion_chat);
 
-        requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
-        authRepository = ServiceLocator.provideAuthRepository(this);
-        bookingRepository = ServiceLocator.provideBookingRepository(this);
-        managerRepository = ServiceLocator.provideManagerRepository(this);
-        coordinator = new CompanionChatCoordinator(this);
+        String requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
+
+        AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
+        BookingRepository bookingRepository = ServiceLocator.provideBookingRepository(this);
+        ManagerRepository managerRepository = ServiceLocator.provideManagerRepository(this);
+        CompanionChatCoordinator coordinator = new CompanionChatCoordinator(this);
+
+        CompanionChatViewModel.Factory factory = new CompanionChatViewModel.Factory(
+                authRepository, bookingRepository, managerRepository, coordinator
+        );
+        viewModel = new ViewModelProvider(this, factory).get(CompanionChatViewModel.class);
 
         statePanel = findViewById(R.id.companionChatStatePanel);
         contentContainer = findViewById(R.id.companionChatContentContainer);
@@ -96,166 +88,64 @@ public class CompanionChatActivity extends AppCompatActivity {
         findViewById(R.id.buttonBackCompanionChat).setOnClickListener(view -> finish());
         findViewById(R.id.buttonCompanionChatSend).setOnClickListener(view -> sendMessage());
         contentContainer.setVisibility(View.GONE);
-    }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        reload();
-    }
-
-    private void reload() {
-        setLoading(true);
-        hideBlockingState();
-        authRepository.getCurrentUser(new RepositoryCallback<User>() {
-            @Override
-            public void onSuccess(User result) {
-                if (AuthFlowRouter.requiresProfileCompletion(result)) {
-                    openProfileCompletion();
-                    return;
-                }
-                currentUser = result;
-                if (result.getRole() == UserRole.MANAGER) {
-                    loadManagerDashboard(result);
-                    return;
-                }
-                if (result.getRole() == UserRole.PATIENT || result.getRole() == UserRole.GUARDIAN) {
-                    if (TextUtils.isEmpty(requestId)) {
-                        setLoading(false);
-                        showLoadErrorState(getString(R.string.booking_status_request_missing));
-                        return;
-                    }
-                    loadBookingDetail(result);
-                    return;
-                }
-                setLoading(false);
-                showPermissionState();
-            }
-
-            @Override
-            public void onError(String message) {
-                setLoading(false);
-                showAuthState();
+        viewModel.getUiState().observe(this, this::handleUiState);
+        viewModel.getToastMessage().observe(this, message -> {
+            if (message != null) {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                viewModel.toastMessageHandled();
             }
         });
+
+        if (savedInstanceState == null) {
+            viewModel.init(requestId);
+        }
     }
 
-    private void loadBookingDetail(User user) {
-        bookingRepository.getAppointmentRequestDetail(user, requestId, new RepositoryCallback<AppointmentRequestDetail>() {
-            @Override
-            public void onSuccess(AppointmentRequestDetail result) {
-                currentDetail = result;
-                currentDashboard = null;
-                binder.bindScreen(coordinator.createForBooking(
-                        user,
-                        result,
-                        bookingRepository.isFirebaseBacked()
-                ));
-                setLoading(false);
-                hideBlockingState();
-                contentContainer.setVisibility(View.VISIBLE);
-            }
+    private void handleUiState(CompanionChatViewModel.UiState state) {
+        if (state == null) return;
 
-            @Override
-            public void onError(String message) {
-                currentDetail = null;
-                setLoading(false);
-                showLoadErrorState(message);
-            }
-        });
-    }
+        progressBar.setVisibility(state.isLoading ? View.VISIBLE : View.GONE);
 
-    private void loadManagerDashboard(User user) {
-        managerRepository.getManagerDashboard(user.getId(), new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                currentDashboard = result;
-                currentDetail = null;
-                binder.bindScreen(coordinator.createForManager(
-                        user,
-                        result,
-                        managerRepository.isFirebaseBacked()
-                ));
-                setLoading(false);
-                hideBlockingState();
-                contentContainer.setVisibility(View.VISIBLE);
-            }
+        if (state.requireProfileCompletion) {
+            openProfileCompletion();
+            return;
+        }
 
-            @Override
-            public void onError(String message) {
-                currentDashboard = null;
-                setLoading(false);
-                if (ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message)) {
+        if (state.statePanelType != CompanionChatViewModel.StatePanelType.NONE) {
+            contentContainer.setVisibility(View.GONE);
+            switch (state.statePanelType) {
+                case PERMISSION:
+                    showPermissionState();
+                    break;
+                case AUTH:
+                    showAuthState();
+                    break;
+                case EMPTY:
                     showEmptyState();
-                    return;
-                }
-                showLoadErrorState(message);
+                    break;
+                case LOAD_ERROR:
+                    showLoadErrorState(state.errorMessage);
+                    break;
+                default:
+                    StatePanelHelper.hide(statePanel);
+                    break;
             }
-        });
+        } else {
+            StatePanelHelper.hide(statePanel);
+            if (state.screenModel != null) {
+                contentContainer.setVisibility(View.VISIBLE);
+                binder.bindScreen(state.screenModel);
+            } else {
+                contentContainer.setVisibility(View.GONE);
+            }
+        }
     }
 
     private void sendMessage() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String message = inputMessage.getText() == null ? "" : inputMessage.getText().toString().trim();
-        if (message.isEmpty()) {
-            Toast.makeText(this, R.string.companion_chat_empty_message, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        setLoading(true);
-        if (currentUser.getRole() == UserRole.MANAGER) {
-            managerRepository.sendCompanionChatMessage(currentUser.getId(), message, new RepositoryCallback<ManagerDashboard>() {
-                @Override
-                public void onSuccess(ManagerDashboard result) {
-                    inputMessage.setText("");
-                    currentDashboard = result;
-                    binder.bindScreen(coordinator.createForManager(
-                            currentUser,
-                            result,
-                            managerRepository.isFirebaseBacked()
-                    ));
-                    setLoading(false);
-                    hideBlockingState();
-                    contentContainer.setVisibility(View.VISIBLE);
-                }
-
-                @Override
-                public void onError(String message) {
-                    setLoading(false);
-                    Toast.makeText(CompanionChatActivity.this, message, Toast.LENGTH_SHORT).show();
-                }
-            });
-            return;
-        }
-
-        bookingRepository.sendCompanionChatMessage(currentUser, requestId, message, new RepositoryCallback<AppointmentRequestDetail>() {
-            @Override
-            public void onSuccess(AppointmentRequestDetail result) {
-                inputMessage.setText("");
-                currentDetail = result;
-                binder.bindScreen(coordinator.createForBooking(
-                        currentUser,
-                        result,
-                        bookingRepository.isFirebaseBacked()
-                ));
-                setLoading(false);
-                hideBlockingState();
-                contentContainer.setVisibility(View.VISIBLE);
-            }
-
-            @Override
-            public void onError(String message) {
-                setLoading(false);
-                Toast.makeText(CompanionChatActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void setLoading(boolean loading) {
-        progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+        String message = inputMessage.getText() == null ? "" : inputMessage.getText().toString();
+        viewModel.sendMessage(message);
+        inputMessage.setText("");
     }
 
     private void showPermissionState() {
@@ -308,7 +198,7 @@ public class CompanionChatActivity extends AppCompatActivity {
                 getString(R.string.state_load_error_title, getString(R.string.companion_chat_title)),
                 body,
                 getString(R.string.state_action_retry),
-                view -> reload(),
+                view -> viewModel.reload(),
                 getString(R.string.state_action_open_home),
                 view -> openHome()
         );
@@ -336,10 +226,6 @@ public class CompanionChatActivity extends AppCompatActivity {
                 secondaryListener
         );
         contentContainer.setVisibility(View.GONE);
-    }
-
-    private void hideBlockingState() {
-        StatePanelHelper.hide(statePanel);
     }
 
     private void openHome() {

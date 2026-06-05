@@ -5,9 +5,9 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Looper;
 
+import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
@@ -36,22 +36,22 @@ public final class ManagerLiveLocationTracker {
     private long lastDispatchedAtMillis;
     private boolean running;
 
-    public boolean start(@NonNull AppCompatActivity activity, @NonNull Callback callback) {
+    public boolean start(@NonNull Context context, @NonNull Callback callback) {
         stop();
-        if (!ManagerLocationSupport.hasFineLocationPermission(activity)) {
-            callback.onError(activity.getString(R.string.guide_share_location_permission_denied));
+        if (!ManagerLocationSupport.hasFineLocationPermission(context)) {
+            callback.onError(context.getString(R.string.guide_share_location_permission_denied));
             return false;
         }
 
-        LocationManager resolvedLocationManager = ContextCompat.getSystemService(activity, LocationManager.class);
+        LocationManager resolvedLocationManager = ContextCompat.getSystemService(context, LocationManager.class);
         if (resolvedLocationManager == null) {
-            callback.onError(activity.getString(R.string.guide_share_location_error));
+            callback.onError(context.getString(R.string.guide_share_location_error));
             return false;
         }
 
         List<String> providers = ManagerLocationSupport.resolveRealtimeProviders(resolvedLocationManager);
         if (providers.isEmpty()) {
-            callback.onError(activity.getString(R.string.guide_live_location_provider_error));
+            callback.onError(context.getString(R.string.guide_live_location_provider_error));
             return false;
         }
 
@@ -64,7 +64,7 @@ public final class ManagerLiveLocationTracker {
             @Override
             public void onProviderDisabled(@NonNull String provider) {
                 if (running && !ManagerLocationSupport.hasAnyRealtimeProvider(resolvedLocationManager)) {
-                    callback.onError(activity.getString(R.string.guide_live_location_provider_error));
+                    callback.onError(context.getString(R.string.guide_live_location_provider_error));
                 }
             }
         };
@@ -80,7 +80,7 @@ public final class ManagerLiveLocationTracker {
                 );
             }
         } catch (SecurityException | IllegalArgumentException exception) {
-            callback.onError(activity.getString(R.string.guide_live_location_provider_error));
+            callback.onError(context.getString(R.string.guide_live_location_provider_error));
             return false;
         }
 
@@ -88,7 +88,7 @@ public final class ManagerLiveLocationTracker {
         locationListener = listener;
         running = true;
 
-        Location lastKnownLocation = ManagerLocationSupport.findBestLastKnownLocation(activity, resolvedLocationManager);
+        Location lastKnownLocation = ManagerLocationSupport.findBestLastKnownLocation(context, resolvedLocationManager);
         if (lastKnownLocation != null) {
             dispatchIfNeeded(callback, lastKnownLocation);
         }

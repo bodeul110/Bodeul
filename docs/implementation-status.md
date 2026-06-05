@@ -2596,3 +2596,28 @@
 - 카카오 지도 SDK 내장 지도/마커 연동은 아직 남아 있다.
 - 백그라운드 위치 추적과 푸시형 위치 알림은 이번 범위에 포함하지 않았다.
 - 위치 이력은 세션 문서 기준 최근 10건만 유지하며, 장기 보관 정책은 별도 설계가 필요하다.
+
+# 2026-06-05 프로젝트 아키텍처 개선 및 보안 픽스
+
+## 구현
+
+- **아키텍처 개선**: 기존 액티비티에 밀집되어 있던 비즈니스 로직(특히 실시간 위치 공유 등)을 `ViewModel` 기반 AAC 패턴으로 마이그레이션하여 화면 회전 시 상태 소실 및 크래시 문제를 해결했다.
+- **백그라운드 위치 추적**: `ManagerLocationService` 포그라운드 서비스를 도입하여, 매니저가 화면을 끄거나 다른 앱을 사용할 때도 위치 추적이 중단되지 않도록 개선했다. `AndroidManifest.xml`에 `POST_NOTIFICATIONS` 권한을 추가하여 Android 13 이상에서 알림을 지원했다.
+- **실시간 리스너 전환**: 수동 새로고침에 의존하던 동행 현황 조회를 Firestore `addSnapshotListener` 기반으로 변경하여 실시간 데이터 동기화를 구현했다 (`BookingRepository` 및 `FirebaseBookingRepository`).
+- **보안 및 인증 규칙 강화**: `firestore.rules`를 수정하여 매니저 본인이 직접 승인 상태(`managerDocumentStatus`)를 조작하는 Self-Approval 어뷰징을 원천 차단했다. 또한 환자/보호자가 동행 세션에서 메시지를 보낼 때 발생하던 `PERMISSION_DENIED` 에러를 해결하기 위해 `isAppointmentParticipant` 권한을 추가했다.
+- **버그 픽스**: 백그라운드 서비스 시작 시 `null` 콜백으로 인한 `NullPointerException` 등 크래시 문제를 해결했다.
+
+## 변경 범위
+
+- `app/src/main/AndroidManifest.xml`
+- `firestore.rules`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideViewModel.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerLocationService.java`
+- `app/src/main/java/com/example/bodeul/data/BookingRepository.java`
+- `app/src/main/java/com/example/bodeul/data/mock/MockBookingRepository.java`
+- `app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java`
+
+## 남은 범위
+
+- 리포트에서 지적받은 주요 아키텍처 및 보안 결함 수정 완료.

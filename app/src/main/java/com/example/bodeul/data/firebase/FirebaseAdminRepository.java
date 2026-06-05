@@ -52,11 +52,14 @@ import com.example.bodeul.domain.model.SupportInquiryCategory;
 import com.example.bodeul.domain.model.SupportInquiryStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.WriteBatch;
 
@@ -256,49 +259,47 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        firestore.collection("users")
-                .document(managerUserId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    User manager = toUser(documentSnapshot);
-                    if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                        callback.onError("매니저 계정을 찾지 못했습니다.");
-                        return;
-                    }
+        DocumentReference managerRef = firestore.collection("users").document(managerUserId);
 
-                    ManagerHomeProfile profile = toManagerHomeProfile(documentSnapshot);
-                    if (normalizeText(profile.getDocumentSummary()).isEmpty()) {
-                        callback.onError("검토할 서류 요약이 아직 등록되지 않았습니다.");
-                        return;
-                    }
+        firestore.runTransaction(transaction -> {
+            DocumentSnapshot documentSnapshot = transaction.get(managerRef);
+            
+            User manager = toUser(documentSnapshot);
+            if (manager == null || manager.getRole() != UserRole.MANAGER) {
+                throw new FirebaseFirestoreException("매니저 계정을 찾지 못했습니다.", FirebaseFirestoreException.Code.ABORTED);
+            }
 
-                    Map<String, Object> updates = new HashMap<>();
-                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
-                            toManagerDocumentHistory(documentSnapshot),
-                            new ManagerDocumentHistoryEntry(
-                                    status == ManagerDocumentStatus.APPROVED
-                                            ? ManagerDocumentHistoryEventType.APPROVED
-                                            : ManagerDocumentHistoryEventType.REJECTED,
-                                    System.currentTimeMillis(),
-                                    normalizeText(currentUser.getName()),
-                                    profile.getDocumentSummary(),
-                                    normalizeText(reviewNote)
-                            )
-                    );
-                    updates.put("managerDocumentStatus", status.name());
-                    updates.put("managerDocumentReviewNote", normalizeText(reviewNote));
-                    updates.put("managerDocumentReviewedAt", FieldValue.serverTimestamp());
-                    updates.put("managerDocumentReviewedByName", normalizeText(currentUser.getName()));
-                    updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
+            ManagerHomeProfile profile = toManagerHomeProfile(documentSnapshot);
+            if (normalizeText(profile.getDocumentSummary()).isEmpty()) {
+                throw new FirebaseFirestoreException("검토할 서류 요약이 아직 등록되지 않았습니다.", FirebaseFirestoreException.Code.ABORTED);
+            }
 
-                    documentSnapshot.getReference()
-                            .update(updates)
-                            .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                            .addOnFailureListener(exception ->
-                                    callback.onError("매니저 서류 검토 상태를 저장하지 못했습니다."));
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("매니저 계정 정보를 불러오지 못했습니다."));
+            List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
+                    toManagerDocumentHistory(documentSnapshot),
+                    new ManagerDocumentHistoryEntry(
+                            status == ManagerDocumentStatus.APPROVED
+                                    ? ManagerDocumentHistoryEventType.APPROVED
+                                    : ManagerDocumentHistoryEventType.REJECTED,
+                            System.currentTimeMillis(),
+                            normalizeText(currentUser.getName()),
+                            profile.getDocumentSummary(),
+                            normalizeText(reviewNote)
+                    )
+            );
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("managerDocumentStatus", status.name());
+            updates.put("managerDocumentReviewNote", normalizeText(reviewNote));
+            updates.put("managerDocumentReviewedAt", FieldValue.serverTimestamp());
+            updates.put("managerDocumentReviewedByName", normalizeText(currentUser.getName()));
+            updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
+
+            transaction.update(managerRef, updates);
+            return null;
+        })
+        .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
+        .addOnFailureListener(exception ->
+                callback.onError("매니저 서류 검토 상태를 저장하지 못했습니다. 원인: " + exception.getMessage()));
     }
 
     @Override
@@ -824,83 +825,39 @@ public class FirebaseAdminRepository implements AdminRepository {
     */
 
     private void loadDashboardWithArtifacts(User currentUser, RepositoryCallback<AdminDashboard> callback) {
-        firestore.collection("appointmentRequests")
-                .get()
-                .addOnSuccessListener(requestSnapshot ->
-                        firestore.collection("users")
-                                .get()
-                                .addOnSuccessListener(userSnapshot ->
-                                        firestore.collection("companionSessions")
-                                                .get()
-                                                .addOnSuccessListener(sessionSnapshot ->
-                                                        firestore.collection("sessionReports")
-                                                                .get()
-                                                                .addOnSuccessListener(reportSnapshot ->
-                                                                        firestore.collection("adminSettlementRecords")
-                                                                                .get()
-                                                                                .addOnSuccessListener(settlementSnapshot ->
-                                                                                        firestore.collection("adminEmergencyIssues")
-                                                                                                .get()
-                                                                                                .addOnSuccessListener(emergencySnapshot ->
-                                                                                                        firestore.collection("appointmentFollowUps")
-                                                                                                                .get()
-                                                                                                                .addOnSuccessListener(followUpSnapshot ->
-                                                                                                                        firestore.collection("supportInquiries")
-                                                                                                                                .get()
-                                                                                                                                .addOnSuccessListener(supportSnapshot ->
-                                                                                                                                        firestore.collection("adminActionNotifications")
-                                                                                                                                                .get()
-                                                                                                                                                .addOnSuccessListener(actionNotificationSnapshot ->
-                                                                                                                                                        firestore.collection("adminActionDeliveries")
-                                                                                                                                                                .get()
-                                                                                                                                                                .addOnSuccessListener(actionDeliverySnapshot ->
-                                                                                                                                                                        firestore.collection("adminAuditLogs")
-                                                                                                                                                                                .get()
-                                                                                                                                                                                .addOnSuccessListener(auditLogSnapshot ->
-                                                                                                                                                                                        firestore.collection("hospitalGuides")
-                                                                                                                                                                                                .get()
-                                                                                                                                                                                                .addOnSuccessListener(guideSnapshot ->
-                                                                                                                                                                                                        callback.onSuccess(
-                                                                                                                                                                                                                buildDashboard(
-                                                                                                                                                                                                                        currentUser,
-                                                                                                                                                                                                                        requestSnapshot,
-                                                                                                                                                                                                                        userSnapshot,
-                                                                                                                                                                                                                        sessionSnapshot,
-                                                                                                                                                                                                                        reportSnapshot,
-                                                                                                                                                                                                                        settlementSnapshot,
-                                                                                                                                                                                                                        emergencySnapshot,
-                                                                                                                                                                                                                        followUpSnapshot,
-                                                                                                                                                                                                                        supportSnapshot,
-                                                                                                                                                                                                                        actionNotificationSnapshot,
-                                                                                                                                                                                                                        actionDeliverySnapshot,
-                                                                                                                                                                                                                        auditLogSnapshot,
-                                                                                                                                                                                                                        guideSnapshot
-                                                                                                                                                                                                                )
-                                                                                                                                                                                                        ))
-                                                                                                                                                                                                .addOnFailureListener(exception ->
-                                                                                                                                                                                                        callback.onError("병원 가이드 목록을 불러오지 못했습니다.")))
-                                                                                                                                                                                .addOnFailureListener(exception ->
-                                                                                                                                                                                        callback.onError("감사 로그 목록을 불러오지 못했습니다.")))
-                                                                                                                                                                .addOnFailureListener(exception ->
-                                                                                                                                                                        callback.onError("후속 알림 전달 기록을 불러오지 못했습니다.")))
-                                                                                                                                                .addOnFailureListener(exception ->
-                                                                                                                                                        callback.onError("후속 알림 목록을 불러오지 못했습니다.")))
-                                                                                                                                .addOnFailureListener(exception ->
-                                                                                                                                        callback.onError("문의 이력을 불러오지 못했습니다.")))
-                                                                                                                .addOnFailureListener(exception ->
-                                                                                                                        callback.onError("후속 이력을 불러오지 못했습니다.")))
-                                                                                                .addOnFailureListener(exception ->
-                                                                                                        callback.onError("긴급 이슈 이력을 불러오지 못했습니다.")))
-                                                                                .addOnFailureListener(exception ->
-                                                                                        callback.onError("정산 후속 이력을 불러오지 못했습니다.")))
-                                                                .addOnFailureListener(exception ->
-                                                                        callback.onError("최종 리포트 목록을 불러오지 못했습니다.")))
-                                                .addOnFailureListener(exception ->
-                                                        callback.onError("동행 세션 목록을 불러오지 못했습니다.")))
-                                .addOnFailureListener(exception ->
-                                        callback.onError("사용자 목록을 불러오지 못했습니다.")))
+        Task<QuerySnapshot> t1 = firestore.collection("appointmentRequests").get();
+        Task<QuerySnapshot> t2 = firestore.collection("users").get();
+        Task<QuerySnapshot> t3 = firestore.collection("companionSessions").get();
+        Task<QuerySnapshot> t4 = firestore.collection("sessionReports").get();
+        Task<QuerySnapshot> t5 = firestore.collection("adminSettlementRecords").get();
+        Task<QuerySnapshot> t6 = firestore.collection("adminEmergencyIssues").get();
+        Task<QuerySnapshot> t7 = firestore.collection("appointmentFollowUps").get();
+        Task<QuerySnapshot> t8 = firestore.collection("supportInquiries").get();
+        Task<QuerySnapshot> t9 = firestore.collection("adminActionNotifications").get();
+        Task<QuerySnapshot> t10 = firestore.collection("adminActionDeliveries").get();
+        Task<QuerySnapshot> t11 = firestore.collection("adminAuditLogs").get();
+        Task<QuerySnapshot> t12 = firestore.collection("hospitalGuides").get();
+
+        Tasks.whenAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12)
+                .addOnSuccessListener(unused -> {
+                    callback.onSuccess(buildDashboard(
+                            currentUser,
+                            t1.getResult(),
+                            t2.getResult(),
+                            t3.getResult(),
+                            t4.getResult(),
+                            t5.getResult(),
+                            t6.getResult(),
+                            t7.getResult(),
+                            t8.getResult(),
+                            t9.getResult(),
+                            t10.getResult(),
+                            t11.getResult(),
+                            t12.getResult()
+                    ));
+                })
                 .addOnFailureListener(exception ->
-                        callback.onError("운영 요청 목록을 불러오지 못했습니다."));
+                        callback.onError("대시보드 데이터를 조회하지 못했습니다. 원인: " + exception.getMessage()));
     }
 
     private AdminDashboard buildDashboard(

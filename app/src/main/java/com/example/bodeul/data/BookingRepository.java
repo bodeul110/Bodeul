@@ -26,6 +26,12 @@ public interface BookingRepository {
             RepositoryCallback<AppointmentRequestDetail> callback
     );
 
+    Runnable observeAppointmentRequestDetail(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    );
+
     void createAppointmentRequest(
             User currentUser,
             BookingRequestDraft bookingRequestDraft,
