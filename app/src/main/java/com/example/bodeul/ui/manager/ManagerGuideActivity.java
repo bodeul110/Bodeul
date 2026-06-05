@@ -68,6 +68,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private MapView mapView;
     private KakaoMap kakaoMap;
     private Label managerMarker;
+    private Label trackingLabel;
     private ManagerDashboard currentDashboard;
 
     @Override
@@ -174,6 +175,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 kakaoMap = map;
                 mapView.setVisibility(View.VISIBLE);
                 updateMapMarker();
+                if (hasLocationPermission()) {
+                    startMapTracking();
+                }
             }
         });
 
@@ -251,14 +255,49 @@ public class ManagerGuideActivity extends AppCompatActivity {
             LabelLayer layer = labelManager.getLayer();
             
             if (managerMarker == null) {
-                LabelOptions options = LabelOptions.from(position)
-                        .setStyles(LabelStyle.from(R.drawable.bodeul_logo_full)); // 임시 마커 아이콘
+                android.graphics.Bitmap markerBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_map_marker);
+                LabelOptions options = LabelOptions.from(position);
+                if (markerBitmap != null) {
+                    options.setStyles(LabelStyle.from(markerBitmap));
+                } else {
+                    options.setStyles(LabelStyle.from(R.drawable.ic_map_marker));
+                }
                 managerMarker = layer.addLabel(options);
             } else {
                 managerMarker.moveTo(position);
             }
             kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position));
         }
+    }
+
+    private void startMapTracking() {
+        if (kakaoMap == null) return;
+        if (trackingLabel == null) {
+            android.graphics.Bitmap trackingBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_tracking_dot);
+            LabelOptions options = LabelOptions.from("tracking", LatLng.from(0, 0));
+            if (trackingBitmap != null) {
+                options.setStyles(LabelStyle.from(trackingBitmap).setAnchorPoint(0.5f, 0.5f));
+            } else {
+                options.setStyles(LabelStyle.from(R.drawable.ic_tracking_dot).setAnchorPoint(0.5f, 0.5f));
+            }
+            trackingLabel = kakaoMap.getLabelManager().getLayer().addLabel(options);
+        }
+        kakaoMap.getTrackingManager().startTracking(trackingLabel);
+    }
+
+    private android.graphics.Bitmap getBitmapFromVectorDrawable(android.content.Context context, int drawableId) {
+        android.graphics.drawable.Drawable drawable = androidx.core.content.ContextCompat.getDrawable(context, drawableId);
+        if (drawable == null) return null;
+
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(
+                Math.max(1, drawable.getIntrinsicWidth()),
+                Math.max(1, drawable.getIntrinsicHeight()),
+                android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
     }
 
     private void openMapFallback(ManagerGuideMapActionModel model) {
@@ -349,6 +388,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
         int action = pendingLocationPermissionAction;
         pendingLocationPermissionAction = LOCATION_ACTION_NONE;
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (kakaoMap != null) {
+                startMapTracking();
+            }
             if (action == LOCATION_ACTION_START_LIVE) {
                 startLiveLocationSharing();
                 return;
@@ -358,7 +400,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 return;
             }
         }
-        Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
+        if (action != LOCATION_ACTION_NONE) {
+            Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override

@@ -56,28 +56,6 @@
 - 사용자 문서 생성 / 수정 시 기존 신청 문서 자동 재연결
 - 예약 취소 / 삭제 / 일정 변경 시 남아 있는 `appointmentReminderJobs` 자동 정리
 
-## 68. 2026-06-05 추가 업데이트 (카카오 맵 SDK 네이티브 연동)
-
-### 구현
-
-- 환자 실시간 동행 화면(`BookingLiveLocationActivity`)과 매니저 가이드 화면(`ManagerGuideActivity`)에 **카카오 네이티브 맵 SDK (v2.13.2)**를 삽입하여 앱 외부 이동 없이 지도를 볼 수 있게 개선했다.
-- 백그라운드 위치 서비스나 실시간 동기화로 갱신되는 `sharedLatitude`, `sharedLongitude` 정보를 기반으로 카카오맵 마커 위치와 카메라 중심이 동적으로 변경되게 연동했다.
-- 카카오맵 라이프사이클에 맞춰 Activity의 `onResume()`, `onPause()` 시점에 지도를 재개/정지 하도록 처리해 메모리 누수를 방지했다.
-
-### 변경 범위
-
-- `gradle/libs.versions.toml`
-- `app/build.gradle.kts`
-- `app/src/main/java/com/example/bodeul/BodeulApplication.java`
-- `app/src/main/res/layout/activity_booking_live_location.xml`
-- `app/src/main/res/layout/activity_manager_guide.xml`
-- `app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java`
-- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
-
-### 남은 범위
-
-- 앱 해시 키가 카카오 플랫폼에 미등록되었을 때의 예외 처리 (현재는 미등록 시 지도가 안 나타날 수 있음)
-
 ## 2. 이번 작업에서 구현한 내용
 
 - 관리자 운영 이력에 `오늘`, `다가오는 일정`, `지난 일정` 날짜 필터를 추가했다.
@@ -2619,7 +2597,7 @@
 - 백그라운드 위치 추적과 푸시형 위치 알림은 이번 범위에 포함하지 않았다.
 - 위치 이력은 세션 문서 기준 최근 10건만 유지하며, 장기 보관 정책은 별도 설계가 필요하다.
 
-# 2026-06-05 프로젝트 아키텍처 개선 및 보안 픽스
+## 111. 2026-06-05 프로젝트 아키텍처 개선 및 보안 픽스
 
 ## 구현
 
@@ -2643,3 +2621,46 @@
 ## 남은 범위
 
 - 리포트에서 지적받은 주요 아키텍처 및 보안 결함 수정 완료.
+
+## 112. 2026-06-05 추가 업데이트 (카카오 맵 SDK 네이티브 연동)
+
+### 구현
+
+- 환자 실시간 동행 화면(`BookingLiveLocationActivity`)과 매니저 가이드 화면(`ManagerGuideActivity`)에 **카카오 네이티브 맵 SDK (v2.13.2)**를 삽입하여 앱 외부 이동 없이 지도를 볼 수 있게 개선했다.
+- 백그라운드 위치 서비스나 실시간 동기화로 갱신되는 `sharedLatitude`, `sharedLongitude` 정보를 기반으로 카카오맵 마커 위치와 카메라 중심이 동적으로 변경되게 연동했다.
+- 카카오맵 라이프사이클에 맞춰 Activity의 `onResume()`, `onPause()` 시점에 지도를 재개/정지 하도록 처리해 메모리 누수를 방지했다.
+
+### 변경 범위
+
+- `gradle/libs.versions.toml`
+- `app/build.gradle.kts`
+- `app/src/main/java/com/example/bodeul/BodeulApplication.java`
+- `app/src/main/res/layout/activity_booking_live_location.xml`
+- `app/src/main/res/layout/activity_manager_guide.xml`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
+
+### 남은 범위
+
+- 앱 해시 키가 카카오 플랫폼에 미등록되었을 때의 예외 처리 (현재는 미등록 시 지도가 안 나타날 수 있음)
+## 113. 2026-06-05 ߰ Ʈ (īī Ŀ   )
+
+## 113. 2026-06-05 추가 업데이트 (카카오맵 마커 및 추적 개선)
+
+### 구현
+
+- 카카오맵 SDK가 XML 벡터 드로어블을 직접 지원하지 않아 로고 마커가 비정상적으로 크거나 보이지 않던 문제를 수정했다.
+- `ic_map_marker`(빨간 핀)와 `ic_tracking_dot`(파란 점) 벡터를 런타임에 `Bitmap`으로 변환해 카카오맵 `LabelStyle`에 적용하도록 로직을 개선했다.
+- 위치 권한 요청 프로세스를 추가하고 권한이 허용되면 카카오맵의 `TrackingManager`를 활성화하여 실시간 내 위치(파란 점)를 표시하도록 기능을 완성했다.
+- 외부 지도 앱 폴백 버튼을 유지하여 네이티브 지도에 문제가 있을 때도 기존 기능 사용에 지장이 없도록 안전장치를 마련했다.
+
+### 변경 범위
+
+- `app/src/main/res/drawable/ic_map_marker.xml`
+- `app/src/main/res/drawable/ic_tracking_dot.xml`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java`
+
+### 남은 범위
+
+- 없음

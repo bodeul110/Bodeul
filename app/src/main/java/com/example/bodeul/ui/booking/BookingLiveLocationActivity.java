@@ -1,7 +1,9 @@
 package com.example.bodeul.ui.booking;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -11,6 +13,8 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
@@ -46,6 +50,7 @@ import com.kakao.vectormap.label.LabelLayer;
  */
 public class BookingLiveLocationActivity extends AppCompatActivity {
     private static final String EXTRA_REQUEST_ID = "requestId";
+    private static final int REQUEST_FINE_LOCATION = 1001;
 
     private AuthRepository authRepository;
     private BookingRepository bookingRepository;
@@ -62,6 +67,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     private MapView mapView;
     private KakaoMap kakaoMap;
     private Label managerMarker;
+    private Label trackingLabel;
 
     public static Intent createIntent(Context context, String requestId) {
         Intent intent = new Intent(context, BookingLiveLocationActivity.class);
@@ -125,6 +131,11 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 kakaoMap = map;
                 mapView.setVisibility(View.VISIBLE);
                 updateMapMarker();
+                if (hasLocationPermission()) {
+                    startMapTracking();
+                } else {
+                    ActivityCompat.requestPermissions(BookingLiveLocationActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_FINE_LOCATION);
+                }
             }
         });
     }
@@ -162,6 +173,53 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
             detailObserverRegistration.run();
             detailObserverRegistration = null;
         }
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_FINE_LOCATION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (kakaoMap != null) {
+                    startMapTracking();
+                }
+            }
+        }
+    }
+
+    private void startMapTracking() {
+        if (kakaoMap == null) return;
+        if (trackingLabel == null) {
+            android.graphics.Bitmap trackingBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_tracking_dot);
+            LabelOptions options = LabelOptions.from("tracking", LatLng.from(0, 0));
+            if (trackingBitmap != null) {
+                options.setStyles(LabelStyle.from(trackingBitmap).setAnchorPoint(0.5f, 0.5f));
+            } else {
+                options.setStyles(LabelStyle.from(R.drawable.ic_tracking_dot).setAnchorPoint(0.5f, 0.5f));
+            }
+            trackingLabel = kakaoMap.getLabelManager().getLayer().addLabel(options);
+        }
+        kakaoMap.getTrackingManager().startTracking(trackingLabel);
+    }
+
+    private android.graphics.Bitmap getBitmapFromVectorDrawable(android.content.Context context, int drawableId) {
+        android.graphics.drawable.Drawable drawable = androidx.core.content.ContextCompat.getDrawable(context, drawableId);
+        if (drawable == null) return null;
+
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(
+                Math.max(1, drawable.getIntrinsicWidth()),
+                Math.max(1, drawable.getIntrinsicHeight()),
+                android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
     }
 
     private void startObserving() {
@@ -266,8 +324,13 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
             LabelLayer layer = labelManager.getLayer();
             
             if (managerMarker == null) {
-                LabelOptions options = LabelOptions.from(position)
-                        .setStyles(LabelStyle.from(R.drawable.bodeul_logo_full)); // 임시 마커 아이콘으로 대체
+                android.graphics.Bitmap markerBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_map_marker);
+                LabelOptions options = LabelOptions.from(position);
+                if (markerBitmap != null) {
+                    options.setStyles(LabelStyle.from(markerBitmap));
+                } else {
+                    options.setStyles(LabelStyle.from(R.drawable.ic_map_marker));
+                }
                 managerMarker = layer.addLabel(options);
             } else {
                 managerMarker.moveTo(position);
