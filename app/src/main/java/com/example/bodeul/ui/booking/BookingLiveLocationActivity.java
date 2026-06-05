@@ -44,6 +44,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private String requestId;
     private AppointmentRequestDetail currentDetail;
+    private Runnable detailObserverRegistration;
 
     public static Intent createIntent(Context context, String requestId) {
         Intent intent = new Intent(context, BookingLiveLocationActivity.class);
@@ -88,7 +89,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
 
         findViewById(R.id.buttonBackBookingLiveLocation).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBookingLiveLocationPrimary).setOnClickListener(view -> openBookingStatus());
-        findViewById(R.id.buttonBookingLiveLocationRefresh).setOnClickListener(view -> reload());
+        findViewById(R.id.buttonBookingLiveLocationRefresh).setOnClickListener(view -> startObserving());
         findViewById(R.id.buttonBookingLiveLocationChat).setOnClickListener(view -> openCompanionChat());
         contentContainer.setVisibility(View.GONE);
     }
@@ -96,10 +97,23 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        reload();
+        startObserving();
     }
 
-    private void reload() {
+    @Override
+    protected void onStop() {
+        super.onStop();
+        stopObserving();
+    }
+
+    private void stopObserving() {
+        if (detailObserverRegistration != null) {
+            detailObserverRegistration.run();
+            detailObserverRegistration = null;
+        }
+    }
+
+    private void startObserving() {
         if (TextUtils.isEmpty(requestId)) {
             showLoadErrorState(getString(R.string.booking_status_request_missing));
             return;
@@ -120,7 +134,8 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                     return;
                 }
 
-                bookingRepository.getAppointmentRequestDetail(
+                stopObserving();
+                detailObserverRegistration = bookingRepository.observeAppointmentRequestDetail(
                         result,
                         requestId,
                         new RepositoryCallback<AppointmentRequestDetail>() {
@@ -224,7 +239,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 getString(R.string.state_load_error_title, getString(R.string.booking_live_location_title)),
                 body,
                 getString(R.string.state_action_retry),
-                view -> reload(),
+                view -> startObserving(),
                 getString(R.string.state_action_open_home),
                 view -> openHome()
         );

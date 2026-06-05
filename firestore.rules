@@ -124,6 +124,13 @@ service cloud.firestore {
           || (
             isSelf(userId)
             && request.resource.data.role == resource.data.role
+            && (
+              request.resource.data.managerDocumentStatus == resource.data.managerDocumentStatus
+              || (
+                request.resource.data.managerDocumentStatus != 'APPROVED'
+                && request.resource.data.managerDocumentStatus != 'REJECTED'
+              )
+            )
           );
       allow delete: if isAdmin();
     }
@@ -160,7 +167,8 @@ service cloud.firestore {
             && request.resource.data.managerUserId == request.auth.uid
           );
       allow update: if isAdmin()
-          || (isManager() && resource.data.managerUserId == request.auth.uid);
+          || (isManager() && resource.data.managerUserId == request.auth.uid)
+          || isAppointmentParticipant(resource.data.appointmentRequestId);
       allow delete: if isAdmin();
     }
 

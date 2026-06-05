@@ -66,6 +66,16 @@ public class MockBookingRepository implements BookingRepository {
     }
 
     @Override
+    public Runnable observeAppointmentRequestDetail(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        getAppointmentRequestDetail(currentUser, requestId, callback);
+        return () -> {};
+    }
+
+    @Override
     public void createAppointmentRequest(
             User currentUser,
             BookingRequestDraft bookingRequestDraft,
@@ -188,17 +198,17 @@ public class MockBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
             return;
         }
 
         AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
         if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
-            callback.onError("?뺤궛 ?꾩냽 ???沅뚰븳???놁뒿?덈떎.");
+            callback.onError("정산 후속 권한이 없습니다.");
             return;
         }
         if (detail.getAppointmentRequest().getStatus() != AppointmentStatus.COMPLETED) {
-            callback.onError("?꾨즺???덉빟?먯꽌留?留덉감 ?꾩냽 ?뺤씤????ν븷 ???덉뒿?덈떎.");
+            callback.onError("완료된 예약에서만 정산 후속 확인을 저장할 수 있습니다.");
             return;
         }
 
@@ -208,7 +218,7 @@ public class MockBookingRepository implements BookingRepository {
                 settlementNote
         );
         if (record == null) {
-            callback.onError("?뺤궛 ?꾩냽 ?곹깭瑜???ν븯吏 紐삵뻽?듬땲??");
+            callback.onError("정산 후속 상태를 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(record);
@@ -222,17 +232,17 @@ public class MockBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
             return;
         }
 
         AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
         if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
-            callback.onError("SOS ?꾩냽 ???沅뚰븳???놁뒿?덈떎.");
+            callback.onError("SOS 후속 권한이 없습니다.");
             return;
         }
         if (detail.getAppointmentRequest().getStatus() != AppointmentStatus.COMPLETED) {
-            callback.onError("?꾨즺???덉빟?먯꽌留?SOS ?꾩냽 湲곕줉????ν븷 ???덉뒿?덈떎.");
+            callback.onError("완료된 예약에서만 SOS 후속 기록을 저장할 수 있습니다.");
             return;
         }
 
@@ -241,7 +251,7 @@ public class MockBookingRepository implements BookingRepository {
                 escalationStatus
         );
         if (record == null) {
-            callback.onError("SOS ?꾩냽 湲곕줉????ν븯吏 紐삵뻽?듬땲??");
+            callback.onError("SOS 후속 기록을 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(record);

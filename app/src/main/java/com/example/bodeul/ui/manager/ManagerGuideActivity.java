@@ -13,18 +13,15 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
-import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
-import com.example.bodeul.domain.model.User;
-import com.example.bodeul.domain.model.UserRole;
-import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
@@ -32,30 +29,18 @@ import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
-/**
- * 매니저 동행 진행 화면의 인증, 저장, 라우팅만 담당한다.
- */
 public class ManagerGuideActivity extends AppCompatActivity {
     private static final int REQUEST_FINE_LOCATION = 1001;
     private static final int LOCATION_ACTION_NONE = 0;
     private static final int LOCATION_ACTION_SHARE_ONCE = 1;
     private static final int LOCATION_ACTION_START_LIVE = 2;
 
-    private final ManagerLiveLocationTracker liveLocationTracker = new ManagerLiveLocationTracker();
-
-    private AuthRepository authRepository;
-    private ManagerRepository managerRepository;
-    private ManagerGuideCoordinator managerGuideCoordinator;
+    private ManagerGuideViewModel viewModel;
     private ManagerGuideDashboardBinder managerGuideDashboardBinder;
-    private User currentUser;
-    @Nullable
-    private ManagerDashboard latestDashboard;
+
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
-    private boolean liveLocationShareInFlight;
     private boolean activityVisible;
-    @Nullable
-    private PendingLocationUpdate pendingLiveLocationUpdate;
 
     private View managerGuideStatePanel;
     private View managerGuideContentContainer;
@@ -73,12 +58,17 @@ public class ManagerGuideActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_guide);
 
-        authRepository = ServiceLocator.provideAuthRepository(this);
-        managerRepository = ServiceLocator.provideManagerRepository(this);
-        managerGuideCoordinator = new ManagerGuideCoordinator(
+        AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
+        ManagerRepository managerRepository = ServiceLocator.provideManagerRepository(this);
+        ManagerGuideCoordinator coordinator = new ManagerGuideCoordinator(
                 this,
                 new ManagerGuidePresentationFormatter(this)
         );
+
+        ManagerGuideViewModel.Factory factory = new ManagerGuideViewModel.Factory(
+                authRepository, managerRepository, coordinator
+        );
+        viewModel = new ViewModelProvider(this, factory).get(ManagerGuideViewModel.class);
 
         managerGuideStatePanel = findViewById(R.id.managerGuideStatePanel);
         managerGuideContentContainer = findViewById(R.id.managerGuideContentContainer);
@@ -134,20 +124,79 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> advanceStep());
-        findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> saveLocationSummary());
-        findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> saveGuardianUpdate());
-        findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> saveFieldPhotoNote());
-        findViewById(R.id.buttonSaveMedicationNote).setOnClickListener(view -> saveMedicationNote());
-        findViewById(R.id.buttonSavePharmacySummary).setOnClickListener(view -> savePharmacySummary());
-        findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> togglePharmacyCompleted());
-        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> submitReport());
+        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> viewModel.advanceStep());
+        findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
+        findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
+        findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
+        findViewById(R.id.buttonSaveMedicationNote).setOnClickListener(view -> viewModel.saveMedicationNote(valueOf(inputMedicationNote)));
+        findViewById(R.id.buttonSavePharmacySummary).setOnClickListener(view -> viewModel.savePharmacySummary(valueOf(inputPharmacySummary)));
+        findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> viewModel.togglePharmacyCompleted());
+        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> viewModel.submitReport(
+                valueOf(inputReportSummary),
+                valueOf(inputReportTreatment),
+                valueOf(inputMedicationNote),
+                valueOf(inputNextVisit)
+        ));
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
         findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
 
-        bindEmptyState();
+        viewModel.getUiState().observe(this, this::handleUiState);
+        viewModel.getToastMessage().observe(this, message -> {
+            if (message != null) {
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                viewModel.toastMessageHandled();
+            }
+        });
+
+        if (savedInstanceState == null) {
+            // Note: viewModel.reload() will be called in onStart()
+        }
+    }
+
+    private void handleUiState(ManagerGuideViewModel.UiState state) {
+        if (state == null) return;
+
+        if (state.requireProfileCompletion) {
+            openProfileCompletion();
+            return;
+        }
+
+        if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
+            managerGuideContentContainer.setVisibility(View.GONE);
+            switch (state.statePanelType) {
+                case PERMISSION:
+                    showPermissionState();
+                    break;
+                case AUTH:
+                    showAuthState();
+                    break;
+                case EMPTY:
+                    showEmptyState();
+                    break;
+                case LOAD_ERROR:
+                    showLoadErrorState(state.errorMessage);
+                    break;
+                default:
+                    StatePanelHelper.hide(managerGuideStatePanel);
+                    break;
+            }
+        } else {
+            StatePanelHelper.hide(managerGuideStatePanel);
+            if (state.screenModel != null) {
+                managerGuideContentContainer.setVisibility(View.VISIBLE);
+                managerGuideDashboardBinder.bindScreen(state.screenModel);
+            } else {
+                managerGuideContentContainer.setVisibility(View.GONE);
+            }
+        }
+
+        syncLiveLocationTrackingWithDashboard(state.dashboard);
+    }
+
+    private String valueOf(TextInputEditText input) {
+        return input.getText() == null ? "" : input.getText().toString().trim();
     }
 
     private void openMapFallback(ManagerGuideMapActionModel model) {
@@ -161,9 +210,6 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void shareCurrentLocation() {
-        if (currentUser == null) {
-            return;
-        }
         if (!hasLocationPermission()) {
             requestLocationPermission(LOCATION_ACTION_SHARE_ONCE);
             return;
@@ -172,9 +218,6 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void startLiveLocationSharing() {
-        if (currentUser == null) {
-            return;
-        }
         if (!hasLocationPermission()) {
             requestLocationPermission(LOCATION_ACTION_START_LIVE);
             return;
@@ -186,28 +229,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         ManagerCurrentLocationSharer.share(this, new ManagerCurrentLocationSharer.Callback() {
             @Override
             public void onSuccess(double latitude, double longitude, String summary) {
-                managerRepository.shareCurrentLocation(
-                        currentUser.getId(),
-                        latitude,
-                        longitude,
-                        summary,
-                        new RepositoryCallback<ManagerDashboard>() {
-                            @Override
-                            public void onSuccess(ManagerDashboard result) {
-                                Toast.makeText(
-                                        ManagerGuideActivity.this,
-                                        R.string.guide_share_location_done,
-                                        Toast.LENGTH_SHORT
-                                ).show();
-                                bindDashboard(result);
-                            }
-
-                            @Override
-                            public void onError(String message) {
-                                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                );
+                viewModel.shareCurrentLocation(latitude, longitude, summary);
             }
 
             @Override
@@ -218,147 +240,32 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void performStartLiveLocationSharing() {
-        if (!startLocalLiveLocationTracker()) {
-            return;
-        }
+        ManagerLocationService.start(this);
         liveLocationActivationInFlight = true;
-        managerRepository.updateLiveLocationSharingState(
-                currentUser.getId(),
-                true,
-                new RepositoryCallback<ManagerDashboard>() {
-                    @Override
-                    public void onSuccess(ManagerDashboard result) {
-                        liveLocationActivationInFlight = false;
-                        Toast.makeText(
-                                ManagerGuideActivity.this,
-                                R.string.guide_live_location_started,
-                                Toast.LENGTH_SHORT
-                        ).show();
-                        bindDashboard(result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        liveLocationActivationInFlight = false;
-                        stopTrackerOnly();
-                        Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
-    private boolean startLocalLiveLocationTracker() {
-        if (liveLocationTracker.isRunning()) {
-            return true;
-        }
-        return liveLocationTracker.start(this, new ManagerLiveLocationTracker.Callback() {
-            @Override
-            public void onLocationReceived(double latitude, double longitude, String summary) {
-                enqueueLiveLocationShare(latitude, longitude, summary);
-            }
-
-            @Override
-            public void onError(String message) {
-                handleLiveLocationTrackingError(message);
-            }
+        viewModel.updateLiveLocationSharingState(true, () -> {
+            liveLocationActivationInFlight = false;
+        }, () -> {
+            liveLocationActivationInFlight = false;
+            stopTrackerOnly();
         });
-    }
-
-    private void enqueueLiveLocationShare(double latitude, double longitude, String summary) {
-        if (currentUser == null) {
-            return;
-        }
-        PendingLocationUpdate update = new PendingLocationUpdate(latitude, longitude, summary);
-        if (liveLocationShareInFlight) {
-            pendingLiveLocationUpdate = update;
-            return;
-        }
-        dispatchLiveLocationShare(update);
-    }
-
-    private void dispatchLiveLocationShare(PendingLocationUpdate update) {
-        if (currentUser == null) {
-            return;
-        }
-        liveLocationShareInFlight = true;
-        managerRepository.shareCurrentLocation(
-                currentUser.getId(),
-                update.latitude,
-                update.longitude,
-                update.summary,
-                new RepositoryCallback<ManagerDashboard>() {
-                    @Override
-                    public void onSuccess(ManagerDashboard result) {
-                        liveLocationShareInFlight = false;
-                        bindDashboard(result);
-                        flushPendingLiveLocationShare();
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        liveLocationShareInFlight = false;
-                        Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-                        flushPendingLiveLocationShare();
-                    }
-                }
-        );
-    }
-
-    private void flushPendingLiveLocationShare() {
-        PendingLocationUpdate nextUpdate = pendingLiveLocationUpdate;
-        pendingLiveLocationUpdate = null;
-        if (nextUpdate != null && liveLocationTracker.isRunning()) {
-            dispatchLiveLocationShare(nextUpdate);
-        }
-    }
-
-    private void handleLiveLocationTrackingError(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-        boolean shouldPersistStop = latestDashboard != null
-                && latestDashboard.getSession().isLiveLocationSharingActive();
-        if (currentUser != null && shouldPersistStop) {
-            stopLiveLocationSharing(true, false);
-            return;
-        }
-        stopTrackerOnly();
     }
 
     private void stopLiveLocationSharing(boolean persistRemoteState, boolean showToast) {
         stopTrackerOnly();
-        if (!persistRemoteState || currentUser == null) {
+        if (!persistRemoteState) {
             return;
         }
-        managerRepository.updateLiveLocationSharingState(
-                currentUser.getId(),
-                false,
-                new RepositoryCallback<ManagerDashboard>() {
-                    @Override
-                    public void onSuccess(ManagerDashboard result) {
-                        if (showToast) {
-                            Toast.makeText(
-                                    ManagerGuideActivity.this,
-                                    R.string.guide_live_location_stopped,
-                                    Toast.LENGTH_SHORT
-                            ).show();
-                        }
-                        bindDashboard(result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        if (showToast) {
-                            Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                }
-        );
+        viewModel.updateLiveLocationSharingState(false, () -> {
+            if (showToast) {
+                Toast.makeText(ManagerGuideActivity.this, R.string.guide_live_location_stopped, Toast.LENGTH_SHORT).show();
+            }
+        }, null);
     }
 
     private void stopTrackerOnly() {
-        liveLocationTracker.stop();
+        ManagerLocationService.stop(this);
         liveLocationActivationInFlight = false;
-        liveLocationShareInFlight = false;
-        pendingLiveLocationUpdate = null;
+        viewModel.resetLiveLocationInFlight();
     }
 
     private boolean hasLocationPermission() {
@@ -369,308 +276,6 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private void requestLocationPermission(int action) {
         pendingLocationPermissionAction = action;
         requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_FINE_LOCATION);
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        activityVisible = true;
-        hideBlockingState();
-        authRepository.getCurrentUser(new RepositoryCallback<User>() {
-            @Override
-            public void onSuccess(User result) {
-                if (AuthFlowRouter.requiresProfileCompletion(result)) {
-                    openProfileCompletion();
-                    return;
-                }
-                if (result.getRole() != UserRole.MANAGER) {
-                    showPermissionState();
-                    return;
-                }
-
-                currentUser = result;
-                hideBlockingState();
-                loadDashboard();
-            }
-
-            @Override
-            public void onError(String message) {
-                showAuthState();
-            }
-        });
-    }
-
-    @Override
-    protected void onStop() {
-        activityVisible = false;
-        super.onStop();
-        if (isChangingConfigurations()) {
-            stopTrackerOnly();
-            return;
-        }
-        if (latestDashboard != null
-                && latestDashboard.getSession().isLiveLocationSharingActive()) {
-            stopLiveLocationSharing(true, false);
-            return;
-        }
-        stopTrackerOnly();
-    }
-
-    private void loadDashboard() {
-        if (currentUser == null) {
-            showAuthState();
-            return;
-        }
-
-        managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                hideBlockingState();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                if (isNoActiveSession(message)) {
-                    hideBlockingState();
-                    bindEmptyState();
-                    return;
-                }
-                bindEmptyState();
-                showLoadErrorState(message);
-            }
-        });
-    }
-
-    private void bindDashboard(@Nullable ManagerDashboard dashboard) {
-        latestDashboard = dashboard;
-        managerGuideDashboardBinder.bindScreen(
-                managerGuideCoordinator.createScreenModel(
-                        dashboard,
-                        managerRepository.isFirebaseBacked()
-                )
-        );
-        syncLiveLocationTrackingWithDashboard(dashboard);
-    }
-
-    private void bindEmptyState() {
-        bindDashboard(null);
-    }
-
-    private void advanceStep() {
-        if (currentUser == null) {
-            return;
-        }
-
-        managerRepository.advanceCurrentStep(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                Toast.makeText(ManagerGuideActivity.this, R.string.guide_step_advanced, Toast.LENGTH_SHORT).show();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void saveLocationSummary() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String summary = valueOf(inputGuideLocationSummary);
-        if (TextUtils.isEmpty(summary)) {
-            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        managerRepository.saveLocationSummary(currentUser.getId(), summary, new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                Toast.makeText(ManagerGuideActivity.this, R.string.guide_location_saved, Toast.LENGTH_SHORT).show();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void saveGuardianUpdate() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String message = valueOf(inputGuardianUpdate);
-        if (TextUtils.isEmpty(message)) {
-            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        managerRepository.saveGuardianUpdate(currentUser.getId(), message, new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                Toast.makeText(ManagerGuideActivity.this, R.string.guide_guardian_save, Toast.LENGTH_SHORT).show();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void saveFieldPhotoNote() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String note = valueOf(inputGuidePhotoNote);
-        if (TextUtils.isEmpty(note)) {
-            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        managerRepository.saveFieldPhotoNote(currentUser.getId(), note, new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                Toast.makeText(ManagerGuideActivity.this, R.string.guide_photo_saved, Toast.LENGTH_SHORT).show();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void saveMedicationNote() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String note = valueOf(inputMedicationNote);
-        if (TextUtils.isEmpty(note)) {
-            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        managerRepository.saveMedicationNote(currentUser.getId(), note, new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                Toast.makeText(ManagerGuideActivity.this, R.string.guide_medication_save, Toast.LENGTH_SHORT).show();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void savePharmacySummary() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String summary = valueOf(inputPharmacySummary);
-        if (TextUtils.isEmpty(summary)) {
-            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        managerRepository.savePharmacySummary(currentUser.getId(), summary, new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                Toast.makeText(ManagerGuideActivity.this, R.string.guide_pharmacy_save_done, Toast.LENGTH_SHORT).show();
-                bindDashboard(result);
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void togglePharmacyCompleted() {
-        if (currentUser == null) {
-            return;
-        }
-
-        managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
-            @Override
-            public void onSuccess(ManagerDashboard result) {
-                boolean nextValue = !result.getSession().isPharmacyCompleted();
-                managerRepository.updatePharmacyCompleted(
-                        currentUser.getId(),
-                        nextValue,
-                        new RepositoryCallback<ManagerDashboard>() {
-                            @Override
-                            public void onSuccess(ManagerDashboard updated) {
-                                Toast.makeText(
-                                        ManagerGuideActivity.this,
-                                        nextValue
-                                                ? R.string.guide_pharmacy_complete_done
-                                                : R.string.guide_pharmacy_incomplete_done,
-                                        Toast.LENGTH_SHORT
-                                ).show();
-                                bindDashboard(updated);
-                            }
-
-                            @Override
-                            public void onError(String message) {
-                                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                );
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void submitReport() {
-        if (currentUser == null) {
-            return;
-        }
-
-        String summary = valueOf(inputReportSummary);
-        if (TextUtils.isEmpty(summary)) {
-            Toast.makeText(this, R.string.toast_fill_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        managerRepository.submitSessionReport(
-                currentUser.getId(),
-                summary,
-                valueOf(inputReportTreatment),
-                valueOf(inputMedicationNote),
-                valueOf(inputNextVisit),
-                new RepositoryCallback<ManagerDashboard>() {
-                    @Override
-                    public void onSuccess(ManagerDashboard result) {
-                        Toast.makeText(ManagerGuideActivity.this, R.string.guide_report_submit, Toast.LENGTH_SHORT).show();
-                        bindDashboard(result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        Toast.makeText(ManagerGuideActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
     }
 
     @Override
@@ -692,6 +297,48 @@ public class ManagerGuideActivity extends AppCompatActivity {
             }
         }
         Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        activityVisible = true;
+        StatePanelHelper.hide(managerGuideStatePanel);
+        viewModel.reload();
+    }
+
+    @Override
+    protected void onStop() {
+        activityVisible = false;
+        super.onStop();
+        if (isChangingConfigurations()) {
+            stopTrackerOnly();
+            return;
+        }
+        ManagerDashboard dashboard = viewModel.getUiState().getValue() != null ? viewModel.getUiState().getValue().dashboard : null;
+        if (dashboard != null && dashboard.getSession().isLiveLocationSharingActive()) {
+            stopLiveLocationSharing(true, false);
+            return;
+        }
+        stopTrackerOnly();
+    }
+
+    private void syncLiveLocationTrackingWithDashboard(@Nullable ManagerDashboard dashboard) {
+        CompanionSession session = dashboard == null ? null : dashboard.getSession();
+        if (!activityVisible) {
+            stopTrackerOnly();
+            return;
+        }
+        if (session == null || !session.isLiveLocationSharingActive()) {
+            if (liveLocationActivationInFlight) {
+                return;
+            }
+            stopTrackerOnly();
+            return;
+        }
+        if (!liveLocationActivationInFlight) {
+            ManagerLocationService.start(this);
+        }
     }
 
     private void showPermissionState() {
@@ -720,6 +367,19 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
     }
 
+    private void showEmptyState() {
+        showBlockingState(
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.state_badge_notice),
+                getString(R.string.companion_chat_empty_title),
+                getString(R.string.companion_chat_empty_session_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                null,
+                null
+        );
+    }
+
     private void showLoadErrorState(String message) {
         String body = getString(R.string.state_load_error_body);
         if (!TextUtils.isEmpty(message)) {
@@ -731,7 +391,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.state_load_error_title, getString(R.string.guide_title)),
                 body,
                 getString(R.string.state_action_retry),
-                view -> loadDashboard(),
+                view -> viewModel.loadDashboard(),
                 getString(R.string.state_action_open_home),
                 view -> openHome()
         );
@@ -761,11 +421,6 @@ public class ManagerGuideActivity extends AppCompatActivity {
         managerGuideContentContainer.setVisibility(View.GONE);
     }
 
-    private void hideBlockingState() {
-        StatePanelHelper.hide(managerGuideStatePanel);
-        managerGuideContentContainer.setVisibility(View.VISIBLE);
-    }
-
     private void openHome() {
         startActivity(new Intent(this, MainActivity.class));
         finish();
@@ -783,45 +438,5 @@ public class ManagerGuideActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
-    }
-
-    private void syncLiveLocationTrackingWithDashboard(@Nullable ManagerDashboard dashboard) {
-        CompanionSession session = dashboard == null ? null : dashboard.getSession();
-        if (!activityVisible) {
-            stopTrackerOnly();
-            return;
-        }
-        if (session == null || !session.isLiveLocationSharingActive()) {
-            if (liveLocationActivationInFlight && liveLocationTracker.isRunning()) {
-                return;
-            }
-            stopTrackerOnly();
-            return;
-        }
-        if (!hasLocationPermission()) {
-            stopLiveLocationSharing(true, false);
-            return;
-        }
-        startLocalLiveLocationTracker();
-    }
-
-    private boolean isNoActiveSession(String message) {
-        return ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message);
-    }
-
-    private static final class PendingLocationUpdate {
-        private final double latitude;
-        private final double longitude;
-        private final String summary;
-
-        private PendingLocationUpdate(double latitude, double longitude, String summary) {
-            this.latitude = latitude;
-            this.longitude = longitude;
-            this.summary = summary;
-        }
-    }
-
-    private String valueOf(TextInputEditText editText) {
-        return editText.getText() == null ? "" : editText.getText().toString().trim();
     }
 }

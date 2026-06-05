@@ -121,6 +121,51 @@ public class FirebaseBookingRepository implements BookingRepository {
     }
 
     @Override
+    public Runnable observeAppointmentRequestDetail(
+            User currentUser,
+            String requestId,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        if (!supportsRole(currentUser.getRole())) {
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
+            return () -> {};
+        }
+
+        com.google.firebase.firestore.ListenerRegistration requestListener = firestore.collection("appointmentRequests")
+                .document(requestId)
+                .addSnapshotListener((documentSnapshot, error) -> {
+                    if (error != null) {
+                        callback.onError("요청 상세 정보를 감지하지 못했습니다.");
+                        return;
+                    }
+                    if (documentSnapshot != null) {
+                        AppointmentRequest request = toAppointmentRequest(documentSnapshot);
+                        if (request == null || !isRequestOwner(currentUser, request)) {
+                            callback.onError("요청 상세 정보를 확인하지 못했습니다.");
+                            return;
+                        }
+                        loadAppointmentRequestDetail(request, callback);
+                    }
+                });
+
+        com.google.firebase.firestore.ListenerRegistration sessionListener = firestore.collection("companionSessions")
+                .whereEqualTo("appointmentRequestId", requestId)
+                .limit(1)
+                .addSnapshotListener((querySnapshot, error) -> {
+                    if (error != null) {
+                        return;
+                    }
+                    // Trigger a reload of the request details to get the latest session data
+                    getAppointmentRequestDetail(currentUser, requestId, callback);
+                });
+
+        return () -> {
+            requestListener.remove();
+            sessionListener.remove();
+        };
+    }
+
+    @Override
     public void createAppointmentRequest(
             User currentUser,
             BookingRequestDraft bookingRequestDraft,
