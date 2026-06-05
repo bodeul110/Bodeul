@@ -29,6 +29,18 @@ import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
+import com.kakao.vectormap.KakaoMap;
+import com.kakao.vectormap.KakaoMapReadyCallback;
+import com.kakao.vectormap.LatLng;
+import com.kakao.vectormap.MapLifeCycleCallback;
+import com.kakao.vectormap.MapView;
+import com.kakao.vectormap.camera.CameraUpdateFactory;
+import com.kakao.vectormap.label.Label;
+import com.kakao.vectormap.label.LabelOptions;
+import com.kakao.vectormap.label.LabelStyle;
+import com.kakao.vectormap.label.LabelManager;
+import com.kakao.vectormap.label.LabelLayer;
+
 public class ManagerGuideActivity extends AppCompatActivity {
     private static final int REQUEST_FINE_LOCATION = 1001;
     private static final int LOCATION_ACTION_NONE = 0;
@@ -52,6 +64,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputReportSummary;
     private TextInputEditText inputReportTreatment;
     private TextInputEditText inputNextVisit;
+
+    private MapView mapView;
+    private KakaoMap kakaoMap;
+    private Label managerMarker;
+    private Label trackingLabel;
+    private ManagerDashboard currentDashboard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,6 +160,27 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
         findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
 
+        mapView = findViewById(R.id.mapViewManagerGuide);
+        mapView.start(new MapLifeCycleCallback() {
+            @Override
+            public void onMapDestroy() {
+            }
+
+            @Override
+            public void onMapError(Exception e) {
+            }
+        }, new KakaoMapReadyCallback() {
+            @Override
+            public void onMapReady(KakaoMap map) {
+                kakaoMap = map;
+                mapView.setVisibility(View.VISIBLE);
+                updateMapMarker();
+                if (hasLocationPermission()) {
+                    startMapTracking();
+                }
+            }
+        });
+
         viewModel.getUiState().observe(this, this::handleUiState);
         viewModel.getToastMessage().observe(this, message -> {
             if (message != null) {
@@ -187,6 +226,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
             if (state.screenModel != null) {
                 managerGuideContentContainer.setVisibility(View.VISIBLE);
                 managerGuideDashboardBinder.bindScreen(state.screenModel);
+                currentDashboard = state.dashboard;
+                updateMapMarker();
             } else {
                 managerGuideContentContainer.setVisibility(View.GONE);
             }
@@ -197,6 +238,66 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private String valueOf(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
+    }
+
+    private void updateMapMarker() {
+        if (kakaoMap == null || currentDashboard == null) return;
+        
+        CompanionSession session = currentDashboard.getSession();
+        if (session == null) return;
+
+        Double lat = session.getSharedLatitude();
+        Double lng = session.getSharedLongitude();
+        
+        if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+            LatLng position = LatLng.from(lat, lng);
+            LabelManager labelManager = kakaoMap.getLabelManager();
+            LabelLayer layer = labelManager.getLayer();
+            
+            if (managerMarker == null) {
+                android.graphics.Bitmap markerBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_map_marker);
+                LabelOptions options = LabelOptions.from(position);
+                if (markerBitmap != null) {
+                    options.setStyles(LabelStyle.from(markerBitmap));
+                } else {
+                    options.setStyles(LabelStyle.from(R.drawable.ic_map_marker));
+                }
+                managerMarker = layer.addLabel(options);
+            } else {
+                managerMarker.moveTo(position);
+            }
+            kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position));
+        }
+    }
+
+    private void startMapTracking() {
+        if (kakaoMap == null) return;
+        if (trackingLabel == null) {
+            android.graphics.Bitmap trackingBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_tracking_dot);
+            LabelOptions options = LabelOptions.from("tracking", LatLng.from(0, 0));
+            if (trackingBitmap != null) {
+                options.setStyles(LabelStyle.from(trackingBitmap).setAnchorPoint(0.5f, 0.5f));
+            } else {
+                options.setStyles(LabelStyle.from(R.drawable.ic_tracking_dot).setAnchorPoint(0.5f, 0.5f));
+            }
+            trackingLabel = kakaoMap.getLabelManager().getLayer().addLabel(options);
+        }
+        kakaoMap.getTrackingManager().startTracking(trackingLabel);
+    }
+
+    private android.graphics.Bitmap getBitmapFromVectorDrawable(android.content.Context context, int drawableId) {
+        android.graphics.drawable.Drawable drawable = androidx.core.content.ContextCompat.getDrawable(context, drawableId);
+        if (drawable == null) return null;
+
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(
+                Math.max(1, drawable.getIntrinsicWidth()),
+                Math.max(1, drawable.getIntrinsicHeight()),
+                android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
     }
 
     private void openMapFallback(ManagerGuideMapActionModel model) {
@@ -287,6 +388,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
         int action = pendingLocationPermissionAction;
         pendingLocationPermissionAction = LOCATION_ACTION_NONE;
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (kakaoMap != null) {
+                startMapTracking();
+            }
             if (action == LOCATION_ACTION_START_LIVE) {
                 startLiveLocationSharing();
                 return;
@@ -296,7 +400,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 return;
             }
         }
-        Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
+        if (action != LOCATION_ACTION_NONE) {
+            Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -305,6 +411,22 @@ public class ManagerGuideActivity extends AppCompatActivity {
         activityVisible = true;
         StatePanelHelper.hide(managerGuideStatePanel);
         viewModel.reload();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mapView != null) {
+            mapView.resume();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mapView != null) {
+            mapView.pause();
+        }
     }
 
     @Override

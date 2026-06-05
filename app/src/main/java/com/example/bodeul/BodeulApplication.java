@@ -5,6 +5,7 @@ import android.text.TextUtils;
 
 import com.example.bodeul.firebase.AppCheckInstaller;
 import com.kakao.sdk.common.KakaoSdk;
+import com.kakao.vectormap.KakaoMapSdk;
 
 /**
  * 앱 전역 SDK 초기화를 담당하는 Application 클래스다.
@@ -18,6 +19,7 @@ public class BodeulApplication extends Application {
         String kakaoNativeAppKey = getString(R.string.kakao_native_app_key);
         if (!TextUtils.isEmpty(kakaoNativeAppKey)) {
             KakaoSdk.init(this, kakaoNativeAppKey);
+            KakaoMapSdk.init(this, kakaoNativeAppKey);
         }
 
         // Firebase App Check는 디버그/릴리스 변형에 맞는 제공자를 설치한다.

@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.googleid)
     implementation(libs.kakao.user)
+    implementation(libs.kakao.map)
     implementation(libs.naver.oauth)
     debugImplementation(libs.firebase.appcheck.debug)
     testImplementation(libs.junit4)
