@@ -227,7 +227,7 @@ public class AdminActivity extends AppCompatActivity {
                 ? R.string.admin_mode_firebase
                 : R.string.admin_mode_demo);
 
-        findViewById(R.id.buttonBackAdmin).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackAdmin).setOnClickListener(view -> signOut());
         buttonSubmitAdminGuide.setOnClickListener(view -> submitGuide());
         buttonCancelAdminGuideEdit.setOnClickListener(view -> exitGuideEditMode());
 
@@ -1716,8 +1716,8 @@ public class AdminActivity extends AppCompatActivity {
                     hideBlockingState();
                     loadDashboard();
                 },
-                getString(R.string.state_action_open_home),
-                view -> openHome()
+                getString(R.string.state_action_open_login),
+                view -> signOut()
         );
     }
 
@@ -1761,6 +1761,11 @@ public class AdminActivity extends AppCompatActivity {
     private void openHome() {
         startActivity(new Intent(this, MainActivity.class));
         finish();
+    }
+
+    private void signOut() {
+        authRepository.signOut();
+        openRoleSelection();
     }
 
     private void openRoleSelection() {
