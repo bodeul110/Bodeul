@@ -189,7 +189,7 @@ service cloud.firestore {
     }
 
     match /appointmentFollowUps/{appointmentRequestId} {
-      allow read: if isAppointmentParticipant(appointmentRequestId);
+      allow read: if isAdmin() || isAppointmentParticipant(appointmentRequestId);
       allow create, update: if isAdmin() || isAppointmentParticipant(appointmentRequestId);
       allow delete: if isAdmin();
     }
