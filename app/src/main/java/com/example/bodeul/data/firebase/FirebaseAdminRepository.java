@@ -856,8 +856,10 @@ public class FirebaseAdminRepository implements AdminRepository {
                             t12.getResult()
                     ));
                 })
-                .addOnFailureListener(exception ->
-                        callback.onError("대시보드 데이터를 조회하지 못했습니다. 원인: " + exception.getMessage()));
+                .addOnFailureListener(exception -> {
+                        android.util.Log.e("AdminLoadError", "대시보드 데이터를 조회하지 못했습니다.", exception);
+                        callback.onError("대시보드 데이터를 조회하지 못했습니다. 원인: " + exception.getMessage());
+                });
     }
 
     private AdminDashboard buildDashboard(

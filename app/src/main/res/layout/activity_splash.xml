@@ -13,7 +13,7 @@
         android:padding="28dp">
 
         <ImageView
-            android:layout_width="220dp"
+            android:layout_width="200dp"
             android:layout_height="wrap_content"
             android:adjustViewBounds="true"
             android:contentDescription="@string/app_name"
@@ -22,18 +22,21 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="24dp"
             android:gravity="center"
             android:text="@string/splash_subtitle"
             android:textColor="@color/bodeul_text_secondary"
-            android:textSize="16sp" />
+            android:fontFamily="sans-serif-medium"
+            android:textSize="18sp"
+            android:letterSpacing="-0.02" />
 
         <!-- 세션 확인 중에는 중앙 진행바만 가볍게 노출한다. -->
         <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:layout_width="148dp"
+            android:layout_width="160dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="64dp"
+            android:layout_marginTop="60dp"
             android:indeterminate="true"
+            app:trackCornerRadius="4dp"
             app:indicatorColor="@color/bodeul_primary"
             app:trackColor="@color/bodeul_outline" />
     </LinearLayout>

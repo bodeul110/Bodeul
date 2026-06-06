@@ -271,7 +271,7 @@
                 android:textSize="24sp"
                 android:textStyle="bold"
                 app:backgroundTint="@color/white"
-                app:cornerRadius="20dp"
+                app:cornerRadius="35dp"
                 app:strokeColor="@color/bodeul_outline"
                 app:strokeWidth="1dp" />
 
@@ -285,7 +285,7 @@
                 android:textSize="24sp"
                 android:textStyle="bold"
                 app:backgroundTint="#16C45B"
-                app:cornerRadius="20dp" />
+                app:cornerRadius="35dp" />
         </LinearLayout>
 
         <LinearLayout
