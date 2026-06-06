@@ -26,6 +26,7 @@ public final class ManagerLocationSupport {
     }
 
     @Nullable
+    @android.annotation.SuppressLint("MissingPermission")
     public static Location findBestLastKnownLocation(
             @NonNull Context context,
             @NonNull LocationManager locationManager

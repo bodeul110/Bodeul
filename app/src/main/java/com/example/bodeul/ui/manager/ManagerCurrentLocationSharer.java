@@ -23,6 +23,7 @@ public final class ManagerCurrentLocationSharer {
     private ManagerCurrentLocationSharer() {
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     public static void share(@NonNull AppCompatActivity activity, @NonNull Callback callback) {
         LocationManager locationManager = ContextCompat.getSystemService(activity, LocationManager.class);
         if (locationManager == null) {

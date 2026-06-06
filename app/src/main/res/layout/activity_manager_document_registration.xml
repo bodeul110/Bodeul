@@ -106,7 +106,7 @@
                             android:layout_height="16dp"
                             android:layout_gravity="center"
                             android:src="@android:drawable/ic_dialog_info"
-                            android:tint="@color/bodeul_primary" />
+                            app:tint="@color/bodeul_primary" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -164,7 +164,7 @@
                             android:layout_height="16dp"
                             android:layout_gravity="center"
                             android:src="@android:drawable/ic_lock_lock"
-                            android:tint="@color/bodeul_text_primary" />
+                            app:tint="@color/bodeul_text_primary" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -222,7 +222,7 @@
                             android:layout_height="20dp"
                             android:layout_gravity="center"
                             android:src="@android:drawable/ic_menu_upload"
-                            android:tint="@color/bodeul_text_secondary" />
+                            app:tint="@color/bodeul_text_secondary" />
                     </FrameLayout>
 
                     <TextView

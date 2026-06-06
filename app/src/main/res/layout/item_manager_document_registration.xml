@@ -29,7 +29,7 @@
                 android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:src="@android:drawable/ic_menu_agenda"
-                android:tint="@color/bodeul_primary" />
+                app:tint="@color/bodeul_primary" />
         </FrameLayout>
 
         <LinearLayout
