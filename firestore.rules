@@ -59,10 +59,10 @@ service cloud.firestore {
       return signedIn()
           && appointmentExists(appointmentRequestId)
           && (
-            appointmentDoc(appointmentRequestId).data.patientUserId == request.auth.uid
+            isAdmin()
+            || appointmentDoc(appointmentRequestId).data.patientUserId == request.auth.uid
             || appointmentDoc(appointmentRequestId).data.guardianUserId == request.auth.uid
             || appointmentDoc(appointmentRequestId).data.managerUserId == request.auth.uid
-            || isAdmin()
           );
     }
 
@@ -78,8 +78,8 @@ service cloud.firestore {
       return signedIn()
           && sessionExists(sessionId)
           && (
-            sessionDoc(sessionId).data.managerUserId == request.auth.uid
-            || isAdmin()
+            isAdmin()
+            || sessionDoc(sessionId).data.managerUserId == request.auth.uid
             || isAppointmentParticipant(sessionDoc(sessionId).data.appointmentRequestId)
           );
     }
@@ -92,26 +92,31 @@ service cloud.firestore {
     function canReadAppointmentRequest() {
       return signedIn()
           && (
-            resource.data.patientUserId == request.auth.uid
+            isAdmin()
+            || resource.data.patientUserId == request.auth.uid
             || resource.data.guardianUserId == request.auth.uid
             || resource.data.managerUserId == request.auth.uid
-            || isAdmin()
           );
     }
 
     function canReadCompanionSession() {
       return signedIn()
           && (
-            resource.data.managerUserId == request.auth.uid
-            || isAdmin()
+            isAdmin()
+            || resource.data.managerUserId == request.auth.uid
             || isAppointmentParticipant(resource.data.appointmentRequestId)
           );
     }
 
     function canReadSessionReport() {
       return signedIn()
-          && resource.data.sessionId is string
-          && isSessionParticipant(resource.data.sessionId);
+          && (
+            isAdmin()
+            || (
+              resource.data.sessionId is string
+              && isSessionParticipant(resource.data.sessionId)
+            )
+          );
     }
 
     match /users/{userId} {
