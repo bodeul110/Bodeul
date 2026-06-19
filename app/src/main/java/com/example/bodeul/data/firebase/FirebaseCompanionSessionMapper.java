@@ -67,6 +67,9 @@ final class FirebaseCompanionSessionMapper {
         session.setMedicationGuidanceCompleted(
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("medicationGuidanceCompleted"))
         );
+        session.markChatRead(UserRole.PATIENT, resolveTimestampMillis(documentSnapshot.get("patientChatReadAt")));
+        session.markChatRead(UserRole.GUARDIAN, resolveTimestampMillis(documentSnapshot.get("guardianChatReadAt")));
+        session.markChatRead(UserRole.MANAGER, resolveTimestampMillis(documentSnapshot.get("managerChatReadAt")));
         return session;
     }
 

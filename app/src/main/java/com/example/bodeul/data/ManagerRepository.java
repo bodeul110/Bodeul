@@ -29,6 +29,8 @@ public interface ManagerRepository {
             RepositoryCallback<ManagerDashboard> callback
     );
 
+    void markCompanionChatRead(String managerUserId);
+
     void shareCurrentLocation(
             String managerUserId,
             double latitude,

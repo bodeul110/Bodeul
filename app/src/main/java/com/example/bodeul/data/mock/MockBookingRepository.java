@@ -282,6 +282,14 @@ public class MockBookingRepository implements BookingRepository {
     }
 
     @Override
+    public void markCompanionChatRead(User currentUser, String requestId) {
+        if (!supportsRole(currentUser.getRole())) {
+            return;
+        }
+        repository.markBookingCompanionChatRead(currentUser, requestId);
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }

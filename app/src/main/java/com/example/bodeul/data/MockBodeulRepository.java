@@ -1262,11 +1262,13 @@ public class MockBodeulRepository implements BodeulRepository {
         if (manager == null || session == null) {
             return null;
         }
+        long sentAtMillis = System.currentTimeMillis();
         session.addChatMessage(new CompanionChatMessage(
                 manager.getRole(),
                 normalizeText(message),
-                System.currentTimeMillis()
+                sentAtMillis
         ));
+        session.markChatRead(manager.getRole(), sentAtMillis);
         return getManagerDashboard(managerUserId);
     }
 
@@ -1284,11 +1286,41 @@ public class MockBodeulRepository implements BodeulRepository {
         if (session == null) {
             return null;
         }
+        long sentAtMillis = System.currentTimeMillis();
         session.addChatMessage(new CompanionChatMessage(
                 currentUser.getRole(),
                 normalizeText(message),
-                System.currentTimeMillis()
+                sentAtMillis
         ));
+        session.markChatRead(currentUser.getRole(), sentAtMillis);
+        return getAppointmentRequestDetail(requestId);
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard markManagerCompanionChatRead(String managerUserId) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.markChatRead(UserRole.MANAGER, System.currentTimeMillis());
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
+    public synchronized AppointmentRequestDetail markBookingCompanionChatRead(
+            User currentUser,
+            String requestId
+    ) {
+        AppointmentRequestDetail detail = getAppointmentRequestDetail(requestId);
+        if (detail == null
+                || !matchesRequestOwner(detail.getAppointmentRequest(), currentUser.getId(), currentUser.getRole())) {
+            return null;
+        }
+        CompanionSession session = detail.getSession();
+        if (session == null) {
+            return null;
+        }
+        session.markChatRead(currentUser.getRole(), System.currentTimeMillis());
         return getAppointmentRequestDetail(requestId);
     }
 

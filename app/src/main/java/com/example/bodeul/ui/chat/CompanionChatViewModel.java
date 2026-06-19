@@ -132,6 +132,7 @@ public class CompanionChatViewModel extends ViewModel {
                         result,
                         bookingRepository.isFirebaseBacked()
                 )));
+                bookingRepository.markCompanionChatRead(user, requestId);
             }
 
             @Override
@@ -150,6 +151,7 @@ public class CompanionChatViewModel extends ViewModel {
                         result,
                         managerRepository.isFirebaseBacked()
                 )));
+                managerRepository.markCompanionChatRead(user.getId());
             }
 
             @Override

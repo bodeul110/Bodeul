@@ -72,6 +72,11 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void markCompanionChatRead(String managerUserId) {
+        repository.markManagerCompanionChatRead(managerUserId);
+    }
+
+    @Override
     public void shareCurrentLocation(
             String managerUserId,
             double latitude,

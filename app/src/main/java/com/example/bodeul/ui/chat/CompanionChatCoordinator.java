@@ -97,21 +97,98 @@ public final class CompanionChatCoordinator {
                 context.getString(R.string.companion_chat_empty_body),
                 context.getString(R.string.companion_chat_input_hint),
                 context.getString(R.string.companion_chat_send),
-                toMessageItems(currentUser, session)
+                toMessageItems(currentUser, request, patient, guardian, manager, session)
         );
     }
 
-    private List<CompanionChatMessageItemModel> toMessageItems(User currentUser, CompanionSession session) {
+    private List<CompanionChatMessageItemModel> toMessageItems(
+            User currentUser,
+            AppointmentRequest request,
+            User patient,
+            User guardian,
+            User manager,
+            CompanionSession session
+    ) {
         List<CompanionChatMessageItemModel> items = new ArrayList<>();
-        for (CompanionChatMessage message : session.getChatMessages()) {
+        List<CompanionChatMessage> messages = session.getChatMessages();
+        int lastMineIndex = findLastMineIndex(currentUser, messages);
+        for (int index = 0; index < messages.size(); index++) {
+            CompanionChatMessage message = messages.get(index);
+            boolean mine = currentUser.getRole() == message.getSenderRole();
+            String sentAtLabel = timeFormat.format(new Date(message.getSentAtMillis()));
+            if (mine && index == lastMineIndex && hasCounterpartReadAfter(
+                    currentUser,
+                    request,
+                    patient,
+                    guardian,
+                    manager,
+                    session,
+                    message.getSentAtMillis()
+            )) {
+                sentAtLabel = context.getString(
+                        R.string.companion_chat_read_confirmed_format,
+                        sentAtLabel,
+                        context.getString(R.string.companion_chat_read_confirmed)
+                );
+            }
             items.add(new CompanionChatMessageItemModel(
                     toRoleLabel(message.getSenderRole()),
                     message.getBody(),
-                    timeFormat.format(new Date(message.getSentAtMillis())),
-                    currentUser.getRole() == message.getSenderRole()
+                    sentAtLabel,
+                    mine
             ));
         }
         return items;
+    }
+
+    private int findLastMineIndex(User currentUser, List<CompanionChatMessage> messages) {
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            if (messages.get(index).getSenderRole() == currentUser.getRole()) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private boolean hasCounterpartReadAfter(
+            User currentUser,
+            AppointmentRequest request,
+            User patient,
+            User guardian,
+            User manager,
+            CompanionSession session,
+            long sentAtMillis
+    ) {
+        for (UserRole counterpartRole : resolveCounterpartRoles(currentUser, request, patient, guardian, manager)) {
+            if (session.getChatReadAtMillis(counterpartRole) >= sentAtMillis) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<UserRole> resolveCounterpartRoles(
+            User currentUser,
+            AppointmentRequest request,
+            User patient,
+            User guardian,
+            User manager
+    ) {
+        List<UserRole> roles = new ArrayList<>();
+        if (currentUser.getRole() != UserRole.MANAGER && manager != null) {
+            roles.add(UserRole.MANAGER);
+        }
+        if (currentUser.getRole() != UserRole.PATIENT
+                && patient != null
+                && !TextUtils.isEmpty(request.getPatientUserId())) {
+            roles.add(UserRole.PATIENT);
+        }
+        if (currentUser.getRole() != UserRole.GUARDIAN
+                && guardian != null
+                && !TextUtils.isEmpty(request.getGuardianUserId())) {
+            roles.add(UserRole.GUARDIAN);
+        }
+        return roles;
     }
 
     private String toRoleLabel(UserRole role) {

@@ -763,6 +763,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 updates.put("chatMessages", FieldValue.arrayUnion(
                         buildChatMessagePayload(UserRole.MANAGER, normalizedMessage)
                 ));
+                updates.put(resolveChatReadField(UserRole.MANAGER), FieldValue.serverTimestamp());
                 updates.put("updatedAt", FieldValue.serverTimestamp());
 
                 sessionSnapshot.getReference()
@@ -775,6 +776,24 @@ public class FirebaseManagerRepository implements ManagerRepository {
             @Override
             public void onError(String message) {
                 callback.onError(message);
+            }
+        });
+    }
+
+    @Override
+    public void markCompanionChatRead(String managerUserId) {
+        loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot sessionSnapshot) {
+                Map<String, Object> updates = new HashMap<>();
+                updates.put(resolveChatReadField(UserRole.MANAGER), FieldValue.serverTimestamp());
+                updates.put("updatedAt", FieldValue.serverTimestamp());
+                sessionSnapshot.getReference().update(updates);
+            }
+
+            @Override
+            public void onError(String message) {
+                // 읽음 처리 실패는 화면 흐름을 막지 않는다.
             }
         });
     }
@@ -1294,6 +1313,16 @@ public class FirebaseManagerRepository implements ManagerRepository {
         payload.put("body", normalizeText(body));
         payload.put("sentAtMillis", System.currentTimeMillis());
         return payload;
+    }
+
+    private String resolveChatReadField(@Nullable UserRole role) {
+        if (role == UserRole.PATIENT) {
+            return "patientChatReadAt";
+        }
+        if (role == UserRole.GUARDIAN) {
+            return "guardianChatReadAt";
+        }
+        return "managerChatReadAt";
     }
 
     private List<CompanionChatMessage> toChatMessages(@Nullable Object rawValue) {

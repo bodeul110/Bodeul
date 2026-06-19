@@ -581,6 +581,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                                 updates.put("chatMessages", FieldValue.arrayUnion(
                                         buildChatMessagePayload(currentUser.getRole(), normalizedMessage)
                                 ));
+                                updates.put(resolveChatReadField(currentUser.getRole()), FieldValue.serverTimestamp());
                                 updates.put("updatedAt", FieldValue.serverTimestamp());
 
                                 activeSessionSnapshot.getReference()
@@ -595,6 +596,27 @@ public class FirebaseBookingRepository implements BookingRepository {
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("동행 요청 정보를 확인하지 못했습니다."));
+    }
+
+    @Override
+    public void markCompanionChatRead(User currentUser, String requestId) {
+        if (!supportsRole(currentUser.getRole()) || normalizeText(requestId).isEmpty()) {
+            return;
+        }
+
+        firestore.collection("companionSessions")
+                .whereEqualTo("appointmentRequestId", requestId)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    DocumentSnapshot activeSessionSnapshot = findActiveSessionDocument(querySnapshot);
+                    if (activeSessionSnapshot == null) {
+                        return;
+                    }
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put(resolveChatReadField(currentUser.getRole()), FieldValue.serverTimestamp());
+                    updates.put("updatedAt", FieldValue.serverTimestamp());
+                    activeSessionSnapshot.getReference().update(updates);
+                });
     }
 
     @Override
@@ -1139,6 +1161,16 @@ public class FirebaseBookingRepository implements BookingRepository {
         payload.put("body", normalizeText(body));
         payload.put("sentAtMillis", System.currentTimeMillis());
         return payload;
+    }
+
+    private String resolveChatReadField(@Nullable UserRole role) {
+        if (role == UserRole.PATIENT) {
+            return "patientChatReadAt";
+        }
+        if (role == UserRole.GUARDIAN) {
+            return "guardianChatReadAt";
+        }
+        return "managerChatReadAt";
     }
 
     private List<CompanionChatMessage> toChatMessages(@Nullable Object rawValue) {

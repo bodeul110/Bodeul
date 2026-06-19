@@ -37,6 +37,9 @@ public class CompanionSession {
     private long liveLocationSharingStartedAtMillis;
     private final List<CompanionLocationHistoryEntry> sharedLocationHistory;
     private final List<CompanionChatMessage> chatMessages;
+    private long patientChatReadAtMillis;
+    private long guardianChatReadAtMillis;
+    private long managerChatReadAtMillis;
 
     public CompanionSession(
             String id,
@@ -398,5 +401,46 @@ public class CompanionSession {
 
     public void addChatMessage(CompanionChatMessage chatMessage) {
         this.chatMessages.add(chatMessage);
+    }
+
+    public long getPatientChatReadAtMillis() {
+        return patientChatReadAtMillis;
+    }
+
+    public long getGuardianChatReadAtMillis() {
+        return guardianChatReadAtMillis;
+    }
+
+    public long getManagerChatReadAtMillis() {
+        return managerChatReadAtMillis;
+    }
+
+    public long getChatReadAtMillis(@Nullable UserRole role) {
+        if (role == UserRole.PATIENT) {
+            return patientChatReadAtMillis;
+        }
+        if (role == UserRole.GUARDIAN) {
+            return guardianChatReadAtMillis;
+        }
+        if (role == UserRole.MANAGER) {
+            return managerChatReadAtMillis;
+        }
+        return 0L;
+    }
+
+    // 채팅 화면을 열어 확인한 마지막 시각을 역할별로 저장한다.
+    public void markChatRead(@Nullable UserRole role, long readAtMillis) {
+        long normalizedReadAtMillis = Math.max(readAtMillis, 0L);
+        if (role == UserRole.PATIENT) {
+            patientChatReadAtMillis = normalizedReadAtMillis;
+            return;
+        }
+        if (role == UserRole.GUARDIAN) {
+            guardianChatReadAtMillis = normalizedReadAtMillis;
+            return;
+        }
+        if (role == UserRole.MANAGER) {
+            managerChatReadAtMillis = normalizedReadAtMillis;
+        }
     }
 }
