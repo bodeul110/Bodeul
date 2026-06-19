@@ -26,6 +26,7 @@ import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
+import com.example.bodeul.ui.report.GuardianReportActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -79,15 +80,28 @@ public class HealthInfoActivity extends AppCompatActivity {
                 findViewById(R.id.textHealthInfoHeroBadge),
                 findViewById(R.id.textHealthInfoHeroTitle),
                 findViewById(R.id.textHealthInfoHeroBody),
+                findViewById(R.id.textHealthInfoServiceSectionTitle),
+                findViewById(R.id.textHealthInfoServiceSectionHelper),
+                findViewById(R.id.textHealthInfoAccountSectionTitle),
+                findViewById(R.id.textHealthInfoAccountSectionHelper),
                 findViewById(R.id.textHealthInfoProfileSectionTitle),
+                findViewById(R.id.textHealthInfoProfileSectionHelper),
                 findViewById(R.id.textHealthInfoRequestSectionTitle),
+                findViewById(R.id.textHealthInfoRequestSectionHelper),
+                (LinearLayout) findViewById(R.id.layoutHealthInfoAccountLines),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoProfileLines),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoRequestLines),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoBooking),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoBookingStatus),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoGuardianReport),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoPrimary)
         );
 
         findViewById(R.id.buttonBackHealthInfo).setOnClickListener(view -> finish());
         findViewById(R.id.buttonHealthInfoPrimary).setOnClickListener(view -> openBookingStatus());
+        findViewById(R.id.buttonHealthInfoBooking).setOnClickListener(view -> openBooking());
+        findViewById(R.id.buttonHealthInfoBookingStatus).setOnClickListener(view -> openBookingStatus());
+        findViewById(R.id.buttonHealthInfoGuardianReport).setOnClickListener(view -> openGuardianReport());
         healthInfoContentContainer.setVisibility(View.GONE);
     }
 
@@ -198,6 +212,13 @@ public class HealthInfoActivity extends AppCompatActivity {
 
     private void openBooking() {
         startActivity(new Intent(this, BookingActivity.class));
+    }
+
+    private void openGuardianReport() {
+        if (currentUser == null || currentUser.getRole() != UserRole.GUARDIAN) {
+            return;
+        }
+        startActivity(new Intent(this, GuardianReportActivity.class));
     }
 
     private void openRoleSelection() {

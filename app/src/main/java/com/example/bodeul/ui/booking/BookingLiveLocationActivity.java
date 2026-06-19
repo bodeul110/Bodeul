@@ -102,6 +102,8 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 findViewById(R.id.textBookingLiveLocationMemoSectionTitle),
                 findViewById(R.id.textBookingLiveLocationMapSectionTitle),
                 findViewById(R.id.textBookingLiveLocationMapSectionHelper),
+                findViewById(R.id.textBookingLiveLocationMapHighlightTitle),
+                findViewById(R.id.textBookingLiveLocationMapHighlightBody),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationStatusLines),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationMemoLines),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationMapActions),
@@ -314,10 +316,14 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
 
     private void updateMapMarker() {
         if (kakaoMap == null || currentDetail == null) return;
-        
+
+        if (currentDetail.getSession() == null) {
+            return;
+        }
+
         Double lat = currentDetail.getSession().getSharedLatitude();
         Double lng = currentDetail.getSession().getSharedLongitude();
-        
+
         if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
             LatLng position = LatLng.from(lat, lng);
             LabelManager labelManager = kakaoMap.getLabelManager();

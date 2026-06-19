@@ -257,16 +257,46 @@
                             android:textSize="13sp" />
 
                         <LinearLayout
-                            android:id="@+id/layoutBookingLiveLocationMapActions"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical" />
-                            
+                            android:layout_marginTop="14dp"
+                            android:background="@drawable/bg_surface_pill"
+                            android:orientation="vertical"
+                            android:paddingStart="16dp"
+                            android:paddingTop="16dp"
+                            android:paddingEnd="16dp"
+                            android:paddingBottom="16dp">
+
+                            <TextView
+                                android:id="@+id/textBookingLiveLocationMapHighlightTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/bodeul_text_primary"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/textBookingLiveLocationMapHighlightBody"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:lineSpacingExtra="3dp"
+                                android:textColor="@color/bodeul_text_secondary"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
                         <com.kakao.vectormap.MapView
                             android:id="@+id/mapViewBookingLiveLocation"
                             android:layout_width="match_parent"
                             android:layout_height="250dp"
                             android:layout_marginTop="16dp" />
+
+                        <LinearLayout
+                            android:id="@+id/layoutBookingLiveLocationMapActions"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:orientation="vertical" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>

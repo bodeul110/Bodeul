@@ -310,8 +310,60 @@
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="4dp"
+                        android:text="@string/booking_status_summary_helper"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="13sp" />
+
                     <LinearLayout
                         android:id="@+id/bookingStatusSummaryContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBookingStatusLive"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/bodeul_surface"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="6dp"
+                app:strokeColor="@color/bodeul_outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="22dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/booking_status_live_section"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="4dp"
+                        android:text="@string/booking_status_live_helper"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:id="@+id/bookingStatusLiveContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
@@ -343,6 +395,15 @@
                         android:textColor="@color/bodeul_text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="4dp"
+                        android:text="@string/booking_status_report_helper"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="13sp" />
 
                     <LinearLayout
                         android:id="@+id/bookingStatusReportContainer"

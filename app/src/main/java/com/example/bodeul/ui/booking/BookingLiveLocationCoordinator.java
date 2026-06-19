@@ -51,6 +51,8 @@ public final class BookingLiveLocationCoordinator {
                 context.getString(R.string.booking_live_location_section_memo),
                 context.getString(R.string.booking_live_location_section_map),
                 context.getString(R.string.booking_live_location_section_map_helper),
+                buildMapHighlightTitle(detail),
+                buildMapHighlightBody(detail),
                 createStatusLines(detail),
                 createMemoLines(detail),
                 createMapActions(detail),
@@ -245,6 +247,33 @@ public final class BookingLiveLocationCoordinator {
                 null
         ));
         return items;
+    }
+
+    private String buildMapHighlightTitle(AppointmentRequestDetail detail) {
+        CompanionSession session = detail.getSession();
+        if (session != null && session.hasSharedLocationCoordinates()) {
+            return context.getString(R.string.booking_live_location_map_highlight_title_shared);
+        }
+        return context.getString(R.string.booking_live_location_map_highlight_title_default);
+    }
+
+    private String buildMapHighlightBody(AppointmentRequestDetail detail) {
+        AppointmentRequest request = detail.getAppointmentRequest();
+        CompanionSession session = detail.getSession();
+        String locationSummary = fallbackValue(
+                session == null ? null : session.getLocationSummary(),
+                resolveMeetingPlace(request)
+        );
+        String updatedAt = session != null && session.getSharedLocationUpdatedAtMillis() > 0L
+                ? formatSharedLocationTime(session.getSharedLocationUpdatedAtMillis())
+                : context.getString(R.string.booking_live_location_map_highlight_updated_pending);
+        return context.getString(
+                R.string.booking_live_location_map_highlight_body,
+                locationSummary,
+                request.getHospitalName(),
+                request.getDepartmentName(),
+                updatedAt
+        );
     }
 
     private String buildStepValue(@Nullable CompanionSession session, @Nullable HospitalGuide guide) {

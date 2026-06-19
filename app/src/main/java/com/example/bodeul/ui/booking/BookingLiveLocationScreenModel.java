@@ -16,6 +16,8 @@ public final class BookingLiveLocationScreenModel {
     private final String memoSectionTitle;
     private final String mapSectionTitle;
     private final String mapSectionHelper;
+    private final String mapHighlightTitle;
+    private final String mapHighlightBody;
     private final List<BookingStatusLineItem> statusLines;
     private final List<BookingStatusLineItem> memoLines;
     private final List<BookingLiveLocationMapActionModel> mapActions;
@@ -33,6 +35,8 @@ public final class BookingLiveLocationScreenModel {
             String memoSectionTitle,
             String mapSectionTitle,
             String mapSectionHelper,
+            String mapHighlightTitle,
+            String mapHighlightBody,
             List<BookingStatusLineItem> statusLines,
             List<BookingStatusLineItem> memoLines,
             List<BookingLiveLocationMapActionModel> mapActions,
@@ -49,6 +53,8 @@ public final class BookingLiveLocationScreenModel {
         this.memoSectionTitle = memoSectionTitle;
         this.mapSectionTitle = mapSectionTitle;
         this.mapSectionHelper = mapSectionHelper;
+        this.mapHighlightTitle = mapHighlightTitle;
+        this.mapHighlightBody = mapHighlightBody;
         this.statusLines = statusLines;
         this.memoLines = memoLines;
         this.mapActions = mapActions;
@@ -94,6 +100,14 @@ public final class BookingLiveLocationScreenModel {
 
     public String getMapSectionHelper() {
         return mapSectionHelper;
+    }
+
+    public String getMapHighlightTitle() {
+        return mapHighlightTitle;
+    }
+
+    public String getMapHighlightBody() {
+        return mapHighlightBody;
     }
 
     public List<BookingStatusLineItem> getStatusLines() {

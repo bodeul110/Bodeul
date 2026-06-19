@@ -42,6 +42,8 @@ public final class GuardianReportEntryCardBinder {
         TextView textHeroBody = cardView.findViewById(R.id.textGuardianReportEntryHeroBody);
         TextView textLiveTitle = cardView.findViewById(R.id.textGuardianReportEntryLiveTitle);
         LinearLayout liveContainer = cardView.findViewById(R.id.guardianReportEntryLiveContainer);
+        TextView textMemoTitle = cardView.findViewById(R.id.textGuardianReportEntryMemoTitle);
+        LinearLayout memoContainer = cardView.findViewById(R.id.guardianReportEntryMemoContainer);
         TextView textReportTitle = cardView.findViewById(R.id.textGuardianReportEntryReportTitle);
         LinearLayout reportContainer = cardView.findViewById(R.id.guardianReportEntryReportContainer);
         TextView textPending = cardView.findViewById(R.id.textGuardianReportEntryPending);
@@ -54,7 +56,17 @@ public final class GuardianReportEntryCardBinder {
         textLiveTitle.setText(model.getLiveSectionTitleText());
         textReportTitle.setText(model.getReportSectionTitleText());
         bindLines(liveContainer, model.getLiveLines());
-        bindLines(reportContainer, model.getReportLines());
+        if (model.getMemoLines().isEmpty()) {
+            textMemoTitle.setVisibility(View.GONE);
+            memoContainer.setVisibility(View.GONE);
+            memoContainer.removeAllViews();
+        } else {
+            textMemoTitle.setVisibility(View.VISIBLE);
+            memoContainer.setVisibility(View.VISIBLE);
+            textMemoTitle.setText(model.getMemoSectionTitleText());
+            bindLines(memoContainer, model.getMemoLines());
+        }
+        bindSections(reportContainer, model.getReportSections());
 
         if (model.getPendingReportText() == null) {
             textPending.setVisibility(View.GONE);
@@ -76,6 +88,10 @@ public final class GuardianReportEntryCardBinder {
 
     private void bindLines(LinearLayout container, List<GuardianReportLineItem> items) {
         container.removeAllViews();
+        addLineViews(container, items);
+    }
+
+    private void addLineViews(LinearLayout container, List<GuardianReportLineItem> items) {
         for (int index = 0; index < items.size(); index++) {
             View itemView = inflater.inflate(R.layout.item_guardian_report_line, container, false);
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) itemView.getLayoutParams();
@@ -95,6 +111,40 @@ public final class GuardianReportEntryCardBinder {
             ));
             valueView.setTextSize(item.isEmphasized() ? 15f : 14f);
             container.addView(itemView);
+        }
+    }
+
+    private void bindSections(LinearLayout container, List<GuardianReportSectionModel> sections) {
+        container.removeAllViews();
+        for (int index = 0; index < sections.size(); index++) {
+            GuardianReportSectionModel section = sections.get(index);
+
+            TextView titleView = new TextView(context);
+            titleView.setText(section.getTitleText());
+            titleView.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_primary));
+            titleView.setTextSize(15f);
+            titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+
+            LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            if (index > 0) {
+                titleParams.topMargin = dp(16);
+            }
+            titleView.setLayoutParams(titleParams);
+            container.addView(titleView);
+
+            LinearLayout linesLayout = new LinearLayout(context);
+            linesLayout.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams linesParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            linesParams.topMargin = dp(12);
+            linesLayout.setLayoutParams(linesParams);
+            addLineViews(linesLayout, section.getLines());
+            container.addView(linesLayout);
         }
     }
 

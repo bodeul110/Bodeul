@@ -174,53 +174,6 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/guide_map_section_title"
-                        android:textColor="@color/bodeul_text_primary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/guide_map_section_helper"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="13sp" />
-
-                    <LinearLayout
-                        android:id="@+id/guideMapActionContainer"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="vertical" />
-                        
-                    <com.kakao.vectormap.MapView
-                        android:id="@+id/mapViewManagerGuide"
-                        android:layout_width="match_parent"
-                        android:layout_height="250dp"
-                        android:layout_marginTop="16dp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                app:cardBackgroundColor="@color/bodeul_surface"
-                app:cardCornerRadius="28dp"
-                app:cardElevation="6dp"
-                app:strokeColor="@color/bodeul_outline"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="22dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
                         android:text="@string/guide_steps_title"
                         android:textColor="@color/bodeul_text_primary"
                         android:textSize="18sp"
@@ -338,6 +291,53 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/bodeul_surface"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="6dp"
+                app:strokeColor="@color/bodeul_outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="22dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/guide_map_section_title"
+                        android:textColor="@color/bodeul_text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/guide_map_section_helper"
+                        android:textColor="@color/bodeul_text_secondary"
+                        android:textSize="13sp" />
+
+                    <com.kakao.vectormap.MapView
+                        android:id="@+id/mapViewManagerGuide"
+                        android:layout_width="match_parent"
+                        android:layout_height="250dp"
+                        android:layout_marginTop="16dp" />
+
+                    <LinearLayout
+                        android:id="@+id/guideMapActionContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -346,6 +346,14 @@
                 android:textColor="@color/bodeul_text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/guide_actions_helper"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="13sp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

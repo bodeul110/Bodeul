@@ -66,7 +66,8 @@ public final class BookingStatusCoordinator {
                 progressOverview,
                 createParticipantLines(detail),
                 createSummaryLines(detail),
-                createReportLines(detail, followUpRecord),
+                createLiveLines(detail),
+                createReportSections(detail, followUpRecord),
                 buildPrimaryAction(currentUser, request.getStatus()),
                 buildSecondaryAction(currentUser, request.getStatus())
         );
@@ -245,63 +246,88 @@ public final class BookingStatusCoordinator {
         return formatter.toPaymentStatusLabel(request.getPaymentStatusCode());
     }
 
-    private List<BookingStatusLineItem> createReportLines(
+    private List<BookingStatusLineItem> createLiveLines(AppointmentRequestDetail detail) {
+        CompanionSession session = detail.getSession();
+        HospitalGuide guide = detail.getHospitalGuide();
+        List<BookingStatusLineItem> items = new ArrayList<>();
+
+        if (session == null) {
+            return items;
+        }
+
+        items.add(new BookingStatusLineItem(
+                context.getString(R.string.booking_status_line_session),
+                formatter.toSessionStatusLabel(session.getStatus()),
+                true
+        ));
+        if (guide != null) {
+            items.add(new BookingStatusLineItem(
+                    context.getString(R.string.booking_status_line_step),
+                    context.getString(
+                            R.string.booking_status_progress_step_format,
+                            session.getCurrentStepOrder(),
+                            guide.getSteps().size()
+                    ),
+                    false
+            ));
+        }
+        addOptionalLine(items, R.string.booking_status_line_live_location, session.getLocationSummary(), false);
+        addOptionalLine(items, R.string.booking_status_line_guardian_update, session.getGuardianUpdate(), false);
+        addOptionalLine(items, R.string.booking_status_line_live_photo, session.getFieldPhotoNote(), false);
+        addOptionalLine(items, R.string.booking_status_line_live_medication, session.getMedicationNote(), false);
+        addOptionalLine(items, R.string.booking_status_line_live_pharmacy, session.getPharmacySummary(), false);
+        if (!TextUtils.isEmpty(session.getPharmacySummary()) || session.isPharmacyCompleted()) {
+            items.add(new BookingStatusLineItem(
+                    context.getString(R.string.booking_status_line_live_pharmacy_state),
+                    buildPharmacyStateLabel(session),
+                    false
+            ));
+        }
+        return items;
+    }
+
+    private List<BookingStatusSectionModel> createReportSections(
             AppointmentRequestDetail detail,
             @Nullable AppointmentFollowUpRecord followUpRecord
     ) {
         AppointmentRequest request = detail.getAppointmentRequest();
-        CompanionSession session = detail.getSession();
         SessionReport report = detail.getSessionReport();
-        HospitalGuide guide = detail.getHospitalGuide();
-        List<BookingStatusLineItem> items = new ArrayList<>();
-
-        if (session != null) {
-            items.add(new BookingStatusLineItem(
-                    context.getString(R.string.booking_status_line_session),
-                    formatter.toSessionStatusLabel(session.getStatus()),
-                    true
-            ));
-            if (guide != null) {
-                items.add(new BookingStatusLineItem(
-                        context.getString(R.string.booking_status_line_step),
-                        context.getString(
-                                R.string.booking_status_progress_step_format,
-                                session.getCurrentStepOrder(),
-                                guide.getSteps().size()
-                        ),
-                        false
-                ));
-            }
-            addOptionalLine(items, R.string.booking_status_line_live_location, session.getLocationSummary(), false);
-            addOptionalLine(items, R.string.booking_status_line_guardian_update, session.getGuardianUpdate(), false);
-            addOptionalLine(items, R.string.booking_status_line_live_photo, session.getFieldPhotoNote(), false);
-            addOptionalLine(items, R.string.booking_status_line_live_medication, session.getMedicationNote(), false);
-            addOptionalLine(items, R.string.booking_status_line_live_pharmacy, session.getPharmacySummary(), false);
-            if (!TextUtils.isEmpty(session.getPharmacySummary()) || session.isPharmacyCompleted()) {
-                items.add(new BookingStatusLineItem(
-                        context.getString(R.string.booking_status_line_live_pharmacy_state),
-                        buildPharmacyStateLabel(session),
-                        false
-                ));
-            }
-        }
+        List<BookingStatusSectionModel> sections = new ArrayList<>();
+        List<BookingStatusLineItem> hospitalLines = new ArrayList<>();
+        List<BookingStatusLineItem> medicationLines = new ArrayList<>();
+        List<BookingStatusLineItem> followUpLines = new ArrayList<>();
 
         if (report != null) {
-            addOptionalLine(items, R.string.booking_status_line_report_summary, report.getSummary(), true);
-            addOptionalLine(items, R.string.booking_status_line_report_treatment, report.getTreatmentNotes(), false);
-            addOptionalLine(items, R.string.booking_status_line_report_medication, report.getMedicationNotes(), false);
-            addOptionalLine(items, R.string.booking_status_line_report_next_visit, report.getNextVisitAt(), false);
+            addOptionalLine(hospitalLines, R.string.booking_status_line_report_summary, report.getSummary(), true);
+            addOptionalLine(hospitalLines, R.string.booking_status_line_report_treatment, report.getTreatmentNotes(), false);
+            addOptionalLine(hospitalLines, R.string.booking_status_line_report_next_visit, report.getNextVisitAt(), false);
+            addOptionalLine(medicationLines, R.string.booking_status_line_report_medication, report.getMedicationNotes(), true);
         } else if (request.getStatus() == AppointmentStatus.COMPLETED) {
-            items.add(new BookingStatusLineItem(
+            hospitalLines.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_status_line_report_state),
                     context.getString(R.string.booking_status_report_pending),
                     false
             ));
         }
 
-        addFollowUpLines(items, request, followUpRecord);
+        addFollowUpLines(followUpLines, request, followUpRecord);
 
-        return items;
+        addSectionIfNotEmpty(
+                sections,
+                context.getString(R.string.booking_status_report_section_hospital),
+                hospitalLines
+        );
+        addSectionIfNotEmpty(
+                sections,
+                context.getString(R.string.booking_status_report_section_medication),
+                medicationLines
+        );
+        addSectionIfNotEmpty(
+                sections,
+                context.getString(R.string.booking_status_report_section_follow_up),
+                followUpLines
+        );
+        return sections;
     }
 
     private void addFollowUpLines(
@@ -443,6 +469,17 @@ public final class BookingStatusCoordinator {
                 value,
                 emphasized
         ));
+    }
+
+    private void addSectionIfNotEmpty(
+            List<BookingStatusSectionModel> sections,
+            String title,
+            List<BookingStatusLineItem> lines
+    ) {
+        if (lines.isEmpty()) {
+            return;
+        }
+        sections.add(new BookingStatusSectionModel(title, new ArrayList<>(lines)));
     }
 
     private String buildParticipantDisplay(

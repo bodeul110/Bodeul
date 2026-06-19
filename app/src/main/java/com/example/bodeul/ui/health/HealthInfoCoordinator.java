@@ -47,23 +47,63 @@ public final class HealthInfoCoordinator {
                         request.getDepartmentName(),
                         request.getAppointmentAt()
                 ),
+                context.getString(R.string.health_info_service_section),
+                context.getString(
+                        currentUser.getRole() == UserRole.GUARDIAN
+                                ? R.string.health_info_service_section_helper_guardian
+                                : R.string.health_info_service_section_helper_patient
+                ),
+                context.getString(R.string.health_info_action_open_booking),
+                context.getString(R.string.health_info_action_open_progress),
+                currentUser.getRole() == UserRole.GUARDIAN
+                        ? context.getString(R.string.health_info_action_open_guardian_report)
+                        : null,
+                context.getString(R.string.health_info_account_section),
+                context.getString(R.string.health_info_account_section_helper),
                 context.getString(R.string.health_info_profile_section),
+                context.getString(R.string.health_info_profile_section_helper),
                 context.getString(R.string.health_info_request_section),
+                context.getString(R.string.health_info_request_section_helper),
+                createAccountLines(currentUser, detail),
                 createProfileLines(detail),
                 createRequestLines(detail),
                 context.getString(R.string.health_info_action_open_booking_status)
         );
     }
 
+    private List<HealthInfoLineItem> createAccountLines(User currentUser, AppointmentRequestDetail detail) {
+        List<HealthInfoLineItem> items = new ArrayList<>();
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_account_name),
+                fallbackValue(currentUser.getName(), R.string.manager_profile_contact_missing),
+                true
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_account_role),
+                toRoleLabel(currentUser.getRole()),
+                false
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_account_email),
+                fallbackValue(currentUser.getEmail(), R.string.manager_profile_contact_missing),
+                false
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_account_phone),
+                fallbackValue(currentUser.getPhone(), R.string.manager_profile_contact_missing),
+                false
+        ));
+        if (currentUser.getRole() == UserRole.GUARDIAN) {
+            addLine(items, R.string.health_info_line_patient, resolvePatientName(detail), false);
+        } else {
+            addLine(items, R.string.health_info_line_guardian, resolveGuardianName(detail), false);
+        }
+        return items;
+    }
+
     private List<HealthInfoLineItem> createProfileLines(AppointmentRequestDetail detail) {
         AppointmentRequest request = detail.getAppointmentRequest();
         List<HealthInfoLineItem> items = new ArrayList<>();
-        items.add(new HealthInfoLineItem(
-                context.getString(R.string.health_info_line_patient),
-                resolvePatientName(detail),
-                true
-        ));
-        addLine(items, R.string.health_info_line_guardian, resolveGuardianName(detail), false);
         items.add(new HealthInfoLineItem(
                 context.getString(R.string.health_info_line_condition),
                 fallbackValue(request.getPatientConditionSummary(), R.string.health_info_value_empty),
@@ -146,5 +186,15 @@ public final class HealthInfoCoordinator {
 
     private String fallbackValue(@Nullable String value, int fallbackResId) {
         return TextUtils.isEmpty(value) ? context.getString(fallbackResId) : value;
+    }
+
+    private String toRoleLabel(UserRole role) {
+        switch (role) {
+            case GUARDIAN:
+                return context.getString(R.string.login_role_guardian);
+            case PATIENT:
+            default:
+                return context.getString(R.string.login_role_patient);
+        }
     }
 }

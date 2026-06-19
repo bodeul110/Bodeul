@@ -31,6 +31,8 @@ public final class BookingLiveLocationBinder {
     private final TextView textMemoSectionTitle;
     private final TextView textMapSectionTitle;
     private final TextView textMapSectionHelper;
+    private final TextView textMapHighlightTitle;
+    private final TextView textMapHighlightBody;
     private final LinearLayout statusLineContainer;
     private final LinearLayout memoLineContainer;
     private final LinearLayout mapActionContainer;
@@ -51,6 +53,8 @@ public final class BookingLiveLocationBinder {
             TextView textMemoSectionTitle,
             TextView textMapSectionTitle,
             TextView textMapSectionHelper,
+            TextView textMapHighlightTitle,
+            TextView textMapHighlightBody,
             LinearLayout statusLineContainer,
             LinearLayout memoLineContainer,
             LinearLayout mapActionContainer,
@@ -70,6 +74,8 @@ public final class BookingLiveLocationBinder {
         this.textMemoSectionTitle = textMemoSectionTitle;
         this.textMapSectionTitle = textMapSectionTitle;
         this.textMapSectionHelper = textMapSectionHelper;
+        this.textMapHighlightTitle = textMapHighlightTitle;
+        this.textMapHighlightBody = textMapHighlightBody;
         this.statusLineContainer = statusLineContainer;
         this.memoLineContainer = memoLineContainer;
         this.mapActionContainer = mapActionContainer;
@@ -89,6 +95,8 @@ public final class BookingLiveLocationBinder {
         textMemoSectionTitle.setText(screenModel.getMemoSectionTitle());
         textMapSectionTitle.setText(screenModel.getMapSectionTitle());
         textMapSectionHelper.setText(screenModel.getMapSectionHelper());
+        textMapHighlightTitle.setText(screenModel.getMapHighlightTitle());
+        textMapHighlightBody.setText(screenModel.getMapHighlightBody());
         buttonPrimary.setText(screenModel.getPrimaryActionLabel());
         buttonRefresh.setText(screenModel.getRefreshActionLabel());
 

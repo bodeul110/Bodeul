@@ -159,12 +159,116 @@
                         android:padding="22dp">
 
                         <TextView
+                            android:id="@+id/textHealthInfoServiceSectionTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textHealthInfoServiceSectionHelper"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="13sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonHealthInfoBooking"
+                            style="@style/BodeulOutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonHealthInfoBookingStatus"
+                            style="@style/BodeulOutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonHealthInfoGuardianReport"
+                            style="@style/BodeulOutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="22dp">
+
+                        <TextView
+                            android:id="@+id/textHealthInfoAccountSectionTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textHealthInfoAccountSectionHelper"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="13sp" />
+
+                        <LinearLayout
+                            android:id="@+id/layoutHealthInfoAccountLines"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="6dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="22dp">
+
+                        <TextView
                             android:id="@+id/textHealthInfoProfileSectionTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="@color/bodeul_text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textHealthInfoProfileSectionHelper"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="13sp" />
 
                         <LinearLayout
                             android:id="@+id/layoutHealthInfoProfileLines"
@@ -198,6 +302,14 @@
                             android:textColor="@color/bodeul_text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textHealthInfoRequestSectionHelper"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="13sp" />
 
                         <LinearLayout
                             android:id="@+id/layoutHealthInfoRequestLines"

@@ -143,8 +143,10 @@ public final class GuardianReportCoordinator {
                     buildHeroBody(entry),
                     context.getString(R.string.guardian_report_live_section_title),
                     createLiveLines(entry),
+                    context.getString(R.string.guardian_report_memo_section_title),
+                    createMemoLines(entry),
                     context.getString(R.string.guardian_report_report_section_title),
-                    createReportLines(entry),
+                    createReportSections(entry),
                     entry.getSessionReport() == null
                             ? context.getString(R.string.guardian_report_report_pending)
                             : null,
@@ -194,6 +196,11 @@ public final class GuardianReportCoordinator {
                     false
             ));
         }
+        return items;
+    }
+
+    private List<GuardianReportLineItem> createMemoLines(GuardianReportEntry entry) {
+        List<GuardianReportLineItem> items = new ArrayList<>();
         addOptionalLine(items, R.string.guardian_report_line_update, entry.getSession() == null
                 ? ""
                 : entry.getSession().getGuardianUpdate(), false);
@@ -219,17 +226,31 @@ public final class GuardianReportCoordinator {
         return items;
     }
 
-    private List<GuardianReportLineItem> createReportLines(GuardianReportEntry entry) {
-        List<GuardianReportLineItem> items = new ArrayList<>();
+    private List<GuardianReportSectionModel> createReportSections(GuardianReportEntry entry) {
+        List<GuardianReportSectionModel> sections = new ArrayList<>();
         SessionReport report = entry.getSessionReport();
         if (report == null) {
-            return items;
+            return sections;
         }
-        addOptionalLine(items, R.string.guardian_report_line_report_summary, report.getSummary(), true);
-        addOptionalLine(items, R.string.guardian_report_line_report_treatment, report.getTreatmentNotes(), false);
-        addOptionalLine(items, R.string.guardian_report_line_report_medication, report.getMedicationNotes(), false);
-        addOptionalLine(items, R.string.guardian_report_line_report_next_visit, report.getNextVisitAt(), false);
-        return items;
+
+        List<GuardianReportLineItem> hospitalLines = new ArrayList<>();
+        addOptionalLine(hospitalLines, R.string.guardian_report_line_report_summary, report.getSummary(), true);
+        addOptionalLine(hospitalLines, R.string.guardian_report_line_report_treatment, report.getTreatmentNotes(), false);
+        addOptionalLine(hospitalLines, R.string.guardian_report_line_report_next_visit, report.getNextVisitAt(), false);
+        addSectionIfNotEmpty(
+                sections,
+                context.getString(R.string.guardian_report_report_section_hospital),
+                hospitalLines
+        );
+
+        List<GuardianReportLineItem> medicationLines = new ArrayList<>();
+        addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication, report.getMedicationNotes(), true);
+        addSectionIfNotEmpty(
+                sections,
+                context.getString(R.string.guardian_report_report_section_medication),
+                medicationLines
+        );
+        return sections;
     }
 
     private void addOptionalLine(List<GuardianReportLineItem> items, int labelResId, String value, boolean emphasized) {
@@ -241,6 +262,17 @@ public final class GuardianReportCoordinator {
                 value,
                 emphasized
         ));
+    }
+
+    private void addSectionIfNotEmpty(
+            List<GuardianReportSectionModel> sections,
+            String title,
+            List<GuardianReportLineItem> lines
+    ) {
+        if (lines.isEmpty()) {
+            return;
+        }
+        sections.add(new GuardianReportSectionModel(title, new ArrayList<>(lines)));
     }
 
     private String buildPatientDisplay(GuardianReportEntry entry) {

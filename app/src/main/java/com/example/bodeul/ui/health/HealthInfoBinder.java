@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
@@ -24,10 +25,20 @@ public final class HealthInfoBinder {
     private final TextView textHeroBadge;
     private final TextView textHeroTitle;
     private final TextView textHeroBody;
+    private final TextView textServiceSectionTitle;
+    private final TextView textServiceSectionHelper;
+    private final TextView textAccountSectionTitle;
+    private final TextView textAccountSectionHelper;
     private final TextView textProfileSectionTitle;
+    private final TextView textProfileSectionHelper;
     private final TextView textRequestSectionTitle;
+    private final TextView textRequestSectionHelper;
+    private final LinearLayout accountLineContainer;
     private final LinearLayout profileLineContainer;
     private final LinearLayout requestLineContainer;
+    private final MaterialButton buttonBooking;
+    private final MaterialButton buttonBookingStatus;
+    private final MaterialButton buttonGuardianReport;
     private final MaterialButton buttonPrimary;
 
     public HealthInfoBinder(
@@ -39,10 +50,20 @@ public final class HealthInfoBinder {
             TextView textHeroBadge,
             TextView textHeroTitle,
             TextView textHeroBody,
+            TextView textServiceSectionTitle,
+            TextView textServiceSectionHelper,
+            TextView textAccountSectionTitle,
+            TextView textAccountSectionHelper,
             TextView textProfileSectionTitle,
+            TextView textProfileSectionHelper,
             TextView textRequestSectionTitle,
+            TextView textRequestSectionHelper,
+            LinearLayout accountLineContainer,
             LinearLayout profileLineContainer,
             LinearLayout requestLineContainer,
+            MaterialButton buttonBooking,
+            MaterialButton buttonBookingStatus,
+            MaterialButton buttonGuardianReport,
             MaterialButton buttonPrimary
     ) {
         this.context = context;
@@ -53,10 +74,20 @@ public final class HealthInfoBinder {
         this.textHeroBadge = textHeroBadge;
         this.textHeroTitle = textHeroTitle;
         this.textHeroBody = textHeroBody;
+        this.textServiceSectionTitle = textServiceSectionTitle;
+        this.textServiceSectionHelper = textServiceSectionHelper;
+        this.textAccountSectionTitle = textAccountSectionTitle;
+        this.textAccountSectionHelper = textAccountSectionHelper;
         this.textProfileSectionTitle = textProfileSectionTitle;
+        this.textProfileSectionHelper = textProfileSectionHelper;
         this.textRequestSectionTitle = textRequestSectionTitle;
+        this.textRequestSectionHelper = textRequestSectionHelper;
+        this.accountLineContainer = accountLineContainer;
         this.profileLineContainer = profileLineContainer;
         this.requestLineContainer = requestLineContainer;
+        this.buttonBooking = buttonBooking;
+        this.buttonBookingStatus = buttonBookingStatus;
+        this.buttonGuardianReport = buttonGuardianReport;
         this.buttonPrimary = buttonPrimary;
     }
 
@@ -67,11 +98,30 @@ public final class HealthInfoBinder {
         textHeroBadge.setText(screenModel.getHeroBadge());
         textHeroTitle.setText(screenModel.getHeroTitle());
         textHeroBody.setText(screenModel.getHeroBody());
+        textServiceSectionTitle.setText(screenModel.getServiceSectionTitle());
+        textServiceSectionHelper.setText(screenModel.getServiceSectionHelper());
+        textAccountSectionTitle.setText(screenModel.getAccountSectionTitle());
+        textAccountSectionHelper.setText(screenModel.getAccountSectionHelper());
         textProfileSectionTitle.setText(screenModel.getProfileSectionTitle());
+        textProfileSectionHelper.setText(screenModel.getProfileSectionHelper());
         textRequestSectionTitle.setText(screenModel.getRequestSectionTitle());
+        textRequestSectionHelper.setText(screenModel.getRequestSectionHelper());
+        buttonBooking.setText(screenModel.getBookingActionLabel());
+        buttonBookingStatus.setText(screenModel.getBookingStatusActionLabel());
+        bindOptionalButton(buttonGuardianReport, screenModel.getGuardianReportActionLabel());
         buttonPrimary.setText(screenModel.getPrimaryActionLabel());
+        bindLines(accountLineContainer, screenModel.getAccountLines());
         bindLines(profileLineContainer, screenModel.getProfileLines());
         bindLines(requestLineContainer, screenModel.getRequestLines());
+    }
+
+    private void bindOptionalButton(MaterialButton button, @Nullable String label) {
+        if (label == null || label.trim().isEmpty()) {
+            button.setVisibility(View.GONE);
+            return;
+        }
+        button.setVisibility(View.VISIBLE);
+        button.setText(label);
     }
 
     private void bindLines(LinearLayout container, List<HealthInfoLineItem> items) {

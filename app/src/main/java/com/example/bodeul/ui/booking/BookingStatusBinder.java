@@ -38,6 +38,8 @@ public final class BookingStatusBinder {
     private final TextView textGuideBody;
     private final LinearLayout participantContainer;
     private final LinearLayout summaryContainer;
+    private final View liveCard;
+    private final LinearLayout liveContainer;
     private final View reportCard;
     private final LinearLayout reportContainer;
     private final MaterialButton buttonPrimary;
@@ -59,6 +61,8 @@ public final class BookingStatusBinder {
             TextView textGuideBody,
             LinearLayout participantContainer,
             LinearLayout summaryContainer,
+            View liveCard,
+            LinearLayout liveContainer,
             View reportCard,
             LinearLayout reportContainer,
             MaterialButton buttonPrimary,
@@ -78,6 +82,8 @@ public final class BookingStatusBinder {
         this.textGuideBody = textGuideBody;
         this.participantContainer = participantContainer;
         this.summaryContainer = summaryContainer;
+        this.liveCard = liveCard;
+        this.liveContainer = liveContainer;
         this.reportCard = reportCard;
         this.reportContainer = reportContainer;
         this.buttonPrimary = buttonPrimary;
@@ -93,6 +99,7 @@ public final class BookingStatusBinder {
         bindProgressOverview(screenModel.getProgressOverview());
         bindLines(participantContainer, screenModel.getParticipantLines());
         bindLines(summaryContainer, screenModel.getSummaryLines());
+        bindLive(screenModel);
         bindReport(screenModel);
         bindActionButton(buttonPrimary, screenModel.getPrimaryAction());
         bindActionButton(buttonSecondary, screenModel.getSecondaryAction());
@@ -119,11 +126,25 @@ public final class BookingStatusBinder {
             return;
         }
         reportCard.setVisibility(View.VISIBLE);
-        bindLines(reportContainer, screenModel.getReportLines());
+        bindSections(reportContainer, screenModel.getReportSections());
+    }
+
+    private void bindLive(BookingStatusScreenModel screenModel) {
+        if (!screenModel.hasLiveLines()) {
+            liveCard.setVisibility(View.GONE);
+            liveContainer.removeAllViews();
+            return;
+        }
+        liveCard.setVisibility(View.VISIBLE);
+        bindLines(liveContainer, screenModel.getLiveLines());
     }
 
     private void bindLines(LinearLayout container, List<BookingStatusLineItem> items) {
         container.removeAllViews();
+        addLineViews(container, items);
+    }
+
+    private void addLineViews(LinearLayout container, List<BookingStatusLineItem> items) {
         for (int index = 0; index < items.size(); index++) {
             View itemView = inflater.inflate(R.layout.item_booking_status_line, container, false);
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) itemView.getLayoutParams();
@@ -143,6 +164,40 @@ public final class BookingStatusBinder {
             ));
             valueView.setTextSize(item.isEmphasized() ? 15f : 14f);
             container.addView(itemView);
+        }
+    }
+
+    private void bindSections(LinearLayout container, List<BookingStatusSectionModel> sections) {
+        container.removeAllViews();
+        for (int index = 0; index < sections.size(); index++) {
+            BookingStatusSectionModel section = sections.get(index);
+
+            TextView titleView = new TextView(context);
+            titleView.setText(section.getTitleText());
+            titleView.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_primary));
+            titleView.setTextSize(16f);
+            titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+
+            LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            if (index > 0) {
+                titleParams.topMargin = dp(18);
+            }
+            titleView.setLayoutParams(titleParams);
+            container.addView(titleView);
+
+            LinearLayout linesLayout = new LinearLayout(context);
+            linesLayout.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams linesParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            linesParams.topMargin = dp(12);
+            linesLayout.setLayoutParams(linesParams);
+            addLineViews(linesLayout, section.getLines());
+            container.addView(linesLayout);
         }
     }
 

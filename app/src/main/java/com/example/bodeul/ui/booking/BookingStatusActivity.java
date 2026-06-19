@@ -95,6 +95,8 @@ public class BookingStatusActivity extends AppCompatActivity {
                 findViewById(R.id.textBookingStatusGuideBody),
                 findViewById(R.id.bookingStatusParticipantContainer),
                 findViewById(R.id.bookingStatusSummaryContainer),
+                findViewById(R.id.cardBookingStatusLive),
+                findViewById(R.id.bookingStatusLiveContainer),
                 findViewById(R.id.cardBookingStatusReport),
                 findViewById(R.id.bookingStatusReportContainer),
                 buttonPrimary,

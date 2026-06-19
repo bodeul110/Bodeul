@@ -17,8 +17,10 @@ public final class GuardianReportEntryCardModel {
     private final String heroBodyText;
     private final String liveSectionTitleText;
     private final List<GuardianReportLineItem> liveLines;
+    private final String memoSectionTitleText;
+    private final List<GuardianReportLineItem> memoLines;
     private final String reportSectionTitleText;
-    private final List<GuardianReportLineItem> reportLines;
+    private final List<GuardianReportSectionModel> reportSections;
     @Nullable
     private final String pendingReportText;
     private final String actionLabelText;
@@ -30,8 +32,10 @@ public final class GuardianReportEntryCardModel {
             String heroBodyText,
             String liveSectionTitleText,
             List<GuardianReportLineItem> liveLines,
+            String memoSectionTitleText,
+            List<GuardianReportLineItem> memoLines,
             String reportSectionTitleText,
-            List<GuardianReportLineItem> reportLines,
+            List<GuardianReportSectionModel> reportSections,
             @Nullable String pendingReportText,
             String actionLabelText
     ) {
@@ -41,8 +45,10 @@ public final class GuardianReportEntryCardModel {
         this.heroBodyText = heroBodyText;
         this.liveSectionTitleText = liveSectionTitleText;
         this.liveLines = liveLines;
+        this.memoSectionTitleText = memoSectionTitleText;
+        this.memoLines = memoLines;
         this.reportSectionTitleText = reportSectionTitleText;
-        this.reportLines = reportLines;
+        this.reportSections = reportSections;
         this.pendingReportText = pendingReportText;
         this.actionLabelText = actionLabelText;
     }
@@ -72,12 +78,20 @@ public final class GuardianReportEntryCardModel {
         return liveLines;
     }
 
+    public String getMemoSectionTitleText() {
+        return memoSectionTitleText;
+    }
+
+    public List<GuardianReportLineItem> getMemoLines() {
+        return memoLines;
+    }
+
     public String getReportSectionTitleText() {
         return reportSectionTitleText;
     }
 
-    public List<GuardianReportLineItem> getReportLines() {
-        return reportLines;
+    public List<GuardianReportSectionModel> getReportSections() {
+        return reportSections;
     }
 
     @Nullable

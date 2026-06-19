@@ -22,7 +22,8 @@ public final class BookingStatusScreenModel {
     private final AppointmentProgressOverviewModel progressOverview;
     private final List<BookingStatusLineItem> participantLines;
     private final List<BookingStatusLineItem> summaryLines;
-    private final List<BookingStatusLineItem> reportLines;
+    private final List<BookingStatusLineItem> liveLines;
+    private final List<BookingStatusSectionModel> reportSections;
     @Nullable
     private final BookingStatusActionModel primaryAction;
     @Nullable
@@ -39,7 +40,8 @@ public final class BookingStatusScreenModel {
             AppointmentProgressOverviewModel progressOverview,
             List<BookingStatusLineItem> participantLines,
             List<BookingStatusLineItem> summaryLines,
-            List<BookingStatusLineItem> reportLines,
+            List<BookingStatusLineItem> liveLines,
+            List<BookingStatusSectionModel> reportSections,
             @Nullable BookingStatusActionModel primaryAction,
             @Nullable BookingStatusActionModel secondaryAction
     ) {
@@ -53,7 +55,8 @@ public final class BookingStatusScreenModel {
         this.progressOverview = progressOverview;
         this.participantLines = Collections.unmodifiableList(participantLines);
         this.summaryLines = Collections.unmodifiableList(summaryLines);
-        this.reportLines = Collections.unmodifiableList(reportLines);
+        this.liveLines = Collections.unmodifiableList(liveLines);
+        this.reportSections = Collections.unmodifiableList(reportSections);
         this.primaryAction = primaryAction;
         this.secondaryAction = secondaryAction;
     }
@@ -98,8 +101,16 @@ public final class BookingStatusScreenModel {
         return summaryLines;
     }
 
-    public List<BookingStatusLineItem> getReportLines() {
-        return reportLines;
+    public List<BookingStatusLineItem> getLiveLines() {
+        return liveLines;
+    }
+
+    public List<BookingStatusSectionModel> getReportSections() {
+        return reportSections;
+    }
+
+    public boolean hasLiveLines() {
+        return !liveLines.isEmpty();
     }
 
     @Nullable
@@ -113,6 +124,6 @@ public final class BookingStatusScreenModel {
     }
 
     public boolean hasReportLines() {
-        return !reportLines.isEmpty();
+        return !reportSections.isEmpty();
     }
 }
