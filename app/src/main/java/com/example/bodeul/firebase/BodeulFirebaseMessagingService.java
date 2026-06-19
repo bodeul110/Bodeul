@@ -2,6 +2,7 @@ package com.example.bodeul.firebase;
 
 import com.example.bodeul.data.NotificationTokenRegistrar;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.ui.health.HealthInfoActivity;
 import com.example.bodeul.ui.support.ClientSupportActivity;
 import com.example.bodeul.util.AppActivityTracker;
@@ -22,6 +23,16 @@ public class BodeulFirebaseMessagingService extends FirebaseMessagingService {
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
+
+        CompanionChatPushPayload chatPayload = CompanionChatPushPayload.from(remoteMessage);
+        if (chatPayload != null) {
+            sendBroadcast(CompanionChatPushContract.createRefreshIntent(getPackageName(), chatPayload));
+            if (AppActivityTracker.isCurrentActivity(CompanionChatActivity.class)) {
+                return;
+            }
+            CompanionChatPushNotifier.showMessageNotification(this, chatPayload);
+            return;
+        }
 
         ClientSupportPushPayload payload = ClientSupportPushPayload.from(remoteMessage);
         if (payload == null) {

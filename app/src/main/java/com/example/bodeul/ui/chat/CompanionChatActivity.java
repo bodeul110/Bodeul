@@ -1,7 +1,9 @@
 package com.example.bodeul.ui.chat;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -11,6 +13,7 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bodeul.MainActivity;
@@ -19,10 +22,12 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.firebase.CompanionChatPushContract;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -36,6 +41,19 @@ public class CompanionChatActivity extends AppCompatActivity {
     private View contentContainer;
     private ProgressBar progressBar;
     private TextInputEditText inputMessage;
+    private String requestId;
+    private boolean chatRefreshReceiverRegistered;
+
+    private final BroadcastReceiver chatRefreshReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!shouldHandleChatRefresh(intent)) {
+                return;
+            }
+            viewModel.reload();
+            showChatMessageSnackbar(intent);
+        }
+    };
 
     public static Intent createIntent(Context context) {
         return new Intent(context, CompanionChatActivity.class);
@@ -52,7 +70,7 @@ public class CompanionChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_companion_chat);
 
-        String requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
+        requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
 
         AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
         BookingRepository bookingRepository = ServiceLocator.provideBookingRepository(this);
@@ -100,6 +118,18 @@ public class CompanionChatActivity extends AppCompatActivity {
         if (savedInstanceState == null) {
             viewModel.init(requestId);
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        registerChatRefreshReceiver();
+    }
+
+    @Override
+    protected void onStop() {
+        unregisterChatRefreshReceiver();
+        super.onStop();
     }
 
     private void handleUiState(CompanionChatViewModel.UiState state) {
@@ -245,5 +275,50 @@ public class CompanionChatActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void registerChatRefreshReceiver() {
+        if (chatRefreshReceiverRegistered) {
+            return;
+        }
+        IntentFilter filter = new IntentFilter(CompanionChatPushContract.ACTION_COMPANION_CHAT_UPDATED);
+        ContextCompat.registerReceiver(
+                this,
+                chatRefreshReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+        );
+        chatRefreshReceiverRegistered = true;
+    }
+
+    private void unregisterChatRefreshReceiver() {
+        if (!chatRefreshReceiverRegistered) {
+            return;
+        }
+        unregisterReceiver(chatRefreshReceiver);
+        chatRefreshReceiverRegistered = false;
+    }
+
+    private boolean shouldHandleChatRefresh(@Nullable Intent intent) {
+        if (intent == null) {
+            return false;
+        }
+        String updatedRequestId = intent.getStringExtra(
+                CompanionChatPushContract.EXTRA_APPOINTMENT_REQUEST_ID
+        );
+        return TextUtils.isEmpty(requestId)
+                || TextUtils.isEmpty(updatedRequestId)
+                || TextUtils.equals(requestId, updatedRequestId);
+    }
+
+    private void showChatMessageSnackbar(@Nullable Intent intent) {
+        String message = getString(R.string.companion_chat_push_body_fallback);
+        if (intent != null) {
+            String payloadBody = intent.getStringExtra(CompanionChatPushContract.EXTRA_BODY);
+            if (!TextUtils.isEmpty(payloadBody)) {
+                message = payloadBody.trim();
+            }
+        }
+        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show();
     }
 }

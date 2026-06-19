@@ -1440,6 +1440,13 @@
     <string name="companion_chat_status_payment">약국/결제 진행</string>
     <string name="companion_chat_status_completed">동행 완료</string>
     <string name="companion_chat_status_canceled">동행 취소</string>
+    <string name="companion_chat_push_title_manager">매니저가 안심 채팅을 보냈습니다</string>
+    <string name="companion_chat_push_title_patient">환자가 안심 채팅을 보냈습니다</string>
+    <string name="companion_chat_push_title_guardian">보호자가 안심 채팅을 보냈습니다</string>
+    <string name="companion_chat_push_title_fallback">안심 채팅 새 메시지가 도착했습니다</string>
+    <string name="companion_chat_push_body_fallback">안심 채팅 메시지를 확인해 주세요.</string>
+    <string name="companion_chat_push_channel_name">안심 채팅 알림</string>
+    <string name="companion_chat_push_channel_description">동행 세션 안심 채팅의 새 메시지를 알림으로 전달합니다.</string>
     <string name="guardian_report_action_refresh">진행 현황 다시 불러오기</string>
     <string name="booking_live_location_action_refresh">현재 위치 다시 불러오기</string>
     <string name="manager_location_notification_body">실시간 위치 공유 중</string>

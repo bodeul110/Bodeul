@@ -56,6 +56,10 @@ const CLIENT_SUPPORT_NOTIFICATION_OPTIONS = {
   region: "asia-northeast3",
   document: "clientSupportRequests/{supportRequestId}",
 };
+const COMPANION_CHAT_NOTIFICATION_OPTIONS = {
+  region: "asia-northeast3",
+  document: "companionSessions/{sessionId}",
+};
 const CLIENT_SUPPORT_REMINDER_SCHEDULE_OPTIONS = {
   region: "asia-northeast3",
   schedule: "0 * * * *",
@@ -510,6 +514,76 @@ exports.notifyClientSupportAnswered = onDocumentWritten(
         failureCount: deliverySummary.failureCount,
         invalidTokenCount: deliverySummary.invalidTokenCount,
         skippedReason: deliverySummary.skippedReason,
+      });
+    },
+);
+
+// 안심 채팅 문서에 새 메시지가 추가되면 발신자를 제외한 참여자에게 푸시를 보낸다.
+exports.notifyCompanionChatMessage = onDocumentWritten(
+    COMPANION_CHAT_NOTIFICATION_OPTIONS,
+    async (event) => {
+      if (!event.data?.after?.exists) {
+        return;
+      }
+
+      const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+      const afterData = event.data.after.data();
+      const latestMessage = resolveLatestCompanionChatMessage(beforeData, afterData);
+      if (!latestMessage) {
+        return;
+      }
+
+      const appointmentRequestId = sanitizeText(afterData?.appointmentRequestId);
+      const managerUserId = sanitizeText(afterData?.managerUserId);
+      if (!appointmentRequestId || !managerUserId) {
+        logger.warn("안심 채팅 알림 대상 정보를 찾지 못했습니다.", {
+          sessionId: sanitizeText(event.params?.sessionId),
+          appointmentRequestId,
+          managerUserId,
+        });
+        return;
+      }
+
+      const requestSnapshot = await getFirestore()
+          .collection("appointmentRequests")
+          .doc(appointmentRequestId)
+          .get();
+      if (!requestSnapshot.exists) {
+        logger.warn("안심 채팅 알림에 필요한 예약 문서를 찾지 못했습니다.", {
+          sessionId: sanitizeText(event.params?.sessionId),
+          appointmentRequestId,
+        });
+        return;
+      }
+
+      const recipientUserIds = resolveCompanionChatRecipientUserIds(
+          latestMessage.senderRole,
+          requestSnapshot.data(),
+          managerUserId,
+      );
+      if (recipientUserIds.length === 0) {
+        return;
+      }
+
+      const title = resolveCompanionChatNotificationTitle(latestMessage.senderRole);
+      const body = buildCompanionChatNotificationBody(latestMessage.body);
+      const deliverySummary = await sendCompanionChatNotification({
+        sessionId: sanitizeText(event.params?.sessionId),
+        appointmentRequestId,
+        recipientUserIds,
+        latestMessage,
+        title,
+        body,
+      });
+
+      logger.info("안심 채팅 새 메시지 푸시를 보냈습니다.", {
+        sessionId: sanitizeText(event.params?.sessionId),
+        appointmentRequestId,
+        senderRole: latestMessage.senderRole,
+        recipientUserCount: recipientUserIds.length,
+        successCount: deliverySummary.successCount,
+        failureCount: deliverySummary.failureCount,
+        invalidTokenCount: deliverySummary.invalidTokenCount,
       });
     },
 );
@@ -2300,6 +2374,177 @@ function toSafeInteger(value) {
     return 0;
   }
   return Math.max(0, Math.trunc(numericValue));
+}
+
+function resolveLatestCompanionChatMessage(beforeData, afterData) {
+  const beforeMessages = toCompanionChatMessageArray(beforeData?.chatMessages);
+  const afterMessages = toCompanionChatMessageArray(afterData?.chatMessages);
+  if (afterMessages.length <= beforeMessages.length) {
+    return null;
+  }
+
+  const latestMessage = afterMessages[afterMessages.length - 1];
+  if (!latestMessage) {
+    return null;
+  }
+
+  const beforeMessageKeys = new Set(beforeMessages.map(buildCompanionChatMessageKey));
+  if (beforeMessageKeys.has(buildCompanionChatMessageKey(latestMessage))) {
+    return null;
+  }
+  return latestMessage;
+}
+
+function toCompanionChatMessageArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => ({
+    senderRole: sanitizeText(item?.senderRole),
+    body: sanitizeText(item?.body),
+    sentAtMillis: toSafeInteger(item?.sentAtMillis),
+  })).filter((item) => item.senderRole && item.body);
+}
+
+function buildCompanionChatMessageKey(message) {
+  return [
+    sanitizeText(message?.senderRole),
+    sanitizeText(message?.body),
+    toSafeInteger(message?.sentAtMillis),
+  ].join("|");
+}
+
+function resolveCompanionChatRecipientUserIds(senderRole, requestData, managerUserId) {
+  const patientUserId = sanitizeText(requestData?.patientUserId);
+  const guardianUserId = sanitizeText(requestData?.guardianUserId);
+  const normalizedSenderRole = sanitizeText(senderRole);
+  const recipientUserIds = [];
+
+  if (normalizedSenderRole !== "PATIENT" && patientUserId) {
+    recipientUserIds.push(patientUserId);
+  }
+  if (normalizedSenderRole !== "GUARDIAN" && guardianUserId) {
+    recipientUserIds.push(guardianUserId);
+  }
+  if (normalizedSenderRole !== "MANAGER" && managerUserId) {
+    recipientUserIds.push(managerUserId);
+  }
+
+  return Array.from(new Set(recipientUserIds));
+}
+
+function resolveCompanionChatNotificationTitle(senderRole) {
+  const normalizedSenderRole = sanitizeText(senderRole);
+  if (normalizedSenderRole === "MANAGER") {
+    return "매니저가 안심 채팅을 보냈습니다";
+  }
+  if (normalizedSenderRole === "PATIENT") {
+    return "환자가 안심 채팅을 보냈습니다";
+  }
+  if (normalizedSenderRole === "GUARDIAN") {
+    return "보호자가 안심 채팅을 보냈습니다";
+  }
+  return "안심 채팅 새 메시지가 도착했습니다";
+}
+
+function buildCompanionChatNotificationBody(messageBody) {
+  const normalizedBody = sanitizeText(messageBody);
+  if (!normalizedBody) {
+    return "안심 채팅 메시지를 확인해 주세요.";
+  }
+  if (normalizedBody.length <= 120) {
+    return normalizedBody;
+  }
+  return `${normalizedBody.slice(0, 117)}...`;
+}
+
+async function sendCompanionChatNotification({
+  sessionId,
+  appointmentRequestId,
+  recipientUserIds,
+  latestMessage,
+  title,
+  body,
+}) {
+  const summary = {
+    successCount: 0,
+    failureCount: 0,
+    invalidTokenCount: 0,
+  };
+
+  for (const userId of recipientUserIds) {
+    const deliverySummary = await sendCompanionChatNotificationToUser({
+      userId,
+      sessionId,
+      appointmentRequestId,
+      latestMessage,
+      title,
+      body,
+    });
+    summary.successCount += deliverySummary.successCount;
+    summary.failureCount += deliverySummary.failureCount;
+    summary.invalidTokenCount += deliverySummary.invalidTokenCount;
+  }
+
+  return summary;
+}
+
+async function sendCompanionChatNotificationToUser({
+  userId,
+  sessionId,
+  appointmentRequestId,
+  latestMessage,
+  title,
+  body,
+}) {
+  const userSnapshot = await getFirestore().collection("users").doc(userId).get();
+  if (!userSnapshot.exists) {
+    return {
+      successCount: 0,
+      failureCount: 0,
+      invalidTokenCount: 0,
+    };
+  }
+
+  const notificationTokens = toStringArray(userSnapshot.get("notificationTokens"));
+  if (notificationTokens.length === 0) {
+    return {
+      successCount: 0,
+      failureCount: 0,
+      invalidTokenCount: 0,
+    };
+  }
+
+  const response = await getMessaging().sendEachForMulticast({
+    tokens: notificationTokens,
+    data: {
+      type: "companion_chat_message",
+      sessionId: sanitizeText(sessionId),
+      appointmentRequestId: sanitizeText(appointmentRequestId),
+      senderRole: sanitizeText(latestMessage?.senderRole),
+      sentAtMillis: `${toSafeInteger(latestMessage?.sentAtMillis)}`,
+      title: sanitizeText(title),
+      body: sanitizeText(body),
+    },
+    android: {
+      priority: "high",
+    },
+  });
+
+  const invalidTokens = collectInvalidNotificationTokens(
+      notificationTokens,
+      response.responses,
+  );
+  if (invalidTokens.length > 0) {
+    await removeInvalidNotificationTokens(userSnapshot.ref, invalidTokens);
+  }
+
+  return {
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    invalidTokenCount: invalidTokens.length,
+  };
 }
 
 function shouldNotifyClientSupportAnswer(beforeData, afterData) {
