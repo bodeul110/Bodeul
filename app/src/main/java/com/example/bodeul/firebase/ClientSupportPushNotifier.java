@@ -30,8 +30,12 @@ public final class ClientSupportPushNotifier {
         createChannelIfNeeded(context);
 
         Intent destinationIntent = TextUtils.isEmpty(payload.getAppointmentRequestId())
-                ? ClientSupportActivity.createIntent(context)
-                : ClientSupportActivity.createIntent(context, payload.getAppointmentRequestId());
+                ? ClientSupportActivity.createIntent(context, null, payload.getSupportRequestId())
+                : ClientSupportActivity.createIntent(
+                        context,
+                        payload.getAppointmentRequestId(),
+                        payload.getSupportRequestId()
+                );
         destinationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
         PendingIntent pendingIntent = PendingIntent.getActivity(

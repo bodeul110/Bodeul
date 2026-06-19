@@ -1,6 +1,7 @@
 package com.example.bodeul.ui.support;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -63,6 +64,12 @@ public final class ClientSupportBinder {
             View itemView = inflater.inflate(R.layout.item_client_support_request, requestContainer, false);
             requestCardBinder.bind(itemView, cardModel);
             requestContainer.addView(itemView);
+            if (cardModel.isFocused()) {
+                itemView.post(() -> itemView.requestRectangleOnScreen(
+                        new Rect(0, 0, itemView.getWidth(), itemView.getHeight()),
+                        true
+                ));
+            }
         }
     }
 

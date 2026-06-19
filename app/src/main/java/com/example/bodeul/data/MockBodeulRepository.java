@@ -775,6 +775,8 @@ public class MockBodeulRepository implements BodeulRepository {
                 0L,
                 "",
                 false,
+                0L,
+                0,
                 0L
         );
         clientSupportRequests.add(0, request);
@@ -807,6 +809,8 @@ public class MockBodeulRepository implements BodeulRepository {
                     System.currentTimeMillis(),
                     normalizeText(respondedByName),
                     false,
+                    0L,
+                    0,
                     0L
             );
             clientSupportRequests.set(index, updatedRequest);
@@ -837,7 +841,9 @@ public class MockBodeulRepository implements BodeulRepository {
                     request.getRespondedAtMillis(),
                     request.getRespondedByName(),
                     true,
-                    readAtMillis
+                    readAtMillis,
+                    request.getResponseReminderCount(),
+                    request.getResponseReminderSentAtMillis()
             ));
         }
     }

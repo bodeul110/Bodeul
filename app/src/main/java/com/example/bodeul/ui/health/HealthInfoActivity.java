@@ -37,6 +37,7 @@ import com.example.bodeul.ui.report.GuardianReportActivity;
 import com.example.bodeul.ui.support.ClientSupportActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.List;
 
@@ -64,7 +65,9 @@ public class HealthInfoActivity extends AppCompatActivity {
     private final BroadcastReceiver supportRefreshReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            selectedTab = HealthInfoTab.SUPPORT;
             reload();
+            showSupportAnsweredSnackbar(intent);
         }
     };
 
@@ -146,7 +149,7 @@ public class HealthInfoActivity extends AppCompatActivity {
         findViewById(R.id.buttonHealthInfoBooking).setOnClickListener(view -> openBooking());
         findViewById(R.id.buttonHealthInfoBookingStatus).setOnClickListener(view -> openBookingStatus());
         findViewById(R.id.buttonHealthInfoGuardianReport).setOnClickListener(view -> openGuardianReport());
-        findViewById(R.id.buttonHealthInfoSupport).setOnClickListener(view -> openSupport());
+        findViewById(R.id.buttonHealthInfoSupport).setOnClickListener(view -> openSupport(null, null));
         healthInfoContentContainer.setVisibility(View.GONE);
     }
 
@@ -330,10 +333,15 @@ public class HealthInfoActivity extends AppCompatActivity {
         startActivity(new Intent(this, GuardianReportActivity.class));
     }
 
-    private void openSupport() {
+    private void openSupport(@Nullable String requestIdOverride, @Nullable String supportRequestId) {
+        String targetRequestId = requestIdOverride;
+        if (targetRequestId == null || targetRequestId.trim().isEmpty()) {
+            targetRequestId = currentDetail == null ? null : currentDetail.getAppointmentRequest().getId();
+        }
         startActivity(ClientSupportActivity.createIntent(
                 this,
-                currentDetail == null ? null : currentDetail.getAppointmentRequest().getId()
+                targetRequestId,
+                supportRequestId
         ));
     }
 
@@ -371,6 +379,22 @@ public class HealthInfoActivity extends AppCompatActivity {
         }
         unregisterReceiver(supportRefreshReceiver);
         supportRefreshReceiverRegistered = false;
+    }
+
+    private void showSupportAnsweredSnackbar(@Nullable Intent intent) {
+        String message = getString(R.string.client_support_push_body_fallback);
+        if (intent != null) {
+            String payloadBody = intent.getStringExtra(ClientSupportPushContract.EXTRA_BODY);
+            if (payloadBody != null && !payloadBody.trim().isEmpty()) {
+                message = payloadBody.trim();
+            }
+        }
+        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG)
+                .setAction(R.string.client_support_push_foreground_action_open, view -> openSupport(
+                        intent == null ? null : intent.getStringExtra(ClientSupportPushContract.EXTRA_APPOINTMENT_REQUEST_ID),
+                        intent == null ? null : intent.getStringExtra(ClientSupportPushContract.EXTRA_SUPPORT_REQUEST_ID)
+                ))
+                .show();
     }
 
     private void setLoading(boolean loading) {

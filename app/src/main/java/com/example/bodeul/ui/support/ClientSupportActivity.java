@@ -33,6 +33,7 @@ import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -43,6 +44,7 @@ import java.util.List;
  */
 public final class ClientSupportActivity extends AppCompatActivity {
     private static final String EXTRA_REQUEST_ID = "requestId";
+    private static final String EXTRA_SUPPORT_REQUEST_ID = "supportRequestId";
 
     private AuthRepository authRepository;
     private BookingRepository bookingRepository;
@@ -54,12 +56,17 @@ public final class ClientSupportActivity extends AppCompatActivity {
     private AppointmentRequestDetail currentRequestDetail;
     private ClientSupportCategory selectedCategory = ClientSupportCategory.RESERVATION;
     private String requestId;
+    private String focusedSupportRequestId;
     private boolean supportRefreshReceiverRegistered;
 
     private final BroadcastReceiver supportRefreshReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            if (intent != null) {
+                focusedSupportRequestId = intent.getStringExtra(ClientSupportPushContract.EXTRA_SUPPORT_REQUEST_ID);
+            }
             loadSupportScreen();
+            showSupportAnsweredSnackbar(intent);
         }
     };
 
@@ -77,8 +84,17 @@ public final class ClientSupportActivity extends AppCompatActivity {
     }
 
     public static Intent createIntent(Context context, @Nullable String requestId) {
+        return createIntent(context, requestId, null);
+    }
+
+    public static Intent createIntent(
+            Context context,
+            @Nullable String requestId,
+            @Nullable String supportRequestId
+    ) {
         Intent intent = new Intent(context, ClientSupportActivity.class);
         intent.putExtra(EXTRA_REQUEST_ID, requestId);
+        intent.putExtra(EXTRA_SUPPORT_REQUEST_ID, supportRequestId);
         return intent;
     }
 
@@ -92,6 +108,7 @@ public final class ClientSupportActivity extends AppCompatActivity {
         clientSupportRepository = ServiceLocator.provideClientSupportRepository(this);
         clientSupportCoordinator = new ClientSupportCoordinator(this, new BookingPresentationFormatter(this));
         requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
+        focusedSupportRequestId = getIntent().getStringExtra(EXTRA_SUPPORT_REQUEST_ID);
 
         clientSupportStatePanel = findViewById(R.id.clientSupportStatePanel);
         clientSupportContentContainer = findViewById(R.id.clientSupportContentContainer);
@@ -198,10 +215,12 @@ public final class ClientSupportActivity extends AppCompatActivity {
                         currentUser,
                         currentRequestDetail,
                         result,
-                        clientSupportRepository.isFirebaseBacked()
+                        clientSupportRepository.isFirebaseBacked(),
+                        focusedSupportRequestId
                 ));
                 setLoading(false);
                 markUnreadResponsesRead(result);
+                focusedSupportRequestId = null;
             }
 
             @Override
@@ -285,9 +304,11 @@ public final class ClientSupportActivity extends AppCompatActivity {
                                 currentUser,
                                 currentRequestDetail,
                                 result,
-                                clientSupportRepository.isFirebaseBacked()
+                                clientSupportRepository.isFirebaseBacked(),
+                                focusedSupportRequestId
                         ));
                         setLoading(false);
+                        focusedSupportRequestId = null;
                         Toast.makeText(
                                 ClientSupportActivity.this,
                                 R.string.client_support_submit_done,
@@ -420,5 +441,16 @@ public final class ClientSupportActivity extends AppCompatActivity {
         }
         unregisterReceiver(supportRefreshReceiver);
         supportRefreshReceiverRegistered = false;
+    }
+
+    private void showSupportAnsweredSnackbar(@Nullable Intent intent) {
+        String message = getString(R.string.client_support_push_body_fallback);
+        if (intent != null) {
+            String payloadBody = intent.getStringExtra(ClientSupportPushContract.EXTRA_BODY);
+            if (!TextUtils.isEmpty(payloadBody)) {
+                message = payloadBody.trim();
+            }
+        }
+        Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show();
     }
 }

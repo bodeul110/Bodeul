@@ -139,6 +139,10 @@
     <string name="client_home_action_manage_title">건강정보 · 이용 관리</string>
     <string name="client_home_action_manage_body_patient">예약 %1$d건 중 진행·대기 %2$d건, 완료 %3$d건을 건강정보와 이용 관리 화면에서 함께 정리합니다.</string>
     <string name="client_home_action_manage_body_guardian">예약 %1$d건 중 진행·대기 %2$d건, 완료 %3$d건을 건강정보와 보호자 리포트 흐름에서 함께 확인합니다.</string>
+    <string name="client_home_action_manage_badge_unread">새 답변 %1$d</string>
+    <string name="client_home_action_manage_badge_overdue">24시간+ %1$d</string>
+    <string name="client_home_action_manage_support_unread">문의 답변 %1$d건을 아직 확인하지 않았습니다.</string>
+    <string name="client_home_action_manage_support_overdue">그중 %1$d건은 24시간 이상 확인되지 않았습니다.</string>
     <string name="client_home_recent_title">최근 접수 내역</string>
     <string name="client_home_recent_empty_badge">요청 없음</string>
     <string name="client_home_recent_empty_title">아직 접수된 동행 요청이 없습니다.</string>
@@ -871,6 +875,7 @@
     <string name="health_info_tab_service">이용 관리</string>
     <string name="health_info_tab_profile">건강 프로필</string>
     <string name="health_info_tab_support">문의 이력</string>
+    <string name="health_info_tab_support_with_count">문의 이력 %1$d</string>
     <string name="health_info_hero_title">%1$s님 건강 프로필</string>
     <string name="health_info_hero_body">%1$s · %2$s\n예약 시간 %3$s</string>
     <string name="health_info_service_section">이용 관리</string>
@@ -925,6 +930,7 @@
     <string name="health_info_line_history_entry">최근 이용 %1$d</string>
     <string name="health_info_line_support_total">문의 건수</string>
     <string name="health_info_line_support_unread">미확인 답변</string>
+    <string name="health_info_line_support_overdue">장기 미확인</string>
     <string name="health_info_line_support_latest_status">최근 문의 상태</string>
     <string name="health_info_line_support_latest_category">최근 문의 분류</string>
     <string name="health_info_line_support_latest_title">최근 문의 제목</string>
@@ -936,6 +942,7 @@
     <string name="health_info_history_empty">아직 확인할 이용 이력이 없습니다.</string>
     <string name="health_info_support_total_value">총 %1$d건</string>
     <string name="health_info_support_unread_value">%1$d건 확인 필요</string>
+    <string name="health_info_support_overdue_value">%1$d건이 24시간 이상 미확인 상태입니다.</string>
     <string name="health_info_support_empty">아직 남긴 문의가 없습니다.</string>
     <string name="health_info_value_empty">아직 입력된 내용이 없습니다.</string>
     <string name="health_info_value_unknown_patient">환자 정보 확인 필요</string>
@@ -1083,6 +1090,7 @@
     <string name="client_support_latest_empty">최근 접수된 문의가 없습니다.</string>
     <string name="client_support_latest_value">최근 문의 유형 %1$s · 접수 시각 %2$s</string>
     <string name="client_support_latest_unread_value">새 답변 도착 문의 %1$s · 답변 시각 %2$s</string>
+    <string name="client_support_latest_stale_unread_value">24시간 이상 미확인 문의 %1$s · 답변 시각 %2$s</string>
     <string name="client_support_latest_answered_value">최근 답변 완료 문의 %1$s · 답변 시각 %2$s</string>
     <string name="client_support_form_title">새 문의 접수</string>
     <string name="client_support_input_title">문의 제목</string>
@@ -1099,6 +1107,7 @@
     <string name="client_support_empty">접수된 문의가 아직 없습니다.</string>
     <string name="client_support_status_received">접수됨</string>
     <string name="client_support_status_unread_answer">새 답변</string>
+    <string name="client_support_status_stale_unread_answer">장기 미확인 답변</string>
     <string name="client_support_status_answered">답변 완료</string>
     <string name="client_support_response_meta">%1$s · 담당 %2$s</string>
     <string name="client_support_response_meta_unread">새 답변 · %1$s · 담당 %2$s</string>
@@ -1378,4 +1387,5 @@
     <string name="client_support_push_body_fallback">문의 답변을 확인해 주세요.</string>
     <string name="client_support_push_channel_name">문의 답변 알림</string>
     <string name="client_support_push_channel_description">이용자 문의 답변과 후속 안내를 알림으로 전달합니다.</string>
+    <string name="client_support_push_foreground_action_open">문의 화면 열기</string>
 </resources>

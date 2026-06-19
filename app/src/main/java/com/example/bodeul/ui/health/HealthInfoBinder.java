@@ -180,13 +180,13 @@ public final class HealthInfoBinder {
         bindLines(requestLineContainer, screenModel.getRequestLines());
         bindLines(historyLineContainer, screenModel.getHistoryLines());
         bindLines(supportLineContainer, screenModel.getSupportLines());
-        bindSelectedTab(selectedTab);
+        bindSelectedTab(selectedTab, screenModel.isSupportTabHighlighted());
     }
 
-    private void bindSelectedTab(HealthInfoTab selectedTab) {
+    private void bindSelectedTab(HealthInfoTab selectedTab, boolean supportTabHighlighted) {
         bindTabButton(buttonServiceTab, selectedTab == HealthInfoTab.SERVICE);
         bindTabButton(buttonProfileTab, selectedTab == HealthInfoTab.PROFILE);
-        bindTabButton(buttonSupportTab, selectedTab == HealthInfoTab.SUPPORT);
+        bindTabButton(buttonSupportTab, selectedTab == HealthInfoTab.SUPPORT, supportTabHighlighted);
 
         serviceCard.setVisibility(selectedTab == HealthInfoTab.SERVICE ? View.VISIBLE : View.GONE);
         requestCard.setVisibility(selectedTab == HealthInfoTab.SERVICE ? View.VISIBLE : View.GONE);
@@ -197,13 +197,21 @@ public final class HealthInfoBinder {
     }
 
     private void bindTabButton(MaterialButton button, boolean selected) {
+        bindTabButton(button, selected, false);
+    }
+
+    private void bindTabButton(MaterialButton button, boolean selected, boolean highlighted) {
         int backgroundColor = ContextCompat.getColor(
                 context,
-                selected ? R.color.bodeul_primary : R.color.bodeul_surface_alt
+                selected
+                        ? R.color.bodeul_primary
+                        : highlighted ? R.color.bodeul_warning : R.color.bodeul_surface_alt
         );
         int textColor = ContextCompat.getColor(
                 context,
-                selected ? R.color.white : R.color.bodeul_text_primary
+                selected
+                        ? R.color.white
+                        : highlighted ? R.color.bodeul_text_primary : R.color.bodeul_text_primary
         );
         button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(backgroundColor));
         button.setTextColor(textColor);

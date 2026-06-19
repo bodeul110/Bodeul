@@ -12,6 +12,7 @@ public final class HealthInfoScreenModel {
     private final String serviceTabLabel;
     private final String profileTabLabel;
     private final String supportTabLabel;
+    private final boolean supportTabHighlighted;
     private final String serviceSectionTitle;
     private final String serviceSectionHelper;
     private final List<HealthInfoLineItem> serviceLines;
@@ -48,6 +49,7 @@ public final class HealthInfoScreenModel {
             String serviceTabLabel,
             String profileTabLabel,
             String supportTabLabel,
+            boolean supportTabHighlighted,
             String serviceSectionTitle,
             String serviceSectionHelper,
             List<HealthInfoLineItem> serviceLines,
@@ -83,6 +85,7 @@ public final class HealthInfoScreenModel {
         this.serviceTabLabel = serviceTabLabel;
         this.profileTabLabel = profileTabLabel;
         this.supportTabLabel = supportTabLabel;
+        this.supportTabHighlighted = supportTabHighlighted;
         this.serviceSectionTitle = serviceSectionTitle;
         this.serviceSectionHelper = serviceSectionHelper;
         this.serviceLines = serviceLines;
@@ -144,6 +147,10 @@ public final class HealthInfoScreenModel {
 
     public String getSupportTabLabel() {
         return supportTabLabel;
+    }
+
+    public boolean isSupportTabHighlighted() {
+        return supportTabHighlighted;
     }
 
     public String getServiceSectionTitle() {

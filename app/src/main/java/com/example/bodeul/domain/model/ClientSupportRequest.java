@@ -19,6 +19,8 @@ public final class ClientSupportRequest {
     private final String respondedByName;
     private final boolean responseReadByUser;
     private final long responseReadAtMillis;
+    private final int responseReminderCount;
+    private final long responseReminderSentAtMillis;
 
     public ClientSupportRequest(
             String id,
@@ -35,7 +37,9 @@ public final class ClientSupportRequest {
             long respondedAtMillis,
             String respondedByName,
             boolean responseReadByUser,
-            long responseReadAtMillis
+            long responseReadAtMillis,
+            int responseReminderCount,
+            long responseReminderSentAtMillis
     ) {
         this.id = id == null ? "" : id;
         this.userId = userId == null ? "" : userId;
@@ -52,6 +56,8 @@ public final class ClientSupportRequest {
         this.respondedByName = respondedByName == null ? "" : respondedByName;
         this.responseReadByUser = responseReadByUser;
         this.responseReadAtMillis = Math.max(responseReadAtMillis, 0L);
+        this.responseReminderCount = Math.max(responseReminderCount, 0);
+        this.responseReminderSentAtMillis = Math.max(responseReminderSentAtMillis, 0L);
     }
 
     public String getId() {
@@ -114,9 +120,27 @@ public final class ClientSupportRequest {
         return responseReadAtMillis;
     }
 
+    public int getResponseReminderCount() {
+        return responseReminderCount;
+    }
+
+    public long getResponseReminderSentAtMillis() {
+        return responseReminderSentAtMillis;
+    }
+
     public boolean hasUnreadResponse() {
         return status == ClientSupportStatus.ANSWERED
                 && !responseText.isEmpty()
                 && !responseReadByUser;
+    }
+
+    public boolean hasStaleUnreadResponse(long nowMillis, long staleThresholdMillis) {
+        if (!hasUnreadResponse()) {
+            return false;
+        }
+        if (respondedAtMillis <= 0L || staleThresholdMillis <= 0L) {
+            return false;
+        }
+        return nowMillis - respondedAtMillis >= staleThresholdMillis;
     }
 }

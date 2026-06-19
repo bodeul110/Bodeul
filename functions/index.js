@@ -56,6 +56,11 @@ const CLIENT_SUPPORT_NOTIFICATION_OPTIONS = {
   region: "asia-northeast3",
   document: "clientSupportRequests/{supportRequestId}",
 };
+const CLIENT_SUPPORT_REMINDER_SCHEDULE_OPTIONS = {
+  region: "asia-northeast3",
+  schedule: "0 * * * *",
+  timeZone: "Asia/Seoul",
+};
 
 const CLIENT_CREATABLE_ROLES = new Set(["PATIENT", "GUARDIAN", "MANAGER"]);
 const REMINDER_SCAN_STATUSES = new Set(["REQUESTED", "MATCHED"]);
@@ -81,6 +86,9 @@ const REMINDER_CLEANUP_STATES = new Set([
 ]);
 const SEOUL_TIME_ZONE = "Asia/Seoul";
 const DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
+const CLIENT_SUPPORT_RESPONSE_REMINDER_THRESHOLD_MILLIS = DAY_IN_MILLIS;
+const CLIENT_SUPPORT_RESPONSE_REMINDER_INTERVAL_MILLIS = DAY_IN_MILLIS;
+const CLIENT_SUPPORT_RESPONSE_REMINDER_MAX_COUNT = 3;
 const REMINDER_DELIVERY_BATCH_SIZE = 20;
 const ACTION_DELIVERY_RETRYABLE_STATES = new Set(["PENDING", "FAILED"]);
 const ACTION_DELIVERY_PENDING_STATE = "PENDING";
@@ -476,63 +484,34 @@ exports.notifyClientSupportAnswered = onDocumentWritten(
         return;
       }
 
-      const userId = sanitizeText(afterData.userId);
-      if (!userId) {
-        return;
-      }
-
-      const userSnapshot = await getFirestore().collection("users").doc(userId).get();
-      if (!userSnapshot.exists) {
-        return;
-      }
-
-      const notificationTokens = toStringArray(userSnapshot.get("notificationTokens"));
-      if (notificationTokens.length === 0) {
-        logger.info("이용자 문의 답변 알림을 건너뜁니다. 등록된 토큰이 없습니다.", {
-          supportRequestId: sanitizeText(event.params?.supportRequestId),
-          userId,
-        });
-        return;
-      }
-
-      const title = "보들 문의 답변이 도착했습니다";
+      const title = "?? ?? ??? ??????";
       const categoryLabel = resolveClientSupportCategoryLabel(afterData.category);
-      const requestTitle = sanitizeText(afterData.title) || "문의 내역";
-      const body = `${categoryLabel} · ${requestTitle}`;
-
-      const response = await getMessaging().sendEachForMulticast({
-        tokens: notificationTokens,
-        notification: {
-          title,
-          body,
-        },
-        data: {
-          type: "client_support_answered",
-          supportRequestId: sanitizeText(event.params?.supportRequestId),
-          appointmentRequestId: sanitizeText(afterData.appointmentRequestId),
-          status: sanitizeText(afterData.status),
-        },
-        android: {
-          priority: "high",
-        },
-      });
-
-      const invalidTokens = collectInvalidNotificationTokens(
-          notificationTokens,
-          response.responses,
-      );
-      if (invalidTokens.length > 0) {
-        await removeInvalidNotificationTokens(userSnapshot.ref, invalidTokens);
-      }
-
-      logger.info("이용자 문의 답변 알림을 발송했습니다.", {
+      const requestTitle = sanitizeText(afterData.title) || "?? ??";
+      const body = `${categoryLabel} ? ${requestTitle}`;
+      const deliverySummary = await sendClientSupportNotification({
         supportRequestId: sanitizeText(event.params?.supportRequestId),
-        userId,
-        tokenCount: notificationTokens.length,
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-        invalidTokenCount: invalidTokens.length,
+        supportData: afterData,
+        title,
+        body,
       });
+
+      logger.info("??? ?? ?? ??? ??????.", {
+        supportRequestId: sanitizeText(event.params?.supportRequestId),
+        userId: deliverySummary.userId,
+        tokenCount: deliverySummary.tokenCount,
+        successCount: deliverySummary.successCount,
+        failureCount: deliverySummary.failureCount,
+        invalidTokenCount: deliverySummary.invalidTokenCount,
+        skippedReason: deliverySummary.skippedReason,
+      });
+    },
+);
+
+exports.sendClientSupportAnswerReminders = onSchedule(
+    CLIENT_SUPPORT_REMINDER_SCHEDULE_OPTIONS,
+    async () => {
+      const summary = await processClientSupportAnswerReminders();
+      logger.info("??? ?? ?? ??? ??? ?????.", summary);
     },
 );
 
@@ -2092,6 +2071,54 @@ async function removeInvalidNotificationTokens(userDocumentReference, invalidTok
   });
 }
 
+async function processClientSupportAnswerReminders() {
+  const firestore = getFirestore();
+  const nowMillis = Date.now();
+  const supportSnapshot = await firestore.collection("clientSupportRequests")
+      .where("status", "==", "ANSWERED")
+      .get();
+
+  const summary = {
+    scannedRequests: supportSnapshot.size,
+    dueRequests: 0,
+    sentRequests: 0,
+    skippedRequests: 0,
+    invalidTokenCount: 0,
+  };
+
+  for (const supportDocument of supportSnapshot.docs) {
+    const supportData = supportDocument.data();
+    if (!shouldSendClientSupportReminder(supportData, nowMillis)) {
+      continue;
+    }
+
+    summary.dueRequests++;
+    const categoryLabel = resolveClientSupportCategoryLabel(supportData.category);
+    const requestTitle = sanitizeText(supportData.title) || "?? ??";
+    const deliverySummary = await sendClientSupportNotification({
+      supportRequestId: supportDocument.id,
+      supportData,
+      title: "?? ?? ??? ?? ???? ?????",
+      body: `${categoryLabel} ? ${requestTitle}`,
+    });
+
+    summary.invalidTokenCount += deliverySummary.invalidTokenCount;
+    if (!deliverySummary.sent) {
+      summary.skippedRequests++;
+      continue;
+    }
+
+    await supportDocument.ref.update({
+      responseReminderCount: FieldValue.increment(1),
+      responseReminderSentAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    summary.sentRequests++;
+  }
+
+  return summary;
+}
+
 function toSafeInteger(value) {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
@@ -2119,6 +2146,113 @@ function shouldNotifyClientSupportAnswer(beforeData, afterData) {
   return beforeStatus !== afterStatus
       || beforeResponse !== afterResponse
       || beforeRespondedAt !== afterRespondedAt;
+}
+
+function shouldSendClientSupportReminder(supportData, nowMillis) {
+  if (sanitizeText(supportData?.status) !== "ANSWERED") {
+    return false;
+  }
+  if (supportData?.responseReadByUser === true) {
+    return false;
+  }
+  if (!sanitizeText(supportData?.responseText)) {
+    return false;
+  }
+
+  const respondedAtMillis = resolveFirestoreTimestampMillis(supportData?.respondedAt);
+  if (respondedAtMillis <= 0 ||
+      nowMillis - respondedAtMillis < CLIENT_SUPPORT_RESPONSE_REMINDER_THRESHOLD_MILLIS) {
+    return false;
+  }
+
+  const reminderCount = toSafeInteger(supportData?.responseReminderCount);
+  if (reminderCount >= CLIENT_SUPPORT_RESPONSE_REMINDER_MAX_COUNT) {
+    return false;
+  }
+
+  const reminderSentAtMillis = resolveFirestoreTimestampMillis(supportData?.responseReminderSentAt);
+  if (reminderSentAtMillis > 0 &&
+      nowMillis - reminderSentAtMillis < CLIENT_SUPPORT_RESPONSE_REMINDER_INTERVAL_MILLIS) {
+    return false;
+  }
+
+  return true;
+}
+
+async function sendClientSupportNotification({
+  supportRequestId,
+  supportData,
+  title,
+  body,
+}) {
+  const userId = sanitizeText(supportData?.userId);
+  if (!userId) {
+    return buildClientSupportDeliverySummary({skippedReason: "user_missing"});
+  }
+
+  const userSnapshot = await getFirestore().collection("users").doc(userId).get();
+  if (!userSnapshot.exists) {
+    return buildClientSupportDeliverySummary({userId, skippedReason: "user_document_missing"});
+  }
+
+  const notificationTokens = toStringArray(userSnapshot.get("notificationTokens"));
+  if (notificationTokens.length === 0) {
+    return buildClientSupportDeliverySummary({userId, skippedReason: "notification_token_missing"});
+  }
+
+  const response = await getMessaging().sendEachForMulticast({
+    tokens: notificationTokens,
+    notification: {
+      title,
+      body,
+    },
+    data: {
+      type: "client_support_answered",
+      supportRequestId: sanitizeText(supportRequestId),
+      appointmentRequestId: sanitizeText(supportData?.appointmentRequestId),
+      status: sanitizeText(supportData?.status),
+    },
+    android: {
+      priority: "high",
+    },
+  });
+
+  const invalidTokens = collectInvalidNotificationTokens(
+      notificationTokens,
+      response.responses,
+  );
+  if (invalidTokens.length > 0) {
+    await removeInvalidNotificationTokens(userSnapshot.ref, invalidTokens);
+  }
+
+  return buildClientSupportDeliverySummary({
+    userId,
+    tokenCount: notificationTokens.length,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    invalidTokenCount: invalidTokens.length,
+    sent: response.successCount > 0,
+  });
+}
+
+function buildClientSupportDeliverySummary({
+  userId = "",
+  tokenCount = 0,
+  successCount = 0,
+  failureCount = 0,
+  invalidTokenCount = 0,
+  sent = false,
+  skippedReason = "",
+}) {
+  return {
+    userId,
+    tokenCount,
+    successCount,
+    failureCount,
+    invalidTokenCount,
+    sent,
+    skippedReason,
+  };
 }
 
 function resolveClientSupportCategoryLabel(category) {

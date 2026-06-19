@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -27,6 +28,8 @@ public final class ClientHomeDashboard {
     private final AppointmentProgressOverviewModel progressOverview;
     @Nullable
     private final AppointmentFollowUpRecord primaryFollowUpRecord;
+    private final int unreadSupportResponseCount;
+    private final int staleUnreadSupportResponseCount;
     private final List<ClientHomeNotice> notices;
 
     public ClientHomeDashboard(
@@ -36,6 +39,8 @@ public final class ClientHomeDashboard {
             @Nullable AppointmentRequest primaryRequest,
             @Nullable AppointmentProgressOverviewModel progressOverview,
             @Nullable AppointmentFollowUpRecord primaryFollowUpRecord,
+            int unreadSupportResponseCount,
+            int staleUnreadSupportResponseCount,
             List<ClientHomeNotice> notices
     ) {
         this.user = user;
@@ -44,6 +49,8 @@ public final class ClientHomeDashboard {
         this.primaryRequest = primaryRequest;
         this.progressOverview = progressOverview;
         this.primaryFollowUpRecord = primaryFollowUpRecord;
+        this.unreadSupportResponseCount = unreadSupportResponseCount;
+        this.staleUnreadSupportResponseCount = staleUnreadSupportResponseCount;
         this.notices = Collections.unmodifiableList(notices);
     }
 
@@ -67,6 +74,22 @@ public final class ClientHomeDashboard {
 
     public List<ClientHomeNotice> getNotices() {
         return notices;
+    }
+
+    public int getUnreadSupportResponseCount() {
+        return unreadSupportResponseCount;
+    }
+
+    public boolean hasUnreadSupportResponses() {
+        return unreadSupportResponseCount > 0;
+    }
+
+    public int getStaleUnreadSupportResponseCount() {
+        return staleUnreadSupportResponseCount;
+    }
+
+    public boolean hasStaleUnreadSupportResponses() {
+        return staleUnreadSupportResponseCount > 0;
     }
 
     @Nullable

@@ -467,6 +467,8 @@ public class FirebaseAdminRepository implements AdminRepository {
         updates.put("respondedAt", FieldValue.serverTimestamp());
         updates.put("responseReadByUser", false);
         updates.put("responseReadAt", FieldValue.delete());
+        updates.put("responseReminderCount", 0);
+        updates.put("responseReminderSentAt", FieldValue.delete());
 
         WriteBatch batch = firestore.batch();
         batch.update(firestore.collection("clientSupportRequests").document(supportRequestId), updates);
@@ -1690,7 +1692,9 @@ public class FirebaseAdminRepository implements AdminRepository {
                 resolveTimestampMillis(documentSnapshot.get("respondedAt")),
                 normalizeText(documentSnapshot.getString("respondedByName")),
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("responseReadByUser")),
-                resolveTimestampMillis(documentSnapshot.get("responseReadAt"))
+                resolveTimestampMillis(documentSnapshot.get("responseReadAt")),
+                Math.max(numberOrZero(documentSnapshot.get("responseReminderCount")), 0),
+                resolveTimestampMillis(documentSnapshot.get("responseReminderSentAt"))
         );
     }
 

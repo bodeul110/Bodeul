@@ -4,6 +4,7 @@ package com.example.bodeul.ui.support;
  * 사용자 문의 카드 한 장의 표시 상태를 담는다.
  */
 public final class ClientSupportRequestCardModel {
+    private final String requestId;
     private final String categoryText;
     private final String statusText;
     private final int statusBackgroundColorResId;
@@ -14,8 +15,11 @@ public final class ClientSupportRequestCardModel {
     private final boolean hasResponse;
     private final String responseBodyText;
     private final String responseMetaText;
+    private final boolean focused;
+    private final boolean staleUnread;
 
     public ClientSupportRequestCardModel(
+            String requestId,
             String categoryText,
             String statusText,
             int statusBackgroundColorResId,
@@ -25,8 +29,11 @@ public final class ClientSupportRequestCardModel {
             String timestampText,
             boolean hasResponse,
             String responseBodyText,
-            String responseMetaText
+            String responseMetaText,
+            boolean focused,
+            boolean staleUnread
     ) {
+        this.requestId = requestId;
         this.categoryText = categoryText;
         this.statusText = statusText;
         this.statusBackgroundColorResId = statusBackgroundColorResId;
@@ -37,6 +44,12 @@ public final class ClientSupportRequestCardModel {
         this.hasResponse = hasResponse;
         this.responseBodyText = responseBodyText;
         this.responseMetaText = responseMetaText;
+        this.focused = focused;
+        this.staleUnread = staleUnread;
+    }
+
+    public String getRequestId() {
+        return requestId;
     }
 
     public String getCategoryText() {
@@ -77,5 +90,13 @@ public final class ClientSupportRequestCardModel {
 
     public String getResponseMetaText() {
         return responseMetaText;
+    }
+
+    public boolean isFocused() {
+        return focused;
+    }
+
+    public boolean isStaleUnread() {
+        return staleUnread;
     }
 }

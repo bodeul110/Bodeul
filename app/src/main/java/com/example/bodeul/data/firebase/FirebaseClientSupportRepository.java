@@ -75,6 +75,8 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
         document.put("respondedAt", FieldValue.delete());
         document.put("responseReadByUser", false);
         document.put("responseReadAt", FieldValue.delete());
+        document.put("responseReminderCount", 0);
+        document.put("responseReminderSentAt", FieldValue.delete());
         document.put("createdAt", FieldValue.serverTimestamp());
 
         firestore.collection("clientSupportRequests")
@@ -151,7 +153,9 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
                 toMillis(documentSnapshot.getTimestamp("respondedAt")),
                 normalizeText(documentSnapshot.getString("respondedByName")),
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("responseReadByUser")),
-                toMillis(documentSnapshot.getTimestamp("responseReadAt"))
+                toMillis(documentSnapshot.getTimestamp("responseReadAt")),
+                toInt(documentSnapshot.getLong("responseReminderCount")),
+                toMillis(documentSnapshot.getTimestamp("responseReminderSentAt"))
         );
     }
 
@@ -208,6 +212,10 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
 
     private long toMillis(@Nullable Timestamp timestamp) {
         return timestamp == null ? 0L : timestamp.toDate().getTime();
+    }
+
+    private int toInt(@Nullable Long value) {
+        return value == null ? 0 : value.intValue();
     }
 
     private String normalizeText(@Nullable String value) {

@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class HealthInfoCoordinator {
+    private static final long STALE_UNREAD_THRESHOLD_MILLIS = 24L * 60L * 60L * 1000L;
+
     private final Context context;
     private final BookingPresentationFormatter formatter;
 
@@ -38,6 +40,7 @@ public final class HealthInfoCoordinator {
     ) {
         AppointmentRequest request = detail.getAppointmentRequest();
         HealthInfoPrimaryActionType primaryActionType = resolvePrimaryActionType(currentUser, request);
+        int unreadSupportCount = countUnreadSupportRequests(supportRequests);
         return new HealthInfoScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.health_info_title),
@@ -56,7 +59,8 @@ public final class HealthInfoCoordinator {
                 ),
                 context.getString(R.string.health_info_tab_service),
                 context.getString(R.string.health_info_tab_profile),
-                context.getString(R.string.health_info_tab_support),
+                resolveSupportTabLabel(unreadSupportCount),
+                unreadSupportCount > 0,
                 context.getString(R.string.health_info_service_section),
                 context.getString(
                         currentUser.getRole() == UserRole.GUARDIAN
@@ -88,6 +92,37 @@ public final class HealthInfoCoordinator {
                 createSupportLines(supportRequests),
                 primaryActionType,
                 resolvePrimaryActionLabel(currentUser, request, primaryActionType)
+        );
+    }
+
+    private int countUnreadSupportRequests(List<ClientSupportRequest> supportRequests) {
+        int unreadCount = 0;
+        for (ClientSupportRequest request : supportRequests) {
+            if (request.hasUnreadResponse()) {
+                unreadCount++;
+            }
+        }
+        return unreadCount;
+    }
+
+    private int countStaleUnreadSupportRequests(List<ClientSupportRequest> supportRequests) {
+        int unreadCount = 0;
+        long nowMillis = System.currentTimeMillis();
+        for (ClientSupportRequest request : supportRequests) {
+            if (request.hasStaleUnreadResponse(nowMillis, STALE_UNREAD_THRESHOLD_MILLIS)) {
+                unreadCount++;
+            }
+        }
+        return unreadCount;
+    }
+
+    private String resolveSupportTabLabel(int unreadSupportCount) {
+        if (unreadSupportCount <= 0) {
+            return context.getString(R.string.health_info_tab_support);
+        }
+        return context.getString(
+                R.string.health_info_tab_support_with_count,
+                unreadSupportCount
         );
     }
 
@@ -316,12 +351,8 @@ public final class HealthInfoCoordinator {
 
     private List<HealthInfoLineItem> createSupportLines(List<ClientSupportRequest> supportRequests) {
         List<HealthInfoLineItem> items = new ArrayList<>();
-        int unreadCount = 0;
-        for (ClientSupportRequest request : supportRequests) {
-            if (request.hasUnreadResponse()) {
-                unreadCount++;
-            }
-        }
+        int unreadCount = countUnreadSupportRequests(supportRequests);
+        int staleUnreadCount = countStaleUnreadSupportRequests(supportRequests);
         items.add(new HealthInfoLineItem(
                 context.getString(R.string.health_info_line_support_total),
                 context.getString(R.string.health_info_support_total_value, supportRequests.size()),
@@ -331,6 +362,13 @@ public final class HealthInfoCoordinator {
             items.add(new HealthInfoLineItem(
                     context.getString(R.string.health_info_line_support_unread),
                     context.getString(R.string.health_info_support_unread_value, unreadCount),
+                    false
+            ));
+        }
+        if (staleUnreadCount > 0) {
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_support_overdue),
+                    context.getString(R.string.health_info_support_overdue_value, staleUnreadCount),
                     false
             ));
         }

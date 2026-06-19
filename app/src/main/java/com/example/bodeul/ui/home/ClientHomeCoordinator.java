@@ -4,11 +4,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.BookingRepository;
+import com.example.bodeul.data.ClientSupportRepository;
 import com.example.bodeul.data.GuardianReportRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.User;
@@ -25,17 +27,20 @@ import java.util.List;
 public final class ClientHomeCoordinator {
     private final BookingRepository bookingRepository;
     private final GuardianReportRepository guardianReportRepository;
+    private final ClientSupportRepository clientSupportRepository;
     private final ClientHomeNoticeProvider noticeProvider;
     private final AppointmentProgressComposer progressComposer;
 
     public ClientHomeCoordinator(
             BookingRepository bookingRepository,
             GuardianReportRepository guardianReportRepository,
+            ClientSupportRepository clientSupportRepository,
             ClientHomeNoticeProvider noticeProvider,
             AppointmentProgressComposer progressComposer
     ) {
         this.bookingRepository = bookingRepository;
         this.guardianReportRepository = guardianReportRepository;
+        this.clientSupportRepository = clientSupportRepository;
         this.noticeProvider = noticeProvider;
         this.progressComposer = progressComposer;
     }
@@ -90,7 +95,7 @@ public final class ClientHomeCoordinator {
                 : appointmentRequests;
         AppointmentRequest primaryRequest = resolvePrimaryRequest(safeRequests, highlightEntry);
         if (primaryRequest == null || primaryRequest.getStatus() != AppointmentStatus.COMPLETED) {
-            callback.onSuccess(buildDashboard(currentUser, safeRequests, highlightEntry, null));
+            loadSupportRequestsAndDeliver(currentUser, safeRequests, highlightEntry, null, callback);
             return;
         }
 
@@ -100,20 +105,55 @@ public final class ClientHomeCoordinator {
                 new RepositoryCallback<AppointmentFollowUpRecord>() {
                     @Override
                     public void onSuccess(AppointmentFollowUpRecord result) {
-                        callback.onSuccess(buildDashboard(currentUser, safeRequests, highlightEntry, result));
+                        loadSupportRequestsAndDeliver(currentUser, safeRequests, highlightEntry, result, callback);
                     }
 
                     @Override
                     public void onError(String message) {
-                        callback.onSuccess(buildDashboard(
+                        loadSupportRequestsAndDeliver(
                                 currentUser,
                                 safeRequests,
                                 highlightEntry,
-                                AppointmentFollowUpRecord.empty(primaryRequest.getId())
-                        ));
+                                AppointmentFollowUpRecord.empty(primaryRequest.getId()),
+                                callback
+                        );
                     }
                 }
         );
+    }
+
+    private void loadSupportRequestsAndDeliver(
+            User currentUser,
+            List<AppointmentRequest> appointmentRequests,
+            @Nullable GuardianReportEntry highlightEntry,
+            @Nullable AppointmentFollowUpRecord followUpRecord,
+            RepositoryCallback<ClientHomeDashboard> callback
+    ) {
+        clientSupportRepository.getClientSupportRequests(currentUser, new RepositoryCallback<List<ClientSupportRequest>>() {
+            @Override
+            public void onSuccess(List<ClientSupportRequest> result) {
+                callback.onSuccess(buildDashboard(
+                        currentUser,
+                        appointmentRequests,
+                        highlightEntry,
+                        followUpRecord,
+                        countUnreadSupportResponses(result),
+                        countStaleUnreadSupportResponses(result)
+                ));
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onSuccess(buildDashboard(
+                        currentUser,
+                        appointmentRequests,
+                        highlightEntry,
+                        followUpRecord,
+                        0,
+                        0
+                ));
+            }
+        });
     }
 
     @NonNull
@@ -121,7 +161,9 @@ public final class ClientHomeCoordinator {
             User currentUser,
             List<AppointmentRequest> appointmentRequests,
             @Nullable GuardianReportEntry highlightEntry,
-            @Nullable AppointmentFollowUpRecord followUpRecord
+            @Nullable AppointmentFollowUpRecord followUpRecord,
+            int unreadSupportResponseCount,
+            int staleUnreadSupportResponseCount
     ) {
         List<AppointmentRequest> safeRequests = appointmentRequests == null
                 ? Collections.emptyList()
@@ -145,8 +187,38 @@ public final class ClientHomeCoordinator {
                 primaryRequest,
                 progressOverview,
                 followUpRecord,
+                unreadSupportResponseCount,
+                staleUnreadSupportResponseCount,
                 noticeProvider.createNotices(currentUser.getRole())
         );
+    }
+
+    private int countUnreadSupportResponses(@Nullable List<ClientSupportRequest> supportRequests) {
+        if (supportRequests == null) {
+            return 0;
+        }
+        int unreadCount = 0;
+        for (ClientSupportRequest request : supportRequests) {
+            if (request.hasUnreadResponse()) {
+                unreadCount++;
+            }
+        }
+        return unreadCount;
+    }
+
+    private int countStaleUnreadSupportResponses(@Nullable List<ClientSupportRequest> supportRequests) {
+        if (supportRequests == null) {
+            return 0;
+        }
+        int unreadCount = 0;
+        long nowMillis = System.currentTimeMillis();
+        long thresholdMillis = 24L * 60L * 60L * 1000L;
+        for (ClientSupportRequest request : supportRequests) {
+            if (request.hasStaleUnreadResponse(nowMillis, thresholdMillis)) {
+                unreadCount++;
+            }
+        }
+        return unreadCount;
     }
 
     @Nullable

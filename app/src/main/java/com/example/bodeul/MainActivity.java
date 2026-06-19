@@ -50,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
         clientHomeCoordinator = new ClientHomeCoordinator(
                 ServiceLocator.provideBookingRepository(this),
                 ServiceLocator.provideGuardianReportRepository(this),
+                ServiceLocator.provideClientSupportRepository(this),
                 new ClientHomeNoticeProvider(),
                 new AppointmentProgressComposer(this)
         );
@@ -73,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
                 findViewById(R.id.textHomeProgressBody),
                 findViewById(R.id.layoutHomeProgressStageContainer),
                 findViewById(R.id.buttonHomeProgressDetail),
+                findViewById(R.id.textActionSecondaryBadge),
                 findViewById(R.id.textActionSecondaryTitle),
                 findViewById(R.id.textActionSecondaryBody),
                 findViewById(R.id.textRecentBadge),

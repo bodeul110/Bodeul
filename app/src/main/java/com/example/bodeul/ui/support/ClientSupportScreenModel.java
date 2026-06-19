@@ -13,6 +13,7 @@ public final class ClientSupportScreenModel {
     private final String requestSummaryText;
     private final String latestSummaryText;
     private final List<ClientSupportRequestCardModel> requestCards;
+    private final String focusedSupportRequestId;
 
     public ClientSupportScreenModel(
             String modeText,
@@ -21,7 +22,8 @@ public final class ClientSupportScreenModel {
             String heroBodyText,
             String requestSummaryText,
             String latestSummaryText,
-            List<ClientSupportRequestCardModel> requestCards
+            List<ClientSupportRequestCardModel> requestCards,
+            String focusedSupportRequestId
     ) {
         this.modeText = modeText;
         this.heroBadgeText = heroBadgeText;
@@ -30,6 +32,7 @@ public final class ClientSupportScreenModel {
         this.requestSummaryText = requestSummaryText;
         this.latestSummaryText = latestSummaryText;
         this.requestCards = requestCards;
+        this.focusedSupportRequestId = focusedSupportRequestId;
     }
 
     public String getModeText() {
@@ -58,5 +61,9 @@ public final class ClientSupportScreenModel {
 
     public List<ClientSupportRequestCardModel> getRequestCards() {
         return requestCards;
+    }
+
+    public String getFocusedSupportRequestId() {
+        return focusedSupportRequestId;
     }
 }

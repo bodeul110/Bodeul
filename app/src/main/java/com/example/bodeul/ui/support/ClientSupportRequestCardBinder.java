@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.View;
 import android.widget.TextView;
 
+import com.google.android.material.card.MaterialCardView;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
@@ -19,6 +20,7 @@ public final class ClientSupportRequestCardBinder {
     }
 
     public void bind(View itemView, ClientSupportRequestCardModel model) {
+        MaterialCardView cardView = (MaterialCardView) itemView;
         TextView categoryView = itemView.findViewById(R.id.textClientSupportRequestCategory);
         TextView statusView = itemView.findViewById(R.id.textClientSupportRequestStatus);
         TextView titleView = itemView.findViewById(R.id.textClientSupportRequestTitle);
@@ -36,6 +38,16 @@ public final class ClientSupportRequestCardBinder {
         titleView.setText(model.getTitleText());
         bodyView.setText(model.getBodyText());
         timestampView.setText(model.getTimestampText());
+        if (model.isFocused()) {
+            cardView.setStrokeColor(ContextCompat.getColor(context, R.color.bodeul_primary));
+            cardView.setStrokeWidth(dpToPx(2));
+        } else if (model.isStaleUnread()) {
+            cardView.setStrokeColor(ContextCompat.getColor(context, R.color.bodeul_error));
+            cardView.setStrokeWidth(dpToPx(2));
+        } else {
+            cardView.setStrokeColor(ContextCompat.getColor(context, R.color.bodeul_outline));
+            cardView.setStrokeWidth(dpToPx(1));
+        }
 
         if (model.hasResponse()) {
             responseContainer.setVisibility(View.VISIBLE);
@@ -44,5 +56,9 @@ public final class ClientSupportRequestCardBinder {
         } else {
             responseContainer.setVisibility(View.GONE);
         }
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * context.getResources().getDisplayMetrics().density);
     }
 }

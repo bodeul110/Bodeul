@@ -40,6 +40,7 @@ public final class ClientHomeDashboardBinder {
     private final TextView textProgressBody;
     private final LinearLayout progressStageContainer;
     private final MaterialButton buttonOpenProgress;
+    private final TextView textActionSecondaryBadge;
     private final TextView textActionSecondaryTitle;
     private final TextView textActionSecondaryBody;
     private final TextView textRecentBadge;
@@ -64,6 +65,7 @@ public final class ClientHomeDashboardBinder {
             TextView textProgressBody,
             LinearLayout progressStageContainer,
             MaterialButton buttonOpenProgress,
+            TextView textActionSecondaryBadge,
             TextView textActionSecondaryTitle,
             TextView textActionSecondaryBody,
             TextView textRecentBadge,
@@ -85,6 +87,7 @@ public final class ClientHomeDashboardBinder {
         this.textProgressBody = textProgressBody;
         this.progressStageContainer = progressStageContainer;
         this.buttonOpenProgress = buttonOpenProgress;
+        this.textActionSecondaryBadge = textActionSecondaryBadge;
         this.textActionSecondaryTitle = textActionSecondaryTitle;
         this.textActionSecondaryBody = textActionSecondaryBody;
         this.textRecentBadge = textRecentBadge;
@@ -192,15 +195,59 @@ public final class ClientHomeDashboardBinder {
     }
 
     private void bindSecondaryAction(ClientHomeDashboard dashboard) {
+        bindSecondaryBadge(dashboard);
         textActionSecondaryTitle.setText(R.string.client_home_action_manage_title);
-        textActionSecondaryBody.setText(context.getString(
+        String body = context.getString(
                 dashboard.isGuardianUser()
                         ? R.string.client_home_action_manage_body_guardian
                         : R.string.client_home_action_manage_body_patient,
                 dashboard.getRequestCount(),
                 dashboard.getActiveRequestCount(),
                 dashboard.getCompletedRequestCount()
-        ));
+        );
+        if (dashboard.hasUnreadSupportResponses()) {
+            body = body + "\n\n" + context.getString(
+                    R.string.client_home_action_manage_support_unread,
+                    dashboard.getUnreadSupportResponseCount()
+            );
+        }
+        if (dashboard.hasStaleUnreadSupportResponses()) {
+            body = body + "\n" + context.getString(
+                    R.string.client_home_action_manage_support_overdue,
+                    dashboard.getStaleUnreadSupportResponseCount()
+            );
+        }
+        textActionSecondaryBody.setText(body);
+    }
+
+    private void bindSecondaryBadge(ClientHomeDashboard dashboard) {
+        if (dashboard.hasStaleUnreadSupportResponses()) {
+            textActionSecondaryBadge.setVisibility(View.VISIBLE);
+            textActionSecondaryBadge.setText(context.getString(
+                    R.string.client_home_action_manage_badge_overdue,
+                    dashboard.getStaleUnreadSupportResponseCount()
+            ));
+            ViewCompat.setBackgroundTintList(
+                    textActionSecondaryBadge,
+                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_soft_red))
+            );
+            textActionSecondaryBadge.setTextColor(ContextCompat.getColor(context, R.color.bodeul_error));
+            return;
+        }
+        if (dashboard.hasUnreadSupportResponses()) {
+            textActionSecondaryBadge.setVisibility(View.VISIBLE);
+            textActionSecondaryBadge.setText(context.getString(
+                    R.string.client_home_action_manage_badge_unread,
+                    dashboard.getUnreadSupportResponseCount()
+            ));
+            ViewCompat.setBackgroundTintList(
+                    textActionSecondaryBadge,
+                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_warning))
+            );
+            textActionSecondaryBadge.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_primary));
+            return;
+        }
+        textActionSecondaryBadge.setVisibility(View.GONE);
     }
 
     private void bindRecentRequest(ClientHomeDashboard dashboard) {

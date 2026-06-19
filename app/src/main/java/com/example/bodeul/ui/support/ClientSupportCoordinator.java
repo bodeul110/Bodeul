@@ -23,6 +23,8 @@ import java.util.List;
  * 사용자 문의 저장 목록을 화면 표현 모델로 변환한다.
  */
 public final class ClientSupportCoordinator {
+    private static final long STALE_UNREAD_THRESHOLD_MILLIS = 24L * 60L * 60L * 1000L;
+
     private final Context context;
     private final BookingPresentationFormatter formatter;
 
@@ -35,7 +37,8 @@ public final class ClientSupportCoordinator {
             User currentUser,
             @Nullable AppointmentRequestDetail detail,
             List<ClientSupportRequest> requests,
-            boolean firebaseBacked
+            boolean firebaseBacked,
+            @Nullable String focusedSupportRequestId
     ) {
         return new ClientSupportScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, firebaseBacked),
@@ -48,7 +51,8 @@ public final class ClientSupportCoordinator {
                 ),
                 buildRequestSummary(detail),
                 buildLatestSummary(requests),
-                createRequestCards(requests)
+                createRequestCards(requests, focusedSupportRequestId),
+                focusedSupportRequestId
         );
     }
 
@@ -72,6 +76,13 @@ public final class ClientSupportCoordinator {
         }
         ClientSupportRequest latestRequest = requests.get(0);
         if (latestRequest.hasUnreadResponse()) {
+            if (latestRequest.hasStaleUnreadResponse(System.currentTimeMillis(), STALE_UNREAD_THRESHOLD_MILLIS)) {
+                return context.getString(
+                        R.string.client_support_latest_stale_unread_value,
+                        toCategoryText(latestRequest.getCategory()),
+                        formatter.formatTimestamp(latestRequest.getRespondedAtMillis())
+                );
+            }
             return context.getString(
                     R.string.client_support_latest_unread_value,
                     toCategoryText(latestRequest.getCategory()),
@@ -93,23 +104,34 @@ public final class ClientSupportCoordinator {
         );
     }
 
-    private List<ClientSupportRequestCardModel> createRequestCards(List<ClientSupportRequest> requests) {
+    private List<ClientSupportRequestCardModel> createRequestCards(
+            List<ClientSupportRequest> requests,
+            @Nullable String focusedSupportRequestId
+    ) {
         List<ClientSupportRequestCardModel> cards = new ArrayList<>();
         for (ClientSupportRequest request : requests) {
             boolean answered = request.getStatus() == ClientSupportStatus.ANSWERED
                     && !TextUtils.isEmpty(request.getResponseText());
             boolean unreadResponse = request.hasUnreadResponse();
+            boolean staleUnread = request.hasStaleUnreadResponse(System.currentTimeMillis(), STALE_UNREAD_THRESHOLD_MILLIS);
             cards.add(new ClientSupportRequestCardModel(
+                    request.getId(),
                     toCategoryText(request.getCategory()),
-                    unreadResponse
+                    staleUnread
+                            ? context.getString(R.string.client_support_status_stale_unread_answer)
+                            : unreadResponse
                             ? context.getString(R.string.client_support_status_unread_answer)
                             : answered
                             ? context.getString(R.string.client_support_status_answered)
                             : context.getString(R.string.client_support_status_received),
-                    unreadResponse
+                    staleUnread
+                            ? R.color.bodeul_soft_red
+                            : unreadResponse
                             ? R.color.bodeul_warning
                             : answered ? R.color.bodeul_soft_green : R.color.bodeul_soft_blue,
-                    unreadResponse
+                    staleUnread
+                            ? R.color.bodeul_error
+                            : unreadResponse
                             ? R.color.bodeul_text_primary
                             : answered ? R.color.bodeul_success : R.color.bodeul_primary,
                     request.getTitle(),
@@ -117,7 +139,9 @@ public final class ClientSupportCoordinator {
                     formatter.formatTimestamp(request.getCreatedAtMillis()),
                     answered,
                     summarizeText(request.getResponseText()),
-                    buildResponseMeta(request)
+                    buildResponseMeta(request),
+                    request.getId().equals(focusedSupportRequestId),
+                    staleUnread
             ));
         }
         return cards;
