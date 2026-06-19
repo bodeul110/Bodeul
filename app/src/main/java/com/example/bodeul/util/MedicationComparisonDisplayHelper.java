@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.SessionReport;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +20,11 @@ import java.util.Set;
  * OCR 없이도 예약 단계 복약 정보와 현장 리포트의 기본 차이를 정리한다.
  */
 public final class MedicationComparisonDisplayHelper {
+    private static final List<String> SCHEDULE_KEYWORDS = Arrays.asList(
+            "아침", "점심", "저녁", "자기전", "취침전", "기상후",
+            "식전", "식후", "매일", "격일", "필요시", "복용", "1일", "하루"
+    );
+
     private MedicationComparisonDisplayHelper() {
     }
 
@@ -37,7 +43,14 @@ public final class MedicationComparisonDisplayHelper {
         String changeSummary = safeTrim(report.getMedicationChangeSummary());
         String scheduleNote = safeTrim(report.getMedicationScheduleNote());
         String reportNote = safeTrim(report.getMedicationNotes());
-        String comparisonDetail = buildMedicationDifferenceDetail(context, baseline, medicationName);
+        String comparisonDetail = buildComparisonDetail(
+                context,
+                baseline,
+                medicationName,
+                scheduleNote,
+                reportNote
+        );
+        boolean scheduleChanged = hasScheduleDifference(baseline, scheduleNote, reportNote);
 
         if (TextUtils.isEmpty(medicationName)
                 && TextUtils.isEmpty(changeSummary)
@@ -76,9 +89,13 @@ public final class MedicationComparisonDisplayHelper {
 
         if (!TextUtils.isEmpty(scheduleNote)) {
             return new MedicationComparisonSummary(
-                    context.getString(R.string.medication_compare_status_same),
+                    context.getString(scheduleChanged
+                            ? R.string.medication_compare_status_changed
+                            : R.string.medication_compare_status_same),
                     comparisonDetail,
-                    context.getString(R.string.medication_compare_follow_up_schedule_only)
+                    context.getString(scheduleChanged
+                            ? R.string.medication_compare_follow_up_schedule_changed
+                            : R.string.medication_compare_follow_up_schedule_only)
             );
         }
 
@@ -87,6 +104,32 @@ public final class MedicationComparisonDisplayHelper {
                 comparisonDetail,
                 context.getString(R.string.medication_compare_follow_up_same)
         );
+    }
+
+    @Nullable
+    private static String buildComparisonDetail(
+            Context context,
+            String baseline,
+            String medicationName,
+            String scheduleNote,
+            String reportNote
+    ) {
+        List<String> segments = new ArrayList<>();
+
+        String medicationDetail = buildMedicationDifferenceDetail(context, baseline, medicationName);
+        if (!TextUtils.isEmpty(medicationDetail)) {
+            segments.add(medicationDetail);
+        }
+
+        String scheduleDetail = buildScheduleDifferenceDetail(context, baseline, scheduleNote, reportNote);
+        if (!TextUtils.isEmpty(scheduleDetail)) {
+            segments.add(scheduleDetail);
+        }
+
+        if (segments.isEmpty()) {
+            return null;
+        }
+        return TextUtils.join(" / ", segments);
     }
 
     @Nullable
@@ -154,6 +197,69 @@ public final class MedicationComparisonDisplayHelper {
         return TextUtils.join(" / ", segments);
     }
 
+    @Nullable
+    private static String buildScheduleDifferenceDetail(
+            Context context,
+            String baseline,
+            String scheduleNote,
+            String reportNote
+    ) {
+        List<String> baselineScheduleTokens = tokenizeScheduleKeywords(baseline);
+        List<String> reportScheduleTokens = tokenizeScheduleKeywords(scheduleNote + " " + reportNote);
+        if (baselineScheduleTokens.isEmpty() || reportScheduleTokens.isEmpty()) {
+            if (baselineScheduleTokens.isEmpty() && reportScheduleTokens.isEmpty()) {
+                return null;
+            }
+        }
+
+        List<String> kept = new ArrayList<>();
+        List<String> added = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+
+        for (String reportToken : reportScheduleTokens) {
+            if (baselineScheduleTokens.contains(reportToken)) {
+                if (!kept.contains(reportToken)) {
+                    kept.add(reportToken);
+                }
+            } else if (!added.contains(reportToken)) {
+                added.add(reportToken);
+            }
+        }
+
+        for (String baselineToken : baselineScheduleTokens) {
+            if (!reportScheduleTokens.contains(baselineToken) && !missing.contains(baselineToken)) {
+                missing.add(baselineToken);
+            }
+        }
+
+        List<String> segments = new ArrayList<>();
+        if (!kept.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_schedule_kept,
+                    joinLimited(kept)
+            ));
+        }
+        if (!added.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_schedule_added,
+                    joinLimited(added)
+            ));
+        }
+        if (!missing.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_schedule_missing,
+                    joinLimited(missing)
+            ));
+        }
+        if (segments.isEmpty()) {
+            return null;
+        }
+        return context.getString(
+                R.string.medication_compare_schedule_prefix,
+                TextUtils.join(", ", segments)
+        );
+    }
+
     private static boolean containsNormalized(String source, String target) {
         String normalizedSource = normalize(source);
         String normalizedTarget = normalize(target);
@@ -186,6 +292,40 @@ public final class MedicationComparisonDisplayHelper {
             tokens.add(token);
         }
         return tokens;
+    }
+
+    private static List<String> tokenizeScheduleKeywords(String value) {
+        List<String> tokens = new ArrayList<>();
+        String normalizedValue = normalize(value);
+        if (TextUtils.isEmpty(normalizedValue)) {
+            return tokens;
+        }
+        for (String keyword : SCHEDULE_KEYWORDS) {
+            String normalizedKeyword = normalize(keyword);
+            if (normalizedValue.contains(normalizedKeyword) && !tokens.contains(keyword)) {
+                tokens.add(keyword);
+            }
+        }
+        return tokens;
+    }
+
+    private static boolean hasScheduleDifference(String baseline, String scheduleNote, String reportNote) {
+        List<String> baselineScheduleTokens = tokenizeScheduleKeywords(baseline);
+        List<String> reportScheduleTokens = tokenizeScheduleKeywords(scheduleNote + " " + reportNote);
+        if (baselineScheduleTokens.isEmpty() || reportScheduleTokens.isEmpty()) {
+            return false;
+        }
+        for (String token : reportScheduleTokens) {
+            if (!baselineScheduleTokens.contains(token)) {
+                return true;
+            }
+        }
+        for (String token : baselineScheduleTokens) {
+            if (!reportScheduleTokens.contains(token)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable

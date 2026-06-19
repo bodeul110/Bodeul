@@ -586,10 +586,15 @@
     <string name="medication_compare_follow_up_change_and_schedule">변경 내용과 복용 시점을 함께 확인하세요.</string>
     <string name="medication_compare_follow_up_name_mismatch">예약 단계 메모와 약품명이 달라 보이니 다시 확인하세요.</string>
     <string name="medication_compare_follow_up_schedule_only">복용 시점 안내가 추가되어 일정 확인이 필요합니다.</string>
+    <string name="medication_compare_follow_up_schedule_changed">복용 시점이 달라 보여 일정과 복용법을 다시 확인하세요.</string>
     <string name="medication_compare_follow_up_same">현장 안내 기준으로 기존 복약을 그대로 유지했습니다.</string>
     <string name="medication_compare_detail_kept">유지: %1$s</string>
     <string name="medication_compare_detail_added">추가 후보: %1$s</string>
     <string name="medication_compare_detail_missing">기존 기록만 있음: %1$s</string>
+    <string name="medication_compare_schedule_prefix">복용 시점: %1$s</string>
+    <string name="medication_compare_schedule_kept">유지 %1$s</string>
+    <string name="medication_compare_schedule_added">추가 %1$s</string>
+    <string name="medication_compare_schedule_missing">빠짐 %1$s</string>
     <string name="guide_report_section">진료 리포트</string>
     <string name="guide_report_summary_hint">진료 요약</string>
     <string name="guide_report_treatment_hint">진료 메모</string>

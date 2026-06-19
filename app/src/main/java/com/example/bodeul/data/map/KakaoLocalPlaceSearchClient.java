@@ -18,6 +18,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,8 +35,10 @@ public final class KakaoLocalPlaceSearchClient {
 
     private static final String KEYWORD_SEARCH_ENDPOINT =
             "https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=";
+    private static final long CACHE_TTL_MILLIS = 6L * 60L * 60L * 1000L;
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final Map<String, CacheEntry> COORDINATE_CACHE = new HashMap<>();
 
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -59,6 +63,13 @@ public final class KakaoLocalPlaceSearchClient {
             return;
         }
 
+        String cacheKey = buildCacheKey(query);
+        HospitalMapCoordinateResult cachedResult = findCachedResult(cacheKey);
+        if (cachedResult != null) {
+            postSuccess(callback, cachedResult);
+            return;
+        }
+
         EXECUTOR.execute(() -> {
             try {
                 KakaoPlaceCoordinate hospitalCoordinate = searchWithFallback(
@@ -69,14 +80,41 @@ public final class KakaoLocalPlaceSearchClient {
                         query.buildPrimaryPharmacyQuery(),
                         query.buildFallbackPharmacyQuery()
                 );
-                postSuccess(callback, new HospitalMapCoordinateResult(
+                HospitalMapCoordinateResult result = new HospitalMapCoordinateResult(
                         hospitalCoordinate,
                         pharmacyCoordinate
-                ));
+                );
+                cacheResult(cacheKey, result);
+                postSuccess(callback, result);
             } catch (Exception exception) {
                 postError(callback, context.getString(R.string.kakao_map_coordinate_load_error));
             }
         });
+    }
+
+    private String buildCacheKey(HospitalMapCoordinateQuery query) {
+        return query.buildPrimaryHospitalQuery() + "|" + query.buildPrimaryPharmacyQuery();
+    }
+
+    @Nullable
+    private HospitalMapCoordinateResult findCachedResult(String cacheKey) {
+        synchronized (COORDINATE_CACHE) {
+            CacheEntry entry = COORDINATE_CACHE.get(cacheKey);
+            if (entry == null) {
+                return null;
+            }
+            if (System.currentTimeMillis() - entry.cachedAtMillis > CACHE_TTL_MILLIS) {
+                COORDINATE_CACHE.remove(cacheKey);
+                return null;
+            }
+            return entry.result;
+        }
+    }
+
+    private void cacheResult(String cacheKey, HospitalMapCoordinateResult result) {
+        synchronized (COORDINATE_CACHE) {
+            COORDINATE_CACHE.put(cacheKey, new CacheEntry(result, System.currentTimeMillis()));
+        }
     }
 
     @Nullable
@@ -169,5 +207,15 @@ public final class KakaoLocalPlaceSearchClient {
 
     private void postError(Callback callback, String message) {
         mainHandler.post(() -> callback.onError(message));
+    }
+
+    private static final class CacheEntry {
+        private final HospitalMapCoordinateResult result;
+        private final long cachedAtMillis;
+
+        private CacheEntry(HospitalMapCoordinateResult result, long cachedAtMillis) {
+            this.result = result;
+            this.cachedAtMillis = cachedAtMillis;
+        }
     }
 }
