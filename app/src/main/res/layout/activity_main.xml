@@ -50,6 +50,21 @@
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/textHomeSupportHeaderBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_surface_pill"
+                    android:paddingStart="10dp"
+                    android:paddingTop="7dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="7dp"
+                    android:textColor="@color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/buttonHomeSignOut"
                     style="@style/BodeulOutlinedButton"

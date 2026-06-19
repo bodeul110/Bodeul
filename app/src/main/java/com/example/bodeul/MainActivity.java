@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 getLayoutInflater(),
                 findViewById(R.id.textHomeGreeting),
                 findViewById(R.id.textHomeSubtitle),
+                findViewById(R.id.textHomeSupportHeaderBadge),
                 findViewById(R.id.layoutHomeSupportBanner),
                 findViewById(R.id.textHomeHeroBadge),
                 findViewById(R.id.textHomeHeroTitle),

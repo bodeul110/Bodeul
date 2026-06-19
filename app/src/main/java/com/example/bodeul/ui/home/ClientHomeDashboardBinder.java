@@ -32,6 +32,7 @@ public final class ClientHomeDashboardBinder {
     private final LayoutInflater layoutInflater;
     private final TextView textGreeting;
     private final TextView textSubtitle;
+    private final TextView textHeaderSupportBadge;
     private final AttentionBannerBinder supportBannerBinder;
     private final TextView textHeroBadge;
     private final TextView textHeroTitle;
@@ -59,6 +60,7 @@ public final class ClientHomeDashboardBinder {
             LayoutInflater layoutInflater,
             TextView textGreeting,
             TextView textSubtitle,
+            TextView textHeaderSupportBadge,
             View supportBannerView,
             TextView textHeroBadge,
             TextView textHeroTitle,
@@ -83,6 +85,7 @@ public final class ClientHomeDashboardBinder {
         this.layoutInflater = layoutInflater;
         this.textGreeting = textGreeting;
         this.textSubtitle = textSubtitle;
+        this.textHeaderSupportBadge = textHeaderSupportBadge;
         this.supportBannerBinder = new AttentionBannerBinder(context, supportBannerView);
         this.textHeroBadge = textHeroBadge;
         this.textHeroTitle = textHeroTitle;
@@ -108,12 +111,43 @@ public final class ClientHomeDashboardBinder {
 
     public void bindDashboard(ClientHomeDashboard dashboard) {
         bindGreeting(dashboard);
+        bindHeaderSupportBadge(dashboard);
         supportBannerBinder.bind(dashboard.getSupportBanner());
         bindHero(dashboard);
         bindProgress(dashboard);
         bindSecondaryAction(dashboard);
         bindRecentRequest(dashboard);
         bindNotices(dashboard);
+    }
+
+    private void bindHeaderSupportBadge(ClientHomeDashboard dashboard) {
+        if (dashboard.hasStaleUnreadSupportResponses()) {
+            textHeaderSupportBadge.setVisibility(View.VISIBLE);
+            textHeaderSupportBadge.setText(context.getString(
+                    R.string.client_home_support_header_badge_overdue,
+                    dashboard.getStaleUnreadSupportResponseCount()
+            ));
+            ViewCompat.setBackgroundTintList(
+                    textHeaderSupportBadge,
+                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_error))
+            );
+            textHeaderSupportBadge.setTextColor(ContextCompat.getColor(context, R.color.white));
+            return;
+        }
+        if (dashboard.hasUnreadSupportResponses()) {
+            textHeaderSupportBadge.setVisibility(View.VISIBLE);
+            textHeaderSupportBadge.setText(context.getString(
+                    R.string.client_home_support_header_badge_unread,
+                    dashboard.getUnreadSupportResponseCount()
+            ));
+            ViewCompat.setBackgroundTintList(
+                    textHeaderSupportBadge,
+                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_primary))
+            );
+            textHeaderSupportBadge.setTextColor(ContextCompat.getColor(context, R.color.white));
+            return;
+        }
+        textHeaderSupportBadge.setVisibility(View.GONE);
     }
 
     private void bindGreeting(ClientHomeDashboard dashboard) {

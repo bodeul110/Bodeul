@@ -143,6 +143,8 @@
     <string name="client_home_action_manage_badge_overdue">24시간+ %1$d</string>
     <string name="client_home_action_manage_counter_unread">%1$d</string>
     <string name="client_home_action_manage_counter_overdue">24h+</string>
+    <string name="client_home_support_header_badge_unread">문의 %1$d</string>
+    <string name="client_home_support_header_badge_overdue">24h+ %1$d</string>
     <string name="client_home_action_manage_support_unread">문의 답변 %1$d건을 아직 확인하지 않았습니다.</string>
     <string name="client_home_action_manage_support_overdue">그중 %1$d건은 24시간 이상 확인되지 않았습니다.</string>
     <string name="client_home_recent_title">최근 접수 내역</string>
