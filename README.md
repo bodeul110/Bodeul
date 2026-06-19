@@ -32,11 +32,13 @@
 3. [내부 테스트 가이드](docs/internal-test-guide.md)
 4. [화면 개편 목표 정리](docs/restructure-target-map.md)
 5. [협업 규칙](docs/collaboration-rules.md)
+6. [인프라 개요](docs/infrastructure-overview.md)
 
 ## 주요 문서
 
 - [문서 안내](docs/document-guide.md)
 - [현재 구현 상태](docs/implementation-status.md)
+- [인프라 개요](docs/infrastructure-overview.md)
 - [내부 테스트 가이드](docs/internal-test-guide.md)
 - [협업 규칙](docs/collaboration-rules.md)
 - [관리자 권한 QA 체크리스트](docs/admin-access-qa-checklist.md)

@@ -2664,3 +2664,22 @@
 ### 남은 범위
 
 - 없음
+
+## 114. 2026-06-19 인프라 개요 문서 추가
+
+### 구현
+
+- 현재 런타임 기준 인프라 구성을 별도 문서로 정리했다.
+- Android 앱, 관리자 웹, Firebase Auth/Firestore/Storage/Functions, `tools/firebase`, GitHub Actions의 역할과 경계를 한 번에 볼 수 있게 정리했다.
+- Mock/Firebase 분기, Firestore 메모리 캐시 정책, App Check 준비 상태, 위치 공유/안심 채팅/카카오 지도 연동 위치도 문서에 포함했다.
+
+### 변경 범위
+
+- `docs/infrastructure-overview.md`
+- `README.md`
+- `docs/document-guide.md`
+
+### 남은 범위
+
+- 이 문서는 현재 `master` 기준 인프라 요약이다.
+- App Check 실제 강제 적용, 운영 환경 분리, 배포 절차 변경이 생기면 같은 문서를 기준으로 갱신한다.

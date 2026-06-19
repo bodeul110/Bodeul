@@ -23,6 +23,7 @@
 3. [내부 테스트 가이드](internal-test-guide.md)
 4. [화면 개편 목표 정리](restructure-target-map.md)
 5. [Firebase 설정](firebase-setup.md)
+6. [인프라 개요](infrastructure-overview.md)
 
 ## 문서 분류
 
@@ -39,6 +40,8 @@
 
 - [현재 구현 상태](implementation-status.md)
   - 최근 작업 내역, 변경 파일, 남은 범위
+- [인프라 개요](infrastructure-overview.md)
+  - Android 앱, 관리자 웹, Firebase, 운영 도구의 실제 런타임 구성
 - [아키텍처 초안](architecture-draft.md)
   - Android 앱, 관리자 웹, Firebase 도구의 현재 역할 분리 기준
 - [데이터 및 API 초안](data-api-draft.md)
