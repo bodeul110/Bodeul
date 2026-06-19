@@ -7,6 +7,7 @@ import androidx.annotation.Nullable;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentRequest;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
 
 import java.util.ArrayList;
@@ -19,16 +20,28 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * OCR 없이도 예약 단계 복약 정보와 현장 리포트의 기본 차이를 정리한다.
+ * OCR 없이도 예약 단계 복약 정보와 현장 리포트의 차이를 기본 규칙으로 비교한다.
  */
 public final class MedicationComparisonDisplayHelper {
     private static final List<String> SCHEDULE_KEYWORDS = Arrays.asList(
-            "아침", "점심", "저녁", "자기전", "취침전", "기상후",
-            "식전", "식후", "매일", "격일", "필요시", "복용", "1일", "하루"
+            "\uC544\uCE68",
+            "\uC810\uC2EC",
+            "\uC800\uB141",
+            "\uC790\uAE30\uC804",
+            "\uCDE8\uCE68\uC804",
+            "\uAE30\uC0C1\uD6C4",
+            "\uC2DD\uC804",
+            "\uC2DD\uD6C4",
+            "\uB9E4\uC77C",
+            "\uACA9\uC77C",
+            "\uD544\uC694\uC2DC",
+            "\uBCF5\uC6A9",
+            "1\uC77C",
+            "1\uC8FC"
     );
-
     private static final Pattern DOSE_PATTERN = Pattern.compile(
-            "(\\d+\\s*(?:mg|ml|g|mcg|정|알|캡슐|포|봉))|(반\\s*정|한\\s*알|두\\s*알|세\\s*알)",
+            "(\\d+\\s*(?:mg|ml|g|mcg|\\uC815|\\uC54C|\\uCEA1\\uC290|\\uD3EC|\\uBD09))"
+                    + "|(\\uBC18\\s*\\uC815|\\uD55C\\s*\\uC54C|\\uB450\\s*\\uC54C|\\uC138\\s*\\uC54C)",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -50,6 +63,8 @@ public final class MedicationComparisonDisplayHelper {
         String changeSummary = safeTrim(report.getMedicationChangeSummary());
         String scheduleNote = safeTrim(report.getMedicationScheduleNote());
         String reportNote = safeTrim(report.getMedicationNotes());
+        MedicationComparisonDecision manualDecision = report.getMedicationComparisonDecision();
+
         String comparisonDetail = buildComparisonDetail(
                 context,
                 baseline,
@@ -75,35 +90,49 @@ public final class MedicationComparisonDisplayHelper {
         }
 
         if (TextUtils.isEmpty(baseline)) {
-            return new MedicationComparisonSummary(
+            return finalizeSummary(
+                    context,
                     context.getString(R.string.medication_compare_status_new_guidance),
                     comparisonDetail,
-                    context.getString(R.string.medication_compare_follow_up_missing_request)
+                    context.getString(R.string.medication_compare_follow_up_missing_request),
+                    null,
+                    manualDecision
             );
         }
 
         if (!TextUtils.isEmpty(changeSummary)) {
-            return new MedicationComparisonSummary(
+            return finalizeSummary(
+                    context,
                     context.getString(R.string.medication_compare_status_changed),
                     comparisonDetail,
                     TextUtils.isEmpty(scheduleNote)
                             ? context.getString(R.string.medication_compare_follow_up_change_only)
-                            : context.getString(R.string.medication_compare_follow_up_change_and_schedule)
+                            : context.getString(R.string.medication_compare_follow_up_change_and_schedule),
+                    MedicationComparisonDecision.CHANGED,
+                    manualDecision
             );
         }
 
         if (!TextUtils.isEmpty(medicationName)
                 && !containsNormalized(baseline, medicationName)
                 && !containsNormalized(medicationName, baseline)) {
-            return new MedicationComparisonSummary(
+            return finalizeSummary(
+                    context,
                     context.getString(R.string.medication_compare_status_recheck),
                     comparisonDetail,
-                    context.getString(R.string.medication_compare_follow_up_name_mismatch)
+                    context.getString(R.string.medication_compare_follow_up_name_mismatch),
+                    MedicationComparisonDecision.RECHECK_REQUIRED,
+                    manualDecision
             );
         }
 
         if (!TextUtils.isEmpty(scheduleNote)) {
-            return new MedicationComparisonSummary(
+            MedicationComparisonDecision inferredDecision =
+                    (scheduleChanged || doseChanged)
+                            ? MedicationComparisonDecision.CHANGED
+                            : MedicationComparisonDecision.MATCHED;
+            return finalizeSummary(
+                    context,
                     context.getString((scheduleChanged || doseChanged)
                             ? R.string.medication_compare_status_changed
                             : R.string.medication_compare_status_same),
@@ -112,22 +141,30 @@ public final class MedicationComparisonDisplayHelper {
                             ? R.string.medication_compare_follow_up_schedule_changed
                             : (doseChanged
                             ? R.string.medication_compare_follow_up_dose_changed
-                            : R.string.medication_compare_follow_up_schedule_only))
+                            : R.string.medication_compare_follow_up_schedule_only)),
+                    inferredDecision,
+                    manualDecision
             );
         }
 
         if (doseChanged) {
-            return new MedicationComparisonSummary(
+            return finalizeSummary(
+                    context,
                     context.getString(R.string.medication_compare_status_changed),
                     comparisonDetail,
-                    context.getString(R.string.medication_compare_follow_up_dose_changed)
+                    context.getString(R.string.medication_compare_follow_up_dose_changed),
+                    MedicationComparisonDecision.CHANGED,
+                    manualDecision
             );
         }
 
-        return new MedicationComparisonSummary(
+        return finalizeSummary(
+                context,
                 context.getString(R.string.medication_compare_status_same),
                 comparisonDetail,
-                context.getString(R.string.medication_compare_follow_up_same)
+                context.getString(R.string.medication_compare_follow_up_same),
+                MedicationComparisonDecision.MATCHED,
+                manualDecision
         );
     }
 
@@ -236,69 +273,6 @@ public final class MedicationComparisonDisplayHelper {
     }
 
     @Nullable
-    private static String buildScheduleDifferenceDetail(
-            Context context,
-            String baseline,
-            String scheduleNote,
-            String reportNote
-    ) {
-        List<String> baselineScheduleTokens = tokenizeScheduleKeywords(baseline);
-        List<String> reportScheduleTokens = tokenizeScheduleKeywords(scheduleNote + " " + reportNote);
-        if (baselineScheduleTokens.isEmpty() || reportScheduleTokens.isEmpty()) {
-            if (baselineScheduleTokens.isEmpty() && reportScheduleTokens.isEmpty()) {
-                return null;
-            }
-        }
-
-        List<String> kept = new ArrayList<>();
-        List<String> added = new ArrayList<>();
-        List<String> missing = new ArrayList<>();
-
-        for (String reportToken : reportScheduleTokens) {
-            if (baselineScheduleTokens.contains(reportToken)) {
-                if (!kept.contains(reportToken)) {
-                    kept.add(reportToken);
-                }
-            } else if (!added.contains(reportToken)) {
-                added.add(reportToken);
-            }
-        }
-
-        for (String baselineToken : baselineScheduleTokens) {
-            if (!reportScheduleTokens.contains(baselineToken) && !missing.contains(baselineToken)) {
-                missing.add(baselineToken);
-            }
-        }
-
-        List<String> segments = new ArrayList<>();
-        if (!kept.isEmpty()) {
-            segments.add(context.getString(
-                    R.string.medication_compare_schedule_kept,
-                    joinLimited(kept)
-            ));
-        }
-        if (!added.isEmpty()) {
-            segments.add(context.getString(
-                    R.string.medication_compare_schedule_added,
-                    joinLimited(added)
-            ));
-        }
-        if (!missing.isEmpty()) {
-            segments.add(context.getString(
-                    R.string.medication_compare_schedule_missing,
-                    joinLimited(missing)
-            ));
-        }
-        if (segments.isEmpty()) {
-            return null;
-        }
-        return context.getString(
-                R.string.medication_compare_schedule_prefix,
-                TextUtils.join(", ", segments)
-        );
-    }
-
-    @Nullable
     private static String buildDoseDifferenceDetail(
             Context context,
             String baseline,
@@ -363,6 +337,89 @@ public final class MedicationComparisonDisplayHelper {
         );
     }
 
+    @Nullable
+    private static String buildScheduleDifferenceDetail(
+            Context context,
+            String baseline,
+            String scheduleNote,
+            String reportNote
+    ) {
+        List<String> baselineScheduleTokens = tokenizeScheduleKeywords(baseline);
+        List<String> reportScheduleTokens = tokenizeScheduleKeywords(scheduleNote + " " + reportNote);
+        if (baselineScheduleTokens.isEmpty() && reportScheduleTokens.isEmpty()) {
+            return null;
+        }
+
+        List<String> kept = new ArrayList<>();
+        List<String> added = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+
+        for (String reportToken : reportScheduleTokens) {
+            if (baselineScheduleTokens.contains(reportToken)) {
+                if (!kept.contains(reportToken)) {
+                    kept.add(reportToken);
+                }
+            } else if (!added.contains(reportToken)) {
+                added.add(reportToken);
+            }
+        }
+
+        for (String baselineToken : baselineScheduleTokens) {
+            if (!reportScheduleTokens.contains(baselineToken) && !missing.contains(baselineToken)) {
+                missing.add(baselineToken);
+            }
+        }
+
+        List<String> segments = new ArrayList<>();
+        if (!kept.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_schedule_kept,
+                    joinLimited(kept)
+            ));
+        }
+        if (!added.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_schedule_added,
+                    joinLimited(added)
+            ));
+        }
+        if (!missing.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_schedule_missing,
+                    joinLimited(missing)
+            ));
+        }
+        if (segments.isEmpty()) {
+            return null;
+        }
+        return context.getString(
+                R.string.medication_compare_schedule_prefix,
+                TextUtils.join(", ", segments)
+        );
+    }
+
+    private static MedicationComparisonSummary finalizeSummary(
+            Context context,
+            String statusLabel,
+            @Nullable String detailLabel,
+            @Nullable String followUpLabel,
+            @Nullable MedicationComparisonDecision inferredDecision,
+            @Nullable MedicationComparisonDecision manualDecision
+    ) {
+        if (inferredDecision != null
+                && manualDecision != null
+                && inferredDecision != manualDecision) {
+            String mismatchLabel = context.getString(
+                    R.string.medication_compare_follow_up_decision_mismatch,
+                    MedicationComparisonDecisionDisplayHelper.toLabel(context, manualDecision)
+            );
+            followUpLabel = TextUtils.isEmpty(followUpLabel)
+                    ? mismatchLabel
+                    : followUpLabel + " / " + mismatchLabel;
+        }
+        return new MedicationComparisonSummary(statusLabel, detailLabel, followUpLabel);
+    }
+
     private static boolean containsNormalized(String source, String target) {
         String normalizedSource = normalize(source);
         String normalizedTarget = normalize(target);
@@ -388,8 +445,8 @@ public final class MedicationComparisonDisplayHelper {
             if (TextUtils.isEmpty(token)) {
                 continue;
             }
+            // 자유 서술 메모는 약품명 목록 비교에서 제외한다.
             if (token.length() > 24 && token.contains(" ")) {
-                // 긴 자유 서술 메모는 약품명 목록 비교에서 제외한다.
                 continue;
             }
             tokens.add(token);

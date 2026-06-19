@@ -586,6 +586,7 @@
     <string name="medication_compare_follow_up_change_and_schedule">변경 내용과 복용 시점을 함께 확인하세요.</string>
     <string name="medication_compare_follow_up_name_mismatch">예약 단계 메모와 약품명이 달라 보이니 다시 확인하세요.</string>
     <string name="medication_compare_follow_up_dose_changed">복용량이 달라 보여 용량과 복용법을 다시 확인하세요.</string>
+    <string name="medication_compare_follow_up_decision_mismatch">현장 수동 판단은 `%1$s`로 저장되었습니다.</string>
     <string name="medication_compare_follow_up_schedule_only">복용 시점 안내가 추가되어 일정 확인이 필요합니다.</string>
     <string name="medication_compare_follow_up_schedule_changed">복용 시점이 달라 보여 일정과 복용법을 다시 확인하세요.</string>
     <string name="medication_compare_follow_up_same">현장 안내 기준으로 기존 복약을 그대로 유지했습니다.</string>
