@@ -324,6 +324,12 @@ public final class BookingStatusCoordinator {
                 );
                 addOptionalLine(
                         medicationLines,
+                        R.string.booking_status_line_report_medication_detail,
+                        comparisonSummary.getDetailLabel(),
+                        false
+                );
+                addOptionalLine(
+                        medicationLines,
                         R.string.booking_status_line_report_medication_follow_up,
                         comparisonSummary.getFollowUpLabel(),
                         false

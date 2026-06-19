@@ -269,6 +269,12 @@ public final class GuardianReportCoordinator {
             );
             addOptionalLine(
                     medicationLines,
+                    R.string.guardian_report_line_report_medication_detail,
+                    comparisonSummary.getDetailLabel(),
+                    false
+            );
+            addOptionalLine(
+                    medicationLines,
                     R.string.guardian_report_line_report_medication_follow_up,
                     comparisonSummary.getFollowUpLabel(),
                     false

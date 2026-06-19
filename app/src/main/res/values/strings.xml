@@ -369,6 +369,7 @@
     <string name="guardian_report_line_report_medication_change">변경 내용</string>
     <string name="guardian_report_line_report_medication_schedule">복용 시점</string>
     <string name="guardian_report_line_report_medication_compare">비교 결과</string>
+    <string name="guardian_report_line_report_medication_detail">약품 비교</string>
     <string name="guardian_report_line_report_medication_follow_up">추가 확인</string>
     <string name="guardian_report_line_report_next_visit">다음 방문 일정</string>
     <string name="guardian_report_guide_line">%1$d단계 가이드 준비 완료</string>
@@ -586,6 +587,9 @@
     <string name="medication_compare_follow_up_name_mismatch">예약 단계 메모와 약품명이 달라 보이니 다시 확인하세요.</string>
     <string name="medication_compare_follow_up_schedule_only">복용 시점 안내가 추가되어 일정 확인이 필요합니다.</string>
     <string name="medication_compare_follow_up_same">현장 안내 기준으로 기존 복약을 그대로 유지했습니다.</string>
+    <string name="medication_compare_detail_kept">유지: %1$s</string>
+    <string name="medication_compare_detail_added">추가 후보: %1$s</string>
+    <string name="medication_compare_detail_missing">기존 기록만 있음: %1$s</string>
     <string name="guide_report_section">진료 리포트</string>
     <string name="guide_report_summary_hint">진료 요약</string>
     <string name="guide_report_treatment_hint">진료 메모</string>
@@ -900,6 +904,7 @@
     <string name="booking_status_line_report_medication_change">변경 내용</string>
     <string name="booking_status_line_report_medication_schedule">복용 시점</string>
     <string name="booking_status_line_report_medication_compare">비교 결과</string>
+    <string name="booking_status_line_report_medication_detail">약품 비교</string>
     <string name="booking_status_line_report_medication_follow_up">추가 확인</string>
     <string name="booking_status_line_report_next_visit">다음 방문</string>
     <string name="booking_status_line_report_state">리포트 상태</string>
