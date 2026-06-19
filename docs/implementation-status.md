@@ -1926,13 +1926,13 @@
 ## 87. 2026-05-05 최신 디자인 레퍼런스 검토 메모 정리
 ### 구현
 
-- `design_refs/보들 가이드.zip`의 합본 이미지와 개별 화면 PNG를 현재 실기기 캡처, 관리자 웹 구현과 대조해 [design-reference-review-2026-05-05.md](/D:/BoDeul/docs/design-reference-review-2026-05-05.md)로 정리했다.
+- `design_refs/보들 가이드.zip`의 합본 이미지와 개별 화면 PNG를 현재 실기기 캡처, 관리자 웹 구현과 대조해 [design-reference-review-2026-05-05.md](/D:/BoDeul/docs/archive/design-reference-review-2026-05-05.md)로 정리했다.
 - 이 문서에는 `확정 명세가 아닌 참고 디자인`이라는 전제를 두고, 현재 구현과 맞는 축, 바로 반영 가치가 있는 차이, 지금은 유지하는 것이 맞는 차이를 구분해 적었다.
 - [README.md](/D:/BoDeul/README.md) 문서 목록에도 디자인 검토 메모를 추가해 나중에 화면 polish 작업을 할 때 바로 찾을 수 있게 맞췄다.
 
 ### 변경 범위
 
-- `docs/design-reference-review-2026-05-05.md`
+- `docs/archive/design-reference-review-2026-05-05.md`
 - `README.md`
 - `docs/implementation-status.md`
 
@@ -2708,3 +2708,31 @@
 
 - `.idea` 아래 다른 파일들은 현재 프로젝트 공용 설정인지 여부를 확인한 뒤 필요할 때만 추가 정리한다.
 - 이번 정리는 장치 선택, 플러그인 상태, 개인 에디터 설정처럼 사용자별 편차가 큰 파일만 대상으로 했다.
+
+## 116. 2026-06-19 문서 색인 구조 정리
+
+### 구현
+
+- 문서 경로를 한 번에 크게 옮기지 않고, 카테고리 디렉터리와 색인 `README.md`를 추가해 문서 진입 구조를 정리했다.
+- `docs/architecture`, `docs/planning`, `docs/operations`, `docs/security`, `docs/design`, `docs/archive` 디렉터리를 추가했다.
+- 루트 `README.md`와 `docs/document-guide.md`를 카테고리 진입 기준으로 다시 정리했다.
+- 구버전 디자인 검토 메모, 팀 작업 분해 초안, 기능설명서 추출본은 `docs/archive/`로 이동했다.
+
+### 변경 범위
+
+- `README.md`
+- `docs/document-guide.md`
+- `docs/architecture/README.md`
+- `docs/planning/README.md`
+- `docs/operations/README.md`
+- `docs/security/README.md`
+- `docs/design/README.md`
+- `docs/archive/README.md`
+- `docs/archive/design-reference-review-2026-05-05.md`
+- `docs/archive/team-task-breakdown.md`
+- `docs/archive/보들_플랫폼_기능설명서.md`
+
+### 남은 범위
+
+- 링크 파급이 큰 본문 문서는 현재 경로를 유지했다.
+- 앞으로 새 문서를 추가할 때는 먼저 카테고리 색인부터 맞추고, 실제 파일 이동은 링크 파급을 검토한 뒤 단계적으로 한다.

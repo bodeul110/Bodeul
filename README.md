@@ -14,6 +14,13 @@
 - `admin-web/`: 관리자 서류 심사 및 운영 웹
 - `functions/`: Firebase Functions
 - `tools/firebase/`: 기준선 초기화, 상태 점검, 백업/복원, 운영 리포트 도구
+- `docs/`: 핵심 문서 루트
+  - `planning/`: 기능 기준, MVP, 화면 구조 재정리
+  - `architecture/`: 인프라/데이터 구조 문서
+  - `operations/`: 테스트, Firebase 설정, 운영 도구
+  - `security/`: 보안 리뷰와 권한 정리
+  - `design/`: 디자인 비교와 gap 체크
+  - `archive/`: 구버전/보조 문서
 
 ## 기능 축
 
@@ -39,21 +46,13 @@
 - [문서 안내](docs/document-guide.md)
 - [현재 구현 상태](docs/implementation-status.md)
 - [인프라 개요](docs/infrastructure-overview.md)
-- [내부 테스트 가이드](docs/internal-test-guide.md)
 - [협업 규칙](docs/collaboration-rules.md)
-- [관리자 권한 QA 체크리스트](docs/admin-access-qa-checklist.md)
-- [화면 개편 목표 정리](docs/restructure-target-map.md)
-- [MVP 범위](docs/mvp-scope.md)
-- [아키텍처 초안](docs/architecture-draft.md)
-- [데이터 및 API 초안](docs/data-api-draft.md)
-- [Firebase 설정](docs/firebase-setup.md)
-- [Firebase 운영 도구](docs/firebase-operations-tools.md)
-- [Firestore 보안 정리](docs/firestore-security-hardening.md)
-- [보안 리뷰 최신화 메모](docs/security-review-2026-04-29.md)
-- [AES 적용 범위 판단](docs/aes-scope-assessment.md)
-- [디자인 레퍼런스 재정리 메모](docs/design-reference-review-2026-05-22.md)
-- [기능서/피그마 전체 점검 메모](docs/feature-spec-figma-audit-2026-05-22.md)
-- [기능설명서 항목별 구현 체크리스트](docs/feature-spec-gap-checklist-2026-05-22.md)
+- [기획/구조 문서](docs/planning/README.md)
+- [아키텍처 문서](docs/architecture/README.md)
+- [운영/테스트 문서](docs/operations/README.md)
+- [보안 문서](docs/security/README.md)
+- [디자인/기능 비교 문서](docs/design/README.md)
+- [보관 문서](docs/archive/README.md)
 
 ## 실행
 
