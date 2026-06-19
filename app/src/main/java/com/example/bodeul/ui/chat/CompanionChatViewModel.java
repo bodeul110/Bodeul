@@ -9,9 +9,11 @@ import androidx.lifecycle.ViewModel;
 
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
+import com.example.bodeul.data.CompanionChatAttachmentUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -36,7 +38,13 @@ public class CompanionChatViewModel extends ViewModel {
         public final String errorMessage;
         public final boolean requireProfileCompletion;
 
-        public UiState(boolean isLoading, @Nullable CompanionChatScreenModel screenModel, StatePanelType statePanelType, @Nullable String errorMessage, boolean requireProfileCompletion) {
+        public UiState(
+                boolean isLoading,
+                @Nullable CompanionChatScreenModel screenModel,
+                StatePanelType statePanelType,
+                @Nullable String errorMessage,
+                boolean requireProfileCompletion
+        ) {
             this.isLoading = isLoading;
             this.screenModel = screenModel;
             this.statePanelType = statePanelType;
@@ -61,45 +69,63 @@ public class CompanionChatViewModel extends ViewModel {
         }
     }
 
-    private final MutableLiveData<UiState> _uiState = new MutableLiveData<>(UiState.loading());
-    public LiveData<UiState> getUiState() {
-        return _uiState;
-    }
-
-    private final MutableLiveData<String> _toastMessage = new MutableLiveData<>();
-    public LiveData<String> getToastMessage() {
-        return _toastMessage;
-    }
+    private final MutableLiveData<UiState> uiState = new MutableLiveData<>(UiState.loading());
+    private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
+    private final MutableLiveData<Long> messageSentEvent = new MutableLiveData<>();
 
     private final AuthRepository authRepository;
     private final BookingRepository bookingRepository;
     private final ManagerRepository managerRepository;
+    private final CompanionChatAttachmentUploader attachmentUploader;
     private final CompanionChatCoordinator coordinator;
 
+    @Nullable
     private User currentUser;
+    @Nullable
     private String requestId;
+    private String currentSessionId = "";
 
-    public CompanionChatViewModel(AuthRepository authRepository, BookingRepository bookingRepository, ManagerRepository managerRepository, CompanionChatCoordinator coordinator) {
+    public CompanionChatViewModel(
+            AuthRepository authRepository,
+            BookingRepository bookingRepository,
+            ManagerRepository managerRepository,
+            CompanionChatAttachmentUploader attachmentUploader,
+            CompanionChatCoordinator coordinator
+    ) {
         this.authRepository = authRepository;
         this.bookingRepository = bookingRepository;
         this.managerRepository = managerRepository;
+        this.attachmentUploader = attachmentUploader;
         this.coordinator = coordinator;
     }
 
-    public void init(String requestId) {
+    public LiveData<UiState> getUiState() {
+        return uiState;
+    }
+
+    public LiveData<String> getToastMessage() {
+        return toastMessage;
+    }
+
+    public LiveData<Long> getMessageSentEvent() {
+        return messageSentEvent;
+    }
+
+    public void init(@Nullable String requestId) {
         this.requestId = requestId;
         reload();
     }
 
     public void reload() {
-        _uiState.setValue(UiState.loading());
+        uiState.setValue(UiState.loading());
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
                 if (AuthFlowRouter.requiresProfileCompletion(result)) {
-                    _uiState.setValue(UiState.profileCompletion());
+                    uiState.setValue(UiState.profileCompletion());
                     return;
                 }
+
                 currentUser = result;
                 if (result.getRole() == UserRole.MANAGER) {
                     loadManagerDashboard(result);
@@ -107,27 +133,58 @@ public class CompanionChatViewModel extends ViewModel {
                 }
                 if (result.getRole() == UserRole.PATIENT || result.getRole() == UserRole.GUARDIAN) {
                     if (TextUtils.isEmpty(requestId)) {
-                        _uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, "예약 정보가 없습니다."));
+                        uiState.setValue(UiState.panel(
+                                StatePanelType.LOAD_ERROR,
+                                "예약 정보를 확인하지 못했습니다."
+                        ));
                         return;
                     }
                     loadBookingDetail(result);
                     return;
                 }
-                _uiState.setValue(UiState.panel(StatePanelType.PERMISSION, null));
+                uiState.setValue(UiState.panel(StatePanelType.PERMISSION, null));
             }
 
             @Override
             public void onError(String message) {
-                _uiState.setValue(UiState.panel(StatePanelType.AUTH, null));
+                uiState.setValue(UiState.panel(StatePanelType.AUTH, null));
             }
         });
+    }
+
+    public void sendMessage(String message, @Nullable CompanionChatPendingAttachment pendingAttachment) {
+        if (currentUser == null) {
+            return;
+        }
+
+        String normalizedMessage = message == null ? "" : message.trim();
+        if (normalizedMessage.isEmpty() && pendingAttachment == null) {
+            toastMessage.setValue("메시지나 첨부 파일을 준비해 주세요.");
+            return;
+        }
+
+        setLoadingWithCurrentScreen();
+        if (pendingAttachment != null) {
+            uploadPendingAttachmentAndSend(normalizedMessage, pendingAttachment);
+            return;
+        }
+        sendMessageInternal(normalizedMessage, null);
+    }
+
+    public void toastMessageHandled() {
+        toastMessage.setValue(null);
+    }
+
+    public void messageSentHandled() {
+        messageSentEvent.setValue(null);
     }
 
     private void loadBookingDetail(User user) {
         bookingRepository.getAppointmentRequestDetail(user, requestId, new RepositoryCallback<AppointmentRequestDetail>() {
             @Override
             public void onSuccess(AppointmentRequestDetail result) {
-                _uiState.setValue(UiState.screen(coordinator.createForBooking(
+                currentSessionId = result.getSession() == null ? "" : result.getSession().getId();
+                uiState.setValue(UiState.screen(coordinator.createForBooking(
                         user,
                         result,
                         bookingRepository.isFirebaseBacked()
@@ -137,7 +194,8 @@ public class CompanionChatViewModel extends ViewModel {
 
             @Override
             public void onError(String message) {
-                _uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message));
+                currentSessionId = "";
+                uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message));
             }
         });
     }
@@ -146,7 +204,8 @@ public class CompanionChatViewModel extends ViewModel {
         managerRepository.getManagerDashboard(user.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _uiState.setValue(UiState.screen(coordinator.createForManager(
+                currentSessionId = result.getSession() == null ? "" : result.getSession().getId();
+                uiState.setValue(UiState.screen(coordinator.createForManager(
                         user,
                         result,
                         managerRepository.isFirebaseBacked()
@@ -156,82 +215,146 @@ public class CompanionChatViewModel extends ViewModel {
 
             @Override
             public void onError(String message) {
+                currentSessionId = "";
                 if (ManagerRepository.MESSAGE_NO_ACTIVE_SESSION.equals(message)) {
-                    _uiState.setValue(UiState.panel(StatePanelType.EMPTY, null));
+                    uiState.setValue(UiState.panel(StatePanelType.EMPTY, null));
                     return;
                 }
-                _uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message));
+                uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message));
             }
         });
     }
 
-    public void sendMessage(String message) {
+    private void uploadPendingAttachmentAndSend(
+            String normalizedMessage,
+            CompanionChatPendingAttachment pendingAttachment
+    ) {
+        if (TextUtils.isEmpty(currentSessionId)) {
+            restoreCurrentScreen();
+            toastMessage.setValue("첨부 파일 세션 정보를 확인하지 못했습니다.");
+            return;
+        }
+
+        attachmentUploader.uploadAttachment(
+                currentSessionId,
+                pendingAttachment.getFileUri(),
+                new RepositoryCallback<CompanionChatAttachment>() {
+                    @Override
+                    public void onSuccess(CompanionChatAttachment result) {
+                        sendMessageInternal(normalizedMessage, result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        restoreCurrentScreen();
+                        toastMessage.setValue(message);
+                    }
+                }
+        );
+    }
+
+    private void sendMessageInternal(
+            String normalizedMessage,
+            @Nullable CompanionChatAttachment attachment
+    ) {
         if (currentUser == null) {
+            restoreCurrentScreen();
             return;
         }
-
-        if (message.trim().isEmpty()) {
-            _toastMessage.setValue("메시지를 입력해주세요.");
-            return;
-        }
-
-        UiState currentState = _uiState.getValue();
-        _uiState.setValue(new UiState(true, currentState != null ? currentState.screenModel : null, StatePanelType.NONE, null, false));
 
         if (currentUser.getRole() == UserRole.MANAGER) {
-            managerRepository.sendCompanionChatMessage(currentUser.getId(), message, new RepositoryCallback<ManagerDashboard>() {
-                @Override
-                public void onSuccess(ManagerDashboard result) {
-                    _uiState.setValue(UiState.screen(coordinator.createForManager(
-                            currentUser,
-                            result,
-                            managerRepository.isFirebaseBacked()
-                    )));
-                }
+            managerRepository.sendCompanionChatMessage(
+                    currentUser.getId(),
+                    normalizedMessage,
+                    attachment,
+                    new RepositoryCallback<ManagerDashboard>() {
+                        @Override
+                        public void onSuccess(ManagerDashboard result) {
+                            currentSessionId = result.getSession() == null ? "" : result.getSession().getId();
+                            uiState.setValue(UiState.screen(coordinator.createForManager(
+                                    currentUser,
+                                    result,
+                                    managerRepository.isFirebaseBacked()
+                            )));
+                            messageSentEvent.setValue(System.currentTimeMillis());
+                        }
 
-                @Override
-                public void onError(String errorMessage) {
-                    UiState prev = _uiState.getValue();
-                    _uiState.setValue(new UiState(false, prev != null ? prev.screenModel : null, StatePanelType.NONE, null, false));
-                    _toastMessage.setValue(errorMessage);
-                }
-            });
+                        @Override
+                        public void onError(String errorMessage) {
+                            restoreCurrentScreen();
+                            toastMessage.setValue(errorMessage);
+                        }
+                    }
+            );
             return;
         }
 
-        bookingRepository.sendCompanionChatMessage(currentUser, requestId, message, new RepositoryCallback<AppointmentRequestDetail>() {
-            @Override
-            public void onSuccess(AppointmentRequestDetail result) {
-                _uiState.setValue(UiState.screen(coordinator.createForBooking(
-                        currentUser,
-                        result,
-                        bookingRepository.isFirebaseBacked()
-                )));
-            }
+        bookingRepository.sendCompanionChatMessage(
+                currentUser,
+                requestId,
+                normalizedMessage,
+                attachment,
+                new RepositoryCallback<AppointmentRequestDetail>() {
+                    @Override
+                    public void onSuccess(AppointmentRequestDetail result) {
+                        currentSessionId = result.getSession() == null ? "" : result.getSession().getId();
+                        uiState.setValue(UiState.screen(coordinator.createForBooking(
+                                currentUser,
+                                result,
+                                bookingRepository.isFirebaseBacked()
+                        )));
+                        messageSentEvent.setValue(System.currentTimeMillis());
+                    }
 
-            @Override
-            public void onError(String errorMessage) {
-                UiState prev = _uiState.getValue();
-                _uiState.setValue(new UiState(false, prev != null ? prev.screenModel : null, StatePanelType.NONE, null, false));
-                _toastMessage.setValue(errorMessage);
-            }
-        });
+                    @Override
+                    public void onError(String errorMessage) {
+                        restoreCurrentScreen();
+                        toastMessage.setValue(errorMessage);
+                    }
+                }
+        );
     }
 
-    public void toastMessageHandled() {
-        _toastMessage.setValue(null);
+    private void setLoadingWithCurrentScreen() {
+        UiState currentState = uiState.getValue();
+        uiState.setValue(new UiState(
+                true,
+                currentState == null ? null : currentState.screenModel,
+                StatePanelType.NONE,
+                null,
+                false
+        ));
+    }
+
+    private void restoreCurrentScreen() {
+        UiState currentState = uiState.getValue();
+        uiState.setValue(new UiState(
+                false,
+                currentState == null ? null : currentState.screenModel,
+                StatePanelType.NONE,
+                null,
+                false
+        ));
     }
 
     public static class Factory implements androidx.lifecycle.ViewModelProvider.Factory {
         private final AuthRepository authRepository;
         private final BookingRepository bookingRepository;
         private final ManagerRepository managerRepository;
+        private final CompanionChatAttachmentUploader attachmentUploader;
         private final CompanionChatCoordinator coordinator;
 
-        public Factory(AuthRepository authRepository, BookingRepository bookingRepository, ManagerRepository managerRepository, CompanionChatCoordinator coordinator) {
+        public Factory(
+                AuthRepository authRepository,
+                BookingRepository bookingRepository,
+                ManagerRepository managerRepository,
+                CompanionChatAttachmentUploader attachmentUploader,
+                CompanionChatCoordinator coordinator
+        ) {
             this.authRepository = authRepository;
             this.bookingRepository = bookingRepository;
             this.managerRepository = managerRepository;
+            this.attachmentUploader = attachmentUploader;
             this.coordinator = coordinator;
         }
 
@@ -240,7 +363,13 @@ public class CompanionChatViewModel extends ViewModel {
         @SuppressWarnings("unchecked")
         public <T extends ViewModel> T create(@androidx.annotation.NonNull Class<T> modelClass) {
             if (modelClass.isAssignableFrom(CompanionChatViewModel.class)) {
-                return (T) new CompanionChatViewModel(authRepository, bookingRepository, managerRepository, coordinator);
+                return (T) new CompanionChatViewModel(
+                        authRepository,
+                        bookingRepository,
+                        managerRepository,
+                        attachmentUploader,
+                        coordinator
+                );
             }
             throw new IllegalArgumentException("Unknown ViewModel class");
         }

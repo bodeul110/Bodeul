@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatu
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
@@ -49,7 +50,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Firestore에 저장된 세션, 요청, 가이드, 리포트를 조합해 매니저 화면을 구성한다.
+ * Firestore????λ맂 ?몄뀡, ?붿껌, 媛?대뱶, 由ы룷?몃? 議고빀??留ㅻ땲? ?붾㈃??援ъ꽦?쒕떎.
  */
 public class FirebaseManagerRepository implements ManagerRepository {
     private final FirebaseFirestore firestore;
@@ -60,13 +61,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void getManagerDashboard(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        // 세션 문서를 기준으로 관련 사용자, 요청, 가이드, 리포트를 병렬로 읽어 대시보드를 완성한다.
+        // ?몄뀡 臾몄꽌瑜?湲곗??쇰줈 愿???ъ슜?? ?붿껌, 媛?대뱶, 由ы룷?몃? 蹂묐젹濡??쎌뼱 ??쒕낫?쒕? ?꾩꽦?쒕떎.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
                 CompanionSession session = toSession(sessionSnapshot);
                 if (session == null) {
-                    callback.onError("companionSessions 데이터 형식을 확인해주세요.");
+                    callback.onError("companionSessions ?곗씠???뺤떇???뺤씤?댁＜?몄슂.");
                     return;
                 }
 
@@ -76,7 +77,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .addOnSuccessListener(requestSnapshot -> {
                             AppointmentRequest request = toAppointmentRequest(requestSnapshot);
                             if (request == null) {
-                                callback.onError("appointmentRequests 데이터를 찾지 못했습니다.");
+                                callback.onError("appointmentRequests ?곗씠?곕? 李얠? 紐삵뻽?듬땲??");
                                 return;
                             }
 
@@ -121,7 +122,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                         SessionReport report = toReport((QuerySnapshot) results.get(2));
 
                                         if (manager == null || patient == null || guardian == null || guide == null) {
-                                            callback.onError("Firebase 컬렉션(users, hospitalGuides) 데이터를 확인해주세요.");
+                                            callback.onError("Firebase 而щ젆??users, hospitalGuides) ?곗씠?곕? ?뺤씤?댁＜?몄슂.");
                                             return;
                                         }
 
@@ -136,10 +137,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                         ));
                                     })
                                     .addOnFailureListener(exception ->
-                                            callback.onError("매니저 데이터를 불러오지 못했습니다."));
+                                            callback.onError("留ㅻ땲? ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
                         })
                         .addOnFailureListener(exception ->
-                                callback.onError("예약 데이터를 불러오지 못했습니다."));
+                                callback.onError("?덉빟 ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
             }
 
             @Override
@@ -151,7 +152,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        // 단계 이동은 현재 세션 문서와 전체 단계 수를 모두 알아야 해서 대시보드를 먼저 읽는다.
+        // ?④퀎 ?대룞? ?꾩옱 ?몄뀡 臾몄꽌? ?꾩껜 ?④퀎 ?섎? 紐⑤몢 ?뚯븘???댁꽌 ??쒕낫?쒕? 癒쇱? ?쎈뒗??
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
@@ -161,7 +162,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         int totalSteps = dashboard.getHospitalGuide().getSteps().size();
                         int currentStep = dashboard.getSession().getCurrentStepOrder();
                         if (currentStep >= totalSteps) {
-                            callback.onError("마지막 단계입니다. 리포트를 전송해주세요.");
+                            callback.onError("留덉?留??④퀎?낅땲?? 由ы룷?몃? ?꾩넚?댁＜?몄슂.");
                             return;
                         }
 
@@ -171,7 +172,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         updates.put("currentStatus", resolveStepStatus(nextStep, totalSteps).name());
                         updates.put("updatedAt", FieldValue.serverTimestamp());
 
-                        // 세션 단계와 예약 상태를 한 번에 갱신해 화면 간 상태 불일치를 줄인다.
+                        // ?몄뀡 ?④퀎? ?덉빟 ?곹깭瑜???踰덉뿉 媛깆떊???붾㈃ 媛??곹깭 遺덉씪移섎? 以꾩씤??
                         WriteBatch batch = firestore.batch();
                         batch.update(sessionSnapshot.getReference(), updates);
                         batch.update(
@@ -184,7 +185,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         batch.commit()
                                 .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                                 .addOnFailureListener(exception ->
-                                        callback.onError("다음 단계로 이동하지 못했습니다."));
+                                        callback.onError("?ㅼ쓬 ?④퀎濡??대룞?섏? 紐삵뻽?듬땲??"));
                     }
 
                     @Override
@@ -203,7 +204,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void saveGuardianUpdate(String managerUserId, String guardianUpdate, RepositoryCallback<ManagerDashboard> callback) {
-        // 보호자 공유 메시지는 companionSessions 문서의 단일 필드로 관리한다.
+        // 蹂댄샇??怨듭쑀 硫붿떆吏??companionSessions 臾몄꽌???⑥씪 ?꾨뱶濡?愿由ы븳??
         updateSessionField(managerUserId, "guardianUpdate", guardianUpdate, callback);
     }
 
@@ -223,7 +224,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         UserRole.MANAGER
                 );
                 if (session == null) {
-                    callback.onError("세션 정보를 찾지 못했습니다.");
+                    callback.onError("?몄뀡 ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
                     return;
                 }
 
@@ -248,7 +249,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updates)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("실시간 위치를 저장하지 못했습니다."));
+                                callback.onError("?ㅼ떆媛??꾩튂瑜???ν븯吏 紐삵뻽?듬땲??"));
             }
 
             @Override
@@ -282,7 +283,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updates)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("실시간 위치 공유 상태를 저장하지 못했습니다."));
+                                callback.onError("?ㅼ떆媛??꾩튂 怨듭쑀 ?곹깭瑜???ν븯吏 紐삵뻽?듬땲??"));
             }
 
             @Override
@@ -294,19 +295,19 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
-        // 위치 공유 메모도 세션 문서의 별도 필드에 저장한다.
+        // ?꾩튂 怨듭쑀 硫붾え???몄뀡 臾몄꽌??蹂꾨룄 ?꾨뱶????ν븳??
         updateSessionField(managerUserId, "locationSummary", locationSummary, callback);
     }
 
     @Override
     public void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback) {
-        // 현장 사진이나 서류 확인 메모를 다음 화면에서도 재사용할 수 있게 저장한다.
+        // ?꾩옣 ?ъ쭊?대굹 ?쒕쪟 ?뺤씤 硫붾え瑜??ㅼ쓬 ?붾㈃?먯꽌???ъ궗?⑺븷 ???덇쾶 ??ν븳??
         updateSessionField(managerUserId, "fieldPhotoNote", fieldPhotoNote, callback);
     }
 
     @Override
     public void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback) {
-        // 약 메모도 같은 세션 문서 안에 저장해 리포트 작성 전에 누적한다.
+        // ??硫붾え??媛숈? ?몄뀡 臾몄꽌 ?덉뿉 ??ν빐 由ы룷???묒꽦 ?꾩뿉 ?꾩쟻?쒕떎.
         updateSessionField(managerUserId, "medicationNote", medicationNote, callback);
     }
 
@@ -351,13 +352,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (!documentSnapshot.exists()) {
-                        callback.onError("users 컬렉션에서 매니저 정보를 찾지 못했습니다.");
+                        callback.onError("users 而щ젆?섏뿉??留ㅻ땲? ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
                         return;
                     }
                     callback.onSuccess(toManagerHomeProfile(documentSnapshot));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("매니저 홈 요약 정보를 불러오지 못했습니다."));
+                        callback.onError("留ㅻ땲? ???붿빟 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     @Override
@@ -371,7 +372,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null) {
-                        callback.onError("매니저 내 페이지 정보를 불러오지 못했습니다.");
+                        callback.onError("留ㅻ땲? ???섏씠吏 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
                         return;
                     }
 
@@ -382,7 +383,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     ));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("매니저 내 페이지 정보를 불러오지 못했습니다."));
+                        callback.onError("留ㅻ땲? ???섏씠吏 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     @Override
@@ -402,7 +403,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(results -> {
                     User manager = toUser((DocumentSnapshot) results.get(0));
                     if (manager == null) {
-                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다.");
+                        callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
                         return;
                     }
 
@@ -429,7 +430,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     );
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
+                        callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     @Override
@@ -458,7 +459,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(unused ->
                         onManagerDocumentSummarySaved(managerUserId, normalizedSummary, callback))
                 .addOnFailureListener(exception ->
-                        callback.onError("서류 등록 정보를 저장하지 못했습니다."));
+                        callback.onError("?쒕쪟 ?깅줉 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
 
         boolean shouldUseLegacyPath = false;
         if (shouldUseLegacyPath) {
@@ -467,7 +468,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 "managerDocumentSummary",
                 normalizeText(documentSummary),
                 "managerDocumentUpdatedAt",
-                "서류 등록 정보를 저장하지 못했습니다.",
+                "?쒕쪟 ?깅줉 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??",
                 callback
         );
         }
@@ -480,7 +481,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
-            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
+            callback.onError("?낅줈?쒗븳 ?쒕쪟 ?뚯씪 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
             return;
         }
 
@@ -490,13 +491,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                        callback.onError("매니저 계정을 확인하지 못했습니다.");
+                        callback.onError("留ㅻ땲? 怨꾩젙???뺤씤?섏? 紐삵뻽?듬땲??");
                         return;
                     }
 
                     String documentSummary = normalizeText(documentSnapshot.getString("managerDocumentSummary"));
                     if (documentSummary.isEmpty()) {
-                        callback.onError("서류 요약을 먼저 저장한 뒤 원본 파일을 올려주세요.");
+                        callback.onError("?쒕쪟 ?붿빟??癒쇱? ??ν븳 ???먮낯 ?뚯씪???щ젮二쇱꽭??");
                         return;
                     }
 
@@ -543,10 +544,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             .update(updates)
                             .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
                             .addOnFailureListener(exception ->
-                                    callback.onError("원본 서류 파일 정보를 저장하지 못했습니다."));
+                                    callback.onError("?먮낯 ?쒕쪟 ?뚯씪 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
+                        callback.onError("留ㅻ땲? ?쒕쪟 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     @Override
@@ -556,7 +557,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
-            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
+            callback.onError("?낅줈?쒗븳 ?쒕쪟 ?뚯씪 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
             return;
         }
 
@@ -589,7 +590,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .update(updates)
                 .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
                 .addOnFailureListener(exception ->
-                        callback.onError("원본 서류 파일 초안을 저장하지 못했습니다."));
+                        callback.onError("?먮낯 ?쒕쪟 ?뚯씪 珥덉븞????ν븯吏 紐삵뻽?듬땲??"));
     }
 
     @Override
@@ -603,7 +604,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 "managerAvailabilitySummary",
                 normalizeText(availabilitySummary),
                 "managerAvailabilityUpdatedAt",
-                "활동 가능 일정을 저장하지 못했습니다.",
+                "?쒕룞 媛???쇱젙????ν븯吏 紐삵뻽?듬땲??",
                 callback
         );
     }
@@ -622,13 +623,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        // 리포트 저장은 sessionReports 생성과 세션 종료 처리를 함께 반영해야 한다.
+        // 由ы룷????μ? sessionReports ?앹꽦怨??몄뀡 醫낅즺 泥섎━瑜??④퍡 諛섏쁺?댁빞 ?쒕떎.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
                 CompanionSession session = toSession(sessionSnapshot);
                 if (session == null) {
-                    callback.onError("세션 정보를 찾지 못했습니다.");
+                    callback.onError("?몄뀡 ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
                     return;
                 }
 
@@ -648,7 +649,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 reportDocument.put("nextVisitAt", nextVisitAt);
                 reportDocument.put("createdAt", FieldValue.serverTimestamp());
 
-                // 리포트 저장과 세션 종료 처리를 배치로 묶어 한 번에 반영한다.
+                // 由ы룷????κ낵 ?몄뀡 醫낅즺 泥섎━瑜?諛곗튂濡?臾띠뼱 ??踰덉뿉 諛섏쁺?쒕떎.
                 WriteBatch batch = firestore.batch();
                 DocumentReference reportReference = firestore.collection("sessionReports")
                         .document("report-" + session.getId());
@@ -669,7 +670,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 batch.commit()
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("리포트를 저장하지 못했습니다."));
+                                callback.onError("由ы룷?몃? ??ν븯吏 紐삵뻽?듬땲??"));
             }
 
             @Override
@@ -700,7 +701,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     callback.onSuccess(inquiries);
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("문의 내역을 불러오지 못했습니다."));
+                        callback.onError("臾몄쓽 ?댁뿭??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     @Override
@@ -717,7 +718,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                        callback.onError("매니저 계정을 확인하지 못했습니다.");
+                        callback.onError("留ㅻ땲? 怨꾩젙???뺤씤?섏? 紐삵뻽?듬땲??");
                         return;
                     }
 
@@ -739,21 +740,22 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             .add(inquiryDocument)
                             .addOnSuccessListener(unused -> getSupportInquiries(managerUserId, callback))
                             .addOnFailureListener(exception ->
-                                    callback.onError("문의 내용을 저장하지 못했습니다."));
+                                    callback.onError("臾몄쓽 ?댁슜????ν븯吏 紐삵뻽?듬땲??"));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("매니저 정보를 확인하지 못했습니다."));
+                        callback.onError("留ㅻ땲? ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??"));
     }
 
     @Override
     public void sendCompanionChatMessage(
             String managerUserId,
             String message,
+            CompanionChatAttachment attachment,
             RepositoryCallback<ManagerDashboard> callback
     ) {
         String normalizedMessage = normalizeText(message);
-        if (normalizedMessage.isEmpty()) {
-            callback.onError("메시지를 입력해주세요.");
+        if (normalizedMessage.isEmpty() && (attachment == null || attachment.isEmpty())) {
+            callback.onError("메시지나 첨부 파일 중 하나는 함께 보내야 합니다.");
             return;
         }
 
@@ -762,7 +764,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("chatMessages", FieldValue.arrayUnion(
-                        buildChatMessagePayload(UserRole.MANAGER, normalizedMessage)
+                        buildChatMessagePayload(UserRole.MANAGER, normalizedMessage, attachment)
                 ));
                 updates.put(resolveChatReadField(UserRole.MANAGER), FieldValue.serverTimestamp());
                 updates.put("updatedAt", FieldValue.serverTimestamp());
@@ -771,7 +773,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updates)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("메시지를 전송하지 못했습니다."));
+                                callback.onError("硫붿떆吏瑜??꾩넚?섏? 紐삵뻽?듬땲??"));
             }
 
             @Override
@@ -794,7 +796,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
             @Override
             public void onError(String message) {
-                // 읽음 처리 실패는 화면 흐름을 막지 않는다.
+                // ?쎌쓬 泥섎━ ?ㅽ뙣???붾㈃ ?먮쫫??留됱? ?딅뒗??
             }
         });
     }
@@ -820,7 +822,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
             @Override
             public void onError(String message) {
-                // 자동 위치 알림 실패는 위치 공유 흐름을 막지 않는다.
+                // ?먮룞 ?꾩튂 ?뚮┝ ?ㅽ뙣???꾩튂 怨듭쑀 ?먮쫫??留됱? ?딅뒗??
             }
         });
     }
@@ -845,7 +847,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (!documentSnapshot.exists()) {
-                        callback.onError("users 컬렉션에서 매니저 정보를 찾지 못했습니다.");
+                        callback.onError("users 而щ젆?섏뿉??留ㅻ땲? ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
                         return;
                     }
 
@@ -864,10 +866,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             .update("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries))
                             .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
                             .addOnFailureListener(exception ->
-                                    callback.onError("?쒕쪟 寃???대젰????ν븯吏 紐삵뻽?듬땲??"));
+                                    callback.onError("??뺤첒 野꺜??????????館釉?쭪? 筌륁궢六??щ빍??"));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?쒕쪟 寃???대젰????ν븳 ?꾨꿡 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("??뺤첒 野꺜??????????館釉??袁④에 ?類ｋ궖???븍뜄???? 筌륁궢六??щ빍??"));
     }
 
     private void loadManagerHistoryDetailsSequentially(
@@ -958,10 +960,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                 );
                             })
                             .addOnFailureListener(exception ->
-                                    callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
+                                    callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
+                        callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     private void saveManagerHomeProfileField(
@@ -999,7 +1001,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             Map<String, Object> updates,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        // 세션 메모와 약국 단계 상태는 저장 후 대시보드를 다시 읽어 한 구조로 유지한다.
+        // ?몄뀡 硫붾え? ?쎄뎅 ?④퀎 ?곹깭?????????쒕낫?쒕? ?ㅼ떆 ?쎌뼱 ??援ъ“濡??좎??쒕떎.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
@@ -1010,7 +1012,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updatesWithTimestamp)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("세션 정보를 저장하지 못했습니다."));
+                                callback.onError("?몄뀡 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
             }
 
             @Override
@@ -1021,7 +1023,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     private void loadSessionDocument(String managerUserId, RepositoryCallback<DocumentSnapshot> callback) {
-        // 현재 구현은 매니저당 진행 중인 동행 세션 1건을 기준으로 화면을 구성한다.
+        // ?꾩옱 援ы쁽? 留ㅻ땲???吏꾪뻾 以묒씤 ?숉뻾 ?몄뀡 1嫄댁쓣 湲곗??쇰줈 ?붾㈃??援ъ꽦?쒕떎.
         firestore.collection("companionSessions")
                 .whereEqualTo("managerUserId", managerUserId)
                 .get()
@@ -1036,7 +1038,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("동행 세션 정보를 불러오지 못했습니다."));
+                        callback.onError("?숉뻾 ?몄뀡 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
     }
 
     private boolean isActiveSession(CompanionSession session) {
@@ -1224,7 +1226,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private User toUser(DocumentSnapshot documentSnapshot) {
-        // users 컬렉션 문서를 앱의 User 모델로 변환한다.
+        // users 而щ젆??臾몄꽌瑜??깆쓽 User 紐⑤뜽濡?蹂?섑븳??
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -1269,7 +1271,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private AppointmentRequest toAppointmentRequest(DocumentSnapshot documentSnapshot) {
-        // appointmentRequests 문서를 일정 카드에 바로 쓸 수 있는 모델로 정리한다.
+        // appointmentRequests 臾몄꽌瑜??쇱젙 移대뱶??諛붾줈 ?????덈뒗 紐⑤뜽濡??뺣━?쒕떎.
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -1330,15 +1332,27 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
-        // currentStepOrder와 currentStatus를 읽어 단계형 UI 상태를 복원한다.
+        // currentStepOrder? currentStatus瑜??쎌뼱 ?④퀎??UI ?곹깭瑜?蹂듭썝?쒕떎.
         return FirebaseCompanionSessionMapper.toSession(documentSnapshot, UserRole.MANAGER);
     }
 
-    private Map<String, Object> buildChatMessagePayload(UserRole senderRole, String body) {
+    private Map<String, Object> buildChatMessagePayload(
+            UserRole senderRole,
+            String body,
+            @Nullable CompanionChatAttachment attachment
+    ) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("senderRole", senderRole == null ? UserRole.MANAGER.name() : senderRole.name());
         payload.put("body", normalizeText(body));
         payload.put("sentAtMillis", System.currentTimeMillis());
+        if (attachment != null && !attachment.isEmpty()) {
+            Map<String, Object> attachmentPayload = new HashMap<>();
+            attachmentPayload.put("fullPath", attachment.getFullPath());
+            attachmentPayload.put("fileName", attachment.getFileName());
+            attachmentPayload.put("contentType", attachment.getContentType());
+            attachmentPayload.put("uploadedAtMillis", attachment.getUploadedAtMillis());
+            payload.put("attachment", attachmentPayload);
+        }
         return payload;
     }
 
@@ -1350,6 +1364,24 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return "guardianChatReadAt";
         }
         return "managerChatReadAt";
+    }
+
+    @Nullable
+    private CompanionChatAttachment toChatAttachment(@Nullable Object rawValue) {
+        if (!(rawValue instanceof Map)) {
+            return null;
+        }
+        Map<?, ?> valueMap = (Map<?, ?>) rawValue;
+        String fullPath = normalizeText(stringValue(valueMap.get("fullPath")));
+        if (fullPath.isEmpty()) {
+            return null;
+        }
+        return new CompanionChatAttachment(
+                fullPath,
+                normalizeText(stringValue(valueMap.get("fileName"))),
+                normalizeText(stringValue(valueMap.get("contentType"))),
+                resolveTimestampMillis(valueMap.get("uploadedAtMillis"))
+        );
     }
 
     private List<CompanionChatMessage> toChatMessages(@Nullable Object rawValue) {
@@ -1364,7 +1396,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
             Map<?, ?> valueMap = (Map<?, ?>) rawMessage;
             String roleValue = normalizeText(stringValue(valueMap.get("senderRole")));
             String body = normalizeText(stringValue(valueMap.get("body")));
-            if (body.isEmpty()) {
+            CompanionChatAttachment attachment = toChatAttachment(valueMap.get("attachment"));
+            if (body.isEmpty() && (attachment == null || attachment.isEmpty())) {
                 continue;
             }
             long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
@@ -1374,14 +1407,14 @@ public class FirebaseManagerRepository implements ManagerRepository {
             } catch (IllegalArgumentException exception) {
                 senderRole = UserRole.MANAGER;
             }
-            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis));
+            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachment));
         }
         return messages;
     }
 
     @Nullable
     private HospitalGuide findGuide(QuerySnapshot querySnapshot, String departmentName) {
-        // 병원명으로 먼저 좁힌 뒤 진료과가 일치하는 가이드를 한 번 더 찾는다.
+        // 蹂묒썝紐낆쑝濡?癒쇱? 醫곹엺 ??吏꾨즺怨쇨? ?쇱튂?섎뒗 媛?대뱶瑜???踰???李얜뒗??
         for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
             HospitalGuide guide = toGuide(documentSnapshot);
             if (guide != null && guide.getDepartmentName().equals(departmentName)) {
@@ -1393,7 +1426,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private HospitalGuide toGuide(DocumentSnapshot documentSnapshot) {
-        // Firestore 배열 형태의 steps를 GuideStep 목록으로 변환한다.
+        // Firestore 諛곗뿴 ?뺥깭??steps瑜?GuideStep 紐⑸줉?쇰줈 蹂?섑븳??
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -1411,7 +1444,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             if (!(rawStep instanceof Map)) {
                 continue;
             }
-            // 각 단계는 order/title/description 3개 필드를 가진 맵이라고 가정한다.
+            // 媛??④퀎??order/title/description 3媛??꾨뱶瑜?媛吏?留듭씠?쇨퀬 媛?뺥븳??
             Map<?, ?> stepMap = (Map<?, ?>) rawStep;
             Object orderValue = stepMap.get("order");
             Object titleValue = stepMap.get("title");
@@ -1435,7 +1468,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private SessionReport toReport(QuerySnapshot querySnapshot) {
-        // 현재 구현은 세션당 리포트 1개를 가정하고 첫 문서만 사용한다.
+        // ?꾩옱 援ы쁽? ?몄뀡??由ы룷??1媛쒕? 媛?뺥븯怨?泥?臾몄꽌留??ъ슜?쒕떎.
         if (querySnapshot.isEmpty()) {
             return null;
         }
@@ -1558,7 +1591,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private String stringifyDate(@Nullable Object rawValue) {
-        // Timestamp와 문자열 입력을 모두 같은 텍스트 출력으로 맞춘다.
+        // Timestamp? 臾몄옄???낅젰??紐⑤몢 媛숈? ?띿뒪??異쒕젰?쇰줈 留욎텣??
         if (rawValue == null) {
             return null;
         }
@@ -1602,7 +1635,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             try {
                 return SupportInquiryStatus.valueOf(rawValue);
             } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 상태 값은 접수됨으로 보정한다.
+                // ?????녿뒗 ?곹깭 媛믪? ?묒닔?⑥쑝濡?蹂댁젙?쒕떎.
             }
         }
         return SupportInquiryStatus.RECEIVED;
@@ -1627,7 +1660,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             try {
                 return ManagerDocumentStatus.valueOf(rawStatus);
             } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 아래 기본 규칙으로 보정한다.
+                // ?????녿뒗 媛믪? ?꾨옒 湲곕낯 洹쒖튃?쇰줈 蹂댁젙?쒕떎.
             }
         }
         if (normalizeText(documentSummary).isEmpty()) {
@@ -1637,7 +1670,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     private SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {
-        // 단계 번호를 화면 상단 상태 배지에 사용하는 대표 상태로 매핑한다.
+        // ?④퀎 踰덊샇瑜??붾㈃ ?곷떒 ?곹깭 諛곗????ъ슜?섎뒗 ????곹깭濡?留ㅽ븨?쒕떎.
         if (stepOrder <= 1) {
             return SessionStatus.MEETING;
         }
@@ -1653,3 +1686,5 @@ public class FirebaseManagerRepository implements ManagerRepository {
         return SessionStatus.PAYMENT;
     }
 }
+
+

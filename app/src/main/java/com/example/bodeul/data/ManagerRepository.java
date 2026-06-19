@@ -1,6 +1,7 @@
 package com.example.bodeul.data;
 
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
@@ -27,6 +28,7 @@ public interface ManagerRepository {
     void sendCompanionChatMessage(
             String managerUserId,
             String message,
+            CompanionChatAttachment attachment,
             RepositoryCallback<ManagerDashboard> callback
     );
 

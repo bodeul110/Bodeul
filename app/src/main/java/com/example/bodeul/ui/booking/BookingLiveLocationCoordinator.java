@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
@@ -51,6 +52,7 @@ public final class BookingLiveLocationCoordinator {
                 buildHeroBody(request, session),
                 context.getString(R.string.booking_live_location_section_status),
                 context.getString(R.string.booking_live_location_section_memo),
+                context.getString(R.string.booking_live_location_section_history),
                 context.getString(R.string.booking_live_location_section_map),
                 context.getString(R.string.booking_live_location_section_map_helper),
                 buildMapHighlightTitle(detail),
@@ -58,6 +60,7 @@ public final class BookingLiveLocationCoordinator {
                 buildHospitalMapPreviewModel(request),
                 createStatusLines(detail),
                 createMemoLines(detail),
+                createHistoryLines(detail),
                 createMapActions(detail),
                 context.getString(R.string.booking_live_location_action_open_booking_status),
                 context.getString(R.string.booking_live_location_action_refresh)
@@ -144,11 +147,6 @@ public final class BookingLiveLocationCoordinator {
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
                 false
         ));
-        items.add(new BookingStatusLineItem(
-                context.getString(R.string.booking_live_location_line_location_history),
-                CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
-                false
-        ));
         if (session != null && session.getSharedLocationUpdatedAtMillis() > 0L) {
             items.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_live_location_line_location_updated_at),
@@ -204,6 +202,29 @@ public final class BookingLiveLocationCoordinator {
                 PharmacyProgressDisplayHelper.buildStepSummary(context, session),
                 false
         ));
+        return items;
+    }
+
+    private List<BookingStatusLineItem> createHistoryLines(AppointmentRequestDetail detail) {
+        List<BookingStatusLineItem> items = new ArrayList<>();
+        List<CompanionLocationHistoryEntry> history =
+                CompanionLocationDisplayHelper.resolveHistoryEntries(detail.getSession(), 6);
+        if (history.isEmpty()) {
+            items.add(new BookingStatusLineItem(
+                    context.getString(R.string.booking_live_location_history_empty_label),
+                    context.getString(R.string.live_location_history_empty),
+                    false
+            ));
+            return items;
+        }
+
+        for (CompanionLocationHistoryEntry entry : history) {
+            items.add(new BookingStatusLineItem(
+                    CompanionLocationDisplayHelper.buildHistoryTimeLabel(entry),
+                    CompanionLocationDisplayHelper.buildHistoryValue(context, entry),
+                    false
+            ));
+        }
         return items;
     }
 

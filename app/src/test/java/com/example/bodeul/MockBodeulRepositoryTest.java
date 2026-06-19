@@ -1353,17 +1353,19 @@ public class MockBodeulRepositoryTest {
 
         assertNotNull(guardian);
 
+        String expectedMessage = "\uBCF4\uD638\uC790\uAC00 \uB3D9\uD589 \uC9C4\uD589 \uC0C1\uD669\uC744 \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4.";
         AppointmentRequestDetail updatedDetail = repository.appendBookingCompanionChatMessage(
                 guardian,
                 "request-1",
-                "보호자가 동행 진행 상황을 확인했습니다."
+                expectedMessage,
+                null
         );
 
         assertNotNull(updatedDetail);
         assertNotNull(updatedDetail.getSession());
         assertFalse(updatedDetail.getSession().getChatMessages().isEmpty());
         assertEquals(
-                "보호자가 동행 진행 상황을 확인했습니다.",
+                expectedMessage,
                 updatedDetail.getSession().getChatMessages().get(
                         updatedDetail.getSession().getChatMessages().size() - 1
                 ).getBody()
@@ -1377,15 +1379,17 @@ public class MockBodeulRepositoryTest {
 
         assertNotNull(manager);
 
+        String expectedMessage = "\uB9E4\uB2C8\uC800\uAC00 \uBCD1\uC6D0 \uB3C4\uCC29 \uC608\uC815 \uC2DC\uAC04\uC744 \uACF5\uC720\uD588\uC2B5\uB2C8\uB2E4.";
         ManagerDashboard updatedDashboard = repository.appendManagerCompanionChatMessage(
                 manager.getId(),
-                "매니저가 병원 도착 예정 시간을 공유했습니다."
+                expectedMessage,
+                null
         );
 
         assertNotNull(updatedDashboard);
         assertFalse(updatedDashboard.getSession().getChatMessages().isEmpty());
         assertEquals(
-                "매니저가 병원 도착 예정 시간을 공유했습니다.",
+                expectedMessage,
                 updatedDashboard.getSession().getChatMessages().get(
                         updatedDashboard.getSession().getChatMessages().size() - 1
                 ).getBody()

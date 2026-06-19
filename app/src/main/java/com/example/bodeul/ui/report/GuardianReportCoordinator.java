@@ -7,6 +7,7 @@ import androidx.annotation.Nullable;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
@@ -147,6 +148,8 @@ public final class GuardianReportCoordinator {
                     buildHeroBody(entry),
                     context.getString(R.string.guardian_report_live_section_title),
                     createLiveLines(entry),
+                    context.getString(R.string.guardian_report_history_section_title),
+                    createHistoryLines(entry),
                     context.getString(R.string.guardian_report_memo_section_title),
                     createMemoLines(entry),
                     context.getString(R.string.guardian_report_report_section_title),
@@ -188,15 +191,33 @@ public final class GuardianReportCoordinator {
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, entry.getSession()),
                 false
         ));
-        items.add(new GuardianReportLineItem(
-                context.getString(R.string.guardian_report_line_location_history),
-                CompanionLocationDisplayHelper.buildLocationHistory(context, entry.getSession(), 3),
-                false
-        ));
         if (entry.getSession() != null && entry.getSession().getSharedLocationUpdatedAtMillis() > 0L) {
             items.add(new GuardianReportLineItem(
                     context.getString(R.string.guardian_report_line_location_updated_at),
                     formatSharedLocationTime(entry.getSession().getSharedLocationUpdatedAtMillis()),
+                    false
+            ));
+        }
+        return items;
+    }
+
+    private List<GuardianReportLineItem> createHistoryLines(GuardianReportEntry entry) {
+        List<GuardianReportLineItem> items = new ArrayList<>();
+        List<CompanionLocationHistoryEntry> history =
+                CompanionLocationDisplayHelper.resolveHistoryEntries(entry.getSession(), 6);
+        if (history.isEmpty()) {
+            items.add(new GuardianReportLineItem(
+                    context.getString(R.string.guardian_report_history_empty_label),
+                    context.getString(R.string.live_location_history_empty),
+                    false
+            ));
+            return items;
+        }
+
+        for (CompanionLocationHistoryEntry historyEntry : history) {
+            items.add(new GuardianReportLineItem(
+                    CompanionLocationDisplayHelper.buildHistoryTimeLabel(historyEntry),
+                    CompanionLocationDisplayHelper.buildHistoryValue(context, historyEntry),
                     false
             ));
         }

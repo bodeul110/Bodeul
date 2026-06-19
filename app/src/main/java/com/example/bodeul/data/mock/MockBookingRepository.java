@@ -12,6 +12,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -262,6 +263,7 @@ public class MockBookingRepository implements BookingRepository {
             User currentUser,
             String requestId,
             String message,
+            CompanionChatAttachment attachment,
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
@@ -272,7 +274,8 @@ public class MockBookingRepository implements BookingRepository {
         AppointmentRequestDetail detail = repository.appendBookingCompanionChatMessage(
                 currentUser,
                 requestId,
-                message
+                message,
+                attachment
         );
         if (detail == null) {
             callback.onError("안심 채팅 메시지를 전송하지 못했습니다.");

@@ -42,6 +42,8 @@ public final class GuardianReportEntryCardBinder {
         TextView textHeroBody = cardView.findViewById(R.id.textGuardianReportEntryHeroBody);
         TextView textLiveTitle = cardView.findViewById(R.id.textGuardianReportEntryLiveTitle);
         LinearLayout liveContainer = cardView.findViewById(R.id.guardianReportEntryLiveContainer);
+        TextView textHistoryTitle = cardView.findViewById(R.id.textGuardianReportEntryHistoryTitle);
+        LinearLayout historyContainer = cardView.findViewById(R.id.guardianReportEntryHistoryContainer);
         TextView textMemoTitle = cardView.findViewById(R.id.textGuardianReportEntryMemoTitle);
         LinearLayout memoContainer = cardView.findViewById(R.id.guardianReportEntryMemoContainer);
         TextView textReportTitle = cardView.findViewById(R.id.textGuardianReportEntryReportTitle);
@@ -54,8 +56,10 @@ public final class GuardianReportEntryCardBinder {
         tintStatusBadge(textStatus, model.getStatus());
         textHeroBody.setText(model.getHeroBodyText());
         textLiveTitle.setText(model.getLiveSectionTitleText());
+        textHistoryTitle.setText(model.getHistorySectionTitleText());
         textReportTitle.setText(model.getReportSectionTitleText());
         bindLines(liveContainer, model.getLiveLines());
+        bindLines(historyContainer, model.getHistoryLines());
         if (model.getMemoLines().isEmpty()) {
             textMemoTitle.setVisibility(View.GONE);
             memoContainer.setVisibility(View.GONE);

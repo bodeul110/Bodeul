@@ -9,6 +9,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
 
+import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -48,15 +49,10 @@ public final class CompanionLocationDisplayHelper {
             @Nullable CompanionSession session,
             int maxEntries
     ) {
-        if (session == null) {
-            return context.getString(R.string.live_location_history_empty);
-        }
-
-        List<CompanionLocationHistoryEntry> history = session.getSharedLocationHistory();
+        List<CompanionLocationHistoryEntry> history = resolveHistoryEntries(session, maxEntries);
         if (!history.isEmpty()) {
             StringBuilder builder = new StringBuilder();
-            int limit = Math.min(maxEntries, history.size());
-            for (int index = 0; index < limit; index++) {
+            for (int index = 0; index < history.size(); index++) {
                 if (builder.length() > 0) {
                     builder.append('\n');
                 }
@@ -64,19 +60,51 @@ public final class CompanionLocationDisplayHelper {
             }
             return builder.toString();
         }
+        return context.getString(R.string.live_location_history_empty);
+    }
+
+    public static List<CompanionLocationHistoryEntry> resolveHistoryEntries(
+            @Nullable CompanionSession session,
+            int maxEntries
+    ) {
+        List<CompanionLocationHistoryEntry> items = new ArrayList<>();
+        if (session == null) {
+            return items;
+        }
+
+        List<CompanionLocationHistoryEntry> history = session.getSharedLocationHistory();
+        if (!history.isEmpty()) {
+            int limit = Math.min(maxEntries, history.size());
+            for (int index = 0; index < limit; index++) {
+                items.add(history.get(index));
+            }
+            return items;
+        }
 
         if (session.hasSharedLocationCoordinates() && session.getSharedLocationUpdatedAtMillis() > 0L) {
-            return buildHistoryLine(
-                    context,
-                    new CompanionLocationHistoryEntry(
-                            session.getSharedLatitude(),
-                            session.getSharedLongitude(),
-                            session.getLocationSummary(),
-                            session.getSharedLocationUpdatedAtMillis()
-                    )
-            );
+            items.add(new CompanionLocationHistoryEntry(
+                    session.getSharedLatitude(),
+                    session.getSharedLongitude(),
+                    session.getLocationSummary(),
+                    session.getSharedLocationUpdatedAtMillis()
+            ));
         }
-        return context.getString(R.string.live_location_history_empty);
+        return items;
+    }
+
+    public static String buildHistoryTimeLabel(CompanionLocationHistoryEntry entry) {
+        return formatSharedLocationTime(entry.getCapturedAtMillis());
+    }
+
+    public static String buildHistoryValue(Context context, CompanionLocationHistoryEntry entry) {
+        if (!TextUtils.isEmpty(entry.getSummary())) {
+            return entry.getSummary();
+        }
+        return context.getString(
+                R.string.live_location_history_coordinate_only,
+                entry.getLatitude(),
+                entry.getLongitude()
+        );
     }
 
     public static String formatSharedLocationTime(long updatedAtMillis) {

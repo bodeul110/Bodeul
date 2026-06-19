@@ -570,7 +570,7 @@ exports.notifyCompanionChatMessage = onDocumentWritten(
       }
 
       const title = resolveCompanionChatNotificationTitle(latestMessage.senderRole);
-      const body = buildCompanionChatNotificationBody(latestMessage.body);
+      const body = buildCompanionChatNotificationBody(latestMessage);
       const deliverySummary = await sendCompanionChatNotification({
         sessionId: sanitizeText(event.params?.sessionId),
         appointmentRequestId,
@@ -2460,7 +2460,12 @@ function toCompanionChatMessageArray(value) {
     senderRole: sanitizeText(item?.senderRole),
     body: sanitizeText(item?.body),
     sentAtMillis: toSafeInteger(item?.sentAtMillis),
-  })).filter((item) => item.senderRole && item.body);
+    attachmentFullPath: sanitizeText(item?.attachment?.fullPath),
+    attachmentFileName: sanitizeText(item?.attachment?.fileName),
+    attachmentContentType: sanitizeText(item?.attachment?.contentType),
+  })).filter((item) =>
+    item.senderRole && (item.body || item.attachmentFullPath || item.attachmentFileName)
+  );
 }
 
 function buildCompanionChatMessageKey(message) {
@@ -2468,6 +2473,9 @@ function buildCompanionChatMessageKey(message) {
     sanitizeText(message?.senderRole),
     sanitizeText(message?.body),
     toSafeInteger(message?.sentAtMillis),
+    sanitizeText(message?.attachmentFullPath),
+    sanitizeText(message?.attachmentFileName),
+    sanitizeText(message?.attachmentContentType),
   ].join("|");
 }
 
@@ -2504,10 +2512,17 @@ function resolveCompanionChatNotificationTitle(senderRole) {
   return "안심 채팅 새 메시지가 도착했습니다";
 }
 
-function buildCompanionChatNotificationBody(messageBody) {
-  const normalizedBody = sanitizeText(messageBody);
+function buildCompanionChatNotificationBody(message) {
+  const normalizedBody = sanitizeText(message?.body);
   if (!normalizedBody) {
-    return "안심 채팅 메시지를 확인해 주세요.";
+    const contentType = sanitizeText(message?.attachmentContentType);
+    if (contentType === "application/pdf") {
+      return "PDF ??? ?????.";
+    }
+    if (contentType.startsWith("image/")) {
+      return "??? ??? ?????.";
+    }
+    return "?? ??? ?????.";
   }
   if (normalizedBody.length <= 120) {
     return normalizedBody;

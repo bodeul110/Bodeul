@@ -195,6 +195,57 @@
                         android:orientation="vertical"
                         android:padding="22dp">
 
+                        <LinearLayout
+                            android:id="@+id/layoutCompanionChatPendingAttachment"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="14dp"
+                            android:background="@drawable/bg_surface_card_soft"
+                            android:orientation="vertical"
+                            android:padding="14dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:id="@+id/textCompanionChatPendingAttachmentTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/bodeul_text_primary"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/textCompanionChatPendingAttachmentMeta"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:textColor="@color/bodeul_text_secondary"
+                                android:textSize="12sp" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:orientation="horizontal">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/buttonCompanionChatAttachmentPreview"
+                                    style="@style/BodeulOutlinedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:minWidth="0dp"
+                                    android:text="@string/companion_chat_attachment_preview" />
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/buttonCompanionChatAttachmentClear"
+                                    style="@style/BodeulOutlinedButton"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:minWidth="0dp"
+                                    android:text="@string/companion_chat_attachment_clear" />
+                            </LinearLayout>
+                        </LinearLayout>
+
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/layoutCompanionChatInput"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -210,6 +261,14 @@
                                 android:maxLines="4"
                                 android:minLines="3" />
                         </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonCompanionChatAttach"
+                            style="@style/BodeulOutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:text="@string/companion_chat_attach" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonCompanionChatSend"

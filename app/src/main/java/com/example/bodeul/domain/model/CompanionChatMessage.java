@@ -7,11 +7,22 @@ public final class CompanionChatMessage {
     private final UserRole senderRole;
     private final String body;
     private final long sentAtMillis;
+    private final CompanionChatAttachment attachment;
 
     public CompanionChatMessage(UserRole senderRole, String body, long sentAtMillis) {
+        this(senderRole, body, sentAtMillis, null);
+    }
+
+    public CompanionChatMessage(
+            UserRole senderRole,
+            String body,
+            long sentAtMillis,
+            CompanionChatAttachment attachment
+    ) {
         this.senderRole = senderRole;
-        this.body = body;
+        this.body = body == null ? "" : body;
         this.sentAtMillis = sentAtMillis;
+        this.attachment = attachment;
     }
 
     public UserRole getSenderRole() {
@@ -24,5 +35,13 @@ public final class CompanionChatMessage {
 
     public long getSentAtMillis() {
         return sentAtMillis;
+    }
+
+    public CompanionChatAttachment getAttachment() {
+        return attachment;
+    }
+
+    public boolean hasAttachment() {
+        return attachment != null && !attachment.isEmpty();
     }
 }

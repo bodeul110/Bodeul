@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -135,10 +136,30 @@ public final class CompanionChatCoordinator {
                     toRoleLabel(message.getSenderRole()),
                     message.getBody(),
                     sentAtLabel,
-                    mine
+                    mine,
+                    message.getAttachment(),
+                    toAttachmentSummary(message.getAttachment()),
+                    context.getString(R.string.companion_chat_attachment_open)
             ));
         }
         return items;
+    }
+
+    private String toAttachmentSummary(CompanionChatAttachment attachment) {
+        if (attachment == null || attachment.isEmpty()) {
+            return "";
+        }
+
+        String fileName = TextUtils.isEmpty(attachment.getFileName())
+                ? context.getString(R.string.companion_chat_attachment_file)
+                : attachment.getFileName();
+        if (attachment.isImageType()) {
+            return context.getString(R.string.companion_chat_attachment_image_format, fileName);
+        }
+        if (attachment.isPdfType()) {
+            return context.getString(R.string.companion_chat_attachment_pdf_format, fileName);
+        }
+        return context.getString(R.string.companion_chat_attachment_file_format, fileName);
     }
 
     private int findLastMineIndex(User currentUser, List<CompanionChatMessage> messages) {

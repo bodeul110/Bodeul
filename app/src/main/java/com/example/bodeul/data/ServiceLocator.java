@@ -4,6 +4,8 @@ import android.content.Context;
 
 import com.example.bodeul.data.firebase.FirebaseAdminRepository;
 import com.example.bodeul.data.firebase.FirebaseAuthRepository;
+import com.example.bodeul.data.firebase.FirebaseCompanionChatAttachmentPreviewResolver;
+import com.example.bodeul.data.firebase.FirebaseCompanionChatAttachmentUploader;
 import com.example.bodeul.data.firebase.FirebaseBookingRepository;
 import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentStorageUploader;
@@ -13,6 +15,8 @@ import com.example.bodeul.data.firebase.FirebaseNotificationTokenRegistrar;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
+import com.example.bodeul.data.mock.MockCompanionChatAttachmentPreviewResolver;
+import com.example.bodeul.data.mock.MockCompanionChatAttachmentUploader;
 import com.example.bodeul.data.mock.MockBookingRepository;
 import com.example.bodeul.data.mock.MockGuardianReportRepository;
 import com.example.bodeul.data.mock.MockManagerDocumentPreviewResolver;
@@ -37,6 +41,8 @@ public final class ServiceLocator {
     private static NotificationTokenRegistrar notificationTokenRegistrar;
     private static ManagerRepository managerRepository;
     private static AdminRepository adminRepository;
+    private static CompanionChatAttachmentUploader companionChatAttachmentUploader;
+    private static CompanionChatAttachmentPreviewResolver companionChatAttachmentPreviewResolver;
     private static ManagerDocumentStorageUploader managerDocumentStorageUploader;
     private static ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
     private static FirebaseFirestore firestore;
@@ -71,6 +77,36 @@ public final class ServiceLocator {
             }
         }
         return managerRepository;
+    }
+
+    public static synchronized CompanionChatAttachmentUploader provideCompanionChatAttachmentUploader(
+            Context context
+    ) {
+        if (companionChatAttachmentUploader == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                companionChatAttachmentUploader =
+                        new FirebaseCompanionChatAttachmentUploader(context.getApplicationContext());
+            } else {
+                companionChatAttachmentUploader =
+                        new MockCompanionChatAttachmentUploader(context.getApplicationContext());
+            }
+        }
+        return companionChatAttachmentUploader;
+    }
+
+    public static synchronized CompanionChatAttachmentPreviewResolver provideCompanionChatAttachmentPreviewResolver(
+            Context context
+    ) {
+        if (companionChatAttachmentPreviewResolver == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                companionChatAttachmentPreviewResolver =
+                        new FirebaseCompanionChatAttachmentPreviewResolver();
+            } else {
+                companionChatAttachmentPreviewResolver =
+                        new MockCompanionChatAttachmentPreviewResolver();
+            }
+        }
+        return companionChatAttachmentPreviewResolver;
     }
 
     public static synchronized ManagerDocumentStorageUploader provideManagerDocumentStorageUploader(Context context) {

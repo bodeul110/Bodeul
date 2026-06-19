@@ -27,6 +27,7 @@ import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.ClientSupportCategory;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.ClientSupportStatus;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
@@ -1257,7 +1258,11 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
-    public synchronized ManagerDashboard appendManagerCompanionChatMessage(String managerUserId, String message) {
+    public synchronized ManagerDashboard appendManagerCompanionChatMessage(
+            String managerUserId,
+            String message,
+            @Nullable CompanionChatAttachment attachment
+    ) {
         User manager = findUserById(managerUserId);
         CompanionSession session = getPrimaryManagerSession(managerUserId);
         if (manager == null || session == null) {
@@ -1267,7 +1272,8 @@ public class MockBodeulRepository implements BodeulRepository {
         session.addChatMessage(new CompanionChatMessage(
                 manager.getRole(),
                 normalizeText(message),
-                sentAtMillis
+                sentAtMillis,
+                attachment
         ));
         session.markChatRead(manager.getRole(), sentAtMillis);
         return getManagerDashboard(managerUserId);
@@ -1277,7 +1283,8 @@ public class MockBodeulRepository implements BodeulRepository {
     public synchronized AppointmentRequestDetail appendBookingCompanionChatMessage(
             User currentUser,
             String requestId,
-            String message
+            String message,
+            @Nullable CompanionChatAttachment attachment
     ) {
         AppointmentRequestDetail detail = getAppointmentRequestDetail(requestId);
         if (detail == null || !matchesRequestOwner(detail.getAppointmentRequest(), currentUser.getId(), currentUser.getRole())) {
@@ -1291,7 +1298,8 @@ public class MockBodeulRepository implements BodeulRepository {
         session.addChatMessage(new CompanionChatMessage(
                 currentUser.getRole(),
                 normalizeText(message),
-                sentAtMillis
+                sentAtMillis,
+                attachment
         ));
         session.markChatRead(currentUser.getRole(), sentAtMillis);
         return getAppointmentRequestDetail(requestId);

@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -18,6 +19,10 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.util.List;
 
 public final class CompanionChatBinder {
+    public interface MessageAttachmentActionListener {
+        void onOpenAttachment(CompanionChatAttachment attachment);
+    }
+
     private final Context context;
     private final LayoutInflater inflater;
     private final TextView textMode;
@@ -31,6 +36,12 @@ public final class CompanionChatBinder {
     private final LinearLayout messageContainer;
     private final TextInputLayout inputLayout;
     private final MaterialButton buttonSend;
+    private final View pendingAttachmentContainer;
+    private final TextView textPendingAttachmentTitle;
+    private final TextView textPendingAttachmentMeta;
+    private final MaterialButton buttonPendingAttachmentPreview;
+    private final MaterialButton buttonPendingAttachmentClear;
+    private final MessageAttachmentActionListener messageAttachmentActionListener;
 
     public CompanionChatBinder(
             Context context,
@@ -45,7 +56,13 @@ public final class CompanionChatBinder {
             TextView textEmptyBody,
             LinearLayout messageContainer,
             TextInputLayout inputLayout,
-            MaterialButton buttonSend
+            MaterialButton buttonSend,
+            View pendingAttachmentContainer,
+            TextView textPendingAttachmentTitle,
+            TextView textPendingAttachmentMeta,
+            MaterialButton buttonPendingAttachmentPreview,
+            MaterialButton buttonPendingAttachmentClear,
+            MessageAttachmentActionListener messageAttachmentActionListener
     ) {
         this.context = context;
         this.inflater = inflater;
@@ -60,6 +77,12 @@ public final class CompanionChatBinder {
         this.messageContainer = messageContainer;
         this.inputLayout = inputLayout;
         this.buttonSend = buttonSend;
+        this.pendingAttachmentContainer = pendingAttachmentContainer;
+        this.textPendingAttachmentTitle = textPendingAttachmentTitle;
+        this.textPendingAttachmentMeta = textPendingAttachmentMeta;
+        this.buttonPendingAttachmentPreview = buttonPendingAttachmentPreview;
+        this.buttonPendingAttachmentClear = buttonPendingAttachmentClear;
+        this.messageAttachmentActionListener = messageAttachmentActionListener;
     }
 
     public void bindScreen(CompanionChatScreenModel screenModel) {
@@ -74,6 +97,25 @@ public final class CompanionChatBinder {
         inputLayout.setHint(screenModel.getInputHint());
         buttonSend.setText(screenModel.getSendButtonLabel());
         bindMessages(screenModel.getMessages());
+    }
+
+    public void bindPendingAttachment(
+            CompanionChatPendingAttachment pendingAttachment,
+            View.OnClickListener previewListener,
+            View.OnClickListener clearListener
+    ) {
+        if (pendingAttachment == null) {
+            pendingAttachmentContainer.setVisibility(View.GONE);
+            buttonPendingAttachmentPreview.setOnClickListener(null);
+            buttonPendingAttachmentClear.setOnClickListener(null);
+            return;
+        }
+
+        pendingAttachmentContainer.setVisibility(View.VISIBLE);
+        textPendingAttachmentTitle.setText(pendingAttachment.getFileName());
+        textPendingAttachmentMeta.setText(resolvePendingAttachmentMeta(pendingAttachment));
+        buttonPendingAttachmentPreview.setOnClickListener(previewListener);
+        buttonPendingAttachmentClear.setOnClickListener(clearListener);
     }
 
     private void bindMessages(List<CompanionChatMessageItemModel> items) {
@@ -93,10 +135,14 @@ public final class CompanionChatBinder {
             TextView bodyView = itemView.findViewById(R.id.textCompanionChatBody);
             TextView timeView = itemView.findViewById(R.id.textCompanionChatSentAt);
             MaterialCardView cardView = itemView.findViewById(R.id.cardCompanionChatBody);
+            View attachmentContainer = itemView.findViewById(R.id.layoutCompanionChatAttachment);
+            TextView attachmentSummaryView = itemView.findViewById(R.id.textCompanionChatAttachmentSummary);
+            MaterialButton attachmentOpenButton = itemView.findViewById(R.id.buttonCompanionChatAttachmentOpen);
 
             root.setGravity(item.isMine() ? android.view.Gravity.END : android.view.Gravity.START);
             senderView.setText(item.getSenderLabel());
             bodyView.setText(item.getBody());
+            bodyView.setVisibility(item.hasBody() ? View.VISIBLE : View.GONE);
             timeView.setText(item.getSentAtLabel());
             cardView.setCardBackgroundColor(ContextCompat.getColor(
                     context,
@@ -106,8 +152,28 @@ public final class CompanionChatBinder {
                     context,
                     item.isMine() ? R.color.bodeul_primary : R.color.bodeul_text_secondary
             ));
+            if (item.hasAttachment() && item.getAttachment() != null) {
+                attachmentContainer.setVisibility(View.VISIBLE);
+                attachmentSummaryView.setText(item.getAttachmentSummary());
+                attachmentOpenButton.setText(item.getAttachmentActionLabel());
+                attachmentOpenButton.setOnClickListener(view ->
+                        messageAttachmentActionListener.onOpenAttachment(item.getAttachment()));
+            } else {
+                attachmentContainer.setVisibility(View.GONE);
+                attachmentOpenButton.setOnClickListener(null);
+            }
             messageContainer.addView(itemView);
         }
+    }
+
+    private String resolvePendingAttachmentMeta(CompanionChatPendingAttachment pendingAttachment) {
+        if (pendingAttachment.isImageType()) {
+            return context.getString(R.string.companion_chat_attachment_image);
+        }
+        if (pendingAttachment.isPdfType()) {
+            return context.getString(R.string.companion_chat_attachment_pdf);
+        }
+        return context.getString(R.string.companion_chat_attachment_file);
     }
 
     private int dp(int value) {

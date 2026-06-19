@@ -29,6 +29,7 @@ public final class BookingLiveLocationBinder {
     private final TextView textHeroBody;
     private final TextView textStatusSectionTitle;
     private final TextView textMemoSectionTitle;
+    private final TextView textHistorySectionTitle;
     private final TextView textMapSectionTitle;
     private final TextView textMapSectionHelper;
     private final TextView textMapHighlightTitle;
@@ -36,6 +37,7 @@ public final class BookingLiveLocationBinder {
     private final BookingLocationMapView viewHospitalMap;
     private final LinearLayout statusLineContainer;
     private final LinearLayout memoLineContainer;
+    private final LinearLayout historyLineContainer;
     private final LinearLayout mapActionContainer;
     private final MaterialButton buttonPrimary;
     private final MaterialButton buttonRefresh;
@@ -52,6 +54,7 @@ public final class BookingLiveLocationBinder {
             TextView textHeroBody,
             TextView textStatusSectionTitle,
             TextView textMemoSectionTitle,
+            TextView textHistorySectionTitle,
             TextView textMapSectionTitle,
             TextView textMapSectionHelper,
             TextView textMapHighlightTitle,
@@ -59,6 +62,7 @@ public final class BookingLiveLocationBinder {
             BookingLocationMapView viewHospitalMap,
             LinearLayout statusLineContainer,
             LinearLayout memoLineContainer,
+            LinearLayout historyLineContainer,
             LinearLayout mapActionContainer,
             MaterialButton buttonPrimary,
             MaterialButton buttonRefresh,
@@ -74,6 +78,7 @@ public final class BookingLiveLocationBinder {
         this.textHeroBody = textHeroBody;
         this.textStatusSectionTitle = textStatusSectionTitle;
         this.textMemoSectionTitle = textMemoSectionTitle;
+        this.textHistorySectionTitle = textHistorySectionTitle;
         this.textMapSectionTitle = textMapSectionTitle;
         this.textMapSectionHelper = textMapSectionHelper;
         this.textMapHighlightTitle = textMapHighlightTitle;
@@ -81,6 +86,7 @@ public final class BookingLiveLocationBinder {
         this.viewHospitalMap = viewHospitalMap;
         this.statusLineContainer = statusLineContainer;
         this.memoLineContainer = memoLineContainer;
+        this.historyLineContainer = historyLineContainer;
         this.mapActionContainer = mapActionContainer;
         this.buttonPrimary = buttonPrimary;
         this.buttonRefresh = buttonRefresh;
@@ -96,6 +102,7 @@ public final class BookingLiveLocationBinder {
         textHeroBody.setText(screenModel.getHeroBody());
         textStatusSectionTitle.setText(screenModel.getStatusSectionTitle());
         textMemoSectionTitle.setText(screenModel.getMemoSectionTitle());
+        textHistorySectionTitle.setText(screenModel.getHistorySectionTitle());
         textMapSectionTitle.setText(screenModel.getMapSectionTitle());
         textMapSectionHelper.setText(screenModel.getMapSectionHelper());
         textMapHighlightTitle.setText(screenModel.getMapHighlightTitle());
@@ -106,6 +113,7 @@ public final class BookingLiveLocationBinder {
 
         bindLines(statusLineContainer, screenModel.getStatusLines());
         bindLines(memoLineContainer, screenModel.getMemoLines());
+        bindLines(historyLineContainer, screenModel.getHistoryLines());
         bindMapActions(screenModel.getMapActions());
     }
 

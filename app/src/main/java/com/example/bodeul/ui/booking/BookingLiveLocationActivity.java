@@ -27,12 +27,14 @@ import com.example.bodeul.data.map.HospitalMapCoordinateResult;
 import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
 import com.example.bodeul.data.map.KakaoPlaceCoordinate;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
+import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -48,6 +50,15 @@ import com.kakao.vectormap.label.LabelStyle;
 import com.kakao.vectormap.label.LabelStyles;
 import com.kakao.vectormap.label.LabelManager;
 import com.kakao.vectormap.label.LabelLayer;
+import com.kakao.vectormap.route.RouteLine;
+import com.kakao.vectormap.route.RouteLineOptions;
+import com.kakao.vectormap.route.RouteLineSegment;
+import com.kakao.vectormap.route.RouteLineStyle;
+import com.kakao.vectormap.route.RouteLineStyles;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 환자와 보호자가 현재 동행 위치 공유와 현장 메모를 한 화면에서 확인한다.
@@ -75,6 +86,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     private Label hospitalMarker;
     private Label pharmacyMarker;
     private Label trackingLabel;
+    private RouteLine historyRouteLine;
     private HospitalMapCoordinateResult currentCoordinateResult;
     private String currentCoordinateQueryKey = "";
     private boolean coordinateSearchInFlight;
@@ -111,6 +123,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 findViewById(R.id.textBookingLiveLocationHeroBody),
                 findViewById(R.id.textBookingLiveLocationStatusSectionTitle),
                 findViewById(R.id.textBookingLiveLocationMemoSectionTitle),
+                findViewById(R.id.textBookingLiveLocationHistorySectionTitle),
                 findViewById(R.id.textBookingLiveLocationMapSectionTitle),
                 findViewById(R.id.textBookingLiveLocationMapSectionHelper),
                 findViewById(R.id.textBookingLiveLocationMapHighlightTitle),
@@ -118,6 +131,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 findViewById(R.id.viewBookingLiveLocationHospitalMap),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationStatusLines),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationMemoLines),
+                (LinearLayout) findViewById(R.id.layoutBookingLiveLocationHistoryLines),
                 (LinearLayout) findViewById(R.id.layoutBookingLiveLocationMapActions),
                 (MaterialButton) findViewById(R.id.buttonBookingLiveLocationPrimary),
                 (MaterialButton) findViewById(R.id.buttonBookingLiveLocationRefresh),
@@ -331,6 +345,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
 
         updateSharedLocationMarker();
         updateHospitalAndPharmacyMarkers();
+        updateHistoryRouteLine();
     }
 
     private void updateSharedLocationMarker() {
@@ -433,6 +448,45 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                     result.getHospitalCoordinate().getLatitude(),
                     result.getHospitalCoordinate().getLongitude()
             )));
+        }
+    }
+
+    // 최근 위치 이력을 지도 경로로 이어서 현재 이동 흐름을 한눈에 보이게 한다.
+    private void updateHistoryRouteLine() {
+        if (kakaoMap == null || currentDetail == null) {
+            return;
+        }
+
+        List<CompanionLocationHistoryEntry> historyEntries =
+                CompanionLocationDisplayHelper.resolveHistoryEntries(currentDetail.getSession(), 12);
+        if (historyEntries.size() < 2) {
+            if (historyRouteLine != null) {
+                historyRouteLine.remove();
+                historyRouteLine = null;
+            }
+            return;
+        }
+
+        List<LatLng> points = new ArrayList<>();
+        List<CompanionLocationHistoryEntry> orderedEntries = new ArrayList<>(historyEntries);
+        Collections.reverse(orderedEntries);
+        for (CompanionLocationHistoryEntry entry : orderedEntries) {
+            points.add(LatLng.from(entry.getLatitude(), entry.getLongitude()));
+        }
+
+        RouteLineSegment segment = RouteLineSegment.from(
+                points,
+                RouteLineStyles.from(
+                        RouteLineStyle.from(12f, getColor(R.color.bodeul_primary), 4f, getColor(R.color.white))
+                )
+        );
+
+        if (historyRouteLine == null) {
+            historyRouteLine = kakaoMap.getRouteLineManager()
+                    .getLayer()
+                    .addRouteLine(RouteLineOptions.from("shared-location-history", segment));
+        } else {
+            historyRouteLine.changeSegments(segment);
         }
     }
 

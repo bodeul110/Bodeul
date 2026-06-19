@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.User;
 
 import java.util.List;
@@ -83,6 +84,7 @@ public interface BookingRepository {
             User currentUser,
             String requestId,
             String message,
+            CompanionChatAttachment attachment,
             RepositoryCallback<AppointmentRequestDetail> callback
     );
 

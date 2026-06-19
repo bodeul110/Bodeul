@@ -16,6 +16,7 @@ public final class BookingLiveLocationScreenModel {
     private final String heroBody;
     private final String statusSectionTitle;
     private final String memoSectionTitle;
+    private final String historySectionTitle;
     private final String mapSectionTitle;
     private final String mapSectionHelper;
     private final String mapHighlightTitle;
@@ -23,6 +24,7 @@ public final class BookingLiveLocationScreenModel {
     private final HospitalMapPreviewModel hospitalMapPreviewModel;
     private final List<BookingStatusLineItem> statusLines;
     private final List<BookingStatusLineItem> memoLines;
+    private final List<BookingStatusLineItem> historyLines;
     private final List<BookingLiveLocationMapActionModel> mapActions;
     private final String primaryActionLabel;
     private final String refreshActionLabel;
@@ -36,6 +38,7 @@ public final class BookingLiveLocationScreenModel {
             String heroBody,
             String statusSectionTitle,
             String memoSectionTitle,
+            String historySectionTitle,
             String mapSectionTitle,
             String mapSectionHelper,
             String mapHighlightTitle,
@@ -43,6 +46,7 @@ public final class BookingLiveLocationScreenModel {
             HospitalMapPreviewModel hospitalMapPreviewModel,
             List<BookingStatusLineItem> statusLines,
             List<BookingStatusLineItem> memoLines,
+            List<BookingStatusLineItem> historyLines,
             List<BookingLiveLocationMapActionModel> mapActions,
             String primaryActionLabel,
             String refreshActionLabel
@@ -55,6 +59,7 @@ public final class BookingLiveLocationScreenModel {
         this.heroBody = heroBody;
         this.statusSectionTitle = statusSectionTitle;
         this.memoSectionTitle = memoSectionTitle;
+        this.historySectionTitle = historySectionTitle;
         this.mapSectionTitle = mapSectionTitle;
         this.mapSectionHelper = mapSectionHelper;
         this.mapHighlightTitle = mapHighlightTitle;
@@ -62,6 +67,7 @@ public final class BookingLiveLocationScreenModel {
         this.hospitalMapPreviewModel = hospitalMapPreviewModel;
         this.statusLines = statusLines;
         this.memoLines = memoLines;
+        this.historyLines = historyLines;
         this.mapActions = mapActions;
         this.primaryActionLabel = primaryActionLabel;
         this.refreshActionLabel = refreshActionLabel;
@@ -99,6 +105,10 @@ public final class BookingLiveLocationScreenModel {
         return memoSectionTitle;
     }
 
+    public String getHistorySectionTitle() {
+        return historySectionTitle;
+    }
+
     public String getMapSectionTitle() {
         return mapSectionTitle;
     }
@@ -125,6 +135,10 @@ public final class BookingLiveLocationScreenModel {
 
     public List<BookingStatusLineItem> getMemoLines() {
         return memoLines;
+    }
+
+    public List<BookingStatusLineItem> getHistoryLines() {
+        return historyLines;
     }
 
     public List<BookingLiveLocationMapActionModel> getMapActions() {

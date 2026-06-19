@@ -5,6 +5,7 @@ import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -63,8 +64,17 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
-    public void sendCompanionChatMessage(String managerUserId, String message, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.appendManagerCompanionChatMessage(managerUserId, message);
+    public void sendCompanionChatMessage(
+            String managerUserId,
+            String message,
+            CompanionChatAttachment attachment,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = repository.appendManagerCompanionChatMessage(
+                managerUserId,
+                message,
+                attachment
+        );
         if (dashboard == null) {
             callback.onError("안심 채팅 메시지를 전송하지 못했습니다.");
             return;

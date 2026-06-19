@@ -29,6 +29,47 @@ service firebase.storage {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function appointmentExists(appointmentRequestId) {
+      return firestore.exists(
+          /databases/(default)/documents/appointmentRequests/$(appointmentRequestId)
+      );
+    }
+
+    function appointmentDoc(appointmentRequestId) {
+      return firestore.get(
+          /databases/(default)/documents/appointmentRequests/$(appointmentRequestId)
+      );
+    }
+
+    function isAppointmentParticipant(appointmentRequestId) {
+      return signedIn()
+          && appointmentExists(appointmentRequestId)
+          && (
+            isAdmin()
+            || appointmentDoc(appointmentRequestId).data.patientUserId == request.auth.uid
+            || appointmentDoc(appointmentRequestId).data.guardianUserId == request.auth.uid
+            || appointmentDoc(appointmentRequestId).data.managerUserId == request.auth.uid
+          );
+    }
+
+    function sessionExists(sessionId) {
+      return firestore.exists(/databases/(default)/documents/companionSessions/$(sessionId));
+    }
+
+    function sessionDoc(sessionId) {
+      return firestore.get(/databases/(default)/documents/companionSessions/$(sessionId));
+    }
+
+    function isSessionParticipant(sessionId) {
+      return signedIn()
+          && sessionExists(sessionId)
+          && (
+            isAdmin()
+            || sessionDoc(sessionId).data.managerUserId == request.auth.uid
+            || isAppointmentParticipant(sessionDoc(sessionId).data.appointmentRequestId)
+          );
+    }
+
     function isAllowedDocumentKey(documentKey) {
       return documentKey == 'idCard'
           || documentKey == 'license'
@@ -51,6 +92,21 @@ service firebase.storage {
           && request.resource.size <= 10485760;
     }
 
+    function isAllowedChatAttachmentContentType() {
+      return request.resource != null
+          && request.resource.contentType is string
+          && (
+            request.resource.contentType == 'application/pdf'
+            || request.resource.contentType.matches('image/.*')
+          );
+    }
+
+    function isAllowedChatAttachmentSize() {
+      return request.resource != null
+          && request.resource.size is int
+          && request.resource.size <= 10485760;
+    }
+
     match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
       allow read: if isAdmin() || (isManager() && isSelf(managerUserId));
       allow write: if isManager()
@@ -58,6 +114,13 @@ service firebase.storage {
           && isAllowedDocumentKey(documentKey)
           && isAllowedDocumentContentType()
           && isAllowedDocumentSize();
+    }
+
+    match /companion-chat-attachments/{sessionId}/{fileName} {
+      allow read: if isSessionParticipant(sessionId);
+      allow write: if isSessionParticipant(sessionId)
+          && isAllowedChatAttachmentContentType()
+          && isAllowedChatAttachmentSize();
     }
 
     match /{allPaths=**} {

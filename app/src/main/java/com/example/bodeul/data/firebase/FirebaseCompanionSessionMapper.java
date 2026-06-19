@@ -3,6 +3,7 @@ package com.example.bodeul.data.firebase;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.domain.model.CompanionChatMessage;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
@@ -139,7 +140,8 @@ final class FirebaseCompanionSessionMapper {
             Map<?, ?> valueMap = (Map<?, ?>) rawMessage;
             String roleValue = stringValue(valueMap.get("senderRole"));
             String body = stringValue(valueMap.get("body"));
-            if (body.isEmpty()) {
+            CompanionChatAttachment attachment = toChatAttachment(valueMap.get("attachment"));
+            if (body.isEmpty() && (attachment == null || attachment.isEmpty())) {
                 continue;
             }
             long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
@@ -151,9 +153,27 @@ final class FirebaseCompanionSessionMapper {
                     senderRole = fallbackChatSenderRole;
                 }
             }
-            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis));
+            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachment));
         }
         return messages;
+    }
+
+    @Nullable
+    private static CompanionChatAttachment toChatAttachment(@Nullable Object rawValue) {
+        if (!(rawValue instanceof Map)) {
+            return null;
+        }
+        Map<?, ?> valueMap = (Map<?, ?>) rawValue;
+        String fullPath = stringValue(valueMap.get("fullPath"));
+        if (fullPath.isEmpty()) {
+            return null;
+        }
+        return new CompanionChatAttachment(
+                fullPath,
+                stringValue(valueMap.get("fileName")),
+                stringValue(valueMap.get("contentType")),
+                resolveTimestampMillis(valueMap.get("uploadedAtMillis"))
+        );
     }
 
     @Nullable

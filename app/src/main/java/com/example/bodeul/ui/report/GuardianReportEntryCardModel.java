@@ -17,6 +17,8 @@ public final class GuardianReportEntryCardModel {
     private final String heroBodyText;
     private final String liveSectionTitleText;
     private final List<GuardianReportLineItem> liveLines;
+    private final String historySectionTitleText;
+    private final List<GuardianReportLineItem> historyLines;
     private final String memoSectionTitleText;
     private final List<GuardianReportLineItem> memoLines;
     private final String reportSectionTitleText;
@@ -32,6 +34,8 @@ public final class GuardianReportEntryCardModel {
             String heroBodyText,
             String liveSectionTitleText,
             List<GuardianReportLineItem> liveLines,
+            String historySectionTitleText,
+            List<GuardianReportLineItem> historyLines,
             String memoSectionTitleText,
             List<GuardianReportLineItem> memoLines,
             String reportSectionTitleText,
@@ -45,6 +49,8 @@ public final class GuardianReportEntryCardModel {
         this.heroBodyText = heroBodyText;
         this.liveSectionTitleText = liveSectionTitleText;
         this.liveLines = liveLines;
+        this.historySectionTitleText = historySectionTitleText;
+        this.historyLines = historyLines;
         this.memoSectionTitleText = memoSectionTitleText;
         this.memoLines = memoLines;
         this.reportSectionTitleText = reportSectionTitleText;
@@ -76,6 +82,14 @@ public final class GuardianReportEntryCardModel {
 
     public List<GuardianReportLineItem> getLiveLines() {
         return liveLines;
+    }
+
+    public String getHistorySectionTitleText() {
+        return historySectionTitleText;
+    }
+
+    public List<GuardianReportLineItem> getHistoryLines() {
+        return historyLines;
     }
 
     public String getMemoSectionTitleText() {
