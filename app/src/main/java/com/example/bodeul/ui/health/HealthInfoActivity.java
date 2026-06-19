@@ -46,6 +46,8 @@ public class HealthInfoActivity extends AppCompatActivity {
     private String explicitRequestId;
     private User currentUser;
     private AppointmentRequestDetail currentDetail;
+    private List<AppointmentRequest> currentRequests;
+    private HealthInfoScreenModel currentScreenModel;
 
     public static Intent createIntent(Context context) {
         return new Intent(context, HealthInfoActivity.class);
@@ -82,6 +84,7 @@ public class HealthInfoActivity extends AppCompatActivity {
                 findViewById(R.id.textHealthInfoHeroBody),
                 findViewById(R.id.textHealthInfoServiceSectionTitle),
                 findViewById(R.id.textHealthInfoServiceSectionHelper),
+                (LinearLayout) findViewById(R.id.layoutHealthInfoServiceLines),
                 findViewById(R.id.textHealthInfoAccountSectionTitle),
                 findViewById(R.id.textHealthInfoAccountSectionHelper),
                 findViewById(R.id.textHealthInfoProfileSectionTitle),
@@ -139,15 +142,15 @@ public class HealthInfoActivity extends AppCompatActivity {
     }
 
     private void loadDetailTarget(User user) {
-        if (explicitRequestId != null && !explicitRequestId.trim().isEmpty()) {
-            loadDetail(user, explicitRequestId);
-            return;
-        }
-
         bookingRepository.getMyAppointmentRequests(user, new RepositoryCallback<List<AppointmentRequest>>() {
             @Override
             public void onSuccess(List<AppointmentRequest> result) {
+                currentRequests = result;
                 AppointmentRequest request = resolvePrimaryRequest(result);
+                if (explicitRequestId != null && !explicitRequestId.trim().isEmpty()) {
+                    loadDetail(user, explicitRequestId);
+                    return;
+                }
                 if (request == null) {
                     setLoading(false);
                     showEmptyState();
@@ -171,17 +174,20 @@ public class HealthInfoActivity extends AppCompatActivity {
                 currentDetail = result;
                 setLoading(false);
                 hideBlockingState();
-                healthInfoBinder.bindScreen(healthInfoCoordinator.createScreenModel(
+                currentScreenModel = healthInfoCoordinator.createScreenModel(
                         user,
                         result,
+                        currentRequests,
                         bookingRepository.isFirebaseBacked()
-                ));
+                );
+                healthInfoBinder.bindScreen(currentScreenModel);
                 healthInfoContentContainer.setVisibility(View.VISIBLE);
             }
 
             @Override
             public void onError(String message) {
                 currentDetail = null;
+                currentScreenModel = null;
                 setLoading(false);
                 showLoadErrorState(message);
             }
@@ -203,11 +209,29 @@ public class HealthInfoActivity extends AppCompatActivity {
     }
 
     private void openBookingStatus() {
-        if (currentDetail == null) {
-            openBooking();
+        if (currentScreenModel == null) {
+            if (currentDetail == null) {
+                openBooking();
+                return;
+            }
+            startActivity(BookingStatusActivity.createIntent(this, currentDetail.getAppointmentRequest().getId()));
             return;
         }
-        startActivity(BookingStatusActivity.createIntent(this, currentDetail.getAppointmentRequest().getId()));
+        switch (currentScreenModel.getPrimaryActionType()) {
+            case OPEN_GUARDIAN_REPORT:
+                openGuardianReport();
+                return;
+            case OPEN_BOOKING:
+                openBooking();
+                return;
+            case OPEN_BOOKING_STATUS:
+            default:
+                if (currentDetail == null) {
+                    openBooking();
+                    return;
+                }
+                startActivity(BookingStatusActivity.createIntent(this, currentDetail.getAppointmentRequest().getId()));
+        }
     }
 
     private void openBooking() {

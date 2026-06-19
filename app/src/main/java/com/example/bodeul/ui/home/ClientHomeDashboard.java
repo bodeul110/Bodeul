@@ -86,6 +86,27 @@ public final class ClientHomeDashboard {
         return appointmentRequests.size();
     }
 
+    public int getActiveRequestCount() {
+        int count = 0;
+        for (AppointmentRequest request : appointmentRequests) {
+            if (request.getStatus() != AppointmentStatus.COMPLETED
+                    && request.getStatus() != AppointmentStatus.CANCELED) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getCompletedRequestCount() {
+        int count = 0;
+        for (AppointmentRequest request : appointmentRequests) {
+            if (request.getStatus() == AppointmentStatus.COMPLETED) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public boolean hasActiveRequest() {
         AppointmentRequest primaryRequest = getPrimaryRequest();
         if (primaryRequest == null) {

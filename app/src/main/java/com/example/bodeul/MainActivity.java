@@ -81,11 +81,11 @@ public class MainActivity extends AppCompatActivity {
                 findViewById(R.id.buttonOpenRecent),
                 findViewById(R.id.layoutHomeNoticeContainer)
         );
-        findViewById(R.id.buttonHomeHeroPrimary).setOnClickListener(view -> openPrimaryAction());
-        findViewById(R.id.buttonHomeProgressDetail).setOnClickListener(view -> openPrimaryAction());
+        findViewById(R.id.buttonHomeHeroPrimary).setOnClickListener(view -> openHeroAction());
+        findViewById(R.id.buttonHomeProgressDetail).setOnClickListener(view -> openProgressAction());
         findViewById(R.id.cardActionBooking).setOnClickListener(view -> openBooking());
         findViewById(R.id.cardActionSecondary).setOnClickListener(view -> openSecondaryAction());
-        findViewById(R.id.buttonOpenRecent).setOnClickListener(view -> openPrimaryAction());
+        findViewById(R.id.buttonOpenRecent).setOnClickListener(view -> openRecentAction());
         findViewById(R.id.buttonHomeSignOut).setOnClickListener(view -> signOut());
 
         EnvironmentModeBadgeHelper.bind(
@@ -167,11 +167,35 @@ public class MainActivity extends AppCompatActivity {
         openPrimaryRequestDetail();
     }
 
-    private void openSecondaryAction() {
+    private void openHeroAction() {
+        if (currentDashboard == null || !currentDashboard.hasRequests()) {
+            openBooking();
+            return;
+        }
+        if (currentDashboard.isGuardianUser()) {
+            openGuardianReport();
+            return;
+        }
+        openPrimaryRequestDetail();
+    }
+
+    private void openProgressAction() {
         if (currentDashboard != null && currentDashboard.isGuardianUser()) {
             openGuardianReport();
             return;
         }
+        openPrimaryAction();
+    }
+
+    private void openRecentAction() {
+        if (currentDashboard != null && currentDashboard.isGuardianUser()) {
+            openGuardianReport();
+            return;
+        }
+        openPrimaryAction();
+    }
+
+    private void openSecondaryAction() {
         openHealthInfo();
     }
 
@@ -195,6 +219,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openHealthInfo() {
+        if (currentDashboard != null && currentDashboard.getPrimaryRequest() != null) {
+            startActivity(HealthInfoActivity.createIntent(
+                    this,
+                    currentDashboard.getPrimaryRequest().getId()
+            ));
+            return;
+        }
         startActivity(HealthInfoActivity.createIntent(this));
     }
 

@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
@@ -28,9 +29,11 @@ public final class HealthInfoCoordinator {
     public HealthInfoScreenModel createScreenModel(
             User currentUser,
             AppointmentRequestDetail detail,
+            List<AppointmentRequest> requests,
             boolean isFirebaseBacked
     ) {
         AppointmentRequest request = detail.getAppointmentRequest();
+        HealthInfoPrimaryActionType primaryActionType = resolvePrimaryActionType(currentUser, request);
         return new HealthInfoScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.health_info_title),
@@ -53,6 +56,7 @@ public final class HealthInfoCoordinator {
                                 ? R.string.health_info_service_section_helper_guardian
                                 : R.string.health_info_service_section_helper_patient
                 ),
+                createServiceLines(currentUser, request, requests),
                 context.getString(R.string.health_info_action_open_booking),
                 context.getString(R.string.health_info_action_open_progress),
                 currentUser.getRole() == UserRole.GUARDIAN
@@ -67,8 +71,105 @@ public final class HealthInfoCoordinator {
                 createAccountLines(currentUser, detail),
                 createProfileLines(detail),
                 createRequestLines(detail),
-                context.getString(R.string.health_info_action_open_booking_status)
+                primaryActionType,
+                resolvePrimaryActionLabel(currentUser, request, primaryActionType)
         );
+    }
+
+    private List<HealthInfoLineItem> createServiceLines(
+            User currentUser,
+            AppointmentRequest primaryRequest,
+            @Nullable List<AppointmentRequest> requests
+    ) {
+        List<HealthInfoLineItem> items = new ArrayList<>();
+        int totalCount = requests == null ? 0 : requests.size();
+        int activeCount = 0;
+        int completedCount = 0;
+        int canceledCount = 0;
+        if (requests != null) {
+            for (AppointmentRequest request : requests) {
+                if (request.getStatus() == AppointmentStatus.COMPLETED) {
+                    completedCount++;
+                } else if (request.getStatus() == AppointmentStatus.CANCELED) {
+                    canceledCount++;
+                } else {
+                    activeCount++;
+                }
+            }
+        }
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_service_total),
+                context.getString(R.string.health_info_service_total_value, totalCount),
+                true
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_service_primary_status),
+                formatter.toStatusLabel(primaryRequest.getStatus()),
+                false
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_service_active),
+                context.getString(R.string.health_info_service_active_value, activeCount),
+                false
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_service_completed),
+                context.getString(R.string.health_info_service_completed_value, completedCount),
+                false
+        ));
+        if (canceledCount > 0) {
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_service_canceled),
+                    context.getString(R.string.health_info_service_canceled_value, canceledCount),
+                    false
+            ));
+        }
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_service_next_action),
+                resolveNextActionLabel(currentUser, primaryRequest),
+                false
+        ));
+        return items;
+    }
+
+    private String resolveNextActionLabel(User currentUser, AppointmentRequest primaryRequest) {
+        if (currentUser.getRole() == UserRole.GUARDIAN) {
+            return context.getString(R.string.health_info_service_next_action_guardian_report);
+        }
+        if (primaryRequest.getStatus() == AppointmentStatus.COMPLETED) {
+            return context.getString(R.string.health_info_service_next_action_booking_status);
+        }
+        return context.getString(R.string.health_info_service_next_action_progress);
+    }
+
+    private HealthInfoPrimaryActionType resolvePrimaryActionType(User currentUser, AppointmentRequest primaryRequest) {
+        if (currentUser.getRole() == UserRole.GUARDIAN) {
+            return HealthInfoPrimaryActionType.OPEN_GUARDIAN_REPORT;
+        }
+        if (primaryRequest.getStatus() == AppointmentStatus.COMPLETED) {
+            return HealthInfoPrimaryActionType.OPEN_BOOKING_STATUS;
+        }
+        return HealthInfoPrimaryActionType.OPEN_BOOKING_STATUS;
+    }
+
+    private String resolvePrimaryActionLabel(
+            User currentUser,
+            AppointmentRequest primaryRequest,
+            HealthInfoPrimaryActionType actionType
+    ) {
+        switch (actionType) {
+            case OPEN_GUARDIAN_REPORT:
+                return context.getString(R.string.health_info_action_open_guardian_report);
+            case OPEN_BOOKING_STATUS:
+                if (currentUser.getRole() != UserRole.GUARDIAN
+                        && primaryRequest.getStatus() == AppointmentStatus.COMPLETED) {
+                    return context.getString(R.string.health_info_service_next_action_booking_status);
+                }
+                return context.getString(R.string.health_info_action_open_progress);
+            case OPEN_BOOKING:
+            default:
+                return context.getString(R.string.health_info_action_open_booking);
+        }
     }
 
     private List<HealthInfoLineItem> createAccountLines(User currentUser, AppointmentRequestDetail detail) {

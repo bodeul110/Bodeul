@@ -173,7 +173,9 @@ public final class ClientHomeDashboardBinder {
         textProgressTitle.setText(progressOverview.getTitleText());
         textProgressBody.setText(progressOverview.getBodyText());
         bindProgressStages(progressOverview.getStages());
-        buttonOpenProgress.setText(R.string.client_home_progress_detail_button);
+        buttonOpenProgress.setText(dashboard.isGuardianUser()
+                ? R.string.client_home_hero_report_button
+                : R.string.client_home_progress_detail_button);
     }
 
     private CharSequence buildHeroBody(ClientHomeDashboard dashboard, AppointmentRequest primaryRequest) {
@@ -190,12 +192,15 @@ public final class ClientHomeDashboardBinder {
     }
 
     private void bindSecondaryAction(ClientHomeDashboard dashboard) {
-        textActionSecondaryTitle.setText(dashboard.isGuardianUser()
-                ? R.string.client_home_action_progress_title_guardian
-                : R.string.client_home_action_progress_title_patient);
-        textActionSecondaryBody.setText(dashboard.isGuardianUser()
-                ? R.string.client_home_action_progress_body_guardian
-                : R.string.client_home_action_progress_body_patient);
+        textActionSecondaryTitle.setText(R.string.client_home_action_manage_title);
+        textActionSecondaryBody.setText(context.getString(
+                dashboard.isGuardianUser()
+                        ? R.string.client_home_action_manage_body_guardian
+                        : R.string.client_home_action_manage_body_patient,
+                dashboard.getRequestCount(),
+                dashboard.getActiveRequestCount(),
+                dashboard.getCompletedRequestCount()
+        ));
     }
 
     private void bindRecentRequest(ClientHomeDashboard dashboard) {

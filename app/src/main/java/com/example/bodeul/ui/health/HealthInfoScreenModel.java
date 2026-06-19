@@ -11,6 +11,7 @@ public final class HealthInfoScreenModel {
     private final String heroBody;
     private final String serviceSectionTitle;
     private final String serviceSectionHelper;
+    private final List<HealthInfoLineItem> serviceLines;
     private final String bookingActionLabel;
     private final String bookingStatusActionLabel;
     private final String guardianReportActionLabel;
@@ -23,6 +24,7 @@ public final class HealthInfoScreenModel {
     private final List<HealthInfoLineItem> accountLines;
     private final List<HealthInfoLineItem> profileLines;
     private final List<HealthInfoLineItem> requestLines;
+    private final HealthInfoPrimaryActionType primaryActionType;
     private final String primaryActionLabel;
 
     public HealthInfoScreenModel(
@@ -34,6 +36,7 @@ public final class HealthInfoScreenModel {
             String heroBody,
             String serviceSectionTitle,
             String serviceSectionHelper,
+            List<HealthInfoLineItem> serviceLines,
             String bookingActionLabel,
             String bookingStatusActionLabel,
             String guardianReportActionLabel,
@@ -46,6 +49,7 @@ public final class HealthInfoScreenModel {
             List<HealthInfoLineItem> accountLines,
             List<HealthInfoLineItem> profileLines,
             List<HealthInfoLineItem> requestLines,
+            HealthInfoPrimaryActionType primaryActionType,
             String primaryActionLabel
     ) {
         this.modeLabel = modeLabel;
@@ -56,6 +60,7 @@ public final class HealthInfoScreenModel {
         this.heroBody = heroBody;
         this.serviceSectionTitle = serviceSectionTitle;
         this.serviceSectionHelper = serviceSectionHelper;
+        this.serviceLines = serviceLines;
         this.bookingActionLabel = bookingActionLabel;
         this.bookingStatusActionLabel = bookingStatusActionLabel;
         this.guardianReportActionLabel = guardianReportActionLabel;
@@ -68,6 +73,7 @@ public final class HealthInfoScreenModel {
         this.accountLines = accountLines;
         this.profileLines = profileLines;
         this.requestLines = requestLines;
+        this.primaryActionType = primaryActionType;
         this.primaryActionLabel = primaryActionLabel;
     }
 
@@ -101,6 +107,10 @@ public final class HealthInfoScreenModel {
 
     public String getServiceSectionHelper() {
         return serviceSectionHelper;
+    }
+
+    public List<HealthInfoLineItem> getServiceLines() {
+        return serviceLines;
     }
 
     public String getBookingActionLabel() {
@@ -149,6 +159,10 @@ public final class HealthInfoScreenModel {
 
     public List<HealthInfoLineItem> getRequestLines() {
         return requestLines;
+    }
+
+    public HealthInfoPrimaryActionType getPrimaryActionType() {
+        return primaryActionType;
     }
 
     public String getPrimaryActionLabel() {

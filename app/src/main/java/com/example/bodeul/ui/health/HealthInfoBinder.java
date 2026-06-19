@@ -27,6 +27,7 @@ public final class HealthInfoBinder {
     private final TextView textHeroBody;
     private final TextView textServiceSectionTitle;
     private final TextView textServiceSectionHelper;
+    private final LinearLayout serviceLineContainer;
     private final TextView textAccountSectionTitle;
     private final TextView textAccountSectionHelper;
     private final TextView textProfileSectionTitle;
@@ -52,6 +53,7 @@ public final class HealthInfoBinder {
             TextView textHeroBody,
             TextView textServiceSectionTitle,
             TextView textServiceSectionHelper,
+            LinearLayout serviceLineContainer,
             TextView textAccountSectionTitle,
             TextView textAccountSectionHelper,
             TextView textProfileSectionTitle,
@@ -76,6 +78,7 @@ public final class HealthInfoBinder {
         this.textHeroBody = textHeroBody;
         this.textServiceSectionTitle = textServiceSectionTitle;
         this.textServiceSectionHelper = textServiceSectionHelper;
+        this.serviceLineContainer = serviceLineContainer;
         this.textAccountSectionTitle = textAccountSectionTitle;
         this.textAccountSectionHelper = textAccountSectionHelper;
         this.textProfileSectionTitle = textProfileSectionTitle;
@@ -100,6 +103,7 @@ public final class HealthInfoBinder {
         textHeroBody.setText(screenModel.getHeroBody());
         textServiceSectionTitle.setText(screenModel.getServiceSectionTitle());
         textServiceSectionHelper.setText(screenModel.getServiceSectionHelper());
+        bindLines(serviceLineContainer, screenModel.getServiceLines());
         textAccountSectionTitle.setText(screenModel.getAccountSectionTitle());
         textAccountSectionHelper.setText(screenModel.getAccountSectionHelper());
         textProfileSectionTitle.setText(screenModel.getProfileSectionTitle());
