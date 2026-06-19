@@ -2525,6 +2525,25 @@
 
 - 로컬 참조 자산은 위치만 정리했고, 저장소에는 계속 포함하지 않는다.
 - 팀 공용으로 공유해야 할 원본은 별도 링크나 버전 관리 가능한 추출본 정책을 정한 뒤 반영한다.
+
+## 118. 2026-06-19 구형 디자인 ZIP 추적 제거
+
+### 구현
+
+- 더 이상 최신 기준으로 쓰지 않는 `design_refs/보들 가이드.zip`을 저장소 추적 대상에서 제거했다.
+- 최신 디자인 기준은 계속 `design_refs/local/bodeul_original_resolution_screens.zip`과 `design_refs/local/bodeul_split_screens/`로 유지한다.
+- `design_refs/README.md`도 현재 기준 자산과 구형 ZIP 처리 원칙에 맞게 다시 정리했다.
+
+### 변경 범위
+
+- `design_refs/보들 가이드.zip`
+- `design_refs/README.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 이후 디자인 원본은 `design_refs/local/` 아래만 추가한다.
+- 구형 자산은 archive 문서에서만 이력으로 남기고, 저장소 기준 자산 목록에서는 제외한다.
 - [design_refs/README.md](/D:/BoDeul/design_refs/README.md)를 최신 원본/분할 화면/보조 참조/비사용 파일 기준으로 전면 정리했다.
 - [design-reference-review-2026-05-22.md](/D:/BoDeul/docs/design-reference-review-2026-05-22.md)를 새로 추가해 인증/공통, 환자 홈, 환자 진행 화면, 매니저 홈/가이드, 서류 등록 기준의 UI polish 우선순위를 다시 정했다.
 - [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 최신 분할 화면 세트 기준으로 다시 작성해 기능 기준과 디자인 기준을 명확히 분리했다.
