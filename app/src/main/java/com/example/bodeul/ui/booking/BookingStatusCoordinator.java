@@ -17,6 +17,7 @@ import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
+import com.example.bodeul.util.MedicationComparisonDecisionDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.MedicationComparisonDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonSummary;
@@ -315,6 +316,21 @@ public final class BookingStatusCoordinator {
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_name, report.getMedicationName(), false);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_change, report.getMedicationChangeSummary(), false);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_schedule, report.getMedicationScheduleNote(), false);
+            addOptionalLine(
+                    medicationLines,
+                    R.string.booking_status_line_report_medication_decision,
+                    MedicationComparisonDecisionDisplayHelper.toLabel(
+                            context,
+                            report.getMedicationComparisonDecision()
+                    ),
+                    false
+            );
+            addOptionalLine(
+                    medicationLines,
+                    R.string.booking_status_line_report_medication_decision_note,
+                    report.getMedicationComparisonNote(),
+                    false
+            );
             if (comparisonSummary != null) {
                 addOptionalLine(
                         medicationLines,

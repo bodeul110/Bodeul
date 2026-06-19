@@ -23,6 +23,7 @@ import com.example.bodeul.domain.model.ManagerDocumentHistoryEventType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SupportInquiry;
@@ -615,6 +616,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String medicationName,
             String medicationChangeSummary,
             String medicationScheduleNote,
+            MedicationComparisonDecision medicationComparisonDecision,
+            String medicationComparisonNote,
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     ) {
@@ -636,6 +639,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 reportDocument.put("medicationName", medicationName);
                 reportDocument.put("medicationChangeSummary", medicationChangeSummary);
                 reportDocument.put("medicationScheduleNote", medicationScheduleNote);
+                reportDocument.put(
+                        "medicationComparisonDecisionCode",
+                        medicationComparisonDecision == null ? "" : medicationComparisonDecision.name()
+                );
+                reportDocument.put("medicationComparisonNote", medicationComparisonNote);
                 reportDocument.put("nextVisitAt", nextVisitAt);
                 reportDocument.put("createdAt", FieldValue.serverTimestamp());
 
@@ -1383,6 +1391,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
         String medicationName = documentSnapshot.getString("medicationName");
         String medicationChangeSummary = documentSnapshot.getString("medicationChangeSummary");
         String medicationScheduleNote = documentSnapshot.getString("medicationScheduleNote");
+        MedicationComparisonDecision medicationComparisonDecision = MedicationComparisonDecision.fromValue(
+                documentSnapshot.getString("medicationComparisonDecisionCode")
+        );
+        String medicationComparisonNote = documentSnapshot.getString("medicationComparisonNote");
         String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
         if (sessionId == null || summary == null) {
             return null;
@@ -1397,6 +1409,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 medicationName == null ? "" : medicationName,
                 medicationChangeSummary == null ? "" : medicationChangeSummary,
                 medicationScheduleNote == null ? "" : medicationScheduleNote,
+                medicationComparisonDecision,
+                medicationComparisonNote == null ? "" : medicationComparisonNote,
                 nextVisitAt == null ? "" : nextVisitAt
         );
     }

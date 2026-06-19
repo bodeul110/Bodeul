@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.MedicationComparisonDecisionDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonSummary;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
@@ -260,6 +261,21 @@ public final class GuardianReportCoordinator {
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_name, report.getMedicationName(), false);
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_change, report.getMedicationChangeSummary(), false);
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_schedule, report.getMedicationScheduleNote(), false);
+        addOptionalLine(
+                medicationLines,
+                R.string.guardian_report_line_report_medication_decision,
+                MedicationComparisonDecisionDisplayHelper.toLabel(
+                        context,
+                        report.getMedicationComparisonDecision()
+                ),
+                false
+        );
+        addOptionalLine(
+                medicationLines,
+                R.string.guardian_report_line_report_medication_decision_note,
+                report.getMedicationComparisonNote(),
+                false
+        );
         if (comparisonSummary != null) {
             addOptionalLine(
                     medicationLines,

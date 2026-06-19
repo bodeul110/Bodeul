@@ -15,6 +15,8 @@ public class SessionReport {
     private final String medicationName;
     private final String medicationChangeSummary;
     private final String medicationScheduleNote;
+    private final MedicationComparisonDecision medicationComparisonDecision;
+    private final String medicationComparisonNote;
     private final String nextVisitAt;
 
     public SessionReport(
@@ -26,6 +28,8 @@ public class SessionReport {
             String medicationName,
             String medicationChangeSummary,
             String medicationScheduleNote,
+            MedicationComparisonDecision medicationComparisonDecision,
+            String medicationComparisonNote,
             String nextVisitAt
     ) {
         this.id = id;
@@ -36,6 +40,8 @@ public class SessionReport {
         this.medicationName = medicationName;
         this.medicationChangeSummary = medicationChangeSummary;
         this.medicationScheduleNote = medicationScheduleNote;
+        this.medicationComparisonDecision = medicationComparisonDecision;
+        this.medicationComparisonNote = medicationComparisonNote;
         this.nextVisitAt = nextVisitAt;
     }
 
@@ -69,6 +75,14 @@ public class SessionReport {
 
     public String getMedicationScheduleNote() {
         return medicationScheduleNote;
+    }
+
+    public MedicationComparisonDecision getMedicationComparisonDecision() {
+        return medicationComparisonDecision;
+    }
+
+    public String getMedicationComparisonNote() {
+        return medicationComparisonNote;
     }
 
     public String getNextVisitAt() {

@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SupportInquiry;
@@ -323,6 +324,8 @@ public class MockManagerRepository implements ManagerRepository {
             String medicationName,
             String medicationChangeSummary,
             String medicationScheduleNote,
+            MedicationComparisonDecision medicationComparisonDecision,
+            String medicationComparisonNote,
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     ) {
@@ -334,6 +337,8 @@ public class MockManagerRepository implements ManagerRepository {
                 medicationName,
                 medicationChangeSummary,
                 medicationScheduleNote,
+                medicationComparisonDecision,
+                medicationComparisonNote,
                 nextVisitAt
         );
         if (dashboard == null) {

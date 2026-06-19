@@ -5,6 +5,7 @@ import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SupportInquiry;
 import com.example.bodeul.domain.model.SupportInquiryCategory;
 
@@ -105,6 +106,8 @@ public interface ManagerRepository {
             String medicationName,
             String medicationChangeSummary,
             String medicationScheduleNote,
+            MedicationComparisonDecision medicationComparisonDecision,
+            String medicationComparisonNote,
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     );

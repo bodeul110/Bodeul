@@ -11,6 +11,7 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
@@ -363,11 +364,26 @@ public class ManagerGuideViewModel extends ViewModel {
             String medicationName,
             String medicationChangeSummary,
             String medicationScheduleNote,
+            @Nullable MedicationComparisonDecision medicationComparisonDecision,
+            String medicationComparisonNote,
             String nextVisit
     ) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(summary)) {
             _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            return;
+        }
+        boolean hasMedicationComparisonInput = !TextUtils.isEmpty(medication)
+                || !TextUtils.isEmpty(medicationName)
+                || !TextUtils.isEmpty(medicationChangeSummary)
+                || !TextUtils.isEmpty(medicationScheduleNote);
+        if (hasMedicationComparisonInput && medicationComparisonDecision == null) {
+            _toastMessage.setValue("복약 대조 판단을 선택해 주세요.");
+            return;
+        }
+        if (medicationComparisonDecision == MedicationComparisonDecision.RECHECK_REQUIRED
+                && TextUtils.isEmpty(medicationComparisonNote)) {
+            _toastMessage.setValue("재확인 사유를 입력해 주세요.");
             return;
         }
         managerRepository.submitSessionReport(
@@ -378,6 +394,8 @@ public class ManagerGuideViewModel extends ViewModel {
                 medicationName,
                 medicationChangeSummary,
                 medicationScheduleNote,
+                medicationComparisonDecision,
+                medicationComparisonNote,
                 nextVisit,
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override

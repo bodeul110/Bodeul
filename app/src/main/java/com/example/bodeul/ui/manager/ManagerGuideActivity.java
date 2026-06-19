@@ -8,6 +8,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -26,6 +27,7 @@ import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
 import com.example.bodeul.data.map.KakaoPlaceCoordinate;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
@@ -70,6 +72,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputReportMedicationName;
     private TextInputEditText inputReportMedicationChangeSummary;
     private TextInputEditText inputReportMedicationScheduleNote;
+    private RadioGroup groupReportMedicationComparisonDecision;
+    private TextInputEditText inputReportMedicationComparisonNote;
     private TextInputEditText inputNextVisit;
 
     private MapView mapView;
@@ -114,6 +118,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
         inputReportMedicationName = findViewById(R.id.inputReportMedicationName);
         inputReportMedicationChangeSummary = findViewById(R.id.inputReportMedicationChangeSummary);
         inputReportMedicationScheduleNote = findViewById(R.id.inputReportMedicationScheduleNote);
+        groupReportMedicationComparisonDecision = findViewById(R.id.groupReportMedicationComparisonDecision);
+        inputReportMedicationComparisonNote = findViewById(R.id.inputReportMedicationComparisonNote);
         inputNextVisit = findViewById(R.id.inputNextVisit);
 
         managerGuideDashboardBinder = new ManagerGuideDashboardBinder(
@@ -149,6 +155,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 inputReportMedicationName,
                 inputReportMedicationChangeSummary,
                 inputReportMedicationScheduleNote,
+                groupReportMedicationComparisonDecision,
+                findViewById(R.id.radioMedicationComparisonMatched),
+                findViewById(R.id.radioMedicationComparisonChanged),
+                findViewById(R.id.radioMedicationComparisonRecheck),
+                inputReportMedicationComparisonNote,
                 inputNextVisit,
                 (MaterialButton) findViewById(R.id.buttonAdvanceGuide),
                 (MaterialButton) findViewById(R.id.buttonSaveLocationSummary),
@@ -182,6 +193,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 valueOf(inputReportMedicationName),
                 valueOf(inputReportMedicationChangeSummary),
                 valueOf(inputReportMedicationScheduleNote),
+                resolveMedicationComparisonDecision(),
+                valueOf(inputReportMedicationComparisonNote),
                 valueOf(inputNextVisit)
         ));
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
@@ -267,6 +280,21 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private String valueOf(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
+    }
+
+    @Nullable
+    private MedicationComparisonDecision resolveMedicationComparisonDecision() {
+        int checkedId = groupReportMedicationComparisonDecision.getCheckedRadioButtonId();
+        if (checkedId == R.id.radioMedicationComparisonMatched) {
+            return MedicationComparisonDecision.MATCHED;
+        }
+        if (checkedId == R.id.radioMedicationComparisonChanged) {
+            return MedicationComparisonDecision.CHANGED;
+        }
+        if (checkedId == R.id.radioMedicationComparisonRecheck) {
+            return MedicationComparisonDecision.RECHECK_REQUIRED;
+        }
+        return null;
     }
 
     private void updateMapMarker() {

@@ -1,5 +1,8 @@
 package com.example.bodeul.ui.manager;
 
+import androidx.annotation.Nullable;
+
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.ui.common.HospitalMapPreviewModel;
 
 import java.util.List;
@@ -35,6 +38,9 @@ public final class ManagerGuideScreenModel {
     private final String reportMedicationName;
     private final String reportMedicationChangeSummary;
     private final String reportMedicationScheduleNote;
+    @Nullable
+    private final MedicationComparisonDecision reportMedicationComparisonDecision;
+    private final String reportMedicationComparisonNote;
     private final String nextVisitAt;
     private final String advanceButtonLabel;
     private final boolean advanceEnabled;
@@ -70,6 +76,8 @@ public final class ManagerGuideScreenModel {
             String reportMedicationName,
             String reportMedicationChangeSummary,
             String reportMedicationScheduleNote,
+            @Nullable MedicationComparisonDecision reportMedicationComparisonDecision,
+            String reportMedicationComparisonNote,
             String nextVisitAt,
             String advanceButtonLabel,
             boolean advanceEnabled,
@@ -104,6 +112,8 @@ public final class ManagerGuideScreenModel {
         this.reportMedicationName = reportMedicationName;
         this.reportMedicationChangeSummary = reportMedicationChangeSummary;
         this.reportMedicationScheduleNote = reportMedicationScheduleNote;
+        this.reportMedicationComparisonDecision = reportMedicationComparisonDecision;
+        this.reportMedicationComparisonNote = reportMedicationComparisonNote;
         this.nextVisitAt = nextVisitAt;
         this.advanceButtonLabel = advanceButtonLabel;
         this.advanceEnabled = advanceEnabled;
@@ -218,6 +228,15 @@ public final class ManagerGuideScreenModel {
 
     public String getReportMedicationScheduleNote() {
         return reportMedicationScheduleNote;
+    }
+
+    @Nullable
+    public MedicationComparisonDecision getReportMedicationComparisonDecision() {
+        return reportMedicationComparisonDecision;
+    }
+
+    public String getReportMedicationComparisonNote() {
+        return reportMedicationComparisonNote;
     }
 
     public String getNextVisitAt() {

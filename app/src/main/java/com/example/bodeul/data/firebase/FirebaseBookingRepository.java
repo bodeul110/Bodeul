@@ -18,6 +18,7 @@ import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
@@ -1190,6 +1191,10 @@ public class FirebaseBookingRepository implements BookingRepository {
         String medicationName = documentSnapshot.getString("medicationName");
         String medicationChangeSummary = documentSnapshot.getString("medicationChangeSummary");
         String medicationScheduleNote = documentSnapshot.getString("medicationScheduleNote");
+        MedicationComparisonDecision medicationComparisonDecision = MedicationComparisonDecision.fromValue(
+                documentSnapshot.getString("medicationComparisonDecisionCode")
+        );
+        String medicationComparisonNote = documentSnapshot.getString("medicationComparisonNote");
         String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
         if (sessionId == null || summary == null) {
             return null;
@@ -1204,6 +1209,8 @@ public class FirebaseBookingRepository implements BookingRepository {
                 medicationName == null ? "" : medicationName,
                 medicationChangeSummary == null ? "" : medicationChangeSummary,
                 medicationScheduleNote == null ? "" : medicationScheduleNote,
+                medicationComparisonDecision,
+                medicationComparisonNote == null ? "" : medicationComparisonNote,
                 nextVisitAt == null ? "" : nextVisitAt
         );
     }

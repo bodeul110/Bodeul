@@ -5,11 +5,16 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.RadioGroup;
+
+import androidx.annotation.Nullable;
 
 import com.example.bodeul.R;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.ui.booking.BookingLocationMapView;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.List;
@@ -50,6 +55,11 @@ public final class ManagerGuideDashboardBinder {
     private final TextInputEditText inputReportMedicationName;
     private final TextInputEditText inputReportMedicationChangeSummary;
     private final TextInputEditText inputReportMedicationScheduleNote;
+    private final RadioGroup groupReportMedicationComparisonDecision;
+    private final MaterialRadioButton radioMedicationComparisonMatched;
+    private final MaterialRadioButton radioMedicationComparisonChanged;
+    private final MaterialRadioButton radioMedicationComparisonRecheck;
+    private final TextInputEditText inputReportMedicationComparisonNote;
     private final TextInputEditText inputNextVisit;
     private final MaterialButton buttonAdvanceGuide;
     private final MaterialButton buttonSaveLocationSummary;
@@ -98,6 +108,11 @@ public final class ManagerGuideDashboardBinder {
             TextInputEditText inputReportMedicationName,
             TextInputEditText inputReportMedicationChangeSummary,
             TextInputEditText inputReportMedicationScheduleNote,
+            RadioGroup groupReportMedicationComparisonDecision,
+            MaterialRadioButton radioMedicationComparisonMatched,
+            MaterialRadioButton radioMedicationComparisonChanged,
+            MaterialRadioButton radioMedicationComparisonRecheck,
+            TextInputEditText inputReportMedicationComparisonNote,
             TextInputEditText inputNextVisit,
             MaterialButton buttonAdvanceGuide,
             MaterialButton buttonSaveLocationSummary,
@@ -145,6 +160,11 @@ public final class ManagerGuideDashboardBinder {
         this.inputReportMedicationName = inputReportMedicationName;
         this.inputReportMedicationChangeSummary = inputReportMedicationChangeSummary;
         this.inputReportMedicationScheduleNote = inputReportMedicationScheduleNote;
+        this.groupReportMedicationComparisonDecision = groupReportMedicationComparisonDecision;
+        this.radioMedicationComparisonMatched = radioMedicationComparisonMatched;
+        this.radioMedicationComparisonChanged = radioMedicationComparisonChanged;
+        this.radioMedicationComparisonRecheck = radioMedicationComparisonRecheck;
+        this.inputReportMedicationComparisonNote = inputReportMedicationComparisonNote;
         this.inputNextVisit = inputNextVisit;
         this.buttonAdvanceGuide = buttonAdvanceGuide;
         this.buttonSaveLocationSummary = buttonSaveLocationSummary;
@@ -194,6 +214,11 @@ public final class ManagerGuideDashboardBinder {
                 inputReportMedicationScheduleNote,
                 screenModel.getReportMedicationScheduleNote()
         );
+        bindMedicationComparisonDecision(screenModel.getReportMedicationComparisonDecision());
+        setTextIfDifferent(
+                inputReportMedicationComparisonNote,
+                screenModel.getReportMedicationComparisonNote()
+        );
         setTextIfDifferent(inputNextVisit, screenModel.getNextVisitAt());
 
         boolean inputsEnabled = screenModel.isInputsEnabled();
@@ -207,6 +232,10 @@ public final class ManagerGuideDashboardBinder {
         inputReportMedicationName.setEnabled(inputsEnabled);
         inputReportMedicationChangeSummary.setEnabled(inputsEnabled);
         inputReportMedicationScheduleNote.setEnabled(inputsEnabled);
+        radioMedicationComparisonMatched.setEnabled(inputsEnabled);
+        radioMedicationComparisonChanged.setEnabled(inputsEnabled);
+        radioMedicationComparisonRecheck.setEnabled(inputsEnabled);
+        inputReportMedicationComparisonNote.setEnabled(inputsEnabled);
         inputNextVisit.setEnabled(inputsEnabled);
         buttonSaveLocationSummary.setEnabled(inputsEnabled);
         buttonShareCurrentLocation.setEnabled(inputsEnabled);
@@ -231,6 +260,37 @@ public final class ManagerGuideDashboardBinder {
         buttonTogglePharmacyCompleted.setText(screenModel.getPharmacyActionLabel());
         buttonToggleMedicationGuidanceCompleted.setText(screenModel.getMedicationGuidanceActionLabel());
         buttonSubmitReport.setText(screenModel.getReportButtonLabel());
+    }
+
+    private void bindMedicationComparisonDecision(@Nullable MedicationComparisonDecision decision) {
+        if (decision == null) {
+            if (groupReportMedicationComparisonDecision.getCheckedRadioButtonId() != -1) {
+                groupReportMedicationComparisonDecision.clearCheck();
+            }
+            return;
+        }
+        int targetId;
+        switch (decision) {
+            case MATCHED:
+                targetId = radioMedicationComparisonMatched.getId();
+                break;
+            case CHANGED:
+                targetId = radioMedicationComparisonChanged.getId();
+                break;
+            case RECHECK_REQUIRED:
+                targetId = radioMedicationComparisonRecheck.getId();
+                break;
+            default:
+                targetId = -1;
+                break;
+        }
+        if (targetId == -1) {
+            groupReportMedicationComparisonDecision.clearCheck();
+            return;
+        }
+        if (groupReportMedicationComparisonDecision.getCheckedRadioButtonId() != targetId) {
+            groupReportMedicationComparisonDecision.check(targetId);
+        }
     }
 
     private void bindHospitalMap(com.example.bodeul.ui.common.HospitalMapPreviewModel mapPreviewModel) {

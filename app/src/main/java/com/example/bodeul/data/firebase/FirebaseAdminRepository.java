@@ -38,6 +38,7 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.ClientSupportCategory;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.ClientSupportStatus;
+import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -1895,6 +1896,10 @@ public class FirebaseAdminRepository implements AdminRepository {
         String medicationName = documentSnapshot.getString("medicationName");
         String medicationChangeSummary = documentSnapshot.getString("medicationChangeSummary");
         String medicationScheduleNote = documentSnapshot.getString("medicationScheduleNote");
+        MedicationComparisonDecision medicationComparisonDecision = MedicationComparisonDecision.fromValue(
+                documentSnapshot.getString("medicationComparisonDecisionCode")
+        );
+        String medicationComparisonNote = documentSnapshot.getString("medicationComparisonNote");
         String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
         if (sessionId == null || summary == null) {
             return null;
@@ -1909,6 +1914,8 @@ public class FirebaseAdminRepository implements AdminRepository {
                 medicationName == null ? "" : medicationName,
                 medicationChangeSummary == null ? "" : medicationChangeSummary,
                 medicationScheduleNote == null ? "" : medicationScheduleNote,
+                medicationComparisonDecision,
+                medicationComparisonNote == null ? "" : medicationComparisonNote,
                 nextVisitAt == null ? "" : nextVisitAt
         );
     }
