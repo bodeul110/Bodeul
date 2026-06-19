@@ -15,6 +15,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * OCR 없이도 예약 단계 복약 정보와 현장 리포트의 기본 차이를 정리한다.
@@ -23,6 +25,11 @@ public final class MedicationComparisonDisplayHelper {
     private static final List<String> SCHEDULE_KEYWORDS = Arrays.asList(
             "아침", "점심", "저녁", "자기전", "취침전", "기상후",
             "식전", "식후", "매일", "격일", "필요시", "복용", "1일", "하루"
+    );
+
+    private static final Pattern DOSE_PATTERN = Pattern.compile(
+            "(\\d+\\s*(?:mg|ml|g|mcg|정|알|캡슐|포|봉))|(반\\s*정|한\\s*알|두\\s*알|세\\s*알)",
+            Pattern.CASE_INSENSITIVE
     );
 
     private MedicationComparisonDisplayHelper() {
@@ -47,10 +54,18 @@ public final class MedicationComparisonDisplayHelper {
                 context,
                 baseline,
                 medicationName,
+                changeSummary,
                 scheduleNote,
                 reportNote
         );
         boolean scheduleChanged = hasScheduleDifference(baseline, scheduleNote, reportNote);
+        boolean doseChanged = hasDoseDifference(
+                baseline,
+                medicationName,
+                changeSummary,
+                scheduleNote,
+                reportNote
+        );
 
         if (TextUtils.isEmpty(medicationName)
                 && TextUtils.isEmpty(changeSummary)
@@ -89,13 +104,23 @@ public final class MedicationComparisonDisplayHelper {
 
         if (!TextUtils.isEmpty(scheduleNote)) {
             return new MedicationComparisonSummary(
-                    context.getString(scheduleChanged
+                    context.getString((scheduleChanged || doseChanged)
                             ? R.string.medication_compare_status_changed
                             : R.string.medication_compare_status_same),
                     comparisonDetail,
                     context.getString(scheduleChanged
                             ? R.string.medication_compare_follow_up_schedule_changed
-                            : R.string.medication_compare_follow_up_schedule_only)
+                            : (doseChanged
+                            ? R.string.medication_compare_follow_up_dose_changed
+                            : R.string.medication_compare_follow_up_schedule_only))
+            );
+        }
+
+        if (doseChanged) {
+            return new MedicationComparisonSummary(
+                    context.getString(R.string.medication_compare_status_changed),
+                    comparisonDetail,
+                    context.getString(R.string.medication_compare_follow_up_dose_changed)
             );
         }
 
@@ -111,6 +136,7 @@ public final class MedicationComparisonDisplayHelper {
             Context context,
             String baseline,
             String medicationName,
+            String changeSummary,
             String scheduleNote,
             String reportNote
     ) {
@@ -119,6 +145,18 @@ public final class MedicationComparisonDisplayHelper {
         String medicationDetail = buildMedicationDifferenceDetail(context, baseline, medicationName);
         if (!TextUtils.isEmpty(medicationDetail)) {
             segments.add(medicationDetail);
+        }
+
+        String doseDetail = buildDoseDifferenceDetail(
+                context,
+                baseline,
+                medicationName,
+                changeSummary,
+                scheduleNote,
+                reportNote
+        );
+        if (!TextUtils.isEmpty(doseDetail)) {
+            segments.add(doseDetail);
         }
 
         String scheduleDetail = buildScheduleDifferenceDetail(context, baseline, scheduleNote, reportNote);
@@ -260,6 +298,71 @@ public final class MedicationComparisonDisplayHelper {
         );
     }
 
+    @Nullable
+    private static String buildDoseDifferenceDetail(
+            Context context,
+            String baseline,
+            String medicationName,
+            String changeSummary,
+            String scheduleNote,
+            String reportNote
+    ) {
+        List<String> baselineDoseTokens = tokenizeDoseKeywords(baseline);
+        List<String> reportDoseTokens = tokenizeDoseKeywords(
+                medicationName + " " + changeSummary + " " + scheduleNote + " " + reportNote
+        );
+        if (baselineDoseTokens.isEmpty() && reportDoseTokens.isEmpty()) {
+            return null;
+        }
+
+        List<String> kept = new ArrayList<>();
+        List<String> added = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+
+        for (String reportToken : reportDoseTokens) {
+            if (baselineDoseTokens.contains(reportToken)) {
+                if (!kept.contains(reportToken)) {
+                    kept.add(reportToken);
+                }
+            } else if (!added.contains(reportToken)) {
+                added.add(reportToken);
+            }
+        }
+
+        for (String baselineToken : baselineDoseTokens) {
+            if (!reportDoseTokens.contains(baselineToken) && !missing.contains(baselineToken)) {
+                missing.add(baselineToken);
+            }
+        }
+
+        List<String> segments = new ArrayList<>();
+        if (!kept.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_dose_kept,
+                    joinLimited(kept)
+            ));
+        }
+        if (!added.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_dose_added,
+                    joinLimited(added)
+            ));
+        }
+        if (!missing.isEmpty()) {
+            segments.add(context.getString(
+                    R.string.medication_compare_dose_missing,
+                    joinLimited(missing)
+            ));
+        }
+        if (segments.isEmpty()) {
+            return null;
+        }
+        return context.getString(
+                R.string.medication_compare_dose_prefix,
+                TextUtils.join(", ", segments)
+        );
+    }
+
     private static boolean containsNormalized(String source, String target) {
         String normalizedSource = normalize(source);
         String normalizedTarget = normalize(target);
@@ -309,6 +412,21 @@ public final class MedicationComparisonDisplayHelper {
         return tokens;
     }
 
+    private static List<String> tokenizeDoseKeywords(String value) {
+        List<String> tokens = new ArrayList<>();
+        if (TextUtils.isEmpty(value)) {
+            return tokens;
+        }
+        Matcher matcher = DOSE_PATTERN.matcher(value);
+        while (matcher.find()) {
+            String token = safeTrim(matcher.group());
+            if (!TextUtils.isEmpty(token) && !tokens.contains(token)) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
+    }
+
     private static boolean hasScheduleDifference(String baseline, String scheduleNote, String reportNote) {
         List<String> baselineScheduleTokens = tokenizeScheduleKeywords(baseline);
         List<String> reportScheduleTokens = tokenizeScheduleKeywords(scheduleNote + " " + reportNote);
@@ -322,6 +440,33 @@ public final class MedicationComparisonDisplayHelper {
         }
         for (String token : baselineScheduleTokens) {
             if (!reportScheduleTokens.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasDoseDifference(
+            String baseline,
+            String medicationName,
+            String changeSummary,
+            String scheduleNote,
+            String reportNote
+    ) {
+        List<String> baselineDoseTokens = tokenizeDoseKeywords(baseline);
+        List<String> reportDoseTokens = tokenizeDoseKeywords(
+                medicationName + " " + changeSummary + " " + scheduleNote + " " + reportNote
+        );
+        if (baselineDoseTokens.isEmpty() || reportDoseTokens.isEmpty()) {
+            return false;
+        }
+        for (String token : reportDoseTokens) {
+            if (!baselineDoseTokens.contains(token)) {
+                return true;
+            }
+        }
+        for (String token : baselineDoseTokens) {
+            if (!reportDoseTokens.contains(token)) {
                 return true;
             }
         }
