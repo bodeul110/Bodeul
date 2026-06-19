@@ -2787,3 +2787,25 @@
 
 - 링크 파급이 큰 본문 문서는 현재 경로를 유지했다.
 - 앞으로 새 문서를 추가할 때는 먼저 카테고리 색인부터 맞추고, 실제 파일 이동은 링크 파급을 검토한 뒤 단계적으로 한다.
+
+## 117. 2026-06-19 최신 피그마 ZIP 기준선 갱신
+
+### 구현
+
+- 새로 받은 `design_refs/보들 가이드.zip`을 `design_refs/local/보들 가이드.zip`으로 옮기고 `design_refs/local/latest_figma_2026-06-19/`에 해제했다.
+- 최신 디자인 기준을 기존 `bodeul_original_resolution_screens.zip` 중심에서 `보들 가이드.zip` 해제본 중심으로 갱신했다.
+- 기존 `bodeul_original_resolution_screens.zip`, `bodeul_split_screens/`는 보조 비교 세트로 격하했다.
+- 디자인 비교 문서와 기준 문서 링크를 새 자산 기준으로 다시 맞췄다.
+
+### 변경 범위
+
+- `design_refs/README.md`
+- `design_refs/local/README.md`
+- `docs/design-reference-review-2026-05-22.md`
+- `docs/feature-spec-figma-audit-2026-05-22.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 새 ZIP 기준 분할 화면 세트가 따로 필요하면 `latest_figma_2026-06-19/`를 기준으로 다시 생성한다.
+- 현재는 보드형 PNG 세트만으로도 UI polish 우선순위 판단은 가능하다.
