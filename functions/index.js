@@ -517,12 +517,21 @@ exports.notifyClientSupportAnswered = onDocumentWritten(
         },
       });
 
+      const invalidTokens = collectInvalidNotificationTokens(
+          notificationTokens,
+          response.responses,
+      );
+      if (invalidTokens.length > 0) {
+        await removeInvalidNotificationTokens(userSnapshot.ref, invalidTokens);
+      }
+
       logger.info("이용자 문의 답변 알림을 발송했습니다.", {
         supportRequestId: sanitizeText(event.params?.supportRequestId),
         userId,
         tokenCount: notificationTokens.length,
         successCount: response.successCount,
         failureCount: response.failureCount,
+        invalidTokenCount: invalidTokens.length,
       });
     },
 );
@@ -2049,6 +2058,38 @@ function toStringArray(value) {
   return value
       .map((item) => sanitizeText(item))
       .filter(Boolean);
+}
+
+function collectInvalidNotificationTokens(tokens, responses) {
+  if (!Array.isArray(tokens) || !Array.isArray(responses)) {
+    return [];
+  }
+
+  const invalidTokens = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const response = responses[index];
+    const errorCode = sanitizeText(response?.error?.code);
+    if (isInvalidNotificationTokenError(errorCode)) {
+      invalidTokens.push(tokens[index]);
+    }
+  }
+  return Array.from(new Set(invalidTokens));
+}
+
+function isInvalidNotificationTokenError(errorCode) {
+  return errorCode === "messaging/invalid-registration-token" ||
+      errorCode === "messaging/registration-token-not-registered";
+}
+
+async function removeInvalidNotificationTokens(userDocumentReference, invalidTokens) {
+  if (!userDocumentReference || !Array.isArray(invalidTokens) || invalidTokens.length === 0) {
+    return;
+  }
+
+  await userDocumentReference.update({
+    notificationTokens: FieldValue.arrayRemove(...invalidTokens),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }
 
 function toSafeInteger(value) {
