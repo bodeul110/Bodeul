@@ -25,6 +25,7 @@ public final class ClientSupportRequestCardBinder {
 
     public void bind(View itemView, ClientSupportRequestCardModel model, RequestActionListener listener) {
         MaterialCardView cardView = (MaterialCardView) itemView;
+        View headerContainer = itemView.findViewById(R.id.layoutClientSupportRequestHeader);
         TextView categoryView = itemView.findViewById(R.id.textClientSupportRequestCategory);
         TextView statusView = itemView.findViewById(R.id.textClientSupportRequestStatus);
         TextView titleView = itemView.findViewById(R.id.textClientSupportRequestTitle);
@@ -43,6 +44,10 @@ public final class ClientSupportRequestCardBinder {
         titleView.setText(model.getTitleText());
         bodyView.setText(model.getBodyText());
         timestampView.setText(model.getTimestampText());
+        headerContainer.setVisibility(model.isCompactFocusMode() ? View.GONE : View.VISIBLE);
+        categoryView.setVisibility(model.isCompactFocusMode() ? View.GONE : View.VISIBLE);
+        statusView.setVisibility(model.isCompactFocusMode() ? View.GONE : View.VISIBLE);
+        timestampView.setVisibility(model.isCompactFocusMode() ? View.GONE : View.VISIBLE);
         if (model.isFocused()) {
             cardView.setStrokeColor(ContextCompat.getColor(context, R.color.bodeul_primary));
             cardView.setStrokeWidth(dpToPx(2));
@@ -55,12 +60,18 @@ public final class ClientSupportRequestCardBinder {
         }
 
         if (model.hasResponse()) {
-            toggleView.setVisibility(View.VISIBLE);
-            toggleView.setText(model.isExpanded()
-                    ? R.string.client_support_response_collapse
-                    : R.string.client_support_response_expand);
-            toggleView.setOnClickListener(view -> listener.onToggleResponse(model.getRequestId()));
-            responseContainer.setVisibility(model.isExpanded() ? View.VISIBLE : View.GONE);
+            if (model.isCompactFocusMode()) {
+                toggleView.setVisibility(View.GONE);
+                toggleView.setOnClickListener(null);
+                responseContainer.setVisibility(View.VISIBLE);
+            } else {
+                toggleView.setVisibility(View.VISIBLE);
+                toggleView.setText(model.isExpanded()
+                        ? R.string.client_support_response_collapse
+                        : R.string.client_support_response_expand);
+                toggleView.setOnClickListener(view -> listener.onToggleResponse(model.getRequestId()));
+                responseContainer.setVisibility(model.isExpanded() ? View.VISIBLE : View.GONE);
+            }
             responseBodyView.setText(model.getResponseBodyText());
             responseMetaView.setText(model.getResponseMetaText());
         } else {

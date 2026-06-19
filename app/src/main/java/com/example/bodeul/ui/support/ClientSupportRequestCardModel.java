@@ -18,6 +18,7 @@ public final class ClientSupportRequestCardModel {
     private final boolean focused;
     private final boolean expanded;
     private final boolean staleUnread;
+    private final boolean compactFocusMode;
 
     public ClientSupportRequestCardModel(
             String requestId,
@@ -33,7 +34,8 @@ public final class ClientSupportRequestCardModel {
             String responseMetaText,
             boolean focused,
             boolean expanded,
-            boolean staleUnread
+            boolean staleUnread,
+            boolean compactFocusMode
     ) {
         this.requestId = requestId;
         this.categoryText = categoryText;
@@ -49,6 +51,7 @@ public final class ClientSupportRequestCardModel {
         this.focused = focused;
         this.expanded = expanded;
         this.staleUnread = staleUnread;
+        this.compactFocusMode = compactFocusMode;
     }
 
     public String getRequestId() {
@@ -105,5 +108,9 @@ public final class ClientSupportRequestCardModel {
 
     public boolean isStaleUnread() {
         return staleUnread;
+    }
+
+    public boolean isCompactFocusMode() {
+        return compactFocusMode;
     }
 }

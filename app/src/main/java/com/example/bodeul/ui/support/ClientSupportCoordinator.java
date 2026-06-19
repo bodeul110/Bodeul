@@ -54,7 +54,12 @@ public final class ClientSupportCoordinator {
                 ),
                 buildRequestSummary(detail),
                 buildLatestSummary(requests),
-                createRequestCards(requests, focusedSupportRequestId, expandedSupportRequestId),
+                createRequestCards(
+                        requests,
+                        focusedSupportRequestId,
+                        expandedSupportRequestId,
+                        focusModeActive && hasFocusedCard
+                ),
                 focusedSupportRequestId,
                 expandedSupportRequestId,
                 focusModeActive && hasFocusedCard,
@@ -115,7 +120,8 @@ public final class ClientSupportCoordinator {
     private List<ClientSupportRequestCardModel> createRequestCards(
             List<ClientSupportRequest> requests,
             @Nullable String focusedSupportRequestId,
-            @Nullable String expandedSupportRequestId
+            @Nullable String expandedSupportRequestId,
+            boolean focusModeActive
     ) {
         List<ClientSupportRequestCardModel> cards = new ArrayList<>();
         for (ClientSupportRequest request : requests) {
@@ -127,6 +133,7 @@ public final class ClientSupportCoordinator {
             boolean expanded = answered && request.getId().equals(
                     TextUtils.isEmpty(expandedSupportRequestId) ? focusedSupportRequestId : expandedSupportRequestId
             );
+            boolean compactFocusMode = focusModeActive && focused;
             cards.add(new ClientSupportRequestCardModel(
                     request.getId(),
                     toCategoryText(request.getCategory()),
@@ -155,7 +162,8 @@ public final class ClientSupportCoordinator {
                     buildResponseMeta(request),
                     focused,
                     expanded,
-                    staleUnread
+                    staleUnread,
+                    compactFocusMode
             ));
         }
         return cards;
