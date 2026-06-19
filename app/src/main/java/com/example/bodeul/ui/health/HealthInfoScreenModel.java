@@ -24,6 +24,7 @@ public final class HealthInfoScreenModel {
     private final String requestSectionHelper;
     private final String historySectionTitle;
     private final String historySectionHelper;
+    private final String historyActionLabel;
     private final String supportSectionTitle;
     private final String supportSectionHelper;
     private final List<HealthInfoLineItem> accountLines;
@@ -56,6 +57,7 @@ public final class HealthInfoScreenModel {
             String requestSectionHelper,
             String historySectionTitle,
             String historySectionHelper,
+            String historyActionLabel,
             String supportSectionTitle,
             String supportSectionHelper,
             List<HealthInfoLineItem> accountLines,
@@ -87,6 +89,7 @@ public final class HealthInfoScreenModel {
         this.requestSectionHelper = requestSectionHelper;
         this.historySectionTitle = historySectionTitle;
         this.historySectionHelper = historySectionHelper;
+        this.historyActionLabel = historyActionLabel;
         this.supportSectionTitle = supportSectionTitle;
         this.supportSectionHelper = supportSectionHelper;
         this.accountLines = accountLines;
@@ -180,6 +183,10 @@ public final class HealthInfoScreenModel {
 
     public String getHistorySectionHelper() {
         return historySectionHelper;
+    }
+
+    public String getHistoryActionLabel() {
+        return historyActionLabel;
     }
 
     public String getSupportSectionTitle() {

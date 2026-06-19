@@ -71,6 +71,9 @@
             android:name=".ui.report.GuardianReportActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.booking.ClientBookingHistoryActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.health.HealthInfoActivity"
             android:exported="false" />
         <activity

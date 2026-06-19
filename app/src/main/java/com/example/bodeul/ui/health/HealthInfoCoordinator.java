@@ -75,6 +75,7 @@ public final class HealthInfoCoordinator {
                 context.getString(R.string.health_info_request_section_helper),
                 context.getString(R.string.health_info_history_section),
                 context.getString(R.string.health_info_history_section_helper),
+                context.getString(R.string.health_info_action_open_history),
                 context.getString(R.string.health_info_support_section),
                 context.getString(R.string.health_info_support_section_helper),
                 createAccountLines(currentUser, detail),

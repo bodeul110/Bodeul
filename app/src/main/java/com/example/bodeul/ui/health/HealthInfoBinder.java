@@ -43,6 +43,7 @@ public final class HealthInfoBinder {
     private final LinearLayout requestLineContainer;
     private final LinearLayout historyLineContainer;
     private final LinearLayout supportLineContainer;
+    private final MaterialButton buttonHistory;
     private final MaterialButton buttonBooking;
     private final MaterialButton buttonBookingStatus;
     private final MaterialButton buttonGuardianReport;
@@ -76,6 +77,7 @@ public final class HealthInfoBinder {
             LinearLayout requestLineContainer,
             LinearLayout historyLineContainer,
             LinearLayout supportLineContainer,
+            MaterialButton buttonHistory,
             MaterialButton buttonBooking,
             MaterialButton buttonBookingStatus,
             MaterialButton buttonGuardianReport,
@@ -108,6 +110,7 @@ public final class HealthInfoBinder {
         this.requestLineContainer = requestLineContainer;
         this.historyLineContainer = historyLineContainer;
         this.supportLineContainer = supportLineContainer;
+        this.buttonHistory = buttonHistory;
         this.buttonBooking = buttonBooking;
         this.buttonBookingStatus = buttonBookingStatus;
         this.buttonGuardianReport = buttonGuardianReport;
@@ -135,6 +138,7 @@ public final class HealthInfoBinder {
         textHistorySectionHelper.setText(screenModel.getHistorySectionHelper());
         textSupportSectionTitle.setText(screenModel.getSupportSectionTitle());
         textSupportSectionHelper.setText(screenModel.getSupportSectionHelper());
+        buttonHistory.setText(screenModel.getHistoryActionLabel());
         buttonBooking.setText(screenModel.getBookingActionLabel());
         buttonBookingStatus.setText(screenModel.getBookingStatusActionLabel());
         bindOptionalButton(buttonGuardianReport, screenModel.getGuardianReportActionLabel());

@@ -26,6 +26,7 @@ import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.booking.BookingActivity;
+import com.example.bodeul.ui.booking.ClientBookingHistoryActivity;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
 import com.example.bodeul.ui.report.GuardianReportActivity;
@@ -106,6 +107,7 @@ public class HealthInfoActivity extends AppCompatActivity {
                 (LinearLayout) findViewById(R.id.layoutHealthInfoRequestLines),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoHistoryLines),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoSupportLines),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoHistory),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoBooking),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoBookingStatus),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoGuardianReport),
@@ -115,6 +117,7 @@ public class HealthInfoActivity extends AppCompatActivity {
 
         findViewById(R.id.buttonBackHealthInfo).setOnClickListener(view -> finish());
         findViewById(R.id.buttonHealthInfoPrimary).setOnClickListener(view -> openBookingStatus());
+        findViewById(R.id.buttonHealthInfoHistory).setOnClickListener(view -> openBookingHistory());
         findViewById(R.id.buttonHealthInfoBooking).setOnClickListener(view -> openBooking());
         findViewById(R.id.buttonHealthInfoBookingStatus).setOnClickListener(view -> openBookingStatus());
         findViewById(R.id.buttonHealthInfoGuardianReport).setOnClickListener(view -> openGuardianReport());
@@ -275,6 +278,10 @@ public class HealthInfoActivity extends AppCompatActivity {
 
     private void openBooking() {
         startActivity(new Intent(this, BookingActivity.class));
+    }
+
+    private void openBookingHistory() {
+        startActivity(new Intent(this, ClientBookingHistoryActivity.class));
     }
 
     private void openGuardianReport() {
