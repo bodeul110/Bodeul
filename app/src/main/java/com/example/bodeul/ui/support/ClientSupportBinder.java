@@ -31,6 +31,9 @@ public final class ClientSupportBinder {
     private final TextView textFocusModeTitle;
     private final TextView textFocusModeBody;
     private final TextView buttonFocusModeClear;
+    private final View supportFormCard;
+    private final TextView textListTitle;
+    private final TextView textListHelper;
     private final LinearLayout requestContainer;
     private final TextView textEmpty;
     private final ClientSupportRequestCardBinder requestCardBinder;
@@ -49,6 +52,9 @@ public final class ClientSupportBinder {
             TextView textFocusModeTitle,
             TextView textFocusModeBody,
             TextView buttonFocusModeClear,
+            View supportFormCard,
+            TextView textListTitle,
+            TextView textListHelper,
             LinearLayout requestContainer,
             TextView textEmpty
     ) {
@@ -63,6 +69,9 @@ public final class ClientSupportBinder {
         this.textFocusModeTitle = textFocusModeTitle;
         this.textFocusModeBody = textFocusModeBody;
         this.buttonFocusModeClear = buttonFocusModeClear;
+        this.supportFormCard = supportFormCard;
+        this.textListTitle = textListTitle;
+        this.textListHelper = textListHelper;
         this.requestContainer = requestContainer;
         this.textEmpty = textEmpty;
         this.requestCardBinder = new ClientSupportRequestCardBinder(context);
@@ -73,9 +82,16 @@ public final class ClientSupportBinder {
         textHeroBadge.setText(screenModel.getHeroBadgeText());
         textHeroTitle.setText(screenModel.getHeroTitleText());
         textHeroBody.setText(screenModel.getHeroBodyText());
-        bindOptionalText(textRequestSummary, screenModel.getRequestSummaryText());
-        textLatestSummary.setText(screenModel.getLatestSummaryText());
         bindFocusMode(screenModel);
+        bindOptionalText(
+                textRequestSummary,
+                screenModel.isFocusModeActive() ? "" : screenModel.getRequestSummaryText()
+        );
+        bindOptionalText(
+                textLatestSummary,
+                screenModel.isFocusModeActive() ? "" : screenModel.getLatestSummaryText()
+        );
+        bindFocusLayout(screenModel.isFocusModeActive());
 
         requestContainer.removeAllViews();
         textEmpty.setVisibility(screenModel.getRequestCards().isEmpty() ? View.VISIBLE : View.GONE);
@@ -114,6 +130,12 @@ public final class ClientSupportBinder {
                 supportActionListener.onClearFocusMode();
             }
         });
+    }
+
+    private void bindFocusLayout(boolean focusModeActive) {
+        supportFormCard.setVisibility(focusModeActive ? View.GONE : View.VISIBLE);
+        textListTitle.setVisibility(focusModeActive ? View.GONE : View.VISIBLE);
+        textListHelper.setVisibility(focusModeActive ? View.GONE : View.VISIBLE);
     }
 
     public void setSupportActionListener(SupportActionListener supportActionListener) {

@@ -139,6 +139,9 @@ public final class ClientSupportActivity extends AppCompatActivity {
                 findViewById(R.id.textClientSupportFocusModeTitle),
                 findViewById(R.id.textClientSupportFocusModeBody),
                 findViewById(R.id.buttonClientSupportFocusModeClear),
+                findViewById(R.id.cardClientSupportForm),
+                findViewById(R.id.textClientSupportListTitle),
+                findViewById(R.id.textClientSupportListHelper),
                 findViewById(R.id.clientSupportRequestContainer),
                 findViewById(R.id.textClientSupportEmpty)
         );
