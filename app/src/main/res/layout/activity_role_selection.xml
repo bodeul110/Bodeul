@@ -41,12 +41,19 @@
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="15sp" />
 
+        <include
+            android:id="@+id/layoutRoleSummaryCard"
+            layout="@layout/view_auth_summary_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginTop="20dp">
+            android:layout_marginTop="18dp"
+            android:orientation="vertical">
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardManagerType"

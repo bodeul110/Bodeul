@@ -24,6 +24,8 @@ public class RoleSelectionActivity extends AppCompatActivity {
     private MaterialCardView patientCard;
     private RoleOptionCardBinder managerCardBinder;
     private RoleOptionCardBinder patientCardBinder;
+    private AuthSummaryCardBinder summaryCardBinder;
+    private RoleSelectionSummaryFormatter summaryFormatter;
     private UserRole selectedRoleHint = UserRole.MANAGER;
     private long lastAdminEntryTapAtMillis;
     private int adminEntryTapCount;
@@ -48,6 +50,8 @@ public class RoleSelectionActivity extends AppCompatActivity {
                 findViewById(R.id.textPatientCheck),
                 findViewById(R.id.textPatientAction)
         );
+        summaryCardBinder = new AuthSummaryCardBinder(findViewById(R.id.layoutRoleSummaryCard));
+        summaryFormatter = new RoleSelectionSummaryFormatter(this);
 
         logoView.setOnClickListener(view -> handleAdminEntryTap());
         managerCard.setOnClickListener(view -> selectRole(UserRole.MANAGER));
@@ -67,6 +71,7 @@ public class RoleSelectionActivity extends AppCompatActivity {
         // 선택된 카드만 강조해 이후 로그인 대상 역할을 분명하게 보여준다.
         managerCardBinder.render(roleHint == UserRole.MANAGER);
         patientCardBinder.render(roleHint == UserRole.PATIENT);
+        summaryCardBinder.render(summaryFormatter.format(roleHint));
     }
 
     private void handleAdminEntryTap() {

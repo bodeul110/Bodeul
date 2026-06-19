@@ -44,6 +44,13 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
+        <include
+            android:id="@+id/layoutLoginSummaryCard"
+            layout="@layout/view_auth_summary_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp" />
+
         <TextView
             android:id="@+id/textDemoBanner"
             android:layout_width="match_parent"

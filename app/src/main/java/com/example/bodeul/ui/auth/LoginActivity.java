@@ -73,6 +73,8 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialButton buttonSocialGoogle;
     private MaterialButton buttonSocialNaver;
     private ProgressBar progressBar;
+    private AuthSummaryCardBinder summaryCardBinder;
+    private LoginSummaryFormatter summaryFormatter;
 
     public static Intent createIntent(Context context, UserRole roleHint) {
         Intent intent = new Intent(context, LoginActivity.class);
@@ -116,6 +118,8 @@ public class LoginActivity extends AppCompatActivity {
         buttonSocialGoogle = findViewById(R.id.buttonSocialGoogle);
         buttonSocialNaver = findViewById(R.id.buttonSocialNaver);
         progressBar = findViewById(R.id.progressAuth);
+        summaryCardBinder = new AuthSummaryCardBinder(findViewById(R.id.layoutLoginSummaryCard));
+        summaryFormatter = new LoginSummaryFormatter(this);
 
         configureRoleChips();
         restoreScreenState(savedInstanceState);
@@ -135,7 +139,10 @@ public class LoginActivity extends AppCompatActivity {
         buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
         buttonSocialNaver.setOnClickListener(view -> submitNaverAuth());
 
-        View.OnClickListener roleListener = view -> applyDemoCredentials();
+        View.OnClickListener roleListener = view -> {
+            applyDemoCredentials();
+            bindSummaryCard();
+        };
         chipRoleManager.setOnClickListener(roleListener);
         chipRolePatient.setOnClickListener(roleListener);
         chipRoleGuardian.setOnClickListener(roleListener);
@@ -214,6 +221,7 @@ public class LoginActivity extends AppCompatActivity {
         layoutPhone.setVisibility(registerMode ? View.VISIBLE : View.GONE);
         textForgotPassword.setVisibility(registerMode ? View.GONE : View.VISIBLE);
         bindSocialAccess();
+        bindSummaryCard();
         updateVerificationResendState();
     }
 
@@ -504,6 +512,14 @@ public class LoginActivity extends AppCompatActivity {
             return R.string.demo_banner_manager;
         }
         return R.string.demo_banner_general;
+    }
+
+    private void bindSummaryCard() {
+        UserRole selectedRole = getSelectedRole();
+        if (selectedRole == null) {
+            selectedRole = roleHint == UserRole.GUARDIAN ? UserRole.GUARDIAN : UserRole.PATIENT;
+        }
+        summaryCardBinder.render(summaryFormatter.format(roleHint, selectedRole, registerMode));
     }
 
     private void bindSocialAccess() {

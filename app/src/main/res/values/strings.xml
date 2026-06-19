@@ -7,6 +7,12 @@
 
     <string name="role_select_title">어떤 유형이신가요?</string>
     <string name="role_select_subtitle">보들 서비스 이용을 위해 사용자 유형을 선택해 주세요.</string>
+    <string name="role_select_summary_badge_manager">매니저 경로</string>
+    <string name="role_select_summary_title_manager">서류 등록과 승인 확인부터 차례대로 이어집니다</string>
+    <string name="role_select_summary_body_manager">매니저로 들어가면 자격 서류 등록, 승인 확인, 동행 진행 관리 화면까지 같은 흐름으로 이동합니다.</string>
+    <string name="role_select_summary_badge_patient">이용자 경로</string>
+    <string name="role_select_summary_title_patient">예약 신청과 진행 확인을 한 흐름에서 이어갑니다</string>
+    <string name="role_select_summary_body_patient">환자와 보호자는 같은 로그인 화면을 쓰고, 로그인 후 역할에 맞는 홈과 리포트 화면으로 나뉩니다.</string>
     <string name="role_manager_title">매니저</string>
     <string name="role_manager_desc">환자분의 병원 방문을 도와주는 동행 매니저로 이용합니다.</string>
     <string name="role_patient_guardian_title">환자 / 보호자</string>
@@ -43,6 +49,24 @@
     <string name="login_title_general">간편 로그인</string>
     <string name="login_subtitle">안전하고 따뜻한 동행을 시작하세요</string>
     <string name="login_subtitle_register">회원가입 후 이메일 인증을 완료하면 로그인할 수 있습니다.</string>
+    <string name="login_summary_badge_admin">관리자 전용</string>
+    <string name="login_summary_title_admin">관리자 계정은 이메일 로그인만 사용합니다</string>
+    <string name="login_summary_body_admin">일반 사용자 경로에서는 관리자 로그인을 노출하지 않습니다. 등록된 관리자 계정으로만 운영 화면에 들어갈 수 있습니다.</string>
+    <string name="login_summary_badge_manager">매니저 로그인</string>
+    <string name="login_summary_title_manager_login">승인 상태와 오늘 일정 화면으로 바로 이어집니다</string>
+    <string name="login_summary_body_manager_login">로그인 후 매니저 홈, 동행 가이드, 서류 상태, 정산 이력을 같은 경로에서 확인할 수 있습니다.</string>
+    <string name="login_summary_title_manager_register">매니저 계정을 만들고 이메일 인증까지 이어갑니다</string>
+    <string name="login_summary_body_manager_register">이름과 연락처를 입력하면 계정이 생성되고, 인증 후 서류 등록과 승인 확인 화면으로 이어집니다.</string>
+    <string name="login_summary_badge_patient">환자 로그인</string>
+    <string name="login_summary_title_patient_login">예약 신청과 건강정보 확인 화면으로 바로 이어집니다</string>
+    <string name="login_summary_body_patient_login">환자는 예약 신청, 진행 확인, 건강정보 요약, 후기 작성까지 한 경로에서 확인할 수 있습니다.</string>
+    <string name="login_summary_title_patient_register">환자 계정을 만들고 예약 준비를 먼저 시작합니다</string>
+    <string name="login_summary_body_patient_register">회원가입 후 이메일 인증을 마치면 환자 홈에서 예약 신청과 진행 화면을 바로 이용할 수 있습니다.</string>
+    <string name="login_summary_badge_guardian">보호자 로그인</string>
+    <string name="login_summary_title_guardian_login">진행 현황과 리포트 확인 화면으로 바로 이어집니다</string>
+    <string name="login_summary_body_guardian_login">보호자는 예약 진행 확인, 실시간 위치 확인, 리포트 열람, 문의 접수를 같은 흐름으로 이어갑니다.</string>
+    <string name="login_summary_title_guardian_register">보호자 계정을 만들고 진행 확인 흐름을 준비합니다</string>
+    <string name="login_summary_body_guardian_register">회원가입 후 이메일 인증을 마치면 보호자 홈에서 진행 현황과 리포트 화면을 바로 확인할 수 있습니다.</string>
     <string name="login_email_hint">이메일</string>
     <string name="login_email_or_id_hint">이메일 또는 아이디</string>
     <string name="login_password_hint">비밀번호</string>

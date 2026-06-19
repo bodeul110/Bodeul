@@ -2809,3 +2809,69 @@
 
 - 새 ZIP 기준 분할 화면 세트가 따로 필요하면 `latest_figma_2026-06-19/`를 기준으로 다시 생성한다.
 - 현재는 보드형 PNG 세트만으로도 UI polish 우선순위 판단은 가능하다.
+
+## 118. 2026-06-19 인증/공통 상단 요약 카드 추가
+
+### 구현
+
+- 역할 선택 화면 상단에 선택 경로와 다음 단계를 먼저 보여주는 요약 카드를 추가했다.
+- 로그인 화면 상단에 현재 역할과 로그인/회원가입 모드에 따라 바뀌는 요약 카드를 추가했다.
+- 역할 선택과 로그인이 같은 카드 레이아웃을 쓰도록 공용 요약 카드 뷰와 바인더/포매터를 분리했다.
+- 권한 안내 화면은 현재 구조가 최신 피그마와 크게 어긋나지 않아 이번 묶음에서는 유지했다.
+
+### 변경 범위
+
+- `app/src/main/java/com/example/bodeul/ui/auth/AuthSummaryCardModel.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/AuthSummaryCardBinder.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionSummaryFormatter.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/LoginSummaryFormatter.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java`
+- `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
+- `app/src/main/res/layout/view_auth_summary_card.xml`
+- `app/src/main/res/layout/activity_role_selection.xml`
+- `app/src/main/res/layout/activity_login.xml`
+- `app/src/main/res/values/strings.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 인증/공통 polish 다음 순서는 환자/보호자 홈과 진행 화면 위계 정리다.
+- 관리자 웹과 매니저 홈/가이드는 최신 피그마 기준으로 별도 묶음에서 이어서 조정한다.
+
+## 119. 2026-06-19 환자/보호자 홈 액션 구획 정리
+
+### 구현
+
+- 환자/보호자 홈에서 실제 동작이 없던 두 번째 액션 줄을 제거했다.
+- 홈 화면 섹션 순서를 `상단 상태 카드 -> 빠른 실행 -> 진행 로드맵 -> 최근 접수 -> 서비스 안내`로 다시 정리했다.
+- 기존 기능 진입 경로는 유지하고, 실제로 누를 수 있는 카드만 남겨 화면 밀도를 줄였다.
+
+### 변경 범위
+
+- `app/src/main/res/layout/activity_main.xml`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 환자/보호자 진행 상세와 리포트 화면은 카드 위계와 정보 묶음을 더 다듬을 여지가 있다.
+- 매니저 홈/가이드 polish는 별도 묶음으로 이어서 진행한다.
+
+## 120. 2026-06-19 최신 피그마 누락 보드 반영
+
+### 구현
+
+- 최신 로컬 피그마 세트를 다시 확인해 문서에서 빠진 보드를 반영했다.
+- `환자 홈 화면 (예약 완료 후)-1`, `Main`, `Body`, `보들 가이드.pdf`를 최신 디자인 기준 설명에 추가했다.
+- `동행가이드1`~`12`를 단순 묶음이 아니라 연속 시퀀스 기준으로 다시 명시했다.
+
+### 변경 범위
+
+- `design_refs/README.md`
+- `docs/design-reference-review-2026-05-22.md`
+- `docs/feature-spec-figma-audit-2026-05-22.md`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- 최신 피그마 기준에서 빠진 기능 축은 현재 문서보다 구현 쪽에 더 많지 않다.
+- 다음 확인 포인트는 개별 보드 기준 UI polish 우선순위를 실제 화면에 얼마나 반영했는지다.
