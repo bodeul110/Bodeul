@@ -33,6 +33,7 @@ public final class BookingLiveLocationBinder {
     private final TextView textMapSectionHelper;
     private final TextView textMapHighlightTitle;
     private final TextView textMapHighlightBody;
+    private final BookingLocationMapView viewHospitalMap;
     private final LinearLayout statusLineContainer;
     private final LinearLayout memoLineContainer;
     private final LinearLayout mapActionContainer;
@@ -55,6 +56,7 @@ public final class BookingLiveLocationBinder {
             TextView textMapSectionHelper,
             TextView textMapHighlightTitle,
             TextView textMapHighlightBody,
+            BookingLocationMapView viewHospitalMap,
             LinearLayout statusLineContainer,
             LinearLayout memoLineContainer,
             LinearLayout mapActionContainer,
@@ -76,6 +78,7 @@ public final class BookingLiveLocationBinder {
         this.textMapSectionHelper = textMapSectionHelper;
         this.textMapHighlightTitle = textMapHighlightTitle;
         this.textMapHighlightBody = textMapHighlightBody;
+        this.viewHospitalMap = viewHospitalMap;
         this.statusLineContainer = statusLineContainer;
         this.memoLineContainer = memoLineContainer;
         this.mapActionContainer = mapActionContainer;
@@ -97,12 +100,25 @@ public final class BookingLiveLocationBinder {
         textMapSectionHelper.setText(screenModel.getMapSectionHelper());
         textMapHighlightTitle.setText(screenModel.getMapHighlightTitle());
         textMapHighlightBody.setText(screenModel.getMapHighlightBody());
+        bindHospitalMap(screenModel.getHospitalMapPreviewModel());
         buttonPrimary.setText(screenModel.getPrimaryActionLabel());
         buttonRefresh.setText(screenModel.getRefreshActionLabel());
 
         bindLines(statusLineContainer, screenModel.getStatusLines());
         bindLines(memoLineContainer, screenModel.getMemoLines());
         bindMapActions(screenModel.getMapActions());
+    }
+
+    private void bindHospitalMap(com.example.bodeul.ui.common.HospitalMapPreviewModel mapPreviewModel) {
+        if (mapPreviewModel == null || mapPreviewModel.getPointOptions().isEmpty()) {
+            viewHospitalMap.setVisibility(View.GONE);
+            return;
+        }
+        viewHospitalMap.setVisibility(View.VISIBLE);
+        viewHospitalMap.setPointOptions(mapPreviewModel.getPointOptions());
+        viewHospitalMap.setSelectedPointId(mapPreviewModel.getSelectedPointId());
+        viewHospitalMap.setHighlightedPointId(mapPreviewModel.getHighlightedPointId());
+        viewHospitalMap.setOnPointSelectedListener(null);
     }
 
     private void bindLines(LinearLayout container, List<BookingStatusLineItem> items) {

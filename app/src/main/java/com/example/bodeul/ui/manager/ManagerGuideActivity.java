@@ -20,6 +20,10 @@ import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.data.map.HospitalMapCoordinateQuery;
+import com.example.bodeul.data.map.HospitalMapCoordinateResult;
+import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
+import com.example.bodeul.data.map.KakaoPlaceCoordinate;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
@@ -71,8 +75,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private MapView mapView;
     private KakaoMap kakaoMap;
     private Label managerMarker;
+    private Label hospitalMarker;
+    private Label pharmacyMarker;
     private Label trackingLabel;
     private ManagerDashboard currentDashboard;
+    private KakaoLocalPlaceSearchClient placeSearchClient;
+    private HospitalMapCoordinateResult currentCoordinateResult;
+    private String currentCoordinateQueryKey = "";
+    private boolean coordinateSearchInFlight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,6 +91,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
         AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
         ManagerRepository managerRepository = ServiceLocator.provideManagerRepository(this);
+        placeSearchClient = new KakaoLocalPlaceSearchClient(this);
         ManagerGuideCoordinator coordinator = new ManagerGuideCoordinator(
                 this,
                 new ManagerGuidePresentationFormatter(this)
@@ -115,6 +126,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.textGuideHeroTitle),
                 findViewById(R.id.textGuideHeroBody),
                 findViewById(R.id.textGuideHeroNote),
+                findViewById(R.id.viewGuideHospitalMap),
                 findViewById(R.id.guideMapActionContainer),
                 new ManagerGuideMapActionBinder(this::openMapFallback),
                 (LinearLayout) findViewById(R.id.guideStageRailContainer),
@@ -259,18 +271,27 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void updateMapMarker() {
         if (kakaoMap == null || currentDashboard == null) return;
-        
+
+        updateSharedLocationMarker();
+        updateHospitalAndPharmacyMarkers();
+    }
+
+    private void updateSharedLocationMarker() {
+        if (kakaoMap == null || currentDashboard == null) {
+            return;
+        }
+
         CompanionSession session = currentDashboard.getSession();
         if (session == null) return;
 
         Double lat = session.getSharedLatitude();
         Double lng = session.getSharedLongitude();
-        
+
         if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
             LatLng position = LatLng.from(lat, lng);
             LabelManager labelManager = kakaoMap.getLabelManager();
             LabelLayer layer = labelManager.getLayer();
-            
+
             if (managerMarker == null) {
                 android.graphics.Bitmap markerBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_map_marker);
                 LabelOptions options = LabelOptions.from(position);
@@ -285,6 +306,101 @@ public class ManagerGuideActivity extends AppCompatActivity {
             }
             kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position));
         }
+    }
+
+    private void updateHospitalAndPharmacyMarkers() {
+        if (kakaoMap == null || currentDashboard == null) {
+            return;
+        }
+        HospitalMapCoordinateQuery query = new HospitalMapCoordinateQuery(
+                currentDashboard.getAppointmentRequest().getHospitalName(),
+                currentDashboard.getAppointmentRequest().getDepartmentName()
+        );
+        if (query.isEmpty() || !placeSearchClient.isConfigured()) {
+            return;
+        }
+
+        String queryKey = query.buildPrimaryHospitalQuery();
+        if (TextUtils.equals(currentCoordinateQueryKey, queryKey) && currentCoordinateResult != null) {
+            renderHospitalAndPharmacyMarkers(currentCoordinateResult);
+            return;
+        }
+        if (TextUtils.equals(currentCoordinateQueryKey, queryKey) && coordinateSearchInFlight) {
+            return;
+        }
+
+        currentCoordinateQueryKey = queryKey;
+        coordinateSearchInFlight = true;
+        placeSearchClient.searchHospitalAndPharmacy(query, new KakaoLocalPlaceSearchClient.Callback() {
+            @Override
+            public void onSuccess(HospitalMapCoordinateResult result) {
+                if (!TextUtils.equals(currentCoordinateQueryKey, queryKey)) {
+                    return;
+                }
+                coordinateSearchInFlight = false;
+                currentCoordinateResult = result;
+                renderHospitalAndPharmacyMarkers(result);
+            }
+
+            @Override
+            public void onError(String message) {
+                if (!TextUtils.equals(currentCoordinateQueryKey, queryKey)) {
+                    return;
+                }
+                coordinateSearchInFlight = false;
+                currentCoordinateResult = new HospitalMapCoordinateResult(null, null);
+            }
+        });
+    }
+
+    private void renderHospitalAndPharmacyMarkers(HospitalMapCoordinateResult result) {
+        if (kakaoMap == null || result == null) {
+            return;
+        }
+        if (result.getHospitalCoordinate() != null) {
+            hospitalMarker = upsertPlaceMarker(
+                    hospitalMarker,
+                    "guide-hospital",
+                    result.getHospitalCoordinate(),
+                    R.drawable.ic_map_marker_hospital
+            );
+        }
+        if (result.getPharmacyCoordinate() != null) {
+            pharmacyMarker = upsertPlaceMarker(
+                    pharmacyMarker,
+                    "guide-pharmacy",
+                    result.getPharmacyCoordinate(),
+                    R.drawable.ic_map_marker_pharmacy
+            );
+        }
+        if ((currentDashboard.getSession() == null || !currentDashboard.getSession().hasSharedLocationCoordinates())
+                && result.getHospitalCoordinate() != null) {
+            kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(LatLng.from(
+                    result.getHospitalCoordinate().getLatitude(),
+                    result.getHospitalCoordinate().getLongitude()
+            )));
+        }
+    }
+
+    private Label upsertPlaceMarker(
+            Label marker,
+            String markerId,
+            KakaoPlaceCoordinate coordinate,
+            int drawableResId
+    ) {
+        LatLng position = LatLng.from(coordinate.getLatitude(), coordinate.getLongitude());
+        if (marker == null) {
+            android.graphics.Bitmap markerBitmap = getBitmapFromVectorDrawable(this, drawableResId);
+            LabelOptions options = LabelOptions.from(markerId, position);
+            if (markerBitmap != null) {
+                options.setStyles(LabelStyle.from(markerBitmap));
+            } else {
+                options.setStyles(LabelStyle.from(drawableResId));
+            }
+            return kakaoMap.getLabelManager().getLayer().addLabel(options);
+        }
+        marker.moveTo(position);
+        return marker;
     }
 
     private void startMapTracking() {

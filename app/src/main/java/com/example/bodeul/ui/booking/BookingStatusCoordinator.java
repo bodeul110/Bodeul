@@ -18,6 +18,8 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.MedicationComparisonDisplayHelper;
+import com.example.bodeul.util.MedicationComparisonSummary;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
@@ -307,10 +309,26 @@ public final class BookingStatusCoordinator {
             addOptionalLine(hospitalLines, R.string.booking_status_line_report_summary, report.getSummary(), true);
             addOptionalLine(hospitalLines, R.string.booking_status_line_report_treatment, report.getTreatmentNotes(), false);
             addOptionalLine(hospitalLines, R.string.booking_status_line_report_next_visit, report.getNextVisitAt(), false);
+            MedicationComparisonSummary comparisonSummary =
+                    MedicationComparisonDisplayHelper.buildSummary(context, request, report);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication, report.getMedicationNotes(), true);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_name, report.getMedicationName(), false);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_change, report.getMedicationChangeSummary(), false);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_schedule, report.getMedicationScheduleNote(), false);
+            if (comparisonSummary != null) {
+                addOptionalLine(
+                        medicationLines,
+                        R.string.booking_status_line_report_medication_compare,
+                        comparisonSummary.getStatusLabel(),
+                        false
+                );
+                addOptionalLine(
+                        medicationLines,
+                        R.string.booking_status_line_report_medication_follow_up,
+                        comparisonSummary.getFollowUpLabel(),
+                        false
+                );
+            }
         } else if (request.getStatus() == AppointmentStatus.COMPLETED) {
             hospitalLines.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_status_line_report_state),

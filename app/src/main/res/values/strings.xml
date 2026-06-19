@@ -368,6 +368,8 @@
     <string name="guardian_report_line_report_medication_name">약품명</string>
     <string name="guardian_report_line_report_medication_change">변경 내용</string>
     <string name="guardian_report_line_report_medication_schedule">복용 시점</string>
+    <string name="guardian_report_line_report_medication_compare">비교 결과</string>
+    <string name="guardian_report_line_report_medication_follow_up">추가 확인</string>
     <string name="guardian_report_line_report_next_visit">다음 방문 일정</string>
     <string name="guardian_report_guide_line">%1$d단계 가이드 준비 완료</string>
     <string name="guardian_report_session_ready">출발 준비 중</string>
@@ -557,6 +559,7 @@
     <string name="guide_pharmacy_hint">예: 문전 약국 접수 완료, 복약 설명 대기 중입니다.</string>
     <string name="guide_pharmacy_save">약국 진행 저장</string>
     <string name="guide_pharmacy_progress_summary_label">약국 세부 단계</string>
+    <string name="guide_pharmacy_map_helper">현재 만남 위치와 약국 기준점을 병원 내 안내도로 함께 확인합니다.</string>
     <string name="guide_pharmacy_mark_completed">약 수령 완료</string>
     <string name="guide_pharmacy_mark_incomplete">약 수령 전으로 되돌리기</string>
     <string name="guide_prescription_mark_collected">처방전 수령 완료</string>
@@ -573,6 +576,16 @@
     <string name="guide_report_medication_name_hint">복약 변화 약품명</string>
     <string name="guide_report_medication_change_hint">복약 변화 내용</string>
     <string name="guide_report_medication_schedule_hint">복용 시점 또는 복용법</string>
+    <string name="medication_compare_status_new_guidance">현장 복약 안내가 새로 등록되었습니다.</string>
+    <string name="medication_compare_status_changed">기존 복약 대비 변경 사항이 있습니다.</string>
+    <string name="medication_compare_status_same">기존 복약 정보를 유지했습니다.</string>
+    <string name="medication_compare_status_recheck">복약 정보가 달라 재확인이 필요합니다.</string>
+    <string name="medication_compare_follow_up_missing_request">예약 단계 복약 정보가 없어 현장 안내 내용만 확인할 수 있습니다.</string>
+    <string name="medication_compare_follow_up_change_only">변경된 복약 내용을 보호자와 다시 확인하세요.</string>
+    <string name="medication_compare_follow_up_change_and_schedule">변경 내용과 복용 시점을 함께 확인하세요.</string>
+    <string name="medication_compare_follow_up_name_mismatch">예약 단계 메모와 약품명이 달라 보이니 다시 확인하세요.</string>
+    <string name="medication_compare_follow_up_schedule_only">복용 시점 안내가 추가되어 일정 확인이 필요합니다.</string>
+    <string name="medication_compare_follow_up_same">현장 안내 기준으로 기존 복약을 그대로 유지했습니다.</string>
     <string name="guide_report_section">진료 리포트</string>
     <string name="guide_report_summary_hint">진료 요약</string>
     <string name="guide_report_treatment_hint">진료 메모</string>
@@ -886,6 +899,8 @@
     <string name="booking_status_line_report_medication_name">약품명</string>
     <string name="booking_status_line_report_medication_change">변경 내용</string>
     <string name="booking_status_line_report_medication_schedule">복용 시점</string>
+    <string name="booking_status_line_report_medication_compare">비교 결과</string>
+    <string name="booking_status_line_report_medication_follow_up">추가 확인</string>
     <string name="booking_status_line_report_next_visit">다음 방문</string>
     <string name="booking_status_line_report_state">리포트 상태</string>
     <string name="booking_status_hospital_value">%1$s · %2$s</string>
@@ -1341,6 +1356,7 @@
     <string name="booking_live_location_section_memo">현장 메모</string>
     <string name="booking_live_location_section_map">지도 fallback</string>
     <string name="booking_live_location_section_map_helper">실시간 GPS 지도가 완전히 연결되기 전에는 현재 메모와 예약 위치를 기준으로 카카오맵 앱과 모바일웹을 우선 열어 길을 확인합니다.</string>
+    <string name="booking_live_location_hospital_map_helper">현재 만남 위치와 약국 기준점을 병원 내 안내도에 함께 표시합니다.</string>
     <string name="booking_live_location_map_highlight_title_shared">현재 공유 위치를 기준으로 병원 내 지도를 다시 확인합니다.</string>
     <string name="booking_live_location_map_highlight_title_default">만남 위치와 병원 위치를 기준으로 이동 경로를 먼저 확인합니다.</string>
     <string name="booking_live_location_map_highlight_body">현재 기준 위치: %1$s\n병원: %2$s %3$s\n최근 갱신: %4$s</string>
@@ -1425,4 +1441,5 @@
     <string name="support_attention_body_unread">관리자 답변 %1$d건이 도착했습니다. 문의 화면에서 바로 확인해 주세요.</string>
     <string name="support_attention_body_overdue">미확인 답변 %1$d건 중 %2$d건이 24시간 이상 남아 있습니다. 문의 화면에서 우선 확인해 주세요.</string>
     <string name="support_attention_action_open">문의 화면 열기</string>
+    <string name="kakao_map_coordinate_load_error">실좌표를 불러오지 못해 기본 지도 안내만 표시합니다.</string>
 </resources>

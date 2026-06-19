@@ -285,6 +285,20 @@
                                 android:textSize="13sp" />
                         </LinearLayout>
 
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/booking_live_location_hospital_map_helper"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="13sp" />
+
+                        <com.example.bodeul.ui.booking.BookingLocationMapView
+                            android:id="@+id/viewBookingLiveLocationHospitalMap"
+                            android:layout_width="match_parent"
+                            android:layout_height="200dp"
+                            android:layout_marginTop="12dp" />
+
                         <com.kakao.vectormap.MapView
                             android:id="@+id/mapViewBookingLiveLocation"
                             android:layout_width="match_parent"

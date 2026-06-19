@@ -1,5 +1,7 @@
 package com.example.bodeul.ui.manager;
 
+import com.example.bodeul.ui.common.HospitalMapPreviewModel;
+
 import java.util.List;
 
 /**
@@ -14,6 +16,7 @@ public final class ManagerGuideScreenModel {
     private final String heroBody;
     private final String heroNote;
     private final List<ManagerGuideMapActionModel> mapActions;
+    private final HospitalMapPreviewModel hospitalMapPreviewModel;
     private final List<ManagerGuideStageModel> stages;
     private final ManagerGuideFocusModel focusModel;
     private final String liveLocationStatus;
@@ -48,6 +51,7 @@ public final class ManagerGuideScreenModel {
             String heroBody,
             String heroNote,
             List<ManagerGuideMapActionModel> mapActions,
+            HospitalMapPreviewModel hospitalMapPreviewModel,
             List<ManagerGuideStageModel> stages,
             ManagerGuideFocusModel focusModel,
             String liveLocationStatus,
@@ -81,6 +85,7 @@ public final class ManagerGuideScreenModel {
         this.heroBody = heroBody;
         this.heroNote = heroNote;
         this.mapActions = mapActions;
+        this.hospitalMapPreviewModel = hospitalMapPreviewModel;
         this.stages = stages;
         this.focusModel = focusModel;
         this.liveLocationStatus = liveLocationStatus;
@@ -137,6 +142,10 @@ public final class ManagerGuideScreenModel {
 
     public List<ManagerGuideMapActionModel> getMapActions() {
         return mapActions;
+    }
+
+    public HospitalMapPreviewModel getHospitalMapPreviewModel() {
+        return hospitalMapPreviewModel;
     }
 
     public List<ManagerGuideStageModel> getStages() {

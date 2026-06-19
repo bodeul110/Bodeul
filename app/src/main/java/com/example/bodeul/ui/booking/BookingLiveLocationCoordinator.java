@@ -12,6 +12,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.ui.common.HospitalMapPreviewModel;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
@@ -54,6 +55,7 @@ public final class BookingLiveLocationCoordinator {
                 context.getString(R.string.booking_live_location_section_map_helper),
                 buildMapHighlightTitle(detail),
                 buildMapHighlightBody(detail),
+                buildHospitalMapPreviewModel(request),
                 createStatusLines(detail),
                 createMemoLines(detail),
                 createMapActions(detail),
@@ -280,6 +282,23 @@ public final class BookingLiveLocationCoordinator {
                 request.getDepartmentName(),
                 updatedAt
         );
+    }
+
+    private HospitalMapPreviewModel buildHospitalMapPreviewModel(AppointmentRequest request) {
+        List<com.example.bodeul.domain.model.BookingMeetingPointOption> pointOptions =
+                BookingMeetingPointCatalog.createPointOptions(
+                        context,
+                        request.getHospitalName(),
+                        request.getDepartmentName()
+                );
+        String selectedPointId = BookingMeetingPointCatalog.resolveSelectedPointId(
+                pointOptions,
+                request.getMeetingPlace()
+        );
+        String highlightedPointId = BookingMeetingPointCatalog.POINT_ID_PHARMACY.equals(selectedPointId)
+                ? ""
+                : BookingMeetingPointCatalog.POINT_ID_PHARMACY;
+        return new HospitalMapPreviewModel(pointOptions, selectedPointId, highlightedPointId);
     }
 
     private String buildStepValue(@Nullable CompanionSession session, @Nullable HospitalGuide guide) {

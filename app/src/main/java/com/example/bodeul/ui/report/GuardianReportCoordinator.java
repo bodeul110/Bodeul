@@ -14,6 +14,8 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.MedicationComparisonDisplayHelper;
+import com.example.bodeul.util.MedicationComparisonSummary;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
@@ -248,10 +250,30 @@ public final class GuardianReportCoordinator {
         );
 
         List<GuardianReportLineItem> medicationLines = new ArrayList<>();
+        MedicationComparisonSummary comparisonSummary =
+                MedicationComparisonDisplayHelper.buildSummary(
+                        context,
+                        entry.getAppointmentRequest(),
+                        report
+                );
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication, report.getMedicationNotes(), true);
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_name, report.getMedicationName(), false);
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_change, report.getMedicationChangeSummary(), false);
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_schedule, report.getMedicationScheduleNote(), false);
+        if (comparisonSummary != null) {
+            addOptionalLine(
+                    medicationLines,
+                    R.string.guardian_report_line_report_medication_compare,
+                    comparisonSummary.getStatusLabel(),
+                    false
+            );
+            addOptionalLine(
+                    medicationLines,
+                    R.string.guardian_report_line_report_medication_follow_up,
+                    comparisonSummary.getFollowUpLabel(),
+                    false
+            );
+        }
         addSectionIfNotEmpty(
                 sections,
                 context.getString(R.string.guardian_report_report_section_medication),

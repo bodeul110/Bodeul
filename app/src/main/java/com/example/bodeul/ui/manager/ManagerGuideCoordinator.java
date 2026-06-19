@@ -11,6 +11,8 @@ import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
+import com.example.bodeul.ui.booking.BookingMeetingPointCatalog;
+import com.example.bodeul.ui.common.HospitalMapPreviewModel;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
@@ -51,6 +53,7 @@ public final class ManagerGuideCoordinator {
                 formatter.buildHeroBody(dashboard),
                 formatter.buildHeroNote(dashboard),
                 createMapActions(dashboard),
+                buildHospitalMapPreviewModel(dashboard),
                 stages,
                 createFocusModel(focusStep, session),
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
@@ -90,6 +93,7 @@ public final class ManagerGuideCoordinator {
                 context.getString(R.string.guide_hero_body_empty),
                 context.getString(R.string.guide_hero_note_empty),
                 Collections.emptyList(),
+                new HospitalMapPreviewModel(Collections.emptyList(), "", ""),
                 Collections.emptyList(),
                 new ManagerGuideFocusModel(
                         context.getString(R.string.guide_focus_badge_empty),
@@ -167,6 +171,23 @@ public final class ManagerGuideCoordinator {
                 null
         ));
         return actions;
+    }
+
+    private HospitalMapPreviewModel buildHospitalMapPreviewModel(ManagerDashboard dashboard) {
+        List<com.example.bodeul.domain.model.BookingMeetingPointOption> pointOptions =
+                BookingMeetingPointCatalog.createPointOptions(
+                        context,
+                        dashboard.getAppointmentRequest().getHospitalName(),
+                        dashboard.getAppointmentRequest().getDepartmentName()
+                );
+        String selectedPointId = BookingMeetingPointCatalog.resolveSelectedPointId(
+                pointOptions,
+                dashboard.getAppointmentRequest().getMeetingPlace()
+        );
+        String highlightedPointId = BookingMeetingPointCatalog.POINT_ID_PHARMACY.equals(selectedPointId)
+                ? ""
+                : BookingMeetingPointCatalog.POINT_ID_PHARMACY;
+        return new HospitalMapPreviewModel(pointOptions, selectedPointId, highlightedPointId);
     }
 
     @Nullable

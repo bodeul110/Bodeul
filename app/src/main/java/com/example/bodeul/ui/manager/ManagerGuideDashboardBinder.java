@@ -7,6 +7,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.example.bodeul.R;
+import com.example.bodeul.ui.booking.BookingLocationMapView;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -26,6 +27,7 @@ public final class ManagerGuideDashboardBinder {
     private final TextView textGuideHeroTitle;
     private final TextView textGuideHeroBody;
     private final TextView textGuideHeroNote;
+    private final BookingLocationMapView viewGuideHospitalMap;
     private final LinearLayout guideMapActionContainer;
     private final ManagerGuideMapActionBinder mapActionBinder;
     private final LinearLayout guideStageRailContainer;
@@ -73,6 +75,7 @@ public final class ManagerGuideDashboardBinder {
             TextView textGuideHeroTitle,
             TextView textGuideHeroBody,
             TextView textGuideHeroNote,
+            BookingLocationMapView viewGuideHospitalMap,
             LinearLayout guideMapActionContainer,
             ManagerGuideMapActionBinder mapActionBinder,
             LinearLayout guideStageRailContainer,
@@ -119,6 +122,7 @@ public final class ManagerGuideDashboardBinder {
         this.textGuideHeroTitle = textGuideHeroTitle;
         this.textGuideHeroBody = textGuideHeroBody;
         this.textGuideHeroNote = textGuideHeroNote;
+        this.viewGuideHospitalMap = viewGuideHospitalMap;
         this.guideMapActionContainer = guideMapActionContainer;
         this.mapActionBinder = mapActionBinder;
         this.guideStageRailContainer = guideStageRailContainer;
@@ -166,6 +170,7 @@ public final class ManagerGuideDashboardBinder {
         textGuideHeroBody.setText(screenModel.getHeroBody());
         textGuideHeroNote.setText(screenModel.getHeroNote());
 
+        bindHospitalMap(screenModel.getHospitalMapPreviewModel());
         bindMapActions(screenModel.getMapActions());
         bindStages(screenModel.getStages());
         bindFocus(screenModel.getFocusModel());
@@ -226,6 +231,18 @@ public final class ManagerGuideDashboardBinder {
         buttonTogglePharmacyCompleted.setText(screenModel.getPharmacyActionLabel());
         buttonToggleMedicationGuidanceCompleted.setText(screenModel.getMedicationGuidanceActionLabel());
         buttonSubmitReport.setText(screenModel.getReportButtonLabel());
+    }
+
+    private void bindHospitalMap(com.example.bodeul.ui.common.HospitalMapPreviewModel mapPreviewModel) {
+        if (mapPreviewModel == null || mapPreviewModel.getPointOptions().isEmpty()) {
+            viewGuideHospitalMap.setVisibility(View.GONE);
+            return;
+        }
+        viewGuideHospitalMap.setVisibility(View.VISIBLE);
+        viewGuideHospitalMap.setPointOptions(mapPreviewModel.getPointOptions());
+        viewGuideHospitalMap.setSelectedPointId(mapPreviewModel.getSelectedPointId());
+        viewGuideHospitalMap.setHighlightedPointId(mapPreviewModel.getHighlightedPointId());
+        viewGuideHospitalMap.setOnPointSelectedListener(null);
     }
 
     private void bindMapActions(List<ManagerGuideMapActionModel> actions) {

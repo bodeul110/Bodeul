@@ -1,5 +1,7 @@
 package com.example.bodeul.ui.booking;
 
+import com.example.bodeul.ui.common.HospitalMapPreviewModel;
+
 import java.util.List;
 
 /**
@@ -18,6 +20,7 @@ public final class BookingLiveLocationScreenModel {
     private final String mapSectionHelper;
     private final String mapHighlightTitle;
     private final String mapHighlightBody;
+    private final HospitalMapPreviewModel hospitalMapPreviewModel;
     private final List<BookingStatusLineItem> statusLines;
     private final List<BookingStatusLineItem> memoLines;
     private final List<BookingLiveLocationMapActionModel> mapActions;
@@ -37,6 +40,7 @@ public final class BookingLiveLocationScreenModel {
             String mapSectionHelper,
             String mapHighlightTitle,
             String mapHighlightBody,
+            HospitalMapPreviewModel hospitalMapPreviewModel,
             List<BookingStatusLineItem> statusLines,
             List<BookingStatusLineItem> memoLines,
             List<BookingLiveLocationMapActionModel> mapActions,
@@ -55,6 +59,7 @@ public final class BookingLiveLocationScreenModel {
         this.mapSectionHelper = mapSectionHelper;
         this.mapHighlightTitle = mapHighlightTitle;
         this.mapHighlightBody = mapHighlightBody;
+        this.hospitalMapPreviewModel = hospitalMapPreviewModel;
         this.statusLines = statusLines;
         this.memoLines = memoLines;
         this.mapActions = mapActions;
@@ -108,6 +113,10 @@ public final class BookingLiveLocationScreenModel {
 
     public String getMapHighlightBody() {
         return mapHighlightBody;
+    }
+
+    public HospitalMapPreviewModel getHospitalMapPreviewModel() {
+        return hospitalMapPreviewModel;
     }
 
     public List<BookingStatusLineItem> getStatusLines() {

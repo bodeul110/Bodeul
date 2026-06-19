@@ -35,6 +35,7 @@ public final class BookingLocationMapView extends View {
     private final List<BookingMeetingPointOption> pointOptions = new ArrayList<>();
 
     private String selectedPointId = "";
+    private String highlightedPointId = "";
     private float markerRadius;
     @Nullable
     private OnPointSelectedListener onPointSelectedListener;
@@ -73,6 +74,11 @@ public final class BookingLocationMapView extends View {
         invalidate();
     }
 
+    public void setHighlightedPointId(String highlightedPointId) {
+        this.highlightedPointId = highlightedPointId == null ? "" : highlightedPointId.trim();
+        invalidate();
+    }
+
     public void setOnPointSelectedListener(@Nullable OnPointSelectedListener listener) {
         this.onPointSelectedListener = listener;
     }
@@ -100,6 +106,11 @@ public final class BookingLocationMapView extends View {
             float x = left + (right - left) * option.getRelativeX();
             float y = top + (bottom - top) * option.getRelativeY();
             boolean selected = option.getId().equals(selectedPointId);
+            boolean highlighted = option.getId().equals(highlightedPointId);
+            if (highlighted && !selected) {
+                markerPaint.setColor(ContextCompat.getColor(getContext(), R.color.bodeul_secondary));
+                canvas.drawCircle(x, y, markerRadius + dp(5), markerPaint);
+            }
             markerPaint.setColor(ContextCompat.getColor(
                     getContext(),
                     selected ? R.color.bodeul_primary : R.color.bodeul_text_secondary
