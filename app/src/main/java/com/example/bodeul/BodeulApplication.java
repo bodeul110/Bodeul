@@ -3,6 +3,7 @@ package com.example.bodeul;
 import android.app.Application;
 import android.text.TextUtils;
 
+import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.firebase.AppCheckInstaller;
 import com.kakao.sdk.common.KakaoSdk;
 import com.kakao.vectormap.KakaoMapSdk;
@@ -26,5 +27,6 @@ public class BodeulApplication extends Application {
         AppCheckInstaller.installIfConfigured(this);
 
         // 네이버 로그인은 클라이언트 시크릿을 앱에 포함하지 않도록 비활성화한 상태다.
+        ServiceLocator.provideNotificationTokenRegistrar(this).syncCurrentUserToken();
     }
 }

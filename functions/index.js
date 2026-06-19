@@ -5,6 +5,7 @@ const logger = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {getMessaging} = require("firebase-admin/messaging");
 
 initializeApp();
 
@@ -49,6 +50,11 @@ const USER_LINK_SYNC_OPTIONS = {
 const APPOINTMENT_REQUEST_SYNC_OPTIONS = {
   region: "asia-northeast3",
   document: "appointmentRequests/{appointmentRequestId}",
+};
+
+const CLIENT_SUPPORT_NOTIFICATION_OPTIONS = {
+  region: "asia-northeast3",
+  document: "clientSupportRequests/{supportRequestId}",
 };
 
 const CLIENT_CREATABLE_ROLES = new Set(["PATIENT", "GUARDIAN", "MANAGER"]);
@@ -453,6 +459,71 @@ exports.cleanupAppointmentReminderJobs = onDocumentWritten(
       if (summary.skippedJobs > 0) {
         logger.info("예약 알림 작업 정리를 마쳤습니다.", summary);
       }
+    },
+);
+
+// 이용자 문의 문서가 답변 완료로 바뀌면 사용자 단말에 새 답변 알림을 보낸다.
+exports.notifyClientSupportAnswered = onDocumentWritten(
+    CLIENT_SUPPORT_NOTIFICATION_OPTIONS,
+    async (event) => {
+      if (!event.data?.after?.exists) {
+        return;
+      }
+
+      const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+      const afterData = event.data.after.data();
+      if (!shouldNotifyClientSupportAnswer(beforeData, afterData)) {
+        return;
+      }
+
+      const userId = sanitizeText(afterData.userId);
+      if (!userId) {
+        return;
+      }
+
+      const userSnapshot = await getFirestore().collection("users").doc(userId).get();
+      if (!userSnapshot.exists) {
+        return;
+      }
+
+      const notificationTokens = toStringArray(userSnapshot.get("notificationTokens"));
+      if (notificationTokens.length === 0) {
+        logger.info("이용자 문의 답변 알림을 건너뜁니다. 등록된 토큰이 없습니다.", {
+          supportRequestId: sanitizeText(event.params?.supportRequestId),
+          userId,
+        });
+        return;
+      }
+
+      const title = "보들 문의 답변이 도착했습니다";
+      const categoryLabel = resolveClientSupportCategoryLabel(afterData.category);
+      const requestTitle = sanitizeText(afterData.title) || "문의 내역";
+      const body = `${categoryLabel} · ${requestTitle}`;
+
+      const response = await getMessaging().sendEachForMulticast({
+        tokens: notificationTokens,
+        notification: {
+          title,
+          body,
+        },
+        data: {
+          type: "client_support_answered",
+          supportRequestId: sanitizeText(event.params?.supportRequestId),
+          appointmentRequestId: sanitizeText(afterData.appointmentRequestId),
+          status: sanitizeText(afterData.status),
+        },
+        android: {
+          priority: "high",
+        },
+      });
+
+      logger.info("이용자 문의 답변 알림을 발송했습니다.", {
+        supportRequestId: sanitizeText(event.params?.supportRequestId),
+        userId,
+        tokenCount: notificationTokens.length,
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+      });
     },
 );
 
@@ -1986,6 +2057,44 @@ function toSafeInteger(value) {
     return 0;
   }
   return Math.max(0, Math.trunc(numericValue));
+}
+
+function shouldNotifyClientSupportAnswer(beforeData, afterData) {
+  const afterStatus = sanitizeText(afterData?.status);
+  const afterResponse = sanitizeText(afterData?.responseText);
+  if (afterStatus !== "ANSWERED" || !afterResponse) {
+    return false;
+  }
+
+  if (afterData?.responseReadByUser === true) {
+    return false;
+  }
+
+  const beforeStatus = sanitizeText(beforeData?.status);
+  const beforeResponse = sanitizeText(beforeData?.responseText);
+  const beforeRespondedAt = resolveFirestoreTimestampMillis(beforeData?.respondedAt);
+  const afterRespondedAt = resolveFirestoreTimestampMillis(afterData?.respondedAt);
+
+  return beforeStatus !== afterStatus
+      || beforeResponse !== afterResponse
+      || beforeRespondedAt !== afterRespondedAt;
+}
+
+function resolveClientSupportCategoryLabel(category) {
+  const normalized = sanitizeText(category);
+  if (normalized === "PAYMENT") {
+    return "결제 문의";
+  }
+  if (normalized === "REPORT") {
+    return "리포트 문의";
+  }
+  if (normalized === "ACCOUNT") {
+    return "계정 문의";
+  }
+  if (normalized === "EMERGENCY") {
+    return "긴급 문의";
+  }
+  return "예약 문의";
 }
 
 function resolveFirestoreTimestampMillis(value) {

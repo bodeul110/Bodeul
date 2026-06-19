@@ -427,6 +427,8 @@ public class LoginActivity extends AppCompatActivity {
         @Override
         public void onSuccess(User result) {
             setLoading(false);
+            ServiceLocator.provideNotificationTokenRegistrar(LoginActivity.this)
+                    .syncCurrentUserToken();
             // 로그인 직후에도 프로필 보완이 필요하면 먼저 보완 화면으로 보낸다.
             Intent intent = AuthFlowRouter.createPostAuthIntent(LoginActivity.this, result);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

@@ -9,6 +9,7 @@ import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentStorageUploader;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentPreviewResolver;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
+import com.example.bodeul.data.firebase.FirebaseNotificationTokenRegistrar;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
@@ -17,6 +18,7 @@ import com.example.bodeul.data.mock.MockGuardianReportRepository;
 import com.example.bodeul.data.mock.MockManagerDocumentPreviewResolver;
 import com.example.bodeul.data.mock.MockManagerDocumentStorageUploader;
 import com.example.bodeul.data.mock.MockManagerRepository;
+import com.example.bodeul.data.mock.MockNotificationTokenRegistrar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -32,6 +34,7 @@ public final class ServiceLocator {
     private static BookingRepository bookingRepository;
     private static GuardianReportRepository guardianReportRepository;
     private static ClientSupportRepository clientSupportRepository;
+    private static NotificationTokenRegistrar notificationTokenRegistrar;
     private static ManagerRepository managerRepository;
     private static AdminRepository adminRepository;
     private static ManagerDocumentStorageUploader managerDocumentStorageUploader;
@@ -130,6 +133,22 @@ public final class ServiceLocator {
             }
         }
         return clientSupportRepository;
+    }
+
+    public static synchronized NotificationTokenRegistrar provideNotificationTokenRegistrar(
+            Context context
+    ) {
+        if (notificationTokenRegistrar == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                notificationTokenRegistrar = new FirebaseNotificationTokenRegistrar(
+                        FirebaseAuth.getInstance(),
+                        provideFirestore()
+                );
+            } else {
+                notificationTokenRegistrar = new MockNotificationTokenRegistrar();
+            }
+        }
+        return notificationTokenRegistrar;
     }
 
     public static synchronized AdminRepository provideAdminRepository(Context context) {

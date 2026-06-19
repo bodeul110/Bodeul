@@ -25,6 +25,13 @@
             android:name=".ui.manager.ManagerLocationService"
             android:exported="false"
             android:foregroundServiceType="location" />
+        <service
+            android:name=".firebase.BodeulFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <activity
             android:name=".ui.auth.PermissionGuideActivity"
             android:exported="false" />

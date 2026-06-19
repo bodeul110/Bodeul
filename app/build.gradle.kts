@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.firebase.appcheck.playintegrity)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
+    implementation(libs.firebase.messaging)
     implementation(libs.firebase.storage)
     implementation(libs.googleid)
     implementation(libs.kakao.user)
