@@ -1,5 +1,7 @@
 package com.example.bodeul.ui.home;
 
+import android.content.Context;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -15,8 +17,10 @@ import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.ui.common.AttentionBannerModel;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
+import com.example.bodeul.ui.support.ClientSupportAttentionBannerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +29,7 @@ import java.util.List;
  * 환자/보호자 홈에 필요한 여러 저장소 호출을 조합하는 코디네이터다.
  */
 public final class ClientHomeCoordinator {
+    private final Context context;
     private final BookingRepository bookingRepository;
     private final GuardianReportRepository guardianReportRepository;
     private final ClientSupportRepository clientSupportRepository;
@@ -32,12 +37,14 @@ public final class ClientHomeCoordinator {
     private final AppointmentProgressComposer progressComposer;
 
     public ClientHomeCoordinator(
+            Context context,
             BookingRepository bookingRepository,
             GuardianReportRepository guardianReportRepository,
             ClientSupportRepository clientSupportRepository,
             ClientHomeNoticeProvider noticeProvider,
             AppointmentProgressComposer progressComposer
     ) {
+        this.context = context.getApplicationContext();
         this.bookingRepository = bookingRepository;
         this.guardianReportRepository = guardianReportRepository;
         this.clientSupportRepository = clientSupportRepository;
@@ -180,6 +187,11 @@ public final class ClientHomeCoordinator {
                         progressEntry == null ? null : progressEntry.getSessionReport(),
                         progressEntry == null ? null : progressEntry.getHospitalGuide()
                 );
+        AttentionBannerModel supportBanner = ClientSupportAttentionBannerFactory.create(
+                context,
+                unreadSupportResponseCount,
+                staleUnreadSupportResponseCount
+        );
         return new ClientHomeDashboard(
                 currentUser,
                 safeRequests,
@@ -187,6 +199,7 @@ public final class ClientHomeCoordinator {
                 primaryRequest,
                 progressOverview,
                 followUpRecord,
+                supportBanner,
                 unreadSupportResponseCount,
                 staleUnreadSupportResponseCount,
                 noticeProvider.createNotices(currentUser.getRole())

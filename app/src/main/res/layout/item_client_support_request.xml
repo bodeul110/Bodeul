@@ -78,6 +78,21 @@
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="12sp" />
 
+        <TextView
+            android:id="@+id/buttonClientSupportResponseToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_surface_pill"
+            android:paddingStart="12dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="7dp"
+            android:textColor="@color/bodeul_primary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/layoutClientSupportRequestResponse"
             android:layout_width="match_parent"

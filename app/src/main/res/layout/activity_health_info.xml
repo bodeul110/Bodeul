@@ -123,6 +123,11 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
+                <include
+                    android:id="@+id/layoutHealthInfoSupportBanner"
+                    layout="@layout/view_attention_banner"
+                    android:layout_marginTop="18dp" />
+
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

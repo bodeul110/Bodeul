@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.ui.common.AttentionBannerModel;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
 
 import java.util.Collections;
@@ -28,6 +29,8 @@ public final class ClientHomeDashboard {
     private final AppointmentProgressOverviewModel progressOverview;
     @Nullable
     private final AppointmentFollowUpRecord primaryFollowUpRecord;
+    @Nullable
+    private final AttentionBannerModel supportBanner;
     private final int unreadSupportResponseCount;
     private final int staleUnreadSupportResponseCount;
     private final List<ClientHomeNotice> notices;
@@ -39,6 +42,7 @@ public final class ClientHomeDashboard {
             @Nullable AppointmentRequest primaryRequest,
             @Nullable AppointmentProgressOverviewModel progressOverview,
             @Nullable AppointmentFollowUpRecord primaryFollowUpRecord,
+            @Nullable AttentionBannerModel supportBanner,
             int unreadSupportResponseCount,
             int staleUnreadSupportResponseCount,
             List<ClientHomeNotice> notices
@@ -49,6 +53,7 @@ public final class ClientHomeDashboard {
         this.primaryRequest = primaryRequest;
         this.progressOverview = progressOverview;
         this.primaryFollowUpRecord = primaryFollowUpRecord;
+        this.supportBanner = supportBanner;
         this.unreadSupportResponseCount = unreadSupportResponseCount;
         this.staleUnreadSupportResponseCount = staleUnreadSupportResponseCount;
         this.notices = Collections.unmodifiableList(notices);
@@ -78,6 +83,11 @@ public final class ClientHomeDashboard {
 
     public int getUnreadSupportResponseCount() {
         return unreadSupportResponseCount;
+    }
+
+    @Nullable
+    public AttentionBannerModel getSupportBanner() {
+        return supportBanner;
     }
 
     public boolean hasUnreadSupportResponses() {

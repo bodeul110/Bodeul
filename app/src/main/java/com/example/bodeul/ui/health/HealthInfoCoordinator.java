@@ -15,6 +15,8 @@ import com.example.bodeul.domain.model.ClientSupportStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
+import com.example.bodeul.ui.common.AttentionBannerModel;
+import com.example.bodeul.ui.support.ClientSupportAttentionBannerFactory;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
 import java.util.ArrayList;
@@ -41,6 +43,12 @@ public final class HealthInfoCoordinator {
         AppointmentRequest request = detail.getAppointmentRequest();
         HealthInfoPrimaryActionType primaryActionType = resolvePrimaryActionType(currentUser, request);
         int unreadSupportCount = countUnreadSupportRequests(supportRequests);
+        int staleUnreadSupportCount = countStaleUnreadSupportRequests(supportRequests);
+        AttentionBannerModel supportBanner = ClientSupportAttentionBannerFactory.create(
+                context,
+                unreadSupportCount,
+                staleUnreadSupportCount
+        );
         return new HealthInfoScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
                 context.getString(R.string.health_info_title),
@@ -49,6 +57,7 @@ public final class HealthInfoCoordinator {
                                 ? R.string.health_info_subtitle_guardian
                                 : R.string.health_info_subtitle_patient
                 ),
+                supportBanner,
                 formatter.toStatusLabel(request.getStatus()),
                 context.getString(R.string.health_info_hero_title, resolvePatientName(detail)),
                 context.getString(

@@ -141,6 +141,8 @@
     <string name="client_home_action_manage_body_guardian">예약 %1$d건 중 진행·대기 %2$d건, 완료 %3$d건을 건강정보와 보호자 리포트 흐름에서 함께 확인합니다.</string>
     <string name="client_home_action_manage_badge_unread">새 답변 %1$d</string>
     <string name="client_home_action_manage_badge_overdue">24시간+ %1$d</string>
+    <string name="client_home_action_manage_counter_unread">%1$d</string>
+    <string name="client_home_action_manage_counter_overdue">24h+</string>
     <string name="client_home_action_manage_support_unread">문의 답변 %1$d건을 아직 확인하지 않았습니다.</string>
     <string name="client_home_action_manage_support_overdue">그중 %1$d건은 24시간 이상 확인되지 않았습니다.</string>
     <string name="client_home_recent_title">최근 접수 내역</string>
@@ -1092,6 +1094,9 @@
     <string name="client_support_latest_unread_value">새 답변 도착 문의 %1$s · 답변 시각 %2$s</string>
     <string name="client_support_latest_stale_unread_value">24시간 이상 미확인 문의 %1$s · 답변 시각 %2$s</string>
     <string name="client_support_latest_answered_value">최근 답변 완료 문의 %1$s · 답변 시각 %2$s</string>
+    <string name="client_support_focus_title">새 답변 문의를 먼저 확인하고 있습니다</string>
+    <string name="client_support_focus_body">알림으로 전달된 문의 카드만 먼저 펼쳐 보여줍니다. 필요하면 전체 문의 목록으로 바로 돌아갈 수 있습니다.</string>
+    <string name="client_support_focus_action">전체 문의 보기</string>
     <string name="client_support_form_title">새 문의 접수</string>
     <string name="client_support_input_title">문의 제목</string>
     <string name="client_support_input_body">문의 상세 내용</string>
@@ -1111,6 +1116,8 @@
     <string name="client_support_status_answered">답변 완료</string>
     <string name="client_support_response_meta">%1$s · 담당 %2$s</string>
     <string name="client_support_response_meta_unread">새 답변 · %1$s · 담당 %2$s</string>
+    <string name="client_support_response_expand">답변 펼쳐보기</string>
+    <string name="client_support_response_collapse">답변 접기</string>
 
     <string name="manager_profile_subtitle">계정 정보, 서류 상태, 활동 가능 일정, 검토 이력을 한 화면에서 관리합니다.</string>
     <string name="manager_profile_hero_title">%1$s 매니저님의 내 페이지</string>
@@ -1388,4 +1395,11 @@
     <string name="client_support_push_channel_name">문의 답변 알림</string>
     <string name="client_support_push_channel_description">이용자 문의 답변과 후속 안내를 알림으로 전달합니다.</string>
     <string name="client_support_push_foreground_action_open">문의 화면 열기</string>
+    <string name="support_attention_badge_unread">새 답변</string>
+    <string name="support_attention_badge_overdue">24시간 이상 미확인</string>
+    <string name="support_attention_title_unread">문의 답변을 확인해 주세요</string>
+    <string name="support_attention_title_overdue">오래 확인하지 않은 문의 답변이 있습니다</string>
+    <string name="support_attention_body_unread">관리자 답변 %1$d건이 도착했습니다. 문의 화면에서 바로 확인해 주세요.</string>
+    <string name="support_attention_body_overdue">미확인 답변 %1$d건 중 %2$d건이 24시간 이상 남아 있습니다. 문의 화면에서 우선 확인해 주세요.</string>
+    <string name="support_attention_action_open">문의 화면 열기</string>
 </resources>

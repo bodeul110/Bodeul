@@ -54,9 +54,12 @@ public final class ClientSupportActivity extends AppCompatActivity {
 
     private User currentUser;
     private AppointmentRequestDetail currentRequestDetail;
+    private List<ClientSupportRequest> currentSupportRequests;
     private ClientSupportCategory selectedCategory = ClientSupportCategory.RESERVATION;
     private String requestId;
     private String focusedSupportRequestId;
+    private String expandedSupportRequestId;
+    private boolean focusModeActive;
     private boolean supportRefreshReceiverRegistered;
 
     private final BroadcastReceiver supportRefreshReceiver = new BroadcastReceiver() {
@@ -64,6 +67,8 @@ public final class ClientSupportActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             if (intent != null) {
                 focusedSupportRequestId = intent.getStringExtra(ClientSupportPushContract.EXTRA_SUPPORT_REQUEST_ID);
+                expandedSupportRequestId = focusedSupportRequestId;
+                focusModeActive = !TextUtils.isEmpty(focusedSupportRequestId);
             }
             loadSupportScreen();
             showSupportAnsweredSnackbar(intent);
@@ -109,6 +114,8 @@ public final class ClientSupportActivity extends AppCompatActivity {
         clientSupportCoordinator = new ClientSupportCoordinator(this, new BookingPresentationFormatter(this));
         requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
         focusedSupportRequestId = getIntent().getStringExtra(EXTRA_SUPPORT_REQUEST_ID);
+        expandedSupportRequestId = focusedSupportRequestId;
+        focusModeActive = !TextUtils.isEmpty(focusedSupportRequestId);
 
         clientSupportStatePanel = findViewById(R.id.clientSupportStatePanel);
         clientSupportContentContainer = findViewById(R.id.clientSupportContentContainer);
@@ -128,9 +135,24 @@ public final class ClientSupportActivity extends AppCompatActivity {
                 findViewById(R.id.textClientSupportHeroBody),
                 findViewById(R.id.textClientSupportRequestSummary),
                 findViewById(R.id.textClientSupportLatestSummary),
+                findViewById(R.id.layoutClientSupportFocusMode),
+                findViewById(R.id.textClientSupportFocusModeTitle),
+                findViewById(R.id.textClientSupportFocusModeBody),
+                findViewById(R.id.buttonClientSupportFocusModeClear),
                 findViewById(R.id.clientSupportRequestContainer),
                 findViewById(R.id.textClientSupportEmpty)
         );
+        clientSupportBinder.setSupportActionListener(new ClientSupportBinder.SupportActionListener() {
+            @Override
+            public void onToggleResponse(String requestId) {
+                toggleResponseCard(requestId);
+            }
+
+            @Override
+            public void onClearFocusMode() {
+                clearFocusMode();
+            }
+        });
 
         findViewById(R.id.buttonBackClientSupport).setOnClickListener(view -> finish());
         findViewById(R.id.buttonClientSupportSubmit).setOnClickListener(view -> submitInquiry());
@@ -209,15 +231,10 @@ public final class ClientSupportActivity extends AppCompatActivity {
         clientSupportRepository.getClientSupportRequests(currentUser, new RepositoryCallback<List<ClientSupportRequest>>() {
             @Override
             public void onSuccess(List<ClientSupportRequest> result) {
+                currentSupportRequests = result;
                 hideBlockingState();
                 clientSupportContentContainer.setVisibility(View.VISIBLE);
-                clientSupportBinder.bindScreen(clientSupportCoordinator.createScreenModel(
-                        currentUser,
-                        currentRequestDetail,
-                        result,
-                        clientSupportRepository.isFirebaseBacked(),
-                        focusedSupportRequestId
-                ));
+                bindCurrentScreen();
                 setLoading(false);
                 markUnreadResponsesRead(result);
                 focusedSupportRequestId = null;
@@ -298,15 +315,10 @@ public final class ClientSupportActivity extends AppCompatActivity {
                 new RepositoryCallback<List<ClientSupportRequest>>() {
                     @Override
                     public void onSuccess(List<ClientSupportRequest> result) {
+                        currentSupportRequests = result;
                         inputSupportTitle.setText("");
                         inputSupportBody.setText("");
-                        clientSupportBinder.bindScreen(clientSupportCoordinator.createScreenModel(
-                                currentUser,
-                                currentRequestDetail,
-                                result,
-                                clientSupportRepository.isFirebaseBacked(),
-                                focusedSupportRequestId
-                        ));
+                        bindCurrentScreen();
                         setLoading(false);
                         focusedSupportRequestId = null;
                         Toast.makeText(
@@ -452,5 +464,40 @@ public final class ClientSupportActivity extends AppCompatActivity {
             }
         }
         Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_LONG).show();
+    }
+
+    private void bindCurrentScreen() {
+        if (currentUser == null) {
+            return;
+        }
+        clientSupportBinder.bindScreen(clientSupportCoordinator.createScreenModel(
+                currentUser,
+                currentRequestDetail,
+                currentSupportRequests == null ? java.util.Collections.emptyList() : currentSupportRequests,
+                clientSupportRepository.isFirebaseBacked(),
+                focusedSupportRequestId,
+                expandedSupportRequestId,
+                focusModeActive
+        ));
+    }
+
+    private void toggleResponseCard(String requestId) {
+        if (TextUtils.isEmpty(requestId)) {
+            return;
+        }
+        if (requestId.equals(expandedSupportRequestId)) {
+            expandedSupportRequestId = null;
+        } else {
+            expandedSupportRequestId = requestId;
+        }
+        focusedSupportRequestId = requestId;
+        bindCurrentScreen();
+    }
+
+    private void clearFocusMode() {
+        focusModeActive = false;
+        focusedSupportRequestId = null;
+        expandedSupportRequestId = null;
+        bindCurrentScreen();
     }
 }

@@ -38,8 +38,11 @@ public final class ClientSupportCoordinator {
             @Nullable AppointmentRequestDetail detail,
             List<ClientSupportRequest> requests,
             boolean firebaseBacked,
-            @Nullable String focusedSupportRequestId
+            @Nullable String focusedSupportRequestId,
+            @Nullable String expandedSupportRequestId,
+            boolean focusModeActive
     ) {
+        boolean hasFocusedCard = hasRequest(requests, focusedSupportRequestId);
         return new ClientSupportScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, firebaseBacked),
                 context.getString(R.string.client_support_hero_badge),
@@ -51,8 +54,13 @@ public final class ClientSupportCoordinator {
                 ),
                 buildRequestSummary(detail),
                 buildLatestSummary(requests),
-                createRequestCards(requests, focusedSupportRequestId),
-                focusedSupportRequestId
+                createRequestCards(requests, focusedSupportRequestId, expandedSupportRequestId),
+                focusedSupportRequestId,
+                expandedSupportRequestId,
+                focusModeActive && hasFocusedCard,
+                context.getString(R.string.client_support_focus_title),
+                context.getString(R.string.client_support_focus_body),
+                context.getString(R.string.client_support_focus_action)
         );
     }
 
@@ -106,7 +114,8 @@ public final class ClientSupportCoordinator {
 
     private List<ClientSupportRequestCardModel> createRequestCards(
             List<ClientSupportRequest> requests,
-            @Nullable String focusedSupportRequestId
+            @Nullable String focusedSupportRequestId,
+            @Nullable String expandedSupportRequestId
     ) {
         List<ClientSupportRequestCardModel> cards = new ArrayList<>();
         for (ClientSupportRequest request : requests) {
@@ -114,6 +123,10 @@ public final class ClientSupportCoordinator {
                     && !TextUtils.isEmpty(request.getResponseText());
             boolean unreadResponse = request.hasUnreadResponse();
             boolean staleUnread = request.hasStaleUnreadResponse(System.currentTimeMillis(), STALE_UNREAD_THRESHOLD_MILLIS);
+            boolean focused = request.getId().equals(focusedSupportRequestId);
+            boolean expanded = answered && request.getId().equals(
+                    TextUtils.isEmpty(expandedSupportRequestId) ? focusedSupportRequestId : expandedSupportRequestId
+            );
             cards.add(new ClientSupportRequestCardModel(
                     request.getId(),
                     toCategoryText(request.getCategory()),
@@ -138,13 +151,26 @@ public final class ClientSupportCoordinator {
                     summarizeText(request.getBody()),
                     formatter.formatTimestamp(request.getCreatedAtMillis()),
                     answered,
-                    summarizeText(request.getResponseText()),
+                    request.getResponseText(),
                     buildResponseMeta(request),
-                    request.getId().equals(focusedSupportRequestId),
+                    focused,
+                    expanded,
                     staleUnread
             ));
         }
         return cards;
+    }
+
+    private boolean hasRequest(List<ClientSupportRequest> requests, @Nullable String requestId) {
+        if (TextUtils.isEmpty(requestId)) {
+            return false;
+        }
+        for (ClientSupportRequest request : requests) {
+            if (request.getId().equals(requestId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String buildResponseMeta(ClientSupportRequest request) {

@@ -25,6 +25,7 @@ import com.example.bodeul.ui.home.ClientHomeDashboard;
 import com.example.bodeul.ui.home.ClientHomeDashboardBinder;
 import com.example.bodeul.ui.home.ClientHomeNoticeProvider;
 import com.example.bodeul.ui.report.GuardianReportActivity;
+import com.example.bodeul.ui.support.ClientSupportActivity;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.StatePanelHelper;
 
@@ -48,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         clientHomeCoordinator = new ClientHomeCoordinator(
+                this,
                 ServiceLocator.provideBookingRepository(this),
                 ServiceLocator.provideGuardianReportRepository(this),
                 ServiceLocator.provideClientSupportRepository(this),
@@ -65,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 getLayoutInflater(),
                 findViewById(R.id.textHomeGreeting),
                 findViewById(R.id.textHomeSubtitle),
+                findViewById(R.id.layoutHomeSupportBanner),
                 findViewById(R.id.textHomeHeroBadge),
                 findViewById(R.id.textHomeHeroTitle),
                 findViewById(R.id.textHomeHeroBody),
@@ -75,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
                 findViewById(R.id.layoutHomeProgressStageContainer),
                 findViewById(R.id.buttonHomeProgressDetail),
                 findViewById(R.id.textActionSecondaryBadge),
+                findViewById(R.id.textActionSecondaryCounter),
                 findViewById(R.id.textActionSecondaryTitle),
                 findViewById(R.id.textActionSecondaryBody),
                 findViewById(R.id.textRecentBadge),
@@ -89,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.cardActionSecondary).setOnClickListener(view -> openSecondaryAction());
         findViewById(R.id.buttonOpenRecent).setOnClickListener(view -> openRecentAction());
         findViewById(R.id.buttonHomeSignOut).setOnClickListener(view -> signOut());
+        dashboardBinder.setOnSupportBannerClickListener(view -> openSupport());
 
         EnvironmentModeBadgeHelper.bind(
                 textHomeMode,
@@ -229,6 +234,14 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         startActivity(HealthInfoActivity.createIntent(this));
+    }
+
+    private void openSupport() {
+        String requestId = null;
+        if (currentDashboard != null && currentDashboard.getPrimaryRequest() != null) {
+            requestId = currentDashboard.getPrimaryRequest().getId();
+        }
+        startActivity(ClientSupportActivity.createIntent(this, requestId));
     }
 
     private void signOut() {

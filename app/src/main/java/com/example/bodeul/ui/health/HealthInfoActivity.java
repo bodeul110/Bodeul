@@ -102,6 +102,7 @@ public class HealthInfoActivity extends AppCompatActivity {
                 findViewById(R.id.textHealthInfoMode),
                 findViewById(R.id.textHealthInfoTitle),
                 findViewById(R.id.textHealthInfoSubtitle),
+                findViewById(R.id.layoutHealthInfoSupportBanner),
                 findViewById(R.id.textHealthInfoHeroBadge),
                 findViewById(R.id.textHealthInfoHeroTitle),
                 findViewById(R.id.textHealthInfoHeroBody),
@@ -150,6 +151,7 @@ public class HealthInfoActivity extends AppCompatActivity {
         findViewById(R.id.buttonHealthInfoBookingStatus).setOnClickListener(view -> openBookingStatus());
         findViewById(R.id.buttonHealthInfoGuardianReport).setOnClickListener(view -> openGuardianReport());
         findViewById(R.id.buttonHealthInfoSupport).setOnClickListener(view -> openSupport(null, null));
+        healthInfoBinder.setOnSupportBannerClickListener(view -> openSupport(null, null));
         healthInfoContentContainer.setVisibility(View.GONE);
     }
 

@@ -13,19 +13,24 @@ import com.example.bodeul.R;
  * 사용자 문의 카드 모델을 실제 카드 레이아웃에 바인딩한다.
  */
 public final class ClientSupportRequestCardBinder {
+    public interface RequestActionListener {
+        void onToggleResponse(String requestId);
+    }
+
     private final Context context;
 
     public ClientSupportRequestCardBinder(Context context) {
         this.context = context.getApplicationContext();
     }
 
-    public void bind(View itemView, ClientSupportRequestCardModel model) {
+    public void bind(View itemView, ClientSupportRequestCardModel model, RequestActionListener listener) {
         MaterialCardView cardView = (MaterialCardView) itemView;
         TextView categoryView = itemView.findViewById(R.id.textClientSupportRequestCategory);
         TextView statusView = itemView.findViewById(R.id.textClientSupportRequestStatus);
         TextView titleView = itemView.findViewById(R.id.textClientSupportRequestTitle);
         TextView bodyView = itemView.findViewById(R.id.textClientSupportRequestBody);
         TextView timestampView = itemView.findViewById(R.id.textClientSupportRequestTimestamp);
+        TextView toggleView = itemView.findViewById(R.id.buttonClientSupportResponseToggle);
         View responseContainer = itemView.findViewById(R.id.layoutClientSupportRequestResponse);
         TextView responseBodyView = itemView.findViewById(R.id.textClientSupportRequestResponseBody);
         TextView responseMetaView = itemView.findViewById(R.id.textClientSupportRequestResponseMeta);
@@ -50,10 +55,17 @@ public final class ClientSupportRequestCardBinder {
         }
 
         if (model.hasResponse()) {
-            responseContainer.setVisibility(View.VISIBLE);
+            toggleView.setVisibility(View.VISIBLE);
+            toggleView.setText(model.isExpanded()
+                    ? R.string.client_support_response_collapse
+                    : R.string.client_support_response_expand);
+            toggleView.setOnClickListener(view -> listener.onToggleResponse(model.getRequestId()));
+            responseContainer.setVisibility(model.isExpanded() ? View.VISIBLE : View.GONE);
             responseBodyView.setText(model.getResponseBodyText());
             responseMetaView.setText(model.getResponseMetaText());
         } else {
+            toggleView.setVisibility(View.GONE);
+            toggleView.setOnClickListener(null);
             responseContainer.setVisibility(View.GONE);
         }
     }

@@ -18,6 +18,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
+import com.example.bodeul.ui.common.AttentionBannerBinder;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
 import com.example.bodeul.ui.common.AppointmentProgressStageItemBinder;
 import com.example.bodeul.ui.common.AppointmentProgressStageModel;
@@ -31,6 +32,7 @@ public final class ClientHomeDashboardBinder {
     private final LayoutInflater layoutInflater;
     private final TextView textGreeting;
     private final TextView textSubtitle;
+    private final AttentionBannerBinder supportBannerBinder;
     private final TextView textHeroBadge;
     private final TextView textHeroTitle;
     private final TextView textHeroBody;
@@ -41,6 +43,7 @@ public final class ClientHomeDashboardBinder {
     private final LinearLayout progressStageContainer;
     private final MaterialButton buttonOpenProgress;
     private final TextView textActionSecondaryBadge;
+    private final TextView textActionSecondaryCounter;
     private final TextView textActionSecondaryTitle;
     private final TextView textActionSecondaryBody;
     private final TextView textRecentBadge;
@@ -56,6 +59,7 @@ public final class ClientHomeDashboardBinder {
             LayoutInflater layoutInflater,
             TextView textGreeting,
             TextView textSubtitle,
+            View supportBannerView,
             TextView textHeroBadge,
             TextView textHeroTitle,
             TextView textHeroBody,
@@ -66,6 +70,7 @@ public final class ClientHomeDashboardBinder {
             LinearLayout progressStageContainer,
             MaterialButton buttonOpenProgress,
             TextView textActionSecondaryBadge,
+            TextView textActionSecondaryCounter,
             TextView textActionSecondaryTitle,
             TextView textActionSecondaryBody,
             TextView textRecentBadge,
@@ -78,6 +83,7 @@ public final class ClientHomeDashboardBinder {
         this.layoutInflater = layoutInflater;
         this.textGreeting = textGreeting;
         this.textSubtitle = textSubtitle;
+        this.supportBannerBinder = new AttentionBannerBinder(context, supportBannerView);
         this.textHeroBadge = textHeroBadge;
         this.textHeroTitle = textHeroTitle;
         this.textHeroBody = textHeroBody;
@@ -88,6 +94,7 @@ public final class ClientHomeDashboardBinder {
         this.progressStageContainer = progressStageContainer;
         this.buttonOpenProgress = buttonOpenProgress;
         this.textActionSecondaryBadge = textActionSecondaryBadge;
+        this.textActionSecondaryCounter = textActionSecondaryCounter;
         this.textActionSecondaryTitle = textActionSecondaryTitle;
         this.textActionSecondaryBody = textActionSecondaryBody;
         this.textRecentBadge = textRecentBadge;
@@ -101,6 +108,7 @@ public final class ClientHomeDashboardBinder {
 
     public void bindDashboard(ClientHomeDashboard dashboard) {
         bindGreeting(dashboard);
+        supportBannerBinder.bind(dashboard.getSupportBanner());
         bindHero(dashboard);
         bindProgress(dashboard);
         bindSecondaryAction(dashboard);
@@ -130,6 +138,10 @@ public final class ClientHomeDashboardBinder {
             subtitleResId = R.string.client_home_subtitle_history;
         }
         textSubtitle.setText(subtitleResId);
+    }
+
+    public void setOnSupportBannerClickListener(View.OnClickListener listener) {
+        supportBannerBinder.setOnActionClickListener(listener);
     }
 
     private void bindHero(ClientHomeDashboard dashboard) {
@@ -223,8 +235,13 @@ public final class ClientHomeDashboardBinder {
     private void bindSecondaryBadge(ClientHomeDashboard dashboard) {
         if (dashboard.hasStaleUnreadSupportResponses()) {
             textActionSecondaryBadge.setVisibility(View.VISIBLE);
+            textActionSecondaryCounter.setVisibility(View.VISIBLE);
             textActionSecondaryBadge.setText(context.getString(
                     R.string.client_home_action_manage_badge_overdue,
+                    dashboard.getStaleUnreadSupportResponseCount()
+            ));
+            textActionSecondaryCounter.setText(context.getString(
+                    R.string.client_home_action_manage_counter_overdue,
                     dashboard.getStaleUnreadSupportResponseCount()
             ));
             ViewCompat.setBackgroundTintList(
@@ -232,12 +249,22 @@ public final class ClientHomeDashboardBinder {
                     ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_soft_red))
             );
             textActionSecondaryBadge.setTextColor(ContextCompat.getColor(context, R.color.bodeul_error));
+            ViewCompat.setBackgroundTintList(
+                    textActionSecondaryCounter,
+                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_error))
+            );
+            textActionSecondaryCounter.setTextColor(ContextCompat.getColor(context, R.color.white));
             return;
         }
         if (dashboard.hasUnreadSupportResponses()) {
             textActionSecondaryBadge.setVisibility(View.VISIBLE);
+            textActionSecondaryCounter.setVisibility(View.VISIBLE);
             textActionSecondaryBadge.setText(context.getString(
                     R.string.client_home_action_manage_badge_unread,
+                    dashboard.getUnreadSupportResponseCount()
+            ));
+            textActionSecondaryCounter.setText(context.getString(
+                    R.string.client_home_action_manage_counter_unread,
                     dashboard.getUnreadSupportResponseCount()
             ));
             ViewCompat.setBackgroundTintList(
@@ -245,9 +272,15 @@ public final class ClientHomeDashboardBinder {
                     ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_warning))
             );
             textActionSecondaryBadge.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_primary));
+            ViewCompat.setBackgroundTintList(
+                    textActionSecondaryCounter,
+                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_primary))
+            );
+            textActionSecondaryCounter.setTextColor(ContextCompat.getColor(context, R.color.white));
             return;
         }
         textActionSecondaryBadge.setVisibility(View.GONE);
+        textActionSecondaryCounter.setVisibility(View.GONE);
     }
 
     private void bindRecentRequest(ClientHomeDashboard dashboard) {

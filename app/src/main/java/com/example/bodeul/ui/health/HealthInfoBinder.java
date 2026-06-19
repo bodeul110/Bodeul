@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
+import com.example.bodeul.ui.common.AttentionBannerBinder;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -23,6 +24,7 @@ public final class HealthInfoBinder {
     private final TextView textMode;
     private final TextView textTitle;
     private final TextView textSubtitle;
+    private final AttentionBannerBinder supportBannerBinder;
     private final TextView textHeroBadge;
     private final TextView textHeroTitle;
     private final TextView textHeroBody;
@@ -66,6 +68,7 @@ public final class HealthInfoBinder {
             TextView textMode,
             TextView textTitle,
             TextView textSubtitle,
+            View supportBannerView,
             TextView textHeroBadge,
             TextView textHeroTitle,
             TextView textHeroBody,
@@ -108,6 +111,7 @@ public final class HealthInfoBinder {
         this.textMode = textMode;
         this.textTitle = textTitle;
         this.textSubtitle = textSubtitle;
+        this.supportBannerBinder = new AttentionBannerBinder(context, supportBannerView);
         this.textHeroBadge = textHeroBadge;
         this.textHeroTitle = textHeroTitle;
         this.textHeroBody = textHeroBody;
@@ -150,6 +154,7 @@ public final class HealthInfoBinder {
         EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeLabel());
         textTitle.setText(screenModel.getTitle());
         textSubtitle.setText(screenModel.getSubtitle());
+        supportBannerBinder.bind(screenModel.getSupportBanner());
         textHeroBadge.setText(screenModel.getHeroBadge());
         textHeroTitle.setText(screenModel.getHeroTitle());
         textHeroBody.setText(screenModel.getHeroBody());
@@ -181,6 +186,10 @@ public final class HealthInfoBinder {
         bindLines(historyLineContainer, screenModel.getHistoryLines());
         bindLines(supportLineContainer, screenModel.getSupportLines());
         bindSelectedTab(selectedTab, screenModel.isSupportTabHighlighted());
+    }
+
+    public void setOnSupportBannerClickListener(@Nullable View.OnClickListener listener) {
+        supportBannerBinder.setOnActionClickListener(listener);
     }
 
     private void bindSelectedTab(HealthInfoTab selectedTab, boolean supportTabHighlighted) {

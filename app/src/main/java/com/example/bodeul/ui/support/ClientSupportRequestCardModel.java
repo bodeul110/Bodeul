@@ -16,6 +16,7 @@ public final class ClientSupportRequestCardModel {
     private final String responseBodyText;
     private final String responseMetaText;
     private final boolean focused;
+    private final boolean expanded;
     private final boolean staleUnread;
 
     public ClientSupportRequestCardModel(
@@ -31,6 +32,7 @@ public final class ClientSupportRequestCardModel {
             String responseBodyText,
             String responseMetaText,
             boolean focused,
+            boolean expanded,
             boolean staleUnread
     ) {
         this.requestId = requestId;
@@ -45,6 +47,7 @@ public final class ClientSupportRequestCardModel {
         this.responseBodyText = responseBodyText;
         this.responseMetaText = responseMetaText;
         this.focused = focused;
+        this.expanded = expanded;
         this.staleUnread = staleUnread;
     }
 
@@ -94,6 +97,10 @@ public final class ClientSupportRequestCardModel {
 
     public boolean isFocused() {
         return focused;
+    }
+
+    public boolean isExpanded() {
+        return expanded;
     }
 
     public boolean isStaleUnread() {

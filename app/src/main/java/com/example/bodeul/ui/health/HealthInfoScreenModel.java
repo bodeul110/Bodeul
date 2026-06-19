@@ -1,11 +1,14 @@
 package com.example.bodeul.ui.health;
 
+import com.example.bodeul.ui.common.AttentionBannerModel;
+
 import java.util.List;
 
 public final class HealthInfoScreenModel {
     private final String modeLabel;
     private final String title;
     private final String subtitle;
+    private final AttentionBannerModel supportBanner;
     private final String heroBadge;
     private final String heroTitle;
     private final String heroBody;
@@ -43,6 +46,7 @@ public final class HealthInfoScreenModel {
             String modeLabel,
             String title,
             String subtitle,
+            AttentionBannerModel supportBanner,
             String heroBadge,
             String heroTitle,
             String heroBody,
@@ -79,6 +83,7 @@ public final class HealthInfoScreenModel {
         this.modeLabel = modeLabel;
         this.title = title;
         this.subtitle = subtitle;
+        this.supportBanner = supportBanner;
         this.heroBadge = heroBadge;
         this.heroTitle = heroTitle;
         this.heroBody = heroBody;
@@ -123,6 +128,10 @@ public final class HealthInfoScreenModel {
 
     public String getSubtitle() {
         return subtitle;
+    }
+
+    public AttentionBannerModel getSupportBanner() {
+        return supportBanner;
     }
 
     public String getHeroBadge() {

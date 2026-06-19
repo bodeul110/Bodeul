@@ -14,6 +14,11 @@ public final class ClientSupportScreenModel {
     private final String latestSummaryText;
     private final List<ClientSupportRequestCardModel> requestCards;
     private final String focusedSupportRequestId;
+    private final String expandedSupportRequestId;
+    private final boolean focusModeActive;
+    private final String focusModeTitleText;
+    private final String focusModeBodyText;
+    private final String focusModeActionText;
 
     public ClientSupportScreenModel(
             String modeText,
@@ -23,7 +28,12 @@ public final class ClientSupportScreenModel {
             String requestSummaryText,
             String latestSummaryText,
             List<ClientSupportRequestCardModel> requestCards,
-            String focusedSupportRequestId
+            String focusedSupportRequestId,
+            String expandedSupportRequestId,
+            boolean focusModeActive,
+            String focusModeTitleText,
+            String focusModeBodyText,
+            String focusModeActionText
     ) {
         this.modeText = modeText;
         this.heroBadgeText = heroBadgeText;
@@ -33,6 +43,11 @@ public final class ClientSupportScreenModel {
         this.latestSummaryText = latestSummaryText;
         this.requestCards = requestCards;
         this.focusedSupportRequestId = focusedSupportRequestId;
+        this.expandedSupportRequestId = expandedSupportRequestId;
+        this.focusModeActive = focusModeActive;
+        this.focusModeTitleText = focusModeTitleText;
+        this.focusModeBodyText = focusModeBodyText;
+        this.focusModeActionText = focusModeActionText;
     }
 
     public String getModeText() {
@@ -65,5 +80,25 @@ public final class ClientSupportScreenModel {
 
     public String getFocusedSupportRequestId() {
         return focusedSupportRequestId;
+    }
+
+    public String getExpandedSupportRequestId() {
+        return expandedSupportRequestId;
+    }
+
+    public boolean isFocusModeActive() {
+        return focusModeActive;
+    }
+
+    public String getFocusModeTitleText() {
+        return focusModeTitleText;
+    }
+
+    public String getFocusModeBodyText() {
+        return focusModeBodyText;
+    }
+
+    public String getFocusModeActionText() {
+        return focusModeActionText;
     }
 }

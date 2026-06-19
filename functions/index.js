@@ -4,7 +4,7 @@ const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const {initializeApp} = require("firebase-admin/app");
 const {getAuth} = require("firebase-admin/auth");
-const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {FieldPath, FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {getMessaging} = require("firebase-admin/messaging");
 
 initializeApp();
@@ -61,6 +61,11 @@ const CLIENT_SUPPORT_REMINDER_SCHEDULE_OPTIONS = {
   schedule: "0 * * * *",
   timeZone: "Asia/Seoul",
 };
+const NOTIFICATION_TOKEN_CLEANUP_SCHEDULE_OPTIONS = {
+  region: "asia-northeast3",
+  schedule: "30 4 * * *",
+  timeZone: "Asia/Seoul",
+};
 
 const CLIENT_CREATABLE_ROLES = new Set(["PATIENT", "GUARDIAN", "MANAGER"]);
 const REMINDER_SCAN_STATUSES = new Set(["REQUESTED", "MATCHED"]);
@@ -89,6 +94,8 @@ const DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
 const CLIENT_SUPPORT_RESPONSE_REMINDER_THRESHOLD_MILLIS = DAY_IN_MILLIS;
 const CLIENT_SUPPORT_RESPONSE_REMINDER_INTERVAL_MILLIS = DAY_IN_MILLIS;
 const CLIENT_SUPPORT_RESPONSE_REMINDER_MAX_COUNT = 3;
+const NOTIFICATION_TOKEN_STALE_THRESHOLD_MILLIS = 60 * DAY_IN_MILLIS;
+const NOTIFICATION_TOKEN_CLEANUP_BATCH_SIZE = 200;
 const REMINDER_DELIVERY_BATCH_SIZE = 20;
 const ACTION_DELIVERY_RETRYABLE_STATES = new Set(["PENDING", "FAILED"]);
 const ACTION_DELIVERY_PENDING_STATE = "PENDING";
@@ -512,6 +519,14 @@ exports.sendClientSupportAnswerReminders = onSchedule(
     async () => {
       const summary = await processClientSupportAnswerReminders();
       logger.info("??? ?? ?? ??? ??? ?????.", summary);
+    },
+);
+
+exports.cleanupStaleNotificationTokens = onSchedule(
+    NOTIFICATION_TOKEN_CLEANUP_SCHEDULE_OPTIONS,
+    async () => {
+      const summary = await processStaleNotificationTokenCleanup();
+      logger.info("FCM 장기 미사용 토큰 정리를 마쳤습니다.", summary);
     },
 );
 
@@ -2060,15 +2075,175 @@ function isInvalidNotificationTokenError(errorCode) {
       errorCode === "messaging/registration-token-not-registered";
 }
 
+function toNotificationTokenEntryMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const normalizedEntries = {};
+  for (const [entryKey, entryValue] of Object.entries(value)) {
+    const token = sanitizeText(entryValue?.token);
+    if (!token) {
+      continue;
+    }
+    normalizedEntries[entryKey] = {
+      token,
+      platform: sanitizeText(entryValue?.platform),
+      updatedAtMillis: toSafeInteger(entryValue?.updatedAtMillis),
+    };
+  }
+  return normalizedEntries;
+}
+
+function buildNotificationTokenEntryKey(token) {
+  return Buffer.from(sanitizeText(token), "utf8").toString("base64url");
+}
+
+function buildNotificationTokenEntryDeleteUpdates(tokens) {
+  const updates = {};
+  for (const token of toStringArray(tokens)) {
+    updates[`notificationTokenEntries.${buildNotificationTokenEntryKey(token)}`] = FieldValue.delete();
+  }
+  return updates;
+}
+
+function collectOrphanNotificationTokenEntryKeys(tokens, tokenEntries) {
+  const tokenSet = new Set(toStringArray(tokens));
+  const orphanKeys = [];
+  for (const [entryKey, entryValue] of Object.entries(tokenEntries)) {
+    if (!tokenSet.has(entryValue.token)) {
+      orphanKeys.push(entryKey);
+    }
+  }
+  return orphanKeys;
+}
+
+function resolveStaleNotificationTokens({
+  tokens,
+  tokenEntries,
+  globalUpdatedAtMillis,
+  nowMillis,
+}) {
+  const staleTokens = [];
+  for (const token of toStringArray(tokens)) {
+    const entryKey = buildNotificationTokenEntryKey(token);
+    const entryUpdatedAtMillis = toSafeInteger(tokenEntries[entryKey]?.updatedAtMillis);
+    const lastSeenAtMillis = entryUpdatedAtMillis > 0 ? entryUpdatedAtMillis : globalUpdatedAtMillis;
+    if (lastSeenAtMillis <= 0) {
+      continue;
+    }
+    if (nowMillis - lastSeenAtMillis >= NOTIFICATION_TOKEN_STALE_THRESHOLD_MILLIS) {
+      staleTokens.push(token);
+    }
+  }
+  return Array.from(new Set(staleTokens));
+}
+
 async function removeInvalidNotificationTokens(userDocumentReference, invalidTokens) {
   if (!userDocumentReference || !Array.isArray(invalidTokens) || invalidTokens.length === 0) {
     return;
   }
 
-  await userDocumentReference.update({
+  const updates = {
     notificationTokens: FieldValue.arrayRemove(...invalidTokens),
     updatedAt: FieldValue.serverTimestamp(),
+    ...buildNotificationTokenEntryDeleteUpdates(invalidTokens),
+  };
+
+  await userDocumentReference.update(updates);
+}
+
+async function processStaleNotificationTokenCleanup() {
+  const firestore = getFirestore();
+  const nowMillis = Date.now();
+  const summary = {
+    scannedUsers: 0,
+    touchedUsers: 0,
+    removedTokens: 0,
+    removedOrphanEntries: 0,
+  };
+
+  let lastDocument = null;
+  while (true) {
+    let query = firestore.collection("users")
+        .orderBy(FieldPath.documentId())
+        .limit(NOTIFICATION_TOKEN_CLEANUP_BATCH_SIZE);
+    if (lastDocument) {
+      query = query.startAfter(lastDocument);
+    }
+
+    const userSnapshot = await query.get();
+    if (userSnapshot.empty) {
+      break;
+    }
+
+    for (const userDocument of userSnapshot.docs) {
+      summary.scannedUsers++;
+      const cleanupSummary = await cleanupUserNotificationTokens(userDocument, nowMillis);
+      if (!cleanupSummary.touched) {
+        continue;
+      }
+      summary.touchedUsers++;
+      summary.removedTokens += cleanupSummary.removedTokenCount;
+      summary.removedOrphanEntries += cleanupSummary.removedOrphanEntryCount;
+    }
+
+    lastDocument = userSnapshot.docs[userSnapshot.docs.length - 1];
+    if (userSnapshot.size < NOTIFICATION_TOKEN_CLEANUP_BATCH_SIZE) {
+      break;
+    }
+  }
+
+  return summary;
+}
+
+async function cleanupUserNotificationTokens(userDocument, nowMillis) {
+  const tokens = toStringArray(userDocument.get("notificationTokens"));
+  const tokenEntries = toNotificationTokenEntryMap(userDocument.get("notificationTokenEntries"));
+  const globalUpdatedAtMillis = resolveFirestoreTimestampMillis(
+      userDocument.get("notificationTokenUpdatedAt"),
+  );
+  const staleTokens = resolveStaleNotificationTokens({
+    tokens,
+    tokenEntries,
+    globalUpdatedAtMillis,
+    nowMillis,
   });
+  const orphanEntryKeys = collectOrphanNotificationTokenEntryKeys(tokens, tokenEntries);
+
+  if (staleTokens.length === 0 && orphanEntryKeys.length === 0) {
+    return {
+      touched: false,
+      removedTokenCount: 0,
+      removedOrphanEntryCount: 0,
+    };
+  }
+
+  const updates = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (staleTokens.length > 0) {
+    updates.notificationTokens = FieldValue.arrayRemove(...staleTokens);
+  }
+  for (const staleToken of staleTokens) {
+    updates[`notificationTokenEntries.${buildNotificationTokenEntryKey(staleToken)}`] = FieldValue.delete();
+  }
+  for (const orphanEntryKey of orphanEntryKeys) {
+    updates[`notificationTokenEntries.${orphanEntryKey}`] = FieldValue.delete();
+  }
+
+  const remainingTokens = tokens.filter((token) => !staleTokens.includes(token));
+  if (remainingTokens.length === 0) {
+    updates.notificationTokenUpdatedAt = FieldValue.delete();
+    updates.notificationTokenPlatform = FieldValue.delete();
+  }
+
+  await userDocument.ref.update(updates);
+  return {
+    touched: true,
+    removedTokenCount: staleTokens.length,
+    removedOrphanEntryCount: orphanEntryKeys.length,
+  };
 }
 
 async function processClientSupportAnswerReminders() {
