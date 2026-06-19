@@ -1,7 +1,9 @@
 package com.example.bodeul.ui.support;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -10,6 +12,7 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
@@ -23,6 +26,7 @@ import com.example.bodeul.domain.model.ClientSupportCategory;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.firebase.ClientSupportPushContract;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
@@ -50,6 +54,14 @@ public final class ClientSupportActivity extends AppCompatActivity {
     private AppointmentRequestDetail currentRequestDetail;
     private ClientSupportCategory selectedCategory = ClientSupportCategory.RESERVATION;
     private String requestId;
+    private boolean supportRefreshReceiverRegistered;
+
+    private final BroadcastReceiver supportRefreshReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            loadSupportScreen();
+        }
+    };
 
     private View clientSupportStatePanel;
     private View clientSupportContentContainer;
@@ -117,7 +129,14 @@ public final class ClientSupportActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        registerSupportRefreshReceiver();
         loadSupportScreen();
+    }
+
+    @Override
+    protected void onStop() {
+        unregisterSupportRefreshReceiver();
+        super.onStop();
     }
 
     private void loadSupportScreen() {
@@ -379,5 +398,27 @@ public final class ClientSupportActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void registerSupportRefreshReceiver() {
+        if (supportRefreshReceiverRegistered) {
+            return;
+        }
+        IntentFilter filter = new IntentFilter(ClientSupportPushContract.ACTION_CLIENT_SUPPORT_UPDATED);
+        ContextCompat.registerReceiver(
+                this,
+                supportRefreshReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+        );
+        supportRefreshReceiverRegistered = true;
+    }
+
+    private void unregisterSupportRefreshReceiver() {
+        if (!supportRefreshReceiverRegistered) {
+            return;
+        }
+        unregisterReceiver(supportRefreshReceiver);
+        supportRefreshReceiverRegistered = false;
     }
 }

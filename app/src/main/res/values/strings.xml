@@ -1374,4 +1374,8 @@
     <string name="manager_location_notification_body">실시간 위치 공유 중</string>
     <string name="manager_location_channel_name">매니저 위치 공유</string>
     <string name="manager_location_channel_description">동행 중 환자와 보호자에게 실시간 위치를 공유합니다.</string>
+    <string name="client_support_push_title">보들 문의 답변이 도착했습니다</string>
+    <string name="client_support_push_body_fallback">문의 답변을 확인해 주세요.</string>
+    <string name="client_support_push_channel_name">문의 답변 알림</string>
+    <string name="client_support_push_channel_description">이용자 문의 답변과 후속 안내를 알림으로 전달합니다.</string>
 </resources>

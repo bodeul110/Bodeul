@@ -5,6 +5,7 @@ import android.text.TextUtils;
 
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.firebase.AppCheckInstaller;
+import com.example.bodeul.util.AppActivityTracker;
 import com.kakao.sdk.common.KakaoSdk;
 import com.kakao.vectormap.KakaoMapSdk;
 
@@ -25,6 +26,7 @@ public class BodeulApplication extends Application {
 
         // Firebase App Check는 디버그/릴리스 변형에 맞는 제공자를 설치한다.
         AppCheckInstaller.installIfConfigured(this);
+        AppActivityTracker.install(this);
 
         // 네이버 로그인은 클라이언트 시크릿을 앱에 포함하지 않도록 비활성화한 상태다.
         ServiceLocator.provideNotificationTokenRegistrar(this).syncCurrentUserToken();

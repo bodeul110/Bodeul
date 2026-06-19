@@ -51,7 +51,8 @@ public final class ServiceLocator {
                 authRepository = new FirebaseAuthRepository(
                         context.getApplicationContext(),
                         FirebaseAuth.getInstance(),
-                        provideFirestore()
+                        provideFirestore(),
+                        provideNotificationTokenRegistrar(context)
                 );
             } else {
                 authRepository = new MockAuthRepository(getMockBodeulRepository());

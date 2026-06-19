@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.NotificationTokenRegistrar;
 import com.google.firebase.auth.FirebaseAuth;
@@ -16,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * FCM 등록 토큰을 현재 사용자 문서에 누적 저장한다.
+ * FCM 등록 토큰을 현재 사용자 문서와 동기화한다.
  */
 public final class FirebaseNotificationTokenRegistrar implements NotificationTokenRegistrar {
     private static final String TAG = "PushTokenRegistrar";
@@ -60,6 +61,33 @@ public final class FirebaseNotificationTokenRegistrar implements NotificationTok
                 .document(currentUserId)
                 .set(updates, SetOptions.merge())
                 .addOnFailureListener(error -> Log.w(TAG, "FCM 토큰 저장에 실패했습니다.", error));
+    }
+
+    @Override
+    public void clearCurrentUserToken() {
+        String currentUserId = getCurrentUserId();
+        if (TextUtils.isEmpty(currentUserId)) {
+            return;
+        }
+
+        FirebaseMessaging.getInstance().getToken()
+                .addOnSuccessListener(token -> clearCurrentUserToken(currentUserId, token))
+                .addOnFailureListener(error -> Log.w(TAG, "FCM 토큰 정리를 위해 토큰을 읽지 못했습니다.", error));
+    }
+
+    private void clearCurrentUserToken(@NonNull String currentUserId, @Nullable String token) {
+        if (TextUtils.isEmpty(token)) {
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("notificationTokens", FieldValue.arrayRemove(token.trim()));
+        updates.put("notificationTokenUpdatedAt", FieldValue.serverTimestamp());
+
+        firestore.collection("users")
+                .document(currentUserId)
+                .set(updates, SetOptions.merge())
+                .addOnFailureListener(error -> Log.w(TAG, "FCM 토큰 정리에 실패했습니다.", error));
     }
 
     @NonNull

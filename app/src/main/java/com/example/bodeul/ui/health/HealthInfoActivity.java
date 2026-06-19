@@ -1,7 +1,9 @@
 package com.example.bodeul.ui.health;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -9,6 +11,7 @@ import android.widget.ProgressBar;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
@@ -22,6 +25,7 @@ import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.firebase.ClientSupportPushContract;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
@@ -55,6 +59,14 @@ public class HealthInfoActivity extends AppCompatActivity {
     private List<ClientSupportRequest> currentSupportRequests;
     private HealthInfoScreenModel currentScreenModel;
     private HealthInfoTab selectedTab = HealthInfoTab.SERVICE;
+    private boolean supportRefreshReceiverRegistered;
+
+    private final BroadcastReceiver supportRefreshReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            reload();
+        }
+    };
 
     public static Intent createIntent(Context context) {
         return new Intent(context, HealthInfoActivity.class);
@@ -141,7 +153,14 @@ public class HealthInfoActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        registerSupportRefreshReceiver();
         reload();
+    }
+
+    @Override
+    protected void onStop() {
+        unregisterSupportRefreshReceiver();
+        super.onStop();
     }
 
     private void reload() {
@@ -330,6 +349,28 @@ public class HealthInfoActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void registerSupportRefreshReceiver() {
+        if (supportRefreshReceiverRegistered) {
+            return;
+        }
+        IntentFilter filter = new IntentFilter(ClientSupportPushContract.ACTION_CLIENT_SUPPORT_UPDATED);
+        ContextCompat.registerReceiver(
+                this,
+                supportRefreshReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+        );
+        supportRefreshReceiverRegistered = true;
+    }
+
+    private void unregisterSupportRefreshReceiver() {
+        if (!supportRefreshReceiverRegistered) {
+            return;
+        }
+        unregisterReceiver(supportRefreshReceiver);
+        supportRefreshReceiverRegistered = false;
     }
 
     private void setLoading(boolean loading) {

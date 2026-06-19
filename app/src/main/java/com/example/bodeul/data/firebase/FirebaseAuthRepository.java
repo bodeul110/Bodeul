@@ -21,6 +21,7 @@ import androidx.credentials.exceptions.NoCredentialException;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
+import com.example.bodeul.data.NotificationTokenRegistrar;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -71,6 +72,7 @@ public class FirebaseAuthRepository implements AuthRepository {
     private final FirebaseFunctions functions;
     private final CredentialManager credentialManager;
     private final Executor mainExecutor;
+    private final NotificationTokenRegistrar notificationTokenRegistrar;
 
     // 같은 세션 안에서는 중복 조회를 줄이기 위해 사용자 프로필을 캐시한다.
     @Nullable
@@ -79,11 +81,13 @@ public class FirebaseAuthRepository implements AuthRepository {
     public FirebaseAuthRepository(
             Context appContext,
             FirebaseAuth firebaseAuth,
-            FirebaseFirestore firestore
+            FirebaseFirestore firestore,
+            NotificationTokenRegistrar notificationTokenRegistrar
     ) {
         this.appContext = appContext;
         this.firebaseAuth = firebaseAuth;
         this.firestore = firestore;
+        this.notificationTokenRegistrar = notificationTokenRegistrar;
         this.functions = FirebaseFunctions.getInstance(FUNCTIONS_REGION);
         this.credentialManager = CredentialManager.create(appContext);
         this.mainExecutor = ContextCompat.getMainExecutor(appContext);
@@ -353,6 +357,7 @@ public class FirebaseAuthRepository implements AuthRepository {
     public void signOut() {
         // Firebase 세션과 구글 자격 증명 상태를 함께 정리한다.
         cachedUser = null;
+        notificationTokenRegistrar.clearCurrentUserToken();
         firebaseAuth.signOut();
         logoutFromNaver();
         clearCredentialState();
