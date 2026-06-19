@@ -41,7 +41,7 @@ final class FirebaseCompanionSessionMapper {
             return null;
         }
 
-        return new CompanionSession(
+        CompanionSession session = new CompanionSession(
                 documentSnapshot.getId(),
                 appointmentRequestId,
                 managerUserId,
@@ -61,6 +61,13 @@ final class FirebaseCompanionSessionMapper {
                 toSharedLocationHistory(documentSnapshot.get("sharedLocationHistory")),
                 toChatMessages(documentSnapshot.get("chatMessages"), fallbackChatSenderRole)
         );
+        session.setPrescriptionCollected(
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("prescriptionCollected"))
+        );
+        session.setMedicationGuidanceCompleted(
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("medicationGuidanceCompleted"))
+        );
+        return session;
     }
 
     static List<Map<String, Object>> toSharedLocationHistoryPayload(

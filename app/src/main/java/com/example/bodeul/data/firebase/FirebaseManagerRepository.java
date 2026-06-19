@@ -314,9 +314,31 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void updatePrescriptionCollected(
+            String managerUserId,
+            boolean prescriptionCollected,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("prescriptionCollected", prescriptionCollected);
+        updateSessionFields(managerUserId, updates, callback);
+    }
+
+    @Override
     public void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback) {
         Map<String, Object> updates = new HashMap<>();
         updates.put("pharmacyCompleted", pharmacyCompleted);
+        updateSessionFields(managerUserId, updates, callback);
+    }
+
+    @Override
+    public void updateMedicationGuidanceCompleted(
+            String managerUserId,
+            boolean medicationGuidanceCompleted,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("medicationGuidanceCompleted", medicationGuidanceCompleted);
         updateSessionFields(managerUserId, updates, callback);
     }
 
@@ -590,6 +612,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String summary,
             String treatmentNotes,
             String medicationNotes,
+            String medicationName,
+            String medicationChangeSummary,
+            String medicationScheduleNote,
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     ) {
@@ -608,6 +633,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 reportDocument.put("summary", summary);
                 reportDocument.put("treatmentNotes", treatmentNotes);
                 reportDocument.put("medicationNotes", medicationNotes);
+                reportDocument.put("medicationName", medicationName);
+                reportDocument.put("medicationChangeSummary", medicationChangeSummary);
+                reportDocument.put("medicationScheduleNote", medicationScheduleNote);
                 reportDocument.put("nextVisitAt", nextVisitAt);
                 reportDocument.put("createdAt", FieldValue.serverTimestamp());
 
@@ -1352,6 +1380,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
         String summary = documentSnapshot.getString("summary");
         String treatmentNotes = documentSnapshot.getString("treatmentNotes");
         String medicationNotes = documentSnapshot.getString("medicationNotes");
+        String medicationName = documentSnapshot.getString("medicationName");
+        String medicationChangeSummary = documentSnapshot.getString("medicationChangeSummary");
+        String medicationScheduleNote = documentSnapshot.getString("medicationScheduleNote");
         String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
         if (sessionId == null || summary == null) {
             return null;
@@ -1363,6 +1394,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 summary,
                 treatmentNotes == null ? "" : treatmentNotes,
                 medicationNotes == null ? "" : medicationNotes,
+                medicationName == null ? "" : medicationName,
+                medicationChangeSummary == null ? "" : medicationChangeSummary,
+                medicationScheduleNote == null ? "" : medicationScheduleNote,
                 nextVisitAt == null ? "" : nextVisitAt
         );
     }

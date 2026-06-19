@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -193,7 +194,12 @@ public final class BookingLiveLocationCoordinator {
         ));
         items.add(new BookingStatusLineItem(
                 context.getString(R.string.booking_live_location_line_pharmacy_state),
-                resolvePharmacyState(session),
+                PharmacyProgressDisplayHelper.buildOverallStateLabel(context, session),
+                false
+        ));
+        items.add(new BookingStatusLineItem(
+                context.getString(R.string.booking_live_location_line_pharmacy_detail),
+                PharmacyProgressDisplayHelper.buildStepSummary(context, session),
                 false
         ));
         return items;
@@ -326,15 +332,6 @@ public final class BookingLiveLocationCoordinator {
                 R.string.guide_map_default_meeting_place,
                 request.getHospitalName()
         );
-    }
-
-    private String resolvePharmacyState(@Nullable CompanionSession session) {
-        if (session == null) {
-            return context.getString(R.string.booking_live_location_value_pending);
-        }
-        return context.getString(session.isPharmacyCompleted()
-                ? R.string.guide_pharmacy_state_completed
-                : R.string.guide_pharmacy_state_pending);
     }
 
     @Nullable

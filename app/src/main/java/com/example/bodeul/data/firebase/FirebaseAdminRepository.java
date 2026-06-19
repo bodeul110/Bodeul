@@ -147,7 +147,9 @@ public class FirebaseAdminRepository implements AdminRepository {
                 sessionDocument.put("fieldPhotoNote", "");
                 sessionDocument.put("medicationNote", "");
                 sessionDocument.put("pharmacySummary", "");
+                sessionDocument.put("prescriptionCollected", false);
                 sessionDocument.put("pharmacyCompleted", false);
+                sessionDocument.put("medicationGuidanceCompleted", false);
                 sessionDocument.put("liveLocationSharingActive", false);
                 sessionDocument.put("sharedLocationHistory", new ArrayList<>());
                 sessionDocument.put("createdAt", FieldValue.serverTimestamp());
@@ -1890,6 +1892,9 @@ public class FirebaseAdminRepository implements AdminRepository {
         String summary = documentSnapshot.getString("summary");
         String treatmentNotes = documentSnapshot.getString("treatmentNotes");
         String medicationNotes = documentSnapshot.getString("medicationNotes");
+        String medicationName = documentSnapshot.getString("medicationName");
+        String medicationChangeSummary = documentSnapshot.getString("medicationChangeSummary");
+        String medicationScheduleNote = documentSnapshot.getString("medicationScheduleNote");
         String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
         if (sessionId == null || summary == null) {
             return null;
@@ -1901,6 +1906,9 @@ public class FirebaseAdminRepository implements AdminRepository {
                 summary,
                 treatmentNotes == null ? "" : treatmentNotes,
                 medicationNotes == null ? "" : medicationNotes,
+                medicationName == null ? "" : medicationName,
+                medicationChangeSummary == null ? "" : medicationChangeSummary,
+                medicationScheduleNote == null ? "" : medicationScheduleNote,
                 nextVisitAt == null ? "" : nextVisitAt
         );
     }

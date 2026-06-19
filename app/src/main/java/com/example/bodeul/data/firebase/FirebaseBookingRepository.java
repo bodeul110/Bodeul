@@ -1187,6 +1187,9 @@ public class FirebaseBookingRepository implements BookingRepository {
         String summary = documentSnapshot.getString("summary");
         String treatmentNotes = documentSnapshot.getString("treatmentNotes");
         String medicationNotes = documentSnapshot.getString("medicationNotes");
+        String medicationName = documentSnapshot.getString("medicationName");
+        String medicationChangeSummary = documentSnapshot.getString("medicationChangeSummary");
+        String medicationScheduleNote = documentSnapshot.getString("medicationScheduleNote");
         String nextVisitAt = stringifyDate(documentSnapshot.get("nextVisitAt"));
         if (sessionId == null || summary == null) {
             return null;
@@ -1198,6 +1201,9 @@ public class FirebaseBookingRepository implements BookingRepository {
                 summary,
                 treatmentNotes == null ? "" : treatmentNotes,
                 medicationNotes == null ? "" : medicationNotes,
+                medicationName == null ? "" : medicationName,
+                medicationChangeSummary == null ? "" : medicationChangeSummary,
+                medicationScheduleNote == null ? "" : medicationScheduleNote,
                 nextVisitAt == null ? "" : nextVisitAt
         );
     }

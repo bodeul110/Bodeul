@@ -1363,6 +1363,19 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized ManagerDashboard updatePrescriptionCollected(
+            String managerUserId,
+            boolean prescriptionCollected
+    ) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setPrescriptionCollected(prescriptionCollected);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
     public synchronized ManagerDashboard updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted) {
         CompanionSession session = getPrimaryManagerSession(managerUserId);
         if (session == null) {
@@ -1373,11 +1386,47 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
+    public synchronized ManagerDashboard updateMedicationGuidanceCompleted(
+            String managerUserId,
+            boolean medicationGuidanceCompleted
+    ) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setMedicationGuidanceCompleted(medicationGuidanceCompleted);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
     public synchronized ManagerDashboard saveSessionReport(
             String managerUserId,
             String summary,
             String treatmentNotes,
             String medicationNotes,
+            String nextVisitAt
+    ) {
+        return saveSessionReport(
+                managerUserId,
+                summary,
+                treatmentNotes,
+                medicationNotes,
+                "",
+                "",
+                "",
+                nextVisitAt
+        );
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard saveSessionReport(
+            String managerUserId,
+            String summary,
+            String treatmentNotes,
+            String medicationNotes,
+            String medicationName,
+            String medicationChangeSummary,
+            String medicationScheduleNote,
             String nextVisitAt
     ) {
         CompanionSession session = getPrimaryManagerSession(managerUserId);
@@ -1397,6 +1446,9 @@ public class MockBodeulRepository implements BodeulRepository {
                 summary,
                 treatmentNotes,
                 medicationNotes,
+                medicationName,
+                medicationChangeSummary,
+                medicationScheduleNote,
                 nextVisitAt
         );
         sessionReports.add(report);
@@ -1993,7 +2045,7 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     private void seedCompanionSessions() {
-        companionSessions.add(new CompanionSession(
+        CompanionSession activeSession = new CompanionSession(
                 "session-1",
                 "request-1",
                 "manager-1",
@@ -2025,7 +2077,11 @@ public class MockBodeulRepository implements BodeulRepository {
                         )
                 ),
                 Collections.emptyList()
-        ));
+        );
+        activeSession.setPrescriptionCollected(true);
+        activeSession.setPharmacyCompleted(true);
+        activeSession.setMedicationGuidanceCompleted(false);
+        companionSessions.add(activeSession);
     }
 
     private void seedHospitalGuides() {

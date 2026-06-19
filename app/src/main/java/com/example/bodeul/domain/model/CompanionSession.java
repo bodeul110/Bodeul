@@ -25,7 +25,9 @@ public class CompanionSession {
     private String fieldPhotoNote;
     private String medicationNote;
     private String pharmacySummary;
+    private boolean prescriptionCollected;
     private boolean pharmacyCompleted;
+    private boolean medicationGuidanceCompleted;
     @Nullable
     private Double sharedLatitude;
     @Nullable
@@ -362,12 +364,32 @@ public class CompanionSession {
         this.pharmacySummary = pharmacySummary;
     }
 
+    public boolean isPrescriptionCollected() {
+        return prescriptionCollected;
+    }
+
+    public void setPrescriptionCollected(boolean prescriptionCollected) {
+        this.prescriptionCollected = prescriptionCollected;
+    }
+
     public boolean isPharmacyCompleted() {
         return pharmacyCompleted;
     }
 
     public void setPharmacyCompleted(boolean pharmacyCompleted) {
         this.pharmacyCompleted = pharmacyCompleted;
+    }
+
+    public boolean isMedicationGuidanceCompleted() {
+        return medicationGuidanceCompleted;
+    }
+
+    public void setMedicationGuidanceCompleted(boolean medicationGuidanceCompleted) {
+        this.medicationGuidanceCompleted = medicationGuidanceCompleted;
+    }
+
+    public boolean hasAnyPharmacyProgress() {
+        return prescriptionCollected || pharmacyCompleted || medicationGuidanceCompleted;
     }
 
     public List<CompanionChatMessage> getChatMessages() {

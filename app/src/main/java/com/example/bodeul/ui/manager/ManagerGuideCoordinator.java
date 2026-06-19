@@ -13,6 +13,7 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,9 +60,15 @@ public final class ManagerGuideCoordinator {
                 session.getFieldPhotoNote(),
                 session.getMedicationNote(),
                 session.getPharmacySummary(),
+                PharmacyProgressDisplayHelper.buildStepSummary(context, session),
+                buildPrescriptionActionLabel(session),
                 buildPharmacyActionLabel(session),
+                buildMedicationGuidanceActionLabel(session),
                 report == null ? "" : report.getSummary(),
                 report == null ? "" : report.getTreatmentNotes(),
+                report == null ? "" : report.getMedicationName(),
+                report == null ? "" : report.getMedicationChangeSummary(),
+                report == null ? "" : report.getMedicationScheduleNote(),
                 report == null ? "" : report.getNextVisitAt(),
                 buildAdvanceButtonLabel(dashboard),
                 isAdvanceEnabled(dashboard),
@@ -99,7 +106,13 @@ public final class ManagerGuideCoordinator {
                 "",
                 "",
                 "",
+                context.getString(R.string.pharmacy_progress_step_summary_pending),
+                context.getString(R.string.guide_prescription_mark_collected),
                 context.getString(R.string.guide_pharmacy_mark_completed),
+                context.getString(R.string.guide_medication_guidance_mark_completed),
+                "",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -255,6 +268,18 @@ public final class ManagerGuideCoordinator {
         return context.getString(session.isPharmacyCompleted()
                 ? R.string.guide_pharmacy_mark_incomplete
                 : R.string.guide_pharmacy_mark_completed);
+    }
+
+    private String buildPrescriptionActionLabel(CompanionSession session) {
+        return context.getString(session.isPrescriptionCollected()
+                ? R.string.guide_prescription_mark_pending
+                : R.string.guide_prescription_mark_collected);
+    }
+
+    private String buildMedicationGuidanceActionLabel(CompanionSession session) {
+        return context.getString(session.isMedicationGuidanceCompleted()
+                ? R.string.guide_medication_guidance_mark_pending
+                : R.string.guide_medication_guidance_mark_completed);
     }
 
     private String buildSharedLocationBody(CompanionSession session, String fallbackPlace) {

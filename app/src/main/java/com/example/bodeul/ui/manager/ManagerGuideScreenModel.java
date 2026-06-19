@@ -23,9 +23,15 @@ public final class ManagerGuideScreenModel {
     private final String fieldPhotoNote;
     private final String medicationNote;
     private final String pharmacySummary;
+    private final String pharmacyProgressSummary;
+    private final String prescriptionActionLabel;
     private final String pharmacyActionLabel;
+    private final String medicationGuidanceActionLabel;
     private final String reportSummary;
     private final String reportTreatment;
+    private final String reportMedicationName;
+    private final String reportMedicationChangeSummary;
+    private final String reportMedicationScheduleNote;
     private final String nextVisitAt;
     private final String advanceButtonLabel;
     private final boolean advanceEnabled;
@@ -51,9 +57,15 @@ public final class ManagerGuideScreenModel {
             String fieldPhotoNote,
             String medicationNote,
             String pharmacySummary,
+            String pharmacyProgressSummary,
+            String prescriptionActionLabel,
             String pharmacyActionLabel,
+            String medicationGuidanceActionLabel,
             String reportSummary,
             String reportTreatment,
+            String reportMedicationName,
+            String reportMedicationChangeSummary,
+            String reportMedicationScheduleNote,
             String nextVisitAt,
             String advanceButtonLabel,
             boolean advanceEnabled,
@@ -78,9 +90,15 @@ public final class ManagerGuideScreenModel {
         this.fieldPhotoNote = fieldPhotoNote;
         this.medicationNote = medicationNote;
         this.pharmacySummary = pharmacySummary;
+        this.pharmacyProgressSummary = pharmacyProgressSummary;
+        this.prescriptionActionLabel = prescriptionActionLabel;
         this.pharmacyActionLabel = pharmacyActionLabel;
+        this.medicationGuidanceActionLabel = medicationGuidanceActionLabel;
         this.reportSummary = reportSummary;
         this.reportTreatment = reportTreatment;
+        this.reportMedicationName = reportMedicationName;
+        this.reportMedicationChangeSummary = reportMedicationChangeSummary;
+        this.reportMedicationScheduleNote = reportMedicationScheduleNote;
         this.nextVisitAt = nextVisitAt;
         this.advanceButtonLabel = advanceButtonLabel;
         this.advanceEnabled = advanceEnabled;
@@ -157,8 +175,20 @@ public final class ManagerGuideScreenModel {
         return pharmacySummary;
     }
 
+    public String getPharmacyProgressSummary() {
+        return pharmacyProgressSummary;
+    }
+
+    public String getPrescriptionActionLabel() {
+        return prescriptionActionLabel;
+    }
+
     public String getPharmacyActionLabel() {
         return pharmacyActionLabel;
+    }
+
+    public String getMedicationGuidanceActionLabel() {
+        return medicationGuidanceActionLabel;
     }
 
     public String getReportSummary() {
@@ -167,6 +197,18 @@ public final class ManagerGuideScreenModel {
 
     public String getReportTreatment() {
         return reportTreatment;
+    }
+
+    public String getReportMedicationName() {
+        return reportMedicationName;
+    }
+
+    public String getReportMedicationChangeSummary() {
+        return reportMedicationChangeSummary;
+    }
+
+    public String getReportMedicationScheduleNote() {
+        return reportMedicationScheduleNote;
     }
 
     public String getNextVisitAt() {

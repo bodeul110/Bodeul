@@ -50,7 +50,19 @@ public interface ManagerRepository {
 
     void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback);
 
+    void updatePrescriptionCollected(
+            String managerUserId,
+            boolean prescriptionCollected,
+            RepositoryCallback<ManagerDashboard> callback
+    );
+
     void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback);
+
+    void updateMedicationGuidanceCompleted(
+            String managerUserId,
+            boolean medicationGuidanceCompleted,
+            RepositoryCallback<ManagerDashboard> callback
+    );
 
     void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback);
 
@@ -90,6 +102,9 @@ public interface ManagerRepository {
             String summary,
             String treatmentNotes,
             String medicationNotes,
+            String medicationName,
+            String medicationChangeSummary,
+            String medicationScheduleNote,
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     );

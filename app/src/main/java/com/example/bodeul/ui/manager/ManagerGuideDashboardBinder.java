@@ -42,8 +42,12 @@ public final class ManagerGuideDashboardBinder {
     private final TextInputEditText inputGuidePhotoNote;
     private final TextInputEditText inputMedicationNote;
     private final TextInputEditText inputPharmacySummary;
+    private final TextView textGuidePharmacyProgressSummary;
     private final TextInputEditText inputReportSummary;
     private final TextInputEditText inputReportTreatment;
+    private final TextInputEditText inputReportMedicationName;
+    private final TextInputEditText inputReportMedicationChangeSummary;
+    private final TextInputEditText inputReportMedicationScheduleNote;
     private final TextInputEditText inputNextVisit;
     private final MaterialButton buttonAdvanceGuide;
     private final MaterialButton buttonSaveLocationSummary;
@@ -54,7 +58,9 @@ public final class ManagerGuideDashboardBinder {
     private final MaterialButton buttonSaveGuidePhotoNote;
     private final MaterialButton buttonSaveMedicationNote;
     private final MaterialButton buttonSavePharmacySummary;
+    private final MaterialButton buttonTogglePrescriptionCollected;
     private final MaterialButton buttonTogglePharmacyCompleted;
+    private final MaterialButton buttonToggleMedicationGuidanceCompleted;
     private final MaterialButton buttonSubmitReport;
 
     public ManagerGuideDashboardBinder(
@@ -83,8 +89,12 @@ public final class ManagerGuideDashboardBinder {
             TextInputEditText inputGuidePhotoNote,
             TextInputEditText inputMedicationNote,
             TextInputEditText inputPharmacySummary,
+            TextView textGuidePharmacyProgressSummary,
             TextInputEditText inputReportSummary,
             TextInputEditText inputReportTreatment,
+            TextInputEditText inputReportMedicationName,
+            TextInputEditText inputReportMedicationChangeSummary,
+            TextInputEditText inputReportMedicationScheduleNote,
             TextInputEditText inputNextVisit,
             MaterialButton buttonAdvanceGuide,
             MaterialButton buttonSaveLocationSummary,
@@ -95,7 +105,9 @@ public final class ManagerGuideDashboardBinder {
             MaterialButton buttonSaveGuidePhotoNote,
             MaterialButton buttonSaveMedicationNote,
             MaterialButton buttonSavePharmacySummary,
+            MaterialButton buttonTogglePrescriptionCollected,
             MaterialButton buttonTogglePharmacyCompleted,
+            MaterialButton buttonToggleMedicationGuidanceCompleted,
             MaterialButton buttonSubmitReport
     ) {
         this.inflater = inflater;
@@ -123,8 +135,12 @@ public final class ManagerGuideDashboardBinder {
         this.inputGuidePhotoNote = inputGuidePhotoNote;
         this.inputMedicationNote = inputMedicationNote;
         this.inputPharmacySummary = inputPharmacySummary;
+        this.textGuidePharmacyProgressSummary = textGuidePharmacyProgressSummary;
         this.inputReportSummary = inputReportSummary;
         this.inputReportTreatment = inputReportTreatment;
+        this.inputReportMedicationName = inputReportMedicationName;
+        this.inputReportMedicationChangeSummary = inputReportMedicationChangeSummary;
+        this.inputReportMedicationScheduleNote = inputReportMedicationScheduleNote;
         this.inputNextVisit = inputNextVisit;
         this.buttonAdvanceGuide = buttonAdvanceGuide;
         this.buttonSaveLocationSummary = buttonSaveLocationSummary;
@@ -135,7 +151,9 @@ public final class ManagerGuideDashboardBinder {
         this.buttonSaveGuidePhotoNote = buttonSaveGuidePhotoNote;
         this.buttonSaveMedicationNote = buttonSaveMedicationNote;
         this.buttonSavePharmacySummary = buttonSavePharmacySummary;
+        this.buttonTogglePrescriptionCollected = buttonTogglePrescriptionCollected;
         this.buttonTogglePharmacyCompleted = buttonTogglePharmacyCompleted;
+        this.buttonToggleMedicationGuidanceCompleted = buttonToggleMedicationGuidanceCompleted;
         this.buttonSubmitReport = buttonSubmitReport;
     }
 
@@ -159,8 +177,18 @@ public final class ManagerGuideDashboardBinder {
         setTextIfDifferent(inputGuidePhotoNote, screenModel.getFieldPhotoNote());
         setTextIfDifferent(inputMedicationNote, screenModel.getMedicationNote());
         setTextIfDifferent(inputPharmacySummary, screenModel.getPharmacySummary());
+        textGuidePharmacyProgressSummary.setText(screenModel.getPharmacyProgressSummary());
         setTextIfDifferent(inputReportSummary, screenModel.getReportSummary());
         setTextIfDifferent(inputReportTreatment, screenModel.getReportTreatment());
+        setTextIfDifferent(inputReportMedicationName, screenModel.getReportMedicationName());
+        setTextIfDifferent(
+                inputReportMedicationChangeSummary,
+                screenModel.getReportMedicationChangeSummary()
+        );
+        setTextIfDifferent(
+                inputReportMedicationScheduleNote,
+                screenModel.getReportMedicationScheduleNote()
+        );
         setTextIfDifferent(inputNextVisit, screenModel.getNextVisitAt());
 
         boolean inputsEnabled = screenModel.isInputsEnabled();
@@ -171,6 +199,9 @@ public final class ManagerGuideDashboardBinder {
         inputPharmacySummary.setEnabled(inputsEnabled);
         inputReportSummary.setEnabled(inputsEnabled);
         inputReportTreatment.setEnabled(inputsEnabled);
+        inputReportMedicationName.setEnabled(inputsEnabled);
+        inputReportMedicationChangeSummary.setEnabled(inputsEnabled);
+        inputReportMedicationScheduleNote.setEnabled(inputsEnabled);
         inputNextVisit.setEnabled(inputsEnabled);
         buttonSaveLocationSummary.setEnabled(inputsEnabled);
         buttonShareCurrentLocation.setEnabled(inputsEnabled);
@@ -184,12 +215,16 @@ public final class ManagerGuideDashboardBinder {
         buttonSaveGuidePhotoNote.setEnabled(inputsEnabled);
         buttonSaveMedicationNote.setEnabled(inputsEnabled);
         buttonSavePharmacySummary.setEnabled(inputsEnabled);
+        buttonTogglePrescriptionCollected.setEnabled(inputsEnabled);
         buttonTogglePharmacyCompleted.setEnabled(inputsEnabled);
+        buttonToggleMedicationGuidanceCompleted.setEnabled(inputsEnabled);
         buttonSubmitReport.setEnabled(inputsEnabled);
 
         buttonAdvanceGuide.setText(screenModel.getAdvanceButtonLabel());
         buttonAdvanceGuide.setEnabled(screenModel.isAdvanceEnabled());
+        buttonTogglePrescriptionCollected.setText(screenModel.getPrescriptionActionLabel());
         buttonTogglePharmacyCompleted.setText(screenModel.getPharmacyActionLabel());
+        buttonToggleMedicationGuidanceCompleted.setText(screenModel.getMedicationGuidanceActionLabel());
         buttonSubmitReport.setText(screenModel.getReportButtonLabel());
     }
 

@@ -63,6 +63,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputPharmacySummary;
     private TextInputEditText inputReportSummary;
     private TextInputEditText inputReportTreatment;
+    private TextInputEditText inputReportMedicationName;
+    private TextInputEditText inputReportMedicationChangeSummary;
+    private TextInputEditText inputReportMedicationScheduleNote;
     private TextInputEditText inputNextVisit;
 
     private MapView mapView;
@@ -97,6 +100,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
         inputPharmacySummary = findViewById(R.id.inputPharmacySummary);
         inputReportSummary = findViewById(R.id.inputReportSummary);
         inputReportTreatment = findViewById(R.id.inputReportTreatment);
+        inputReportMedicationName = findViewById(R.id.inputReportMedicationName);
+        inputReportMedicationChangeSummary = findViewById(R.id.inputReportMedicationChangeSummary);
+        inputReportMedicationScheduleNote = findViewById(R.id.inputReportMedicationScheduleNote);
         inputNextVisit = findViewById(R.id.inputNextVisit);
 
         managerGuideDashboardBinder = new ManagerGuideDashboardBinder(
@@ -125,8 +131,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 inputGuidePhotoNote,
                 inputMedicationNote,
                 inputPharmacySummary,
+                findViewById(R.id.textGuidePharmacyProgressSummary),
                 inputReportSummary,
                 inputReportTreatment,
+                inputReportMedicationName,
+                inputReportMedicationChangeSummary,
+                inputReportMedicationScheduleNote,
                 inputNextVisit,
                 (MaterialButton) findViewById(R.id.buttonAdvanceGuide),
                 (MaterialButton) findViewById(R.id.buttonSaveLocationSummary),
@@ -137,7 +147,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonSaveGuidePhotoNote),
                 (MaterialButton) findViewById(R.id.buttonSaveMedicationNote),
                 (MaterialButton) findViewById(R.id.buttonSavePharmacySummary),
+                (MaterialButton) findViewById(R.id.buttonTogglePrescriptionCollected),
                 (MaterialButton) findViewById(R.id.buttonTogglePharmacyCompleted),
+                (MaterialButton) findViewById(R.id.buttonToggleMedicationGuidanceCompleted),
                 (MaterialButton) findViewById(R.id.buttonSubmitReport)
         );
 
@@ -148,11 +160,16 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
         findViewById(R.id.buttonSaveMedicationNote).setOnClickListener(view -> viewModel.saveMedicationNote(valueOf(inputMedicationNote)));
         findViewById(R.id.buttonSavePharmacySummary).setOnClickListener(view -> viewModel.savePharmacySummary(valueOf(inputPharmacySummary)));
+        findViewById(R.id.buttonTogglePrescriptionCollected).setOnClickListener(view -> viewModel.togglePrescriptionCollected());
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> viewModel.togglePharmacyCompleted());
+        findViewById(R.id.buttonToggleMedicationGuidanceCompleted).setOnClickListener(view -> viewModel.toggleMedicationGuidanceCompleted());
         findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> viewModel.submitReport(
                 valueOf(inputReportSummary),
                 valueOf(inputReportTreatment),
                 valueOf(inputMedicationNote),
+                valueOf(inputReportMedicationName),
+                valueOf(inputReportMedicationChangeSummary),
+                valueOf(inputReportMedicationScheduleNote),
                 valueOf(inputNextVisit)
         ));
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());

@@ -156,6 +156,40 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void updatePrescriptionCollected(
+            String managerUserId,
+            boolean prescriptionCollected,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = repository.updatePrescriptionCollected(
+                managerUserId,
+                prescriptionCollected
+        );
+        if (dashboard == null) {
+            callback.onError("처방전 수령 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
+    public void updateMedicationGuidanceCompleted(
+            String managerUserId,
+            boolean medicationGuidanceCompleted,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = repository.updateMedicationGuidanceCompleted(
+                managerUserId,
+                medicationGuidanceCompleted
+        );
+        if (dashboard == null) {
+            callback.onError("복약 안내 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
     public void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback) {
         ManagerHomeProfile profile = repository.getManagerHomeProfile(managerUserId);
         if (profile == null) {
@@ -286,6 +320,9 @@ public class MockManagerRepository implements ManagerRepository {
             String summary,
             String treatmentNotes,
             String medicationNotes,
+            String medicationName,
+            String medicationChangeSummary,
+            String medicationScheduleNote,
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     ) {
@@ -294,6 +331,9 @@ public class MockManagerRepository implements ManagerRepository {
                 summary,
                 treatmentNotes,
                 medicationNotes,
+                medicationName,
+                medicationChangeSummary,
+                medicationScheduleNote,
                 nextVisitAt
         );
         if (dashboard == null) {

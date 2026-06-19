@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -213,12 +214,15 @@ public final class GuardianReportCoordinator {
         addOptionalLine(items, R.string.guardian_report_line_pharmacy, entry.getSession() == null
                 ? ""
                 : entry.getSession().getPharmacySummary(), false);
-        if (entry.getSession() != null
-                && (!TextUtils.isEmpty(entry.getSession().getPharmacySummary())
-                || entry.getSession().isPharmacyCompleted())) {
+        if (PharmacyProgressDisplayHelper.shouldShowDetail(entry.getSession())) {
             items.add(new GuardianReportLineItem(
                     context.getString(R.string.guardian_report_line_pharmacy_state),
-                    buildPharmacyStateLabel(entry.getSession()),
+                    PharmacyProgressDisplayHelper.buildOverallStateLabel(context, entry.getSession()),
+                    false
+            ));
+            items.add(new GuardianReportLineItem(
+                    context.getString(R.string.guardian_report_line_pharmacy_detail),
+                    PharmacyProgressDisplayHelper.buildStepSummary(context, entry.getSession()),
                     false
             ));
         }
@@ -245,6 +249,9 @@ public final class GuardianReportCoordinator {
 
         List<GuardianReportLineItem> medicationLines = new ArrayList<>();
         addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication, report.getMedicationNotes(), true);
+        addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_name, report.getMedicationName(), false);
+        addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_change, report.getMedicationChangeSummary(), false);
+        addOptionalLine(medicationLines, R.string.guardian_report_line_report_medication_schedule, report.getMedicationScheduleNote(), false);
         addSectionIfNotEmpty(
                 sections,
                 context.getString(R.string.guardian_report_report_section_medication),
@@ -312,12 +319,6 @@ public final class GuardianReportCoordinator {
                 R.string.guardian_report_guide_line,
                 guide.getSteps().size()
         );
-    }
-
-    private String buildPharmacyStateLabel(CompanionSession session) {
-        return context.getString(session.isPharmacyCompleted()
-                ? R.string.guide_pharmacy_state_completed
-                : R.string.guide_pharmacy_state_pending);
     }
 
     private String formatSharedLocationTime(long updatedAtMillis) {

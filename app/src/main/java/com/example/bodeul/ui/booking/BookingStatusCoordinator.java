@@ -18,6 +18,7 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -276,10 +277,15 @@ public final class BookingStatusCoordinator {
         addOptionalLine(items, R.string.booking_status_line_live_photo, session.getFieldPhotoNote(), false);
         addOptionalLine(items, R.string.booking_status_line_live_medication, session.getMedicationNote(), false);
         addOptionalLine(items, R.string.booking_status_line_live_pharmacy, session.getPharmacySummary(), false);
-        if (!TextUtils.isEmpty(session.getPharmacySummary()) || session.isPharmacyCompleted()) {
+        if (PharmacyProgressDisplayHelper.shouldShowDetail(session)) {
             items.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_status_line_live_pharmacy_state),
-                    buildPharmacyStateLabel(session),
+                    PharmacyProgressDisplayHelper.buildOverallStateLabel(context, session),
+                    false
+            ));
+            items.add(new BookingStatusLineItem(
+                    context.getString(R.string.booking_status_line_live_pharmacy_detail),
+                    PharmacyProgressDisplayHelper.buildStepSummary(context, session),
                     false
             ));
         }
@@ -302,6 +308,9 @@ public final class BookingStatusCoordinator {
             addOptionalLine(hospitalLines, R.string.booking_status_line_report_treatment, report.getTreatmentNotes(), false);
             addOptionalLine(hospitalLines, R.string.booking_status_line_report_next_visit, report.getNextVisitAt(), false);
             addOptionalLine(medicationLines, R.string.booking_status_line_report_medication, report.getMedicationNotes(), true);
+            addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_name, report.getMedicationName(), false);
+            addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_change, report.getMedicationChangeSummary(), false);
+            addOptionalLine(medicationLines, R.string.booking_status_line_report_medication_schedule, report.getMedicationScheduleNote(), false);
         } else if (request.getStatus() == AppointmentStatus.COMPLETED) {
             hospitalLines.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_status_line_report_state),
@@ -538,9 +547,4 @@ public final class BookingStatusCoordinator {
         );
     }
 
-    private String buildPharmacyStateLabel(CompanionSession session) {
-        return context.getString(session.isPharmacyCompleted()
-                ? R.string.guide_pharmacy_state_completed
-                : R.string.guide_pharmacy_state_pending);
-    }
 }
