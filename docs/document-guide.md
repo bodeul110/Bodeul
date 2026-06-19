@@ -6,7 +6,7 @@
 
 ## 최상위 기준
 
-1. [보들 플랫폼 기능설명서](보들_플랫폼_기능설명서.pdf)
+1. `local/보들_플랫폼_기능설명서.pdf`
 2. [화면 개편 목표 정리](restructure-target-map.md)
 3. [현재 구현 상태](implementation-status.md)
 4. [데이터 및 API 초안](data-api-draft.md)
@@ -36,7 +36,7 @@
 ### 1. 기획/구조 문서
 
 - [기획/구조 문서 색인](planning/README.md)
-- [보들 플랫폼 기능설명서](보들_플랫폼_기능설명서.pdf)
+- `local/보들_플랫폼_기능설명서.pdf`
 - [화면 개편 목표 정리](restructure-target-map.md)
 - [MVP 범위](mvp-scope.md)
 

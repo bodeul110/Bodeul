@@ -2134,7 +2134,7 @@
 
 ### 구현
 
-- [보들 플랫폼 기능설명서](./보들_플랫폼_기능설명서.pdf)를 기준으로 문서 우선순위를 다시 맞췄다.
+- `./local/보들_플랫폼_기능설명서.pdf`를 기준으로 문서 우선순위를 다시 맞췄다.
 - [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 최신 기능설명서를 최상위 기준으로 명시하고 문서 진입 순서를 정리했다.
 - [restructure-target-map.md](/D:/BoDeul/docs/restructure-target-map.md)를 최신 기능설명서의 20개 항목 기준으로 다시 정리하고, 현재 구현 상태를 `구현 완료`, `부분 구현`, `후속 설계`로 구분했다.
 - [mvp-scope.md](/D:/BoDeul/docs/mvp-scope.md)를 최신 기능설명서 기준 MVP 범위와 후속 범위로 다시 정리했다.
@@ -2158,7 +2158,7 @@
 
 ### 구현
 
-- [보들_플랫폼_기능설명서.pdf](/D:/BoDeul/docs/보들_플랫폼_기능설명서.pdf)와 최신 피그마 ZIP [보들 가이드.zip](/D:/BoDeul/design_refs/보들%20가이드.zip)을 각각 다시 확인해 기준을 분리했다.
+- `docs/local/보들_플랫폼_기능설명서.pdf`와 당시 피그마 ZIP을 각각 다시 확인해 기준을 분리했다.
 - 새 문서 [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 추가해 기능설명서의 20개 항목, 추가 기획 메모, GPS/지도 요구와 피그마 화면 보드 범위를 따로 정리했다.
 - [README.md](/D:/BoDeul/README.md)와 [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 새 점검 문서 링크를 추가해, 기능 기준과 디자인 기준을 혼동하지 않게 진입 경로를 정리했다.
 
@@ -2492,7 +2492,39 @@
 
 ### 구현
 
-- `design_refs/`에 새로 추가된 `bodeul_original_resolution_screens.zip`, `bodeul_split_screens/`, `index.csv`, `contact_sheet.png`를 기준으로 디자인 참조 구조를 다시 정리했다.
+- `design_refs/local/`에 정리한 `bodeul_original_resolution_screens.zip`, `bodeul_split_screens/`, `index.csv`, `contact_sheet.png`를 기준으로 디자인 참조 구조를 다시 정리했다.
+
+## 117. 2026-06-19 로컬 참조 자산 위치 정리
+
+### 구현
+
+- Git에 올리지 않는 로컬 전용 참조 자산 위치를 정리했다.
+- 최신 기능설명서 PDF는 `docs/local/`로, 최신 디자인 원본과 분할 화면 세트는 `design_refs/local/`로 모았다.
+- `.gitignore`에 `docs/local/*`, `design_refs/local/*`, 루트 `package-lock.json` 제외 규칙을 추가했다.
+- 관련 문서 링크도 새 로컬 기준 경로에 맞게 정리했다.
+
+### 변경 범위
+
+- `.gitignore`
+- `README.md`
+- `design_refs/README.md`
+- `docs/local/README.md`
+- `design_refs/local/README.md`
+- `docs/architecture-draft.md`
+- `docs/document-guide.md`
+- `docs/design-reference-review-2026-05-22.md`
+- `docs/feature-spec-figma-audit-2026-05-22.md`
+- `docs/feature-spec-gap-checklist-2026-05-22.md`
+- `docs/infrastructure-overview.md`
+- `docs/mvp-scope.md`
+- `docs/restructure-target-map.md`
+- `docs/planning/README.md`
+- `docs/archive/design-reference-review-2026-05-05.md`
+
+### 남은 범위
+
+- 로컬 참조 자산은 위치만 정리했고, 저장소에는 계속 포함하지 않는다.
+- 팀 공용으로 공유해야 할 원본은 별도 링크나 버전 관리 가능한 추출본 정책을 정한 뒤 반영한다.
 - [design_refs/README.md](/D:/BoDeul/design_refs/README.md)를 최신 원본/분할 화면/보조 참조/비사용 파일 기준으로 전면 정리했다.
 - [design-reference-review-2026-05-22.md](/D:/BoDeul/docs/design-reference-review-2026-05-22.md)를 새로 추가해 인증/공통, 환자 홈, 환자 진행 화면, 매니저 홈/가이드, 서류 등록 기준의 UI polish 우선순위를 다시 정했다.
 - [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 최신 분할 화면 세트 기준으로 다시 작성해 기능 기준과 디자인 기준을 명확히 분리했다.

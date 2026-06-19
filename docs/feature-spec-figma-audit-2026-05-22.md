@@ -7,10 +7,10 @@
 ## 확인한 원본
 
 - 기능 기준
-  - [보들_플랫폼_기능설명서.pdf](보들_플랫폼_기능설명서.pdf)
+  - `local/보들_플랫폼_기능설명서.pdf`
 - 디자인 기준
-  - `design_refs/bodeul_original_resolution_screens.zip`
-  - `design_refs/bodeul_split_screens/`
+  - `design_refs/local/bodeul_original_resolution_screens.zip`
+  - `design_refs/local/bodeul_split_screens/`
   - `design_refs/auth/`
   - `design_refs/common/`
   - `design_refs/manager/`
@@ -89,7 +89,7 @@
 ### 디자인 기준
 
 - 최신 디자인 세트는 `단일 ZIP 한 장`이 아니라 `분할 화면 세트` 기준으로 본다.
-- 따라서 이후 화면 polish는 `design_refs/bodeul_split_screens/previews/contact_sheet.png`와 각 그룹별 PNG를 기준으로 잡는다.
+- 따라서 이후 화면 polish는 `design_refs/local/bodeul_split_screens/previews/contact_sheet.png`와 각 그룹별 PNG를 기준으로 잡는다.
 
 ### 적용 방식
 

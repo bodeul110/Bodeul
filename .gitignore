@@ -33,3 +33,8 @@ temp.txt
 /tools/firebase/reports/screenshots/*.png
 !/tools/firebase/reports/.gitkeep
 !/tools/firebase/reports/screenshots/.gitkeep
+/docs/local/*
+!/docs/local/README.md
+/design_refs/local/*
+!/design_refs/local/README.md
+/package-lock.json

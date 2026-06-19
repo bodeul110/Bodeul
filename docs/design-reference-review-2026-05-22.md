@@ -3,17 +3,17 @@
 기준일: 2026-05-22
 
 이 문서는 `design_refs/`에 새로 들어온 최신 디자인 세트를 현재 구현과 대조한 메모다.  
-기능 기준은 계속 [보들_플랫폼_기능설명서.pdf](보들_플랫폼_기능설명서.pdf)를 우선하고, 이 문서는 화면 위계와 polish 우선순위를 정하는 용도로만 쓴다.
+기능 기준은 계속 `local/보들_플랫폼_기능설명서.pdf`를 우선하고, 이 문서는 화면 위계와 polish 우선순위를 정하는 용도로만 쓴다.
 
 ## 확인한 자료
 
-- 최신 원본: `design_refs/bodeul_original_resolution_screens.zip`
-- 분할 화면 세트: `design_refs/bodeul_split_screens/`
+- 최신 원본: `design_refs/local/bodeul_original_resolution_screens.zip`
+- 분할 화면 세트: `design_refs/local/bodeul_split_screens/`
   - `common` 6장
   - `manager` 26장
   - `patient` 19장
 - 빠른 참조 이미지
-  - `design_refs/bodeul_split_screens/previews/contact_sheet.png`
+  - `design_refs/local/bodeul_split_screens/previews/contact_sheet.png`
   - `design_refs/auth/role-selection.png`
   - `design_refs/common/permission-sheet.png`
   - `design_refs/manager/manager-home-live-match.png`

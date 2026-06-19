@@ -4,7 +4,7 @@
 
 ## 기준 문서
 
-- 최신 기능 기준: [보들 플랫폼 기능설명서](docs/보들_플랫폼_기능설명서.pdf)
+- 최신 기능 기준: `docs/local/보들_플랫폼_기능설명서.pdf` (로컬 참조 파일)
 - 화면/흐름 재구성 기준: [화면 개편 목표 정리](docs/restructure-target-map.md)
 - 실제 구현 기준: [현재 구현 상태](docs/implementation-status.md)
 
