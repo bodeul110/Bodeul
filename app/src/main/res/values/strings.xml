@@ -1371,4 +1371,7 @@
     <string name="companion_chat_status_canceled">동행 취소</string>
     <string name="guardian_report_action_refresh">진행 현황 다시 불러오기</string>
     <string name="booking_live_location_action_refresh">현재 위치 다시 불러오기</string>
+    <string name="manager_location_notification_body">실시간 위치 공유 중</string>
+    <string name="manager_location_channel_name">매니저 위치 공유</string>
+    <string name="manager_location_channel_description">동행 중 환자와 보호자에게 실시간 위치를 공유합니다.</string>
 </resources>

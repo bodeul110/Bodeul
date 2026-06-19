@@ -12,6 +12,7 @@ import android.os.IBinder;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.ServiceCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
@@ -77,7 +78,7 @@ public class ManagerLocationService extends Service {
                 });
             } else if (ACTION_STOP.equals(action)) {
                 stopTracking();
-                stopForeground(true);
+                stopForegroundCompat();
                 stopSelf();
             }
         }
@@ -123,7 +124,7 @@ public class ManagerLocationService extends Service {
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
-                .setContentText("실시간 위치 공유 중")
+                .setContentText(getString(R.string.manager_location_notification_body))
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -134,14 +135,18 @@ public class ManagerLocationService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "매니저 위치 공유",
+                    getString(R.string.manager_location_channel_name),
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("동행 중 환자와 보호자에게 실시간 위치를 공유합니다.");
+            channel.setDescription(getString(R.string.manager_location_channel_description));
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
             }
         }
+    }
+
+    private void stopForegroundCompat() {
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
     }
 }
