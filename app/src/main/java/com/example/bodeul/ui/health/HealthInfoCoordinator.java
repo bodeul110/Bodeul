@@ -9,6 +9,9 @@ import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.ClientSupportCategory;
+import com.example.bodeul.domain.model.ClientSupportRequest;
+import com.example.bodeul.domain.model.ClientSupportStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
@@ -30,6 +33,7 @@ public final class HealthInfoCoordinator {
             User currentUser,
             AppointmentRequestDetail detail,
             List<AppointmentRequest> requests,
+            List<ClientSupportRequest> supportRequests,
             boolean isFirebaseBacked
     ) {
         AppointmentRequest request = detail.getAppointmentRequest();
@@ -69,9 +73,15 @@ public final class HealthInfoCoordinator {
                 context.getString(R.string.health_info_profile_section_helper),
                 context.getString(R.string.health_info_request_section),
                 context.getString(R.string.health_info_request_section_helper),
+                context.getString(R.string.health_info_history_section),
+                context.getString(R.string.health_info_history_section_helper),
+                context.getString(R.string.health_info_support_section),
+                context.getString(R.string.health_info_support_section_helper),
                 createAccountLines(currentUser, detail),
                 createProfileLines(detail),
                 createRequestLines(detail),
+                createHistoryLines(requests),
+                createSupportLines(supportRequests),
                 primaryActionType,
                 resolvePrimaryActionLabel(currentUser, request, primaryActionType)
         );
@@ -265,6 +275,93 @@ public final class HealthInfoCoordinator {
         return items;
     }
 
+    private List<HealthInfoLineItem> createHistoryLines(@Nullable List<AppointmentRequest> requests) {
+        List<HealthInfoLineItem> items = new ArrayList<>();
+        if (requests == null || requests.isEmpty()) {
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_history_summary),
+                    context.getString(R.string.health_info_history_empty),
+                    false
+            ));
+            return items;
+        }
+
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_history_summary),
+                context.getString(R.string.health_info_history_total_value, requests.size()),
+                true
+        ));
+
+        int limit = Math.min(requests.size(), 3);
+        for (int index = 0; index < limit; index++) {
+            AppointmentRequest request = requests.get(index);
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_history_entry, index + 1),
+                    context.getString(
+                            R.string.health_info_history_entry_value,
+                            request.getHospitalName(),
+                            request.getDepartmentName(),
+                            request.getAppointmentAt(),
+                            formatter.toStatusLabel(request.getStatus())
+                    ),
+                    index == 0
+            ));
+        }
+        return items;
+    }
+
+    private List<HealthInfoLineItem> createSupportLines(List<ClientSupportRequest> supportRequests) {
+        List<HealthInfoLineItem> items = new ArrayList<>();
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_support_total),
+                context.getString(R.string.health_info_support_total_value, supportRequests.size()),
+                true
+        ));
+        if (supportRequests.isEmpty()) {
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_support_latest_status),
+                    context.getString(R.string.health_info_support_empty),
+                    false
+            ));
+            return items;
+        }
+
+        ClientSupportRequest latestRequest = supportRequests.get(0);
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_support_latest_status),
+                latestRequest.getStatus() == ClientSupportStatus.ANSWERED
+                        ? context.getString(R.string.client_support_status_answered)
+                        : context.getString(R.string.client_support_status_received),
+                false
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_support_latest_category),
+                toSupportCategoryText(latestRequest.getCategory()),
+                false
+        ));
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_support_latest_title),
+                fallbackValue(latestRequest.getTitle(), R.string.health_info_support_empty),
+                false
+        ));
+        if (latestRequest.getStatus() == ClientSupportStatus.ANSWERED
+                && !TextUtils.isEmpty(latestRequest.getResponseText())) {
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_support_latest_response),
+                    summarizeSupportText(latestRequest.getResponseText()),
+                    false
+            ));
+        }
+        items.add(new HealthInfoLineItem(
+                context.getString(R.string.health_info_line_support_latest_time),
+                latestRequest.getStatus() == ClientSupportStatus.ANSWERED
+                        ? formatter.formatTimestamp(latestRequest.getRespondedAtMillis())
+                        : formatter.formatTimestamp(latestRequest.getCreatedAtMillis()),
+                false
+        ));
+        return items;
+    }
+
     private void addLine(List<HealthInfoLineItem> items, int labelResId, @Nullable String value, boolean emphasized) {
         if (TextUtils.isEmpty(value)) {
             return;
@@ -298,5 +395,29 @@ public final class HealthInfoCoordinator {
             default:
                 return context.getString(R.string.login_role_patient);
         }
+    }
+
+    private String toSupportCategoryText(ClientSupportCategory category) {
+        switch (category) {
+            case PROGRESS:
+                return context.getString(R.string.client_support_category_progress);
+            case REPORT:
+                return context.getString(R.string.client_support_category_report);
+            case SETTLEMENT:
+                return context.getString(R.string.client_support_category_settlement);
+            case OTHER:
+                return context.getString(R.string.client_support_category_other);
+            case RESERVATION:
+            default:
+                return context.getString(R.string.client_support_category_reservation);
+        }
+    }
+
+    private String summarizeSupportText(String value) {
+        String normalized = value.replace('\n', ' ').replace("  ", " ").trim();
+        if (normalized.length() <= 42) {
+            return normalized;
+        }
+        return normalized.substring(0, 42) + "…";
     }
 }

@@ -22,9 +22,15 @@ public final class HealthInfoScreenModel {
     private final String profileSectionHelper;
     private final String requestSectionTitle;
     private final String requestSectionHelper;
+    private final String historySectionTitle;
+    private final String historySectionHelper;
+    private final String supportSectionTitle;
+    private final String supportSectionHelper;
     private final List<HealthInfoLineItem> accountLines;
     private final List<HealthInfoLineItem> profileLines;
     private final List<HealthInfoLineItem> requestLines;
+    private final List<HealthInfoLineItem> historyLines;
+    private final List<HealthInfoLineItem> supportLines;
     private final HealthInfoPrimaryActionType primaryActionType;
     private final String primaryActionLabel;
 
@@ -48,9 +54,15 @@ public final class HealthInfoScreenModel {
             String profileSectionHelper,
             String requestSectionTitle,
             String requestSectionHelper,
+            String historySectionTitle,
+            String historySectionHelper,
+            String supportSectionTitle,
+            String supportSectionHelper,
             List<HealthInfoLineItem> accountLines,
             List<HealthInfoLineItem> profileLines,
             List<HealthInfoLineItem> requestLines,
+            List<HealthInfoLineItem> historyLines,
+            List<HealthInfoLineItem> supportLines,
             HealthInfoPrimaryActionType primaryActionType,
             String primaryActionLabel
     ) {
@@ -73,9 +85,15 @@ public final class HealthInfoScreenModel {
         this.profileSectionHelper = profileSectionHelper;
         this.requestSectionTitle = requestSectionTitle;
         this.requestSectionHelper = requestSectionHelper;
+        this.historySectionTitle = historySectionTitle;
+        this.historySectionHelper = historySectionHelper;
+        this.supportSectionTitle = supportSectionTitle;
+        this.supportSectionHelper = supportSectionHelper;
         this.accountLines = accountLines;
         this.profileLines = profileLines;
         this.requestLines = requestLines;
+        this.historyLines = historyLines;
+        this.supportLines = supportLines;
         this.primaryActionType = primaryActionType;
         this.primaryActionLabel = primaryActionLabel;
     }
@@ -156,6 +174,22 @@ public final class HealthInfoScreenModel {
         return requestSectionHelper;
     }
 
+    public String getHistorySectionTitle() {
+        return historySectionTitle;
+    }
+
+    public String getHistorySectionHelper() {
+        return historySectionHelper;
+    }
+
+    public String getSupportSectionTitle() {
+        return supportSectionTitle;
+    }
+
+    public String getSupportSectionHelper() {
+        return supportSectionHelper;
+    }
+
     public List<HealthInfoLineItem> getAccountLines() {
         return accountLines;
     }
@@ -166,6 +200,14 @@ public final class HealthInfoScreenModel {
 
     public List<HealthInfoLineItem> getRequestLines() {
         return requestLines;
+    }
+
+    public List<HealthInfoLineItem> getHistoryLines() {
+        return historyLines;
+    }
+
+    public List<HealthInfoLineItem> getSupportLines() {
+        return supportLines;
     }
 
     public HealthInfoPrimaryActionType getPrimaryActionType() {

@@ -34,9 +34,15 @@ public final class HealthInfoBinder {
     private final TextView textProfileSectionHelper;
     private final TextView textRequestSectionTitle;
     private final TextView textRequestSectionHelper;
+    private final TextView textHistorySectionTitle;
+    private final TextView textHistorySectionHelper;
+    private final TextView textSupportSectionTitle;
+    private final TextView textSupportSectionHelper;
     private final LinearLayout accountLineContainer;
     private final LinearLayout profileLineContainer;
     private final LinearLayout requestLineContainer;
+    private final LinearLayout historyLineContainer;
+    private final LinearLayout supportLineContainer;
     private final MaterialButton buttonBooking;
     private final MaterialButton buttonBookingStatus;
     private final MaterialButton buttonGuardianReport;
@@ -61,9 +67,15 @@ public final class HealthInfoBinder {
             TextView textProfileSectionHelper,
             TextView textRequestSectionTitle,
             TextView textRequestSectionHelper,
+            TextView textHistorySectionTitle,
+            TextView textHistorySectionHelper,
+            TextView textSupportSectionTitle,
+            TextView textSupportSectionHelper,
             LinearLayout accountLineContainer,
             LinearLayout profileLineContainer,
             LinearLayout requestLineContainer,
+            LinearLayout historyLineContainer,
+            LinearLayout supportLineContainer,
             MaterialButton buttonBooking,
             MaterialButton buttonBookingStatus,
             MaterialButton buttonGuardianReport,
@@ -87,9 +99,15 @@ public final class HealthInfoBinder {
         this.textProfileSectionHelper = textProfileSectionHelper;
         this.textRequestSectionTitle = textRequestSectionTitle;
         this.textRequestSectionHelper = textRequestSectionHelper;
+        this.textHistorySectionTitle = textHistorySectionTitle;
+        this.textHistorySectionHelper = textHistorySectionHelper;
+        this.textSupportSectionTitle = textSupportSectionTitle;
+        this.textSupportSectionHelper = textSupportSectionHelper;
         this.accountLineContainer = accountLineContainer;
         this.profileLineContainer = profileLineContainer;
         this.requestLineContainer = requestLineContainer;
+        this.historyLineContainer = historyLineContainer;
+        this.supportLineContainer = supportLineContainer;
         this.buttonBooking = buttonBooking;
         this.buttonBookingStatus = buttonBookingStatus;
         this.buttonGuardianReport = buttonGuardianReport;
@@ -113,6 +131,10 @@ public final class HealthInfoBinder {
         textProfileSectionHelper.setText(screenModel.getProfileSectionHelper());
         textRequestSectionTitle.setText(screenModel.getRequestSectionTitle());
         textRequestSectionHelper.setText(screenModel.getRequestSectionHelper());
+        textHistorySectionTitle.setText(screenModel.getHistorySectionTitle());
+        textHistorySectionHelper.setText(screenModel.getHistorySectionHelper());
+        textSupportSectionTitle.setText(screenModel.getSupportSectionTitle());
+        textSupportSectionHelper.setText(screenModel.getSupportSectionHelper());
         buttonBooking.setText(screenModel.getBookingActionLabel());
         buttonBookingStatus.setText(screenModel.getBookingStatusActionLabel());
         bindOptionalButton(buttonGuardianReport, screenModel.getGuardianReportActionLabel());
@@ -121,6 +143,8 @@ public final class HealthInfoBinder {
         bindLines(accountLineContainer, screenModel.getAccountLines());
         bindLines(profileLineContainer, screenModel.getProfileLines());
         bindLines(requestLineContainer, screenModel.getRequestLines());
+        bindLines(historyLineContainer, screenModel.getHistoryLines());
+        bindLines(supportLineContainer, screenModel.getSupportLines());
     }
 
     private void bindOptionalButton(MaterialButton button, @Nullable String label) {

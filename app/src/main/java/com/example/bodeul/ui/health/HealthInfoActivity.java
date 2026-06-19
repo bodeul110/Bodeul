@@ -13,11 +13,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
+import com.example.bodeul.data.ClientSupportRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
@@ -38,6 +40,7 @@ public class HealthInfoActivity extends AppCompatActivity {
 
     private AuthRepository authRepository;
     private BookingRepository bookingRepository;
+    private ClientSupportRepository clientSupportRepository;
     private HealthInfoCoordinator healthInfoCoordinator;
     private HealthInfoBinder healthInfoBinder;
 
@@ -48,6 +51,7 @@ public class HealthInfoActivity extends AppCompatActivity {
     private User currentUser;
     private AppointmentRequestDetail currentDetail;
     private List<AppointmentRequest> currentRequests;
+    private List<ClientSupportRequest> currentSupportRequests;
     private HealthInfoScreenModel currentScreenModel;
 
     public static Intent createIntent(Context context) {
@@ -67,6 +71,7 @@ public class HealthInfoActivity extends AppCompatActivity {
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         bookingRepository = ServiceLocator.provideBookingRepository(this);
+        clientSupportRepository = ServiceLocator.provideClientSupportRepository(this);
         healthInfoCoordinator = new HealthInfoCoordinator(this, new BookingPresentationFormatter(this));
         explicitRequestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
 
@@ -92,9 +97,15 @@ public class HealthInfoActivity extends AppCompatActivity {
                 findViewById(R.id.textHealthInfoProfileSectionHelper),
                 findViewById(R.id.textHealthInfoRequestSectionTitle),
                 findViewById(R.id.textHealthInfoRequestSectionHelper),
+                findViewById(R.id.textHealthInfoHistorySectionTitle),
+                findViewById(R.id.textHealthInfoHistorySectionHelper),
+                findViewById(R.id.textHealthInfoSupportSectionTitle),
+                findViewById(R.id.textHealthInfoSupportSectionHelper),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoAccountLines),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoProfileLines),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoRequestLines),
+                (LinearLayout) findViewById(R.id.layoutHealthInfoHistoryLines),
+                (LinearLayout) findViewById(R.id.layoutHealthInfoSupportLines),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoBooking),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoBookingStatus),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoGuardianReport),
@@ -175,16 +186,7 @@ public class HealthInfoActivity extends AppCompatActivity {
             @Override
             public void onSuccess(AppointmentRequestDetail result) {
                 currentDetail = result;
-                setLoading(false);
-                hideBlockingState();
-                currentScreenModel = healthInfoCoordinator.createScreenModel(
-                        user,
-                        result,
-                        currentRequests,
-                        bookingRepository.isFirebaseBacked()
-                );
-                healthInfoBinder.bindScreen(currentScreenModel);
-                healthInfoContentContainer.setVisibility(View.VISIBLE);
+                loadSupportRequests(user, result);
             }
 
             @Override
@@ -195,6 +197,40 @@ public class HealthInfoActivity extends AppCompatActivity {
                 showLoadErrorState(message);
             }
         });
+    }
+
+    private void loadSupportRequests(User user, AppointmentRequestDetail detail) {
+        clientSupportRepository.getClientSupportRequests(user, new RepositoryCallback<List<ClientSupportRequest>>() {
+            @Override
+            public void onSuccess(List<ClientSupportRequest> result) {
+                currentSupportRequests = result;
+                bindScreen(user, detail, result);
+            }
+
+            @Override
+            public void onError(String message) {
+                currentSupportRequests = java.util.Collections.emptyList();
+                bindScreen(user, detail, currentSupportRequests);
+            }
+        });
+    }
+
+    private void bindScreen(
+            User user,
+            AppointmentRequestDetail detail,
+            List<ClientSupportRequest> supportRequests
+    ) {
+        setLoading(false);
+        hideBlockingState();
+        currentScreenModel = healthInfoCoordinator.createScreenModel(
+                user,
+                detail,
+                currentRequests,
+                supportRequests,
+                bookingRepository.isFirebaseBacked()
+        );
+        healthInfoBinder.bindScreen(currentScreenModel);
+        healthInfoContentContainer.setVisibility(View.VISIBLE);
     }
 
     @Nullable
