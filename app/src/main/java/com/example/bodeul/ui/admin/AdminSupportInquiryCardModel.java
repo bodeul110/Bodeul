@@ -4,6 +4,7 @@ package com.example.bodeul.ui.admin;
  * 관리자 문의 응답 카드 한 장의 표시 상태를 담는다.
  */
 public final class AdminSupportInquiryCardModel {
+    private final AdminSupportInquirySourceType sourceType;
     private final String inquiryId;
     private final String categoryText;
     private final String statusText;
@@ -13,12 +14,14 @@ public final class AdminSupportInquiryCardModel {
     private final String titleText;
     private final String bodyText;
     private final String timestampText;
+    private final long sortTimestampMillis;
     private final boolean showResponse;
     private final String responseText;
     private final String responseMetaText;
     private final String actionButtonText;
 
     public AdminSupportInquiryCardModel(
+            AdminSupportInquirySourceType sourceType,
             String inquiryId,
             String categoryText,
             String statusText,
@@ -28,11 +31,13 @@ public final class AdminSupportInquiryCardModel {
             String titleText,
             String bodyText,
             String timestampText,
+            long sortTimestampMillis,
             boolean showResponse,
             String responseText,
             String responseMetaText,
             String actionButtonText
     ) {
+        this.sourceType = sourceType;
         this.inquiryId = inquiryId;
         this.categoryText = categoryText;
         this.statusText = statusText;
@@ -42,10 +47,15 @@ public final class AdminSupportInquiryCardModel {
         this.titleText = titleText;
         this.bodyText = bodyText;
         this.timestampText = timestampText;
+        this.sortTimestampMillis = sortTimestampMillis;
         this.showResponse = showResponse;
         this.responseText = responseText;
         this.responseMetaText = responseMetaText;
         this.actionButtonText = actionButtonText;
+    }
+
+    public AdminSupportInquirySourceType getSourceType() {
+        return sourceType;
     }
 
     public String getInquiryId() {
@@ -82,6 +92,10 @@ public final class AdminSupportInquiryCardModel {
 
     public String getTimestampText() {
         return timestampText;
+    }
+
+    public long getSortTimestampMillis() {
+        return sortTimestampMillis;
     }
 
     public boolean isShowResponse() {

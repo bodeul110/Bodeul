@@ -62,6 +62,7 @@ public final class HealthInfoCoordinator {
                 currentUser.getRole() == UserRole.GUARDIAN
                         ? context.getString(R.string.health_info_action_open_guardian_report)
                         : null,
+                context.getString(R.string.health_info_action_open_support),
                 context.getString(R.string.health_info_account_section),
                 context.getString(R.string.health_info_account_section_helper),
                 context.getString(R.string.health_info_profile_section),

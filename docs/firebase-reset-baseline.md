@@ -26,6 +26,7 @@
 - `sessionReports`
 - `appointmentFollowUps`
 - `supportInquiries`
+- `clientSupportRequests`
 - `adminSettlementRecords`
 - `adminEmergencyIssues`
 - `adminActionNotifications`

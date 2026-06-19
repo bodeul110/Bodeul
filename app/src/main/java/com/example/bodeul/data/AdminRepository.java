@@ -74,6 +74,13 @@ public interface AdminRepository {
             RepositoryCallback<AdminDashboard> callback
     );
 
+    void respondClientSupportRequest(
+            User currentUser,
+            String supportRequestId,
+            String response,
+            RepositoryCallback<AdminDashboard> callback
+    );
+
     // 화면에서 데모 모드 안내를 분기하기 위해 사용한다.
     void markActionNotificationRead(
             User currentUser,

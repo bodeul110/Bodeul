@@ -208,6 +208,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /clientSupportRequests/{supportRequestId} {
+      allow read: if isAdmin()
+          || (
+            signedIn()
+            && resource.data.userId == request.auth.uid
+          );
+      allow create: if (isPatient() || isGuardian())
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.userRole == currentRole();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     match /adminSettlementRecords/{appointmentRequestId} {
       allow read, create, update, delete: if isAdmin();
     }

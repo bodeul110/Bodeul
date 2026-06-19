@@ -201,6 +201,13 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="10dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonHealthInfoSupport"
+                            style="@style/BodeulOutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 

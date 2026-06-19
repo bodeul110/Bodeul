@@ -24,6 +24,9 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.ClientSupportCategory;
+import com.example.bodeul.domain.model.ClientSupportRequest;
+import com.example.bodeul.domain.model.ClientSupportStatus;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
@@ -80,6 +83,7 @@ public class MockBodeulRepository implements BodeulRepository {
     private final List<AdminActionDeliveryRecord> adminActionDeliveries = new ArrayList<>();
     private final List<AdminAuditLogEntry> adminAuditLogs = new ArrayList<>();
     private final List<SupportInquiry> supportInquiries = new ArrayList<>();
+    private final List<ClientSupportRequest> clientSupportRequests = new ArrayList<>();
 
     public MockBodeulRepository() {
         seedUsers();
@@ -371,6 +375,20 @@ public class MockBodeulRepository implements BodeulRepository {
             }
         }
         return Collections.unmodifiableList(inquiries);
+    }
+
+    public synchronized List<ClientSupportRequest> getClientSupportRequests(String userId) {
+        List<ClientSupportRequest> requests = new ArrayList<>();
+        for (ClientSupportRequest request : clientSupportRequests) {
+            if (request.getUserId().equals(userId)) {
+                requests.add(request);
+            }
+        }
+        return Collections.unmodifiableList(requests);
+    }
+
+    public synchronized List<ClientSupportRequest> getClientSupportRequests() {
+        return Collections.unmodifiableList(new ArrayList<>(clientSupportRequests));
     }
 
     public synchronized AppointmentFollowUpRecord getAppointmentFollowUpRecord(String requestId) {
@@ -727,6 +745,70 @@ public class MockBodeulRepository implements BodeulRepository {
         );
         supportInquiries.add(0, inquiry);
         return inquiry;
+    }
+
+    @Nullable
+    public synchronized ClientSupportRequest saveClientSupportRequest(
+            String userId,
+            String appointmentRequestId,
+            ClientSupportCategory category,
+            String title,
+            String body
+    ) {
+        User user = findUserById(userId);
+        if (user == null || (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN)) {
+            return null;
+        }
+        long createdAtMillis = System.currentTimeMillis();
+        ClientSupportRequest request = new ClientSupportRequest(
+                "client-support-" + createdAtMillis,
+                userId,
+                user.getName(),
+                user.getRole(),
+                normalizeText(appointmentRequestId),
+                category,
+                normalizeText(title),
+                normalizeText(body),
+                ClientSupportStatus.RECEIVED,
+                createdAtMillis,
+                "",
+                0L,
+                ""
+        );
+        clientSupportRequests.add(0, request);
+        return request;
+    }
+
+    @Nullable
+    public synchronized ClientSupportRequest respondClientSupportRequest(
+            String supportRequestId,
+            String response,
+            String respondedByName
+    ) {
+        for (int index = 0; index < clientSupportRequests.size(); index++) {
+            ClientSupportRequest request = clientSupportRequests.get(index);
+            if (!request.getId().equals(supportRequestId)) {
+                continue;
+            }
+            ClientSupportRequest updatedRequest = new ClientSupportRequest(
+                    request.getId(),
+                    request.getUserId(),
+                    request.getUserName(),
+                    request.getUserRole(),
+                    request.getAppointmentRequestId(),
+                    request.getCategory(),
+                    request.getTitle(),
+                    request.getBody(),
+                    ClientSupportStatus.ANSWERED,
+                    request.getCreatedAtMillis(),
+                    normalizeText(response),
+                    System.currentTimeMillis(),
+                    normalizeText(respondedByName)
+            );
+            clientSupportRequests.set(index, updatedRequest);
+            return updatedRequest;
+        }
+        return null;
     }
 
     @Nullable

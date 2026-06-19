@@ -10,6 +10,7 @@ const MANAGED_COLLECTIONS = Object.freeze([
   "sessionReports",
   "appointmentFollowUps",
   "supportInquiries",
+  "clientSupportRequests",
   "adminSettlementRecords",
   "adminEmergencyIssues",
   "adminActionNotifications",

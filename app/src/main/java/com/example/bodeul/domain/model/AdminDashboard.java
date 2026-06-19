@@ -18,6 +18,7 @@ public class AdminDashboard {
     private final List<AdminActionDeliveryRecord> actionDeliveries;
     private final AdminActionOverview actionOverview;
     private final List<SupportInquiry> supportInquiries;
+    private final List<ClientSupportRequest> clientSupportRequests;
     private final List<HospitalGuide> hospitalGuides;
 
     public AdminDashboard(
@@ -33,6 +34,7 @@ public class AdminDashboard {
             List<AdminActionDeliveryRecord> actionDeliveries,
             AdminActionOverview actionOverview,
             List<SupportInquiry> supportInquiries,
+            List<ClientSupportRequest> clientSupportRequests,
             List<HospitalGuide> hospitalGuides
     ) {
         this.admin = admin;
@@ -47,6 +49,7 @@ public class AdminDashboard {
         this.actionDeliveries = actionDeliveries;
         this.actionOverview = actionOverview;
         this.supportInquiries = supportInquiries;
+        this.clientSupportRequests = clientSupportRequests;
         this.hospitalGuides = hospitalGuides;
     }
 
@@ -96,6 +99,10 @@ public class AdminDashboard {
 
     public List<SupportInquiry> getSupportInquiries() {
         return supportInquiries;
+    }
+
+    public List<ClientSupportRequest> getClientSupportRequests() {
+        return clientSupportRequests;
     }
 
     public List<HospitalGuide> getHospitalGuides() {

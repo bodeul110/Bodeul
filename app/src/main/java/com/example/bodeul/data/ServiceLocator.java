@@ -31,6 +31,7 @@ public final class ServiceLocator {
     private static AuthRepository authRepository;
     private static BookingRepository bookingRepository;
     private static GuardianReportRepository guardianReportRepository;
+    private static ClientSupportRepository clientSupportRepository;
     private static ManagerRepository managerRepository;
     private static AdminRepository adminRepository;
     private static ManagerDocumentStorageUploader managerDocumentStorageUploader;
@@ -116,6 +117,19 @@ public final class ServiceLocator {
             }
         }
         return guardianReportRepository;
+    }
+
+    public static synchronized ClientSupportRepository provideClientSupportRepository(Context context) {
+        if (clientSupportRepository == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                clientSupportRepository =
+                        new com.example.bodeul.data.firebase.FirebaseClientSupportRepository(provideFirestore());
+            } else {
+                clientSupportRepository =
+                        new com.example.bodeul.data.mock.MockClientSupportRepository(getMockBodeulRepository());
+            }
+        }
+        return clientSupportRepository;
     }
 
     public static synchronized AdminRepository provideAdminRepository(Context context) {

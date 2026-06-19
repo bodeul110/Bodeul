@@ -27,6 +27,7 @@ import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
 import com.example.bodeul.ui.report.GuardianReportActivity;
+import com.example.bodeul.ui.support.ClientSupportActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -97,6 +98,7 @@ public class HealthInfoActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonHealthInfoBooking),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoBookingStatus),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoGuardianReport),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoSupport),
                 (MaterialButton) findViewById(R.id.buttonHealthInfoPrimary)
         );
 
@@ -105,6 +107,7 @@ public class HealthInfoActivity extends AppCompatActivity {
         findViewById(R.id.buttonHealthInfoBooking).setOnClickListener(view -> openBooking());
         findViewById(R.id.buttonHealthInfoBookingStatus).setOnClickListener(view -> openBookingStatus());
         findViewById(R.id.buttonHealthInfoGuardianReport).setOnClickListener(view -> openGuardianReport());
+        findViewById(R.id.buttonHealthInfoSupport).setOnClickListener(view -> openSupport());
         healthInfoContentContainer.setVisibility(View.GONE);
     }
 
@@ -243,6 +246,13 @@ public class HealthInfoActivity extends AppCompatActivity {
             return;
         }
         startActivity(new Intent(this, GuardianReportActivity.class));
+    }
+
+    private void openSupport() {
+        startActivity(ClientSupportActivity.createIntent(
+                this,
+                currentDetail == null ? null : currentDetail.getAppointmentRequest().getId()
+        ));
     }
 
     private void openRoleSelection() {

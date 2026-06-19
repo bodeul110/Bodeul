@@ -40,6 +40,7 @@ public final class HealthInfoBinder {
     private final MaterialButton buttonBooking;
     private final MaterialButton buttonBookingStatus;
     private final MaterialButton buttonGuardianReport;
+    private final MaterialButton buttonSupport;
     private final MaterialButton buttonPrimary;
 
     public HealthInfoBinder(
@@ -66,6 +67,7 @@ public final class HealthInfoBinder {
             MaterialButton buttonBooking,
             MaterialButton buttonBookingStatus,
             MaterialButton buttonGuardianReport,
+            MaterialButton buttonSupport,
             MaterialButton buttonPrimary
     ) {
         this.context = context;
@@ -91,6 +93,7 @@ public final class HealthInfoBinder {
         this.buttonBooking = buttonBooking;
         this.buttonBookingStatus = buttonBookingStatus;
         this.buttonGuardianReport = buttonGuardianReport;
+        this.buttonSupport = buttonSupport;
         this.buttonPrimary = buttonPrimary;
     }
 
@@ -113,6 +116,7 @@ public final class HealthInfoBinder {
         buttonBooking.setText(screenModel.getBookingActionLabel());
         buttonBookingStatus.setText(screenModel.getBookingStatusActionLabel());
         bindOptionalButton(buttonGuardianReport, screenModel.getGuardianReportActionLabel());
+        bindOptionalButton(buttonSupport, screenModel.getSupportActionLabel());
         buttonPrimary.setText(screenModel.getPrimaryActionLabel());
         bindLines(accountLineContainer, screenModel.getAccountLines());
         bindLines(profileLineContainer, screenModel.getProfileLines());

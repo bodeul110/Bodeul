@@ -14,7 +14,7 @@ import com.google.android.material.button.MaterialButton;
  */
 public final class AdminSupportInquiryCardBinder {
     public interface Listener {
-        void onRespond(String inquiryId);
+        void onRespond(AdminSupportInquiryCardModel cardModel);
     }
 
     public void bind(View itemView, AdminSupportInquiryCardModel model, Listener listener) {
@@ -43,6 +43,6 @@ public final class AdminSupportInquiryCardBinder {
         responseView.setText(model.getResponseText());
         responseMetaView.setText(model.getResponseMetaText());
         actionButton.setText(model.getActionButtonText());
-        actionButton.setOnClickListener(view -> listener.onRespond(model.getInquiryId()));
+        actionButton.setOnClickListener(view -> listener.onRespond(model));
     }
 }

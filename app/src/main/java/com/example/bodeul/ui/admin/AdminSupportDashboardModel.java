@@ -7,18 +7,25 @@ import java.util.List;
  */
 public final class AdminSupportDashboardModel {
     private final String summaryText;
+    private final List<AdminSupportFilterChipModel> filterChips;
     private final List<AdminSupportInquiryCardModel> inquiryCards;
 
     public AdminSupportDashboardModel(
             String summaryText,
+            List<AdminSupportFilterChipModel> filterChips,
             List<AdminSupportInquiryCardModel> inquiryCards
     ) {
         this.summaryText = summaryText;
+        this.filterChips = filterChips;
         this.inquiryCards = inquiryCards;
     }
 
     public String getSummaryText() {
         return summaryText;
+    }
+
+    public List<AdminSupportFilterChipModel> getFilterChips() {
+        return filterChips;
     }
 
     public List<AdminSupportInquiryCardModel> getInquiryCards() {

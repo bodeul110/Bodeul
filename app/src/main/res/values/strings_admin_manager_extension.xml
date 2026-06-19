@@ -9,13 +9,19 @@
     <string name="manager_support_response_meta">답변 시각 %1$s · 담당 %2$s</string>
 
     <string name="admin_support_title">문의 응답</string>
-    <string name="admin_support_helper">매니저가 남긴 운영, 서류, 정산 문의를 확인하고 바로 답변을 남깁니다.</string>
+    <string name="admin_support_helper">매니저와 이용자가 남긴 운영 문의를 확인하고 바로 답변을 남깁니다.</string>
     <string name="admin_support_summary_empty">응답할 문의가 없습니다.</string>
     <string name="admin_support_summary">총 %1$d건 · 답변 대기 %2$d건 · 답변 완료 %3$d건</string>
     <string name="admin_support_empty">접수된 문의가 아직 없습니다.</string>
+    <string name="admin_support_filter_all">전체 문의</string>
+    <string name="admin_support_filter_waiting">답변 대기</string>
+    <string name="admin_support_filter_answered">답변 완료</string>
+    <string name="admin_support_filter_manager">매니저 문의</string>
+    <string name="admin_support_filter_client">이용자 문의</string>
     <string name="admin_support_status_received">답변 대기</string>
     <string name="admin_support_status_answered">답변 완료</string>
     <string name="admin_support_manager_value">매니저 %1$s</string>
+    <string name="admin_support_client_value">이용자 %1$s · %2$s</string>
     <string name="admin_support_response_label">등록된 답변</string>
     <string name="admin_support_response_meta">답변 시각 %1$s · 담당 %2$s</string>
     <string name="admin_support_action_reply">답변 등록</string>

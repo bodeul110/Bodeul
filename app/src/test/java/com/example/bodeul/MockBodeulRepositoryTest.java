@@ -46,6 +46,9 @@ import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.BookingPriceSummary;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.BookingTripType;
+import com.example.bodeul.domain.model.ClientSupportCategory;
+import com.example.bodeul.domain.model.ClientSupportRequest;
+import com.example.bodeul.domain.model.ClientSupportStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
@@ -484,6 +487,31 @@ public class MockBodeulRepositoryTest {
             previousPrioritySortOrder = delivery.getPriority().getSortOrder();
         }
         assertTrue(foundOperationsFeedDelivery);
+    }
+
+    @Test
+    public void clientSupportRequest_saveRequest_filtersByCurrentUser() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
+
+        assertNotNull(patient);
+        assertNotNull(guardian);
+
+        ClientSupportRequest request = repository.saveClientSupportRequest(
+                patient.getId(),
+                "request-seed-progress",
+                ClientSupportCategory.PROGRESS,
+                "진행 상태 문의",
+                "현재 위치 갱신 시각을 다시 확인하고 싶습니다."
+        );
+
+        assertNotNull(request);
+        assertEquals(ClientSupportStatus.RECEIVED, request.getStatus());
+        assertEquals(patient.getId(), request.getUserId());
+        assertEquals("request-seed-progress", request.getAppointmentRequestId());
+        assertFalse(repository.getClientSupportRequests(patient.getId()).isEmpty());
+        assertEquals(0, repository.getClientSupportRequests(guardian.getId()).size());
     }
 
     @Test

@@ -15,6 +15,7 @@ public final class HealthInfoScreenModel {
     private final String bookingActionLabel;
     private final String bookingStatusActionLabel;
     private final String guardianReportActionLabel;
+    private final String supportActionLabel;
     private final String accountSectionTitle;
     private final String accountSectionHelper;
     private final String profileSectionTitle;
@@ -40,6 +41,7 @@ public final class HealthInfoScreenModel {
             String bookingActionLabel,
             String bookingStatusActionLabel,
             String guardianReportActionLabel,
+            String supportActionLabel,
             String accountSectionTitle,
             String accountSectionHelper,
             String profileSectionTitle,
@@ -64,6 +66,7 @@ public final class HealthInfoScreenModel {
         this.bookingActionLabel = bookingActionLabel;
         this.bookingStatusActionLabel = bookingStatusActionLabel;
         this.guardianReportActionLabel = guardianReportActionLabel;
+        this.supportActionLabel = supportActionLabel;
         this.accountSectionTitle = accountSectionTitle;
         this.accountSectionHelper = accountSectionHelper;
         this.profileSectionTitle = profileSectionTitle;
@@ -123,6 +126,10 @@ public final class HealthInfoScreenModel {
 
     public String getGuardianReportActionLabel() {
         return guardianReportActionLabel;
+    }
+
+    public String getSupportActionLabel() {
+        return supportActionLabel;
     }
 
     public String getAccountSectionTitle() {

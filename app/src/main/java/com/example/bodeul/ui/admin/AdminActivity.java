@@ -28,6 +28,7 @@ import com.example.bodeul.domain.model.AdminDashboard;
 import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
+import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
@@ -65,11 +66,13 @@ public class AdminActivity extends AppCompatActivity {
     private List<AdminRequestOverview> pendingRequestsSnapshot = new ArrayList<>();
     private List<AdminRequestOverview> managedRequestsSnapshot = new ArrayList<>();
     private List<SupportInquiry> supportInquiriesSnapshot = new ArrayList<>();
+    private List<ClientSupportRequest> clientSupportRequestsSnapshot = new ArrayList<>();
     private List<User> availableManagersSnapshot = new ArrayList<>();
     private AdminManagedRequestFilter managedRequestFilter = AdminManagedRequestFilter.ALL;
     private AdminManagedRequestDateFilter managedRequestDateFilter = AdminManagedRequestDateFilter.ALL;
     private AdminMonitoringFilter monitoringFilter = AdminMonitoringFilter.ALL;
     private AdminSettlementFilter settlementFilter = AdminSettlementFilter.ALL;
+    private AdminSupportFilter supportFilter = AdminSupportFilter.ALL;
     private AdminActionCenterFilter actionCenterFilter = AdminActionCenterFilter.ALL;
     private final Set<String> expandedRequestIds = new HashSet<>();
     private boolean loading;
@@ -113,6 +116,7 @@ public class AdminActivity extends AppCompatActivity {
     private LinearLayout adminMonitoringContainer;
     private LinearLayout adminSettlementFilterContainer;
     private LinearLayout adminSettlementContainer;
+    private LinearLayout adminSupportFilterContainer;
     private LinearLayout adminSupportContainer;
     private LinearLayout adminActionCenterFilterContainer;
     private LinearLayout adminActionCenterContainer;
@@ -192,6 +196,7 @@ public class AdminActivity extends AppCompatActivity {
         adminMonitoringContainer = findViewById(R.id.adminMonitoringContainer);
         adminSettlementFilterContainer = findViewById(R.id.adminSettlementFilterContainer);
         adminSettlementContainer = findViewById(R.id.adminSettlementContainer);
+        adminSupportFilterContainer = findViewById(R.id.adminSupportFilterContainer);
         adminSupportContainer = findViewById(R.id.adminSupportContainer);
         adminActionCenterFilterContainer = findViewById(R.id.adminActionCenterFilterContainer);
         adminActionCenterContainer = findViewById(R.id.adminActionCenterContainer);
@@ -304,8 +309,9 @@ public class AdminActivity extends AppCompatActivity {
         renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
         managedRequestsSnapshot = new ArrayList<>(dashboard.getManagedRequests());
         supportInquiriesSnapshot = new ArrayList<>(dashboard.getSupportInquiries());
+        clientSupportRequestsSnapshot = new ArrayList<>(dashboard.getClientSupportRequests());
         renderOperations(dashboard);
-        renderSupportInquiries(supportInquiriesSnapshot);
+        renderSupportInquiries(supportInquiriesSnapshot, clientSupportRequestsSnapshot);
         renderActionCenter(dashboard);
         renderActionDeliveries(dashboard);
         renderManagedRequests(managedRequestsSnapshot);
@@ -455,9 +461,14 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
-    private void renderSupportInquiries(List<SupportInquiry> inquiries) {
-        AdminSupportDashboardModel supportModel = adminSupportCoordinator.createDashboardModel(inquiries);
+    private void renderSupportInquiries(
+            List<SupportInquiry> inquiries,
+            List<ClientSupportRequest> clientRequests
+    ) {
+        AdminSupportDashboardModel supportModel =
+                adminSupportCoordinator.createDashboardModel(inquiries, clientRequests, supportFilter);
         textAdminSupportSummary.setText(supportModel.getSummaryText());
+        renderSupportFilters(supportModel);
         adminSupportContainer.removeAllViews();
         if (supportModel.getInquiryCards().isEmpty()) {
             renderEmptyText(adminSupportContainer, R.string.admin_support_title, R.string.admin_support_empty);
@@ -467,13 +478,43 @@ public class AdminActivity extends AppCompatActivity {
         LayoutInflater inflater = LayoutInflater.from(this);
         for (AdminSupportInquiryCardModel cardModel : supportModel.getInquiryCards()) {
             View itemView = inflater.inflate(R.layout.item_admin_support_inquiry, adminSupportContainer, false);
-            adminSupportInquiryCardBinder.bind(itemView, cardModel, inquiryId -> {
-                SupportInquiry inquiry = findSupportInquiry(inquiryId, supportInquiriesSnapshot);
+            adminSupportInquiryCardBinder.bind(itemView, cardModel, model -> {
+                if (model.getSourceType() == AdminSupportInquirySourceType.CLIENT) {
+                    ClientSupportRequest request = findClientSupportRequest(
+                            model.getInquiryId(),
+                            clientSupportRequestsSnapshot
+                    );
+                    if (request != null) {
+                        openClientSupportResponseDialog(request);
+                    }
+                    return;
+                }
+                SupportInquiry inquiry = findSupportInquiry(model.getInquiryId(), supportInquiriesSnapshot);
                 if (inquiry != null) {
                     openSupportResponseDialog(inquiry);
                 }
             });
             adminSupportContainer.addView(itemView);
+        }
+    }
+
+    private void renderSupportFilters(AdminSupportDashboardModel supportModel) {
+        adminSupportFilterContainer.removeAllViews();
+        if (supportModel.getFilterChips().size() <= 1) {
+            adminSupportFilterContainer.setVisibility(View.GONE);
+            return;
+        }
+        adminSupportFilterContainer.setVisibility(View.VISIBLE);
+        for (AdminSupportFilterChipModel chipModel : supportModel.getFilterChips()) {
+            MaterialButton button = createOperationFilterButton(
+                    chipModel.getButtonText(),
+                    chipModel.isSelected()
+            );
+            button.setOnClickListener(view -> {
+                supportFilter = chipModel.getFilter();
+                renderSupportInquiries(supportInquiriesSnapshot, clientSupportRequestsSnapshot);
+            });
+            adminSupportFilterContainer.addView(button);
         }
     }
 
@@ -1096,6 +1137,75 @@ public class AdminActivity extends AppCompatActivity {
         );
     }
 
+    private void openClientSupportResponseDialog(ClientSupportRequest request) {
+        if (currentUser == null || loading) {
+            return;
+        }
+        View dialogView = LayoutInflater.from(this).inflate(
+                R.layout.dialog_admin_document_review,
+                null,
+                false
+        );
+        TextInputLayout inputLayout = dialogView.findViewById(R.id.layoutAdminDocumentReviewNote);
+        TextInputEditText inputEditText = dialogView.findViewById(R.id.inputAdminDocumentReviewNote);
+        inputLayout.setHint(getString(R.string.admin_support_response_hint));
+        inputLayout.setHelperText(getString(R.string.admin_support_response_helper));
+        inputEditText.setText(request.getResponseText());
+        if (inputEditText.getText() != null) {
+            inputEditText.setSelection(inputEditText.getText().length());
+        }
+
+        String requesterName = TextUtils.isEmpty(request.getUserName())
+                ? getString(R.string.admin_manager_pending)
+                : request.getUserName();
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.admin_support_response_dialog_title, requesterName))
+                .setView(dialogView)
+                .setNegativeButton(R.string.admin_manager_document_review_cancel, null)
+                .setPositiveButton(R.string.admin_manager_document_review_confirm, null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    String response = valueOf(inputEditText);
+                    if (TextUtils.isEmpty(response)) {
+                        inputLayout.setError(getString(R.string.admin_operation_note_required));
+                        return;
+                    }
+                    inputLayout.setError(null);
+                    dialog.dismiss();
+                    respondClientSupportRequest(request.getId(), response);
+                }));
+        dialog.show();
+    }
+
+    private void respondClientSupportRequest(String supportRequestId, String response) {
+        setLoading(true);
+        adminRepository.respondClientSupportRequest(
+                currentUser,
+                supportRequestId,
+                response,
+                new RepositoryCallback<AdminDashboard>() {
+                    @Override
+                    public void onSuccess(AdminDashboard result) {
+                        setLoading(false);
+                        Toast.makeText(
+                                AdminActivity.this,
+                                R.string.admin_support_response_saved,
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        setLoading(false);
+                        Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
     private void openManagerDocumentHistoryDialog(ManagerDocumentOverview overview) {
         View dialogView = LayoutInflater.from(this).inflate(
                 R.layout.dialog_admin_document_history,
@@ -1415,6 +1525,19 @@ public class AdminActivity extends AppCompatActivity {
     }
 
     @Nullable
+    private ClientSupportRequest findClientSupportRequest(
+            String supportRequestId,
+            List<ClientSupportRequest> requests
+    ) {
+        for (ClientSupportRequest request : requests) {
+            if (request.getId().equals(supportRequestId)) {
+                return request;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
     private ManagerDocumentOverview findManagerDocumentOverview(
             String managerUserId,
             List<ManagerDocumentOverview> overviews
@@ -1572,6 +1695,7 @@ public class AdminActivity extends AppCompatActivity {
         adminDashboardSnapshot = null;
         monitoringFilter = AdminMonitoringFilter.ALL;
         settlementFilter = AdminSettlementFilter.ALL;
+        supportFilter = AdminSupportFilter.ALL;
         actionCenterFilter = AdminActionCenterFilter.ALL;
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
@@ -1580,11 +1704,14 @@ public class AdminActivity extends AppCompatActivity {
         availableManagersSnapshot.clear();
         managedRequestsSnapshot.clear();
         supportInquiriesSnapshot.clear();
+        clientSupportRequestsSnapshot.clear();
         textAdminMonitoringSummary.setText(R.string.admin_monitoring_summary_empty);
         textAdminMonitoringAlert.setVisibility(View.GONE);
         textAdminSettlementSummary.setText(R.string.admin_settlement_summary_empty);
         textAdminSettlementAlert.setVisibility(View.GONE);
         textAdminSupportSummary.setText(R.string.admin_support_summary_empty);
+        adminSupportFilterContainer.removeAllViews();
+        adminSupportFilterContainer.setVisibility(View.GONE);
         textAdminActionCenterSummary.setText(R.string.admin_action_center_summary_empty);
         textAdminActionDeliverySummary.setText(R.string.admin_action_delivery_summary_empty);
         textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);

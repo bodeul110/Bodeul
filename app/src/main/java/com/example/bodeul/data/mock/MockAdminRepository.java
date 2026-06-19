@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
@@ -202,6 +203,24 @@ public class MockAdminRepository implements AdminRepository {
     }
 
     @Override
+    public void respondClientSupportRequest(
+            User currentUser,
+            String supportRequestId,
+            String response,
+            RepositoryCallback<AdminDashboard> callback
+    ) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            callback.onError("관리자 계정으로 접근해 주세요.");
+            return;
+        }
+        if (repository.respondClientSupportRequest(supportRequestId, response, currentUser.getName()) == null) {
+            callback.onError("사용자 문의 답변을 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(buildDashboard(currentUser));
+    }
+
+    @Override
     public void markActionNotificationRead(
             User currentUser,
             String notificationId,
@@ -289,6 +308,7 @@ public class MockAdminRepository implements AdminRepository {
         }
 
         List<SupportInquiry> supportInquiries = repository.getSupportInquiries();
+        List<ClientSupportRequest> clientSupportRequests = repository.getClientSupportRequests();
         List<AdminActionNotification> actionNotifications = repository.getAdminActionNotifications();
         List<AdminAuditLogEntry> auditLogs = repository.getAdminAuditLogs();
         List<AdminActionDeliveryRecord> actionDeliveries = repository.getAdminActionDeliveries();
@@ -310,6 +330,7 @@ public class MockAdminRepository implements AdminRepository {
                 actionDeliveries,
                 actionOverview,
                 supportInquiries,
+                clientSupportRequests,
                 repository.getHospitalGuides()
         );
     }

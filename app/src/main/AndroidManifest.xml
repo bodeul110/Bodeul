@@ -74,6 +74,9 @@
             android:name=".ui.health.HealthInfoActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.support.ClientSupportActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.manager.ManagerActivity"
             android:exported="false" />
         <activity
