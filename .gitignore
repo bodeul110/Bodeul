@@ -16,6 +16,14 @@
 local.properties
 app/google-services.json
 .firebaserc
+temp.txt
+.vscode/
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/appInsightsSettings.xml
+.idea/git_toolbox_prj.xml
+.idea/easycode.ignore
+.idea/easycode/
 /functions/node_modules
 /tools/firebase/backups/*.json
 !/tools/firebase/backups/.gitkeep

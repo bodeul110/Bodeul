@@ -2683,3 +2683,28 @@
 
 - 이 문서는 현재 `master` 기준 인프라 요약이다.
 - App Check 실제 강제 적용, 운영 환경 분리, 배포 절차 변경이 생기면 같은 문서를 기준으로 갱신한다.
+
+## 115. 2026-06-19 테스트 검증 및 개발환경 파일 정리
+
+### 구현
+
+- 최신 `master` 기준으로 `testDebugUnitTest`를 다시 실행해 단위 테스트까지 통과를 확인했다.
+- 저장소에 잘못 포함된 `temp.txt`를 제거 대상으로 정리했다.
+- 팀 공용으로 유지할 필요가 없는 개인 개발환경 파일을 `.gitignore` 기준으로 분리했다.
+  - `.vscode/settings.json`
+  - `.idea/deploymentTargetSelector.xml`
+  - `.idea/deviceManager.xml`
+  - `.idea/appInsightsSettings.xml`
+  - `.idea/git_toolbox_prj.xml`
+  - `.idea/easycode.ignore`
+  - `.idea/easycode/`
+
+### 변경 범위
+
+- `.gitignore`
+- `docs/implementation-status.md`
+
+### 남은 범위
+
+- `.idea` 아래 다른 파일들은 현재 프로젝트 공용 설정인지 여부를 확인한 뒤 필요할 때만 추가 정리한다.
+- 이번 정리는 장치 선택, 플러그인 상태, 개인 에디터 설정처럼 사용자별 편차가 큰 파일만 대상으로 했다.
