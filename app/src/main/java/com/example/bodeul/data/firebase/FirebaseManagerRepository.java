@@ -12,6 +12,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionChatMessage;
+import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -794,6 +795,32 @@ public class FirebaseManagerRepository implements ManagerRepository {
             @Override
             public void onError(String message) {
                 // 읽음 처리 실패는 화면 흐름을 막지 않는다.
+            }
+        });
+    }
+
+    @Override
+    public void saveCompanionLocationAlert(String managerUserId, CompanionLocationAlertStage stage) {
+        if (stage == null || stage == CompanionLocationAlertStage.NONE) {
+            return;
+        }
+        loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot sessionSnapshot) {
+                CompanionSession session = toSession(sessionSnapshot);
+                if (session == null || !session.getLocationAlertStage().canAdvanceTo(stage)) {
+                    return;
+                }
+                Map<String, Object> updates = new HashMap<>();
+                updates.put("locationAlertStage", stage.getValue());
+                updates.put("locationAlertSentAt", FieldValue.serverTimestamp());
+                updates.put("updatedAt", FieldValue.serverTimestamp());
+                sessionSnapshot.getReference().update(updates);
+            }
+
+            @Override
+            public void onError(String message) {
+                // 자동 위치 알림 실패는 위치 공유 흐름을 막지 않는다.
             }
         });
     }

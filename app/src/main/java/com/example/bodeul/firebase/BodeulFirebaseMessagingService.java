@@ -2,6 +2,7 @@ package com.example.bodeul.firebase;
 
 import com.example.bodeul.data.NotificationTokenRegistrar;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.ui.booking.BookingLiveLocationActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.ui.health.HealthInfoActivity;
 import com.example.bodeul.ui.support.ClientSupportActivity;
@@ -31,6 +32,15 @@ public class BodeulFirebaseMessagingService extends FirebaseMessagingService {
                 return;
             }
             CompanionChatPushNotifier.showMessageNotification(this, chatPayload);
+            return;
+        }
+
+        CompanionLocationAlertPushPayload locationAlertPayload = CompanionLocationAlertPushPayload.from(remoteMessage);
+        if (locationAlertPayload != null) {
+            if (AppActivityTracker.isCurrentActivity(BookingLiveLocationActivity.class)) {
+                return;
+            }
+            CompanionLocationAlertPushNotifier.showNotification(this, locationAlertPayload);
             return;
         }
 

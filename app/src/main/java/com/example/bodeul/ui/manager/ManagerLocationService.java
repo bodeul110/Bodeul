@@ -31,6 +31,7 @@ public class ManagerLocationService extends Service {
     private ManagerLiveLocationTracker tracker;
     private ManagerRepository managerRepository;
     private AuthRepository authRepository;
+    private CompanionLocationAutoAlertDispatcher autoAlertDispatcher;
     private String currentManagerUserId;
 
     public static void start(Context context) {
@@ -55,6 +56,7 @@ public class ManagerLocationService extends Service {
         managerRepository = ServiceLocator.provideManagerRepository(this);
         authRepository = ServiceLocator.provideAuthRepository(this);
         tracker = new ManagerLiveLocationTracker();
+        autoAlertDispatcher = new CompanionLocationAutoAlertDispatcher(this);
         createNotificationChannel();
     }
 
@@ -92,7 +94,17 @@ public class ManagerLocationService extends Service {
                 public void onLocationReceived(double latitude, double longitude, String summary) {
                     managerRepository.shareCurrentLocation(currentManagerUserId, latitude, longitude, summary, new RepositoryCallback<ManagerDashboard>() {
                         @Override
-                        public void onSuccess(ManagerDashboard result) {}
+                        public void onSuccess(ManagerDashboard result) {
+                            if (currentManagerUserId != null) {
+                                autoAlertDispatcher.dispatchIfNeeded(
+                                        result,
+                                        latitude,
+                                        longitude,
+                                        currentManagerUserId,
+                                        managerRepository
+                                );
+                            }
+                        }
                         
                         @Override
                         public void onError(String message) {}

@@ -37,6 +37,8 @@ public class CompanionSession {
     private long liveLocationSharingStartedAtMillis;
     private final List<CompanionLocationHistoryEntry> sharedLocationHistory;
     private final List<CompanionChatMessage> chatMessages;
+    private CompanionLocationAlertStage locationAlertStage = CompanionLocationAlertStage.NONE;
+    private long locationAlertSentAtMillis;
     private long patientChatReadAtMillis;
     private long guardianChatReadAtMillis;
     private long managerChatReadAtMillis;
@@ -401,6 +403,24 @@ public class CompanionSession {
 
     public void addChatMessage(CompanionChatMessage chatMessage) {
         this.chatMessages.add(chatMessage);
+    }
+
+    public CompanionLocationAlertStage getLocationAlertStage() {
+        return locationAlertStage;
+    }
+
+    public long getLocationAlertSentAtMillis() {
+        return locationAlertSentAtMillis;
+    }
+
+    public void setLocationAlertStage(@Nullable CompanionLocationAlertStage locationAlertStage) {
+        this.locationAlertStage = locationAlertStage == null
+                ? CompanionLocationAlertStage.NONE
+                : locationAlertStage;
+    }
+
+    public void setLocationAlertSentAtMillis(long locationAlertSentAtMillis) {
+        this.locationAlertSentAtMillis = Math.max(locationAlertSentAtMillis, 0L);
     }
 
     public long getPatientChatReadAtMillis() {

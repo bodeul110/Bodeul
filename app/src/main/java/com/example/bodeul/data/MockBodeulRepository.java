@@ -29,6 +29,7 @@ import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.ClientSupportStatus;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
+import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
@@ -1322,6 +1323,23 @@ public class MockBodeulRepository implements BodeulRepository {
         }
         session.markChatRead(currentUser.getRole(), System.currentTimeMillis());
         return getAppointmentRequestDetail(requestId);
+    }
+
+    @Nullable
+    public synchronized ManagerDashboard saveCompanionLocationAlert(
+            String managerUserId,
+            CompanionLocationAlertStage stage
+    ) {
+        CompanionSession session = getPrimaryManagerSession(managerUserId);
+        if (session == null || stage == null) {
+            return null;
+        }
+        if (!session.getLocationAlertStage().canAdvanceTo(stage)) {
+            return getManagerDashboard(managerUserId);
+        }
+        session.setLocationAlertStage(stage);
+        session.setLocationAlertSentAtMillis(System.currentTimeMillis());
+        return getManagerDashboard(managerUserId);
     }
 
     @Nullable

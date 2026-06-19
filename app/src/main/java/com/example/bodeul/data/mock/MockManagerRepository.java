@@ -5,6 +5,7 @@ import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
@@ -74,6 +75,11 @@ public class MockManagerRepository implements ManagerRepository {
     @Override
     public void markCompanionChatRead(String managerUserId) {
         repository.markManagerCompanionChatRead(managerUserId);
+    }
+
+    @Override
+    public void saveCompanionLocationAlert(String managerUserId, CompanionLocationAlertStage stage) {
+        repository.saveCompanionLocationAlert(managerUserId, stage);
     }
 
     @Override

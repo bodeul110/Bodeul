@@ -3,6 +3,7 @@ package com.example.bodeul.data.firebase;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.domain.model.CompanionChatMessage;
+import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -67,6 +68,10 @@ final class FirebaseCompanionSessionMapper {
         session.setMedicationGuidanceCompleted(
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("medicationGuidanceCompleted"))
         );
+        session.setLocationAlertStage(
+                CompanionLocationAlertStage.fromValue(documentSnapshot.getString("locationAlertStage"))
+        );
+        session.setLocationAlertSentAtMillis(resolveTimestampMillis(documentSnapshot.get("locationAlertSentAt")));
         session.markChatRead(UserRole.PATIENT, resolveTimestampMillis(documentSnapshot.get("patientChatReadAt")));
         session.markChatRead(UserRole.GUARDIAN, resolveTimestampMillis(documentSnapshot.get("guardianChatReadAt")));
         session.markChatRead(UserRole.MANAGER, resolveTimestampMillis(documentSnapshot.get("managerChatReadAt")));

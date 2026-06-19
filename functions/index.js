@@ -60,6 +60,10 @@ const COMPANION_CHAT_NOTIFICATION_OPTIONS = {
   region: "asia-northeast3",
   document: "companionSessions/{sessionId}",
 };
+const COMPANION_LOCATION_ALERT_NOTIFICATION_OPTIONS = {
+  region: "asia-northeast3",
+  document: "companionSessions/{sessionId}",
+};
 const CLIENT_SUPPORT_REMINDER_SCHEDULE_OPTIONS = {
   region: "asia-northeast3",
   schedule: "0 * * * *",
@@ -581,6 +585,58 @@ exports.notifyCompanionChatMessage = onDocumentWritten(
         appointmentRequestId,
         senderRole: latestMessage.senderRole,
         recipientUserCount: recipientUserIds.length,
+        successCount: deliverySummary.successCount,
+        failureCount: deliverySummary.failureCount,
+        invalidTokenCount: deliverySummary.invalidTokenCount,
+      });
+    },
+);
+
+// 연속 위치 공유 중 병원/약국 근접 자동 알림 단계가 바뀌면 환자/보호자에게 푸시를 보낸다.
+exports.notifyCompanionLocationAlert = onDocumentWritten(
+    COMPANION_LOCATION_ALERT_NOTIFICATION_OPTIONS,
+    async (event) => {
+      if (!event.data?.after?.exists) {
+        return;
+      }
+
+      const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+      const afterData = event.data.after.data();
+      if (!shouldNotifyCompanionLocationAlert(beforeData, afterData)) {
+        return;
+      }
+
+      const appointmentRequestId = sanitizeText(afterData?.appointmentRequestId);
+      if (!appointmentRequestId) {
+        return;
+      }
+
+      const requestSnapshot = await getFirestore()
+          .collection("appointmentRequests")
+          .doc(appointmentRequestId)
+          .get();
+      if (!requestSnapshot.exists) {
+        return;
+      }
+
+      const requestData = requestSnapshot.data();
+      const alertStage = sanitizeText(afterData?.locationAlertStage);
+      const title = resolveCompanionLocationAlertTitle(alertStage);
+      const body = buildCompanionLocationAlertBody(alertStage, requestData);
+      const recipientUserIds = resolveCompanionLocationRecipientUserIds(requestData);
+      const deliverySummary = await sendCompanionLocationAlertNotification({
+        sessionId: sanitizeText(event.params?.sessionId),
+        appointmentRequestId,
+        alertStage,
+        recipientUserIds,
+        title,
+        body,
+      });
+
+      logger.info("동행 위치 자동 알림을 보냈습니다.", {
+        sessionId: sanitizeText(event.params?.sessionId),
+        appointmentRequestId,
+        alertStage,
         successCount: deliverySummary.successCount,
         failureCount: deliverySummary.failureCount,
         invalidTokenCount: deliverySummary.invalidTokenCount,
@@ -2459,6 +2515,45 @@ function buildCompanionChatNotificationBody(messageBody) {
   return `${normalizedBody.slice(0, 117)}...`;
 }
 
+function shouldNotifyCompanionLocationAlert(beforeData, afterData) {
+  const afterStage = sanitizeText(afterData?.locationAlertStage);
+  if (!afterStage || afterStage === "none") {
+    return false;
+  }
+  const beforeStage = sanitizeText(beforeData?.locationAlertStage);
+  const beforeSentAt = resolveFirestoreTimestampMillis(beforeData?.locationAlertSentAt);
+  const afterSentAt = resolveFirestoreTimestampMillis(afterData?.locationAlertSentAt);
+  return beforeStage !== afterStage || beforeSentAt !== afterSentAt;
+}
+
+function resolveCompanionLocationRecipientUserIds(requestData) {
+  return Array.from(new Set([
+    sanitizeText(requestData?.patientUserId),
+    sanitizeText(requestData?.guardianUserId),
+  ].filter(Boolean)));
+}
+
+function resolveCompanionLocationAlertTitle(alertStage) {
+  if (sanitizeText(alertStage) === "pharmacy_near") {
+    return "매니저가 약국에 도착했습니다";
+  }
+  return "매니저가 병원에 도착했습니다";
+}
+
+function buildCompanionLocationAlertBody(alertStage, requestData) {
+  const hospitalName = sanitizeText(requestData?.hospitalName);
+  if (sanitizeText(alertStage) === "pharmacy_near") {
+    if (hospitalName) {
+      return `${hospitalName} 인근 약국 도착을 확인했습니다.`;
+    }
+    return "인근 약국 도착을 확인했습니다.";
+  }
+  if (hospitalName) {
+    return `${hospitalName} 도착을 확인했습니다.`;
+  }
+  return "병원 도착을 확인했습니다.";
+}
+
 async function sendCompanionChatNotification({
   sessionId,
   appointmentRequestId,
@@ -2524,6 +2619,97 @@ async function sendCompanionChatNotificationToUser({
       appointmentRequestId: sanitizeText(appointmentRequestId),
       senderRole: sanitizeText(latestMessage?.senderRole),
       sentAtMillis: `${toSafeInteger(latestMessage?.sentAtMillis)}`,
+      title: sanitizeText(title),
+      body: sanitizeText(body),
+    },
+    android: {
+      priority: "high",
+    },
+  });
+
+  const invalidTokens = collectInvalidNotificationTokens(
+      notificationTokens,
+      response.responses,
+  );
+  if (invalidTokens.length > 0) {
+    await removeInvalidNotificationTokens(userSnapshot.ref, invalidTokens);
+  }
+
+  return {
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    invalidTokenCount: invalidTokens.length,
+  };
+}
+
+async function sendCompanionLocationAlertNotification({
+  sessionId,
+  appointmentRequestId,
+  alertStage,
+  recipientUserIds,
+  title,
+  body,
+}) {
+  const summary = {
+    successCount: 0,
+    failureCount: 0,
+    invalidTokenCount: 0,
+  };
+
+  for (const userId of recipientUserIds) {
+    const deliverySummary = await sendCompanionLocationAlertNotificationToUser({
+      userId,
+      sessionId,
+      appointmentRequestId,
+      alertStage,
+      title,
+      body,
+    });
+    summary.successCount += deliverySummary.successCount;
+    summary.failureCount += deliverySummary.failureCount;
+    summary.invalidTokenCount += deliverySummary.invalidTokenCount;
+  }
+
+  return summary;
+}
+
+async function sendCompanionLocationAlertNotificationToUser({
+  userId,
+  sessionId,
+  appointmentRequestId,
+  alertStage,
+  title,
+  body,
+}) {
+  const userSnapshot = await getFirestore().collection("users").doc(userId).get();
+  if (!userSnapshot.exists) {
+    return {
+      successCount: 0,
+      failureCount: 0,
+      invalidTokenCount: 0,
+    };
+  }
+
+  const notificationTokens = toStringArray(userSnapshot.get("notificationTokens"));
+  if (notificationTokens.length === 0) {
+    return {
+      successCount: 0,
+      failureCount: 0,
+      invalidTokenCount: 0,
+    };
+  }
+
+  const response = await getMessaging().sendEachForMulticast({
+    tokens: notificationTokens,
+    notification: {
+      title,
+      body,
+    },
+    data: {
+      type: "companion_location_alert",
+      sessionId: sanitizeText(sessionId),
+      appointmentRequestId: sanitizeText(appointmentRequestId),
+      alertStage: sanitizeText(alertStage),
       title: sanitizeText(title),
       body: sanitizeText(body),
     },

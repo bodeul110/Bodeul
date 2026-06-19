@@ -1449,6 +1449,10 @@
     <string name="companion_chat_push_channel_description">동행 세션 안심 채팅의 새 메시지를 알림으로 전달합니다.</string>
     <string name="companion_chat_read_confirmed">상대 확인</string>
     <string name="companion_chat_read_confirmed_format">%1$s · %2$s</string>
+    <string name="companion_location_alert_push_title">동행 위치 알림</string>
+    <string name="companion_location_alert_push_body_fallback">매니저 위치 자동 알림을 확인해 주세요.</string>
+    <string name="companion_location_alert_push_channel_name">동행 위치 알림</string>
+    <string name="companion_location_alert_push_channel_description">병원과 약국 근접 위치 알림을 전달합니다.</string>
     <string name="guardian_report_action_refresh">진행 현황 다시 불러오기</string>
     <string name="booking_live_location_action_refresh">현재 위치 다시 불러오기</string>
     <string name="manager_location_notification_body">실시간 위치 공유 중</string>
