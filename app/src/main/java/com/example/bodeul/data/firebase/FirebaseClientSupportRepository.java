@@ -15,6 +15,7 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 환자와 보호자 문의 접수와 내역 조회를 Firebase에 연결한다.
+ * 사용자 문의 접수와 최근 문의 이력을 Firebase에 연결한다.
  */
 public final class FirebaseClientSupportRepository implements ClientSupportRepository {
     private final FirebaseFirestore firestore;
@@ -40,24 +41,7 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
             callback.onError("환자 또는 보호자 계정으로 다시 확인해 주세요.");
             return;
         }
-
-        firestore.collection("clientSupportRequests")
-                .whereEqualTo("userId", currentUser.getId())
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    List<ClientSupportRequest> requests = new ArrayList<>();
-                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
-                        ClientSupportRequest request = toClientSupportRequest(documentSnapshot);
-                        if (request != null) {
-                            requests.add(request);
-                        }
-                    }
-                    requests.sort((left, right) ->
-                            Long.compare(right.getCreatedAtMillis(), left.getCreatedAtMillis()));
-                    callback.onSuccess(requests);
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("문의 내역을 불러오지 못했습니다."));
+        loadRequests(currentUser.getId(), callback);
     }
 
     @Override
@@ -70,7 +54,7 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
             RepositoryCallback<List<ClientSupportRequest>> callback
     ) {
         if (!supportsRole(currentUser)) {
-            callback.onError("환자 또는 보호자 계정만 문의를 남길 수 있습니다.");
+            callback.onError("환자 또는 보호자 계정만 문의를 접수할 수 있습니다.");
             return;
         }
 
@@ -89,6 +73,8 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
         document.put("responseText", "");
         document.put("respondedByName", "");
         document.put("respondedAt", FieldValue.delete());
+        document.put("responseReadByUser", false);
+        document.put("responseReadAt", FieldValue.delete());
         document.put("createdAt", FieldValue.serverTimestamp());
 
         firestore.collection("clientSupportRequests")
@@ -96,6 +82,47 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
                 .addOnSuccessListener(unused -> getClientSupportRequests(currentUser, callback))
                 .addOnFailureListener(exception ->
                         callback.onError("문의 내용을 저장하지 못했습니다."));
+    }
+
+    @Override
+    public void markClientSupportResponsesRead(
+            User currentUser,
+            RepositoryCallback<Void> callback
+    ) {
+        if (!supportsRole(currentUser)) {
+            callback.onError("환자 또는 보호자 계정으로 다시 확인해 주세요.");
+            return;
+        }
+
+        firestore.collection("clientSupportRequests")
+                .whereEqualTo("userId", currentUser.getId())
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<DocumentSnapshot> unreadAnsweredDocuments = new ArrayList<>();
+                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+                        ClientSupportRequest request = toClientSupportRequest(documentSnapshot);
+                        if (request != null && request.hasUnreadResponse()) {
+                            unreadAnsweredDocuments.add(documentSnapshot);
+                        }
+                    }
+
+                    if (unreadAnsweredDocuments.isEmpty()) {
+                        callback.onSuccess(null);
+                        return;
+                    }
+
+                    WriteBatch batch = firestore.batch();
+                    for (DocumentSnapshot documentSnapshot : unreadAnsweredDocuments) {
+                        batch.update(documentSnapshot.getReference(), "responseReadByUser", true);
+                        batch.update(documentSnapshot.getReference(), "responseReadAt", FieldValue.serverTimestamp());
+                    }
+                    batch.commit()
+                            .addOnSuccessListener(unused -> callback.onSuccess(null))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("문의 답변 확인 상태를 저장하지 못했습니다."));
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("문의 답변 상태를 확인하지 못했습니다."));
     }
 
     @Override
@@ -122,8 +149,33 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
                 toMillis(documentSnapshot.getTimestamp("createdAt")),
                 normalizeText(documentSnapshot.getString("responseText")),
                 toMillis(documentSnapshot.getTimestamp("respondedAt")),
-                normalizeText(documentSnapshot.getString("respondedByName"))
+                normalizeText(documentSnapshot.getString("respondedByName")),
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("responseReadByUser")),
+                toMillis(documentSnapshot.getTimestamp("responseReadAt"))
         );
+    }
+
+    private void loadRequests(
+            String userId,
+            RepositoryCallback<List<ClientSupportRequest>> callback
+    ) {
+        firestore.collection("clientSupportRequests")
+                .whereEqualTo("userId", userId)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<ClientSupportRequest> requests = new ArrayList<>();
+                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
+                        ClientSupportRequest request = toClientSupportRequest(documentSnapshot);
+                        if (request != null) {
+                            requests.add(request);
+                        }
+                    }
+                    requests.sort((left, right) ->
+                            Long.compare(right.getCreatedAtMillis(), left.getCreatedAtMillis()));
+                    callback.onSuccess(requests);
+                })
+                .addOnFailureListener(exception ->
+                        callback.onError("문의 이력을 불러오지 못했습니다."));
     }
 
     private boolean supportsRole(User currentUser) {

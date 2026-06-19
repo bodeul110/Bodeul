@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat;
 import com.example.bodeul.R;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 
 import java.util.List;
 
@@ -25,6 +26,15 @@ public final class HealthInfoBinder {
     private final TextView textHeroBadge;
     private final TextView textHeroTitle;
     private final TextView textHeroBody;
+    private final MaterialButton buttonServiceTab;
+    private final MaterialButton buttonProfileTab;
+    private final MaterialButton buttonSupportTab;
+    private final MaterialCardView serviceCard;
+    private final MaterialCardView accountCard;
+    private final MaterialCardView profileCard;
+    private final MaterialCardView requestCard;
+    private final MaterialCardView historyCard;
+    private final MaterialCardView supportCard;
     private final TextView textServiceSectionTitle;
     private final TextView textServiceSectionHelper;
     private final LinearLayout serviceLineContainer;
@@ -59,6 +69,15 @@ public final class HealthInfoBinder {
             TextView textHeroBadge,
             TextView textHeroTitle,
             TextView textHeroBody,
+            MaterialButton buttonServiceTab,
+            MaterialButton buttonProfileTab,
+            MaterialButton buttonSupportTab,
+            MaterialCardView serviceCard,
+            MaterialCardView accountCard,
+            MaterialCardView profileCard,
+            MaterialCardView requestCard,
+            MaterialCardView historyCard,
+            MaterialCardView supportCard,
             TextView textServiceSectionTitle,
             TextView textServiceSectionHelper,
             LinearLayout serviceLineContainer,
@@ -92,6 +111,15 @@ public final class HealthInfoBinder {
         this.textHeroBadge = textHeroBadge;
         this.textHeroTitle = textHeroTitle;
         this.textHeroBody = textHeroBody;
+        this.buttonServiceTab = buttonServiceTab;
+        this.buttonProfileTab = buttonProfileTab;
+        this.buttonSupportTab = buttonSupportTab;
+        this.serviceCard = serviceCard;
+        this.accountCard = accountCard;
+        this.profileCard = profileCard;
+        this.requestCard = requestCard;
+        this.historyCard = historyCard;
+        this.supportCard = supportCard;
         this.textServiceSectionTitle = textServiceSectionTitle;
         this.textServiceSectionHelper = textServiceSectionHelper;
         this.serviceLineContainer = serviceLineContainer;
@@ -118,13 +146,16 @@ public final class HealthInfoBinder {
         this.buttonPrimary = buttonPrimary;
     }
 
-    public void bindScreen(HealthInfoScreenModel screenModel) {
+    public void bindScreen(HealthInfoScreenModel screenModel, HealthInfoTab selectedTab) {
         EnvironmentModeBadgeHelper.bind(textMode, screenModel.getModeLabel());
         textTitle.setText(screenModel.getTitle());
         textSubtitle.setText(screenModel.getSubtitle());
         textHeroBadge.setText(screenModel.getHeroBadge());
         textHeroTitle.setText(screenModel.getHeroTitle());
         textHeroBody.setText(screenModel.getHeroBody());
+        buttonServiceTab.setText(screenModel.getServiceTabLabel());
+        buttonProfileTab.setText(screenModel.getProfileTabLabel());
+        buttonSupportTab.setText(screenModel.getSupportTabLabel());
         textServiceSectionTitle.setText(screenModel.getServiceSectionTitle());
         textServiceSectionHelper.setText(screenModel.getServiceSectionHelper());
         bindLines(serviceLineContainer, screenModel.getServiceLines());
@@ -149,6 +180,33 @@ public final class HealthInfoBinder {
         bindLines(requestLineContainer, screenModel.getRequestLines());
         bindLines(historyLineContainer, screenModel.getHistoryLines());
         bindLines(supportLineContainer, screenModel.getSupportLines());
+        bindSelectedTab(selectedTab);
+    }
+
+    private void bindSelectedTab(HealthInfoTab selectedTab) {
+        bindTabButton(buttonServiceTab, selectedTab == HealthInfoTab.SERVICE);
+        bindTabButton(buttonProfileTab, selectedTab == HealthInfoTab.PROFILE);
+        bindTabButton(buttonSupportTab, selectedTab == HealthInfoTab.SUPPORT);
+
+        serviceCard.setVisibility(selectedTab == HealthInfoTab.SERVICE ? View.VISIBLE : View.GONE);
+        requestCard.setVisibility(selectedTab == HealthInfoTab.SERVICE ? View.VISIBLE : View.GONE);
+        historyCard.setVisibility(selectedTab == HealthInfoTab.SERVICE ? View.VISIBLE : View.GONE);
+        accountCard.setVisibility(selectedTab == HealthInfoTab.PROFILE ? View.VISIBLE : View.GONE);
+        profileCard.setVisibility(selectedTab == HealthInfoTab.PROFILE ? View.VISIBLE : View.GONE);
+        supportCard.setVisibility(selectedTab == HealthInfoTab.SUPPORT ? View.VISIBLE : View.GONE);
+    }
+
+    private void bindTabButton(MaterialButton button, boolean selected) {
+        int backgroundColor = ContextCompat.getColor(
+                context,
+                selected ? R.color.bodeul_primary : R.color.bodeul_surface_alt
+        );
+        int textColor = ContextCompat.getColor(
+                context,
+                selected ? R.color.white : R.color.bodeul_text_primary
+        );
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(backgroundColor));
+        button.setTextColor(textColor);
     }
 
     private void bindOptionalButton(MaterialButton button, @Nullable String label) {

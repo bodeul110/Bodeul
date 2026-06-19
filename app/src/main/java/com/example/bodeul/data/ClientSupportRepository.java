@@ -24,5 +24,10 @@ public interface ClientSupportRepository {
             RepositoryCallback<List<ClientSupportRequest>> callback
     );
 
+    void markClientSupportResponsesRead(
+            User currentUser,
+            RepositoryCallback<Void> callback
+    );
+
     boolean isFirebaseBacked();
 }

@@ -465,6 +465,8 @@ public class FirebaseAdminRepository implements AdminRepository {
         updates.put("responseText", normalizeText(response));
         updates.put("respondedByName", normalizeText(currentUser.getName()));
         updates.put("respondedAt", FieldValue.serverTimestamp());
+        updates.put("responseReadByUser", false);
+        updates.put("responseReadAt", FieldValue.delete());
 
         WriteBatch batch = firestore.batch();
         batch.update(firestore.collection("clientSupportRequests").document(supportRequestId), updates);
@@ -1686,7 +1688,9 @@ public class FirebaseAdminRepository implements AdminRepository {
                 resolveTimestampMillis(documentSnapshot.get("createdAt")),
                 normalizeText(documentSnapshot.getString("responseText")),
                 resolveTimestampMillis(documentSnapshot.get("respondedAt")),
-                normalizeText(documentSnapshot.getString("respondedByName"))
+                normalizeText(documentSnapshot.getString("respondedByName")),
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("responseReadByUser")),
+                resolveTimestampMillis(documentSnapshot.get("responseReadAt"))
         );
     }
 

@@ -868,6 +868,9 @@
     <string name="health_info_title">건강정보</string>
     <string name="health_info_subtitle_patient">최근 또는 진행 중인 예약에 연결된 환자 건강 프로필을 확인합니다.</string>
     <string name="health_info_subtitle_guardian">현재 확인 가능한 환자 건강 프로필과 예약 연결 정보를 함께 보여줍니다.</string>
+    <string name="health_info_tab_service">이용 관리</string>
+    <string name="health_info_tab_profile">건강 프로필</string>
+    <string name="health_info_tab_support">문의 이력</string>
     <string name="health_info_hero_title">%1$s님 건강 프로필</string>
     <string name="health_info_hero_body">%1$s · %2$s\n예약 시간 %3$s</string>
     <string name="health_info_service_section">이용 관리</string>
@@ -921,6 +924,7 @@
     <string name="health_info_line_history_summary">최근 이용 요약</string>
     <string name="health_info_line_history_entry">최근 이용 %1$d</string>
     <string name="health_info_line_support_total">문의 건수</string>
+    <string name="health_info_line_support_unread">미확인 답변</string>
     <string name="health_info_line_support_latest_status">최근 문의 상태</string>
     <string name="health_info_line_support_latest_category">최근 문의 분류</string>
     <string name="health_info_line_support_latest_title">최근 문의 제목</string>
@@ -931,6 +935,7 @@
     <string name="health_info_history_entry_value">%1$s · %2$s\n%3$s · %4$s</string>
     <string name="health_info_history_empty">아직 확인할 이용 이력이 없습니다.</string>
     <string name="health_info_support_total_value">총 %1$d건</string>
+    <string name="health_info_support_unread_value">%1$d건 확인 필요</string>
     <string name="health_info_support_empty">아직 남긴 문의가 없습니다.</string>
     <string name="health_info_value_empty">아직 입력된 내용이 없습니다.</string>
     <string name="health_info_value_unknown_patient">환자 정보 확인 필요</string>
@@ -1077,6 +1082,7 @@
     <string name="client_support_request_summary_value">대표 요청 %1$s · %2$s %3$s · %4$s</string>
     <string name="client_support_latest_empty">최근 접수된 문의가 없습니다.</string>
     <string name="client_support_latest_value">최근 문의 유형 %1$s · 접수 시각 %2$s</string>
+    <string name="client_support_latest_unread_value">새 답변 도착 문의 %1$s · 답변 시각 %2$s</string>
     <string name="client_support_latest_answered_value">최근 답변 완료 문의 %1$s · 답변 시각 %2$s</string>
     <string name="client_support_form_title">새 문의 접수</string>
     <string name="client_support_input_title">문의 제목</string>
@@ -1092,8 +1098,10 @@
     <string name="client_support_list_helper">답변이 등록되면 같은 화면에서 바로 확인할 수 있습니다.</string>
     <string name="client_support_empty">접수된 문의가 아직 없습니다.</string>
     <string name="client_support_status_received">접수됨</string>
+    <string name="client_support_status_unread_answer">새 답변</string>
     <string name="client_support_status_answered">답변 완료</string>
     <string name="client_support_response_meta">%1$s · 담당 %2$s</string>
+    <string name="client_support_response_meta_unread">새 답변 · %1$s · 담당 %2$s</string>
 
     <string name="manager_profile_subtitle">계정 정보, 서류 상태, 활동 가능 일정, 검토 이력을 한 화면에서 관리합니다.</string>
     <string name="manager_profile_hero_title">%1$s 매니저님의 내 페이지</string>

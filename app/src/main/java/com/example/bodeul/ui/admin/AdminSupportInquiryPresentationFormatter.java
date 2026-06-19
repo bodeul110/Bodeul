@@ -40,16 +40,24 @@ public final class AdminSupportInquiryPresentationFormatter {
         );
     }
 
-    public String getFilterText(AdminSupportFilter filter) {
+    public String getFilterText(AdminSupportSourceFilter filter) {
+        switch (filter) {
+            case MANAGER:
+                return context.getString(R.string.admin_support_filter_manager);
+            case CLIENT:
+                return context.getString(R.string.admin_support_filter_client);
+            case ALL:
+            default:
+                return context.getString(R.string.admin_support_filter_all);
+        }
+    }
+
+    public String getFilterText(AdminSupportStatusFilter filter) {
         switch (filter) {
             case WAITING:
                 return context.getString(R.string.admin_support_filter_waiting);
             case ANSWERED:
                 return context.getString(R.string.admin_support_filter_answered);
-            case MANAGER:
-                return context.getString(R.string.admin_support_filter_manager);
-            case CLIENT:
-                return context.getString(R.string.admin_support_filter_client);
             case ALL:
             default:
                 return context.getString(R.string.admin_support_filter_all);

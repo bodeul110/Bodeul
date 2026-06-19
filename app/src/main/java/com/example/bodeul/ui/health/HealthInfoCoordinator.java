@@ -54,6 +54,9 @@ public final class HealthInfoCoordinator {
                         request.getDepartmentName(),
                         request.getAppointmentAt()
                 ),
+                context.getString(R.string.health_info_tab_service),
+                context.getString(R.string.health_info_tab_profile),
+                context.getString(R.string.health_info_tab_support),
                 context.getString(R.string.health_info_service_section),
                 context.getString(
                         currentUser.getRole() == UserRole.GUARDIAN
@@ -313,11 +316,24 @@ public final class HealthInfoCoordinator {
 
     private List<HealthInfoLineItem> createSupportLines(List<ClientSupportRequest> supportRequests) {
         List<HealthInfoLineItem> items = new ArrayList<>();
+        int unreadCount = 0;
+        for (ClientSupportRequest request : supportRequests) {
+            if (request.hasUnreadResponse()) {
+                unreadCount++;
+            }
+        }
         items.add(new HealthInfoLineItem(
                 context.getString(R.string.health_info_line_support_total),
                 context.getString(R.string.health_info_support_total_value, supportRequests.size()),
                 true
         ));
+        if (unreadCount > 0) {
+            items.add(new HealthInfoLineItem(
+                    context.getString(R.string.health_info_line_support_unread),
+                    context.getString(R.string.health_info_support_unread_value, unreadCount),
+                    false
+            ));
+        }
         if (supportRequests.isEmpty()) {
             items.add(new HealthInfoLineItem(
                     context.getString(R.string.health_info_line_support_latest_status),
@@ -330,7 +346,9 @@ public final class HealthInfoCoordinator {
         ClientSupportRequest latestRequest = supportRequests.get(0);
         items.add(new HealthInfoLineItem(
                 context.getString(R.string.health_info_line_support_latest_status),
-                latestRequest.getStatus() == ClientSupportStatus.ANSWERED
+                latestRequest.hasUnreadResponse()
+                        ? context.getString(R.string.client_support_status_unread_answer)
+                        : latestRequest.getStatus() == ClientSupportStatus.ANSWERED
                         ? context.getString(R.string.client_support_status_answered)
                         : context.getString(R.string.client_support_status_received),
                 false

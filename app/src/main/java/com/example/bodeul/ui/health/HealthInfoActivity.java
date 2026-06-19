@@ -54,6 +54,7 @@ public class HealthInfoActivity extends AppCompatActivity {
     private List<AppointmentRequest> currentRequests;
     private List<ClientSupportRequest> currentSupportRequests;
     private HealthInfoScreenModel currentScreenModel;
+    private HealthInfoTab selectedTab = HealthInfoTab.SERVICE;
 
     public static Intent createIntent(Context context) {
         return new Intent(context, HealthInfoActivity.class);
@@ -89,6 +90,15 @@ public class HealthInfoActivity extends AppCompatActivity {
                 findViewById(R.id.textHealthInfoHeroBadge),
                 findViewById(R.id.textHealthInfoHeroTitle),
                 findViewById(R.id.textHealthInfoHeroBody),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoTabService),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoTabProfile),
+                (MaterialButton) findViewById(R.id.buttonHealthInfoTabSupport),
+                findViewById(R.id.cardHealthInfoService),
+                findViewById(R.id.cardHealthInfoAccount),
+                findViewById(R.id.cardHealthInfoProfile),
+                findViewById(R.id.cardHealthInfoRequest),
+                findViewById(R.id.cardHealthInfoHistory),
+                findViewById(R.id.cardHealthInfoSupport),
                 findViewById(R.id.textHealthInfoServiceSectionTitle),
                 findViewById(R.id.textHealthInfoServiceSectionHelper),
                 (LinearLayout) findViewById(R.id.layoutHealthInfoServiceLines),
@@ -116,6 +126,9 @@ public class HealthInfoActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackHealthInfo).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonHealthInfoTabService).setOnClickListener(view -> selectTab(HealthInfoTab.SERVICE));
+        findViewById(R.id.buttonHealthInfoTabProfile).setOnClickListener(view -> selectTab(HealthInfoTab.PROFILE));
+        findViewById(R.id.buttonHealthInfoTabSupport).setOnClickListener(view -> selectTab(HealthInfoTab.SUPPORT));
         findViewById(R.id.buttonHealthInfoPrimary).setOnClickListener(view -> openBookingStatus());
         findViewById(R.id.buttonHealthInfoHistory).setOnClickListener(view -> openBookingHistory());
         findViewById(R.id.buttonHealthInfoBooking).setOnClickListener(view -> openBooking());
@@ -232,8 +245,15 @@ public class HealthInfoActivity extends AppCompatActivity {
                 supportRequests,
                 bookingRepository.isFirebaseBacked()
         );
-        healthInfoBinder.bindScreen(currentScreenModel);
+        healthInfoBinder.bindScreen(currentScreenModel, selectedTab);
         healthInfoContentContainer.setVisibility(View.VISIBLE);
+    }
+
+    private void selectTab(HealthInfoTab tab) {
+        selectedTab = tab;
+        if (currentScreenModel != null) {
+            healthInfoBinder.bindScreen(currentScreenModel, selectedTab);
+        }
     }
 
     @Nullable

@@ -17,6 +17,8 @@ public final class ClientSupportRequest {
     private final String responseText;
     private final long respondedAtMillis;
     private final String respondedByName;
+    private final boolean responseReadByUser;
+    private final long responseReadAtMillis;
 
     public ClientSupportRequest(
             String id,
@@ -31,7 +33,9 @@ public final class ClientSupportRequest {
             long createdAtMillis,
             String responseText,
             long respondedAtMillis,
-            String respondedByName
+            String respondedByName,
+            boolean responseReadByUser,
+            long responseReadAtMillis
     ) {
         this.id = id == null ? "" : id;
         this.userId = userId == null ? "" : userId;
@@ -46,6 +50,8 @@ public final class ClientSupportRequest {
         this.responseText = responseText == null ? "" : responseText;
         this.respondedAtMillis = Math.max(respondedAtMillis, 0L);
         this.respondedByName = respondedByName == null ? "" : respondedByName;
+        this.responseReadByUser = responseReadByUser;
+        this.responseReadAtMillis = Math.max(responseReadAtMillis, 0L);
     }
 
     public String getId() {
@@ -98,5 +104,19 @@ public final class ClientSupportRequest {
 
     public String getRespondedByName() {
         return respondedByName;
+    }
+
+    public boolean isResponseReadByUser() {
+        return responseReadByUser;
+    }
+
+    public long getResponseReadAtMillis() {
+        return responseReadAtMillis;
+    }
+
+    public boolean hasUnreadResponse() {
+        return status == ClientSupportStatus.ANSWERED
+                && !responseText.isEmpty()
+                && !responseReadByUser;
     }
 }

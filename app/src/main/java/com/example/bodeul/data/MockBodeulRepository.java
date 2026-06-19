@@ -773,7 +773,9 @@ public class MockBodeulRepository implements BodeulRepository {
                 createdAtMillis,
                 "",
                 0L,
-                ""
+                "",
+                false,
+                0L
         );
         clientSupportRequests.add(0, request);
         return request;
@@ -803,12 +805,41 @@ public class MockBodeulRepository implements BodeulRepository {
                     request.getCreatedAtMillis(),
                     normalizeText(response),
                     System.currentTimeMillis(),
-                    normalizeText(respondedByName)
+                    normalizeText(respondedByName),
+                    false,
+                    0L
             );
             clientSupportRequests.set(index, updatedRequest);
             return updatedRequest;
         }
         return null;
+    }
+
+    public synchronized void markClientSupportResponsesRead(String userId) {
+        long readAtMillis = System.currentTimeMillis();
+        for (int index = 0; index < clientSupportRequests.size(); index++) {
+            ClientSupportRequest request = clientSupportRequests.get(index);
+            if (!request.getUserId().equals(userId) || !request.hasUnreadResponse()) {
+                continue;
+            }
+            clientSupportRequests.set(index, new ClientSupportRequest(
+                    request.getId(),
+                    request.getUserId(),
+                    request.getUserName(),
+                    request.getUserRole(),
+                    request.getAppointmentRequestId(),
+                    request.getCategory(),
+                    request.getTitle(),
+                    request.getBody(),
+                    request.getStatus(),
+                    request.getCreatedAtMillis(),
+                    request.getResponseText(),
+                    request.getRespondedAtMillis(),
+                    request.getRespondedByName(),
+                    true,
+                    readAtMillis
+            ));
+        }
     }
 
     @Nullable

@@ -72,7 +72,8 @@ public class AdminActivity extends AppCompatActivity {
     private AdminManagedRequestDateFilter managedRequestDateFilter = AdminManagedRequestDateFilter.ALL;
     private AdminMonitoringFilter monitoringFilter = AdminMonitoringFilter.ALL;
     private AdminSettlementFilter settlementFilter = AdminSettlementFilter.ALL;
-    private AdminSupportFilter supportFilter = AdminSupportFilter.ALL;
+    private AdminSupportSourceFilter supportSourceFilter = AdminSupportSourceFilter.ALL;
+    private AdminSupportStatusFilter supportStatusFilter = AdminSupportStatusFilter.ALL;
     private AdminActionCenterFilter actionCenterFilter = AdminActionCenterFilter.ALL;
     private final Set<String> expandedRequestIds = new HashSet<>();
     private boolean loading;
@@ -116,7 +117,8 @@ public class AdminActivity extends AppCompatActivity {
     private LinearLayout adminMonitoringContainer;
     private LinearLayout adminSettlementFilterContainer;
     private LinearLayout adminSettlementContainer;
-    private LinearLayout adminSupportFilterContainer;
+    private LinearLayout adminSupportSourceFilterContainer;
+    private LinearLayout adminSupportStatusFilterContainer;
     private LinearLayout adminSupportContainer;
     private LinearLayout adminActionCenterFilterContainer;
     private LinearLayout adminActionCenterContainer;
@@ -196,7 +198,8 @@ public class AdminActivity extends AppCompatActivity {
         adminMonitoringContainer = findViewById(R.id.adminMonitoringContainer);
         adminSettlementFilterContainer = findViewById(R.id.adminSettlementFilterContainer);
         adminSettlementContainer = findViewById(R.id.adminSettlementContainer);
-        adminSupportFilterContainer = findViewById(R.id.adminSupportFilterContainer);
+        adminSupportSourceFilterContainer = findViewById(R.id.adminSupportSourceFilterContainer);
+        adminSupportStatusFilterContainer = findViewById(R.id.adminSupportStatusFilterContainer);
         adminSupportContainer = findViewById(R.id.adminSupportContainer);
         adminActionCenterFilterContainer = findViewById(R.id.adminActionCenterFilterContainer);
         adminActionCenterContainer = findViewById(R.id.adminActionCenterContainer);
@@ -466,7 +469,12 @@ public class AdminActivity extends AppCompatActivity {
             List<ClientSupportRequest> clientRequests
     ) {
         AdminSupportDashboardModel supportModel =
-                adminSupportCoordinator.createDashboardModel(inquiries, clientRequests, supportFilter);
+                adminSupportCoordinator.createDashboardModel(
+                        inquiries,
+                        clientRequests,
+                        supportSourceFilter,
+                        supportStatusFilter
+                );
         textAdminSupportSummary.setText(supportModel.getSummaryText());
         renderSupportFilters(supportModel);
         adminSupportContainer.removeAllViews();
@@ -499,22 +507,40 @@ public class AdminActivity extends AppCompatActivity {
     }
 
     private void renderSupportFilters(AdminSupportDashboardModel supportModel) {
-        adminSupportFilterContainer.removeAllViews();
-        if (supportModel.getFilterChips().size() <= 1) {
-            adminSupportFilterContainer.setVisibility(View.GONE);
+        adminSupportSourceFilterContainer.removeAllViews();
+        if (supportModel.getSourceFilterChips().size() <= 1) {
+            adminSupportSourceFilterContainer.setVisibility(View.GONE);
+        } else {
+            adminSupportSourceFilterContainer.setVisibility(View.VISIBLE);
+            for (AdminSupportSourceFilterChipModel chipModel : supportModel.getSourceFilterChips()) {
+                MaterialButton button = createOperationFilterButton(
+                        chipModel.getButtonText(),
+                        chipModel.isSelected()
+                );
+                button.setOnClickListener(view -> {
+                    supportSourceFilter = chipModel.getFilter();
+                    renderSupportInquiries(supportInquiriesSnapshot, clientSupportRequestsSnapshot);
+                });
+                adminSupportSourceFilterContainer.addView(button);
+            }
+        }
+
+        adminSupportStatusFilterContainer.removeAllViews();
+        if (supportModel.getStatusFilterChips().size() <= 1) {
+            adminSupportStatusFilterContainer.setVisibility(View.GONE);
             return;
         }
-        adminSupportFilterContainer.setVisibility(View.VISIBLE);
-        for (AdminSupportFilterChipModel chipModel : supportModel.getFilterChips()) {
+        adminSupportStatusFilterContainer.setVisibility(View.VISIBLE);
+        for (AdminSupportStatusFilterChipModel chipModel : supportModel.getStatusFilterChips()) {
             MaterialButton button = createOperationFilterButton(
                     chipModel.getButtonText(),
                     chipModel.isSelected()
             );
             button.setOnClickListener(view -> {
-                supportFilter = chipModel.getFilter();
+                supportStatusFilter = chipModel.getFilter();
                 renderSupportInquiries(supportInquiriesSnapshot, clientSupportRequestsSnapshot);
             });
-            adminSupportFilterContainer.addView(button);
+            adminSupportStatusFilterContainer.addView(button);
         }
     }
 
@@ -1695,7 +1721,8 @@ public class AdminActivity extends AppCompatActivity {
         adminDashboardSnapshot = null;
         monitoringFilter = AdminMonitoringFilter.ALL;
         settlementFilter = AdminSettlementFilter.ALL;
-        supportFilter = AdminSupportFilter.ALL;
+        supportSourceFilter = AdminSupportSourceFilter.ALL;
+        supportStatusFilter = AdminSupportStatusFilter.ALL;
         actionCenterFilter = AdminActionCenterFilter.ALL;
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
@@ -1710,8 +1737,10 @@ public class AdminActivity extends AppCompatActivity {
         textAdminSettlementSummary.setText(R.string.admin_settlement_summary_empty);
         textAdminSettlementAlert.setVisibility(View.GONE);
         textAdminSupportSummary.setText(R.string.admin_support_summary_empty);
-        adminSupportFilterContainer.removeAllViews();
-        adminSupportFilterContainer.setVisibility(View.GONE);
+        adminSupportSourceFilterContainer.removeAllViews();
+        adminSupportSourceFilterContainer.setVisibility(View.GONE);
+        adminSupportStatusFilterContainer.removeAllViews();
+        adminSupportStatusFilterContainer.setVisibility(View.GONE);
         textAdminActionCenterSummary.setText(R.string.admin_action_center_summary_empty);
         textAdminActionDeliverySummary.setText(R.string.admin_action_delivery_summary_empty);
         textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);

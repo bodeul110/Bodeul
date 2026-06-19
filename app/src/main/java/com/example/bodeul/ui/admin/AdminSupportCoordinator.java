@@ -22,7 +22,8 @@ public final class AdminSupportCoordinator {
     public AdminSupportDashboardModel createDashboardModel(
             List<SupportInquiry> inquiries,
             List<ClientSupportRequest> clientRequests,
-            AdminSupportFilter filter
+            AdminSupportSourceFilter sourceFilter,
+            AdminSupportStatusFilter statusFilter
     ) {
         int waitingCount = 0;
         int answeredCount = 0;
@@ -79,17 +80,17 @@ public final class AdminSupportCoordinator {
         }
         List<AdminSupportInquiryCardModel> filteredCards = new ArrayList<>();
         for (AdminSupportInquiryCardModel card : cards) {
-            if (filter == AdminSupportFilter.WAITING && card.isShowResponse()) {
+            if (statusFilter == AdminSupportStatusFilter.WAITING && card.isShowResponse()) {
                 continue;
             }
-            if (filter == AdminSupportFilter.ANSWERED && !card.isShowResponse()) {
+            if (statusFilter == AdminSupportStatusFilter.ANSWERED && !card.isShowResponse()) {
                 continue;
             }
-            if (filter == AdminSupportFilter.MANAGER
+            if (sourceFilter == AdminSupportSourceFilter.MANAGER
                     && card.getSourceType() != AdminSupportInquirySourceType.MANAGER) {
                 continue;
             }
-            if (filter == AdminSupportFilter.CLIENT
+            if (sourceFilter == AdminSupportSourceFilter.CLIENT
                     && card.getSourceType() != AdminSupportInquirySourceType.CLIENT) {
                 continue;
             }
@@ -99,48 +100,63 @@ public final class AdminSupportCoordinator {
                 Long.compare(right.getSortTimestampMillis(), left.getSortTimestampMillis()));
         return new AdminSupportDashboardModel(
                 formatter.buildSummary(inquiries.size() + clientRequests.size(), waitingCount, answeredCount),
-                createFilterChips(inquiries, clientRequests, filter),
+                createSourceFilterChips(inquiries, clientRequests, sourceFilter),
+                createStatusFilterChips(inquiries, clientRequests, statusFilter),
                 filteredCards
         );
     }
 
-    private List<AdminSupportFilterChipModel> createFilterChips(
+    private List<AdminSupportSourceFilterChipModel> createSourceFilterChips(
             List<SupportInquiry> inquiries,
             List<ClientSupportRequest> clientRequests,
-            AdminSupportFilter selectedFilter
+            AdminSupportSourceFilter selectedFilter
     ) {
-        List<AdminSupportFilterChipModel> chips = new ArrayList<>();
-        chips.add(new AdminSupportFilterChipModel(
-                AdminSupportFilter.ALL,
-                formatter.getFilterText(AdminSupportFilter.ALL),
-                selectedFilter == AdminSupportFilter.ALL
+        List<AdminSupportSourceFilterChipModel> chips = new ArrayList<>();
+        chips.add(new AdminSupportSourceFilterChipModel(
+                AdminSupportSourceFilter.ALL,
+                formatter.getFilterText(AdminSupportSourceFilter.ALL),
+                selectedFilter == AdminSupportSourceFilter.ALL
         ));
-        if (waitingCount(inquiries, clientRequests) > 0) {
-            chips.add(new AdminSupportFilterChipModel(
-                    AdminSupportFilter.WAITING,
-                    formatter.getFilterText(AdminSupportFilter.WAITING),
-                    selectedFilter == AdminSupportFilter.WAITING
-            ));
-        }
-        if (answeredCount(inquiries, clientRequests) > 0) {
-            chips.add(new AdminSupportFilterChipModel(
-                    AdminSupportFilter.ANSWERED,
-                    formatter.getFilterText(AdminSupportFilter.ANSWERED),
-                    selectedFilter == AdminSupportFilter.ANSWERED
-            ));
-        }
         if (!inquiries.isEmpty()) {
-            chips.add(new AdminSupportFilterChipModel(
-                    AdminSupportFilter.MANAGER,
-                    formatter.getFilterText(AdminSupportFilter.MANAGER),
-                    selectedFilter == AdminSupportFilter.MANAGER
+            chips.add(new AdminSupportSourceFilterChipModel(
+                    AdminSupportSourceFilter.MANAGER,
+                    formatter.getFilterText(AdminSupportSourceFilter.MANAGER),
+                    selectedFilter == AdminSupportSourceFilter.MANAGER
             ));
         }
         if (!clientRequests.isEmpty()) {
-            chips.add(new AdminSupportFilterChipModel(
-                    AdminSupportFilter.CLIENT,
-                    formatter.getFilterText(AdminSupportFilter.CLIENT),
-                    selectedFilter == AdminSupportFilter.CLIENT
+            chips.add(new AdminSupportSourceFilterChipModel(
+                    AdminSupportSourceFilter.CLIENT,
+                    formatter.getFilterText(AdminSupportSourceFilter.CLIENT),
+                    selectedFilter == AdminSupportSourceFilter.CLIENT
+            ));
+        }
+        return chips;
+    }
+
+    private List<AdminSupportStatusFilterChipModel> createStatusFilterChips(
+            List<SupportInquiry> inquiries,
+            List<ClientSupportRequest> clientRequests,
+            AdminSupportStatusFilter selectedFilter
+    ) {
+        List<AdminSupportStatusFilterChipModel> chips = new ArrayList<>();
+        chips.add(new AdminSupportStatusFilterChipModel(
+                AdminSupportStatusFilter.ALL,
+                formatter.getFilterText(AdminSupportStatusFilter.ALL),
+                selectedFilter == AdminSupportStatusFilter.ALL
+        ));
+        if (waitingCount(inquiries, clientRequests) > 0) {
+            chips.add(new AdminSupportStatusFilterChipModel(
+                    AdminSupportStatusFilter.WAITING,
+                    formatter.getFilterText(AdminSupportStatusFilter.WAITING),
+                    selectedFilter == AdminSupportStatusFilter.WAITING
+            ));
+        }
+        if (answeredCount(inquiries, clientRequests) > 0) {
+            chips.add(new AdminSupportStatusFilterChipModel(
+                    AdminSupportStatusFilter.ANSWERED,
+                    formatter.getFilterText(AdminSupportStatusFilter.ANSWERED),
+                    selectedFilter == AdminSupportStatusFilter.ANSWERED
             ));
         }
         return chips;

@@ -61,6 +61,19 @@ public final class MockClientSupportRepository implements ClientSupportRepositor
     }
 
     @Override
+    public void markClientSupportResponsesRead(
+            User currentUser,
+            RepositoryCallback<Void> callback
+    ) {
+        if (!supportsRole(currentUser)) {
+            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 ?ㅼ떆 ?뺤씤??二쇱꽭??");
+            return;
+        }
+        repository.markClientSupportResponsesRead(currentUser.getId());
+        callback.onSuccess(null);
+    }
+
+    @Override
     public boolean isFirebaseBacked() {
         return false;
     }

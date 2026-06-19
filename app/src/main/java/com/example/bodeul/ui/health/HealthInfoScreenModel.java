@@ -9,6 +9,9 @@ public final class HealthInfoScreenModel {
     private final String heroBadge;
     private final String heroTitle;
     private final String heroBody;
+    private final String serviceTabLabel;
+    private final String profileTabLabel;
+    private final String supportTabLabel;
     private final String serviceSectionTitle;
     private final String serviceSectionHelper;
     private final List<HealthInfoLineItem> serviceLines;
@@ -42,6 +45,9 @@ public final class HealthInfoScreenModel {
             String heroBadge,
             String heroTitle,
             String heroBody,
+            String serviceTabLabel,
+            String profileTabLabel,
+            String supportTabLabel,
             String serviceSectionTitle,
             String serviceSectionHelper,
             List<HealthInfoLineItem> serviceLines,
@@ -74,6 +80,9 @@ public final class HealthInfoScreenModel {
         this.heroBadge = heroBadge;
         this.heroTitle = heroTitle;
         this.heroBody = heroBody;
+        this.serviceTabLabel = serviceTabLabel;
+        this.profileTabLabel = profileTabLabel;
+        this.supportTabLabel = supportTabLabel;
         this.serviceSectionTitle = serviceSectionTitle;
         this.serviceSectionHelper = serviceSectionHelper;
         this.serviceLines = serviceLines;
@@ -123,6 +132,18 @@ public final class HealthInfoScreenModel {
 
     public String getHeroBody() {
         return heroBody;
+    }
+
+    public String getServiceTabLabel() {
+        return serviceTabLabel;
+    }
+
+    public String getProfileTabLabel() {
+        return profileTabLabel;
+    }
+
+    public String getSupportTabLabel() {
+        return supportTabLabel;
     }
 
     public String getServiceSectionTitle() {

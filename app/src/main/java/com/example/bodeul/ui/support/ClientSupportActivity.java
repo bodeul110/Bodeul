@@ -182,6 +182,7 @@ public final class ClientSupportActivity extends AppCompatActivity {
                         clientSupportRepository.isFirebaseBacked()
                 ));
                 setLoading(false);
+                markUnreadResponsesRead(result);
             }
 
             @Override
@@ -190,6 +191,33 @@ public final class ClientSupportActivity extends AppCompatActivity {
                 Toast.makeText(ClientSupportActivity.this, message, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void markUnreadResponsesRead(List<ClientSupportRequest> requests) {
+        if (!hasUnreadResponses(requests) || currentUser == null) {
+            return;
+        }
+        clientSupportRepository.markClientSupportResponsesRead(
+                currentUser,
+                new RepositoryCallback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                    }
+                }
+        );
+    }
+
+    private boolean hasUnreadResponses(List<ClientSupportRequest> requests) {
+        for (ClientSupportRequest request : requests) {
+            if (request.hasUnreadResponse()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void submitInquiry() {

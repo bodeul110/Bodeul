@@ -71,6 +71,13 @@ public final class ClientSupportCoordinator {
             return context.getString(R.string.client_support_latest_empty);
         }
         ClientSupportRequest latestRequest = requests.get(0);
+        if (latestRequest.hasUnreadResponse()) {
+            return context.getString(
+                    R.string.client_support_latest_unread_value,
+                    toCategoryText(latestRequest.getCategory()),
+                    formatter.formatTimestamp(latestRequest.getRespondedAtMillis())
+            );
+        }
         if (latestRequest.getStatus() == ClientSupportStatus.ANSWERED
                 && !TextUtils.isEmpty(latestRequest.getResponseText())) {
             return context.getString(
@@ -91,13 +98,20 @@ public final class ClientSupportCoordinator {
         for (ClientSupportRequest request : requests) {
             boolean answered = request.getStatus() == ClientSupportStatus.ANSWERED
                     && !TextUtils.isEmpty(request.getResponseText());
+            boolean unreadResponse = request.hasUnreadResponse();
             cards.add(new ClientSupportRequestCardModel(
                     toCategoryText(request.getCategory()),
-                    answered
+                    unreadResponse
+                            ? context.getString(R.string.client_support_status_unread_answer)
+                            : answered
                             ? context.getString(R.string.client_support_status_answered)
                             : context.getString(R.string.client_support_status_received),
-                    answered ? R.color.bodeul_soft_green : R.color.bodeul_soft_blue,
-                    answered ? R.color.bodeul_success : R.color.bodeul_primary,
+                    unreadResponse
+                            ? R.color.bodeul_warning
+                            : answered ? R.color.bodeul_soft_green : R.color.bodeul_soft_blue,
+                    unreadResponse
+                            ? R.color.bodeul_text_primary
+                            : answered ? R.color.bodeul_success : R.color.bodeul_primary,
                     request.getTitle(),
                     summarizeText(request.getBody()),
                     formatter.formatTimestamp(request.getCreatedAtMillis()),
@@ -114,7 +128,9 @@ public final class ClientSupportCoordinator {
             return "";
         }
         return context.getString(
-                R.string.client_support_response_meta,
+                request.hasUnreadResponse()
+                        ? R.string.client_support_response_meta_unread
+                        : R.string.client_support_response_meta,
                 formatter.formatTimestamp(request.getRespondedAtMillis()),
                 TextUtils.isEmpty(request.getRespondedByName())
                         ? context.getString(R.string.admin_manager_pending)
