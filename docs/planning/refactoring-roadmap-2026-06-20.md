@@ -132,3 +132,9 @@
   - AdminActivity의 문의 스냅샷, 필터, 응답 다이얼로그, 빈 상태 렌더링을 AdminSupportSectionController로 옮겼다.
   - FirebaseAdminRepository에서는 문의 응답 저장 규칙과 문서 매핑을 각각 FirebaseAdminSupportStore, FirebaseAdminSupportMapper로 분리했다.
   - 다음 단계는 관리자 서류 심사 축 또는 관리자 운영 액션 축 분리다.
+
+- 2026-06-20 6차 진행
+  - #8의 두 번째 축으로 관리자 서류 심사 섹션을 분리했다.
+  - AdminActivity의 서류 목록, 승인/반려 다이얼로그, 파일 미리보기, 이력 다이얼로그를 AdminManagerDocumentSectionController로 옮겼다.
+  - FirebaseAdminRepository에서는 서류 검토 트랜잭션을 FirebaseAdminManagerDocumentStore로 분리했다.
+  - 다음 단계는 관리자 운영 액션 축 또는 관리자 요청 축 분리다.

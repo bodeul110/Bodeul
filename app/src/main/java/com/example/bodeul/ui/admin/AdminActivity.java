@@ -30,8 +30,6 @@ import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
-import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
-import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.User;
@@ -39,7 +37,6 @@ import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
-import com.example.bodeul.util.DocumentPreviewLauncher;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -78,9 +75,7 @@ public class AdminActivity extends AppCompatActivity {
     private AdminGuideCoordinator adminGuideCoordinator;
     private AdminGuideCardBinder adminGuideCardBinder;
     private AdminGuideFormBinder adminGuideFormBinder;
-    private AdminManagerDocumentCoordinator adminManagerDocumentCoordinator;
-    private AdminManagerDocumentCardBinder adminManagerDocumentCardBinder;
-    private AdminManagerDocumentHistoryItemBinder adminManagerDocumentHistoryItemBinder;
+    private AdminManagerDocumentSectionController adminManagerDocumentSectionController;
     private AdminSupportSectionController adminSupportSectionController;
     private AdminActionCenterCoordinator adminActionCenterCoordinator;
     private AdminActionCenterEntryBinder adminActionCenterEntryBinder;
@@ -146,11 +141,6 @@ public class AdminActivity extends AppCompatActivity {
         adminRequestCardBinder = new AdminRequestCardBinder(getLayoutInflater());
         adminGuideCoordinator = new AdminGuideCoordinator(new AdminGuidePresentationFormatter(this));
         adminGuideCardBinder = new AdminGuideCardBinder();
-        adminManagerDocumentCoordinator = new AdminManagerDocumentCoordinator(
-                new AdminManagerDocumentPresentationFormatter(this)
-        );
-        adminManagerDocumentCardBinder = new AdminManagerDocumentCardBinder();
-        adminManagerDocumentHistoryItemBinder = new AdminManagerDocumentHistoryItemBinder();
         adminActionCenterCoordinator = new AdminActionCenterCoordinator(
                 new AdminActionCenterPresentationFormatter(this)
         );
@@ -210,6 +200,45 @@ public class AdminActivity extends AppCompatActivity {
                 inputAdminGuideSteps,
                 buttonSubmitAdminGuide,
                 buttonCancelAdminGuideEdit
+        );
+        adminManagerDocumentSectionController = new AdminManagerDocumentSectionController(
+                this,
+                adminManagerDocumentsContainer,
+                new AdminManagerDocumentCoordinator(
+                        new AdminManagerDocumentPresentationFormatter(this)
+                ),
+                new AdminManagerDocumentCardBinder(),
+                new AdminManagerDocumentHistoryItemBinder(),
+                managerDocumentPreviewResolver,
+                new AdminManagerDocumentSectionController.Listener() {
+                    @Override
+                    public boolean isInteractionBlocked() {
+                        return currentUser == null || loading;
+                    }
+
+                    @Override
+                    public void onReviewManagerDocument(
+                            String managerUserId,
+                            ManagerDocumentStatus status,
+                            String reviewNote
+                    ) {
+                        reviewManagerDocument(managerUserId, status, reviewNote);
+                    }
+
+                    @Override
+                    public void setLoading(boolean loading) {
+                        AdminActivity.this.setLoading(loading);
+                    }
+
+                    @Override
+                    public void renderEmptyText(
+                            LinearLayout container,
+                            int titleResId,
+                            int messageResId
+                    ) {
+                        AdminActivity.this.renderEmptyText(container, titleResId, messageResId);
+                    }
+                }
         );
         adminSupportSectionController = new AdminSupportSectionController(
                 this,
@@ -326,7 +355,10 @@ public class AdminActivity extends AppCompatActivity {
         ));
         textAdminManagers.setText(buildManagerSummary(dashboard));
 
-        renderManagerDocuments(dashboard.getManagerDocumentOverviews());
+        adminManagerDocumentSectionController.bindDocuments(
+                dashboard.getManagerDocumentOverviews(),
+                loading
+        );
         pendingRequestsSnapshot = new ArrayList<>(dashboard.getPendingRequests());
         availableManagersSnapshot = new ArrayList<>(dashboard.getAvailableManagers());
         renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
@@ -797,57 +829,6 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
-    private void openManagerDocumentReviewDialog(
-            ManagerDocumentOverview overview,
-            ManagerDocumentStatus targetStatus
-    ) {
-        if (currentUser == null || loading) {
-            return;
-        }
-
-        View dialogView = LayoutInflater.from(this).inflate(
-                R.layout.dialog_admin_document_review,
-                null,
-                false
-        );
-        TextInputLayout inputLayout = dialogView.findViewById(R.id.layoutAdminDocumentReviewNote);
-        TextInputEditText inputEditText = dialogView.findViewById(R.id.inputAdminDocumentReviewNote);
-        inputLayout.setHelperText(getString(
-                targetStatus == ManagerDocumentStatus.APPROVED
-                        ? R.string.admin_manager_document_approve_helper
-                        : R.string.admin_manager_document_reject_helper
-        ));
-        inputEditText.setText(overview.getProfile().getDocumentReviewNote());
-        if (inputEditText.getText() != null) {
-            inputEditText.setSelection(inputEditText.getText().length());
-        }
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(getString(
-                        targetStatus == ManagerDocumentStatus.APPROVED
-                                ? R.string.admin_manager_document_approve_dialog_title
-                                : R.string.admin_manager_document_reject_dialog_title,
-                        overview.getManager().getName()
-                ))
-                .setView(dialogView)
-                .setNegativeButton(R.string.admin_manager_document_review_cancel, null)
-                .setPositiveButton(R.string.admin_manager_document_review_confirm, null)
-                .create();
-
-        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(view -> {
-                    String reviewNote = valueOf(inputEditText);
-                    if (targetStatus == ManagerDocumentStatus.REJECTED && TextUtils.isEmpty(reviewNote)) {
-                        inputLayout.setError(getString(R.string.admin_manager_document_review_note_required));
-                        return;
-                    }
-                    inputLayout.setError(null);
-                    dialog.dismiss();
-                    reviewManagerDocument(overview.getManager().getId(), targetStatus, reviewNote);
-                }));
-        dialog.show();
-    }
-
     private void reviewManagerDocument(
             String managerUserId,
             ManagerDocumentStatus status,
@@ -1092,56 +1073,6 @@ public class AdminActivity extends AppCompatActivity {
         );
     }
 
-    private void openManagerDocumentHistoryDialog(ManagerDocumentOverview overview) {
-        View dialogView = LayoutInflater.from(this).inflate(
-                R.layout.dialog_admin_document_history,
-                null,
-                false
-        );
-        TextView helperView = dialogView.findViewById(R.id.textAdminDocumentHistoryHelper);
-        LinearLayout container = dialogView.findViewById(R.id.adminDocumentHistoryContainer);
-        helperView.setText(R.string.admin_manager_document_history_helper);
-        renderManagerDocumentHistoryEntries(
-                container,
-                adminManagerDocumentCoordinator.createHistoryItems(overview)
-        );
-
-        new AlertDialog.Builder(this)
-                .setTitle(getString(
-                        R.string.admin_manager_document_history_dialog_title,
-                        overview.getManager().getName()
-                ))
-                .setView(dialogView)
-                .setPositiveButton(R.string.admin_manager_document_history_close, null)
-                .show();
-    }
-
-    private void renderManagerDocumentHistoryEntries(
-            LinearLayout container,
-            List<AdminManagerDocumentHistoryItemModel> historyItems
-    ) {
-        container.removeAllViews();
-        if (historyItems.isEmpty()) {
-            renderEmptyText(
-                    container,
-                    R.string.admin_manager_document_history,
-                    R.string.admin_manager_document_history_empty
-            );
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminManagerDocumentHistoryItemModel historyItem : historyItems) {
-            View itemView = inflater.inflate(
-                    R.layout.item_admin_document_history,
-                    container,
-                    false
-            );
-            adminManagerDocumentHistoryItemBinder.bind(itemView, historyItem);
-            container.addView(itemView);
-        }
-    }
-
     private void submitGuide() {
         if (currentUser == null || loading) {
             return;
@@ -1206,148 +1137,6 @@ public class AdminActivity extends AppCompatActivity {
         updateGuideFormMode();
     }
 
-    private void renderManagerDocuments(List<ManagerDocumentOverview> overviews) {
-        adminManagerDocumentsContainer.removeAllViews();
-        if (overviews.isEmpty()) {
-            renderEmptyText(
-                    adminManagerDocumentsContainer,
-                    R.string.admin_manager_documents_title,
-                    R.string.admin_manager_documents_empty
-            );
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        List<AdminManagerDocumentCardModel> cards = adminManagerDocumentCoordinator.createDocumentCards(
-                overviews,
-                loading
-        );
-        for (AdminManagerDocumentCardModel card : cards) {
-            View itemView = inflater.inflate(
-                    R.layout.item_admin_manager_document,
-                    adminManagerDocumentsContainer,
-                    false
-            );
-            adminManagerDocumentCardBinder.bind(
-                    itemView,
-                    card,
-                    new AdminManagerDocumentCardBinder.Listener() {
-                        @Override
-                        public void onApprove(String managerUserId) {
-                            ManagerDocumentOverview overview = findManagerDocumentOverview(
-                                    managerUserId,
-                                    overviews
-                            );
-                            if (overview != null) {
-                                openManagerDocumentReviewDialog(
-                                        overview,
-                                        ManagerDocumentStatus.APPROVED
-                                );
-                            }
-                        }
-
-                        @Override
-                        public void onReject(String managerUserId) {
-                            ManagerDocumentOverview overview = findManagerDocumentOverview(
-                                    managerUserId,
-                                    overviews
-                            );
-                            if (overview != null) {
-                                openManagerDocumentReviewDialog(
-                                        overview,
-                                        ManagerDocumentStatus.REJECTED
-                                );
-                            }
-                        }
-
-                        @Override
-                        public void onOpenFiles(String managerUserId) {
-                            ManagerDocumentOverview overview = findManagerDocumentOverview(
-                                    managerUserId,
-                                    overviews
-                            );
-                            if (overview != null) {
-                                openManagerDocumentFilesDialog(overview);
-                            }
-                        }
-
-                        @Override
-                        public void onOpenHistory(String managerUserId) {
-                            ManagerDocumentOverview overview = findManagerDocumentOverview(
-                                    managerUserId,
-                                    overviews
-                            );
-                            if (overview != null) {
-                                openManagerDocumentHistoryDialog(overview);
-                            }
-                        }
-                    }
-            );
-            adminManagerDocumentsContainer.addView(itemView);
-        }
-    }
-
-    private void openManagerDocumentFilesDialog(ManagerDocumentOverview overview) {
-        List<ManagerDocumentFileMetadata> documentFiles = overview.getProfile().getDocumentFiles();
-        if (documentFiles.isEmpty()) {
-            Toast.makeText(this, R.string.admin_manager_document_files_empty, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        CharSequence[] items = new CharSequence[documentFiles.size()];
-        for (int index = 0; index < documentFiles.size(); index++) {
-            ManagerDocumentFileMetadata metadata = documentFiles.get(index);
-            items[index] = getString(
-                    R.string.admin_manager_document_file_item_format,
-                    getManagerDocumentLabel(metadata.getFileType()),
-                    metadata.getFileName()
-            );
-        }
-
-        new AlertDialog.Builder(this)
-                .setTitle(getString(
-                        R.string.admin_manager_document_files_dialog_title,
-                        overview.getManager().getName()
-                ))
-                .setItems(items, (dialogInterface, which) ->
-                        openManagerDocumentPreview(documentFiles.get(which)))
-                .setNegativeButton(R.string.admin_manager_document_history_close, null)
-                .show();
-    }
-
-    private void openManagerDocumentPreview(ManagerDocumentFileMetadata metadata) {
-        if (loading) {
-            return;
-        }
-        setLoading(true);
-        managerDocumentPreviewResolver.resolvePreviewUri(
-                metadata,
-                new RepositoryCallback<Uri>() {
-                    @Override
-                    public void onSuccess(Uri result) {
-                        setLoading(false);
-                        if (!DocumentPreviewLauncher.open(
-                                AdminActivity.this,
-                                result,
-                                metadata.getContentType()
-                        )) {
-                            Toast.makeText(
-                                    AdminActivity.this,
-                                    R.string.manager_document_preview_open_failed,
-                                    Toast.LENGTH_SHORT
-                            ).show();
-                        }
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        setLoading(false);
-                        Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
     private void confirmGuideDelete(HospitalGuide guide) {
         if (currentUser == null || loading || guide == null) {
             return;
@@ -1398,32 +1187,6 @@ public class AdminActivity extends AppCompatActivity {
             }
         }
         return null;
-    }
-
-    @Nullable
-    private ManagerDocumentOverview findManagerDocumentOverview(
-            String managerUserId,
-            List<ManagerDocumentOverview> overviews
-    ) {
-        for (ManagerDocumentOverview overview : overviews) {
-            if (overview.getManager().getId().equals(managerUserId)) {
-                return overview;
-            }
-        }
-        return null;
-    }
-
-    private String getManagerDocumentLabel(ManagerDocumentFileType fileType) {
-        if (fileType == ManagerDocumentFileType.ID_CARD) {
-            return getString(R.string.manager_document_registration_document_id_card);
-        }
-        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
-            return getString(R.string.manager_document_registration_document_nursing_license);
-        }
-        if (fileType == ManagerDocumentFileType.LICENSE) {
-            return getString(R.string.manager_document_registration_document_elderly_care_license);
-        }
-        return getString(R.string.manager_document_registration_document_criminal_record);
     }
 
     private void assignManager(String requestId, String managerUserId) {
@@ -1584,7 +1347,7 @@ public class AdminActivity extends AppCompatActivity {
         adminManagedFilterContainer.setVisibility(View.GONE);
         adminManagedDateFilterContainer.removeAllViews();
         adminManagedDateFilterContainer.setVisibility(View.GONE);
-        adminManagerDocumentsContainer.removeAllViews();
+        adminManagerDocumentSectionController.showEmptyPanel();
         adminPendingRequestsContainer.removeAllViews();
         adminMonitoringContainer.removeAllViews();
         adminSettlementContainer.removeAllViews();
@@ -1592,11 +1355,6 @@ public class AdminActivity extends AppCompatActivity {
         adminActionDeliveryContainer.removeAllViews();
         adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
-        renderEmptyText(
-                adminManagerDocumentsContainer,
-                R.string.admin_manager_documents_title,
-                R.string.admin_manager_documents_empty
-        );
         renderEmptyText(adminPendingRequestsContainer, R.string.admin_pending_title, R.string.admin_pending_empty);
         renderEmptyText(adminMonitoringContainer, R.string.admin_monitoring_title, R.string.admin_monitoring_empty);
         renderEmptyText(adminSettlementContainer, R.string.admin_settlement_title, R.string.admin_settlement_empty);

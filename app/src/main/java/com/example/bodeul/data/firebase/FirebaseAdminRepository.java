@@ -79,10 +79,50 @@ import java.util.Map;
 public class FirebaseAdminRepository implements AdminRepository {
     private final FirebaseFirestore firestore;
     private final FirebaseAdminSupportStore adminSupportStore;
+    private final FirebaseAdminManagerDocumentStore managerDocumentStore;
 
     public FirebaseAdminRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
         this.adminSupportStore = new FirebaseAdminSupportStore(firestore);
+        this.managerDocumentStore = new FirebaseAdminManagerDocumentStore(
+                firestore,
+                new FirebaseAdminManagerDocumentStore.ManagerDocumentMapper() {
+                    @Override
+                    public User toUser(DocumentSnapshot documentSnapshot) {
+                        return FirebaseAdminRepository.this.toUser(documentSnapshot);
+                    }
+
+                    @Override
+                    public ManagerHomeProfile toManagerHomeProfile(DocumentSnapshot documentSnapshot) {
+                        return FirebaseAdminRepository.this.toManagerHomeProfile(documentSnapshot);
+                    }
+
+                    @Override
+                    public List<ManagerDocumentHistoryEntry> toManagerDocumentHistory(
+                            DocumentSnapshot documentSnapshot
+                    ) {
+                        return FirebaseAdminRepository.this.toManagerDocumentHistory(documentSnapshot);
+                    }
+
+                    @Override
+                    public List<ManagerDocumentHistoryEntry> appendManagerDocumentHistory(
+                            List<ManagerDocumentHistoryEntry> historyEntries,
+                            ManagerDocumentHistoryEntry historyEntry
+                    ) {
+                        return FirebaseAdminRepository.this.appendManagerDocumentHistory(
+                                historyEntries,
+                                historyEntry
+                        );
+                    }
+
+                    @Override
+                    public List<Map<String, Object>> toManagerDocumentHistoryPayload(
+                            List<ManagerDocumentHistoryEntry> historyEntries
+                    ) {
+                        return FirebaseAdminRepository.this.toManagerDocumentHistoryPayload(historyEntries);
+                    }
+                }
+        );
     }
 
     @Override
@@ -266,48 +306,23 @@ public class FirebaseAdminRepository implements AdminRepository {
             callback.onError("서류 검토 상태가 올바르지 않습니다.");
             return;
         }
+        managerDocumentStore.reviewManagerDocument(
+                currentUser,
+                managerUserId,
+                status,
+                reviewNote,
+                new FirebaseAdminManagerDocumentStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
 
-        DocumentReference managerRef = firestore.collection("users").document(managerUserId);
-
-        firestore.runTransaction(transaction -> {
-            DocumentSnapshot documentSnapshot = transaction.get(managerRef);
-            
-            User manager = toUser(documentSnapshot);
-            if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                throw new FirebaseFirestoreException("매니저 계정을 찾지 못했습니다.", FirebaseFirestoreException.Code.ABORTED);
-            }
-
-            ManagerHomeProfile profile = toManagerHomeProfile(documentSnapshot);
-            if (normalizeText(profile.getDocumentSummary()).isEmpty()) {
-                throw new FirebaseFirestoreException("검토할 서류 요약이 아직 등록되지 않았습니다.", FirebaseFirestoreException.Code.ABORTED);
-            }
-
-            List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
-                    toManagerDocumentHistory(documentSnapshot),
-                    new ManagerDocumentHistoryEntry(
-                            status == ManagerDocumentStatus.APPROVED
-                                    ? ManagerDocumentHistoryEventType.APPROVED
-                                    : ManagerDocumentHistoryEventType.REJECTED,
-                            System.currentTimeMillis(),
-                            normalizeText(currentUser.getName()),
-                            profile.getDocumentSummary(),
-                            normalizeText(reviewNote)
-                    )
-            );
-
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("managerDocumentStatus", status.name());
-            updates.put("managerDocumentReviewNote", normalizeText(reviewNote));
-            updates.put("managerDocumentReviewedAt", FieldValue.serverTimestamp());
-            updates.put("managerDocumentReviewedByName", normalizeText(currentUser.getName()));
-            updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
-
-            transaction.update(managerRef, updates);
-            return null;
-        })
-        .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-        .addOnFailureListener(exception ->
-                callback.onError("매니저 서류 검토 상태를 저장하지 못했습니다. 원인: " + exception.getMessage()));
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
     @Override
