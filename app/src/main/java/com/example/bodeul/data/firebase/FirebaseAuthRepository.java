@@ -39,6 +39,7 @@ import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.auth.UserInfo;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Source;
 import com.google.firebase.functions.FirebaseFunctions;
 import com.google.firebase.functions.FirebaseFunctionsException;
 import com.kakao.sdk.auth.model.OAuthToken;
@@ -734,29 +735,56 @@ public class FirebaseAuthRepository implements AuthRepository {
             @Nullable UserRole expectedRole,
             RepositoryCallback<User> callback
     ) {
-        // 로그인 역할과 실제 저장된 역할이 다르면 즉시 로그아웃시켜 화면 분기를 단순화한다.
+        // 로그인 직후에는 로컬 캐시가 비어 있을 수 있어 서버 기준 재확인을 한 번 허용한다.
         firestore.collection("users")
                 .document(userId)
                 .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    User user = toUser(documentSnapshot);
-                    if (user == null) {
+                .addOnSuccessListener(documentSnapshot ->
+                        handleLoadedUserProfile(documentSnapshot, expectedRole, callback))
+                .addOnFailureListener(exception ->
+                        callback.onError("사용자 정보를 불러오지 못했습니다."));
+    }
+
+    private void handleLoadedUserProfile(
+            DocumentSnapshot documentSnapshot,
+            @Nullable UserRole expectedRole,
+            RepositoryCallback<User> callback
+    ) {
+        User user = toUser(documentSnapshot);
+        if (user != null) {
+            deliverLoadedUserProfile(user, expectedRole, callback);
+            return;
+        }
+
+        documentSnapshot.getReference()
+                .get(Source.SERVER)
+                .addOnSuccessListener(serverSnapshot -> {
+                    User serverUser = toUser(serverSnapshot);
+                    if (serverUser == null) {
                         signOut();
                         callback.onError("users 컬렉션에서 계정 정보를 찾지 못했습니다.");
                         return;
                     }
-
-                    if (expectedRole != null && user.getRole() != expectedRole) {
-                        signOut();
-                        callback.onError("선택한 사용자 유형과 계정 유형이 일치하지 않습니다.");
-                        return;
-                    }
-
-                    cachedUser = user;
-                    callback.onSuccess(user);
+                    deliverLoadedUserProfile(serverUser, expectedRole, callback);
                 })
                 .addOnFailureListener(exception ->
                         callback.onError("사용자 정보를 불러오지 못했습니다."));
+    }
+
+    private void deliverLoadedUserProfile(
+            User user,
+            @Nullable UserRole expectedRole,
+            RepositoryCallback<User> callback
+    ) {
+        // 로그인 역할과 실제 저장된 역할이 다르면 즉시 로그아웃시켜 화면 분기를 단순화한다.
+        if (expectedRole != null && user.getRole() != expectedRole) {
+            signOut();
+            callback.onError("선택한 사용자 유형과 계정 유형이 일치하지 않습니다.");
+            return;
+        }
+
+        cachedUser = user;
+        callback.onSuccess(user);
     }
 
     @Nullable
