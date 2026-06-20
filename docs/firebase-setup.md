@@ -472,25 +472,25 @@ npm run seed:manager-docs:apply
 - `ENABLE_APPCHECK_ENFORCEMENT=true` 환경 변수로만 `enforceAppCheck`를 켜게 했다.
 - 즉 지금 배포해도 기본값은 기존과 동일하고, 클라이언트 준비가 끝나면 환경 변수만으로 enforcement 전환이 가능하다.
 
-### 2026-06-19 ������ ���� ���� ����
+### 2026-06-19 관리자 문의 화면 메모
 
-- ������ ȭ���� `supportInquiries`�� `clientSupportRequests`�� �Բ� �о� �ֽ� ���� ������ �����ش�.
-- �̿��� ���� ���䵵 Firestore���� �ٷ� �����ϸ�, ���� �� ���� ������ ��ú��� ���ΰ�ħ ��θ� ����Ѵ�.
+- 관리자 화면은 `supportInquiries`와 `clientSupportRequests`를 함께 읽어 최신 문의 현황을 한 번에 보여준다.
+- 이용자 문의 응답도 Firestore에 바로 저장되며, 환자/보호자 문의와 매니저 문의를 같은 운영 흐름에서 추적한다.
 
-## īī�� ���� ����ǥ �˻� �߰� ����
-- īī�� ����Ƽ�� ���� SDK�����δ� ����/�౹ Ű���� ����ǥ �˻��� �� �� ����.
-- ����ǥ ��Ŀ�� ������ `local.properties`�� �Ʒ� ���� �߰��Ѵ�.
+## 카카오 병원/약국 실좌표 검색 메모
+- 카카오 모빌리티 기본 SDK만으로는 병원/약국 키워드의 실좌표 검색을 안정적으로 처리하기 어렵다.
+- 좌표 검색이 필요한 환경에서는 `local.properties`에 아래 값을 추가해 카카오 로컬 REST API를 사용한다.
 
 ```properties
-kakaoRestApiKey=�߱޹���_īī��_����_REST_API_Ű
+kakaoRestApiKey=발급받은_카카오_로컬_REST_API_키
 ```
 
-- �� Ű�� ����ҿ� �ø��� �ʴ´�.
-- Ű�� ������ ���� ����ó�� ���� �� �ȳ� �̴ϸʰ� �ܺ� ���� fallback�� ����Ѵ�.
+- 이 키는 저장소에 올리지 않는다.
+- 조회 결과는 앱 안에서 6시간 메모리 캐시로 재사용해 중복 REST 호출을 줄인다.
+- 키가 없으면 병원/약국 실좌표 조회는 건너뛰고, 안내 미니맵과 외부 지도 fallback만 사용한다.
 
-
-## ?? ?? ?? ??
-- ?? ??: `application/pdf`, `image/*`
-- ?? ??: `10MB`
-- Storage ??: `companion-chat-attachments/{sessionId}/{timestamp-fileName}`
-- ??/?? ??: `companionSessions` ?? ???? ??
+## 안심 채팅 첨부 제한
+- 허용 형식: `application/pdf`, `image/*`
+- 최대 크기: `10MB`
+- Storage 경로: `companion-chat-attachments/{sessionId}/{timestamp-fileName}`
+- 세션 참조 위치: `companionSessions` 문서 안심 채팅 메시지의 `attachments` 배열
