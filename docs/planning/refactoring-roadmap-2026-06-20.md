@@ -138,3 +138,8 @@
   - AdminActivity의 서류 목록, 승인/반려 다이얼로그, 파일 미리보기, 이력 다이얼로그를 AdminManagerDocumentSectionController로 옮겼다.
   - FirebaseAdminRepository에서는 서류 검토 트랜잭션을 FirebaseAdminManagerDocumentStore로 분리했다.
   - 다음 단계는 관리자 운영 액션 축 또는 관리자 요청 축 분리다.
+
+- 2026-06-20 7차 진행
+  - #8의 세 번째 축으로 관리자 액션 센터 UI를 분리했다.
+  - AdminActivity의 액션 센터 요약/필터/목록 렌더링을 AdminActionCenterSectionController로 옮겼다.
+  - 읽음/해결 저장은 액티비티에 남겨 두고, 다음 단계에서 저장소 분리로 이어간다.

@@ -65,7 +65,6 @@ public class AdminActivity extends AppCompatActivity {
     private AdminManagedRequestDateFilter managedRequestDateFilter = AdminManagedRequestDateFilter.ALL;
     private AdminMonitoringFilter monitoringFilter = AdminMonitoringFilter.ALL;
     private AdminSettlementFilter settlementFilter = AdminSettlementFilter.ALL;
-    private AdminActionCenterFilter actionCenterFilter = AdminActionCenterFilter.ALL;
     private final Set<String> expandedRequestIds = new HashSet<>();
     private boolean loading;
     private AdminOperationsCoordinator adminOperationsCoordinator;
@@ -77,8 +76,7 @@ public class AdminActivity extends AppCompatActivity {
     private AdminGuideFormBinder adminGuideFormBinder;
     private AdminManagerDocumentSectionController adminManagerDocumentSectionController;
     private AdminSupportSectionController adminSupportSectionController;
-    private AdminActionCenterCoordinator adminActionCenterCoordinator;
-    private AdminActionCenterEntryBinder adminActionCenterEntryBinder;
+    private AdminActionCenterSectionController adminActionCenterSectionController;
     private AdminActionDeliveryCoordinator adminActionDeliveryCoordinator;
     private AdminActionDeliveryCardBinder adminActionDeliveryCardBinder;
 
@@ -141,10 +139,6 @@ public class AdminActivity extends AppCompatActivity {
         adminRequestCardBinder = new AdminRequestCardBinder(getLayoutInflater());
         adminGuideCoordinator = new AdminGuideCoordinator(new AdminGuidePresentationFormatter(this));
         adminGuideCardBinder = new AdminGuideCardBinder();
-        adminActionCenterCoordinator = new AdminActionCenterCoordinator(
-                new AdminActionCenterPresentationFormatter(this)
-        );
-        adminActionCenterEntryBinder = new AdminActionCenterEntryBinder();
         adminActionDeliveryCoordinator = new AdminActionDeliveryCoordinator(
                 new AdminActionDeliveryPresentationFormatter(this)
         );
@@ -279,6 +273,46 @@ public class AdminActivity extends AppCompatActivity {
                     }
                 }
         );
+        adminActionCenterSectionController = new AdminActionCenterSectionController(
+                this,
+                textAdminActionCenterSummary,
+                adminActionCenterFilterContainer,
+                adminActionCenterContainer,
+                new AdminActionCenterCoordinator(
+                        new AdminActionCenterPresentationFormatter(this)
+                ),
+                new AdminActionCenterEntryBinder(),
+                new AdminActionCenterSectionController.Listener() {
+                    @Override
+                    public MaterialButton createFilterButton(String text, boolean selected) {
+                        return AdminActivity.this.createOperationFilterButton(text, selected);
+                    }
+
+                    @Override
+                    public void renderEmptyText(
+                            LinearLayout container,
+                            CharSequence title,
+                            CharSequence message
+                    ) {
+                        AdminActivity.this.renderEmptyText(container, title, message);
+                    }
+
+                    @Override
+                    public void onMarkRead(String notificationId) {
+                        markActionNotificationRead(notificationId);
+                    }
+
+                    @Override
+                    public void onMarkResolved(String notificationId) {
+                        updateActionNotificationResolved(notificationId, true);
+                    }
+
+                    @Override
+                    public void onReopen(String notificationId) {
+                        updateActionNotificationResolved(notificationId, false);
+                    }
+                }
+        );
 
         textAdminMode.setText(adminRepository.isFirebaseBacked()
                 ? R.string.admin_mode_firebase
@@ -368,7 +402,7 @@ public class AdminActivity extends AppCompatActivity {
                 dashboard.getSupportInquiries(),
                 dashboard.getClientSupportRequests()
         );
-        renderActionCenter(dashboard);
+        adminActionCenterSectionController.bind(dashboard);
         renderActionDeliveries(dashboard);
         renderManagedRequests(managedRequestsSnapshot);
         renderGuides(dashboard.getHospitalGuides());
@@ -514,72 +548,6 @@ public class AdminActivity extends AppCompatActivity {
                 openEmergencyActionDialog(requestId, AdminEmergencyIssueStatus.REPORTED);
             });
             container.addView(itemView);
-        }
-    }
-
-    private void renderActionCenter(AdminDashboard dashboard) {
-        AdminActionCenterScreenModel screenModel = adminActionCenterCoordinator.createScreenModel(
-                dashboard.getActionNotifications(),
-                dashboard.getAuditLogs(),
-                dashboard.getActionOverview(),
-                actionCenterFilter
-        );
-        textAdminActionCenterSummary.setText(screenModel.getSummaryText());
-        renderActionCenterFilters(screenModel);
-        adminActionCenterContainer.removeAllViews();
-        if (screenModel.getEntryModels().isEmpty()) {
-            renderEmptyText(
-                    adminActionCenterContainer,
-                    getString(R.string.admin_action_center_title),
-                    screenModel.getEmptyText()
-            );
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminActionCenterEntryModel entryModel : screenModel.getEntryModels()) {
-            View itemView = inflater.inflate(
-                    R.layout.item_admin_action_center_entry,
-                    adminActionCenterContainer,
-                    false
-            );
-            adminActionCenterEntryBinder.bind(itemView, entryModel, (entryId, actionType) -> {
-                switch (actionType) {
-                    case MARK_READ:
-                        markActionNotificationRead(entryId);
-                        return;
-                    case MARK_RESOLVED:
-                        updateActionNotificationResolved(entryId, true);
-                        return;
-                    case REOPEN:
-                    default:
-                        updateActionNotificationResolved(entryId, false);
-                }
-            });
-            adminActionCenterContainer.addView(itemView);
-        }
-    }
-
-    private void renderActionCenterFilters(AdminActionCenterScreenModel screenModel) {
-        adminActionCenterFilterContainer.removeAllViews();
-        if (screenModel.getFilterChips().isEmpty()) {
-            adminActionCenterFilterContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        adminActionCenterFilterContainer.setVisibility(View.VISIBLE);
-        for (AdminActionCenterFilterChipModel chipModel : screenModel.getFilterChips()) {
-            MaterialButton button = createOperationFilterButton(
-                    chipModel.getButtonText(),
-                    chipModel.isSelected()
-            );
-            button.setOnClickListener(view -> {
-                actionCenterFilter = chipModel.getFilter();
-                if (adminDashboardSnapshot != null) {
-                    renderActionCenter(adminDashboardSnapshot);
-                }
-            });
-            adminActionCenterFilterContainer.addView(button);
         }
     }
 
@@ -1321,7 +1289,6 @@ public class AdminActivity extends AppCompatActivity {
         adminDashboardSnapshot = null;
         monitoringFilter = AdminMonitoringFilter.ALL;
         settlementFilter = AdminSettlementFilter.ALL;
-        actionCenterFilter = AdminActionCenterFilter.ALL;
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
         textAdminManagers.setText(R.string.admin_manager_summary_empty);
@@ -1333,7 +1300,6 @@ public class AdminActivity extends AppCompatActivity {
         textAdminSettlementSummary.setText(R.string.admin_settlement_summary_empty);
         textAdminSettlementAlert.setVisibility(View.GONE);
         adminSupportSectionController.clear();
-        textAdminActionCenterSummary.setText(R.string.admin_action_center_summary_empty);
         textAdminActionDeliverySummary.setText(R.string.admin_action_delivery_summary_empty);
         textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);
         expandedRequestIds.clear();
@@ -1341,8 +1307,6 @@ public class AdminActivity extends AppCompatActivity {
         adminMonitoringFilterContainer.setVisibility(View.GONE);
         adminSettlementFilterContainer.removeAllViews();
         adminSettlementFilterContainer.setVisibility(View.GONE);
-        adminActionCenterFilterContainer.removeAllViews();
-        adminActionCenterFilterContainer.setVisibility(View.GONE);
         adminManagedFilterContainer.removeAllViews();
         adminManagedFilterContainer.setVisibility(View.GONE);
         adminManagedDateFilterContainer.removeAllViews();
@@ -1351,7 +1315,6 @@ public class AdminActivity extends AppCompatActivity {
         adminPendingRequestsContainer.removeAllViews();
         adminMonitoringContainer.removeAllViews();
         adminSettlementContainer.removeAllViews();
-        adminActionCenterContainer.removeAllViews();
         adminActionDeliveryContainer.removeAllViews();
         adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
@@ -1359,11 +1322,7 @@ public class AdminActivity extends AppCompatActivity {
         renderEmptyText(adminMonitoringContainer, R.string.admin_monitoring_title, R.string.admin_monitoring_empty);
         renderEmptyText(adminSettlementContainer, R.string.admin_settlement_title, R.string.admin_settlement_empty);
         adminSupportSectionController.showEmptyPanel();
-        renderEmptyText(
-                adminActionCenterContainer,
-                R.string.admin_action_center_title,
-                R.string.admin_action_center_empty
-        );
+        adminActionCenterSectionController.showEmptyPanel();
         renderEmptyText(
                 adminActionDeliveryContainer,
                 R.string.admin_action_delivery_title,
