@@ -24,15 +24,13 @@ import {
   ref,
 } from "firebase/storage";
 import { auth, db, firebaseConfig, storage } from "../firebase";
+import type { AdminSessionResult } from "./adminSession";
 import { AdminAuthScreen } from "./components/AdminAuthScreen";
 import { AdminShell } from "./components/AdminShell";
+import { ManagerApprovalList } from "./components/ManagerApprovalList";
+import { ManagerReviewModal } from "./components/ManagerReviewModal";
 import { useAdminIdleSession } from "./hooks/useAdminIdleSession";
-
-type AdminSessionResult = {
-  isAdmin: boolean;
-  adminName: string;
-  message: string;
-};
+import { useManagerDocumentPreviews } from "./hooks/useManagerDocumentPreviews";
 
 type ManagerDocumentKey = "idCard" | "license" | "criminalRecord";
 type ManagerDocumentStorageKey = ManagerDocumentKey | "healthCertificate";
@@ -561,12 +559,11 @@ function ManagerApproval({
   adminName: string;
   managers: Manager[];
 }) {
+  const CHECKED_STATUS: ChecklistStatus = "확인 완료";
+  const UNCHECKED_STATUS: ChecklistStatus = "미확인";
   const [selectedManagerId, setSelectedManagerId] = useState("");
   const [activeDoc, setActiveDoc] = useState<ManagerDocumentKey>("idCard");
   const [docStatus, setDocStatus] = useState<Record<ManagerDocumentKey, ChecklistStatus>>(INITIAL_DOC_STATUS);
-  const [documentPreviews, setDocumentPreviews] = useState<Record<ManagerDocumentKey, DocumentPreview>>(
-    buildPreviewState("idle"),
-  );
   const [rejectReason, setRejectReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -574,6 +571,33 @@ function ManagerApproval({
     () => managers.find((manager) => manager.id === selectedManagerId) || null,
     [managers, selectedManagerId],
   );
+  const documentKeys = useMemo<ManagerDocumentKey[]>(
+    () => DOCUMENTS.map((documentInfo) => documentInfo.key),
+    [],
+  );
+  const createIdlePreviewState = useCallback(
+    () => buildPreviewState("idle"),
+    [],
+  );
+  const createLoadingPreviewState = useCallback(
+    () => buildPreviewState("loading"),
+    [],
+  );
+  const createErrorPreview = useCallback(
+    (key: ManagerDocumentKey) => createPreview("error", {
+      message: `${DOCUMENT_LABEL_MAP[key]} 미리보기를 불러오지 못했습니다.`,
+    }),
+    [],
+  );
+  const documentPreviews = useManagerDocumentPreviews({
+    selectedManager,
+    documentKeys,
+    getManagerKey: (manager) => manager.id,
+    createIdleState: createIdlePreviewState,
+    createLoadingState: createLoadingPreviewState,
+    createErrorPreview,
+    resolvePreview: resolveDocumentPreview,
+  });
 
   const statusBadgeClass: Record<ManagerStatus, string> = {
     대기: "bg-gray-100 text-gray-700",
@@ -581,7 +605,6 @@ function ManagerApproval({
     승인됨: "bg-green-100 text-green-700",
     반려: "bg-red-100 text-red-700",
   };
-
   const previewBadgeClass: Record<PreviewStatus, string> = {
     idle: "bg-gray-100 text-gray-500",
     loading: "bg-blue-100 text-blue-700",
@@ -589,7 +612,6 @@ function ManagerApproval({
     missing: "bg-amber-100 text-amber-700",
     error: "bg-red-100 text-red-700",
   };
-
   const previewBadgeLabel: Record<PreviewStatus, string> = {
     idle: "대기",
     loading: "불러오는 중",
@@ -598,10 +620,9 @@ function ManagerApproval({
     error: "확인 실패",
   };
 
-  const allDocsChecked = Object.values(docStatus).every((status) => status === "확인 완료");
+  const allDocsChecked = Object.values(docStatus).every((status) => status === CHECKED_STATUS);
   const hasDocumentSummary = Boolean(selectedManager?.documentSummary.trim());
-  const activePreview = documentPreviews[activeDoc];
-  const checkedCount = Object.values(docStatus).filter((status) => status === "확인 완료").length;
+  const checkedCount = Object.values(docStatus).filter((status) => status === CHECKED_STATUS).length;
   const totalManagers = managers.length;
   const summaryReadyCount = useMemo(
     () => managers.filter((manager) => Boolean(manager.documentSummary.trim())).length,
@@ -618,60 +639,10 @@ function ManagerApproval({
   const selectedManagerUploadedCount = selectedManager ? getUploadedDocumentCount(selectedManager) : 0;
   const selectedManagerMissingCount = DOCUMENTS.length - selectedManagerUploadedCount;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!selectedManager) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void Promise.allSettled(
-      DOCUMENTS.map(async (documentInfo) => ({
-        key: documentInfo.key,
-        preview: await resolveDocumentPreview(selectedManager, documentInfo.key),
-      })),
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
-
-      const nextState = buildPreviewState("idle");
-      results.forEach((result, index) => {
-        const key = DOCUMENTS[index].key;
-        if (result.status === "fulfilled") {
-          nextState[key] = result.value.preview;
-          return;
-        }
-        nextState[key] = createPreview("error", {
-          message: `${DOCUMENT_LABEL_MAP[key]} 미리보기를 불러오지 못했습니다.`,
-        });
-      });
-      setDocumentPreviews(nextState);
-    }).catch(() => {
-      if (cancelled) {
-        return;
-      }
-      const nextState = buildPreviewState("error");
-      for (const key of Object.keys(nextState) as ManagerDocumentKey[]) {
-        nextState[key] = createPreview("error", {
-          message: `${DOCUMENT_LABEL_MAP[key]} 미리보기를 불러오지 못했습니다.`,
-        });
-      }
-      setDocumentPreviews(nextState);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedManager]);
-
   function openManagerReview(manager: Manager) {
     setSelectedManagerId(manager.id);
     setActiveDoc("idCard");
     setDocStatus(INITIAL_DOC_STATUS);
-    setDocumentPreviews(buildPreviewState("loading"));
     setRejectReason(manager.reviewNote || "");
     setIsSubmitting(false);
   }
@@ -680,7 +651,6 @@ function ManagerApproval({
     setSelectedManagerId("");
     setActiveDoc("idCard");
     setDocStatus(INITIAL_DOC_STATUS);
-    setDocumentPreviews(buildPreviewState("idle"));
     setRejectReason("");
     setIsSubmitting(false);
   }
@@ -688,7 +658,7 @@ function ManagerApproval({
   function handleToggleDocStatus(key: ManagerDocumentKey) {
     setDocStatus((prev) => ({
       ...prev,
-      [key]: prev[key] === "미확인" ? "확인 완료" : "미확인",
+      [key]: prev[key] === UNCHECKED_STATUS ? CHECKED_STATUS : UNCHECKED_STATUS,
     }));
   }
 
@@ -703,11 +673,11 @@ function ManagerApproval({
       return;
     }
     if (nextStatus === "APPROVED" && !allDocsChecked) {
-      window.alert("승인 전 체크리스트를 모두 확인해주세요.");
+      window.alert("확인할 체크리스트를 모두 완료해 주세요.");
       return;
     }
     if (nextStatus === "REJECTED" && !reviewNote) {
-      window.alert("반려 사유를 입력해주세요.");
+      window.alert("반려 사유를 입력해 주세요.");
       return;
     }
 
@@ -733,9 +703,11 @@ function ManagerApproval({
         }),
       });
 
-      window.alert(nextStatus === "APPROVED"
-        ? "매니저 서류를 승인했습니다."
-        : "매니저 서류를 반려했습니다.");
+      window.alert(
+        nextStatus === "APPROVED"
+          ? "매니저 서류를 승인했습니다."
+          : "매니저 서류를 반려했습니다.",
+      );
       closeModal();
     } catch (error) {
       console.error("Manager review save failed:", error);
@@ -748,9 +720,9 @@ function ManagerApproval({
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-base font-semibold text-gray-900">매니저 서류 승인</h1>
+        <h1 className="text-base font-semibold text-gray-900">매니저 서류 확인</h1>
         <p className="mt-1 text-xs text-gray-500">
-          제출된 서류 요약과 Storage 원본을 함께 검토하고 승인 또는 반려를 저장합니다.
+          제출된 서류 요약과 Storage 원본을 함께 확인하고 승인 또는 반려를 진행합니다.
         </p>
       </header>
 
@@ -777,372 +749,47 @@ function ManagerApproval({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
-            <tr>
-              <th className="px-4 py-3 text-left">매니저</th>
-              <th className="px-4 py-3 text-left">연락처</th>
-              <th className="px-4 py-3 text-left">서류 요약</th>
-              <th className="px-4 py-3 text-left">원본 파일</th>
-              <th className="px-4 py-3 text-left">상태</th>
-              <th className="px-4 py-3 text-left">관리</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {managers.map((manager) => {
-              const uploadedDocumentCount = getUploadedDocumentCount(manager);
-              const uploadedDocumentLabels = getUploadedDocumentLabels(manager);
-              const missingDocumentCount = DOCUMENTS.length - uploadedDocumentCount;
-              const summarySnippet = summarizeManagerText(manager.documentSummary, 84);
-
-              return (
-              <tr key={manager.id} className="align-top hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-gray-900">{manager.name}</p>
-                  <p className="mt-1 text-xs text-gray-500">가입일 {manager.date || "-"}</p>
-                </td>
-                <td className="px-4 py-3 text-gray-600">
-                  <p>{maskEmail(manager.email)}</p>
-                  <p className="mt-1 text-xs text-gray-500">{maskPhone(manager.phone)}</p>
-                </td>
-                <td className="px-4 py-3 text-gray-600">
-                  {summarySnippet ? (
-                    <>
-                      <p className="leading-5 text-gray-700">{summarySnippet}</p>
-                      {manager.reviewNote && (
-                        <p className="mt-2 text-xs text-amber-700">최근 보완 메모 있음</p>
-                      )}
-                    </>
-                  ) : (
-                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
-                      요약 미제출
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-gray-600">
-                  <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                    missingDocumentCount === 0
-                      ? "bg-green-100 text-green-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}>
-                    원본 {uploadedDocumentCount}/{DOCUMENTS.length}
-                  </span>
-                  <p className="mt-2 text-xs leading-5 text-gray-500">
-                    {uploadedDocumentLabels.length
-                      ? uploadedDocumentLabels.join(", ")
-                      : "아직 업로드된 원본 파일이 없습니다."}
-                  </p>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusBadgeClass[manager.status]}`}>
-                    {manager.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => openManagerReview(manager)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100"
-                  >
-                    상세 보기
-                  </button>
-                </td>
-              </tr>
-            )})}
-            {!managers.length && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
-                  검토할 매니저가 없습니다.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ManagerApprovalList
+        managers={managers}
+        statusBadgeClass={statusBadgeClass}
+        totalDocumentCount={DOCUMENTS.length}
+        onOpenManagerReview={openManagerReview}
+        getUploadedDocumentCount={getUploadedDocumentCount}
+        getUploadedDocumentLabels={getUploadedDocumentLabels}
+        summarizeManagerText={summarizeManagerText}
+        maskEmail={maskEmail}
+        maskPhone={maskPhone}
+      />
 
       {selectedManager && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-[1280px] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">{selectedManager.name} 서류 심사</h2>
-                <p className="mt-1 text-xs text-gray-500">
-                  제출 요약과 Storage 원본을 함께 확인한 뒤 상태를 저장하세요.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100"
-              >
-                닫기
-              </button>
-            </div>
-
-            <div className="grid gap-3 border-b border-gray-100 bg-gray-50 px-6 py-4 md:grid-cols-4">
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">현재 상태</p>
-                <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusBadgeClass[selectedManager.status]}`}>
-                  {selectedManager.status}
-                </span>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">원본 파일</p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">{selectedManagerUploadedCount}/{DOCUMENTS.length}</p>
-                <p className="mt-1 text-xs text-gray-500">
-                  {selectedManagerMissingCount === 0 ? "필수 파일 업로드 완료" : `${selectedManagerMissingCount}개 파일이 더 필요합니다.`}
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">체크리스트 진행</p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">{checkedCount}/{DOCUMENTS.length}</p>
-                <p className="mt-1 text-xs text-gray-500">실제 원본을 확인한 항목 수</p>
-              </div>
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">제출 상태</p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">{hasDocumentSummary ? "요약 제출됨" : "요약 미제출"}</p>
-                <p className="mt-1 text-xs text-gray-500">가입일 {selectedManager.date || "-"}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-6 px-6 py-5 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
-              <section className="space-y-4 self-start rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <h3 className="text-sm font-semibold text-gray-900">제출 정보</h3>
-                <div className="space-y-2 text-xs text-gray-600">
-                  <p><span className="font-medium text-gray-800">이메일</span> {selectedManager.email || "-"}</p>
-                  <p><span className="font-medium text-gray-800">전화번호</span> {selectedManager.phone || "-"}</p>
-                  <p><span className="font-medium text-gray-800">가입일</span> {selectedManager.date || "-"}</p>
-                  <p><span className="font-medium text-gray-800">현재 상태</span> {selectedManager.status}</p>
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-700 shadow-sm">
-                  <p className="mb-1 font-medium text-gray-900">제출 요약</p>
-                  <p className="whitespace-pre-wrap leading-5">
-                    {selectedManager.documentSummary || "제출된 서류 요약이 없습니다."}
-                  </p>
-                </div>
-                {selectedManager.reviewNote && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-                    <p className="mb-1 font-medium">최근 검토 메모</p>
-                    <p className="whitespace-pre-wrap leading-5">{selectedManager.reviewNote}</p>
-                  </div>
-                )}
-              </section>
-
-              <section className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-3">
-                  {DOCUMENTS.map((documentInfo) => {
-                    const preview = documentPreviews[documentInfo.key];
-                    const isActive = activeDoc === documentInfo.key;
-                    return (
-                      <button
-                        key={documentInfo.key}
-                        type="button"
-                        onClick={() => setActiveDoc(documentInfo.key)}
-                        className={`rounded-xl border px-4 py-3 text-left text-xs transition ${
-                          isActive
-                            ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm"
-                            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                        }`}
-                      >
-                        <p className="font-semibold">{documentInfo.label}</p>
-                        <p className="mt-1 text-[11px] leading-4 text-gray-500">{documentInfo.helper}</p>
-                        <p className="mt-2 truncate text-[11px] text-gray-500">
-                          {preview.fileName || "원본 파일 없음"}
-                        </p>
-                        <span className={`mt-2 inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${previewBadgeClass[preview.status]}`}>
-                          {previewBadgeLabel[preview.status]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex flex-col gap-3 border-b border-gray-100 pb-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <h3 className="text-base font-semibold text-gray-900">{DOCUMENT_LABEL_MAP[activeDoc]} 원본</h3>
-                      <p className="mt-1 text-xs text-gray-500">
-                        경로 규약: <span className="font-mono">{getDocumentFolderPaths(selectedManager.id, activeDoc).join(" 또는 ")}/파일명</span>
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${previewBadgeClass[activePreview.status]}`}>
-                        {previewBadgeLabel[activePreview.status]}
-                      </span>
-                      <a
-                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc, activePreview.fullPath)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                      >
-                        Storage 폴더 열기
-                      </a>
-                    </div>
-                  </div>
-
-                  {activePreview.status === "loading" && (
-                    <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-10 text-center text-sm text-blue-700">
-                      Storage 원본을 불러오는 중입니다.
-                    </div>
-                  )}
-
-                  {activePreview.status === "missing" && (
-                    <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                      <p>{activePreview.message}</p>
-                      <a
-                        href={getFirebaseStorageConsoleFolderUrl(selectedManager.id, activeDoc, activePreview.fullPath)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-100"
-                      >
-                        Firebase 콘솔에서 폴더 열기
-                      </a>
-                    </div>
-                  )}
-
-                  {activePreview.status === "error" && (
-                    <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                      <p>{activePreview.message}</p>
-                      {activePreview.fullPath && (
-                        <p className="text-xs text-red-600">
-                          저장 경로: <span className="font-mono">{activePreview.fullPath}</span>
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {activePreview.status === "ready" && (
-                    <div className="space-y-4">
-                      <div className="grid gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-600 md:grid-cols-2">
-                        <p><span className="font-medium text-gray-800">파일명</span> {activePreview.fileName || "-"}</p>
-                        <p><span className="font-medium text-gray-800">형식</span> {activePreview.contentType || "-"}</p>
-                        <p><span className="font-medium text-gray-800">업로드 시각</span> {activePreview.uploadedAtLabel || "-"}</p>
-                        <p className="truncate">
-                          <span className="font-medium text-gray-800">저장 경로</span> {activePreview.fullPath}
-                        </p>
-                      </div>
-
-                      {isImageDocument(activePreview) && (
-                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-                          <img
-                            src={activePreview.downloadUrl}
-                            alt={`${DOCUMENT_LABEL_MAP[activeDoc]} 미리보기`}
-                            className="h-[420px] w-full object-contain"
-                          />
-                        </div>
-                      )}
-
-                      {!isImageDocument(activePreview) && isPdfDocument(activePreview) && (
-                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-                          <iframe
-                            title={`${DOCUMENT_LABEL_MAP[activeDoc]} PDF 미리보기`}
-                            src={`${activePreview.downloadUrl}#toolbar=0`}
-                            className="h-[420px] w-full"
-                          />
-                        </div>
-                      )}
-
-                      {!isImageDocument(activePreview) && !isPdfDocument(activePreview) && (
-                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                          현재 형식은 인라인 미리보기를 지원하지 않습니다. 원본 열기로 확인하세요.
-                        </div>
-                      )}
-
-                      <a
-                        href={activePreview.downloadUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                      >
-                        원본 열기
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section className="space-y-4 self-start rounded-2xl border border-gray-200 bg-gray-50 p-4 lg:sticky lg:top-5">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">검토 체크리스트</h3>
-                  <p className="mt-1 text-xs text-gray-500">
-                    실제 원본을 확인한 항목만 체크하세요.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">검토 진행</p>
-                  <p className="mt-2 text-lg font-semibold text-gray-900">{checkedCount}/{DOCUMENTS.length}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {allDocsChecked ? "세 항목 모두 확인 완료" : "확인한 원본 파일만 체크해 주세요."}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  {DOCUMENTS.map((documentInfo) => (
-                    <label
-                      key={documentInfo.key}
-                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={docStatus[documentInfo.key] === "확인 완료"}
-                        onChange={() => handleToggleDocStatus(documentInfo.key)}
-                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{documentInfo.label}</p>
-                        <p className="mt-1 text-xs text-gray-500">{documentInfo.helper}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-gray-700">
-                    반려 사유
-                  </label>
-                  <textarea
-                    value={rejectReason}
-                    onChange={(event) => setRejectReason(event.target.value)}
-                    rows={4}
-                    placeholder="예: 범죄경력 조회 파일이 누락되어 보완이 필요합니다."
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  />
-                </div>
-
-                {!hasDocumentSummary && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                    매니저가 제출한 서류 요약이 없어 현재 상태에서는 승인 또는 반려를 저장할 수 없습니다.
-                  </div>
-                )}
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveReview("REJECTED")}
-                    disabled={isSubmitting || !hasDocumentSummary}
-                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-                  >
-                    반려
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void saveReview("APPROVED")}
-                    disabled={isSubmitting || !allDocsChecked || !hasDocumentSummary}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-                  >
-                    최종 승인
-                  </button>
-                </div>
-
-                <p className="text-[11px] leading-5 text-gray-500">
-                  승인 전에는 세 개 문서의 원본 상태와 제출 요약을 함께 확인하세요. 요약이 없으면 심사 결과를 저장하지 않습니다.
-                </p>
-              </section>
-            </div>
-          </div>
-        </div>
+        <ManagerReviewModal
+          selectedManager={selectedManager}
+          activeDoc={activeDoc}
+          setActiveDoc={setActiveDoc}
+          docStatus={docStatus}
+          rejectReason={rejectReason}
+          setRejectReason={setRejectReason}
+          isSubmitting={isSubmitting}
+          allDocsChecked={allDocsChecked}
+          hasDocumentSummary={hasDocumentSummary}
+          checkedCount={checkedCount}
+          totalDocumentCount={DOCUMENTS.length}
+          selectedManagerUploadedCount={selectedManagerUploadedCount}
+          selectedManagerMissingCount={selectedManagerMissingCount}
+          documentPreviews={documentPreviews}
+          documents={DOCUMENTS}
+          statusBadgeClass={statusBadgeClass}
+          previewBadgeClass={previewBadgeClass}
+          previewBadgeLabel={previewBadgeLabel}
+          documentLabelMap={DOCUMENT_LABEL_MAP}
+          onClose={closeModal}
+          onToggleDocStatus={handleToggleDocStatus}
+          onSaveReview={saveReview}
+          isImageDocument={(preview) => isImageDocument(preview as DocumentPreview)}
+          isPdfDocument={(preview) => isPdfDocument(preview as DocumentPreview)}
+          getDocumentFolderPaths={getDocumentFolderPaths}
+          getFirebaseStorageConsoleFolderUrl={getFirebaseStorageConsoleFolderUrl}
+        />
       )}
     </div>
   );

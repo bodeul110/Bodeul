@@ -178,3 +178,7 @@
   - `#10` 1차로 `AdminAuthScreen`, `AdminShell`, `useAdminIdleSession`, `adminSession`을 추가했다.
   - `App.tsx`는 메뉴 상태, 매니저 목록 구독, 화면 전환을 담당하는 셸 역할로 줄였고, 로그인 화면과 유휴 세션 타이머를 분리했다.
   - `lint`, `build` 검증을 통과했다.
+- 2026-06-20 17차 진행
+  - #10 2차로 ManagerApprovalList, ManagerReviewModal, useManagerDocumentPreviews를 추가했다.
+  - App.tsx에서 manager review list, review modal, preview resolver hook 범위를 분리해 계획 범위를 모두 완료했다.
+  - lint, uild 검증을 통과했고 #10을 마감할 수 있는 상태다.
