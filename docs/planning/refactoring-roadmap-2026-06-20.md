@@ -124,3 +124,6 @@
 - 2026-06-20 3차 진행
   - `functions/src/action-delivery.js`를 추가하고 관리자 후속 푸시 전달 배치와 수동 재실행 callable을 분리했다.
   - `functions/index.js`에 남아 있던 알림 export 중복 선언도 함께 제거해 집계 파일 역할을 더 분명하게 맞췄다.
+- 2026-06-20 4차 진행
+  - `functions/src/reminders.js`를 추가하고 예약 알림 생성/발송/수동 재실행 흐름을 분리했다.
+  - `functions/index.js`를 `initializeApp()` + 모듈 집계만 남는 형태로 줄여, Functions 루트 파일 역할을 명확히 정리했다.
