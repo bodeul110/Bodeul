@@ -166,4 +166,7 @@
 
 - 2026-06-20 13차 진행
   - #8의 저장소 남은 범위였던 request, guide, operations 저장 로직을 각각 FirebaseAdminRequestStore, FirebaseAdminGuideStore, FirebaseAdminOperationsStore로 분리했다.
-  - 이 단계로 관리자 앱 화면 및 저장소 분리의 계획 범위를 모두 마쳤다.
+  - 이 단계로 관리자 앱 화면 및 저장소 분리의 계획 범위를 모두 마쳤다.- 2026-06-20 14차 진행
+  - `#9` 1차로 `MockBookingStore`, `MockManagerStore`를 추가했다.
+  - `MockBookingRepository`, `MockManagerRepository`는 새 store를 직접 사용하도록 바꿨고, `MockBodeulRepository`는 공유 상태와 helper 제공 범위를 열어 내부 경계를 분리했다.
+  - support/admin 축은 다음 단계에서 같은 패턴으로 이어간다.

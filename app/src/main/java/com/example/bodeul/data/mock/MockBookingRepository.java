@@ -1,6 +1,7 @@
 package com.example.bodeul.data.mock;
 
 import com.example.bodeul.data.BookingRepository;
+import com.example.bodeul.data.MockBookingStore;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
@@ -28,9 +29,11 @@ import java.util.TreeSet;
  */
 public class MockBookingRepository implements BookingRepository {
     private final MockBodeulRepository repository;
+    private final MockBookingStore bookingStore;
 
     public MockBookingRepository(MockBodeulRepository repository) {
         this.repository = repository;
+        this.bookingStore = new MockBookingStore(repository);
     }
 
     @Override
@@ -44,7 +47,7 @@ public class MockBookingRepository implements BookingRepository {
             callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return;
         }
-        callback.onSuccess(repository.getAppointmentRequestsForUser(currentUser.getId(), currentUser.getRole()));
+        callback.onSuccess(bookingStore.getAppointmentRequestsForUser(currentUser.getId(), currentUser.getRole()));
     }
 
     @Override
@@ -58,7 +61,7 @@ public class MockBookingRepository implements BookingRepository {
             return;
         }
 
-        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
+        AppointmentRequestDetail detail = bookingStore.getAppointmentRequestDetail(requestId);
         if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
             callback.onError("요청 상세 정보를 확인하지 못했습니다.");
             return;
@@ -87,7 +90,7 @@ public class MockBookingRepository implements BookingRepository {
             return;
         }
 
-        AppointmentRequest request = repository.createAppointmentRequest(
+        AppointmentRequest request = bookingStore.createAppointmentRequest(
                 currentUser,
                 bookingRequestDraft
         );
@@ -110,7 +113,7 @@ public class MockBookingRepository implements BookingRepository {
             return;
         }
 
-        AppointmentRequest request = repository.updateAppointmentRequest(
+        AppointmentRequest request = bookingStore.updateAppointmentRequest(
                 currentUser,
                 requestId,
                 bookingRequestDraft
@@ -133,7 +136,7 @@ public class MockBookingRepository implements BookingRepository {
             return;
         }
 
-        AppointmentRequest request = repository.cancelAppointmentRequest(currentUser, requestId);
+        AppointmentRequest request = bookingStore.cancelAppointmentRequest(currentUser, requestId);
         if (request == null) {
             callback.onError("접수 대기 또는 매니저 배정 완료 상태 요청만 취소할 수 있습니다.");
             return;
@@ -271,7 +274,7 @@ public class MockBookingRepository implements BookingRepository {
             return;
         }
 
-        AppointmentRequestDetail detail = repository.appendBookingCompanionChatMessage(
+        AppointmentRequestDetail detail = bookingStore.appendBookingCompanionChatMessage(
                 currentUser,
                 requestId,
                 message,
@@ -289,7 +292,7 @@ public class MockBookingRepository implements BookingRepository {
         if (!supportsRole(currentUser.getRole())) {
             return;
         }
-        repository.markBookingCompanionChatRead(currentUser, requestId);
+        bookingStore.markBookingCompanionChatRead(currentUser, requestId);
     }
 
     @Override

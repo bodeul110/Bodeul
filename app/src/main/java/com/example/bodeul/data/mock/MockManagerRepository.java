@@ -2,6 +2,7 @@ package com.example.bodeul.data.mock;
 
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.MockBodeulRepository;
+import com.example.bodeul.data.MockManagerStore;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
@@ -28,14 +29,16 @@ import java.util.List;
  */
 public class MockManagerRepository implements ManagerRepository {
     private final MockBodeulRepository repository;
+    private final MockManagerStore managerStore;
 
     public MockManagerRepository(MockBodeulRepository repository) {
         this.repository = repository;
+        this.managerStore = new MockManagerStore(repository);
     }
 
     @Override
     public void getManagerDashboard(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.getManagerDashboard(managerUserId);
+        ManagerDashboard dashboard = managerStore.getManagerDashboard(managerUserId);
         if (dashboard == null) {
             callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
             return;
@@ -45,7 +48,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.advanceManagerSession(managerUserId);
+        ManagerDashboard dashboard = managerStore.advanceManagerSession(managerUserId);
         if (dashboard == null) {
             callback.onError("다음 단계를 불러오지 못했습니다.");
             return;
@@ -55,7 +58,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void saveGuardianUpdate(String managerUserId, String guardianUpdate, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.updateGuardianMessage(managerUserId, guardianUpdate);
+        ManagerDashboard dashboard = managerStore.updateGuardianMessage(managerUserId, guardianUpdate);
         if (dashboard == null) {
             callback.onError("보호자 공유 메시지를 저장하지 못했습니다.");
             return;
@@ -70,7 +73,7 @@ public class MockManagerRepository implements ManagerRepository {
             List<CompanionChatAttachment> attachments,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        ManagerDashboard dashboard = repository.appendManagerCompanionChatMessage(
+        ManagerDashboard dashboard = managerStore.appendManagerCompanionChatMessage(
                 managerUserId,
                 message,
                 attachments
@@ -84,12 +87,12 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void markCompanionChatRead(String managerUserId) {
-        repository.markManagerCompanionChatRead(managerUserId);
+        managerStore.markManagerCompanionChatRead(managerUserId);
     }
 
     @Override
     public void saveCompanionLocationAlert(String managerUserId, CompanionLocationAlertStage stage) {
-        repository.saveCompanionLocationAlert(managerUserId, stage);
+        managerStore.saveCompanionLocationAlert(managerUserId, stage);
     }
 
     @Override
@@ -100,7 +103,7 @@ public class MockManagerRepository implements ManagerRepository {
             String locationSummary,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        ManagerDashboard dashboard = repository.updateSharedLocation(
+        ManagerDashboard dashboard = managerStore.updateSharedLocation(
                 managerUserId,
                 latitude,
                 longitude,
@@ -119,7 +122,7 @@ public class MockManagerRepository implements ManagerRepository {
             boolean active,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        ManagerDashboard dashboard = repository.updateLiveLocationSharingState(managerUserId, active);
+        ManagerDashboard dashboard = managerStore.updateLiveLocationSharingState(managerUserId, active);
         if (dashboard == null) {
             callback.onError("실시간 위치 공유 상태를 저장하지 못했습니다.");
             return;
@@ -129,7 +132,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.updateLocationSummary(managerUserId, locationSummary);
+        ManagerDashboard dashboard = managerStore.updateLocationSummary(managerUserId, locationSummary);
         if (dashboard == null) {
             callback.onError("위치 공유 메모를 저장하지 못했습니다.");
             return;
@@ -139,7 +142,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.updateFieldPhotoNote(managerUserId, fieldPhotoNote);
+        ManagerDashboard dashboard = managerStore.updateFieldPhotoNote(managerUserId, fieldPhotoNote);
         if (dashboard == null) {
             callback.onError("현장 사진 메모를 저장하지 못했습니다.");
             return;
@@ -149,7 +152,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.updateMedicationNote(managerUserId, medicationNote);
+        ManagerDashboard dashboard = managerStore.updateMedicationNote(managerUserId, medicationNote);
         if (dashboard == null) {
             callback.onError("복약 메모를 저장하지 못했습니다.");
             return;
@@ -159,7 +162,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.updatePharmacySummary(managerUserId, pharmacySummary);
+        ManagerDashboard dashboard = managerStore.updatePharmacySummary(managerUserId, pharmacySummary);
         if (dashboard == null) {
             callback.onError("약국 진행 요약을 저장하지 못했습니다.");
             return;
@@ -169,7 +172,7 @@ public class MockManagerRepository implements ManagerRepository {
 
     @Override
     public void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback) {
-        ManagerDashboard dashboard = repository.updatePharmacyCompleted(managerUserId, pharmacyCompleted);
+        ManagerDashboard dashboard = managerStore.updatePharmacyCompleted(managerUserId, pharmacyCompleted);
         if (dashboard == null) {
             callback.onError("약국 단계 상태를 저장하지 못했습니다.");
             return;
@@ -183,7 +186,7 @@ public class MockManagerRepository implements ManagerRepository {
             boolean prescriptionCollected,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        ManagerDashboard dashboard = repository.updatePrescriptionCollected(
+        ManagerDashboard dashboard = managerStore.updatePrescriptionCollected(
                 managerUserId,
                 prescriptionCollected
         );
@@ -200,7 +203,7 @@ public class MockManagerRepository implements ManagerRepository {
             boolean medicationGuidanceCompleted,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        ManagerDashboard dashboard = repository.updateMedicationGuidanceCompleted(
+        ManagerDashboard dashboard = managerStore.updateMedicationGuidanceCompleted(
                 managerUserId,
                 medicationGuidanceCompleted
         );
@@ -350,7 +353,7 @@ public class MockManagerRepository implements ManagerRepository {
             String nextVisitAt,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        ManagerDashboard dashboard = repository.saveSessionReport(
+        ManagerDashboard dashboard = managerStore.saveSessionReport(
                 managerUserId,
                 summary,
                 treatmentNotes,

@@ -106,6 +106,18 @@ public class MockBodeulRepository implements BodeulRepository {
         return Collections.unmodifiableList(new ArrayList<>(appointmentRequests));
     }
 
+    List<AppointmentRequest> getMutableAppointmentRequests() {
+        return appointmentRequests;
+    }
+
+    List<CompanionSession> getMutableCompanionSessions() {
+        return companionSessions;
+    }
+
+    List<SessionReport> getMutableSessionReports() {
+        return sessionReports;
+    }
+
     public synchronized List<AppointmentRequest> getAppointmentRequestsForUser(String userId, UserRole role) {
         List<AppointmentRequest> result = new ArrayList<>();
         for (AppointmentRequest request : appointmentRequests) {
@@ -1625,7 +1637,7 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
-    private AppointmentRequest findAppointmentRequest(String appointmentRequestId) {
+    AppointmentRequest findAppointmentRequest(String appointmentRequestId) {
         for (AppointmentRequest request : appointmentRequests) {
             if (request.getId().equals(appointmentRequestId)) {
                 return request;
@@ -1635,7 +1647,7 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
-    private CompanionSession getPrimaryManagerSession(String managerUserId) {
+    CompanionSession getPrimaryManagerSession(String managerUserId) {
         for (CompanionSession session : companionSessions) {
             if (session.getManagerUserId().equals(managerUserId) && isActiveSession(session)) {
                 return session;
@@ -1644,12 +1656,12 @@ public class MockBodeulRepository implements BodeulRepository {
         return null;
     }
 
-    private boolean canCancelRequest(AppointmentRequest request) {
+    boolean canCancelRequest(AppointmentRequest request) {
         return request.getStatus() == AppointmentStatus.REQUESTED
                 || request.getStatus() == AppointmentStatus.MATCHED;
     }
 
-    private boolean isActiveSession(CompanionSession session) {
+    boolean isActiveSession(CompanionSession session) {
         return session.getStatus() != SessionStatus.COMPLETED
                 && session.getStatus() != SessionStatus.CANCELED;
     }
@@ -1845,7 +1857,7 @@ public class MockBodeulRepository implements BodeulRepository {
         return normalizeText(inquiry.getId());
     }
 
-    private SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {
+    SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {
         if (stepOrder <= 1) {
             return SessionStatus.MEETING;
         }
@@ -1861,7 +1873,7 @@ public class MockBodeulRepository implements BodeulRepository {
         return SessionStatus.PAYMENT;
     }
 
-    private boolean matchesRequestOwner(AppointmentRequest request, String userId, UserRole role) {
+    boolean matchesRequestOwner(AppointmentRequest request, String userId, UserRole role) {
         if (role == UserRole.PATIENT) {
             return userId.equals(request.getPatientUserId());
         }
@@ -1871,12 +1883,12 @@ public class MockBodeulRepository implements BodeulRepository {
         return false;
     }
 
-    private boolean hasLinkedParticipants(AppointmentRequest request) {
+    boolean hasLinkedParticipants(AppointmentRequest request) {
         return !normalizeText(request.getPatientUserId()).isEmpty()
                 && !normalizeText(request.getGuardianUserId()).isEmpty();
     }
 
-    private AppointmentRequest createSnapshotBackedRequest(
+    AppointmentRequest createSnapshotBackedRequest(
             String requestId,
             BookingRequestDraft bookingRequestDraft,
             String patientUserId,
@@ -1924,7 +1936,7 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
-    private User resolveLinkedParticipant(UserRole expectedRole, String email, String phone) {
+    User resolveLinkedParticipant(UserRole expectedRole, String email, String phone) {
         User matchedByEmail = findUserByEmail(email);
         if (matchedByEmail != null && matchedByEmail.getRole() == expectedRole) {
             return matchedByEmail;
@@ -1937,7 +1949,7 @@ public class MockBodeulRepository implements BodeulRepository {
         return null;
     }
 
-    private UserRole resolveCounterpartRole(UserRole requesterRole) {
+    UserRole resolveCounterpartRole(UserRole requesterRole) {
         return requesterRole == UserRole.PATIENT ? UserRole.GUARDIAN : UserRole.PATIENT;
     }
 
@@ -1982,7 +1994,7 @@ public class MockBodeulRepository implements BodeulRepository {
         return line.indexOf('-');
     }
 
-    private String normalizeText(String value) {
+    String normalizeText(String value) {
         return value == null ? "" : value.trim();
     }
 
