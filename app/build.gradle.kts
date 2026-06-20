@@ -30,12 +30,12 @@ val naverClientName = localOrGradleProperty("naverClientName")
 
 android {
     namespace = "com.example.bodeul"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.bodeul"
         minSdk = 24
-        targetSdk = 33
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
