@@ -56,6 +56,10 @@ public final class CompanionChatMessageItemModel {
         return attachment != null && !attachment.isEmpty();
     }
 
+    public boolean hasImageAttachment() {
+        return hasAttachment() && attachment != null && attachment.isImageType();
+    }
+
     @Nullable
     public CompanionChatAttachment getAttachment() {
         return attachment;

@@ -48,10 +48,21 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
+                <ImageView
+                    android:id="@+id/imageCompanionChatAttachmentPreview"
+                    android:layout_width="160dp"
+                    android:layout_height="120dp"
+                    android:adjustViewBounds="true"
+                    android:background="@drawable/bg_surface_card_soft"
+                    android:contentDescription="@string/companion_chat_attachment_preview"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/textCompanionChatAttachmentSummary"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
                     android:textColor="@color/bodeul_text_secondary"
                     android:textSize="12sp" />
 

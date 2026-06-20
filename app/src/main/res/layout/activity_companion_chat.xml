@@ -205,10 +205,21 @@
                             android:padding="14dp"
                             android:visibility="gone">
 
+                            <ImageView
+                                android:id="@+id/imageCompanionChatPendingAttachmentPreview"
+                                android:layout_width="96dp"
+                                android:layout_height="96dp"
+                                android:adjustViewBounds="true"
+                                android:background="@drawable/bg_surface_card_soft"
+                                android:contentDescription="@string/companion_chat_attachment_preview"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone" />
+
                             <TextView
                                 android:id="@+id/textCompanionChatPendingAttachmentTitle"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
                                 android:textColor="@color/bodeul_text_primary"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />

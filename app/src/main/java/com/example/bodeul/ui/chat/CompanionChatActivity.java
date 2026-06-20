@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
@@ -46,6 +47,7 @@ public class CompanionChatActivity extends AppCompatActivity {
     private CompanionChatViewModel viewModel;
     private CompanionChatBinder binder;
     private CompanionChatAttachmentPreviewResolver attachmentPreviewResolver;
+    private CompanionChatAttachmentThumbnailLoader attachmentThumbnailLoader;
 
     private View statePanel;
     private View contentContainer;
@@ -92,6 +94,7 @@ public class CompanionChatActivity extends AppCompatActivity {
         CompanionChatAttachmentUploader attachmentUploader =
                 ServiceLocator.provideCompanionChatAttachmentUploader(this);
         attachmentPreviewResolver = ServiceLocator.provideCompanionChatAttachmentPreviewResolver(this);
+        attachmentThumbnailLoader = new CompanionChatAttachmentThumbnailLoader(this);
         CompanionChatCoordinator coordinator = new CompanionChatCoordinator(this);
 
         CompanionChatViewModel.Factory factory = new CompanionChatViewModel.Factory(
@@ -128,10 +131,13 @@ public class CompanionChatActivity extends AppCompatActivity {
                 (TextInputLayout) findViewById(R.id.layoutCompanionChatInput),
                 (MaterialButton) findViewById(R.id.buttonCompanionChatSend),
                 findViewById(R.id.layoutCompanionChatPendingAttachment),
+                findViewById(R.id.imageCompanionChatPendingAttachmentPreview),
                 findViewById(R.id.textCompanionChatPendingAttachmentTitle),
                 findViewById(R.id.textCompanionChatPendingAttachmentMeta),
                 findViewById(R.id.buttonCompanionChatAttachmentPreview),
                 findViewById(R.id.buttonCompanionChatAttachmentClear),
+                this::bindPendingAttachmentThumbnail,
+                this::bindMessageAttachmentThumbnail,
                 this::openMessageAttachment
         );
 
@@ -295,6 +301,41 @@ public class CompanionChatActivity extends AppCompatActivity {
     private void clearPendingAttachment() {
         pendingAttachment = null;
         refreshPendingAttachmentUi();
+    }
+
+    private void bindPendingAttachmentThumbnail(
+            ImageView imageView,
+            CompanionChatPendingAttachment attachment
+    ) {
+        attachmentThumbnailLoader.loadInto(imageView, attachment.getFileUri());
+    }
+
+    private void bindMessageAttachmentThumbnail(
+            ImageView imageView,
+            CompanionChatAttachment attachment
+    ) {
+        if (!attachment.isImageType()) {
+            attachmentThumbnailLoader.clear(imageView);
+            return;
+        }
+
+        if (!TextUtils.isEmpty(attachment.getPreviewUri())) {
+            attachmentThumbnailLoader.loadInto(imageView, Uri.parse(attachment.getPreviewUri()));
+            return;
+        }
+
+        attachmentThumbnailLoader.clear(imageView);
+        attachmentPreviewResolver.resolvePreviewUri(attachment, new RepositoryCallback<Uri>() {
+            @Override
+            public void onSuccess(Uri previewUri) {
+                attachmentThumbnailLoader.loadInto(imageView, previewUri);
+            }
+
+            @Override
+            public void onError(String message) {
+                attachmentThumbnailLoader.clear(imageView);
+            }
+        });
     }
 
     private void openMessageAttachment(CompanionChatAttachment attachment) {

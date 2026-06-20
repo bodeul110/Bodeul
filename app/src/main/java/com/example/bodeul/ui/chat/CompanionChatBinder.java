@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -19,6 +20,20 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.util.List;
 
 public final class CompanionChatBinder {
+    public interface PendingAttachmentThumbnailBinder {
+        void onBindPendingAttachmentThumbnail(
+                ImageView imageView,
+                CompanionChatPendingAttachment pendingAttachment
+        );
+    }
+
+    public interface MessageAttachmentThumbnailBinder {
+        void onBindMessageAttachmentThumbnail(
+                ImageView imageView,
+                CompanionChatAttachment attachment
+        );
+    }
+
     public interface MessageAttachmentActionListener {
         void onOpenAttachment(CompanionChatAttachment attachment);
     }
@@ -37,10 +52,13 @@ public final class CompanionChatBinder {
     private final TextInputLayout inputLayout;
     private final MaterialButton buttonSend;
     private final View pendingAttachmentContainer;
+    private final ImageView imagePendingAttachmentPreview;
     private final TextView textPendingAttachmentTitle;
     private final TextView textPendingAttachmentMeta;
     private final MaterialButton buttonPendingAttachmentPreview;
     private final MaterialButton buttonPendingAttachmentClear;
+    private final PendingAttachmentThumbnailBinder pendingAttachmentThumbnailBinder;
+    private final MessageAttachmentThumbnailBinder messageAttachmentThumbnailBinder;
     private final MessageAttachmentActionListener messageAttachmentActionListener;
 
     public CompanionChatBinder(
@@ -58,10 +76,13 @@ public final class CompanionChatBinder {
             TextInputLayout inputLayout,
             MaterialButton buttonSend,
             View pendingAttachmentContainer,
+            ImageView imagePendingAttachmentPreview,
             TextView textPendingAttachmentTitle,
             TextView textPendingAttachmentMeta,
             MaterialButton buttonPendingAttachmentPreview,
             MaterialButton buttonPendingAttachmentClear,
+            PendingAttachmentThumbnailBinder pendingAttachmentThumbnailBinder,
+            MessageAttachmentThumbnailBinder messageAttachmentThumbnailBinder,
             MessageAttachmentActionListener messageAttachmentActionListener
     ) {
         this.context = context;
@@ -78,10 +99,13 @@ public final class CompanionChatBinder {
         this.inputLayout = inputLayout;
         this.buttonSend = buttonSend;
         this.pendingAttachmentContainer = pendingAttachmentContainer;
+        this.imagePendingAttachmentPreview = imagePendingAttachmentPreview;
         this.textPendingAttachmentTitle = textPendingAttachmentTitle;
         this.textPendingAttachmentMeta = textPendingAttachmentMeta;
         this.buttonPendingAttachmentPreview = buttonPendingAttachmentPreview;
         this.buttonPendingAttachmentClear = buttonPendingAttachmentClear;
+        this.pendingAttachmentThumbnailBinder = pendingAttachmentThumbnailBinder;
+        this.messageAttachmentThumbnailBinder = messageAttachmentThumbnailBinder;
         this.messageAttachmentActionListener = messageAttachmentActionListener;
     }
 
@@ -106,6 +130,9 @@ public final class CompanionChatBinder {
     ) {
         if (pendingAttachment == null) {
             pendingAttachmentContainer.setVisibility(View.GONE);
+            imagePendingAttachmentPreview.setVisibility(View.GONE);
+            imagePendingAttachmentPreview.setImageDrawable(null);
+            imagePendingAttachmentPreview.setTag(null);
             buttonPendingAttachmentPreview.setOnClickListener(null);
             buttonPendingAttachmentClear.setOnClickListener(null);
             return;
@@ -114,6 +141,17 @@ public final class CompanionChatBinder {
         pendingAttachmentContainer.setVisibility(View.VISIBLE);
         textPendingAttachmentTitle.setText(pendingAttachment.getFileName());
         textPendingAttachmentMeta.setText(resolvePendingAttachmentMeta(pendingAttachment));
+        if (pendingAttachment.isImageType()) {
+            imagePendingAttachmentPreview.setVisibility(View.VISIBLE);
+            pendingAttachmentThumbnailBinder.onBindPendingAttachmentThumbnail(
+                    imagePendingAttachmentPreview,
+                    pendingAttachment
+            );
+        } else {
+            imagePendingAttachmentPreview.setVisibility(View.GONE);
+            imagePendingAttachmentPreview.setImageDrawable(null);
+            imagePendingAttachmentPreview.setTag(null);
+        }
         buttonPendingAttachmentPreview.setOnClickListener(previewListener);
         buttonPendingAttachmentClear.setOnClickListener(clearListener);
     }
@@ -136,6 +174,7 @@ public final class CompanionChatBinder {
             TextView timeView = itemView.findViewById(R.id.textCompanionChatSentAt);
             MaterialCardView cardView = itemView.findViewById(R.id.cardCompanionChatBody);
             View attachmentContainer = itemView.findViewById(R.id.layoutCompanionChatAttachment);
+            ImageView attachmentPreviewView = itemView.findViewById(R.id.imageCompanionChatAttachmentPreview);
             TextView attachmentSummaryView = itemView.findViewById(R.id.textCompanionChatAttachmentSummary);
             MaterialButton attachmentOpenButton = itemView.findViewById(R.id.buttonCompanionChatAttachmentOpen);
 
@@ -154,12 +193,26 @@ public final class CompanionChatBinder {
             ));
             if (item.hasAttachment() && item.getAttachment() != null) {
                 attachmentContainer.setVisibility(View.VISIBLE);
+                if (item.hasImageAttachment()) {
+                    attachmentPreviewView.setVisibility(View.VISIBLE);
+                    messageAttachmentThumbnailBinder.onBindMessageAttachmentThumbnail(
+                            attachmentPreviewView,
+                            item.getAttachment()
+                    );
+                } else {
+                    attachmentPreviewView.setVisibility(View.GONE);
+                    attachmentPreviewView.setImageDrawable(null);
+                    attachmentPreviewView.setTag(null);
+                }
                 attachmentSummaryView.setText(item.getAttachmentSummary());
                 attachmentOpenButton.setText(item.getAttachmentActionLabel());
                 attachmentOpenButton.setOnClickListener(view ->
                         messageAttachmentActionListener.onOpenAttachment(item.getAttachment()));
             } else {
                 attachmentContainer.setVisibility(View.GONE);
+                attachmentPreviewView.setVisibility(View.GONE);
+                attachmentPreviewView.setImageDrawable(null);
+                attachmentPreviewView.setTag(null);
                 attachmentOpenButton.setOnClickListener(null);
             }
             messageContainer.addView(itemView);
