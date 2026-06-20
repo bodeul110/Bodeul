@@ -41,8 +41,12 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class CompanionChatActivity extends AppCompatActivity {
     private static final String EXTRA_REQUEST_ID = "requestId";
+    private static final int MAX_PENDING_ATTACHMENTS = 3;
 
     private CompanionChatViewModel viewModel;
     private CompanionChatBinder binder;
@@ -55,8 +59,7 @@ public class CompanionChatActivity extends AppCompatActivity {
     private TextInputEditText inputMessage;
     private String requestId;
     private boolean chatRefreshReceiverRegistered;
-    @Nullable
-    private CompanionChatPendingAttachment pendingAttachment;
+    private final List<CompanionChatPendingAttachment> pendingAttachments = new ArrayList<>();
 
     private ActivityResultLauncher<String[]> attachmentPickerLauncher;
 
@@ -107,8 +110,8 @@ public class CompanionChatActivity extends AppCompatActivity {
         viewModel = new ViewModelProvider(this, factory).get(CompanionChatViewModel.class);
 
         attachmentPickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.OpenDocument(),
-                this::handleAttachmentPicked
+                new ActivityResultContracts.OpenMultipleDocuments(),
+                this::handleAttachmentsPicked
         );
 
         statePanel = findViewById(R.id.companionChatStatePanel);
@@ -127,15 +130,11 @@ public class CompanionChatActivity extends AppCompatActivity {
                 findViewById(R.id.textCompanionChatHeroBody),
                 findViewById(R.id.textCompanionChatSectionTitle),
                 findViewById(R.id.textCompanionChatEmptyBody),
-                (LinearLayout) findViewById(R.id.layoutCompanionChatMessages),
-                (TextInputLayout) findViewById(R.id.layoutCompanionChatInput),
-                (MaterialButton) findViewById(R.id.buttonCompanionChatSend),
+                findViewById(R.id.layoutCompanionChatMessages),
+                findViewById(R.id.layoutCompanionChatInput),
+                findViewById(R.id.buttonCompanionChatSend),
                 findViewById(R.id.layoutCompanionChatPendingAttachment),
-                findViewById(R.id.imageCompanionChatPendingAttachmentPreview),
-                findViewById(R.id.textCompanionChatPendingAttachmentTitle),
-                findViewById(R.id.textCompanionChatPendingAttachmentMeta),
-                findViewById(R.id.buttonCompanionChatAttachmentPreview),
-                findViewById(R.id.buttonCompanionChatAttachmentClear),
+                findViewById(R.id.layoutCompanionChatPendingAttachmentItems),
                 this::bindPendingAttachmentThumbnail,
                 this::bindMessageAttachmentThumbnail,
                 this::openMessageAttachment
@@ -158,7 +157,7 @@ public class CompanionChatActivity extends AppCompatActivity {
                 return;
             }
             inputMessage.setText("");
-            clearPendingAttachment();
+            clearPendingAttachments();
             viewModel.messageSentHandled();
         });
 
@@ -225,38 +224,72 @@ public class CompanionChatActivity extends AppCompatActivity {
 
     private void sendMessage() {
         String message = inputMessage.getText() == null ? "" : inputMessage.getText().toString();
-        viewModel.sendMessage(message, pendingAttachment);
+        viewModel.sendMessage(message, new ArrayList<>(pendingAttachments));
     }
 
     private void openAttachmentPicker() {
         attachmentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
     }
 
-    private void handleAttachmentPicked(@Nullable Uri fileUri) {
-        if (fileUri == null) {
+    private void handleAttachmentsPicked(@Nullable List<Uri> fileUris) {
+        if (fileUris == null || fileUris.isEmpty()) {
             return;
         }
 
-        persistAttachmentReadPermission(fileUri);
-        String validationError = CompanionChatAttachmentUploadPolicy.validate(
-                getContentResolver(),
-                fileUri
-        );
-        if (!TextUtils.isEmpty(validationError)) {
-            Toast.makeText(this, validationError, Toast.LENGTH_SHORT).show();
+        int remainingCount = Math.max(MAX_PENDING_ATTACHMENTS - pendingAttachments.size(), 0);
+        if (remainingCount <= 0) {
+            Toast.makeText(this, R.string.companion_chat_attachment_max_count, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String fileName = CompanionChatAttachmentUploadPolicy.resolveFileName(
-                getContentResolver(),
-                fileUri
-        );
-        String contentType = CompanionChatAttachmentUploadPolicy.resolveContentType(
-                getContentResolver(),
-                fileUri
-        );
-        pendingAttachment = new CompanionChatPendingAttachment(fileUri, fileName, contentType);
+        int addedCount = 0;
+        for (Uri fileUri : fileUris) {
+            if (fileUri == null) {
+                continue;
+            }
+            if (addedCount >= remainingCount) {
+                break;
+            }
+            if (containsPendingAttachment(fileUri)) {
+                continue;
+            }
+
+            persistAttachmentReadPermission(fileUri);
+            String validationError = CompanionChatAttachmentUploadPolicy.validate(
+                    getContentResolver(),
+                    fileUri
+            );
+            if (!TextUtils.isEmpty(validationError)) {
+                Toast.makeText(this, validationError, Toast.LENGTH_SHORT).show();
+                continue;
+            }
+
+            String fileName = CompanionChatAttachmentUploadPolicy.resolveFileName(
+                    getContentResolver(),
+                    fileUri
+            );
+            String contentType = CompanionChatAttachmentUploadPolicy.resolveContentType(
+                    getContentResolver(),
+                    fileUri
+            );
+            pendingAttachments.add(new CompanionChatPendingAttachment(fileUri, fileName, contentType));
+            addedCount += 1;
+        }
+
+        if (addedCount < fileUris.size() && pendingAttachments.size() >= MAX_PENDING_ATTACHMENTS) {
+            Toast.makeText(this, R.string.companion_chat_attachment_max_count, Toast.LENGTH_SHORT).show();
+        }
         refreshPendingAttachmentUi();
+    }
+
+    private boolean containsPendingAttachment(Uri fileUri) {
+        String target = fileUri.toString();
+        for (CompanionChatPendingAttachment pendingAttachment : pendingAttachments) {
+            if (TextUtils.equals(target, pendingAttachment.getFileUri().toString())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void persistAttachmentReadPermission(@Nullable Uri fileUri) {
@@ -269,19 +302,25 @@ public class CompanionChatActivity extends AppCompatActivity {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
             );
         } catch (SecurityException | IllegalArgumentException ignored) {
-            // 일부 공급자는 현재 세션 읽기만 허용한다.
+            // 현재 세션에서만 읽을 수 있는 공급자 URI는 그대로 사용한다.
         }
     }
 
     private void refreshPendingAttachmentUi() {
-        binder.bindPendingAttachment(
-                pendingAttachment,
-                pendingAttachment == null ? null : view -> previewPendingAttachment(),
-                pendingAttachment == null ? null : view -> clearPendingAttachment()
-        );
+        binder.bindPendingAttachments(pendingAttachments, new CompanionChatBinder.PendingAttachmentActionListener() {
+            @Override
+            public void onPreviewPendingAttachment(CompanionChatPendingAttachment pendingAttachment) {
+                previewPendingAttachment(pendingAttachment);
+            }
+
+            @Override
+            public void onRemovePendingAttachment(CompanionChatPendingAttachment pendingAttachment) {
+                removePendingAttachment(pendingAttachment);
+            }
+        });
     }
 
-    private void previewPendingAttachment() {
+    private void previewPendingAttachment(CompanionChatPendingAttachment pendingAttachment) {
         if (pendingAttachment == null) {
             return;
         }
@@ -298,8 +337,21 @@ public class CompanionChatActivity extends AppCompatActivity {
         }
     }
 
-    private void clearPendingAttachment() {
-        pendingAttachment = null;
+    private void removePendingAttachment(CompanionChatPendingAttachment pendingAttachment) {
+        if (pendingAttachment == null) {
+            return;
+        }
+        String target = pendingAttachment.getFileUri().toString();
+        for (int index = pendingAttachments.size() - 1; index >= 0; index--) {
+            if (TextUtils.equals(target, pendingAttachments.get(index).getFileUri().toString())) {
+                pendingAttachments.remove(index);
+            }
+        }
+        refreshPendingAttachmentUi();
+    }
+
+    private void clearPendingAttachments() {
+        pendingAttachments.clear();
         refreshPendingAttachmentUi();
     }
 

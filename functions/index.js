@@ -2460,11 +2460,17 @@ function toCompanionChatMessageArray(value) {
     senderRole: sanitizeText(item?.senderRole),
     body: sanitizeText(item?.body),
     sentAtMillis: toSafeInteger(item?.sentAtMillis),
+    attachments: toCompanionChatAttachmentArray(item?.attachments, item?.attachment),
     attachmentFullPath: sanitizeText(item?.attachment?.fullPath),
     attachmentFileName: sanitizeText(item?.attachment?.fileName),
     attachmentContentType: sanitizeText(item?.attachment?.contentType),
   })).filter((item) =>
-    item.senderRole && (item.body || item.attachmentFullPath || item.attachmentFileName)
+    item.senderRole && (
+      item.body ||
+      item.attachments.length > 0 ||
+      item.attachmentFullPath ||
+      item.attachmentFileName
+    )
   );
 }
 
@@ -2473,10 +2479,41 @@ function buildCompanionChatMessageKey(message) {
     sanitizeText(message?.senderRole),
     sanitizeText(message?.body),
     toSafeInteger(message?.sentAtMillis),
-    sanitizeText(message?.attachmentFullPath),
-    sanitizeText(message?.attachmentFileName),
-    sanitizeText(message?.attachmentContentType),
+    ...toCompanionChatAttachmentArray(message?.attachments, {
+      fullPath: message?.attachmentFullPath,
+      fileName: message?.attachmentFileName,
+      contentType: message?.attachmentContentType,
+    }).map((attachment) => [
+      sanitizeText(attachment?.fullPath),
+      sanitizeText(attachment?.fileName),
+      sanitizeText(attachment?.contentType),
+    ].join(":")),
   ].join("|");
+}
+
+function toCompanionChatAttachmentArray(rawAttachments, rawAttachment) {
+  const attachments = [];
+  if (Array.isArray(rawAttachments)) {
+    rawAttachments.forEach((item) => {
+      const fullPath = sanitizeText(item?.fullPath);
+      const fileName = sanitizeText(item?.fileName);
+      const contentType = sanitizeText(item?.contentType);
+      if (!fullPath && !fileName) {
+        return;
+      }
+      attachments.push({fullPath, fileName, contentType});
+    });
+  }
+  if (attachments.length > 0) {
+    return attachments;
+  }
+  const fullPath = sanitizeText(rawAttachment?.fullPath);
+  const fileName = sanitizeText(rawAttachment?.fileName);
+  const contentType = sanitizeText(rawAttachment?.contentType);
+  if (!fullPath && !fileName) {
+    return [];
+  }
+  return [{fullPath, fileName, contentType}];
 }
 
 function resolveCompanionChatRecipientUserIds(senderRole, requestData, managerUserId) {
@@ -2515,7 +2552,15 @@ function resolveCompanionChatNotificationTitle(senderRole) {
 function buildCompanionChatNotificationBody(message) {
   const normalizedBody = sanitizeText(message?.body);
   if (!normalizedBody) {
-    const contentType = sanitizeText(message?.attachmentContentType);
+    const attachments = toCompanionChatAttachmentArray(message?.attachments, {
+      fullPath: message?.attachmentFullPath,
+      fileName: message?.attachmentFileName,
+      contentType: message?.attachmentContentType,
+    });
+    if (attachments.length > 1) {
+      return `첨부 파일 ${attachments.length}개를 보냈습니다.`;
+    }
+    const contentType = sanitizeText(attachments[0]?.contentType);
     if (contentType === "application/pdf") {
       return "PDF ??? ?????.";
     }

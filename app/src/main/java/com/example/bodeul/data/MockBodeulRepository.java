@@ -1261,7 +1261,7 @@ public class MockBodeulRepository implements BodeulRepository {
     public synchronized ManagerDashboard appendManagerCompanionChatMessage(
             String managerUserId,
             String message,
-            @Nullable CompanionChatAttachment attachment
+            @Nullable List<CompanionChatAttachment> attachments
     ) {
         User manager = findUserById(managerUserId);
         CompanionSession session = getPrimaryManagerSession(managerUserId);
@@ -1273,7 +1273,7 @@ public class MockBodeulRepository implements BodeulRepository {
                 manager.getRole(),
                 normalizeText(message),
                 sentAtMillis,
-                attachment
+                attachments
         ));
         session.markChatRead(manager.getRole(), sentAtMillis);
         return getManagerDashboard(managerUserId);
@@ -1284,7 +1284,7 @@ public class MockBodeulRepository implements BodeulRepository {
             User currentUser,
             String requestId,
             String message,
-            @Nullable CompanionChatAttachment attachment
+            @Nullable List<CompanionChatAttachment> attachments
     ) {
         AppointmentRequestDetail detail = getAppointmentRequestDetail(requestId);
         if (detail == null || !matchesRequestOwner(detail.getAppointmentRequest(), currentUser.getId(), currentUser.getRole())) {
@@ -1299,7 +1299,7 @@ public class MockBodeulRepository implements BodeulRepository {
                 currentUser.getRole(),
                 normalizeText(message),
                 sentAtMillis,
-                attachment
+                attachments
         ));
         session.markChatRead(currentUser.getRole(), sentAtMillis);
         return getAppointmentRequestDetail(requestId);

@@ -263,7 +263,7 @@ public class MockBookingRepository implements BookingRepository {
             User currentUser,
             String requestId,
             String message,
-            CompanionChatAttachment attachment,
+            List<CompanionChatAttachment> attachments,
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
@@ -275,7 +275,7 @@ public class MockBookingRepository implements BookingRepository {
                 currentUser,
                 requestId,
                 message,
-                attachment
+                attachments
         );
         if (detail == null) {
             callback.onError("안심 채팅 메시지를 전송하지 못했습니다.");

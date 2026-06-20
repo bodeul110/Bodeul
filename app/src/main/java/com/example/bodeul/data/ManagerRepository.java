@@ -28,7 +28,7 @@ public interface ManagerRepository {
     void sendCompanionChatMessage(
             String managerUserId,
             String message,
-            CompanionChatAttachment attachment,
+            List<CompanionChatAttachment> attachments,
             RepositoryCallback<ManagerDashboard> callback
     );
 

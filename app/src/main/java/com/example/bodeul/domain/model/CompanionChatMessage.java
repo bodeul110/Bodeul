@@ -1,28 +1,52 @@
 package com.example.bodeul.domain.model;
 
+import androidx.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
- * 동행 진행 중 참여자와 매니저가 주고받는 안심 채팅 한 건을 나타낸다.
+ * 동행 세션 참여자가 주고받는 안심 채팅 한 건을 표현한다.
  */
 public final class CompanionChatMessage {
     private final UserRole senderRole;
     private final String body;
     private final long sentAtMillis;
-    private final CompanionChatAttachment attachment;
+    private final List<CompanionChatAttachment> attachments;
 
     public CompanionChatMessage(UserRole senderRole, String body, long sentAtMillis) {
-        this(senderRole, body, sentAtMillis, null);
+        this(senderRole, body, sentAtMillis, Collections.emptyList());
     }
 
     public CompanionChatMessage(
             UserRole senderRole,
             String body,
             long sentAtMillis,
-            CompanionChatAttachment attachment
+            @Nullable CompanionChatAttachment attachment
+    ) {
+        this(
+                senderRole,
+                body,
+                sentAtMillis,
+                attachment == null || attachment.isEmpty()
+                        ? Collections.emptyList()
+                        : Collections.singletonList(attachment)
+        );
+    }
+
+    public CompanionChatMessage(
+            UserRole senderRole,
+            String body,
+            long sentAtMillis,
+            List<CompanionChatAttachment> attachments
     ) {
         this.senderRole = senderRole;
         this.body = body == null ? "" : body;
         this.sentAtMillis = sentAtMillis;
-        this.attachment = attachment;
+        this.attachments = attachments == null
+                ? new ArrayList<>()
+                : new ArrayList<>(attachments);
     }
 
     public UserRole getSenderRole() {
@@ -37,11 +61,16 @@ public final class CompanionChatMessage {
         return sentAtMillis;
     }
 
+    @Nullable
     public CompanionChatAttachment getAttachment() {
-        return attachment;
+        return attachments.isEmpty() ? null : attachments.get(0);
+    }
+
+    public List<CompanionChatAttachment> getAttachments() {
+        return Collections.unmodifiableList(attachments);
     }
 
     public boolean hasAttachment() {
-        return attachment != null && !attachment.isEmpty();
+        return !attachments.isEmpty();
     }
 }

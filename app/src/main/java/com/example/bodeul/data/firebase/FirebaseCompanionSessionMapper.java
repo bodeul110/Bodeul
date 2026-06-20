@@ -140,8 +140,11 @@ final class FirebaseCompanionSessionMapper {
             Map<?, ?> valueMap = (Map<?, ?>) rawMessage;
             String roleValue = stringValue(valueMap.get("senderRole"));
             String body = stringValue(valueMap.get("body"));
-            CompanionChatAttachment attachment = toChatAttachment(valueMap.get("attachment"));
-            if (body.isEmpty() && (attachment == null || attachment.isEmpty())) {
+            List<CompanionChatAttachment> attachments = toChatAttachments(
+                    valueMap.get("attachments"),
+                    valueMap.get("attachment")
+            );
+            if (body.isEmpty() && attachments.isEmpty()) {
                 continue;
             }
             long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
@@ -153,7 +156,7 @@ final class FirebaseCompanionSessionMapper {
                     senderRole = fallbackChatSenderRole;
                 }
             }
-            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachment));
+            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachments));
         }
         return messages;
     }
@@ -174,6 +177,29 @@ final class FirebaseCompanionSessionMapper {
                 stringValue(valueMap.get("contentType")),
                 resolveTimestampMillis(valueMap.get("uploadedAtMillis"))
         );
+    }
+
+    private static List<CompanionChatAttachment> toChatAttachments(
+            @Nullable Object rawAttachments,
+            @Nullable Object rawAttachment
+    ) {
+        List<CompanionChatAttachment> attachments = new ArrayList<>();
+        if (rawAttachments instanceof List) {
+            for (Object item : (List<?>) rawAttachments) {
+                CompanionChatAttachment attachment = toChatAttachment(item);
+                if (attachment != null && !attachment.isEmpty()) {
+                    attachments.add(attachment);
+                }
+            }
+        }
+        if (!attachments.isEmpty()) {
+            return attachments;
+        }
+        CompanionChatAttachment attachment = toChatAttachment(rawAttachment);
+        if (attachment != null && !attachment.isEmpty()) {
+            attachments.add(attachment);
+        }
+        return attachments;
     }
 
     @Nullable

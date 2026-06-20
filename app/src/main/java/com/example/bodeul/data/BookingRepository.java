@@ -84,7 +84,7 @@ public interface BookingRepository {
             User currentUser,
             String requestId,
             String message,
-            CompanionChatAttachment attachment,
+            List<CompanionChatAttachment> attachments,
             RepositoryCallback<AppointmentRequestDetail> callback
     );
 

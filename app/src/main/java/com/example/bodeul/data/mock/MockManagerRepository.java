@@ -67,13 +67,13 @@ public class MockManagerRepository implements ManagerRepository {
     public void sendCompanionChatMessage(
             String managerUserId,
             String message,
-            CompanionChatAttachment attachment,
+            List<CompanionChatAttachment> attachments,
             RepositoryCallback<ManagerDashboard> callback
     ) {
         ManagerDashboard dashboard = repository.appendManagerCompanionChatMessage(
                 managerUserId,
                 message,
-                attachment
+                attachments
         );
         if (dashboard == null) {
             callback.onError("안심 채팅 메시지를 전송하지 못했습니다.");

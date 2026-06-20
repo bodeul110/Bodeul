@@ -750,11 +750,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
     public void sendCompanionChatMessage(
             String managerUserId,
             String message,
-            CompanionChatAttachment attachment,
+            List<CompanionChatAttachment> attachments,
             RepositoryCallback<ManagerDashboard> callback
     ) {
         String normalizedMessage = normalizeText(message);
-        if (normalizedMessage.isEmpty() && (attachment == null || attachment.isEmpty())) {
+        if (normalizedMessage.isEmpty() && (attachments == null || attachments.isEmpty())) {
             callback.onError("메시지나 첨부 파일 중 하나는 함께 보내야 합니다.");
             return;
         }
@@ -764,7 +764,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("chatMessages", FieldValue.arrayUnion(
-                        buildChatMessagePayload(UserRole.MANAGER, normalizedMessage, attachment)
+                        buildChatMessagePayload(UserRole.MANAGER, normalizedMessage, attachments)
                 ));
                 updates.put(resolveChatReadField(UserRole.MANAGER), FieldValue.serverTimestamp());
                 updates.put("updatedAt", FieldValue.serverTimestamp());
@@ -1339,19 +1339,15 @@ public class FirebaseManagerRepository implements ManagerRepository {
     private Map<String, Object> buildChatMessagePayload(
             UserRole senderRole,
             String body,
-            @Nullable CompanionChatAttachment attachment
+            @Nullable List<CompanionChatAttachment> attachments
     ) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("senderRole", senderRole == null ? UserRole.MANAGER.name() : senderRole.name());
         payload.put("body", normalizeText(body));
         payload.put("sentAtMillis", System.currentTimeMillis());
-        if (attachment != null && !attachment.isEmpty()) {
-            Map<String, Object> attachmentPayload = new HashMap<>();
-            attachmentPayload.put("fullPath", attachment.getFullPath());
-            attachmentPayload.put("fileName", attachment.getFileName());
-            attachmentPayload.put("contentType", attachment.getContentType());
-            attachmentPayload.put("uploadedAtMillis", attachment.getUploadedAtMillis());
-            payload.put("attachment", attachmentPayload);
+        if (attachments != null && !attachments.isEmpty()) {
+            payload.put("attachments", toChatAttachmentPayloads(attachments));
+            payload.put("attachment", toChatAttachmentPayload(attachments.get(0)));
         }
         return payload;
     }
@@ -1384,6 +1380,29 @@ public class FirebaseManagerRepository implements ManagerRepository {
         );
     }
 
+    private List<CompanionChatAttachment> toChatAttachments(
+            @Nullable Object rawAttachments,
+            @Nullable Object rawAttachment
+    ) {
+        List<CompanionChatAttachment> attachments = new ArrayList<>();
+        if (rawAttachments instanceof List) {
+            for (Object item : (List<?>) rawAttachments) {
+                CompanionChatAttachment attachment = toChatAttachment(item);
+                if (attachment != null && !attachment.isEmpty()) {
+                    attachments.add(attachment);
+                }
+            }
+        }
+        if (!attachments.isEmpty()) {
+            return attachments;
+        }
+        CompanionChatAttachment attachment = toChatAttachment(rawAttachment);
+        if (attachment != null && !attachment.isEmpty()) {
+            attachments.add(attachment);
+        }
+        return attachments;
+    }
+
     private List<CompanionChatMessage> toChatMessages(@Nullable Object rawValue) {
         List<CompanionChatMessage> messages = new ArrayList<>();
         if (!(rawValue instanceof List)) {
@@ -1396,8 +1415,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
             Map<?, ?> valueMap = (Map<?, ?>) rawMessage;
             String roleValue = normalizeText(stringValue(valueMap.get("senderRole")));
             String body = normalizeText(stringValue(valueMap.get("body")));
-            CompanionChatAttachment attachment = toChatAttachment(valueMap.get("attachment"));
-            if (body.isEmpty() && (attachment == null || attachment.isEmpty())) {
+            List<CompanionChatAttachment> attachments = toChatAttachments(
+                    valueMap.get("attachments"),
+                    valueMap.get("attachment")
+            );
+            if (body.isEmpty() && attachments.isEmpty()) {
                 continue;
             }
             long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
@@ -1407,9 +1429,29 @@ public class FirebaseManagerRepository implements ManagerRepository {
             } catch (IllegalArgumentException exception) {
                 senderRole = UserRole.MANAGER;
             }
-            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachment));
+            messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachments));
         }
         return messages;
+    }
+
+    private List<Map<String, Object>> toChatAttachmentPayloads(List<CompanionChatAttachment> attachments) {
+        List<Map<String, Object>> payloads = new ArrayList<>();
+        for (CompanionChatAttachment attachment : attachments) {
+            if (attachment == null || attachment.isEmpty()) {
+                continue;
+            }
+            payloads.add(toChatAttachmentPayload(attachment));
+        }
+        return payloads;
+    }
+
+    private Map<String, Object> toChatAttachmentPayload(CompanionChatAttachment attachment) {
+        Map<String, Object> attachmentPayload = new HashMap<>();
+        attachmentPayload.put("fullPath", attachment.getFullPath());
+        attachmentPayload.put("fileName", attachment.getFileName());
+        attachmentPayload.put("contentType", attachment.getContentType());
+        attachmentPayload.put("uploadedAtMillis", attachment.getUploadedAtMillis());
+        return attachmentPayload;
     }
 
     @Nullable

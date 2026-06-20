@@ -1445,6 +1445,8 @@
     <string name="companion_chat_attachment_preview">미리보기</string>
     <string name="companion_chat_attachment_clear">선택 해제</string>
     <string name="companion_chat_attachment_preview_error">첨부 파일을 열지 못했습니다.</string>
+    <string name="companion_chat_pending_attachment_title">첨부 준비</string>
+    <string name="companion_chat_attachment_max_count">첨부는 최대 3개까지 보낼 수 있습니다.</string>
     <string name="companion_chat_role_patient">환자</string>
     <string name="companion_chat_role_guardian">보호자</string>
     <string name="companion_chat_role_manager">매니저</string>

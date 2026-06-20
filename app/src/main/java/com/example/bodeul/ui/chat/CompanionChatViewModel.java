@@ -19,6 +19,10 @@ import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class CompanionChatViewModel extends ViewModel {
 
     public enum StatePanelType {
@@ -152,23 +156,27 @@ public class CompanionChatViewModel extends ViewModel {
         });
     }
 
-    public void sendMessage(String message, @Nullable CompanionChatPendingAttachment pendingAttachment) {
+    public void sendMessage(
+            String message,
+            @Nullable List<CompanionChatPendingAttachment> pendingAttachments
+    ) {
         if (currentUser == null) {
             return;
         }
 
         String normalizedMessage = message == null ? "" : message.trim();
-        if (normalizedMessage.isEmpty() && pendingAttachment == null) {
+        boolean hasPendingAttachments = pendingAttachments != null && !pendingAttachments.isEmpty();
+        if (normalizedMessage.isEmpty() && !hasPendingAttachments) {
             toastMessage.setValue("메시지나 첨부 파일을 준비해 주세요.");
             return;
         }
 
         setLoadingWithCurrentScreen();
-        if (pendingAttachment != null) {
-            uploadPendingAttachmentAndSend(normalizedMessage, pendingAttachment);
+        if (hasPendingAttachments) {
+            uploadPendingAttachmentsAndSend(normalizedMessage, pendingAttachments);
             return;
         }
-        sendMessageInternal(normalizedMessage, null);
+        sendMessageInternal(normalizedMessage, Collections.emptyList());
     }
 
     public void toastMessageHandled() {
@@ -225,9 +233,9 @@ public class CompanionChatViewModel extends ViewModel {
         });
     }
 
-    private void uploadPendingAttachmentAndSend(
+    private void uploadPendingAttachmentsAndSend(
             String normalizedMessage,
-            CompanionChatPendingAttachment pendingAttachment
+            List<CompanionChatPendingAttachment> pendingAttachments
     ) {
         if (TextUtils.isEmpty(currentSessionId)) {
             restoreCurrentScreen();
@@ -235,13 +243,39 @@ public class CompanionChatViewModel extends ViewModel {
             return;
         }
 
+        uploadPendingAttachmentSequentially(
+                normalizedMessage,
+                pendingAttachments,
+                0,
+                new ArrayList<>()
+        );
+    }
+
+    private void uploadPendingAttachmentSequentially(
+            String normalizedMessage,
+            List<CompanionChatPendingAttachment> pendingAttachments,
+            int index,
+            List<CompanionChatAttachment> uploadedAttachments
+    ) {
+        if (index >= pendingAttachments.size()) {
+            sendMessageInternal(normalizedMessage, uploadedAttachments);
+            return;
+        }
+
+        CompanionChatPendingAttachment pendingAttachment = pendingAttachments.get(index);
         attachmentUploader.uploadAttachment(
                 currentSessionId,
                 pendingAttachment.getFileUri(),
                 new RepositoryCallback<CompanionChatAttachment>() {
                     @Override
                     public void onSuccess(CompanionChatAttachment result) {
-                        sendMessageInternal(normalizedMessage, result);
+                        uploadedAttachments.add(result);
+                        uploadPendingAttachmentSequentially(
+                                normalizedMessage,
+                                pendingAttachments,
+                                index + 1,
+                                uploadedAttachments
+                        );
                     }
 
                     @Override
@@ -255,18 +289,21 @@ public class CompanionChatViewModel extends ViewModel {
 
     private void sendMessageInternal(
             String normalizedMessage,
-            @Nullable CompanionChatAttachment attachment
+            @Nullable List<CompanionChatAttachment> attachments
     ) {
         if (currentUser == null) {
             restoreCurrentScreen();
             return;
         }
 
+        List<CompanionChatAttachment> safeAttachments =
+                attachments == null ? Collections.emptyList() : attachments;
+
         if (currentUser.getRole() == UserRole.MANAGER) {
             managerRepository.sendCompanionChatMessage(
                     currentUser.getId(),
                     normalizedMessage,
-                    attachment,
+                    safeAttachments,
                     new RepositoryCallback<ManagerDashboard>() {
                         @Override
                         public void onSuccess(ManagerDashboard result) {
@@ -293,7 +330,7 @@ public class CompanionChatViewModel extends ViewModel {
                 currentUser,
                 requestId,
                 normalizedMessage,
-                attachment,
+                safeAttachments,
                 new RepositoryCallback<AppointmentRequestDetail>() {
                     @Override
                     public void onSuccess(AppointmentRequestDetail result) {

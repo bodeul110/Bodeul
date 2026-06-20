@@ -1,6 +1,7 @@
 package com.example.bodeul.ui.chat;
 
 import android.content.Context;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,6 +35,12 @@ public final class CompanionChatBinder {
         );
     }
 
+    public interface PendingAttachmentActionListener {
+        void onPreviewPendingAttachment(CompanionChatPendingAttachment pendingAttachment);
+
+        void onRemovePendingAttachment(CompanionChatPendingAttachment pendingAttachment);
+    }
+
     public interface MessageAttachmentActionListener {
         void onOpenAttachment(CompanionChatAttachment attachment);
     }
@@ -52,11 +59,7 @@ public final class CompanionChatBinder {
     private final TextInputLayout inputLayout;
     private final MaterialButton buttonSend;
     private final View pendingAttachmentContainer;
-    private final ImageView imagePendingAttachmentPreview;
-    private final TextView textPendingAttachmentTitle;
-    private final TextView textPendingAttachmentMeta;
-    private final MaterialButton buttonPendingAttachmentPreview;
-    private final MaterialButton buttonPendingAttachmentClear;
+    private final LinearLayout pendingAttachmentItemsContainer;
     private final PendingAttachmentThumbnailBinder pendingAttachmentThumbnailBinder;
     private final MessageAttachmentThumbnailBinder messageAttachmentThumbnailBinder;
     private final MessageAttachmentActionListener messageAttachmentActionListener;
@@ -76,11 +79,7 @@ public final class CompanionChatBinder {
             TextInputLayout inputLayout,
             MaterialButton buttonSend,
             View pendingAttachmentContainer,
-            ImageView imagePendingAttachmentPreview,
-            TextView textPendingAttachmentTitle,
-            TextView textPendingAttachmentMeta,
-            MaterialButton buttonPendingAttachmentPreview,
-            MaterialButton buttonPendingAttachmentClear,
+            LinearLayout pendingAttachmentItemsContainer,
             PendingAttachmentThumbnailBinder pendingAttachmentThumbnailBinder,
             MessageAttachmentThumbnailBinder messageAttachmentThumbnailBinder,
             MessageAttachmentActionListener messageAttachmentActionListener
@@ -99,11 +98,7 @@ public final class CompanionChatBinder {
         this.inputLayout = inputLayout;
         this.buttonSend = buttonSend;
         this.pendingAttachmentContainer = pendingAttachmentContainer;
-        this.imagePendingAttachmentPreview = imagePendingAttachmentPreview;
-        this.textPendingAttachmentTitle = textPendingAttachmentTitle;
-        this.textPendingAttachmentMeta = textPendingAttachmentMeta;
-        this.buttonPendingAttachmentPreview = buttonPendingAttachmentPreview;
-        this.buttonPendingAttachmentClear = buttonPendingAttachmentClear;
+        this.pendingAttachmentItemsContainer = pendingAttachmentItemsContainer;
         this.pendingAttachmentThumbnailBinder = pendingAttachmentThumbnailBinder;
         this.messageAttachmentThumbnailBinder = messageAttachmentThumbnailBinder;
         this.messageAttachmentActionListener = messageAttachmentActionListener;
@@ -123,37 +118,51 @@ public final class CompanionChatBinder {
         bindMessages(screenModel.getMessages());
     }
 
-    public void bindPendingAttachment(
-            CompanionChatPendingAttachment pendingAttachment,
-            View.OnClickListener previewListener,
-            View.OnClickListener clearListener
+    public void bindPendingAttachments(
+            List<CompanionChatPendingAttachment> pendingAttachments,
+            PendingAttachmentActionListener actionListener
     ) {
-        if (pendingAttachment == null) {
+        pendingAttachmentItemsContainer.removeAllViews();
+        if (pendingAttachments == null || pendingAttachments.isEmpty()) {
             pendingAttachmentContainer.setVisibility(View.GONE);
-            imagePendingAttachmentPreview.setVisibility(View.GONE);
-            imagePendingAttachmentPreview.setImageDrawable(null);
-            imagePendingAttachmentPreview.setTag(null);
-            buttonPendingAttachmentPreview.setOnClickListener(null);
-            buttonPendingAttachmentClear.setOnClickListener(null);
             return;
         }
 
         pendingAttachmentContainer.setVisibility(View.VISIBLE);
-        textPendingAttachmentTitle.setText(pendingAttachment.getFileName());
-        textPendingAttachmentMeta.setText(resolvePendingAttachmentMeta(pendingAttachment));
-        if (pendingAttachment.isImageType()) {
-            imagePendingAttachmentPreview.setVisibility(View.VISIBLE);
-            pendingAttachmentThumbnailBinder.onBindPendingAttachmentThumbnail(
-                    imagePendingAttachmentPreview,
-                    pendingAttachment
+        for (int index = 0; index < pendingAttachments.size(); index++) {
+            CompanionChatPendingAttachment item = pendingAttachments.get(index);
+            View itemView = inflater.inflate(
+                    R.layout.item_companion_chat_pending_attachment,
+                    pendingAttachmentItemsContainer,
+                    false
             );
-        } else {
-            imagePendingAttachmentPreview.setVisibility(View.GONE);
-            imagePendingAttachmentPreview.setImageDrawable(null);
-            imagePendingAttachmentPreview.setTag(null);
+            ImageView imagePreview = itemView.findViewById(R.id.imageCompanionChatPendingAttachmentPreview);
+            TextView textTitle = itemView.findViewById(R.id.textCompanionChatPendingAttachmentTitle);
+            TextView textMeta = itemView.findViewById(R.id.textCompanionChatPendingAttachmentMeta);
+            MaterialButton buttonPreview = itemView.findViewById(R.id.buttonCompanionChatAttachmentPreview);
+            MaterialButton buttonClear = itemView.findViewById(R.id.buttonCompanionChatAttachmentClear);
+
+            if (index == pendingAttachments.size() - 1) {
+                ViewGroup.MarginLayoutParams params =
+                        (ViewGroup.MarginLayoutParams) itemView.getLayoutParams();
+                params.bottomMargin = 0;
+                itemView.setLayoutParams(params);
+            }
+
+            textTitle.setText(item.getFileName());
+            textMeta.setText(resolvePendingAttachmentMeta(item));
+            if (item.isImageType()) {
+                imagePreview.setVisibility(View.VISIBLE);
+                pendingAttachmentThumbnailBinder.onBindPendingAttachmentThumbnail(imagePreview, item);
+            } else {
+                imagePreview.setVisibility(View.GONE);
+                imagePreview.setImageDrawable(null);
+                imagePreview.setTag(null);
+            }
+            buttonPreview.setOnClickListener(view -> actionListener.onPreviewPendingAttachment(item));
+            buttonClear.setOnClickListener(view -> actionListener.onRemovePendingAttachment(item));
+            pendingAttachmentItemsContainer.addView(itemView);
         }
-        buttonPendingAttachmentPreview.setOnClickListener(previewListener);
-        buttonPendingAttachmentClear.setOnClickListener(clearListener);
     }
 
     private void bindMessages(List<CompanionChatMessageItemModel> items) {
@@ -174,11 +183,10 @@ public final class CompanionChatBinder {
             TextView timeView = itemView.findViewById(R.id.textCompanionChatSentAt);
             MaterialCardView cardView = itemView.findViewById(R.id.cardCompanionChatBody);
             View attachmentContainer = itemView.findViewById(R.id.layoutCompanionChatAttachment);
-            ImageView attachmentPreviewView = itemView.findViewById(R.id.imageCompanionChatAttachmentPreview);
-            TextView attachmentSummaryView = itemView.findViewById(R.id.textCompanionChatAttachmentSummary);
-            MaterialButton attachmentOpenButton = itemView.findViewById(R.id.buttonCompanionChatAttachmentOpen);
+            LinearLayout attachmentItemsContainer =
+                    itemView.findViewById(R.id.layoutCompanionChatAttachmentItems);
 
-            root.setGravity(item.isMine() ? android.view.Gravity.END : android.view.Gravity.START);
+            root.setGravity(item.isMine() ? Gravity.END : Gravity.START);
             senderView.setText(item.getSenderLabel());
             bodyView.setText(item.getBody());
             bodyView.setVisibility(item.hasBody() ? View.VISIBLE : View.GONE);
@@ -191,31 +199,60 @@ public final class CompanionChatBinder {
                     context,
                     item.isMine() ? R.color.bodeul_primary : R.color.bodeul_text_secondary
             ));
-            if (item.hasAttachment() && item.getAttachment() != null) {
-                attachmentContainer.setVisibility(View.VISIBLE);
-                if (item.hasImageAttachment()) {
-                    attachmentPreviewView.setVisibility(View.VISIBLE);
-                    messageAttachmentThumbnailBinder.onBindMessageAttachmentThumbnail(
-                            attachmentPreviewView,
-                            item.getAttachment()
-                    );
-                } else {
-                    attachmentPreviewView.setVisibility(View.GONE);
-                    attachmentPreviewView.setImageDrawable(null);
-                    attachmentPreviewView.setTag(null);
-                }
-                attachmentSummaryView.setText(item.getAttachmentSummary());
-                attachmentOpenButton.setText(item.getAttachmentActionLabel());
-                attachmentOpenButton.setOnClickListener(view ->
-                        messageAttachmentActionListener.onOpenAttachment(item.getAttachment()));
-            } else {
-                attachmentContainer.setVisibility(View.GONE);
-                attachmentPreviewView.setVisibility(View.GONE);
-                attachmentPreviewView.setImageDrawable(null);
-                attachmentPreviewView.setTag(null);
-                attachmentOpenButton.setOnClickListener(null);
-            }
+            bindMessageAttachments(item.getAttachments(), attachmentContainer, attachmentItemsContainer);
             messageContainer.addView(itemView);
+        }
+    }
+
+    private void bindMessageAttachments(
+            List<CompanionChatAttachmentItemModel> attachments,
+            View attachmentContainer,
+            LinearLayout attachmentItemsContainer
+    ) {
+        attachmentItemsContainer.removeAllViews();
+        if (attachments == null || attachments.isEmpty()) {
+            attachmentContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        attachmentContainer.setVisibility(View.VISIBLE);
+        for (int index = 0; index < attachments.size(); index++) {
+            CompanionChatAttachmentItemModel item = attachments.get(index);
+            View itemView = inflater.inflate(
+                    R.layout.item_companion_chat_message_attachment,
+                    attachmentItemsContainer,
+                    false
+            );
+            ImageView imagePreview = itemView.findViewById(R.id.imageCompanionChatAttachmentPreview);
+            TextView textSummary = itemView.findViewById(R.id.textCompanionChatAttachmentSummary);
+            MaterialButton buttonOpen = itemView.findViewById(R.id.buttonCompanionChatAttachmentOpen);
+
+            if (index == attachments.size() - 1) {
+                ViewGroup.MarginLayoutParams params =
+                        (ViewGroup.MarginLayoutParams) itemView.getLayoutParams();
+                params.bottomMargin = 0;
+                itemView.setLayoutParams(params);
+            }
+
+            if (item.hasImageAttachment() && item.getAttachment() != null) {
+                imagePreview.setVisibility(View.VISIBLE);
+                messageAttachmentThumbnailBinder.onBindMessageAttachmentThumbnail(
+                        imagePreview,
+                        item.getAttachment()
+                );
+            } else {
+                imagePreview.setVisibility(View.GONE);
+                imagePreview.setImageDrawable(null);
+                imagePreview.setTag(null);
+            }
+            textSummary.setText(item.getSummary());
+            buttonOpen.setText(item.getActionLabel());
+            buttonOpen.setOnClickListener(view -> {
+                if (item.getAttachment() != null) {
+                    messageAttachmentActionListener.onOpenAttachment(item.getAttachment());
+                }
+            });
+            attachmentItemsContainer.addView(itemView);
         }
     }
 

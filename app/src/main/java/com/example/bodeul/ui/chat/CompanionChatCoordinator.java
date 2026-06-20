@@ -18,6 +18,7 @@ import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -137,29 +138,42 @@ public final class CompanionChatCoordinator {
                     message.getBody(),
                     sentAtLabel,
                     mine,
-                    message.getAttachment(),
-                    toAttachmentSummary(message.getAttachment()),
-                    context.getString(R.string.companion_chat_attachment_open)
+                    toAttachmentItems(message.getAttachments())
             ));
         }
         return items;
     }
 
-    private String toAttachmentSummary(CompanionChatAttachment attachment) {
-        if (attachment == null || attachment.isEmpty()) {
-            return "";
+    private List<CompanionChatAttachmentItemModel> toAttachmentItems(
+            List<CompanionChatAttachment> attachments
+    ) {
+        if (attachments == null || attachments.isEmpty()) {
+            return Collections.emptyList();
         }
 
-        String fileName = TextUtils.isEmpty(attachment.getFileName())
-                ? context.getString(R.string.companion_chat_attachment_file)
-                : attachment.getFileName();
-        if (attachment.isImageType()) {
-            return context.getString(R.string.companion_chat_attachment_image_format, fileName);
+        List<CompanionChatAttachmentItemModel> items = new ArrayList<>();
+        for (CompanionChatAttachment attachment : attachments) {
+            if (attachment == null || attachment.isEmpty()) {
+                continue;
+            }
+            String fileName = TextUtils.isEmpty(attachment.getFileName())
+                    ? context.getString(R.string.companion_chat_attachment_file)
+                    : attachment.getFileName();
+            String summary;
+            if (attachment.isImageType()) {
+                summary = context.getString(R.string.companion_chat_attachment_image_format, fileName);
+            } else if (attachment.isPdfType()) {
+                summary = context.getString(R.string.companion_chat_attachment_pdf_format, fileName);
+            } else {
+                summary = context.getString(R.string.companion_chat_attachment_file_format, fileName);
+            }
+            items.add(new CompanionChatAttachmentItemModel(
+                    attachment,
+                    summary,
+                    context.getString(R.string.companion_chat_attachment_open)
+            ));
         }
-        if (attachment.isPdfType()) {
-            return context.getString(R.string.companion_chat_attachment_pdf_format, fileName);
-        }
-        return context.getString(R.string.companion_chat_attachment_file_format, fileName);
+        return items;
     }
 
     private int findLastMineIndex(User currentUser, List<CompanionChatMessage> messages) {

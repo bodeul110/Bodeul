@@ -1,35 +1,30 @@
 package com.example.bodeul.ui.chat;
 
-import androidx.annotation.Nullable;
-
-import com.example.bodeul.domain.model.CompanionChatAttachment;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class CompanionChatMessageItemModel {
     private final String senderLabel;
     private final String body;
     private final String sentAtLabel;
     private final boolean mine;
-    @Nullable
-    private final CompanionChatAttachment attachment;
-    private final String attachmentSummary;
-    private final String attachmentActionLabel;
+    private final List<CompanionChatAttachmentItemModel> attachments;
 
     public CompanionChatMessageItemModel(
             String senderLabel,
             String body,
             String sentAtLabel,
             boolean mine,
-            @Nullable CompanionChatAttachment attachment,
-            String attachmentSummary,
-            String attachmentActionLabel
+            List<CompanionChatAttachmentItemModel> attachments
     ) {
         this.senderLabel = senderLabel;
         this.body = body;
         this.sentAtLabel = sentAtLabel;
         this.mine = mine;
-        this.attachment = attachment;
-        this.attachmentSummary = attachmentSummary;
-        this.attachmentActionLabel = attachmentActionLabel;
+        this.attachments = attachments == null
+                ? new ArrayList<>()
+                : new ArrayList<>(attachments);
     }
 
     public String getSenderLabel() {
@@ -53,23 +48,10 @@ public final class CompanionChatMessageItemModel {
     }
 
     public boolean hasAttachment() {
-        return attachment != null && !attachment.isEmpty();
+        return !attachments.isEmpty();
     }
 
-    public boolean hasImageAttachment() {
-        return hasAttachment() && attachment != null && attachment.isImageType();
-    }
-
-    @Nullable
-    public CompanionChatAttachment getAttachment() {
-        return attachment;
-    }
-
-    public String getAttachmentSummary() {
-        return attachmentSummary;
-    }
-
-    public String getAttachmentActionLabel() {
-        return attachmentActionLabel;
+    public List<CompanionChatAttachmentItemModel> getAttachments() {
+        return Collections.unmodifiableList(attachments);
     }
 }
