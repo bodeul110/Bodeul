@@ -73,11 +73,11 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
         document.put("status", ClientSupportStatus.RECEIVED.name());
         document.put("responseText", "");
         document.put("respondedByName", "");
-        document.put("respondedAt", FieldValue.delete());
+        document.put("respondedAt", 0L);
         document.put("responseReadByUser", false);
-        document.put("responseReadAt", FieldValue.delete());
+        document.put("responseReadAt", 0L);
         document.put("responseReminderCount", 0);
-        document.put("responseReminderSentAt", FieldValue.delete());
+        document.put("responseReminderSentAt", 0L);
         document.put("createdAt", FieldValue.serverTimestamp());
 
         firestore.collection("clientSupportRequests")

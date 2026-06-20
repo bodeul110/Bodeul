@@ -13,13 +13,26 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.data.AuthRepository;
+import com.example.bodeul.data.BookingRepository;
+import com.example.bodeul.data.ClientSupportRepository;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
+import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
+import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
+import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.ClientSupportCategory;
+import com.example.bodeul.domain.model.ClientSupportRequest;
+import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
+import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.SupportInquiry;
+import com.example.bodeul.domain.model.SupportInquiryCategory;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.admin.AdminActivity;
@@ -27,16 +40,19 @@ import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.booking.BookingFollowUpActivity;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
+import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.ui.manager.ManagerActivity;
 import com.example.bodeul.ui.manager.ManagerGuideActivity;
 import com.example.bodeul.ui.manager.ManagerHistoryActivity;
 import com.example.bodeul.ui.manager.ManagerProfileActivity;
 import com.example.bodeul.ui.manager.ManagerSupportActivity;
 import com.example.bodeul.ui.report.GuardianReportActivity;
+import com.example.bodeul.ui.support.ClientSupportActivity;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Locale;
 
 /**
@@ -61,13 +77,32 @@ public class AutomationEntryActivity extends AppCompatActivity {
     public static final String EXTRA_FORCE_SIGN_IN = "forceSignIn";
     public static final String EXTRA_UPLOAD_DOCUMENT_TYPE = "uploadDocumentType";
     public static final String EXTRA_UPLOAD_DOCUMENT_PATH = "uploadDocumentPath";
+    public static final String EXTRA_CHAT_MESSAGE = "chatMessage";
+    public static final String EXTRA_CLIENT_SUPPORT_CATEGORY = "clientSupportCategory";
+    public static final String EXTRA_CLIENT_SUPPORT_TITLE = "clientSupportTitle";
+    public static final String EXTRA_CLIENT_SUPPORT_BODY = "clientSupportBody";
+    public static final String EXTRA_MANAGER_SUPPORT_CATEGORY = "managerSupportCategory";
+    public static final String EXTRA_MANAGER_SUPPORT_TITLE = "managerSupportTitle";
+    public static final String EXTRA_MANAGER_SUPPORT_BODY = "managerSupportBody";
+    public static final String EXTRA_FOLLOW_UP_REVIEW_RATING = "followUpReviewRating";
+    public static final String EXTRA_FOLLOW_UP_SETTLEMENT_STATUS = "followUpSettlementStatus";
+    public static final String EXTRA_FOLLOW_UP_SETTLEMENT_NOTE = "followUpSettlementNote";
+    public static final String EXTRA_FOLLOW_UP_SUPPORT_ESCALATION = "followUpSupportEscalation";
 
     private static final String TAG = "AutomationEntry";
     private static final String DEFAULT_PASSWORD = "bodeul1234";
     private static final String REQUEST_ID_PROGRESS = "request-seed-progress";
     private static final String REQUEST_ID_COMPLETED = "request-seed-completed";
+    private static final String DEFAULT_CHAT_MESSAGE = "실기기 자동화 채팅 점검 메시지";
+    private static final String DEFAULT_CLIENT_SUPPORT_TITLE = "실기기 자동화 문의";
+    private static final String DEFAULT_CLIENT_SUPPORT_BODY = "실기기 자동화로 문의 등록 경로를 확인합니다.";
+    private static final String DEFAULT_MANAGER_SUPPORT_TITLE = "실기기 자동화 매니저 문의";
+    private static final String DEFAULT_MANAGER_SUPPORT_BODY = "실기기 자동화로 매니저 문의 등록 경로를 확인합니다.";
+    private static final String DEFAULT_SETTLEMENT_NOTE = "실기기 자동화로 정산 후속 저장 경로를 확인합니다.";
 
     private AuthRepository authRepository;
+    private BookingRepository bookingRepository;
+    private ClientSupportRepository clientSupportRepository;
     private ManagerRepository managerRepository;
     private ManagerDocumentStorageUploader managerDocumentStorageUploader;
     private TextView textPrimary;
@@ -78,6 +113,17 @@ public class AutomationEntryActivity extends AppCompatActivity {
     private boolean forceSignIn;
     private ManagerDocumentFileType requestedUploadDocumentType;
     private String requestedUploadDocumentPath;
+    private String requestedChatMessage;
+    private ClientSupportCategory requestedClientSupportCategory;
+    private String requestedClientSupportTitle;
+    private String requestedClientSupportBody;
+    private SupportInquiryCategory requestedManagerSupportCategory;
+    private String requestedManagerSupportTitle;
+    private String requestedManagerSupportBody;
+    private AppointmentFollowUpReviewRating requestedFollowUpReviewRating;
+    private AppointmentFollowUpSettlementStatus requestedFollowUpSettlementStatus;
+    private String requestedFollowUpSettlementNote;
+    private AppointmentFollowUpSupportEscalationStatus requestedFollowUpSupportEscalationStatus;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -87,6 +133,8 @@ public class AutomationEntryActivity extends AppCompatActivity {
         textPrimary = findViewById(android.R.id.text1);
         textSecondary = findViewById(android.R.id.text2);
         authRepository = ServiceLocator.provideAuthRepository(this);
+        bookingRepository = ServiceLocator.provideBookingRepository(this);
+        clientSupportRepository = ServiceLocator.provideClientSupportRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
         managerDocumentStorageUploader = ServiceLocator.provideManagerDocumentStorageUploader(this);
 
@@ -98,6 +146,38 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 getIntent().getStringExtra(EXTRA_UPLOAD_DOCUMENT_TYPE)
         );
         requestedUploadDocumentPath = getIntent().getStringExtra(EXTRA_UPLOAD_DOCUMENT_PATH);
+        requestedChatMessage = normalizeText(getIntent().getStringExtra(EXTRA_CHAT_MESSAGE));
+        requestedClientSupportCategory = ClientSupportCategory.fromValue(
+                getIntent().getStringExtra(EXTRA_CLIENT_SUPPORT_CATEGORY)
+        );
+        requestedClientSupportTitle = normalizeText(
+                getIntent().getStringExtra(EXTRA_CLIENT_SUPPORT_TITLE)
+        );
+        requestedClientSupportBody = normalizeText(
+                getIntent().getStringExtra(EXTRA_CLIENT_SUPPORT_BODY)
+        );
+        requestedManagerSupportCategory = SupportInquiryCategory.fromValue(
+                getIntent().getStringExtra(EXTRA_MANAGER_SUPPORT_CATEGORY)
+        );
+        requestedManagerSupportTitle = normalizeText(
+                getIntent().getStringExtra(EXTRA_MANAGER_SUPPORT_TITLE)
+        );
+        requestedManagerSupportBody = normalizeText(
+                getIntent().getStringExtra(EXTRA_MANAGER_SUPPORT_BODY)
+        );
+        requestedFollowUpReviewRating = AppointmentFollowUpReviewRating.fromValue(
+                getIntent().getStringExtra(EXTRA_FOLLOW_UP_REVIEW_RATING)
+        );
+        requestedFollowUpSettlementStatus = AppointmentFollowUpSettlementStatus.fromValue(
+                getIntent().getStringExtra(EXTRA_FOLLOW_UP_SETTLEMENT_STATUS)
+        );
+        requestedFollowUpSettlementNote = normalizeText(
+                getIntent().getStringExtra(EXTRA_FOLLOW_UP_SETTLEMENT_NOTE)
+        );
+        requestedFollowUpSupportEscalationStatus =
+                AppointmentFollowUpSupportEscalationStatus.fromValue(
+                        getIntent().getStringExtra(EXTRA_FOLLOW_UP_SUPPORT_ESCALATION)
+                );
 
         if (requestedRole == null) {
             showError("자동 진입 역할이 없습니다.", "role extra를 ADMIN, MANAGER, PATIENT, GUARDIAN 중 하나로 전달해 주세요.");
@@ -166,11 +246,63 @@ public class AutomationEntryActivity extends AppCompatActivity {
     }
 
     private void runRequestedAction(User user) {
-        if (!shouldUploadManagerDocument()) {
-            openRequestedScreen(user);
+        runRequestedAction(user, () -> openRequestedScreen(user));
+    }
+
+    private void runRequestedAction(User user, Runnable completionAction) {
+        if (shouldUploadManagerDocument()) {
+            uploadManagerDocument(user, () -> runPostUploadActions(user, completionAction));
             return;
         }
-        uploadManagerDocument(user);
+        runPostUploadActions(user, completionAction);
+    }
+
+    private void runPostUploadActions(User user, Runnable completionAction) {
+        if (shouldSendChatMessage()) {
+            sendChatMessage(user, () -> runPostChatActions(user, completionAction));
+            return;
+        }
+        runPostChatActions(user, completionAction);
+    }
+
+    private void runPostChatActions(User user, Runnable completionAction) {
+        if (shouldSubmitClientSupport()) {
+            submitClientSupport(user, () -> runPostClientSupportActions(user, completionAction));
+            return;
+        }
+        runPostClientSupportActions(user, completionAction);
+    }
+
+    private void runPostClientSupportActions(User user, Runnable completionAction) {
+        if (shouldSubmitManagerSupport()) {
+            submitManagerSupport(user, () -> runPostManagerSupportActions(user, completionAction));
+            return;
+        }
+        runPostManagerSupportActions(user, completionAction);
+    }
+
+    private void runPostManagerSupportActions(User user, Runnable completionAction) {
+        if (shouldSaveFollowUpReview()) {
+            saveFollowUpReview(user, () -> runPostFollowUpReviewActions(user, completionAction));
+            return;
+        }
+        runPostFollowUpReviewActions(user, completionAction);
+    }
+
+    private void runPostFollowUpReviewActions(User user, Runnable completionAction) {
+        if (shouldSaveFollowUpSettlement()) {
+            saveFollowUpSettlement(user, () -> runPostFollowUpSettlementActions(user, completionAction));
+            return;
+        }
+        runPostFollowUpSettlementActions(user, completionAction);
+    }
+
+    private void runPostFollowUpSettlementActions(User user, Runnable completionAction) {
+        if (shouldSaveFollowUpSupportEscalation()) {
+            saveFollowUpSupportEscalation(user, completionAction);
+            return;
+        }
+        completionAction.run();
     }
 
     private boolean shouldUploadManagerDocument() {
@@ -178,7 +310,33 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 && requestedUploadDocumentType != null;
     }
 
-    private void uploadManagerDocument(User user) {
+    private boolean shouldSendChatMessage() {
+        return !TextUtils.isEmpty(requestedChatMessage);
+    }
+
+    private boolean shouldSubmitClientSupport() {
+        return !TextUtils.isEmpty(requestedClientSupportTitle)
+                || !TextUtils.isEmpty(requestedClientSupportBody);
+    }
+
+    private boolean shouldSubmitManagerSupport() {
+        return !TextUtils.isEmpty(requestedManagerSupportTitle)
+                || !TextUtils.isEmpty(requestedManagerSupportBody);
+    }
+
+    private boolean shouldSaveFollowUpReview() {
+        return requestedFollowUpReviewRating != null;
+    }
+
+    private boolean shouldSaveFollowUpSettlement() {
+        return requestedFollowUpSettlementStatus != null;
+    }
+
+    private boolean shouldSaveFollowUpSupportEscalation() {
+        return requestedFollowUpSupportEscalationStatus != null;
+    }
+
+    private void uploadManagerDocument(User user, Runnable completionAction) {
         if (user.getRole() != UserRole.MANAGER) {
             showError("서류 업로드는 매니저 계정만 지원합니다.", user.getRole().name());
             return;
@@ -201,7 +359,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 new RepositoryCallback<ManagerDocumentFileMetadata>() {
                     @Override
                     public void onSuccess(ManagerDocumentFileMetadata result) {
-                        saveUploadedDocumentMetadata(user, result);
+                        saveUploadedDocumentMetadata(user, result, completionAction);
                     }
 
                     @Override
@@ -212,7 +370,11 @@ public class AutomationEntryActivity extends AppCompatActivity {
         );
     }
 
-    private void saveUploadedDocumentMetadata(User user, ManagerDocumentFileMetadata uploadedMetadata) {
+    private void saveUploadedDocumentMetadata(
+            User user,
+            ManagerDocumentFileMetadata uploadedMetadata,
+            Runnable completionAction
+    ) {
         updateStatus(
                 "서류 메타데이터 저장 중",
                 uploadedMetadata.getFileName()
@@ -223,12 +385,210 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 new RepositoryCallback<ManagerHomeProfile>() {
                     @Override
                     public void onSuccess(ManagerHomeProfile result) {
-                        openRequestedScreen(user);
+                        completionAction.run();
                     }
 
                     @Override
                     public void onError(String message) {
                         showError("서류 메타데이터 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void sendChatMessage(User user, Runnable completionAction) {
+        String message = requestedChatMessage;
+        if (TextUtils.isEmpty(message)) {
+            message = DEFAULT_CHAT_MESSAGE;
+        }
+
+        updateStatus("채팅 메시지 저장 중", message);
+        if (user.getRole() == UserRole.MANAGER) {
+            managerRepository.sendCompanionChatMessage(
+                    user.getId(),
+                    message,
+                    Collections.<CompanionChatAttachment>emptyList(),
+                    new RepositoryCallback<ManagerDashboard>() {
+                        @Override
+                        public void onSuccess(ManagerDashboard result) {
+                            completionAction.run();
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            showError("채팅 메시지 저장에 실패했습니다.", message);
+                        }
+                    }
+            );
+            return;
+        }
+
+        if (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN) {
+            showError("채팅 자동화는 환자, 보호자, 매니저만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        bookingRepository.sendCompanionChatMessage(
+                user,
+                resolveChatRequestId(),
+                message,
+                Collections.<CompanionChatAttachment>emptyList(),
+                new RepositoryCallback<AppointmentRequestDetail>() {
+                    @Override
+                    public void onSuccess(AppointmentRequestDetail result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("채팅 메시지 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void submitClientSupport(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN) {
+            showError("고객 문의 자동화는 환자와 보호자만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String title = TextUtils.isEmpty(requestedClientSupportTitle)
+                ? DEFAULT_CLIENT_SUPPORT_TITLE
+                : requestedClientSupportTitle;
+        String body = TextUtils.isEmpty(requestedClientSupportBody)
+                ? DEFAULT_CLIENT_SUPPORT_BODY
+                : requestedClientSupportBody;
+
+        updateStatus("고객 문의 저장 중", title);
+        clientSupportRepository.submitClientSupportRequest(
+                user,
+                resolveClientSupportRequestId(),
+                requestedClientSupportCategory,
+                title,
+                body,
+                new RepositoryCallback<java.util.List<ClientSupportRequest>>() {
+                    @Override
+                    public void onSuccess(java.util.List<ClientSupportRequest> result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("고객 문의 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void submitManagerSupport(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.MANAGER) {
+            showError("매니저 문의 자동화는 매니저 계정만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String title = TextUtils.isEmpty(requestedManagerSupportTitle)
+                ? DEFAULT_MANAGER_SUPPORT_TITLE
+                : requestedManagerSupportTitle;
+        String body = TextUtils.isEmpty(requestedManagerSupportBody)
+                ? DEFAULT_MANAGER_SUPPORT_BODY
+                : requestedManagerSupportBody;
+
+        updateStatus("매니저 문의 저장 중", title);
+        managerRepository.submitSupportInquiry(
+                user.getId(),
+                requestedManagerSupportCategory,
+                title,
+                body,
+                new RepositoryCallback<java.util.List<SupportInquiry>>() {
+                    @Override
+                    public void onSuccess(java.util.List<SupportInquiry> result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("매니저 문의 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void saveFollowUpReview(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN) {
+            showError("후기 저장 자동화는 환자와 보호자만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        updateStatus("후기 저장 중", requestedFollowUpReviewRating.getValue());
+        bookingRepository.saveAppointmentFollowUpReview(
+                user,
+                resolveFollowUpRequestId(),
+                requestedFollowUpReviewRating,
+                new RepositoryCallback<AppointmentFollowUpRecord>() {
+                    @Override
+                    public void onSuccess(AppointmentFollowUpRecord result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("후기 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void saveFollowUpSettlement(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN) {
+            showError("정산 후속 저장 자동화는 환자와 보호자만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String settlementNote = TextUtils.isEmpty(requestedFollowUpSettlementNote)
+                ? DEFAULT_SETTLEMENT_NOTE
+                : requestedFollowUpSettlementNote;
+
+        updateStatus("정산 후속 저장 중", requestedFollowUpSettlementStatus.getValue());
+        bookingRepository.saveAppointmentFollowUpSettlement(
+                user,
+                resolveFollowUpRequestId(),
+                requestedFollowUpSettlementStatus,
+                settlementNote,
+                new RepositoryCallback<AppointmentFollowUpRecord>() {
+                    @Override
+                    public void onSuccess(AppointmentFollowUpRecord result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("정산 후속 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void saveFollowUpSupportEscalation(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN) {
+            showError("후속 지원 저장 자동화는 환자와 보호자만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        updateStatus("후속 지원 저장 중", requestedFollowUpSupportEscalationStatus.getValue());
+        bookingRepository.saveAppointmentFollowUpSupportEscalation(
+                user,
+                resolveFollowUpRequestId(),
+                requestedFollowUpSupportEscalationStatus,
+                new RepositoryCallback<AppointmentFollowUpRecord>() {
+                    @Override
+                    public void onSuccess(AppointmentFollowUpRecord result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("후속 지원 저장에 실패했습니다.", message);
                     }
                 }
         );
@@ -304,6 +664,12 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 return BookingStatusActivity.createIntent(this, resolveRequestId(false));
             case BOOKING_FOLLOW_UP:
                 return BookingFollowUpActivity.createIntent(this, resolveRequestId(true));
+            case COMPANION_CHAT:
+                return user.getRole() == UserRole.MANAGER
+                        ? CompanionChatActivity.createIntent(this)
+                        : CompanionChatActivity.createIntent(this, resolveChatRequestId());
+            case CLIENT_SUPPORT:
+                return ClientSupportActivity.createIntent(this, resolveClientSupportRequestId());
             case GUARDIAN_REPORT:
                 return new Intent(this, GuardianReportActivity.class);
             case MANAGER_HOME:
@@ -328,6 +694,21 @@ public class AutomationEntryActivity extends AppCompatActivity {
             return requestedRequestId;
         }
         return completedScreen ? REQUEST_ID_COMPLETED : REQUEST_ID_PROGRESS;
+    }
+
+    private String resolveChatRequestId() {
+        return resolveRequestId(false);
+    }
+
+    private String resolveClientSupportRequestId() {
+        if (!TextUtils.isEmpty(requestedRequestId)) {
+            return requestedRequestId;
+        }
+        return REQUEST_ID_COMPLETED;
+    }
+
+    private String resolveFollowUpRequestId() {
+        return resolveRequestId(true);
     }
 
     @Nullable
@@ -384,12 +765,18 @@ public class AutomationEntryActivity extends AppCompatActivity {
         updateStatus(title, detail);
     }
 
+    private String normalizeText(@Nullable String value) {
+        return value == null ? "" : value.trim();
+    }
+
     private enum AutomationScreen {
         HOME,
         CLIENT_HOME,
         BOOKING,
         BOOKING_STATUS,
         BOOKING_FOLLOW_UP,
+        COMPANION_CHAT,
+        CLIENT_SUPPORT,
         GUARDIAN_REPORT,
         MANAGER_HOME,
         MANAGER_HISTORY,
