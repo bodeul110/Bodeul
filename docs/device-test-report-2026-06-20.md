@@ -1,18 +1,14 @@
-# 2026-06-20 실기기 테스트 보고서
+﻿# 2026-06-20 실기기 테스트 보고서
 
 ## 구현한 내용
 
-- 실기기 `SM-S921N`에서 Android `debug` APK를 재설치하고 앱 실행 가능 여부를 확인했다.
-- 연결 기기에서 `connectedDebugAndroidTest`를 실행해 계측 테스트 1건을 통과시켰다.
-- `AutomationEntryActivity`를 이용해 역할별 핵심 화면 스모크를 수행하고, 통과 화면과 차단 원인을 분리했다.
-- 환자 홈 실기기 크래시 원인이던 `clientSupportRequests.createdAt` 타입 불일치를 수정했다.
-- Firebase 샘플 서비스 데이터를 다시 주입해 역할별 화면 진입 readiness를 모두 복구했다.
+- 실기기 `SM-S921N`에서 최신 `debug` APK를 다시 설치하고 자동 진입 스모크를 확장 실행했다.
+- 기존 핵심 화면 6건에 더해 `CLIENT_HOME`, `BOOKING_FOLLOW_UP`, `MANAGER_HISTORY`, `MANAGER_SUPPORT`까지 포함한 12개 화면을 확인했다.
+- 확장 점검 중 실기기에 남아 있던 구버전 설치본에는 `AutomationEntryActivity`가 없어 자동 진입이 실패하는 것을 확인했고, 최신 APK 재설치 후 동일 배치를 다시 수행했다.
+- `GoogleApiManager` 보안 예외와 `NaverAdsServices` 경고를 별도로 기록해, 화면 진입 성공과 분리된 잔여 리스크로 남겼다.
 
 ## 변경된 범위
 
-- 코드
-  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
-  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseClientSupportRepository.java`
 - 문서
   - `docs/device-test-report-2026-06-20.md`
 
@@ -23,18 +19,27 @@
 - SDK: `36`
 - 테스트 APK: `app/build/outputs/apk/debug/app-debug.apk`
 - applicationId: `com.example.bodeul`
+- adb 경로: `C:\Users\wlsrj\AppData\Local\Android\Sdk\platform-tools\adb.exe`
 
 ## 실행한 테스트
 
-### 1. 설치 및 기본 실행
+### 1. 최신 APK 재설치 및 기본 실행 확인
 
-- `adb install --user 0 -r D:\BoDeul\app\build\outputs\apk\debug\app-debug.apk` 성공
-- 런처 실행 후 최상단 액티비티 확인
-  - `com.example.bodeul/.ui.auth.PermissionGuideActivity`
+- `adb install -r D:\BoDeul\app\build\outputs\apk\debug\app-debug.apk` 성공
+- 재설치 전 상태
+  - 실기기 설치본에는 `com.example.bodeul.debug.AutomationEntryActivity`가 없어 자동 진입이 실패했다.
+- 재설치 후 상태
+  - `am start -W -n com.example.bodeul/com.example.bodeul.debug.AutomationEntryActivity ...`가 정상 동작했다.
 
-### 2. 계측 테스트
+### 2. 빌드 검증
 
-- 실행 명령
+```powershell
+./gradlew.bat assembleDebug
+```
+
+- 결과: `BUILD SUCCESSFUL`
+
+### 3. 계측 테스트
 
 ```powershell
 ./gradlew.bat connectedDebugAndroidTest
@@ -48,47 +53,61 @@
   - `app/build/outputs/androidTest-results/connected/debug/TEST-SM-S921N - 16-_app-.xml`
   - `app/build/reports/androidTests/connected/debug/index.html`
 
-### 3. 자동 진입 스모크
+### 4. 자동 진입 확장 스모크
 
 - 실행 방식
-  - `AutomationEntryActivity`에 `role`, `screen`, `forceSignIn` extra를 전달해 실기기에서 화면 진입 여부를 확인했다.
+  - `AutomationEntryActivity`에 `role`, `screen`, `forceSignIn=true` extra를 전달했다.
+  - 각 시나리오마다 앱 강제 종료 후 재로그인시키고, 최종 `topResumedActivity`를 확인했다.
 
-- 화면 진입 확인
+- 확인 결과
   - `PATIENT / HOME` -> `com.example.bodeul/.MainActivity`
+  - `PATIENT / CLIENT_HOME` -> `com.example.bodeul/.MainActivity`
   - `PATIENT / BOOKING` -> `com.example.bodeul/.ui.booking.BookingActivity`
   - `GUARDIAN / BOOKING_STATUS` -> `com.example.bodeul/.ui.booking.BookingStatusActivity`
+  - `GUARDIAN / BOOKING_FOLLOW_UP` -> `com.example.bodeul/.ui.booking.BookingFollowUpActivity`
   - `GUARDIAN / GUARDIAN_REPORT` -> `com.example.bodeul/.ui.report.GuardianReportActivity`
   - `MANAGER / MANAGER_HOME` -> `com.example.bodeul/.ui.manager.ManagerActivity`
+  - `MANAGER / MANAGER_HISTORY` -> `com.example.bodeul/.ui.manager.ManagerHistoryActivity`
   - `MANAGER / MANAGER_GUIDE` -> `com.example.bodeul/.ui.manager.ManagerGuideActivity`
+  - `MANAGER / MANAGER_SUPPORT` -> `com.example.bodeul/.ui.manager.ManagerSupportActivity`
   - `MANAGER / MANAGER_PROFILE` -> `com.example.bodeul/.ui.manager.ManagerProfileActivity`
   - `ADMIN / ADMIN_DASHBOARD` -> `com.example.bodeul/.ui.admin.AdminActivity`
 
-### 4. Firebase 샘플 데이터 복구
+### 5. 관찰된 로그
 
-- 기준선 상태 점검 결과
-  - Auth 4계정과 `users/{uid}` 문서는 모두 존재
-  - `check-role-screen-readiness --json` 기준 역할별 readiness 최종 `ALL PASS`
-- 실행 명령
+- 공통 관찰
+  - 대부분 시나리오에서 `GoogleApiManager`가 `Unknown calling package name 'com.google.android.gms'` 보안 예외를 남겼다.
+  - 로그에는 `ConnectionResult{statusCode=DEVELOPER_ERROR}`와 `Phenotype.API is not available on this device`가 함께 보였다.
+- 추가 관찰
+  - `MANAGER / MANAGER_HOME` 진입 중 `NaverAdsServices`가 광고 ID 반사 호출 실패 경고를 남겼다.
+- 현재 판단
+  - 위 로그는 화면 진입 성공과 분리돼 있었고, 앱 크래시나 화면 차단으로 이어지지 않았다.
+  - 다만 Google Play 서비스, 광고 ID, 외부 SDK 초기화 경로는 별도 추적 대상이다.
+
+### 6. Firebase 샘플 데이터 복구 이력
+
+- 기준선 계정과 `users/{uid}` 문서는 모두 존재하는 것을 재확인했다.
+- readiness가 흔들린 상태를 복구하기 위해 아래 명령을 사용했다.
 
 ```powershell
 cd D:\BoDeul\tools\firebase
 npm run seed:sample:apply
 ```
 
-- 적용 후 확인
-  - `request-seed-progress` -> `status=IN_PROGRESS`
-  - `session-seed-progress` -> `currentStatus=WAITING`
-  - 보호자 실시간 진행 카드 readiness 복구
+- 적용 후 역할별 readiness와 샘플 시나리오 상태는 모두 `ALL PASS`로 복구됐다.
 
 ## 판단
 
-- 앱 설치, 런처 실행, 알림 권한 안내 진입, 계측 테스트 1건은 실기기에서 정상 동작했다.
-- 초기 환자 홈 이탈 원인은 Firebase 기준선 데이터가 아니라 `FirebaseClientSupportRepository`의 타입 캐스팅 크래시였다.
-- `createdAt` 등 시간 필드를 `Timestamp`뿐 아니라 정수 epoch millis도 읽도록 보강한 뒤, 환자/보호자/매니저/관리자 핵심 화면이 모두 실기기에서 열렸다.
-- `FirebaseAuthRepository`는 로그인 직후 빈 캐시 miss를 줄이도록 서버 기준 재조회 1회를 허용했다.
-- Firebase 샘플 데이터도 재주입 후 readiness가 전부 통과했다.
+- 최신 `debug` APK 기준 실기기 자동 진입 스모크 12건은 모두 통과했다.
+- 이전에 수정한 `FirebaseClientSupportRepository`, `FirebaseAuthRepository` 보강은 실기기 기준으로도 효과가 유지됐다.
+- 현재 남은 이슈는 화면 진입 실패가 아니라 외부 서비스 로그 노이즈와 더 깊은 업무 시나리오 미검증이다.
 
 ## 남은 범위
 
-- 실기기 스모크는 핵심 진입 화면 위주로만 확인했다. 예약 완료, 후속 처리, 채팅, 매니저 지원, 관리자 세부 액션은 별도 시나리오가 필요하다.
-- 이번 후속 작업은 실기기 테스트 외에 Firebase 샘플 데이터 복구와 앱 코드 보강도 포함했다.
+- 자동 진입 스모크는 화면 도달 여부 중심이다. 아래 업무 시나리오는 별도 실기기 검증이 더 필요하다.
+  - 예약 완료 후 후속 처리
+  - 채팅 송수신
+  - 매니저 지원 액션
+  - 관리자 세부 처리 액션
+  - 매니저 서류 업로드와 승인/반려 흐름
+- `GoogleApiManager`와 광고 ID 관련 로그는 기기 환경과 SDK 초기화 경로를 분리해서 다시 확인할 필요가 있다.
