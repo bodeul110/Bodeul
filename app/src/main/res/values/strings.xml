@@ -353,6 +353,7 @@
     <string name="guardian_report_line_progress">진행 상태</string>
     <string name="guardian_report_line_location">위치 공유 메모</string>
     <string name="guardian_report_line_live_status">실시간 공유 상태</string>
+    <string name="guardian_report_line_location_alert">자동 위치 알림</string>
     <string name="guardian_report_line_location_history">좌표 변경 이력</string>
     <string name="guardian_report_history_section_title">최근 위치 이동</string>
     <string name="guardian_report_history_empty_label">안내</string>
@@ -1387,6 +1388,7 @@
     <string name="booking_live_location_line_meeting_place">만남 위치</string>
     <string name="booking_live_location_line_location">공유 위치 메모</string>
     <string name="booking_live_location_line_live_status">실시간 공유 상태</string>
+    <string name="booking_live_location_line_location_alert">자동 위치 알림</string>
     <string name="booking_live_location_line_location_history">좌표 변경 이력</string>
     <string name="booking_live_location_line_location_updated_at">최근 위치 공유 시각</string>
     <string name="booking_live_location_section_history">최근 위치 이동</string>
@@ -1471,6 +1473,10 @@
     <string name="companion_location_alert_push_body_fallback">매니저 위치 자동 알림을 확인해 주세요.</string>
     <string name="companion_location_alert_push_channel_name">동행 위치 알림</string>
     <string name="companion_location_alert_push_channel_description">병원과 약국 근접 위치 알림을 전달합니다.</string>
+    <string name="companion_location_alert_stage_none">아직 자동 위치 알림이 없습니다.</string>
+    <string name="companion_location_alert_stage_hospital">병원 근처 도착 알림</string>
+    <string name="companion_location_alert_stage_pharmacy">약국 근처 이동 알림</string>
+    <string name="companion_location_alert_value_with_time">%1$s · %2$s</string>
     <string name="guardian_report_action_refresh">진행 현황 다시 불러오기</string>
     <string name="booking_live_location_action_refresh">현재 위치 다시 불러오기</string>
     <string name="manager_location_notification_body">실시간 위치 공유 중</string>

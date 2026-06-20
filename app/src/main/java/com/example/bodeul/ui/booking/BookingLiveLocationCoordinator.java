@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.common.HospitalMapPreviewModel;
+import com.example.bodeul.util.CompanionLocationAlertDisplayHelper;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
@@ -145,6 +146,11 @@ public final class BookingLiveLocationCoordinator {
         items.add(new BookingStatusLineItem(
                 context.getString(R.string.booking_live_location_line_live_status),
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
+                false
+        ));
+        items.add(new BookingStatusLineItem(
+                context.getString(R.string.booking_live_location_line_location_alert),
+                CompanionLocationAlertDisplayHelper.buildAlertSummary(context, session),
                 false
         ));
         if (session != null && session.getSharedLocationUpdatedAtMillis() > 0L) {

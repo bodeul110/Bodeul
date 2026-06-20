@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
+import com.example.bodeul.util.CompanionLocationAlertDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.MedicationComparisonDecisionDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonDisplayHelper;
@@ -189,6 +190,11 @@ public final class GuardianReportCoordinator {
         items.add(new GuardianReportLineItem(
                 context.getString(R.string.guardian_report_line_live_status),
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, entry.getSession()),
+                false
+        ));
+        items.add(new GuardianReportLineItem(
+                context.getString(R.string.guardian_report_line_location_alert),
+                CompanionLocationAlertDisplayHelper.buildAlertSummary(context, entry.getSession()),
                 false
         ));
         if (entry.getSession() != null && entry.getSession().getSharedLocationUpdatedAtMillis() > 0L) {
