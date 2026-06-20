@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 public final class PermissionGuidePreferences {
     private static final String PREF_NAME = "permission_guide";
     private static final String KEY_COMPLETED = "completed";
+    private static final String KEY_NOTIFICATION_PROMPT_COMPLETED = "notification_prompt_completed";
 
     private final SharedPreferences preferences;
 
@@ -25,5 +26,13 @@ public final class PermissionGuidePreferences {
 
     public void markCompleted() {
         preferences.edit().putBoolean(KEY_COMPLETED, true).apply();
+    }
+
+    public boolean hasCompletedNotificationPrompt() {
+        return preferences.getBoolean(KEY_NOTIFICATION_PROMPT_COMPLETED, false);
+    }
+
+    public void markNotificationPromptCompleted() {
+        preferences.edit().putBoolean(KEY_NOTIFICATION_PROMPT_COMPLETED, true).apply();
     }
 }

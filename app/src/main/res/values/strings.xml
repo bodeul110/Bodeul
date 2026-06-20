@@ -27,21 +27,24 @@
     <string name="next_step">다음 단계로</string>
 
     <string name="permission_guide_title">서비스 준비 안내</string>
-    <string name="permission_guide_description">현재 버전의 보들은 기본 기능 이용에 별도 시스템 권한을 먼저 요청하지 않습니다.</string>
+    <string name="permission_guide_description">알림은 지금 한 번만 확인하고, 위치 권한은 실제 기능이 필요한 화면에서만 요청합니다.</string>
     <string name="permission_guide_highlight_badge">권한 원칙</string>
-    <string name="permission_guide_highlight_title">필요한 시점에만 최소 권한을 요청합니다</string>
-    <string name="permission_guide_highlight_body">예약, 리포트, 원본 서류 업로드는 지금 구조에서 시스템 권한을 미리 넓게 열지 않고 처리합니다. 향후 위치, 카메라, 연락처 같은 기능이 실제로 추가될 때만 필요한 권한을 다시 요청합니다.</string>
-    <string name="permission_guide_footer">민감한 일정 정보와 리포트는 기기에 장기 저장하지 않고, 필요한 기능이 추가되면 그 시점에만 최소 권한을 다시 요청합니다.</string>
+    <string name="permission_guide_highlight_title">필요한 권한만 시점에 맞춰 나눠서 요청합니다</string>
+    <string name="permission_guide_highlight_body">문의 답변, 안심 채팅, 위치 자동 알림은 알림 권한을 허용하면 바로 받을 수 있습니다. 길 안내와 실시간 위치 공유는 실제 화면에 들어갔을 때만 위치 권한을 다시 확인합니다.</string>
+    <string name="permission_guide_footer">권한을 허용하지 않아도 기본 화면은 둘러볼 수 있지만, 알림과 실시간 위치 기능은 제한될 수 있습니다.</string>
     <string name="permission_guide_confirm">계속</string>
     <string name="permission_item_badge_data">데이터 보호</string>
+    <string name="permission_item_badge_notification">알림 안내</string>
     <string name="permission_item_badge_document">문서 업로드</string>
-    <string name="permission_item_badge_future">추후 확장</string>
+    <string name="permission_item_badge_future">위치 안내</string>
     <string name="permission_data_title">예약과 리포트는 서버에서만 관리합니다</string>
     <string name="permission_data_description">예약 메모와 진행 리포트는 Firebase에서 불러오며, 앱 재시작 뒤 디스크에 남지 않도록 캐시를 줄여두었습니다.</string>
+    <string name="permission_notification_title">답변과 현장 공유 알림을 제때 받을 수 있습니다</string>
+    <string name="permission_notification_description">문의 답변, 안심 채팅, 위치 자동 알림은 시스템 알림 권한을 허용해야 즉시 받을 수 있습니다. 거부해도 앱은 열리지만 중요한 변경을 놓칠 수 있습니다.</string>
     <string name="permission_document_title">서류 업로드는 시스템 문서 선택기를 사용합니다</string>
     <string name="permission_document_description">매니저 원본 서류 업로드는 Android 시스템 문서 선택기를 사용하므로 저장공간 권한을 별도로 요청하지 않습니다.</string>
-    <string name="permission_future_title">추후 기능이 생기면 필요한 시점에만 묻습니다</string>
-    <string name="permission_future_description">카메라, 위치, 연락처 같은 권한은 현재 버전에서 사용하지 않으며, 실제 기능이 추가될 때만 다시 요청할 예정입니다.</string>
+    <string name="permission_future_title">실시간 위치는 필요한 화면에서만 요청합니다</string>
+    <string name="permission_future_description">동행 진행 확인과 매니저 길 안내처럼 실제 위치가 필요한 화면에서만 권한을 요청합니다. 권한을 허용하지 않으면 지도와 자동 위치 공유 기능이 제한됩니다.</string>
     <string name="permission_required_missing_notice">현재 버전에서는 별도 시스템 권한 없이 기본 기능을 이용할 수 있습니다.</string>
     <string name="common_close">닫기</string>
 

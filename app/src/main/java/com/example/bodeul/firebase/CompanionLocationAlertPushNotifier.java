@@ -8,10 +8,10 @@ import android.content.Intent;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.ui.booking.BookingLiveLocationActivity;
+import com.example.bodeul.util.NotificationPermissionSupport;
 
 public final class CompanionLocationAlertPushNotifier {
     private static final String CHANNEL_ID = "bodeul_companion_location_alert";
@@ -42,8 +42,11 @@ public final class CompanionLocationAlertPushNotifier {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent);
 
-        NotificationManagerCompat.from(context)
-                .notify(("location-" + payload.getAppointmentRequestId()).hashCode(), builder.build());
+        NotificationPermissionSupport.notifyIfPermitted(
+                context,
+                ("location-" + payload.getAppointmentRequestId()).hashCode(),
+                builder.build()
+        );
     }
 
     private static String resolveTitle(Context context, CompanionLocationAlertPushPayload payload) {

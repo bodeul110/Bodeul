@@ -19,6 +19,7 @@ public class RoleSelectionActivity extends AppCompatActivity {
     private static final int ADMIN_ENTRY_REQUIRED_TAPS = 5;
     private static final long ADMIN_ENTRY_RESET_WINDOW_MS = 1_500L;
 
+    private EntryFlowCoordinator entryFlowCoordinator;
     private ImageView logoView;
     private MaterialCardView managerCard;
     private MaterialCardView patientCard;
@@ -29,12 +30,14 @@ public class RoleSelectionActivity extends AppCompatActivity {
     private UserRole selectedRoleHint = UserRole.MANAGER;
     private long lastAdminEntryTapAtMillis;
     private int adminEntryTapCount;
+    private boolean launchResolutionInFlight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_role_selection);
 
+        entryFlowCoordinator = new EntryFlowCoordinator(this);
         logoView = findViewById(R.id.imageRoleLogo);
         managerCard = findViewById(R.id.cardManagerType);
         patientCard = findViewById(R.id.cardPatientType);
@@ -63,6 +66,33 @@ public class RoleSelectionActivity extends AppCompatActivity {
         });
 
         selectRole(UserRole.MANAGER);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        resolveLaunchIntent();
+    }
+
+    private void resolveLaunchIntent() {
+        if (launchResolutionInFlight) {
+            return;
+        }
+        launchResolutionInFlight = true;
+        entryFlowCoordinator.resolveLaunchIntent(intent -> {
+            launchResolutionInFlight = false;
+            if (shouldStayOnRoleSelection(intent)) {
+                return;
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        });
+    }
+
+    private boolean shouldStayOnRoleSelection(Intent intent) {
+        return intent.getComponent() != null
+                && RoleSelectionActivity.class.getName().equals(intent.getComponent().getClassName());
     }
 
     private void selectRole(UserRole roleHint) {

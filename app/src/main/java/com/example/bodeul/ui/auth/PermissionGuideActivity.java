@@ -1,5 +1,6 @@
 package com.example.bodeul.ui.auth;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.ViewGroup;
@@ -9,6 +10,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.os.BundleCompat;
 
 import com.example.bodeul.R;
 
@@ -16,6 +18,8 @@ import com.example.bodeul.R;
  * 서비스 진입 전에 현재 버전의 보안/저장 원칙을 설명하는 안내 화면이다.
  */
 public class PermissionGuideActivity extends AppCompatActivity {
+    private static final String EXTRA_NEXT_INTENT = "next_intent";
+
     private final ActivityResultLauncher<String[]> permissionRequestLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.RequestMultiplePermissions(),
@@ -24,6 +28,12 @@ public class PermissionGuideActivity extends AppCompatActivity {
 
     private PermissionGuidePreferences permissionGuidePreferences;
     private PermissionGuideCatalog permissionGuideCatalog;
+
+    public static Intent createIntent(Context context, Intent nextIntent) {
+        Intent intent = new Intent(context, PermissionGuideActivity.class);
+        intent.putExtra(EXTRA_NEXT_INTENT, nextIntent);
+        return intent;
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -42,15 +52,15 @@ public class PermissionGuideActivity extends AppCompatActivity {
     }
 
     private void skipGuide() {
-        permissionGuidePreferences.markCompleted();
-        openRoleSelection();
+        markGuideCompleted();
+        openNextScreen();
     }
 
     private void requestPermissions() {
         String[] ungrantedPermissions = permissionGuideCatalog.collectUngrantedPermissions(this);
         if (ungrantedPermissions.length == 0) {
-            permissionGuidePreferences.markCompleted();
-            openRoleSelection();
+            markGuideCompleted();
+            openNextScreen();
             return;
         }
 
@@ -58,7 +68,7 @@ public class PermissionGuideActivity extends AppCompatActivity {
     }
 
     private void handlePermissionRequestFinished() {
-        permissionGuidePreferences.markCompleted();
+        markGuideCompleted();
         if (permissionGuideCatalog.hasMissingRequiredPermission(this)) {
             Toast.makeText(
                     this,
@@ -66,11 +76,28 @@ public class PermissionGuideActivity extends AppCompatActivity {
                     Toast.LENGTH_LONG
             ).show();
         }
-        openRoleSelection();
+        openNextScreen();
     }
 
-    private void openRoleSelection() {
-        startActivity(new Intent(this, RoleSelectionActivity.class));
+    private void markGuideCompleted() {
+        permissionGuidePreferences.markCompleted();
+        permissionGuidePreferences.markNotificationPromptCompleted();
+    }
+
+    private void openNextScreen() {
+        Intent nextIntent = readNextIntent();
+        if (nextIntent == null) {
+            nextIntent = new Intent(this, RoleSelectionActivity.class);
+        }
+        startActivity(nextIntent);
         finish();
+    }
+
+    private Intent readNextIntent() {
+        Bundle extras = getIntent().getExtras();
+        if (extras == null) {
+            return null;
+        }
+        return BundleCompat.getParcelable(extras, EXTRA_NEXT_INTENT, Intent.class);
     }
 }
