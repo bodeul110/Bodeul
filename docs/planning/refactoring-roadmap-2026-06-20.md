@@ -143,3 +143,16 @@
   - #8의 세 번째 축으로 관리자 액션 센터 UI를 분리했다.
   - AdminActivity의 액션 센터 요약/필터/목록 렌더링을 AdminActionCenterSectionController로 옮겼다.
   - 읽음/해결 저장은 액티비티에 남겨 두고, 다음 단계에서 저장소 분리로 이어간다.
+
+- 2026-06-20 8차 진행
+  - #8의 남은 액션 센터 저장 축을 FirebaseAdminActionCenterStore로 분리했다.
+  - FirebaseAdminRepository는 액션 센터 읽음/해결 요청을 위임하고, 저장 규칙과 감사/전달 아티팩트 생성은 store에서 닫도록 정리했다.
+  - 다음 단계는 관리자 요청 관리 축 분리 또는 #8 마무리 범위 점검이다.
+- 2026-06-20 9차 진행
+  - #8의 요청 관리 축을 AdminRequestSectionController로 분리했다.
+  - AdminActivity는 요청 저장 액션만 남기고, 대기/관리 요청 섹션의 필터/확장/빈 상태/카드 렌더링은 컨트롤러가 맡도록 정리했다.
+  - 다음 단계는 #8 범위 점검 후 이슈 마감 또는 액션 전달 축 추가 정리다.
+- 2026-06-20 10차 진행
+  - #8의 action delivery 축을 AdminActionDeliverySectionController로 분리했다.
+  - AdminActivity는 액션 전달 데이터 바인딩만 남기고, 요약/빈 상태/목록 렌더링은 섹션 컨트롤러가 맡도록 정리했다.
+  - 현재 #8은 operations와 guide 축의 추가 분리 여부만 남아 있다.

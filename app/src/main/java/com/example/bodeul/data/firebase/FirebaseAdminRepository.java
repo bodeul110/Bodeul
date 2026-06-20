@@ -78,11 +78,74 @@ import java.util.Map;
  */
 public class FirebaseAdminRepository implements AdminRepository {
     private final FirebaseFirestore firestore;
+    private final FirebaseAdminActionCenterStore actionCenterStore;
     private final FirebaseAdminSupportStore adminSupportStore;
     private final FirebaseAdminManagerDocumentStore managerDocumentStore;
 
     public FirebaseAdminRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
+        this.actionCenterStore = new FirebaseAdminActionCenterStore(
+                firestore,
+                new FirebaseAdminActionCenterStore.NotificationMapper() {
+                    @Override
+                    public AdminActionNotification toAdminActionNotification(
+                            DocumentSnapshot documentSnapshot
+                    ) {
+                        return FirebaseAdminRepository.this.toAdminActionNotification(documentSnapshot);
+                    }
+
+                    @Override
+                    public Map<String, Object> buildNotificationContractFields(
+                            AdminActionSourceType sourceType,
+                            AdminActionNotificationLevel level,
+                            boolean read,
+                            boolean resolved
+                    ) {
+                        return FirebaseAdminRepository.this.buildNotificationContractFields(
+                                sourceType,
+                                level,
+                                read,
+                                resolved
+                        );
+                    }
+
+                    @Override
+                    public void appendActionDeliveryArtifacts(
+                            WriteBatch batch,
+                            AdminActionNotification notification,
+                            AdminActionDeliveryTrigger trigger,
+                            AdminActionDeliveryStatus pushStatus,
+                            AdminActionDeliveryStatus feedStatus,
+                            String pushNote,
+                            String feedNote
+                    ) {
+                        FirebaseAdminRepository.this.appendActionDeliveryArtifacts(
+                                batch,
+                                notification,
+                                trigger,
+                                pushStatus,
+                                feedStatus,
+                                pushNote,
+                                feedNote
+                        );
+                    }
+
+                    @Override
+                    public void appendActionResolutionAudit(
+                            WriteBatch batch,
+                            AdminActionNotification notification,
+                            boolean resolved,
+                            String actorName
+                    ) {
+                        FirebaseAdminRepository.this.appendActionResolutionAudit(
+                                batch,
+                                notification,
+                                resolved,
+                                actorName
+                        );
+                    }
+                }
+        );
         this.adminSupportStore = new FirebaseAdminSupportStore(firestore);
         this.managerDocumentStore = new FirebaseAdminManagerDocumentStore(
                 firestore,
@@ -512,74 +575,21 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        boolean useActionDeliveryPipeline = true;
-        if (useActionDeliveryPipeline) {
-            DocumentReference notificationReference = firestore.collection("adminActionNotifications")
-                    .document(notificationId);
-            notificationReference.get()
-                    .addOnSuccessListener(documentSnapshot -> {
-                        AdminActionNotification notification = toAdminActionNotification(documentSnapshot);
-                        if (notification == null) {
-                            callback.onError("읽음 처리할 알림을 찾지 못했습니다.");
-                            return;
-                        }
-                        if (notification.isRead()) {
-                            loadDashboardWithArtifacts(currentUser, callback);
-                            return;
-                        }
+        actionCenterStore.markActionNotificationRead(
+                currentUser,
+                notificationId,
+                new FirebaseAdminActionCenterStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
 
-                        WriteBatch batch = firestore.batch();
-                        Map<String, Object> updates = new HashMap<>();
-                        updates.put("isRead", true);
-                        updates.put("readAt", FieldValue.serverTimestamp());
-                        updates.put("updatedAt", FieldValue.serverTimestamp());
-                        updates.putAll(buildNotificationContractFields(
-                                notification.getSourceType(),
-                                notification.getLevel(),
-                                true,
-                                notification.isResolved()
-                        ));
-                        batch.update(notificationReference, updates);
-                        appendActionDeliveryArtifacts(
-                                batch,
-                                notification,
-                                AdminActionDeliveryTrigger.NOTIFICATION_READ,
-                                AdminActionDeliveryStatus.CONFIRMED,
-                                AdminActionDeliveryStatus.CONFIRMED,
-                                "관리자 앱 푸시 기준 읽음 확인이 완료됐습니다.",
-                                "운영 피드에 읽음 상태 반영을 완료했습니다."
-                        );
-                        batch.commit()
-                                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                                .addOnFailureListener(exception ->
-                                        callback.onError("읽음 처리할 알림을 저장하지 못했습니다."));
-                    })
-                    .addOnFailureListener(exception ->
-                            callback.onError("알림 정보를 불러오지 못했습니다."));
-            return;
-        }
-
-        firestore.collection("adminActionNotifications")
-                .document(notificationId)
-                .update(
-                        "isRead",
-                        true,
-                        "readAt",
-                        FieldValue.serverTimestamp(),
-                        "state",
-                        AdminActionNotificationState.READ.getValue(),
-                        "priority",
-                        AdminActionNotificationPriority.MONITORING.getValue(),
-                        "filterKeys",
-                        toFilterKeyValues(AdminActionNotificationContract.resolveFilterKeys(
-                                AdminActionNotificationState.READ
-                        )),
-                        "updatedAt",
-                        FieldValue.serverTimestamp()
-                )
-                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                .addOnFailureListener(exception ->
-                        callback.onError("읽음 처리할 알림을 저장하지 못했습니다."));
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
     @Override
@@ -594,71 +604,23 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        DocumentReference notificationReference = firestore.collection("adminActionNotifications")
-                .document(notificationId);
-        notificationReference.get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    AdminActionNotification notification = toAdminActionNotification(documentSnapshot);
-                    if (notification == null) {
-                        callback.onError("상태를 변경할 알림을 찾지 못했습니다.");
-                        return;
+        actionCenterStore.updateActionNotificationResolved(
+                currentUser,
+                notificationId,
+                resolved,
+                new FirebaseAdminActionCenterStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
                     }
 
-                    WriteBatch batch = firestore.batch();
-                    Map<String, Object> updates = new HashMap<>();
-                    updates.put("isRead", true);
-                    updates.put("updatedAt", FieldValue.serverTimestamp());
-                    if (!notification.isRead()) {
-                        updates.put("readAt", FieldValue.serverTimestamp());
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
                     }
-                    if (resolved) {
-                        updates.put("isResolved", true);
-                        updates.put("resolvedAt", FieldValue.serverTimestamp());
-                        updates.put("resolvedByName", normalizeText(currentUser.getName()));
-                    } else {
-                        updates.put("isResolved", false);
-                        updates.put("resolvedAt", FieldValue.delete());
-                        updates.put("resolvedByName", "");
-                    }
-                    updates.putAll(buildNotificationContractFields(
-                            notification.getSourceType(),
-                            notification.getLevel(),
-                            true,
-                            resolved
-                    ));
-                    batch.update(notificationReference, updates);
-                    appendActionResolutionAudit(
-                            batch,
-                            notification,
-                            resolved,
-                            normalizeText(currentUser.getName())
-                    );
-                    appendActionDeliveryArtifacts(
-                            batch,
-                            notification,
-                            resolved
-                                    ? AdminActionDeliveryTrigger.NOTIFICATION_RESOLVED
-                                    : AdminActionDeliveryTrigger.NOTIFICATION_REOPENED,
-                            resolved
-                                    ? AdminActionDeliveryStatus.SKIPPED
-                                    : AdminActionDeliveryStatus.SENT,
-                            AdminActionDeliveryStatus.CONFIRMED,
-                            resolved
-                                    ? "관리자 처리 결과라 추가 푸시를 보내지 않았습니다."
-                                    : "재오픈 알림을 관리자 앱 푸시 발송 대기열에 다시 등록했습니다.",
-                            resolved
-                                    ? "운영 피드에 해결 완료 반영을 마쳤습니다."
-                                    : "운영 피드에 재오픈 상태 반영을 마쳤습니다."
-                    );
-                    batch.commit()
-                            .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                            .addOnFailureListener(exception ->
-                                    callback.onError("알림 상태를 저장하지 못했습니다."));
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("알림 정보를 불러오지 못했습니다."));
+                }
+        );
     }
-
     @Override
     public boolean isFirebaseBacked() {
         return true;

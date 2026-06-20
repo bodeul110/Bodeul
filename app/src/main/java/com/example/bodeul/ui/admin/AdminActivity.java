@@ -2,7 +2,6 @@ package com.example.bodeul.ui.admin;
 
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -30,7 +29,6 @@ import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
-import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -43,9 +41,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * 관리자용 수동 매칭과 병원 가이드 관리 화면이다.
@@ -58,27 +54,19 @@ public class AdminActivity extends AppCompatActivity {
     private HospitalGuide editingGuide;
     @Nullable
     private AdminDashboard adminDashboardSnapshot;
-    private List<AdminRequestOverview> pendingRequestsSnapshot = new ArrayList<>();
-    private List<AdminRequestOverview> managedRequestsSnapshot = new ArrayList<>();
-    private List<User> availableManagersSnapshot = new ArrayList<>();
-    private AdminManagedRequestFilter managedRequestFilter = AdminManagedRequestFilter.ALL;
-    private AdminManagedRequestDateFilter managedRequestDateFilter = AdminManagedRequestDateFilter.ALL;
     private AdminMonitoringFilter monitoringFilter = AdminMonitoringFilter.ALL;
     private AdminSettlementFilter settlementFilter = AdminSettlementFilter.ALL;
-    private final Set<String> expandedRequestIds = new HashSet<>();
     private boolean loading;
     private AdminOperationsCoordinator adminOperationsCoordinator;
     private AdminOperationCardBinder adminOperationCardBinder;
-    private AdminRequestCoordinator adminRequestCoordinator;
-    private AdminRequestCardBinder adminRequestCardBinder;
+    private AdminRequestSectionController adminRequestSectionController;
     private AdminGuideCoordinator adminGuideCoordinator;
     private AdminGuideCardBinder adminGuideCardBinder;
     private AdminGuideFormBinder adminGuideFormBinder;
     private AdminManagerDocumentSectionController adminManagerDocumentSectionController;
     private AdminSupportSectionController adminSupportSectionController;
     private AdminActionCenterSectionController adminActionCenterSectionController;
-    private AdminActionDeliveryCoordinator adminActionDeliveryCoordinator;
-    private AdminActionDeliveryCardBinder adminActionDeliveryCardBinder;
+    private AdminActionDeliverySectionController adminActionDeliverySectionController;
 
     private TextView textAdminMode;
     private TextView textAdminGreeting;
@@ -132,17 +120,8 @@ public class AdminActivity extends AppCompatActivity {
                 new AdminOperationsPresentationFormatter(this)
         );
         adminOperationCardBinder = new AdminOperationCardBinder(getLayoutInflater());
-        adminRequestCoordinator = new AdminRequestCoordinator(
-                this,
-                new AdminRequestPresentationFormatter(this)
-        );
-        adminRequestCardBinder = new AdminRequestCardBinder(getLayoutInflater());
         adminGuideCoordinator = new AdminGuideCoordinator(new AdminGuidePresentationFormatter(this));
         adminGuideCardBinder = new AdminGuideCardBinder();
-        adminActionDeliveryCoordinator = new AdminActionDeliveryCoordinator(
-                new AdminActionDeliveryPresentationFormatter(this)
-        );
-        adminActionDeliveryCardBinder = new AdminActionDeliveryCardBinder();
 
         textAdminMode = findViewById(R.id.textAdminMode);
         textAdminGreeting = findViewById(R.id.textAdminGreeting);
@@ -313,6 +292,42 @@ public class AdminActivity extends AppCompatActivity {
                     }
                 }
         );
+        adminRequestSectionController = new AdminRequestSectionController(
+                this,
+                getLayoutInflater(),
+                textAdminManagedSummary,
+                adminPendingRequestsContainer,
+                adminManagedFilterContainer,
+                adminManagedDateFilterContainer,
+                adminManagedRequestsContainer,
+                new AdminRequestCoordinator(this, new AdminRequestPresentationFormatter(this)),
+                new AdminRequestCardBinder(getLayoutInflater()),
+                new AdminRequestSectionController.Listener() {
+                    @Override
+                    public void onAssignManager(String requestId, String managerUserId) {
+                        assignManager(requestId, managerUserId);
+                    }
+                }
+        );
+        adminActionDeliverySectionController = new AdminActionDeliverySectionController(
+                getLayoutInflater(),
+                textAdminActionDeliverySummary,
+                adminActionDeliveryContainer,
+                new AdminActionDeliveryCoordinator(
+                        new AdminActionDeliveryPresentationFormatter(this)
+                ),
+                new AdminActionDeliveryCardBinder(),
+                new AdminActionDeliverySectionController.Listener() {
+                    @Override
+                    public void renderEmptyText(
+                            LinearLayout container,
+                            int titleResId,
+                            int messageResId
+                    ) {
+                        AdminActivity.this.renderEmptyText(container, titleResId, messageResId);
+                    }
+                }
+        );
 
         textAdminMode.setText(adminRepository.isFirebaseBacked()
                 ? R.string.admin_mode_firebase
@@ -393,18 +408,18 @@ public class AdminActivity extends AppCompatActivity {
                 dashboard.getManagerDocumentOverviews(),
                 loading
         );
-        pendingRequestsSnapshot = new ArrayList<>(dashboard.getPendingRequests());
-        availableManagersSnapshot = new ArrayList<>(dashboard.getAvailableManagers());
-        renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
-        managedRequestsSnapshot = new ArrayList<>(dashboard.getManagedRequests());
+        adminRequestSectionController.bindRequests(
+                dashboard.getPendingRequests(),
+                dashboard.getManagedRequests(),
+                dashboard.getAvailableManagers()
+        );
         renderOperations(dashboard);
         adminSupportSectionController.bindSupportInquiries(
                 dashboard.getSupportInquiries(),
                 dashboard.getClientSupportRequests()
         );
         adminActionCenterSectionController.bind(dashboard);
-        renderActionDeliveries(dashboard);
-        renderManagedRequests(managedRequestsSnapshot);
+        adminActionDeliverySectionController.bind(dashboard);
         renderGuides(dashboard.getHospitalGuides());
     }
 
@@ -551,181 +566,6 @@ public class AdminActivity extends AppCompatActivity {
         }
     }
 
-    private void renderActionDeliveries(AdminDashboard dashboard) {
-        AdminActionDeliveryDashboardModel deliveryModel =
-                adminActionDeliveryCoordinator.createDashboardModel(
-                        dashboard.getActionDeliveries(),
-                        dashboard.getActionOverview()
-                );
-        textAdminActionDeliverySummary.setText(deliveryModel.getSummaryText());
-        adminActionDeliveryContainer.removeAllViews();
-        if (deliveryModel.getCardModels().isEmpty()) {
-            renderEmptyText(
-                    adminActionDeliveryContainer,
-                    R.string.admin_action_delivery_title,
-                    R.string.admin_action_delivery_empty
-            );
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminActionDeliveryCardModel cardModel : deliveryModel.getCardModels()) {
-            View itemView = inflater.inflate(
-                    R.layout.item_admin_action_delivery_entry,
-                    adminActionDeliveryContainer,
-                    false
-            );
-            adminActionDeliveryCardBinder.bind(itemView, cardModel);
-            adminActionDeliveryContainer.addView(itemView);
-        }
-    }
-
-    private void renderPendingRequests(
-            List<AdminRequestOverview> pendingRequests,
-            List<User> availableManagers
-    ) {
-        List<AdminRequestCardModel> cardModels = adminRequestCoordinator.createPendingCards(
-                pendingRequests,
-                availableManagers,
-                expandedRequestIds
-        );
-        renderRequestCards(
-                adminPendingRequestsContainer,
-                cardModels,
-                R.string.admin_pending_title,
-                R.string.admin_pending_empty
-        );
-    }
-
-    private void renderManagedRequests(List<AdminRequestOverview> managedRequests) {
-        AdminManagedRequestSectionModel sectionModel = adminRequestCoordinator.createManagedSectionModel(
-                managedRequests,
-                managedRequestFilter,
-                managedRequestDateFilter,
-                expandedRequestIds
-        );
-        renderManagedFilters(sectionModel);
-        renderManagedDateFilters(sectionModel);
-        textAdminManagedSummary.setText(sectionModel.getSummaryText());
-        adminManagedRequestsContainer.removeAllViews();
-        if (!sectionModel.hasRequests()) {
-            renderEmptyText(
-                    adminManagedRequestsContainer,
-                    R.string.admin_managed_title,
-                    R.string.admin_managed_empty
-            );
-            return;
-        }
-        if (sectionModel.getRequestCards().isEmpty()) {
-            renderEmptyText(
-                    adminManagedRequestsContainer,
-                    R.string.admin_managed_title,
-                    R.string.admin_managed_filtered_empty
-            );
-            return;
-        }
-        renderRequestCards(
-                adminManagedRequestsContainer,
-                sectionModel.getRequestCards(),
-                R.string.admin_managed_title,
-                R.string.admin_managed_filtered_empty
-        );
-    }
-
-    private void renderManagedFilters(AdminManagedRequestSectionModel sectionModel) {
-        adminManagedFilterContainer.removeAllViews();
-        if (!sectionModel.hasRequests()) {
-            adminManagedFilterContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        adminManagedFilterContainer.setVisibility(View.VISIBLE);
-        for (AdminManagedFilterChipModel chipModel : sectionModel.getStatusFilterChips()) {
-            MaterialButton button = new MaterialButton(
-                    this,
-                    null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
-            );
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-            );
-            params.setMarginEnd(dpToPx(8));
-            button.setLayoutParams(params);
-            button.setAllCaps(false);
-            button.setCornerRadius(dpToPx(18));
-            button.setText(chipModel.getButtonText());
-            bindManagedFilterButtonStyle(button, chipModel.isSelected());
-            button.setOnClickListener(view -> {
-                managedRequestFilter = chipModel.getFilter();
-                renderManagedRequests(managedRequestsSnapshot);
-            });
-            adminManagedFilterContainer.addView(button);
-        }
-    }
-
-    private void renderManagedDateFilters(AdminManagedRequestSectionModel sectionModel) {
-        adminManagedDateFilterContainer.removeAllViews();
-        if (!sectionModel.hasRequests()) {
-            adminManagedDateFilterContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        adminManagedDateFilterContainer.setVisibility(View.VISIBLE);
-        for (AdminManagedDateFilterChipModel chipModel : sectionModel.getDateFilterChips()) {
-            MaterialButton button = new MaterialButton(
-                    this,
-                    null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
-            );
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-            );
-            params.setMarginEnd(dpToPx(8));
-            button.setLayoutParams(params);
-            button.setAllCaps(false);
-            button.setCornerRadius(dpToPx(18));
-            button.setText(chipModel.getButtonText());
-            bindManagedFilterButtonStyle(button, chipModel.isSelected());
-            button.setOnClickListener(view -> {
-                managedRequestDateFilter = chipModel.getFilter();
-                renderManagedRequests(managedRequestsSnapshot);
-            });
-            adminManagedDateFilterContainer.addView(button);
-        }
-    }
-
-    private void renderRequestCards(
-            LinearLayout container,
-            List<AdminRequestCardModel> cardModels,
-            int titleResId,
-            int emptyResId
-    ) {
-        container.removeAllViews();
-        if (cardModels.isEmpty()) {
-            renderEmptyText(container, titleResId, emptyResId);
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminRequestCardModel cardModel : cardModels) {
-            View itemView = inflater.inflate(R.layout.item_admin_request, container, false);
-            adminRequestCardBinder.bind(itemView, cardModel, new AdminRequestCardBinder.Listener() {
-                @Override
-                public void onToggleDetail(String requestId) {
-                    toggleRequestDetail(requestId);
-                }
-
-                @Override
-                public void onAssignManager(String requestId, String managerUserId) {
-                    assignManager(requestId, managerUserId);
-                }
-            });
-            container.addView(itemView);
-        }
-    }
-
     private void bindManagedFilterButtonStyle(MaterialButton button, boolean selected) {
         if (selected) {
             button.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.bodeul_primary)));
@@ -755,16 +595,6 @@ public class AdminActivity extends AppCompatActivity {
         button.setText(buttonText);
         bindManagedFilterButtonStyle(button, selected);
         return button;
-    }
-
-    private void toggleRequestDetail(String requestId) {
-        if (expandedRequestIds.contains(requestId)) {
-            expandedRequestIds.remove(requestId);
-        } else {
-            expandedRequestIds.add(requestId);
-        }
-        renderPendingRequests(pendingRequestsSnapshot, availableManagersSnapshot);
-        renderManagedRequests(managedRequestsSnapshot);
     }
 
     private void renderGuides(List<HospitalGuide> guides) {
@@ -1292,43 +1122,25 @@ public class AdminActivity extends AppCompatActivity {
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
         textAdminManagers.setText(R.string.admin_manager_summary_empty);
-        pendingRequestsSnapshot.clear();
-        availableManagersSnapshot.clear();
-        managedRequestsSnapshot.clear();
         textAdminMonitoringSummary.setText(R.string.admin_monitoring_summary_empty);
         textAdminMonitoringAlert.setVisibility(View.GONE);
         textAdminSettlementSummary.setText(R.string.admin_settlement_summary_empty);
         textAdminSettlementAlert.setVisibility(View.GONE);
         adminSupportSectionController.clear();
-        textAdminActionDeliverySummary.setText(R.string.admin_action_delivery_summary_empty);
-        textAdminManagedSummary.setText(R.string.admin_managed_summary_empty);
-        expandedRequestIds.clear();
         adminMonitoringFilterContainer.removeAllViews();
         adminMonitoringFilterContainer.setVisibility(View.GONE);
         adminSettlementFilterContainer.removeAllViews();
         adminSettlementFilterContainer.setVisibility(View.GONE);
-        adminManagedFilterContainer.removeAllViews();
-        adminManagedFilterContainer.setVisibility(View.GONE);
-        adminManagedDateFilterContainer.removeAllViews();
-        adminManagedDateFilterContainer.setVisibility(View.GONE);
         adminManagerDocumentSectionController.showEmptyPanel();
-        adminPendingRequestsContainer.removeAllViews();
         adminMonitoringContainer.removeAllViews();
         adminSettlementContainer.removeAllViews();
-        adminActionDeliveryContainer.removeAllViews();
-        adminManagedRequestsContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
-        renderEmptyText(adminPendingRequestsContainer, R.string.admin_pending_title, R.string.admin_pending_empty);
+        adminRequestSectionController.clear();
         renderEmptyText(adminMonitoringContainer, R.string.admin_monitoring_title, R.string.admin_monitoring_empty);
         renderEmptyText(adminSettlementContainer, R.string.admin_settlement_title, R.string.admin_settlement_empty);
         adminSupportSectionController.showEmptyPanel();
         adminActionCenterSectionController.showEmptyPanel();
-        renderEmptyText(
-                adminActionDeliveryContainer,
-                R.string.admin_action_delivery_title,
-                R.string.admin_action_delivery_empty
-        );
-        renderEmptyText(adminManagedRequestsContainer, R.string.admin_managed_title, R.string.admin_managed_empty);
+        adminActionDeliverySectionController.clear();
         renderEmptyText(adminGuideListContainer, R.string.admin_guide_list_title, R.string.admin_guide_empty);
     }
 
