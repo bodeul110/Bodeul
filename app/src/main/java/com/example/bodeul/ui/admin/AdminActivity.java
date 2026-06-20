@@ -54,11 +54,8 @@ public class AdminActivity extends AppCompatActivity {
     private HospitalGuide editingGuide;
     @Nullable
     private AdminDashboard adminDashboardSnapshot;
-    private AdminMonitoringFilter monitoringFilter = AdminMonitoringFilter.ALL;
-    private AdminSettlementFilter settlementFilter = AdminSettlementFilter.ALL;
     private boolean loading;
-    private AdminOperationsCoordinator adminOperationsCoordinator;
-    private AdminOperationCardBinder adminOperationCardBinder;
+    private AdminOperationsSectionController adminOperationsSectionController;
     private AdminRequestSectionController adminRequestSectionController;
     private AdminGuideCoordinator adminGuideCoordinator;
     private AdminGuideCardBinder adminGuideCardBinder;
@@ -115,11 +112,6 @@ public class AdminActivity extends AppCompatActivity {
         authRepository = ServiceLocator.provideAuthRepository(this);
         adminRepository = ServiceLocator.provideAdminRepository(this);
         managerDocumentPreviewResolver = ServiceLocator.provideManagerDocumentPreviewResolver(this);
-        adminOperationsCoordinator = new AdminOperationsCoordinator(
-                this,
-                new AdminOperationsPresentationFormatter(this)
-        );
-        adminOperationCardBinder = new AdminOperationCardBinder(getLayoutInflater());
         adminGuideCoordinator = new AdminGuideCoordinator(new AdminGuidePresentationFormatter(this));
         adminGuideCardBinder = new AdminGuideCardBinder();
 
@@ -292,6 +284,50 @@ public class AdminActivity extends AppCompatActivity {
                     }
                 }
         );
+        adminOperationsSectionController = new AdminOperationsSectionController(
+                getLayoutInflater(),
+                textAdminMonitoringSummary,
+                textAdminMonitoringAlert,
+                adminMonitoringFilterContainer,
+                adminMonitoringContainer,
+                textAdminSettlementSummary,
+                textAdminSettlementAlert,
+                adminSettlementFilterContainer,
+                adminSettlementContainer,
+                new AdminOperationsCoordinator(
+                        this,
+                        new AdminOperationsPresentationFormatter(this)
+                ),
+                new AdminOperationCardBinder(getLayoutInflater()),
+                new AdminOperationsSectionController.Listener() {
+                    @Override
+                    public MaterialButton createFilterButton(String text, boolean selected) {
+                        return AdminActivity.this.createOperationFilterButton(text, selected);
+                    }
+
+                    @Override
+                    public void renderEmptyText(
+                            LinearLayout container,
+                            int titleResId,
+                            int messageResId
+                    ) {
+                        AdminActivity.this.renderEmptyText(container, titleResId, messageResId);
+                    }
+
+                    @Override
+                    public void onSaveSettlementRecord(String requestId, AdminSettlementStatus status) {
+                        openSettlementActionDialog(requestId, status);
+                    }
+
+                    @Override
+                    public void onSaveEmergencyIssue(
+                            String requestId,
+                            AdminEmergencyIssueStatus status
+                    ) {
+                        openEmergencyActionDialog(requestId, status);
+                    }
+                }
+        );
         adminRequestSectionController = new AdminRequestSectionController(
                 this,
                 getLayoutInflater(),
@@ -413,7 +449,7 @@ public class AdminActivity extends AppCompatActivity {
                 dashboard.getManagedRequests(),
                 dashboard.getAvailableManagers()
         );
-        renderOperations(dashboard);
+        adminOperationsSectionController.bind(dashboard);
         adminSupportSectionController.bindSupportInquiries(
                 dashboard.getSupportInquiries(),
                 dashboard.getClientSupportRequests()
@@ -448,122 +484,6 @@ public class AdminActivity extends AppCompatActivity {
             builder.append(manager.getName());
         }
         return builder.toString();
-    }
-
-    private void renderOperations(AdminDashboard dashboard) {
-        AdminOperationsDashboardModel operationsModel =
-                adminOperationsCoordinator.createDashboardModel(
-                        dashboard,
-                        monitoringFilter,
-                        settlementFilter
-                );
-        textAdminMonitoringSummary.setText(operationsModel.getMonitoringSummaryText());
-        bindOperationAlert(
-                textAdminMonitoringAlert,
-                operationsModel.getMonitoringAlertText()
-        );
-        renderMonitoringFilters(operationsModel);
-        textAdminSettlementSummary.setText(operationsModel.getSettlementSummaryText());
-        bindOperationAlert(
-                textAdminSettlementAlert,
-                operationsModel.getSettlementAlertText()
-        );
-        renderSettlementFilters(operationsModel);
-        renderOperationCards(
-                adminMonitoringContainer,
-                operationsModel.getMonitoringCards(),
-                R.string.admin_monitoring_title,
-                R.string.admin_monitoring_empty
-        );
-        renderOperationCards(
-                adminSettlementContainer,
-                operationsModel.getSettlementCards(),
-                R.string.admin_settlement_title,
-                R.string.admin_settlement_empty
-        );
-    }
-
-    private void bindOperationAlert(TextView alertView, String alertText) {
-        if (TextUtils.isEmpty(alertText)) {
-            alertView.setVisibility(View.GONE);
-            return;
-        }
-        alertView.setVisibility(View.VISIBLE);
-        alertView.setText(alertText);
-    }
-
-    private void renderMonitoringFilters(AdminOperationsDashboardModel operationsModel) {
-        adminMonitoringFilterContainer.removeAllViews();
-        if (!operationsModel.hasMonitoringTargets()) {
-            adminMonitoringFilterContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        adminMonitoringFilterContainer.setVisibility(View.VISIBLE);
-        for (AdminMonitoringFilterChipModel chipModel : operationsModel.getMonitoringFilterChips()) {
-            MaterialButton button = createOperationFilterButton(chipModel.getButtonText(), chipModel.isSelected());
-            button.setOnClickListener(view -> {
-                monitoringFilter = chipModel.getFilter();
-                if (adminDashboardSnapshot != null) {
-                    renderOperations(adminDashboardSnapshot);
-                }
-            });
-            adminMonitoringFilterContainer.addView(button);
-        }
-    }
-
-    private void renderSettlementFilters(AdminOperationsDashboardModel operationsModel) {
-        adminSettlementFilterContainer.removeAllViews();
-        if (!operationsModel.hasSettlementTargets()) {
-            adminSettlementFilterContainer.setVisibility(View.GONE);
-            return;
-        }
-
-        adminSettlementFilterContainer.setVisibility(View.VISIBLE);
-        for (AdminSettlementFilterChipModel chipModel : operationsModel.getSettlementFilterChips()) {
-            MaterialButton button = createOperationFilterButton(chipModel.getButtonText(), chipModel.isSelected());
-            button.setOnClickListener(view -> {
-                settlementFilter = chipModel.getFilter();
-                if (adminDashboardSnapshot != null) {
-                    renderOperations(adminDashboardSnapshot);
-                }
-            });
-            adminSettlementFilterContainer.addView(button);
-        }
-    }
-
-    private void renderOperationCards(
-            LinearLayout container,
-            List<AdminOperationCardModel> cardModels,
-            int titleResId,
-            int emptyResId
-    ) {
-        container.removeAllViews();
-        if (cardModels.isEmpty()) {
-            renderEmptyText(container, titleResId, emptyResId);
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminOperationCardModel cardModel : cardModels) {
-            View itemView = inflater.inflate(R.layout.item_admin_operation_card, container, false);
-            adminOperationCardBinder.bind(itemView, cardModel, (requestId, actionType) -> {
-                if (actionType == AdminOperationActionType.SAVE_SETTLEMENT_CONFIRMED) {
-                    openSettlementActionDialog(requestId, AdminSettlementStatus.CONFIRMED);
-                    return;
-                }
-                if (actionType == AdminOperationActionType.SAVE_SETTLEMENT_RECHECK) {
-                    openSettlementActionDialog(requestId, AdminSettlementStatus.NEEDS_REVIEW);
-                    return;
-                }
-                if (actionType == AdminOperationActionType.RESOLVE_EMERGENCY) {
-                    openEmergencyActionDialog(requestId, AdminEmergencyIssueStatus.RESOLVED);
-                    return;
-                }
-                openEmergencyActionDialog(requestId, AdminEmergencyIssueStatus.REPORTED);
-            });
-            container.addView(itemView);
-        }
     }
 
     private void bindManagedFilterButtonStyle(MaterialButton button, boolean selected) {
@@ -1117,27 +1037,14 @@ public class AdminActivity extends AppCompatActivity {
 
     private void bindEmptyState() {
         adminDashboardSnapshot = null;
-        monitoringFilter = AdminMonitoringFilter.ALL;
-        settlementFilter = AdminSettlementFilter.ALL;
         textAdminGreeting.setText(R.string.admin_empty_greeting);
         textAdminSummary.setText(R.string.admin_empty_summary);
         textAdminManagers.setText(R.string.admin_manager_summary_empty);
-        textAdminMonitoringSummary.setText(R.string.admin_monitoring_summary_empty);
-        textAdminMonitoringAlert.setVisibility(View.GONE);
-        textAdminSettlementSummary.setText(R.string.admin_settlement_summary_empty);
-        textAdminSettlementAlert.setVisibility(View.GONE);
+        adminOperationsSectionController.clear();
         adminSupportSectionController.clear();
-        adminMonitoringFilterContainer.removeAllViews();
-        adminMonitoringFilterContainer.setVisibility(View.GONE);
-        adminSettlementFilterContainer.removeAllViews();
-        adminSettlementFilterContainer.setVisibility(View.GONE);
         adminManagerDocumentSectionController.showEmptyPanel();
-        adminMonitoringContainer.removeAllViews();
-        adminSettlementContainer.removeAllViews();
         adminGuideListContainer.removeAllViews();
         adminRequestSectionController.clear();
-        renderEmptyText(adminMonitoringContainer, R.string.admin_monitoring_title, R.string.admin_monitoring_empty);
-        renderEmptyText(adminSettlementContainer, R.string.admin_settlement_title, R.string.admin_settlement_empty);
         adminSupportSectionController.showEmptyPanel();
         adminActionCenterSectionController.showEmptyPanel();
         adminActionDeliverySectionController.clear();

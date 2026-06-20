@@ -156,3 +156,7 @@
   - #8의 action delivery 축을 AdminActionDeliverySectionController로 분리했다.
   - AdminActivity는 액션 전달 데이터 바인딩만 남기고, 요약/빈 상태/목록 렌더링은 섹션 컨트롤러가 맡도록 정리했다.
   - 현재 #8은 operations와 guide 축의 추가 분리 여부만 남아 있다.
+- 2026-06-20 11차 진행
+  - #8의 operations 축을 AdminOperationsSectionController로 분리했다.
+  - AdminActivity는 운영 저장 다이얼로그만 남기고, 모니터링/정산 필터와 요약/목록 렌더링은 섹션 컨트롤러가 맡도록 정리했다.
+  - 현재 #8에서 남은 큰 축은 guide다.
