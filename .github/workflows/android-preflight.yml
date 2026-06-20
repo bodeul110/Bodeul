@@ -68,6 +68,10 @@ jobs:
         shell: bash
         run: |
           ARGS=()
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            # PR CI는 외부 Firebase 운영 상태 대신 앱 빌드와 테스트 안정성만 확인한다.
+            ARGS+=(--skip-workflow)
+          fi
           if [ -n "$BODEUL_BACKUP_FILE" ]; then
             ARGS+=(--file "$BODEUL_BACKUP_FILE")
           fi
