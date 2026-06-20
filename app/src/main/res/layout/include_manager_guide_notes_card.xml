@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="14dp"
+    app:cardBackgroundColor="@color/bodeul_surface"
+    app:cardCornerRadius="28dp"
+    app:cardElevation="6dp"
+    app:strokeColor="@color/bodeul_outline"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="22dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/guide_photo_section"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/BodeulFilledInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:hint="@string/guide_photo_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputGuidePhotoNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textMultiLine"
+                android:minLines="3" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSaveGuidePhotoNote"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="14dp"
+            android:text="@string/guide_photo_save" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/guide_medication_section"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/BodeulFilledInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:hint="@string/guide_medication_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputMedicationNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textMultiLine"
+                android:minLines="3" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSaveMedicationNote"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="14dp"
+            android:text="@string/guide_medication_save" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/guide_pharmacy_section"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/BodeulFilledInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:hint="@string/guide_pharmacy_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputPharmacySummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textMultiLine"
+                android:minLines="3" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonSavePharmacySummary"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="14dp"
+            android:text="@string/guide_pharmacy_save" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/guide_pharmacy_progress_summary_label"
+            android:textColor="@color/bodeul_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textGuidePharmacyProgressSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_surface_pill"
+            android:lineSpacingExtra="3dp"
+            android:paddingStart="14dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="12dp"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/guide_pharmacy_map_helper"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="13sp" />
+
+        <com.example.bodeul.ui.booking.BookingLocationMapView
+            android:id="@+id/viewGuideHospitalMap"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
+            android:layout_marginTop="12dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonTogglePrescriptionCollected"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="14dp"
+            android:text="@string/guide_prescription_mark_collected" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonTogglePharmacyCompleted"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/guide_pharmacy_mark_completed" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonToggleMedicationGuidanceCompleted"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/guide_medication_guidance_mark_completed" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

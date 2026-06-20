@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:text="@string/booking_note_section"
+        android:textColor="@color/bodeul_text_primary"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/layoutBookingSpecialNotes"
+        style="@style/BodeulFilledInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="@string/booking_special_notes_hint">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/inputBookingSpecialNotes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textMultiLine|textCapSentences"
+            android:minLines="3" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonSubmitBooking"
+        style="@style/BodeulHomeButton"
+        android:layout_marginTop="18dp"
+        android:text="@string/booking_submit_button" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonCancelBookingEdit"
+        style="@style/BodeulOutlinedButton"
+        android:layout_marginTop="10dp"
+        android:text="@string/booking_cancel_edit_button"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/progressBooking"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="14dp"
+        android:visibility="gone"
+        app:indicatorColor="@color/bodeul_primary" />
+</merge>

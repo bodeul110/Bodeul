@@ -12,7 +12,6 @@
     <color name="bodeul_outline">#E0E6F3</color>
     <color name="bodeul_success">#35B58A</color>
     <color name="bodeul_warning">#FDB544</color>
-    <color name="bodeul_shadow">#180E1E4D</color>
     <color name="bodeul_warm_glow">#FFF2D8</color>
     <color name="bodeul_cool_glow">#E8F1FF</color>
     <color name="bodeul_soft_blue">#DCE7FF</color>
@@ -21,8 +20,6 @@
     <color name="bodeul_soft_purple">#E9E4FF</color>
     <color name="bodeul_error">#D95C4E</color>
     <color name="bodeul_soft_red">#FDE2DE</color>
-    <color name="bodeul_dark_background">#0A0B0F</color>
-    <color name="bodeul_dark_text_muted">#7D8498</color>
     <color name="bodeul_light_card">#F3F4F6</color>
     <color name="bodeul_dark_button_outline">#314878</color>
     <color name="white">#FFFFFFFF</color>

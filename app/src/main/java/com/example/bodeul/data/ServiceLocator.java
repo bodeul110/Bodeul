@@ -45,7 +45,7 @@ public final class ServiceLocator {
     private static CompanionChatAttachmentPreviewResolver companionChatAttachmentPreviewResolver;
     private static ManagerDocumentStorageUploader managerDocumentStorageUploader;
     private static ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
-    private static FirebaseFirestore firestore;
+    private static boolean firestoreSettingsApplied;
 
     private ServiceLocator() {
     }
@@ -209,16 +209,16 @@ public final class ServiceLocator {
     }
 
     private static FirebaseFirestore provideFirestore() {
-        if (firestore == null) {
-            firestore = FirebaseFirestore.getInstance();
-
-            // 앱 재시작 뒤 디스크에 남는 민감 정보 범위를 줄이기 위해 메모리 캐시만 사용한다.
+        FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+        if (!firestoreSettingsApplied) {
+            // 민감한 현장 데이터를 디스크에 남기지 않도록 메모리 캐시 설정을 한 번만 적용한다.
             FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder(
                     firestore.getFirestoreSettings()
             )
                     .setLocalCacheSettings(MemoryCacheSettings.newBuilder().build())
                     .build();
             firestore.setFirestoreSettings(settings);
+            firestoreSettingsApplied = true;
         }
         return firestore;
     }

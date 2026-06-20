@@ -110,6 +110,8 @@
 
                 <include
                     android:id="@+id/layoutHomeSupportBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     layout="@layout/view_attention_banner"
                     android:layout_marginTop="16dp" />
 
