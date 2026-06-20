@@ -51,15 +51,12 @@ public class AdminActivity extends AppCompatActivity {
     private AdminRepository adminRepository;
     private ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
     private User currentUser;
-    private HospitalGuide editingGuide;
     @Nullable
     private AdminDashboard adminDashboardSnapshot;
     private boolean loading;
     private AdminOperationsSectionController adminOperationsSectionController;
     private AdminRequestSectionController adminRequestSectionController;
-    private AdminGuideCoordinator adminGuideCoordinator;
-    private AdminGuideCardBinder adminGuideCardBinder;
-    private AdminGuideFormBinder adminGuideFormBinder;
+    private AdminGuideSectionController adminGuideSectionController;
     private AdminManagerDocumentSectionController adminManagerDocumentSectionController;
     private AdminSupportSectionController adminSupportSectionController;
     private AdminActionCenterSectionController adminActionCenterSectionController;
@@ -112,9 +109,6 @@ public class AdminActivity extends AppCompatActivity {
         authRepository = ServiceLocator.provideAuthRepository(this);
         adminRepository = ServiceLocator.provideAdminRepository(this);
         managerDocumentPreviewResolver = ServiceLocator.provideManagerDocumentPreviewResolver(this);
-        adminGuideCoordinator = new AdminGuideCoordinator(new AdminGuidePresentationFormatter(this));
-        adminGuideCardBinder = new AdminGuideCardBinder();
-
         textAdminMode = findViewById(R.id.textAdminMode);
         textAdminGreeting = findViewById(R.id.textAdminGreeting);
         textAdminSummary = findViewById(R.id.textAdminSummary);
@@ -153,19 +147,6 @@ public class AdminActivity extends AppCompatActivity {
         buttonSubmitAdminGuide = findViewById(R.id.buttonSubmitAdminGuide);
         buttonCancelAdminGuideEdit = findViewById(R.id.buttonCancelAdminGuideEdit);
         progressAdmin = findViewById(R.id.progressAdmin);
-        adminGuideFormBinder = new AdminGuideFormBinder(
-                textAdminGuideFormTitle,
-                textAdminGuideFormBadge,
-                textAdminGuideFormHelper,
-                layoutAdminGuideHospital,
-                layoutAdminGuideDepartment,
-                layoutAdminGuideSteps,
-                inputAdminGuideHospital,
-                inputAdminGuideDepartment,
-                inputAdminGuideSteps,
-                buttonSubmitAdminGuide,
-                buttonCancelAdminGuideEdit
-        );
         adminManagerDocumentSectionController = new AdminManagerDocumentSectionController(
                 this,
                 adminManagerDocumentsContainer,
@@ -364,17 +345,75 @@ public class AdminActivity extends AppCompatActivity {
                     }
                 }
         );
+        adminGuideSectionController = new AdminGuideSectionController(
+                this,
+                getLayoutInflater(),
+                adminGuideListContainer,
+                layoutAdminGuideHospital,
+                layoutAdminGuideDepartment,
+                layoutAdminGuideSteps,
+                inputAdminGuideHospital,
+                inputAdminGuideDepartment,
+                inputAdminGuideSteps,
+                buttonSubmitAdminGuide,
+                buttonCancelAdminGuideEdit,
+                new AdminGuideCoordinator(new AdminGuidePresentationFormatter(this)),
+                new AdminGuideCardBinder(),
+                new AdminGuideFormBinder(
+                        textAdminGuideFormTitle,
+                        textAdminGuideFormBadge,
+                        textAdminGuideFormHelper,
+                        layoutAdminGuideHospital,
+                        layoutAdminGuideDepartment,
+                        layoutAdminGuideSteps,
+                        inputAdminGuideHospital,
+                        inputAdminGuideDepartment,
+                        inputAdminGuideSteps,
+                        buttonSubmitAdminGuide,
+                        buttonCancelAdminGuideEdit
+                ),
+                new AdminGuideSectionController.Listener() {
+                    @Override
+                    public boolean isInteractionBlocked() {
+                        return currentUser == null || loading;
+                    }
+
+                    @Override
+                    public void onSaveGuide(
+                            String hospitalName,
+                            String departmentName,
+                            List<String> stepLines,
+                            boolean editing
+                    ) {
+                        submitGuide(hospitalName, departmentName, stepLines, editing);
+                    }
+
+                    @Override
+                    public void onDeleteGuide(HospitalGuide guide) {
+                        deleteGuide(guide);
+                    }
+
+                    @Override
+                    public void renderEmptyText(
+                            LinearLayout container,
+                            int titleResId,
+                            int messageResId
+                    ) {
+                        AdminActivity.this.renderEmptyText(container, titleResId, messageResId);
+                    }
+                }
+        );
 
         textAdminMode.setText(adminRepository.isFirebaseBacked()
                 ? R.string.admin_mode_firebase
                 : R.string.admin_mode_demo);
 
         findViewById(R.id.buttonBackAdmin).setOnClickListener(view -> signOut());
-        buttonSubmitAdminGuide.setOnClickListener(view -> submitGuide());
-        buttonCancelAdminGuideEdit.setOnClickListener(view -> exitGuideEditMode());
+        buttonSubmitAdminGuide.setOnClickListener(view -> adminGuideSectionController.submitGuide());
+        buttonCancelAdminGuideEdit.setOnClickListener(view -> adminGuideSectionController.exitEditMode());
 
         bindEmptyState();
-        updateGuideFormMode();
+        adminGuideSectionController.bindLoading(false);
     }
 
     @Override
@@ -456,7 +495,7 @@ public class AdminActivity extends AppCompatActivity {
         );
         adminActionCenterSectionController.bind(dashboard);
         adminActionDeliverySectionController.bind(dashboard);
-        renderGuides(dashboard.getHospitalGuides());
+        adminGuideSectionController.bindGuides(dashboard.getHospitalGuides(), loading);
     }
 
     private String buildManagerSummary(AdminDashboard dashboard) {
@@ -515,36 +554,6 @@ public class AdminActivity extends AppCompatActivity {
         button.setText(buttonText);
         bindManagedFilterButtonStyle(button, selected);
         return button;
-    }
-
-    private void renderGuides(List<HospitalGuide> guides) {
-        adminGuideListContainer.removeAllViews();
-        List<AdminGuideCardModel> guideCards = adminGuideCoordinator.createGuideCards(guides);
-        if (guideCards.isEmpty()) {
-            renderEmptyText(
-                    adminGuideListContainer,
-                    R.string.admin_guide_list_title,
-                    R.string.admin_guide_empty
-            );
-            return;
-        }
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        for (AdminGuideCardModel guideCard : guideCards) {
-            View itemView = inflater.inflate(R.layout.item_admin_guide, adminGuideListContainer, false);
-            adminGuideCardBinder.bind(itemView, guideCard, new AdminGuideCardBinder.Listener() {
-                @Override
-                public void onEditGuide(String guideId) {
-                    startGuideEdit(findGuideById(guideId, guides));
-                }
-
-                @Override
-                public void onDeleteGuide(String guideId) {
-                    confirmGuideDelete(findGuideById(guideId, guides));
-                }
-            });
-            adminGuideListContainer.addView(itemView);
-        }
     }
 
     private void reviewManagerDocument(
@@ -791,26 +800,13 @@ public class AdminActivity extends AppCompatActivity {
         );
     }
 
-    private void submitGuide() {
+    private void submitGuide(
+            String hospitalName,
+            String departmentName,
+            List<String> stepLines,
+            boolean editing
+    ) {
         if (currentUser == null || loading) {
-            return;
-        }
-
-        boolean editing = editingGuide != null;
-        clearGuideErrors();
-        String hospitalName = valueOf(inputAdminGuideHospital);
-        String departmentName = valueOf(inputAdminGuideDepartment);
-        String rawSteps = valueOf(inputAdminGuideSteps);
-        boolean valid = validateRequired(layoutAdminGuideHospital, hospitalName)
-                && validateRequired(layoutAdminGuideDepartment, departmentName)
-                && validateRequired(layoutAdminGuideSteps, rawSteps);
-        if (!valid) {
-            return;
-        }
-
-        List<String> stepLines = parseStepLines(rawSteps);
-        if (stepLines.isEmpty()) {
-            layoutAdminGuideSteps.setError(getString(R.string.error_required_field));
             return;
         }
 
@@ -824,13 +820,12 @@ public class AdminActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(AdminDashboard result) {
                         setLoading(false);
-                        if (editing) {
-                            Toast.makeText(AdminActivity.this, R.string.admin_guide_updated, Toast.LENGTH_SHORT).show();
-                            exitGuideEditMode();
-                        } else {
-                            Toast.makeText(AdminActivity.this, R.string.admin_guide_saved, Toast.LENGTH_SHORT).show();
-                            clearGuideForm();
-                        }
+                        Toast.makeText(
+                                AdminActivity.this,
+                                editing ? R.string.admin_guide_updated : R.string.admin_guide_saved,
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        adminGuideSectionController.onGuideSaved(editing);
                         bindDashboard(result);
                     }
 
@@ -841,35 +836,6 @@ public class AdminActivity extends AppCompatActivity {
                     }
                 }
         );
-    }
-
-    private void startGuideEdit(HospitalGuide guide) {
-        if (loading || guide == null) {
-            return;
-        }
-        editingGuide = guide;
-        inputAdminGuideHospital.setText(guide.getHospitalName());
-        inputAdminGuideDepartment.setText(guide.getDepartmentName());
-        inputAdminGuideSteps.setText(adminGuideCoordinator.buildEditableGuideSteps(guide));
-        clearGuideErrors();
-        updateGuideFormMode();
-    }
-
-    private void confirmGuideDelete(HospitalGuide guide) {
-        if (currentUser == null || loading || guide == null) {
-            return;
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.admin_guide_delete_dialog_title)
-                .setMessage(getString(
-                        R.string.admin_guide_delete_dialog_body,
-                        guide.getHospitalName(),
-                        guide.getDepartmentName()
-                ))
-                .setNegativeButton(R.string.admin_guide_delete_dialog_keep, null)
-                .setPositiveButton(R.string.admin_guide_delete_dialog_confirm, (dialogInterface, which) ->
-                        deleteGuide(guide))
-                .show();
     }
 
     private void deleteGuide(HospitalGuide guide) {
@@ -881,9 +847,7 @@ public class AdminActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(AdminDashboard result) {
                         setLoading(false);
-                        if (editingGuide != null && editingGuide.getId().equals(guide.getId())) {
-                            exitGuideEditMode();
-                        }
+                        adminGuideSectionController.onGuideDeleted(guide.getId());
                         Toast.makeText(AdminActivity.this, R.string.admin_guide_deleted, Toast.LENGTH_SHORT).show();
                         bindDashboard(result);
                     }
@@ -895,16 +859,6 @@ public class AdminActivity extends AppCompatActivity {
                     }
                 }
         );
-    }
-
-    @Nullable
-    private HospitalGuide findGuideById(String guideId, List<HospitalGuide> guides) {
-        for (HospitalGuide guide : guides) {
-            if (guide.getId().equals(guideId)) {
-                return guide;
-            }
-        }
-        return null;
     }
 
     private void assignManager(String requestId, String managerUserId) {
@@ -995,18 +949,6 @@ public class AdminActivity extends AppCompatActivity {
         );
     }
 
-    private List<String> parseStepLines(String rawSteps) {
-        List<String> stepLines = new ArrayList<>();
-        String[] lines = rawSteps.split("\\r?\\n");
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (!trimmed.isEmpty()) {
-                stepLines.add(trimmed);
-            }
-        }
-        return stepLines;
-    }
-
     private void renderEmptyText(LinearLayout container, int titleResId, int messageResId) {
         renderEmptyText(container, getString(titleResId), getString(messageResId));
     }
@@ -1043,51 +985,17 @@ public class AdminActivity extends AppCompatActivity {
         adminOperationsSectionController.clear();
         adminSupportSectionController.clear();
         adminManagerDocumentSectionController.showEmptyPanel();
-        adminGuideListContainer.removeAllViews();
         adminRequestSectionController.clear();
         adminSupportSectionController.showEmptyPanel();
         adminActionCenterSectionController.showEmptyPanel();
         adminActionDeliverySectionController.clear();
-        renderEmptyText(adminGuideListContainer, R.string.admin_guide_list_title, R.string.admin_guide_empty);
-    }
-
-    private boolean validateRequired(TextInputLayout layout, String value) {
-        if (TextUtils.isEmpty(value)) {
-            layout.setError(getString(R.string.error_required_field));
-            return false;
-        }
-        return true;
-    }
-
-    private void clearGuideErrors() {
-        layoutAdminGuideHospital.setError(null);
-        layoutAdminGuideDepartment.setError(null);
-        layoutAdminGuideSteps.setError(null);
-    }
-
-    private void clearGuideForm() {
-        inputAdminGuideHospital.setText(null);
-        inputAdminGuideDepartment.setText(null);
-        inputAdminGuideSteps.setText(null);
-    }
-
-    private void exitGuideEditMode() {
-        editingGuide = null;
-        clearGuideForm();
-        clearGuideErrors();
-        updateGuideFormMode();
-    }
-
-    private void updateGuideFormMode() {
-        adminGuideFormBinder.bind(
-                adminGuideCoordinator.createGuideFormModel(editingGuide, loading)
-        );
+        adminGuideSectionController.showEmptyPanel();
     }
 
     private void setLoading(boolean loading) {
         this.loading = loading;
         progressAdmin.setVisibility(loading ? View.VISIBLE : View.GONE);
-        updateGuideFormMode();
+        adminGuideSectionController.bindLoading(loading);
     }
 
     private void showPermissionState() {

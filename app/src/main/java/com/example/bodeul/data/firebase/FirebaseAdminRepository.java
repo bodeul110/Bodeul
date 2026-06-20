@@ -78,12 +78,124 @@ import java.util.Map;
  */
 public class FirebaseAdminRepository implements AdminRepository {
     private final FirebaseFirestore firestore;
+    private final FirebaseAdminRequestStore adminRequestStore;
+    private final FirebaseAdminGuideStore adminGuideStore;
+    private final FirebaseAdminOperationsStore adminOperationsStore;
     private final FirebaseAdminActionCenterStore actionCenterStore;
     private final FirebaseAdminSupportStore adminSupportStore;
     private final FirebaseAdminManagerDocumentStore managerDocumentStore;
 
     public FirebaseAdminRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
+        this.adminRequestStore = new FirebaseAdminRequestStore(
+                firestore,
+                new FirebaseAdminRequestStore.RequestMapper() {
+                    @Override
+                    public AdminRequestOverview findRequestOverview(
+                            AdminDashboard dashboard,
+                            String requestId
+                    ) {
+                        return FirebaseAdminRepository.this.findRequestOverview(dashboard, requestId);
+                    }
+
+                    @Override
+                    public boolean containsManager(List<User> managers, String managerUserId) {
+                        return FirebaseAdminRepository.this.containsManager(managers, managerUserId);
+                    }
+                }
+        );
+        this.adminGuideStore = new FirebaseAdminGuideStore(
+                firestore,
+                new FirebaseAdminGuideStore.GuideMapper() {
+                    @Override
+                    public List<Map<String, Object>> buildGuideStepDocuments(List<String> stepLines) {
+                        return FirebaseAdminRepository.this.buildGuideStepDocuments(stepLines);
+                    }
+
+                    @Override
+                    public String normalizeText(@Nullable String value) {
+                        return FirebaseAdminRepository.this.normalizeText(value);
+                    }
+                }
+        );
+        this.adminOperationsStore = new FirebaseAdminOperationsStore(
+                firestore,
+                new FirebaseAdminOperationsStore.OperationsMapper() {
+                    @Override
+                    public String normalizeText(@Nullable String value) {
+                        return FirebaseAdminRepository.this.normalizeText(value);
+                    }
+
+                    @Override
+                    public void appendAdminActionArtifacts(
+                            WriteBatch batch,
+                            String requestId,
+                            String inquiryId,
+                            AdminActionSourceType sourceType,
+                            AdminActionNotificationLevel level,
+                            String title,
+                            String body,
+                            String actionSummary,
+                            String note,
+                            String actorName
+                    ) {
+                        FirebaseAdminRepository.this.appendAdminActionArtifacts(
+                                batch,
+                                requestId,
+                                inquiryId,
+                                sourceType,
+                                level,
+                                title,
+                                body,
+                                actionSummary,
+                                note,
+                                actorName
+                        );
+                    }
+
+                    @Override
+                    public String buildSettlementNotificationTitle(AdminSettlementStatus status) {
+                        return FirebaseAdminRepository.this.buildSettlementNotificationTitle(status);
+                    }
+
+                    @Override
+                    public String buildSettlementNotificationBody(
+                            String requestId,
+                            AdminSettlementStatus status
+                    ) {
+                        return FirebaseAdminRepository.this.buildSettlementNotificationBody(
+                                requestId,
+                                status
+                        );
+                    }
+
+                    @Override
+                    public String buildSettlementAuditSummary(AdminSettlementStatus status) {
+                        return FirebaseAdminRepository.this.buildSettlementAuditSummary(status);
+                    }
+
+                    @Override
+                    public String buildEmergencyNotificationTitle(AdminEmergencyIssueStatus status) {
+                        return FirebaseAdminRepository.this.buildEmergencyNotificationTitle(status);
+                    }
+
+                    @Override
+                    public String buildEmergencyNotificationBody(
+                            String requestId,
+                            AdminEmergencyIssueStatus status
+                    ) {
+                        return FirebaseAdminRepository.this.buildEmergencyNotificationBody(
+                                requestId,
+                                status
+                        );
+                    }
+
+                    @Override
+                    public String buildEmergencyAuditSummary(AdminEmergencyIssueStatus status) {
+                        return FirebaseAdminRepository.this.buildEmergencyAuditSummary(status);
+                    }
+                }
+        );
         this.actionCenterStore = new FirebaseAdminActionCenterStore(
                 firestore,
                 new FirebaseAdminActionCenterStore.NotificationMapper() {
@@ -205,67 +317,29 @@ public class FirebaseAdminRepository implements AdminRepository {
             RepositoryCallback<AdminDashboard> callback
     ) {
         if (currentUser.getRole() != UserRole.ADMIN) {
-            callback.onError("관리자 계정으로 접근해주세요.");
+            callback.onError("관리자 계정으로 접근해 주세요.");
             return;
         }
 
         loadDashboardWithActions(currentUser, new RepositoryCallback<AdminDashboard>() {
             @Override
             public void onSuccess(AdminDashboard dashboard) {
-                AdminRequestOverview targetOverview = findRequestOverview(dashboard, requestId);
-                if (targetOverview == null) {
-                    callback.onError("배정할 요청을 찾지 못했습니다.");
-                    return;
-                }
-                if (!targetOverview.hasLinkedParticipants()) {
-                    callback.onError("환자와 보호자 계정 연결이 완료된 요청만 배정할 수 있습니다.");
-                    return;
-                }
-                if (!targetOverview.hasGuide()) {
-                    callback.onError("해당 병원과 진료과 가이드가 없어 먼저 가이드를 등록해야 합니다.");
-                    return;
-                }
-                if (!containsManager(dashboard.getAvailableManagers(), managerUserId)) {
-                    callback.onError("선택한 매니저는 현재 다른 동행을 진행 중입니다.");
-                    return;
-                }
-
-                WriteBatch batch = firestore.batch();
-                batch.update(
-                        firestore.collection("appointmentRequests").document(requestId),
-                        "status",
-                        AppointmentStatus.MATCHED.name(),
-                        "managerUserId",
+                adminRequestStore.assignManager(
+                        dashboard,
+                        requestId,
                         managerUserId,
-                        "updatedAt",
-                        FieldValue.serverTimestamp()
+                        new FirebaseAdminRequestStore.CompletionListener() {
+                            @Override
+                            public void onSuccess() {
+                                loadDashboardWithArtifacts(currentUser, callback);
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                callback.onError(message);
+                            }
+                        }
                 );
-
-                DocumentReference sessionReference = firestore.collection("companionSessions")
-                        .document("session-" + requestId);
-                Map<String, Object> sessionDocument = new HashMap<>();
-                sessionDocument.put("appointmentRequestId", requestId);
-                sessionDocument.put("managerUserId", managerUserId);
-                sessionDocument.put("currentStepOrder", 1);
-                sessionDocument.put("currentStatus", SessionStatus.READY.name());
-                sessionDocument.put("guardianUpdate", "");
-                sessionDocument.put("locationSummary", "");
-                sessionDocument.put("fieldPhotoNote", "");
-                sessionDocument.put("medicationNote", "");
-                sessionDocument.put("pharmacySummary", "");
-                sessionDocument.put("prescriptionCollected", false);
-                sessionDocument.put("pharmacyCompleted", false);
-                sessionDocument.put("medicationGuidanceCompleted", false);
-                sessionDocument.put("liveLocationSharingActive", false);
-                sessionDocument.put("sharedLocationHistory", new ArrayList<>());
-                sessionDocument.put("createdAt", FieldValue.serverTimestamp());
-                sessionDocument.put("updatedAt", FieldValue.serverTimestamp());
-                batch.set(sessionReference, sessionDocument);
-
-                batch.commit()
-                        .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                                                                                                 .addOnFailureListener(exception ->
-                                callback.onError("매니저 배정을 저장하지 못했습니다."));
             }
 
             @Override
@@ -275,7 +349,7 @@ public class FirebaseAdminRepository implements AdminRepository {
         });
     }
 
-    @Override
+@Override
     public void saveHospitalGuide(
             User currentUser,
             String hospitalName,
@@ -284,76 +358,57 @@ public class FirebaseAdminRepository implements AdminRepository {
             RepositoryCallback<AdminDashboard> callback
     ) {
         if (currentUser.getRole() != UserRole.ADMIN) {
-            callback.onError("관리자 계정으로 접근해주세요.");
+            callback.onError("관리자 계정으로 접근해 주세요.");
             return;
         }
 
-        List<Map<String, Object>> steps = buildGuideStepDocuments(stepLines);
-        if (steps.isEmpty()) {
-            callback.onError("병원 가이드를 저장하지 못했습니다. 단계 내용을 다시 확인해주세요.");
-            return;
-        }
-
-        String normalizedHospital = normalizeText(hospitalName);
-        String normalizedDepartment = normalizeText(departmentName);
-        firestore.collection("hospitalGuides")
-                .whereEqualTo("hospitalName", normalizedHospital)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    DocumentReference targetReference = null;
-                    for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
-                        String savedDepartment = documentSnapshot.getString("departmentName");
-                        if (normalizedDepartment.equals(savedDepartment)) {
-                            targetReference = documentSnapshot.getReference();
-                            break;
-                        }
+        adminGuideStore.saveHospitalGuide(
+                currentUser,
+                hospitalName,
+                departmentName,
+                stepLines,
+                new FirebaseAdminGuideStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
                     }
 
-                    Map<String, Object> guideDocument = new HashMap<>();
-                    guideDocument.put("hospitalName", normalizedHospital);
-                    guideDocument.put("departmentName", normalizedDepartment);
-                    guideDocument.put("steps", steps);
-                    guideDocument.put("updatedAt", FieldValue.serverTimestamp());
-
-                    if (targetReference == null) {
-                        guideDocument.put("createdAt", FieldValue.serverTimestamp());
-                        firestore.collection("hospitalGuides")
-                                .add(guideDocument)
-                                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                                .addOnFailureListener(exception ->
-                                        callback.onError("병원 가이드를 저장하지 못했습니다."));
-                        return;
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
                     }
-
-                    targetReference.update(guideDocument)
-                            .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                            .addOnFailureListener(exception ->
-                                    callback.onError("병원 가이드를 저장하지 못했습니다."));
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("기존 병원 가이드를 확인하지 못했습니다."));
+                }
+        );
     }
 
-    @Override
+@Override
     public void deleteHospitalGuide(
             User currentUser,
             String guideId,
             RepositoryCallback<AdminDashboard> callback
     ) {
         if (currentUser.getRole() != UserRole.ADMIN) {
-            callback.onError("관리자 계정으로 접근해주세요.");
+            callback.onError("관리자 계정으로 접근해 주세요.");
             return;
         }
 
-        firestore.collection("hospitalGuides")
-                .document(guideId)
-                .delete()
-                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                .addOnFailureListener(exception ->
-                        callback.onError("병원 가이드를 삭제하지 못했습니다."));
+        adminGuideStore.deleteHospitalGuide(
+                guideId,
+                new FirebaseAdminGuideStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
-    @Override
+@Override
     public void reviewManagerDocument(
             User currentUser,
             String managerUserId,
@@ -401,39 +456,26 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        AdminSettlementStatus resolvedStatus =
-                status == null ? AdminSettlementStatus.PENDING : status;
-        Map<String, Object> document = new HashMap<>();
-        document.put("requestId", requestId);
-        document.put("status", resolvedStatus.name());
-        document.put("note", normalizeText(note));
-        document.put("handledByName", normalizeText(currentUser.getName()));
-        document.put("handledAt", FieldValue.serverTimestamp());
-
-        WriteBatch batch = firestore.batch();
-        batch.set(firestore.collection("adminSettlementRecords").document(requestId), document);
-        appendAdminActionArtifacts(
-                batch,
+        adminOperationsStore.saveSettlementRecord(
+                currentUser,
                 requestId,
-                "",
-                AdminActionSourceType.SETTLEMENT,
-                resolvedStatus == AdminSettlementStatus.NEEDS_REVIEW
-                        ? AdminActionNotificationLevel.WARNING
-                        : AdminActionNotificationLevel.INFO,
-                buildSettlementNotificationTitle(resolvedStatus),
-                buildSettlementNotificationBody(requestId, resolvedStatus),
-                buildSettlementAuditSummary(resolvedStatus),
-                normalizeText(note),
-                normalizeText(currentUser.getName())
-        );
+                status,
+                note,
+                new FirebaseAdminOperationsStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
 
-        batch.commit()
-                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                .addOnFailureListener(exception ->
-                        callback.onError("정산 후속 상태를 저장하지 못했습니다."));
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
-    @Override
+@Override
     public void saveEmergencyIssue(
             User currentUser,
             String requestId,
@@ -446,39 +488,26 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        AdminEmergencyIssueStatus resolvedStatus =
-                status == null ? AdminEmergencyIssueStatus.REPORTED : status;
-        Map<String, Object> document = new HashMap<>();
-        document.put("requestId", requestId);
-        document.put("status", resolvedStatus.name());
-        document.put("note", normalizeText(note));
-        document.put("handledByName", normalizeText(currentUser.getName()));
-        document.put("handledAt", FieldValue.serverTimestamp());
-
-        WriteBatch batch = firestore.batch();
-        batch.set(firestore.collection("adminEmergencyIssues").document(requestId), document);
-        appendAdminActionArtifacts(
-                batch,
+        adminOperationsStore.saveEmergencyIssue(
+                currentUser,
                 requestId,
-                "",
-                AdminActionSourceType.EMERGENCY,
-                resolvedStatus == AdminEmergencyIssueStatus.REPORTED
-                        ? AdminActionNotificationLevel.WARNING
-                        : AdminActionNotificationLevel.INFO,
-                buildEmergencyNotificationTitle(resolvedStatus),
-                buildEmergencyNotificationBody(requestId, resolvedStatus),
-                buildEmergencyAuditSummary(resolvedStatus),
-                normalizeText(note),
-                normalizeText(currentUser.getName())
-        );
+                status,
+                note,
+                new FirebaseAdminOperationsStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
 
-        batch.commit()
-                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                .addOnFailureListener(exception ->
-                        callback.onError("긴급 이슈 대응 상태를 저장하지 못했습니다."));
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
-    @Override
+@Override
     public void respondSupportInquiry(
             User currentUser,
             String inquiryId,

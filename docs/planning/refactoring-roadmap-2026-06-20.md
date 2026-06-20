@@ -160,3 +160,10 @@
   - #8의 operations 축을 AdminOperationsSectionController로 분리했다.
   - AdminActivity는 운영 저장 다이얼로그만 남기고, 모니터링/정산 필터와 요약/목록 렌더링은 섹션 컨트롤러가 맡도록 정리했다.
   - 현재 #8에서 남은 큰 축은 guide다.
+- 2026-06-20 12차 진행
+  - #8의 guide 축을 AdminGuideSectionController로 분리했다.
+  - 목록 렌더링, 편집 상태, 삭제 확인, 폼 검증을 컨트롤러로 옮기고 액티비티에는 저장/삭제 요청만 남겼다.
+
+- 2026-06-20 13차 진행
+  - #8의 저장소 남은 범위였던 request, guide, operations 저장 로직을 각각 FirebaseAdminRequestStore, FirebaseAdminGuideStore, FirebaseAdminOperationsStore로 분리했다.
+  - 이 단계로 관리자 앱 화면 및 저장소 분리의 계획 범위를 모두 마쳤다.
