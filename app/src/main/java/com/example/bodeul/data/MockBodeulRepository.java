@@ -118,6 +118,14 @@ public class MockBodeulRepository implements BodeulRepository {
         return sessionReports;
     }
 
+    List<SupportInquiry> getMutableSupportInquiries() {
+        return supportInquiries;
+    }
+
+    List<ClientSupportRequest> getMutableClientSupportRequests() {
+        return clientSupportRequests;
+    }
+
     public synchronized List<AppointmentRequest> getAppointmentRequestsForUser(String userId, UserRole role) {
         List<AppointmentRequest> result = new ArrayList<>();
         for (AppointmentRequest request : appointmentRequests) {
@@ -1666,7 +1674,7 @@ public class MockBodeulRepository implements BodeulRepository {
                 && session.getStatus() != SessionStatus.CANCELED;
     }
 
-    private void appendAdminActionArtifacts(
+    void appendAdminActionArtifacts(
             AdminActionSourceType sourceType,
             AdminActionNotificationLevel level,
             String requestId,
@@ -1837,7 +1845,7 @@ public class MockBodeulRepository implements BodeulRepository {
         return "긴급 이슈를 보고 상태로 저장";
     }
 
-    private String buildSupportNotificationBody(SupportInquiry inquiry) {
+    String buildSupportNotificationBody(SupportInquiry inquiry) {
         return buildInquiryLabel(inquiry) + "에 관리자 응답을 남겼습니다.";
     }
 

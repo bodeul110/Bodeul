@@ -170,3 +170,7 @@
   - `#9` 1차로 `MockBookingStore`, `MockManagerStore`를 추가했다.
   - `MockBookingRepository`, `MockManagerRepository`는 새 store를 직접 사용하도록 바꿨고, `MockBodeulRepository`는 공유 상태와 helper 제공 범위를 열어 내부 경계를 분리했다.
   - support/admin 축은 다음 단계에서 같은 패턴으로 이어간다.
+- 2026-06-20 15차 진행
+  - `#9` 2차로 `MockSupportStore`, `MockAdminStore`를 추가했다.
+  - `MockClientSupportRepository`, `MockManagerRepository`, `MockAdminRepository`는 새 store를 직접 사용하도록 바꿨고, `MockBodeulRepository`는 support/admin 공유 상태와 helper를 제공하는 쪽으로 경계를 더 좁혔다.
+  - `assembleDebug`, `testDebugUnitTest` 검증을 통과했고, `#9` 계획 범위를 모두 완료했다.

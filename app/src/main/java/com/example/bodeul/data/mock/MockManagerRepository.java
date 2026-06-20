@@ -3,6 +3,7 @@ package com.example.bodeul.data.mock;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.MockManagerStore;
+import com.example.bodeul.data.MockSupportStore;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
@@ -30,10 +31,12 @@ import java.util.List;
 public class MockManagerRepository implements ManagerRepository {
     private final MockBodeulRepository repository;
     private final MockManagerStore managerStore;
+    private final MockSupportStore supportStore;
 
     public MockManagerRepository(MockBodeulRepository repository) {
         this.repository = repository;
         this.managerStore = new MockManagerStore(repository);
+        this.supportStore = new MockSupportStore(repository);
     }
 
     @Override
@@ -377,7 +380,7 @@ public class MockManagerRepository implements ManagerRepository {
             String managerUserId,
             RepositoryCallback<List<SupportInquiry>> callback
     ) {
-        callback.onSuccess(repository.getSupportInquiries(managerUserId));
+        callback.onSuccess(supportStore.getSupportInquiries(managerUserId));
     }
 
     @Override
@@ -388,7 +391,7 @@ public class MockManagerRepository implements ManagerRepository {
             String body,
             RepositoryCallback<List<SupportInquiry>> callback
     ) {
-        SupportInquiry inquiry = repository.saveSupportInquiry(
+        SupportInquiry inquiry = supportStore.saveSupportInquiry(
                 managerUserId,
                 category,
                 title,
@@ -398,7 +401,7 @@ public class MockManagerRepository implements ManagerRepository {
             callback.onError("문의 내용을 저장하지 못했습니다.");
             return;
         }
-        callback.onSuccess(repository.getSupportInquiries(managerUserId));
+        callback.onSuccess(supportStore.getSupportInquiries(managerUserId));
     }
 
     @Override
