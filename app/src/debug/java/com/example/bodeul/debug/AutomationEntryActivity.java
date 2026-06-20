@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
+import com.example.bodeul.data.AdminRepository;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.ClientSupportRepository;
@@ -19,6 +20,8 @@ import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
+import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
@@ -88,11 +91,24 @@ public class AutomationEntryActivity extends AppCompatActivity {
     public static final String EXTRA_FOLLOW_UP_SETTLEMENT_STATUS = "followUpSettlementStatus";
     public static final String EXTRA_FOLLOW_UP_SETTLEMENT_NOTE = "followUpSettlementNote";
     public static final String EXTRA_FOLLOW_UP_SUPPORT_ESCALATION = "followUpSupportEscalation";
+    public static final String EXTRA_ADMIN_SETTLEMENT_STATUS = "adminSettlementStatus";
+    public static final String EXTRA_ADMIN_SETTLEMENT_NOTE = "adminSettlementNote";
+    public static final String EXTRA_ADMIN_EMERGENCY_STATUS = "adminEmergencyStatus";
+    public static final String EXTRA_ADMIN_EMERGENCY_NOTE = "adminEmergencyNote";
+    public static final String EXTRA_ADMIN_SUPPORT_INQUIRY_ID = "adminSupportInquiryId";
+    public static final String EXTRA_ADMIN_SUPPORT_RESPONSE = "adminSupportResponse";
+    public static final String EXTRA_ADMIN_CLIENT_SUPPORT_REQUEST_ID = "adminClientSupportRequestId";
+    public static final String EXTRA_ADMIN_CLIENT_SUPPORT_RESPONSE = "adminClientSupportResponse";
+    public static final String EXTRA_ADMIN_NOTIFICATION_ID = "adminNotificationId";
+    public static final String EXTRA_ADMIN_ACTION_OPERATION = "adminActionOperation";
 
     private static final String TAG = "AutomationEntry";
     private static final String DEFAULT_PASSWORD = "bodeul1234";
     private static final String REQUEST_ID_PROGRESS = "request-seed-progress";
     private static final String REQUEST_ID_COMPLETED = "request-seed-completed";
+    private static final String SUPPORT_INQUIRY_ID_RECEIVED = "support-seed-received";
+    private static final String CLIENT_SUPPORT_REQUEST_ID_RECEIVED = "client-support-seed-patient-received";
+    private static final String ADMIN_NOTIFICATION_ID_SUPPORT = "admin-notification-seed-support";
     private static final String DEFAULT_CHAT_MESSAGE = "실기기 자동화 채팅 점검 메시지";
     private static final String DEFAULT_CLIENT_SUPPORT_TITLE = "실기기 자동화 문의";
     private static final String DEFAULT_CLIENT_SUPPORT_BODY = "실기기 자동화로 문의 등록 경로를 확인합니다.";
@@ -100,7 +116,13 @@ public class AutomationEntryActivity extends AppCompatActivity {
     private static final String DEFAULT_MANAGER_SUPPORT_BODY = "실기기 자동화로 매니저 문의 등록 경로를 확인합니다.";
     private static final String DEFAULT_SETTLEMENT_NOTE = "실기기 자동화로 정산 후속 저장 경로를 확인합니다.";
 
+    private static final String DEFAULT_ADMIN_SETTLEMENT_NOTE = "실기기 자동화로 정산 후속 처리 경로를 확인합니다.";
+    private static final String DEFAULT_ADMIN_EMERGENCY_NOTE = "실기기 자동화로 긴급 이슈 처리 경로를 확인합니다.";
+    private static final String DEFAULT_ADMIN_SUPPORT_RESPONSE = "실기기 자동화로 매니저 문의 응답 경로를 확인했습니다.";
+    private static final String DEFAULT_ADMIN_CLIENT_SUPPORT_RESPONSE = "실기기 자동화로 고객 문의 응답 경로를 확인했습니다.";
+
     private AuthRepository authRepository;
+    private AdminRepository adminRepository;
     private BookingRepository bookingRepository;
     private ClientSupportRepository clientSupportRepository;
     private ManagerRepository managerRepository;
@@ -124,6 +146,16 @@ public class AutomationEntryActivity extends AppCompatActivity {
     private AppointmentFollowUpSettlementStatus requestedFollowUpSettlementStatus;
     private String requestedFollowUpSettlementNote;
     private AppointmentFollowUpSupportEscalationStatus requestedFollowUpSupportEscalationStatus;
+    private AdminSettlementStatus requestedAdminSettlementStatus;
+    private String requestedAdminSettlementNote;
+    private AdminEmergencyIssueStatus requestedAdminEmergencyStatus;
+    private String requestedAdminEmergencyNote;
+    private String requestedAdminSupportInquiryId;
+    private String requestedAdminSupportResponse;
+    private String requestedAdminClientSupportRequestId;
+    private String requestedAdminClientSupportResponse;
+    private String requestedAdminNotificationId;
+    private AdminActionOperation requestedAdminActionOperation;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -133,6 +165,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         textPrimary = findViewById(android.R.id.text1);
         textSecondary = findViewById(android.R.id.text2);
         authRepository = ServiceLocator.provideAuthRepository(this);
+        adminRepository = ServiceLocator.provideAdminRepository(this);
         bookingRepository = ServiceLocator.provideBookingRepository(this);
         clientSupportRepository = ServiceLocator.provideClientSupportRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
@@ -178,6 +211,36 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 AppointmentFollowUpSupportEscalationStatus.fromValue(
                         getIntent().getStringExtra(EXTRA_FOLLOW_UP_SUPPORT_ESCALATION)
                 );
+        requestedAdminSettlementStatus = parseAdminSettlementStatus(
+                getIntent().getStringExtra(EXTRA_ADMIN_SETTLEMENT_STATUS)
+        );
+        requestedAdminSettlementNote = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_SETTLEMENT_NOTE)
+        );
+        requestedAdminEmergencyStatus = parseAdminEmergencyStatus(
+                getIntent().getStringExtra(EXTRA_ADMIN_EMERGENCY_STATUS)
+        );
+        requestedAdminEmergencyNote = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_EMERGENCY_NOTE)
+        );
+        requestedAdminSupportInquiryId = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_SUPPORT_INQUIRY_ID)
+        );
+        requestedAdminSupportResponse = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_SUPPORT_RESPONSE)
+        );
+        requestedAdminClientSupportRequestId = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_CLIENT_SUPPORT_REQUEST_ID)
+        );
+        requestedAdminClientSupportResponse = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_CLIENT_SUPPORT_RESPONSE)
+        );
+        requestedAdminNotificationId = normalizeText(
+                getIntent().getStringExtra(EXTRA_ADMIN_NOTIFICATION_ID)
+        );
+        requestedAdminActionOperation = parseAdminActionOperation(
+                getIntent().getStringExtra(EXTRA_ADMIN_ACTION_OPERATION)
+        );
 
         if (requestedRole == null) {
             showError("자동 진입 역할이 없습니다.", "role extra를 ADMIN, MANAGER, PATIENT, GUARDIAN 중 하나로 전달해 주세요.");
@@ -299,7 +362,47 @@ public class AutomationEntryActivity extends AppCompatActivity {
 
     private void runPostFollowUpSettlementActions(User user, Runnable completionAction) {
         if (shouldSaveFollowUpSupportEscalation()) {
-            saveFollowUpSupportEscalation(user, completionAction);
+            saveFollowUpSupportEscalation(user, () -> runPostFollowUpSupportEscalationActions(user, completionAction));
+            return;
+        }
+        runPostFollowUpSupportEscalationActions(user, completionAction);
+    }
+
+    private void runPostFollowUpSupportEscalationActions(User user, Runnable completionAction) {
+        if (shouldSaveAdminSettlement()) {
+            saveAdminSettlement(user, () -> runPostAdminSettlementActions(user, completionAction));
+            return;
+        }
+        runPostAdminSettlementActions(user, completionAction);
+    }
+
+    private void runPostAdminSettlementActions(User user, Runnable completionAction) {
+        if (shouldSaveAdminEmergency()) {
+            saveAdminEmergency(user, () -> runPostAdminEmergencyActions(user, completionAction));
+            return;
+        }
+        runPostAdminEmergencyActions(user, completionAction);
+    }
+
+    private void runPostAdminEmergencyActions(User user, Runnable completionAction) {
+        if (shouldRespondAdminSupport()) {
+            respondAdminSupport(user, () -> runPostAdminSupportActions(user, completionAction));
+            return;
+        }
+        runPostAdminSupportActions(user, completionAction);
+    }
+
+    private void runPostAdminSupportActions(User user, Runnable completionAction) {
+        if (shouldRespondAdminClientSupport()) {
+            respondAdminClientSupport(user, () -> runPostAdminClientSupportActions(user, completionAction));
+            return;
+        }
+        runPostAdminClientSupportActions(user, completionAction);
+    }
+
+    private void runPostAdminClientSupportActions(User user, Runnable completionAction) {
+        if (shouldHandleAdminNotification()) {
+            handleAdminNotification(user, completionAction);
             return;
         }
         completionAction.run();
@@ -334,6 +437,26 @@ public class AutomationEntryActivity extends AppCompatActivity {
 
     private boolean shouldSaveFollowUpSupportEscalation() {
         return requestedFollowUpSupportEscalationStatus != null;
+    }
+
+    private boolean shouldSaveAdminSettlement() {
+        return requestedAdminSettlementStatus != null;
+    }
+
+    private boolean shouldSaveAdminEmergency() {
+        return requestedAdminEmergencyStatus != null;
+    }
+
+    private boolean shouldRespondAdminSupport() {
+        return !TextUtils.isEmpty(requestedAdminSupportResponse);
+    }
+
+    private boolean shouldRespondAdminClientSupport() {
+        return !TextUtils.isEmpty(requestedAdminClientSupportResponse);
+    }
+
+    private boolean shouldHandleAdminNotification() {
+        return requestedAdminActionOperation != null;
     }
 
     private void uploadManagerDocument(User user, Runnable completionAction) {
@@ -594,6 +717,170 @@ public class AutomationEntryActivity extends AppCompatActivity {
         );
     }
 
+    private void saveAdminSettlement(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.ADMIN) {
+            showError("정산 후속 자동화는 관리자 계정만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String settlementNote = TextUtils.isEmpty(requestedAdminSettlementNote)
+                ? DEFAULT_ADMIN_SETTLEMENT_NOTE
+                : requestedAdminSettlementNote;
+        updateStatus("정산 후속 저장 중", requestedAdminSettlementStatus.name());
+        adminRepository.saveSettlementRecord(
+                user,
+                resolveAdminRequestId(),
+                requestedAdminSettlementStatus,
+                settlementNote,
+                new RepositoryCallback<com.example.bodeul.domain.model.AdminDashboard>() {
+                    @Override
+                    public void onSuccess(com.example.bodeul.domain.model.AdminDashboard result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("정산 후속 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void saveAdminEmergency(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.ADMIN) {
+            showError("긴급 이슈 자동화는 관리자 계정만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String emergencyNote = TextUtils.isEmpty(requestedAdminEmergencyNote)
+                ? DEFAULT_ADMIN_EMERGENCY_NOTE
+                : requestedAdminEmergencyNote;
+        updateStatus("긴급 이슈 저장 중", requestedAdminEmergencyStatus.name());
+        adminRepository.saveEmergencyIssue(
+                user,
+                resolveAdminRequestId(),
+                requestedAdminEmergencyStatus,
+                emergencyNote,
+                new RepositoryCallback<com.example.bodeul.domain.model.AdminDashboard>() {
+                    @Override
+                    public void onSuccess(com.example.bodeul.domain.model.AdminDashboard result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("긴급 이슈 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void respondAdminSupport(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.ADMIN) {
+            showError("매니저 문의 응답 자동화는 관리자 계정만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String response = TextUtils.isEmpty(requestedAdminSupportResponse)
+                ? DEFAULT_ADMIN_SUPPORT_RESPONSE
+                : requestedAdminSupportResponse;
+        updateStatus("매니저 문의 응답 저장 중", resolveAdminSupportInquiryId());
+        adminRepository.respondSupportInquiry(
+                user,
+                resolveAdminSupportInquiryId(),
+                response,
+                new RepositoryCallback<com.example.bodeul.domain.model.AdminDashboard>() {
+                    @Override
+                    public void onSuccess(com.example.bodeul.domain.model.AdminDashboard result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("매니저 문의 응답 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void respondAdminClientSupport(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.ADMIN) {
+            showError("고객 문의 응답 자동화는 관리자 계정만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String response = TextUtils.isEmpty(requestedAdminClientSupportResponse)
+                ? DEFAULT_ADMIN_CLIENT_SUPPORT_RESPONSE
+                : requestedAdminClientSupportResponse;
+        updateStatus("고객 문의 응답 저장 중", resolveAdminClientSupportRequestId());
+        adminRepository.respondClientSupportRequest(
+                user,
+                resolveAdminClientSupportRequestId(),
+                response,
+                new RepositoryCallback<com.example.bodeul.domain.model.AdminDashboard>() {
+                    @Override
+                    public void onSuccess(com.example.bodeul.domain.model.AdminDashboard result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("고객 문의 응답 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
+    private void handleAdminNotification(User user, Runnable completionAction) {
+        if (user.getRole() != UserRole.ADMIN) {
+            showError("관리자 액션 센터 자동화는 관리자 계정만 지원합니다.", user.getRole().name());
+            return;
+        }
+
+        String notificationId = resolveAdminNotificationId();
+        if (requestedAdminActionOperation == AdminActionOperation.READ) {
+            updateStatus("관리자 알림 읽음 처리 중", notificationId);
+            adminRepository.markActionNotificationRead(
+                    user,
+                    notificationId,
+                    new RepositoryCallback<com.example.bodeul.domain.model.AdminDashboard>() {
+                        @Override
+                        public void onSuccess(com.example.bodeul.domain.model.AdminDashboard result) {
+                            completionAction.run();
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            showError("관리자 알림 읽음 처리에 실패했습니다.", message);
+                        }
+                    }
+            );
+            return;
+        }
+
+        boolean resolved = requestedAdminActionOperation == AdminActionOperation.RESOLVE;
+        updateStatus(
+                resolved ? "관리자 알림 해결 처리 중" : "관리자 알림 재열기 처리 중",
+                notificationId
+        );
+        adminRepository.updateActionNotificationResolved(
+                user,
+                notificationId,
+                resolved,
+                new RepositoryCallback<com.example.bodeul.domain.model.AdminDashboard>() {
+                    @Override
+                    public void onSuccess(com.example.bodeul.domain.model.AdminDashboard result) {
+                        completionAction.run();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("관리자 알림 상태 저장에 실패했습니다.", message);
+                    }
+                }
+        );
+    }
+
     @Nullable
     private File resolveUploadFile() {
         if (!TextUtils.isEmpty(requestedUploadDocumentPath)) {
@@ -711,6 +998,31 @@ public class AutomationEntryActivity extends AppCompatActivity {
         return resolveRequestId(true);
     }
 
+    private String resolveAdminRequestId() {
+        return resolveRequestId(true);
+    }
+
+    private String resolveAdminSupportInquiryId() {
+        if (!TextUtils.isEmpty(requestedAdminSupportInquiryId)) {
+            return requestedAdminSupportInquiryId;
+        }
+        return SUPPORT_INQUIRY_ID_RECEIVED;
+    }
+
+    private String resolveAdminClientSupportRequestId() {
+        if (!TextUtils.isEmpty(requestedAdminClientSupportRequestId)) {
+            return requestedAdminClientSupportRequestId;
+        }
+        return CLIENT_SUPPORT_REQUEST_ID_RECEIVED;
+    }
+
+    private String resolveAdminNotificationId() {
+        if (!TextUtils.isEmpty(requestedAdminNotificationId)) {
+            return requestedAdminNotificationId;
+        }
+        return ADMIN_NOTIFICATION_ID_SUPPORT;
+    }
+
     @Nullable
     private UserRole parseRole(@Nullable String roleName) {
         if (TextUtils.isEmpty(roleName)) {
@@ -755,6 +1067,45 @@ public class AutomationEntryActivity extends AppCompatActivity {
         }
     }
 
+    @Nullable
+    private AdminSettlementStatus parseAdminSettlementStatus(@Nullable String statusName) {
+        if (TextUtils.isEmpty(statusName)) {
+            return null;
+        }
+        try {
+            return AdminSettlementStatus.valueOf(statusName.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            Log.w(TAG, "지원하지 않는 관리자 정산 상태: " + statusName, exception);
+            return null;
+        }
+    }
+
+    @Nullable
+    private AdminEmergencyIssueStatus parseAdminEmergencyStatus(@Nullable String statusName) {
+        if (TextUtils.isEmpty(statusName)) {
+            return null;
+        }
+        try {
+            return AdminEmergencyIssueStatus.valueOf(statusName.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            Log.w(TAG, "지원하지 않는 관리자 긴급 상태: " + statusName, exception);
+            return null;
+        }
+    }
+
+    @Nullable
+    private AdminActionOperation parseAdminActionOperation(@Nullable String operationName) {
+        if (TextUtils.isEmpty(operationName)) {
+            return null;
+        }
+        try {
+            return AdminActionOperation.valueOf(operationName.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            Log.w(TAG, "지원하지 않는 관리자 알림 작업: " + operationName, exception);
+            return null;
+        }
+    }
+
     private void updateStatus(String title, String detail) {
         textPrimary.setText(title);
         textSecondary.setText(detail);
@@ -784,6 +1135,12 @@ public class AutomationEntryActivity extends AppCompatActivity {
         MANAGER_SUPPORT,
         MANAGER_PROFILE,
         ADMIN_DASHBOARD
+    }
+
+    private enum AdminActionOperation {
+        READ,
+        RESOLVE,
+        REOPEN
     }
 
     private enum BaselineAccount {
