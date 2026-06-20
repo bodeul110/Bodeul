@@ -10,10 +10,10 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
+import com.example.bodeul.util.NotificationPermissionSupport;
 
 /**
  * 안심 채팅 새 메시지를 시스템 알림으로 노출한다.
@@ -52,7 +52,11 @@ public final class CompanionChatPushNotifier {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent);
 
-        NotificationManagerCompat.from(context).notify(payload.toNotificationId(), builder.build());
+        NotificationPermissionSupport.notifyIfPermitted(
+                context,
+                payload.toNotificationId(),
+                builder.build()
+        );
     }
 
     @NonNull

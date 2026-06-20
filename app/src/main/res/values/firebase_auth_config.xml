@@ -1,7 +1,0 @@
-<resources>
-    <!-- Firebase Authentication 커스텀 도메인을 연결했다면 도메인만 입력한다. 예: auth.bodeul.app -->
-    <string name="firebase_auth_custom_domain" translatable="false"></string>
-
-    <!-- 인증 완료 후 이동시킬 웹 주소가 있으면 입력한다. 비워두면 커스텀 도메인 루트를 사용한다. -->
-    <string name="firebase_auth_continue_url" translatable="false"></string>
-</resources>

@@ -10,10 +10,10 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.ui.support.ClientSupportActivity;
+import com.example.bodeul.util.NotificationPermissionSupport;
 
 /**
  * 문의 답변 푸시를 시스템 알림으로 표시한다.
@@ -55,7 +55,11 @@ public final class ClientSupportPushNotifier {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent);
 
-        NotificationManagerCompat.from(context).notify(payload.toNotificationId(), builder.build());
+        NotificationPermissionSupport.notifyIfPermitted(
+                context,
+                payload.toNotificationId(),
+                builder.build()
+        );
     }
 
     @NonNull

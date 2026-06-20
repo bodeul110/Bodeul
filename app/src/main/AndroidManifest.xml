@@ -97,7 +97,13 @@
             android:exported="false" />
         <activity
             android:name=".ui.auth.RoleSelectionActivity"
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".ui.booking.BookingStatusActivity"
             android:exported="false" />
@@ -119,15 +125,6 @@
                 <data
                     android:host="oauth"
                     android:scheme="${kakaoScheme}" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.auth.SplashActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>

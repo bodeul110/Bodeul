@@ -79,12 +79,11 @@
         android:id="@+id/bookingHospitalSelectorStatePanel"
         layout="@layout/include_state_panel" />
 
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/bookingHospitalSelectorContent"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_weight="1">
 
         <androidx.appcompat.widget.SearchView
             android:id="@+id/searchBookingHospital"
@@ -98,6 +97,7 @@
             android:id="@+id/textBookingHospitalResultCount"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_below="@id/searchBookingHospital"
             android:layout_marginTop="14dp"
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="13sp" />
@@ -105,9 +105,10 @@
         <ListView
             android:id="@+id/listBookingHospitalOptions"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
+            android:layout_height="match_parent"
+            android:layout_below="@id/textBookingHospitalResultCount"
+            android:layout_alignParentBottom="true"
             android:layout_marginTop="12dp"
-            android:layout_weight="1"
             android:divider="@android:color/transparent"
             android:dividerHeight="12dp"
             android:listSelector="@android:color/transparent"
@@ -118,6 +119,7 @@
             android:id="@+id/textBookingHospitalEmpty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_below="@id/textBookingHospitalResultCount"
             android:layout_marginTop="28dp"
             android:background="@drawable/bg_surface_pill"
             android:gravity="center"
@@ -126,7 +128,7 @@
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="14sp"
             android:visibility="gone" />
-    </LinearLayout>
+    </RelativeLayout>
 
     <ProgressBar
         android:id="@+id/progressBookingHospitalSelector"

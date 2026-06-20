@@ -24,30 +24,36 @@ public final class EntryFlowCoordinator {
     private final Context appContext;
     private final AuthRepository authRepository;
     private final PermissionGuidePreferences permissionGuidePreferences;
+    private final PermissionGuideCatalog permissionGuideCatalog;
 
     public EntryFlowCoordinator(Context context) {
         this(
                 context.getApplicationContext(),
                 ServiceLocator.provideAuthRepository(context),
-                new PermissionGuidePreferences(context)
+                new PermissionGuidePreferences(context),
+                new PermissionGuideCatalog()
         );
     }
 
     EntryFlowCoordinator(
             Context appContext,
             AuthRepository authRepository,
-            PermissionGuidePreferences permissionGuidePreferences
+            PermissionGuidePreferences permissionGuidePreferences,
+            PermissionGuideCatalog permissionGuideCatalog
     ) {
         this.appContext = appContext;
         this.authRepository = authRepository;
         this.permissionGuidePreferences = permissionGuidePreferences;
+        this.permissionGuideCatalog = permissionGuideCatalog;
     }
 
     public void resolveLaunchIntent(@NonNull Callback callback) {
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
-                callback.onResolved(AuthFlowRouter.createPostAuthIntent(appContext, result));
+                callback.onResolved(wrapWithPermissionGuide(
+                        AuthFlowRouter.createPostAuthIntent(appContext, result)
+                ));
             }
 
             @Override
@@ -58,9 +64,21 @@ public final class EntryFlowCoordinator {
     }
 
     private Intent createSignedOutIntent() {
-        Class<?> nextScreen = permissionGuidePreferences.hasCompletedGuide()
-                ? RoleSelectionActivity.class
-                : PermissionGuideActivity.class;
-        return new Intent(appContext, nextScreen);
+        return wrapWithPermissionGuide(new Intent(appContext, RoleSelectionActivity.class));
+    }
+
+    private Intent wrapWithPermissionGuide(@NonNull Intent nextIntent) {
+        if (!shouldShowPermissionGuide()) {
+            return nextIntent;
+        }
+        return PermissionGuideActivity.createIntent(appContext, nextIntent);
+    }
+
+    private boolean shouldShowPermissionGuide() {
+        if (!permissionGuidePreferences.hasCompletedGuide()) {
+            return true;
+        }
+        return !permissionGuidePreferences.hasCompletedNotificationPrompt()
+                && permissionGuideCatalog.hasPendingRuntimePermissionRequest(appContext);
     }
 }

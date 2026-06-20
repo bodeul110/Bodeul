@@ -815,13 +815,7 @@ public class FirebaseAuthRepository implements AuthRepository {
 
     @Nullable
     private String resolveGoogleServerClientId(Context context) {
-        int resourceId = context.getResources()
-                .getIdentifier("default_web_client_id", "string", context.getPackageName());
-        if (resourceId == 0) {
-            return null;
-        }
-
-        String serverClientId = context.getString(resourceId);
+        String serverClientId = context.getString(R.string.default_web_client_id);
         return TextUtils.isEmpty(serverClientId) ? null : serverClientId;
     }
 

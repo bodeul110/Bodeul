@@ -316,7 +316,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
-                android:text="·"
+                android:text="@string/common_inline_divider_dot"
                 android:textColor="@color/bodeul_outline"
                 android:textSize="18sp" />
 

@@ -53,7 +53,7 @@
                 android:paddingEnd="8dp"
                 android:paddingBottom="4dp"
                 android:textColor="@color/bodeul_primary"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
 

@@ -127,9 +127,18 @@ public final class BookingLocationMapView extends View {
             return true;
         }
         BookingMeetingPointOption tappedOption = findNearestOption(event.getX(), event.getY());
-        if (tappedOption != null && onPointSelectedListener != null) {
-            onPointSelectedListener.onPointSelected(tappedOption);
+        if (tappedOption != null) {
+            performClick();
+            if (onPointSelectedListener != null) {
+                onPointSelectedListener.onPointSelected(tappedOption);
+            }
         }
+        return true;
+    }
+
+    @Override
+    public boolean performClick() {
+        super.performClick();
         return true;
     }
 

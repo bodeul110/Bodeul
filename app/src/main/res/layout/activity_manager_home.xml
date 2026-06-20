@@ -207,6 +207,7 @@
                     android:layout_marginTop="14dp"
                     android:clipToPadding="false"
                     android:overScrollMode="never"
+                    android:paddingStart="0dp"
                     android:paddingEnd="12dp"
                     android:scrollbars="none">
 
@@ -352,6 +353,7 @@
         android:layout_width="match_parent"
         android:layout_height="84dp"
         android:layout_gravity="bottom"
+        android:baselineAligned="false"
         android:background="@drawable/bg_bottom_nav"
         android:gravity="center"
         android:orientation="horizontal"

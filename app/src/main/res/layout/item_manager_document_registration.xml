@@ -11,6 +11,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:baselineAligned="false"
         android:gravity="center_vertical"
         android:minHeight="62dp"
         android:orientation="horizontal"
@@ -28,6 +29,7 @@
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:layout_gravity="center"
+                android:contentDescription="@null"
                 android:src="@android:drawable/ic_menu_agenda"
                 app:tint="@color/bodeul_primary" />
         </FrameLayout>
@@ -72,7 +74,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textColor="@color/bodeul_primary"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
         </LinearLayout>
@@ -84,11 +86,11 @@
             android:layout_marginEnd="8dp"
             android:background="@drawable/bg_surface_pill"
             android:paddingStart="8dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="4dp"
-            android:textSize="10sp"
-            android:textStyle="bold" />
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:textSize="11sp"
+                android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="88dp"
@@ -104,7 +106,7 @@
                 android:text="@string/manager_document_preview_button"
                 android:textAllCaps="false"
                 android:textColor="@color/bodeul_text_primary"
-                android:textSize="10sp"
+                android:textSize="11sp"
                 android:visibility="gone"
                 app:backgroundTint="@color/bodeul_soft_yellow"
                 app:cornerRadius="18dp" />

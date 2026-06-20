@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:text="@string/admin_settlement_title"
+        android:textColor="@color/bodeul_text_primary"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/admin_settlement_helper"
+        android:textColor="@color/bodeul_text_secondary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/textAdminSettlementSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_surface_pill"
+        android:lineSpacingExtra="4dp"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="14dp"
+        android:textColor="@color/bodeul_text_primary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/textAdminSettlementAlert"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_surface_pill"
+        android:lineSpacingExtra="4dp"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="14dp"
+        android:textColor="@color/bodeul_text_secondary"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/adminSettlementFilterContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <LinearLayout
+        android:id="@+id/adminSettlementContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical" />
+</merge>

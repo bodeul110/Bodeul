@@ -38,6 +38,7 @@ import com.example.bodeul.ui.report.GuardianReportActivity;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Locale;
 
 /**
  * 디버그 빌드에서만 adb 자동 진입을 받아 기준선 계정 로그인과 화면 라우팅을 수행한다.
@@ -337,7 +338,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
             return null;
         }
         try {
-            return UserRole.valueOf(roleName.trim().toUpperCase());
+            return UserRole.valueOf(roleName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             Log.w(TAG, "지원하지 않는 자동 진입 역할: " + roleName, exception);
             return null;
@@ -350,7 +351,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
             return null;
         }
         try {
-            return AutomationScreen.valueOf(screenName.trim().toUpperCase());
+            return AutomationScreen.valueOf(screenName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             Log.w(TAG, "지원하지 않는 자동 진입 화면: " + screenName, exception);
             return null;
@@ -368,7 +369,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
             return byStorageKey;
         }
         try {
-            return ManagerDocumentFileType.valueOf(normalizedName.toUpperCase());
+            return ManagerDocumentFileType.valueOf(normalizedName.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             Log.w(TAG, "지원하지 않는 자동 업로드 서류 유형: " + documentTypeName, exception);
             return null;
