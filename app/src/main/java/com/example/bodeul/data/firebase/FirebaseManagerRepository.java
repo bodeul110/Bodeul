@@ -733,7 +733,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     inquiryDocument.put("status", SupportInquiryStatus.RECEIVED.name());
                     inquiryDocument.put("responseText", "");
                     inquiryDocument.put("respondedByName", "");
-                    inquiryDocument.put("respondedAt", FieldValue.delete());
+                    inquiryDocument.put("respondedAt", 0L);
                     inquiryDocument.put("createdAt", FieldValue.serverTimestamp());
 
                     firestore.collection("supportInquiries")
