@@ -174,3 +174,7 @@
   - `#9` 2차로 `MockSupportStore`, `MockAdminStore`를 추가했다.
   - `MockClientSupportRepository`, `MockManagerRepository`, `MockAdminRepository`는 새 store를 직접 사용하도록 바꿨고, `MockBodeulRepository`는 support/admin 공유 상태와 helper를 제공하는 쪽으로 경계를 더 좁혔다.
   - `assembleDebug`, `testDebugUnitTest` 검증을 통과했고, `#9` 계획 범위를 모두 완료했다.
+- 2026-06-20 16차 진행
+  - `#10` 1차로 `AdminAuthScreen`, `AdminShell`, `useAdminIdleSession`, `adminSession`을 추가했다.
+  - `App.tsx`는 메뉴 상태, 매니저 목록 구독, 화면 전환을 담당하는 셸 역할로 줄였고, 로그인 화면과 유휴 세션 타이머를 분리했다.
+  - `lint`, `build` 검증을 통과했다.

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   arrayUnion,
   collection,
@@ -24,6 +24,9 @@ import {
   ref,
 } from "firebase/storage";
 import { auth, db, firebaseConfig, storage } from "../firebase";
+import { AdminAuthScreen } from "./components/AdminAuthScreen";
+import { AdminShell } from "./components/AdminShell";
+import { useAdminIdleSession } from "./hooks/useAdminIdleSession";
 
 type AdminSessionResult = {
   isAdmin: boolean;
@@ -87,8 +90,6 @@ const DOCUMENT_STORAGE_KEY_CANDIDATES: Record<ManagerDocumentKey, ManagerDocumen
   license: ["license", "healthCertificate"],
   criminalRecord: ["criminalRecord"],
 };
-
-const ADMIN_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
 function createPreview(status: PreviewStatus, overrides: Partial<DocumentPreview> = {}): DocumentPreview {
   return {
@@ -1158,14 +1159,18 @@ function App() {
   const [managerSnapshot, setManagerSnapshot] = useState<Manager[]>([]);
   const [managerLoadError, setManagerLoadError] = useState("");
 
-  function clearAdminSession(message = "") {
-    setIsLoggedIn(false);
-    setAdminName("");
+  const resetAdminShellState = useCallback(() => {
     setManagerSnapshot([]);
     setManagerLoadError("");
     setCurrentMenu("dashboard");
+  }, []);
+
+  const clearAdminSession = useCallback((message = "") => {
+    setIsLoggedIn(false);
+    setAdminName("");
+    resetAdminShellState();
     setAuthError(message);
-  }
+  }, [resetAdminShellState]);
 
   useEffect(() => {
     let active = true;
@@ -1213,53 +1218,19 @@ function App() {
       active = false;
       unsubscribe();
     };
-  }, [authError]);
+  }, [authError, clearAdminSession]);
 
-  useEffect(() => {
-    if (!isLoggedIn) {
-      return;
-    }
-
-    let timeoutId: number | null = null;
-
-    const resetIdleTimer = () => {
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-
-      timeoutId = window.setTimeout(() => {
-        void signOut(auth)
-          .catch((error) => {
-            console.error("Admin idle logout failed:", error);
-          })
-          .finally(() => {
-            clearAdminSession("보안을 위해 15분 동안 활동이 없어 자동 로그아웃했습니다.");
-          });
-      }, ADMIN_IDLE_TIMEOUT_MS);
-    };
-
-    const activityEvents: Array<keyof WindowEventMap> = [
-      "click",
-      "keydown",
-      "mousemove",
-      "scroll",
-      "touchstart",
-    ];
-
-    activityEvents.forEach((eventName) => {
-      window.addEventListener(eventName, resetIdleTimer, { passive: true });
-    });
-    resetIdleTimer();
-
-    return () => {
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      activityEvents.forEach((eventName) => {
-        window.removeEventListener(eventName, resetIdleTimer);
+  const handleIdleLogout = useCallback(() => {
+    void signOut(auth)
+      .catch((error) => {
+        console.error("Admin idle logout failed:", error);
+      })
+      .finally(() => {
+        clearAdminSession("보안을 위해 15분 동안 활동이 없어 자동 로그아웃되었습니다.");
       });
-    };
-  }, [isLoggedIn]);
+  }, [clearAdminSession]);
+
+  useAdminIdleSession(isLoggedIn, handleIdleLogout);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -1311,127 +1282,35 @@ function App() {
     }
   }
 
-  if (isCheckingSession) {
+  if (isCheckingSession || !isLoggedIn) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 font-sans text-sm antialiased">
-        <div className="rounded-lg border border-gray-200 bg-white px-6 py-5 text-center shadow-sm">
-          <p className="text-sm font-semibold text-gray-900">관리자 세션 확인 중</p>
-          <p className="mt-2 text-xs text-gray-500">Firebase 인증 상태를 확인하고 있습니다.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isLoggedIn) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 font-sans text-sm antialiased">
-        <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h1 className="mb-1 text-base font-semibold text-gray-900">관리자 로그인</h1>
-          <p className="mb-4 text-xs text-gray-500">
-            관리자 계정으로 로그인한 뒤 승인 대시보드에 접근하세요.
-          </p>
-
-          <form onSubmit={handleLogin} className="space-y-3">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-700">이메일</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="admin@bodeul.app"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-700">비밀번호</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="bodeul1234"
-              />
-            </div>
-
-            {authError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {authError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full rounded-md bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-            >
-              로그인
-            </button>
-          </form>
-        </div>
-      </div>
+      <AdminAuthScreen
+        isCheckingSession={isCheckingSession}
+        email={email}
+        password={password}
+        authError={authError}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        onSubmit={handleLogin}
+      />
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 font-sans text-sm antialiased">
-      <aside className="w-56 bg-slate-900 p-4 text-white shadow-lg">
-        <h2 className="mb-4 text-sm font-semibold tracking-tight text-blue-400">
-          bodeul Admin
-        </h2>
-        <p className="mb-4 text-xs text-slate-300">{adminName}</p>
-        <nav className="space-y-1 text-xs">
-          <button
-            type="button"
-            onClick={() => setCurrentMenu("dashboard")}
-            className={`w-full rounded-md px-3 py-2 text-left transition ${
-              currentMenu === "dashboard" ? "bg-blue-600" : "hover:bg-slate-800"
-            }`}
-          >
-            대시보드
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentMenu("approval")}
-            className={`w-full rounded-md px-3 py-2 text-left transition ${
-              currentMenu === "approval" ? "bg-blue-600" : "hover:bg-slate-800"
-            }`}
-          >
-            매니저 승인
-          </button>
-        </nav>
-      </aside>
-
-      <main className="flex-1 p-6">
-        <header className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-900">
-              {currentMenu === "dashboard" ? "대시보드" : "매니저 승인"}
-            </h2>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs shadow-sm hover:bg-gray-50"
-          >
-            로그아웃
-          </button>
-        </header>
-
-        {managerLoadError && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-            {managerLoadError}
-          </div>
-        )}
-
-        {currentMenu === "dashboard" && <Dashboard managers={managerSnapshot} />}
-        {currentMenu === "approval" && (
-          <ManagerApproval adminName={adminName} managers={managerSnapshot} />
-        )}
-      </main>
-    </div>
+    <AdminShell
+      adminName={adminName}
+      currentMenu={currentMenu}
+      managerLoadError={managerLoadError}
+      onMenuChange={setCurrentMenu}
+      onLogout={() => {
+        void handleLogout();
+      }}
+    >
+      {currentMenu === "dashboard" && <Dashboard managers={managerSnapshot} />}
+      {currentMenu === "approval" && (
+        <ManagerApproval adminName={adminName} managers={managerSnapshot} />
+      )}
+    </AdminShell>
   );
 }
 
