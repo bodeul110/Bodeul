@@ -18,6 +18,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,14 +149,14 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
                 normalizeText(documentSnapshot.getString("title")),
                 normalizeText(documentSnapshot.getString("body")),
                 resolveStatus(documentSnapshot.getString("status")),
-                toMillis(documentSnapshot.getTimestamp("createdAt")),
+                resolveTimestampMillis(documentSnapshot.get("createdAt")),
                 normalizeText(documentSnapshot.getString("responseText")),
-                toMillis(documentSnapshot.getTimestamp("respondedAt")),
+                resolveTimestampMillis(documentSnapshot.get("respondedAt")),
                 normalizeText(documentSnapshot.getString("respondedByName")),
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("responseReadByUser")),
-                toMillis(documentSnapshot.getTimestamp("responseReadAt")),
+                resolveTimestampMillis(documentSnapshot.get("responseReadAt")),
                 toInt(documentSnapshot.getLong("responseReminderCount")),
-                toMillis(documentSnapshot.getTimestamp("responseReminderSentAt"))
+                resolveTimestampMillis(documentSnapshot.get("responseReminderSentAt"))
         );
     }
 
@@ -210,8 +211,17 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
         }
     }
 
-    private long toMillis(@Nullable Timestamp timestamp) {
-        return timestamp == null ? 0L : timestamp.toDate().getTime();
+    private long resolveTimestampMillis(@Nullable Object rawValue) {
+        if (rawValue instanceof Timestamp) {
+            return ((Timestamp) rawValue).toDate().getTime();
+        }
+        if (rawValue instanceof Date) {
+            return ((Date) rawValue).getTime();
+        }
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).longValue();
+        }
+        return 0L;
     }
 
     private int toInt(@Nullable Long value) {
