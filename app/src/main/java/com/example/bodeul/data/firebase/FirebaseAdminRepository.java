@@ -78,9 +78,11 @@ import java.util.Map;
  */
 public class FirebaseAdminRepository implements AdminRepository {
     private final FirebaseFirestore firestore;
+    private final FirebaseAdminSupportStore adminSupportStore;
 
     public FirebaseAdminRepository(FirebaseFirestore firestore) {
         this.firestore = firestore;
+        this.adminSupportStore = new FirebaseAdminSupportStore(firestore);
     }
 
     @Override
@@ -410,45 +412,35 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("status", SupportInquiryStatus.ANSWERED.name());
-        updates.put("responseText", normalizeText(response));
-        updates.put("respondedByName", normalizeText(currentUser.getName()));
-        updates.put("respondedAt", FieldValue.serverTimestamp());
-
-        WriteBatch batch = firestore.batch();
-        batch.update(firestore.collection("supportInquiries").document(inquiryId), updates);
-        /*
-        appendAdminActionArtifacts(
-                batch,
-                "",
+        adminSupportStore.respondSupportInquiry(
+                currentUser,
                 inquiryId,
-                AdminActionSourceType.SUPPORT,
-                AdminActionNotificationLevel.INFO,
-                "문의 응답 저장",
-                buildSupportNotificationBody(inquiryId),
-                "문의 응답 저장",
-                normalizeText(response),
-                normalizeText(currentUser.getName())
-        );
-        */
-        appendAdminActionArtifacts(
-                batch,
-                "",
-                inquiryId,
-                AdminActionSourceType.SUPPORT,
-                AdminActionNotificationLevel.INFO,
-                "문의 응답 저장",
-                buildSupportNotificationBody(inquiryId),
-                "문의 응답 저장",
-                normalizeText(response),
-                normalizeText(currentUser.getName())
-        );
+                response,
+                (batch, targetId, normalizedResponse, normalizedResponderName) ->
+                        appendAdminActionArtifacts(
+                                batch,
+                                "",
+                                targetId,
+                                AdminActionSourceType.SUPPORT,
+                                AdminActionNotificationLevel.INFO,
+                                "매니저 문의 응답 등록",
+                                FirebaseAdminSupportStore.buildNotificationBody(targetId),
+                                "매니저 문의 응답 등록",
+                                normalizedResponse,
+                                normalizedResponderName
+                        ),
+                new FirebaseAdminSupportStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
 
-        batch.commit()
-                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                .addOnFailureListener(exception ->
-                        callback.onError("문의 응답을 저장하지 못했습니다."));
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
     @Override
@@ -463,35 +455,35 @@ public class FirebaseAdminRepository implements AdminRepository {
             return;
         }
 
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("status", ClientSupportStatus.ANSWERED.name());
-        updates.put("responseText", normalizeText(response));
-        updates.put("respondedByName", normalizeText(currentUser.getName()));
-        updates.put("respondedAt", FieldValue.serverTimestamp());
-        updates.put("responseReadByUser", false);
-        updates.put("responseReadAt", FieldValue.delete());
-        updates.put("responseReminderCount", 0);
-        updates.put("responseReminderSentAt", FieldValue.delete());
-
-        WriteBatch batch = firestore.batch();
-        batch.update(firestore.collection("clientSupportRequests").document(supportRequestId), updates);
-        appendAdminActionArtifacts(
-                batch,
-                "",
+        adminSupportStore.respondClientSupportRequest(
+                currentUser,
                 supportRequestId,
-                AdminActionSourceType.SUPPORT,
-                AdminActionNotificationLevel.INFO,
-                "사용자 문의 응답 등록",
-                buildSupportNotificationBody(supportRequestId),
-                "사용자 문의 응답 등록",
-                normalizeText(response),
-                normalizeText(currentUser.getName())
-        );
+                response,
+                (batch, targetId, normalizedResponse, normalizedResponderName) ->
+                        appendAdminActionArtifacts(
+                                batch,
+                                "",
+                                targetId,
+                                AdminActionSourceType.SUPPORT,
+                                AdminActionNotificationLevel.INFO,
+                                "사용자 문의 응답 등록",
+                                FirebaseAdminSupportStore.buildNotificationBody(targetId),
+                                "사용자 문의 응답 등록",
+                                normalizedResponse,
+                                normalizedResponderName
+                        ),
+                new FirebaseAdminSupportStore.CompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        loadDashboardWithArtifacts(currentUser, callback);
+                    }
 
-        batch.commit()
-                .addOnSuccessListener(unused -> loadDashboardWithArtifacts(currentUser, callback))
-                .addOnFailureListener(exception ->
-                        callback.onError("사용자 문의 응답을 저장하지 못했습니다."));
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }
+        );
     }
 
     @Override
@@ -1005,8 +997,8 @@ public class FirebaseAdminRepository implements AdminRepository {
                 auditLogs,
                 actionDeliveries
         );
-        List<SupportInquiry> supportInquiries = toSupportInquiries(supportSnapshot);
-        List<ClientSupportRequest> clientSupportRequests = toClientSupportRequests(clientSupportSnapshot);
+        List<SupportInquiry> supportInquiries = FirebaseAdminSupportMapper.toSupportInquiries(supportSnapshot);
+        List<ClientSupportRequest> clientSupportRequests = FirebaseAdminSupportMapper.toClientSupportRequests(clientSupportSnapshot);
 
         List<AdminRequestOverview> pendingRequests = new ArrayList<>();
         List<AdminRequestOverview> managedRequests = new ArrayList<>();
@@ -1206,30 +1198,6 @@ public class FirebaseAdminRepository implements AdminRepository {
             ));
         }
         return overviews;
-    }
-
-    private List<SupportInquiry> toSupportInquiries(QuerySnapshot supportSnapshot) {
-        List<SupportInquiry> inquiries = new ArrayList<>();
-        for (DocumentSnapshot documentSnapshot : supportSnapshot.getDocuments()) {
-            SupportInquiry inquiry = toSupportInquiry(documentSnapshot);
-            if (inquiry != null) {
-                inquiries.add(inquiry);
-            }
-        }
-        inquiries.sort((left, right) -> Long.compare(right.getCreatedAtMillis(), left.getCreatedAtMillis()));
-        return inquiries;
-    }
-
-    private List<ClientSupportRequest> toClientSupportRequests(QuerySnapshot clientSupportSnapshot) {
-        List<ClientSupportRequest> requests = new ArrayList<>();
-        for (DocumentSnapshot documentSnapshot : clientSupportSnapshot.getDocuments()) {
-            ClientSupportRequest request = toClientSupportRequest(documentSnapshot);
-            if (request != null) {
-                requests.add(request);
-            }
-        }
-        requests.sort((left, right) -> Long.compare(right.getCreatedAtMillis(), left.getCreatedAtMillis()));
-        return requests;
     }
 
     private List<AdminActionNotification> toAdminActionNotifications(
@@ -1641,63 +1609,6 @@ public class FirebaseAdminRepository implements AdminRepository {
                 normalizeText(documentSnapshot.getString("note")),
                 normalizeText(documentSnapshot.getString("handledByName")),
                 resolveTimestampMillis(documentSnapshot.get("handledAt"))
-        );
-    }
-
-    @Nullable
-    private SupportInquiry toSupportInquiry(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
-            return null;
-        }
-        String managerUserId = documentSnapshot.getString("managerUserId");
-        String managerName = documentSnapshot.getString("managerName");
-        String title = documentSnapshot.getString("title");
-        String body = documentSnapshot.getString("body");
-        if (managerUserId == null || managerName == null || title == null || body == null) {
-            return null;
-        }
-        return new SupportInquiry(
-                documentSnapshot.getId(),
-                managerUserId,
-                normalizeText(managerName),
-                SupportInquiryCategory.fromValue(documentSnapshot.getString("category")),
-                normalizeText(title),
-                normalizeText(body),
-                resolveSupportInquiryStatus(documentSnapshot.getString("status")),
-                resolveTimestampMillis(documentSnapshot.get("createdAt")),
-                normalizeText(documentSnapshot.getString("responseText")),
-                resolveTimestampMillis(documentSnapshot.get("respondedAt")),
-                normalizeText(documentSnapshot.getString("respondedByName"))
-        );
-    }
-
-    @Nullable
-    private ClientSupportRequest toClientSupportRequest(DocumentSnapshot documentSnapshot) {
-        if (!documentSnapshot.exists()) {
-            return null;
-        }
-        String userId = normalizeText(documentSnapshot.getString("userId"));
-        if (userId.isEmpty()) {
-            return null;
-        }
-        return new ClientSupportRequest(
-                documentSnapshot.getId(),
-                userId,
-                normalizeText(documentSnapshot.getString("userName")),
-                resolveUserRole(documentSnapshot.getString("userRole")),
-                normalizeText(documentSnapshot.getString("appointmentRequestId")),
-                ClientSupportCategory.fromValue(documentSnapshot.getString("category")),
-                normalizeText(documentSnapshot.getString("title")),
-                normalizeText(documentSnapshot.getString("body")),
-                resolveClientSupportStatus(documentSnapshot.getString("status")),
-                resolveTimestampMillis(documentSnapshot.get("createdAt")),
-                normalizeText(documentSnapshot.getString("responseText")),
-                resolveTimestampMillis(documentSnapshot.get("respondedAt")),
-                normalizeText(documentSnapshot.getString("respondedByName")),
-                Boolean.TRUE.equals(documentSnapshot.getBoolean("responseReadByUser")),
-                resolveTimestampMillis(documentSnapshot.get("responseReadAt")),
-                Math.max(numberOrZero(documentSnapshot.get("responseReminderCount")), 0),
-                resolveTimestampMillis(documentSnapshot.get("responseReminderSentAt"))
         );
     }
 
@@ -2239,10 +2150,6 @@ public class FirebaseAdminRepository implements AdminRepository {
         return "긴급 이슈를 보고 상태로 저장";
     }
 
-    private String buildSupportNotificationBody(String inquiryId) {
-        return "문의 " + normalizeText(inquiryId) + "에 관리자 응답을 남겼습니다.";
-    }
-
     private Map<String, Object> buildNotificationContractFields(
             AdminActionSourceType sourceType,
             AdminActionNotificationLevel level,
@@ -2417,28 +2324,6 @@ public class FirebaseAdminRepository implements AdminRepository {
             }
         }
         return AdminEmergencyIssueStatus.REPORTED;
-    }
-
-    private SupportInquiryStatus resolveSupportInquiryStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return SupportInquiryStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 상태 값은 접수 상태로 보정한다.
-            }
-        }
-        return SupportInquiryStatus.RECEIVED;
-    }
-
-    private ClientSupportStatus resolveClientSupportStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return ClientSupportStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 기본 접수 상태로 보정한다.
-            }
-        }
-        return ClientSupportStatus.RECEIVED;
     }
 
     private UserRole resolveUserRole(@Nullable String rawValue) {
