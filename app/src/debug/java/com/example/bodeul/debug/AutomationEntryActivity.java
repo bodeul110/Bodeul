@@ -12,7 +12,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.MainActivity;
-import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.ManagerRepository;
@@ -176,8 +175,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
 
     private boolean shouldUploadManagerDocument() {
         return requestedRole == UserRole.MANAGER
-                && requestedUploadDocumentType != null
-                && !TextUtils.isEmpty(requestedUploadDocumentPath);
+                && requestedUploadDocumentType != null;
     }
 
     private void uploadManagerDocument(User user) {

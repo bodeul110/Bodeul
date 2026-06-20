@@ -7,20 +7,19 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
 
-import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageMetadata;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.util.Locale;
 
 /**
- * Firebase Storage에 매니저 서류 원본을 업로드하고, Firestore에 저장할 메타데이터를 만든다.
+ * Firebase Storage에 매니저 서류 원본을 업로드하고 Firestore 저장용 메타데이터를 만든다.
  */
 public final class FirebaseManagerDocumentStorageUploader implements ManagerDocumentStorageUploader {
     private final Context appContext;
@@ -52,7 +51,7 @@ public final class FirebaseManagerDocumentStorageUploader implements ManagerDocu
 
         String fileName = resolveFileName(resolver, fileUri);
         String sanitizedFileName = sanitizeFileName(fileName);
-        String contentType = normalizeText(resolver.getType(fileUri));
+        String contentType = ManagerDocumentUploadPolicy.resolveContentType(resolver, fileUri);
         String fullPath = String.format(
                 Locale.KOREA,
                 "manager-documents/%s/%s/%d-%s",
