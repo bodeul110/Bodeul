@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 
@@ -43,12 +44,17 @@ final class FirebaseCompanionSessionMapper {
             return null;
         }
 
+        SessionStatus status = SafeEnumParser.parseOrNull(SessionStatus.class, statusValue);
+        if (status == null) {
+            return null;
+        }
+
         CompanionSession session = new CompanionSession(
                 documentSnapshot.getId(),
                 appointmentRequestId,
                 managerUserId,
                 currentStepOrder.intValue(),
-                SessionStatus.valueOf(statusValue),
+                status,
                 stringOrEmpty(documentSnapshot.getString("guardianUpdate")),
                 stringOrEmpty(documentSnapshot.getString("locationSummary")),
                 stringOrEmpty(documentSnapshot.getString("fieldPhotoNote")),
@@ -148,14 +154,11 @@ final class FirebaseCompanionSessionMapper {
                 continue;
             }
             long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
-            UserRole senderRole = fallbackChatSenderRole;
-            if (!roleValue.isEmpty()) {
-                try {
-                    senderRole = UserRole.valueOf(roleValue);
-                } catch (IllegalArgumentException ignored) {
-                    senderRole = fallbackChatSenderRole;
-                }
-            }
+            UserRole senderRole = SafeEnumParser.parseOrDefault(
+                    UserRole.class,
+                    roleValue,
+                    fallbackChatSenderRole
+            );
             messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachments));
         }
         return messages;

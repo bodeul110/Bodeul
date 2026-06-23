@@ -16,6 +16,7 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
@@ -296,6 +297,11 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
             return null;
         }
 
+        AppointmentStatus status = SafeEnumParser.parseOrNull(AppointmentStatus.class, statusValue);
+        if (status == null) {
+            return null;
+        }
+
         return new AppointmentRequest(
                 documentSnapshot.getId(),
                 patientUserId,
@@ -305,7 +311,7 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
-                AppointmentStatus.valueOf(statusValue),
+                status,
                 managerUserId,
                 stringOrEmpty(documentSnapshot.getString("patientName")),
                 stringOrEmpty(documentSnapshot.getString("patientPhone")),

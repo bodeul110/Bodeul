@@ -24,6 +24,7 @@ import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -883,14 +884,8 @@ public class FirebaseBookingRepository implements BookingRepository {
             return null;
         }
 
-        UserRole resolvedRole;
-        try {
-            resolvedRole = UserRole.valueOf(roleValue);
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
-
-        if (resolvedRole != expectedRole) {
+        UserRole resolvedRole = SafeEnumParser.parseOrNull(UserRole.class, roleValue);
+        if (resolvedRole == null || resolvedRole != expectedRole) {
             return null;
         }
 
@@ -1036,9 +1031,14 @@ public class FirebaseBookingRepository implements BookingRepository {
             return null;
         }
 
+        UserRole role = SafeEnumParser.parseOrNull(UserRole.class, roleValue);
+        if (role == null) {
+            return null;
+        }
+
         return new User(
                 documentSnapshot.getId(),
-                UserRole.valueOf(roleValue),
+                role,
                 UserProfileSanitizer.normalizeName(name),
                 UserProfileSanitizer.normalizeEmail(email),
                 UserProfileSanitizer.normalizePhone(phone)
@@ -1090,6 +1090,11 @@ public class FirebaseBookingRepository implements BookingRepository {
             return null;
         }
 
+        AppointmentStatus status = SafeEnumParser.parseOrNull(AppointmentStatus.class, statusValue);
+        if (status == null) {
+            return null;
+        }
+
         return new AppointmentRequest(
                 documentSnapshot.getId(),
                 patientUserId,
@@ -1099,7 +1104,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
-                AppointmentStatus.valueOf(statusValue),
+                status,
                 managerUserId,
                 stringOrEmpty(documentSnapshot.getString("patientName")),
                 stringOrEmpty(documentSnapshot.getString("patientPhone")),
@@ -1244,12 +1249,11 @@ public class FirebaseBookingRepository implements BookingRepository {
                 continue;
             }
             long sentAtMillis = numberOrZero(valueMap.get("sentAtMillis"));
-            UserRole senderRole;
-            try {
-                senderRole = roleValue.isEmpty() ? UserRole.GUARDIAN : UserRole.valueOf(roleValue);
-            } catch (IllegalArgumentException exception) {
-                senderRole = UserRole.GUARDIAN;
-            }
+            UserRole senderRole = SafeEnumParser.parseOrDefault(
+                    UserRole.class,
+                    roleValue,
+                    UserRole.GUARDIAN
+            );
             messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachments));
         }
         return messages;

@@ -62,6 +62,7 @@
 
 ### 4. Firestore enum 파싱이 일부 경로에서 예외에 취약함
 - GitHub issue: https://github.com/bodeul110/Bodeul/issues/20
+- 처리 상태: 수정 완료
 - 최근 문의 저장소는 안전한 fallback 파싱을 쓰지만, 핵심 경로 여러 곳은 여전히 `Enum.valueOf()`를 직접 호출한다.
 - `users.role` 같은 외부 데이터가 예상값과 다르면 `IllegalArgumentException`으로 로그인, 예약, 매니저 화면 진입이 중단될 수 있다.
 - 시드 스크립트, 관리자 웹, 수동 데이터 보정이 함께 존재하는 구조라면 방어적으로 처리하는 편이 맞다.
@@ -70,11 +71,15 @@
   - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java`
   - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
   - `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
+- 조치 내용
+  - `SafeEnumParser`를 추가해 외부 enum 문자열을 예외 없이 `null` 또는 기본값으로 파싱하도록 공통화했다.
+  - 로그인, 인증, 예약, 매니저, 보호자 리포트, 관리자, 문의 매퍼의 직접 enum 파싱을 fallback 기반으로 교체했다.
+  - 필수 enum 값이 잘못된 Firestore 문서는 모델 변환 단계에서 `null`로 안전 차단하고, 채팅 발신자/문의 상태처럼 기존 기본값이 있던 경로는 기본값을 유지한다.
+  - 잘못된 enum 문자열에 대한 단위 테스트를 추가했다.
 
 ## 테스트 공백
 - Firestore Rules의 필드 단위 업데이트 허용/차단 테스트가 없다.
 - 알림 권한 `닫기`, `거부`, `설정에서 다시 허용` 시나리오는 자동화 범위에서 직접 확인되지 않았다.
-- Firestore의 잘못된 enum 값 입력에 대한 방어 테스트가 없다.
 
 ## 변경 범위
 - Firestore 보안 규칙 변경
@@ -91,8 +96,17 @@
   - `app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java`
   - `app/src/main/java/com/example/bodeul/data/CompanionChatAttachmentUploadPolicy.java`
   - `app/src/test/java/com/example/bodeul/data/UploadFileSizePolicyTest.java`
+- Android Firestore enum fallback 변경
+  - `app/src/main/java/com/example/bodeul/util/SafeEnumParser.java`
+  - `app/src/test/java/com/example/bodeul/util/SafeEnumParserTest.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseCompanionSessionMapper.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminSupportMapper.java`
+  - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseClientSupportRepository.java`
+  - `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
 - 문서 추가 및 갱신 1건
   - `docs/project-check-2026-06-23.md`
-
-## 남은 범위
-- 핵심 mapper의 enum 파싱을 fallback 기반으로 통일
