@@ -15,6 +15,8 @@
 - GitHub Project `BoDeul 작업 백로그`를 구성하고 이슈 #27-#34를 연결했다.
 - Project 필드 `영역`, `우선순위`를 추가하고 각 이슈의 초기 값을 입력했다.
 - Milestone `MVP 안정화`, `실운영 연동`, `후속 AI/OCR`을 만들고 후속 이슈를 배정했다.
+- 취약점 알림, Dependabot security updates, secret scanning, secret scanning push protection을 활성화했다.
+- private vulnerability reporting을 활성화하고 `.github/SECURITY.md`에 비공개 보안 제보 기준을 문서화했다.
 
 ## 변경된 범위
 
@@ -25,6 +27,7 @@
 - `.github/ISSUE_TEMPLATE/config.yml`
 - `.github/CODEOWNERS`
 - `.github/dependabot.yml`
+- `.github/SECURITY.md`
 - `docs/reports/github-operations-setup-2026-06-23.md`
 
 앱 코드, Firebase 런타임 코드, Gradle 의존성 버전은 변경하지 않았다.
@@ -43,6 +46,17 @@
 - `실운영 연동`: #27, #32, #33
 - `후속 AI/OCR`: #30, #31
 
+## 보안 설정
+
+- Vulnerability alerts: 활성화
+- Dependabot security updates: 활성화
+- Automated security fixes: 활성화
+- Secret scanning: 활성화
+- Secret scanning push protection: 활성화
+- Private vulnerability reporting: 활성화
+- Secret scanning non-provider patterns: 현재 저장소 설정상 비활성 상태 유지
+- Secret scanning validity checks: 현재 저장소 설정상 비활성 상태 유지
+
 ## 검증
 
 - `yq e '.' .github/dependabot.yml`
@@ -53,9 +67,12 @@
 - `gh project view 1 --owner bodeul110 --format json`로 Project 제목, URL, 항목 수 확인
 - `gh project item-list 1 --owner bodeul110 --format json --limit 20`로 연결 이슈와 `Todo` 상태 확인
 - `gh api repos/bodeul110/Bodeul/milestones --paginate`로 milestone 3개 확인
+- `gh api repos/bodeul110/Bodeul --jq '{security_and_analysis}'`로 보안 설정 확인
+- `gh api repos/bodeul110/Bodeul/private-vulnerability-reporting --jq '{enabled}'`로 비공개 취약점 제보 활성화 확인
 
 ## 남은 범위
 
 - Dependabot PR은 자동 병합하지 않는다. 생성 후 변경 범위와 검증 결과를 확인해 병합한다.
 - 배포 워크플로를 추가할 때는 `dev`, `production` Environment와 Firebase 프로젝트 분리 정책을 연결한다.
 - Project의 우선순위가 높은 항목부터 구현 가능한 세부 이슈로 더 쪼갠다.
+- CodeQL/code scanning 워크플로는 빌드 시간과 분석 범위를 확인한 뒤 별도 PR로 추가한다.
