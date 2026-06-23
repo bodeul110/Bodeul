@@ -151,12 +151,19 @@ jobs:
           echo "- 미분류 파일 포함: $unknown"
 
       - name: JDK 17 설정
-        if: steps.scope.outputs.android == 'true'
+        if: steps.scope.outputs.android == 'true' && (github.event_name != 'workflow_dispatch' || inputs.runner_profile != 'self-hosted-bodeul')
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
+
+      - name: JDK 17 설정 (self-hosted)
+        if: steps.scope.outputs.android == 'true' && github.event_name == 'workflow_dispatch' && inputs.runner_profile == 'self-hosted-bodeul'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Node.js 설정
         if: steps.scope.outputs.android == 'true' || steps.scope.outputs.admin_web == 'true' || steps.scope.outputs.functions == 'true' || steps.scope.outputs.firebase_tools == 'true'

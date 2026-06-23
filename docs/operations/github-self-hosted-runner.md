@@ -17,6 +17,8 @@ Android 프리플라이트를 수동으로 오래 돌리거나 반복 확인할 
 - GitHub runner 라벨
   - 기본 라벨: `self-hosted`
   - 추가 라벨: `bodeul`, `preflight`
+- 권장 설치 경로
+  - `D:\actions-runner\bodeul-preflight`
 - 필수 도구
   - Git
   - Node.js 22 또는 `actions/setup-node@v6`가 설치할 수 있는 환경
@@ -26,6 +28,8 @@ Android 프리플라이트를 수동으로 오래 돌리거나 반복 확인할 
 - Firebase 운영 점검까지 실행하려면 저장소 secrets와 variables가 준비되어 있어야 한다.
 
 Windows runner를 사용할 경우 Git for Windows의 Bash 도구가 PATH에 잡혀 있어야 한다. 안정성 기준으로는 Linux runner 또는 WSL 기반 runner를 우선 권장한다.
+
+Windows self-hosted runner는 로컬 Gradle 캐시가 runner 사용자 디렉터리에 유지된다. 따라서 수동 실행에서 `self-hosted-bodeul`을 선택한 경우 `actions/setup-java`의 Gradle cache 입력을 끄고, GitHub-hosted runner에서만 Actions cache를 사용한다.
 
 ## 등록 절차
 
@@ -50,3 +54,12 @@ Windows runner를 사용할 경우 Git for Windows의 Bash 도구가 PATH에 잡
 - GitHub `Settings > Actions > Runners`에서 runner가 `Idle` 상태인지 확인한다.
 - `Android Preflight` 수동 실행에서 `self-hosted-bodeul`을 선택한다.
 - 실행 로그의 `CI 범위 요약 작성` 단계에서 `실행기: self-hosted-bodeul`이 기록되는지 확인한다.
+
+## 2026-06-23 검증 기록
+
+- runner 이름: `DESKTOP-1B62HQD-bodeul-preflight`
+- runner 버전: `2.335.1`
+- runner OS/라벨: `Windows`, `X64`, `self-hosted`, `bodeul`, `preflight`
+- 설치 경로: `D:\actions-runner\bodeul-preflight`
+- 검증 workflow: `Android Preflight`
+- 검증 결과: `workflow_dispatch`에서 `runner_profile=self-hosted-bodeul`로 실행한 프리플라이트가 통과했다.
