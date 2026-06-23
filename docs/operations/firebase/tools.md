@@ -4,7 +4,7 @@
 
 `tools/firebase`는 앱 런타임 코드와 분리된 Firebase 운영용 로컬 스크립트를 모아두는 디렉터리다.
 
-관리자 웹/앱 권한 검증 순서는 [admin-access-qa-checklist.md](/D:/BoDeul/docs/admin-access-qa-checklist.md)를 기준으로 맞춘다.
+관리자 웹/앱 권한 검증 순서는 [관리자 권한 QA 체크리스트](../admin-access-qa-checklist.md)를 기준으로 맞춘다.
 
 ## 목적
 
@@ -30,12 +30,12 @@
 
 - `check:state`, `check:readiness`, `workflow:ops`, `preflight:local` 같은 Firebase 운영 점검 명령은 로컬 권한 설정이 필요하다.
 - refresh token 기반이면 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수가 없을 때 실행이 실패한다.
-- 기획/내부 QA가 바로 볼 계정/시나리오는 [internal-test-guide.md](/D:/BoDeul/docs/internal-test-guide.md)에 따로 정리했다.
+- 기획/내부 QA가 바로 볼 계정/시나리오는 [내부 테스트 가이드](../internal-test-guide.md)에 따로 정리했다.
 
 ## 위치
 
-- 도구 루트: [tools/firebase](/D:/BoDeul/tools/firebase)
-- 공용 helper: [tools/firebase/lib](/D:/BoDeul/tools/firebase/lib)
+- 도구 루트: [tools/firebase](../../../tools/firebase)
+- 공용 helper: [tools/firebase/lib](../../../tools/firebase/lib)
 
 ## 스크립트
 
@@ -202,10 +202,10 @@ cd D:\BoDeul\tools\firebase
 npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.json
 ```
 
-- CI용 실행점은 [run-ci-preflight.js](/D:/BoDeul/tools/firebase/run-ci-preflight.js)이고, 내부에서 [run-local-preflight.js](/D:/BoDeul/tools/firebase/run-local-preflight.js)를 그대로 재사용한다.
+- CI용 실행점은 [run-ci-preflight.js](../../../tools/firebase/run-ci-preflight.js)이고, 내부에서 [run-local-preflight.js](../../../tools/firebase/run-local-preflight.js)를 그대로 재사용한다.
 - Firebase 입력이 준비되면 운영 워크플로까지 포함하고, 준비되지 않았으면 자동으로 `--skip-workflow`를 붙여 빌드/테스트만 수행한다.
 - `--require-firebase`를 주면 `FIREBASE_TOKEN`, 프로젝트 식별 정보가 없을 때 실패로 종료한다.
-- GitHub Actions 워크플로는 [.github/workflows/android-preflight.yml](/D:/BoDeul/.github/workflows/android-preflight.yml)에 추가했다.
+- GitHub Actions 워크플로는 [.github/workflows/android-preflight.yml](../../../.github/workflows/android-preflight.yml)에 추가했다.
 - `workflow_dispatch`로 실제 실행하려면 이 워크플로 파일이 원격 기본 브랜치에도 올라가 있어야 한다. 로컬에만 있고 아직 push하지 않았다면 `gh workflow run`은 `workflow ... not found on the default branch`로 실패한다.
 - GitHub Actions에서 전체 점검을 돌리려면 아래 시크릿/변수를 맞춘다.
   - `secrets.FIREBASE_TOKEN`
@@ -214,7 +214,7 @@ npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.
   - `secrets.FIREBASERC_JSON`
   - `vars.FIREBASE_PROJECT_ID`
 - `FIREBASE_TOKEN`은 Firebase 공식 문서 기준 `firebase login:ci`로 발급받는 refresh token 또는 access token을 받을 수 있다.
-- refresh token을 쓰는 경우 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)가 access token으로 교환해야 하므로, `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 필요하다.
+- refresh token을 쓰는 경우 [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)가 access token으로 교환해야 하므로, `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 필요하다.
 - 이 OAuth client secret은 저장소에 하드코딩하지 않고, 로컬에서는 `local.properties`의 `firebaseOauthClientSecret`, CI에서는 `secrets.FIREBASE_OAUTH_CLIENT_SECRET`으로 분리한다.
 - 시크릿이 없으면 워크플로는 기본적으로 Android 빌드/테스트만 수행하고, 생성된 `tools/firebase/reports/` 산출물은 아티팩트로 업로드한다.
 
@@ -226,7 +226,7 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dry-ru
 node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispatch
 ```
 
-- [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)는 origin 원격 또는 `--repo` 값 기준으로 저장소를 해석하고, 아래 항목을 GitHub Actions에 반영한다.
+- [configure-actions-firebase.js](../../../tools/github/configure-actions-firebase.js)는 origin 원격 또는 `--repo` 값 기준으로 저장소를 해석하고, 아래 항목을 GitHub Actions에 반영한다.
   - `secrets.FIREBASE_TOKEN`
   - `secrets.FIREBASE_OAUTH_CLIENT_SECRET` (`FIREBASE_TOKEN`이 refresh token일 때)
   - `secrets.GOOGLE_SERVICES_JSON`
@@ -251,7 +251,7 @@ npm run cleanup:manager-storage:dry-run
 npm run cleanup:manager-storage:apply
 ```
 
-- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)는 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 아래 실제 Storage 객체를 비교한다.
+- [check-manager-document-storage.js](../../../tools/firebase/check-manager-document-storage.js)는 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 아래 실제 Storage 객체를 비교한다.
 - 점검 결과는 기본적으로 `tools/firebase/reports/manager-document-storage-check-YYYYMMDD-HHMMSS.json`에 저장된다.
 - `--strict`를 주면 누락 객체나 경로 불일치가 있을 때 비정상 종료해 CI나 수동 점검에서 바로 걸 수 있다.
 - `cleanup:manager-storage:dry-run`은 고아 파일 삭제 후보만 계산하고 실제 삭제는 하지 않는다.
@@ -267,11 +267,11 @@ npm run seed:manager-docs:dry-run
 npm run seed:manager-docs:apply
 ```
 
-- [seed-manager-document-storage-sample.js](/D:/BoDeul/tools/firebase/seed-manager-document-storage-sample.js)는 `manager@bodeul.app` 기준으로 신분증/자격증/범죄경력 조회서 샘플 PNG 3개를 업로드하고, 같은 경로를 `users/{uid}` 메타데이터에도 저장한다.
+- [seed-manager-document-storage-sample.js](../../../tools/firebase/seed-manager-document-storage-sample.js)는 `manager@bodeul.app` 기준으로 신분증/자격증/범죄경력 조회서 샘플 PNG 3개를 업로드하고, 같은 경로를 `users/{uid}` 메타데이터에도 저장한다.
 - 기본값은 dry-run이며, `--apply`를 줘야 실제 Storage 업로드와 Firestore 메타데이터 반영을 수행한다.
 - 이 스크립트는 관리자 웹 미리보기나 Storage 경로 점검을 실데이터로 검증할 때만 사용한다.
 
 ### 패치 주의
 
-- [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)의 `patchDocumentFields()`는 `updateMask.fieldPaths`를 함께 붙여 부분 업데이트로 동작한다.
+- [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)의 `patchDocumentFields()`는 `updateMask.fieldPaths`를 함께 붙여 부분 업데이트로 동작한다.
 - 운영 도구에서 Firestore 문서를 수정할 때는 필요한 필드만 넘기는 방식을 전제로 하고, 전체 문서 덮어쓰기가 필요한 경우에는 별도 전용 스크립트로 다루는 편이 안전하다.
