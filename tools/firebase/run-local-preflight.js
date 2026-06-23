@@ -46,21 +46,19 @@ async function main() {
     workflowArtifacts = resolveWorkflowArtifacts(reportsRoot, workflowStartedAt);
   }
 
+  const androidArgs = [];
   if (!options.skipBuild) {
-    steps.push(await runCommand({
-      command: resolveGradleCommand(),
-      args: ["assembleDebug", "--console=plain"],
-      cwd: repoRoot,
-      label: "Android assembleDebug",
-    }));
+    androidArgs.push("assembleDebug");
   }
-
   if (!options.skipTests) {
+    androidArgs.push("testDebugUnitTest");
+  }
+  if (androidArgs.length > 0) {
     steps.push(await runCommand({
       command: resolveGradleCommand(),
-      args: ["testDebugUnitTest", "--console=plain"],
+      args: androidArgs.concat("--console=plain"),
       cwd: repoRoot,
-      label: "Android testDebugUnitTest",
+      label: buildAndroidStepLabel({skipBuild: options.skipBuild, skipTests: options.skipTests}),
     }));
   }
 
@@ -113,8 +111,7 @@ function printHelp() {
   console.log("");
   console.log("기본 동작");
   console.log("- Firebase 운영 워크플로를 실행합니다.");
-  console.log("- Android assembleDebug를 실행합니다.");
-  console.log("- Android testDebugUnitTest를 실행합니다.");
+  console.log("- Android assembleDebug와 testDebugUnitTest를 실행합니다.");
   console.log("- 최종 결과를 reports 폴더의 Markdown/JSON 요약으로 남깁니다.");
 }
 
@@ -124,6 +121,16 @@ function resolveNpmCommand() {
 
 function resolveGradleCommand() {
   return process.platform === "win32" ? "gradlew.bat" : "./gradlew";
+}
+
+function buildAndroidStepLabel({skipBuild, skipTests}) {
+  if (!skipBuild && !skipTests) {
+    return "Android assembleDebug 및 testDebugUnitTest";
+  }
+  if (!skipBuild) {
+    return "Android assembleDebug";
+  }
+  return "Android testDebugUnitTest";
 }
 
 async function runCommand({command, args, cwd, label}) {
