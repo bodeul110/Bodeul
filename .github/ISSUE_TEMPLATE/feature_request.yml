@@ -1,0 +1,57 @@
+name: 기능 요청
+description: 새 기능, 외부 연동, UX 개선 요청을 기록합니다.
+title: "[기능] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 목표
+      description: 사용자가 얻는 결과를 기준으로 적습니다.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - 환자 / 보호자
+        - 매니저
+        - 관리자 앱
+        - 관리자 웹
+        - Firebase / 서버
+        - 운영 도구
+        - 문서 / 기획
+        - 기타
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 포함 범위
+      description: 이번 이슈에서 닫을 기능과 제외할 범위를 구분합니다.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 완료 기준
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: 기준 문서 / 디자인 / 관련 이슈
+      description: 기능설명서, 피그마, 구현 상태 문서, 선행 이슈를 연결합니다.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 확인 사항
+      options:
+        - label: 현재 구현 상태 문서를 확인했다.
+        - label: 기능설명서 또는 디자인 기준과 충돌하지 않는지 확인했다.
+        - label: 외부 연동이나 운영 정책 결정이 필요한지 표시했다.

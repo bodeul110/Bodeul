@@ -1,0 +1,63 @@
+name: 버그 리포트
+description: 재현 가능한 결함이나 회귀를 기록합니다.
+title: "[버그] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 요약
+      description: 문제가 무엇인지 한두 문장으로 적습니다.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - Android 앱
+        - 관리자 웹
+        - Firebase Functions
+        - Firestore / Storage Rules
+        - Firebase 운영 도구
+        - 문서
+        - 기타
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      description: 같은 문제를 다시 확인할 수 있는 단계와 계정을 적습니다.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 결과
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 결과
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 로그 / 화면 / 리포트
+      description: 관련 스크린샷, logcat, GitHub Actions 링크, Firebase 리포트 경로를 붙입니다.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 확인 사항
+      options:
+        - label: 최신 `master` 또는 대상 브랜치 기준으로 확인했다.
+        - label: 같은 증상이 이미 열린 이슈에 없는지 확인했다.
+        - label: 민감 정보가 포함된 로그나 설정값은 제거했다.
