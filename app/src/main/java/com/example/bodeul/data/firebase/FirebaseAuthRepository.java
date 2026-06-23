@@ -25,6 +25,7 @@ import com.example.bodeul.data.NotificationTokenRegistrar;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
@@ -802,7 +803,11 @@ public class FirebaseAuthRepository implements AuthRepository {
             return null;
         }
 
-        UserRole role = UserRole.valueOf(roleValue);
+        UserRole role = SafeEnumParser.parseOrNull(UserRole.class, roleValue);
+        if (role == null) {
+            return null;
+        }
+
         return new User(
                 documentSnapshot.getId(),
                 role,

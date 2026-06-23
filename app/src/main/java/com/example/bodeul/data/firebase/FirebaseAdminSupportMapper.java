@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.SupportInquiry;
 import com.example.bodeul.domain.model.SupportInquiryCategory;
 import com.example.bodeul.domain.model.SupportInquiryStatus;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -105,36 +106,23 @@ final class FirebaseAdminSupportMapper {
     }
 
     private static SupportInquiryStatus resolveSupportInquiryStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return SupportInquiryStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 기본 접수 상태로 보정한다.
-            }
-        }
-        return SupportInquiryStatus.RECEIVED;
+        return SafeEnumParser.parseOrDefault(
+                SupportInquiryStatus.class,
+                rawValue,
+                SupportInquiryStatus.RECEIVED
+        );
     }
 
     private static ClientSupportStatus resolveClientSupportStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return ClientSupportStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 기본 접수 상태로 보정한다.
-            }
-        }
-        return ClientSupportStatus.RECEIVED;
+        return SafeEnumParser.parseOrDefault(
+                ClientSupportStatus.class,
+                rawValue,
+                ClientSupportStatus.RECEIVED
+        );
     }
 
     private static UserRole resolveUserRole(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return UserRole.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 기본 환자 권한으로 보정한다.
-            }
-        }
-        return UserRole.PATIENT;
+        return SafeEnumParser.parseOrDefault(UserRole.class, rawValue, UserRole.PATIENT);
     }
 
     private static long resolveTimestampMillis(@Nullable Object rawValue) {

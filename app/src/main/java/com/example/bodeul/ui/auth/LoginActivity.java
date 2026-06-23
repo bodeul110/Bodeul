@@ -21,6 +21,7 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.example.bodeul.util.UserProfileSanitizer;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
@@ -88,9 +89,11 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         authRepository = ServiceLocator.provideAuthRepository(this);
-        roleHint = UserRole.valueOf(getIntent().getStringExtra(EXTRA_ROLE_HINT) == null
-                ? UserRole.MANAGER.name()
-                : getIntent().getStringExtra(EXTRA_ROLE_HINT));
+        roleHint = SafeEnumParser.parseOrDefault(
+                UserRole.class,
+                getIntent().getStringExtra(EXTRA_ROLE_HINT),
+                UserRole.MANAGER
+        );
 
         textLoginTitle = findViewById(R.id.textLoginTitle);
         textLoginSubtitle = findViewById(R.id.textLoginSubtitle);
@@ -167,20 +170,20 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        try {
-            UserRole savedRole = UserRole.valueOf(savedRoleName);
-            if (savedRole == UserRole.MANAGER) {
-                chipRoleManager.setChecked(true);
-                return;
-            }
-            if (savedRole == UserRole.GUARDIAN) {
-                chipRoleGuardian.setChecked(true);
-                return;
-            }
-            chipRolePatient.setChecked(true);
-        } catch (IllegalArgumentException ignored) {
+        UserRole savedRole = SafeEnumParser.parseOrNull(UserRole.class, savedRoleName);
+        if (savedRole == null) {
             // 저장된 역할 값이 잘못된 경우 현재 기본 선택을 유지한다.
+            return;
         }
+        if (savedRole == UserRole.MANAGER) {
+            chipRoleManager.setChecked(true);
+            return;
+        }
+        if (savedRole == UserRole.GUARDIAN) {
+            chipRoleGuardian.setChecked(true);
+            return;
+        }
+        chipRolePatient.setChecked(true);
     }
 
     private void configureRoleChips() {

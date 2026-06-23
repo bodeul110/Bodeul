@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.ClientSupportStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
@@ -190,25 +191,15 @@ public final class FirebaseClientSupportRepository implements ClientSupportRepos
     }
 
     private UserRole resolveUserRole(@Nullable String rawValue) {
-        if (rawValue == null) {
-            return UserRole.PATIENT;
-        }
-        try {
-            return UserRole.valueOf(rawValue);
-        } catch (IllegalArgumentException ignored) {
-            return UserRole.PATIENT;
-        }
+        return SafeEnumParser.parseOrDefault(UserRole.class, rawValue, UserRole.PATIENT);
     }
 
     private ClientSupportStatus resolveStatus(@Nullable String rawValue) {
-        if (rawValue == null) {
-            return ClientSupportStatus.RECEIVED;
-        }
-        try {
-            return ClientSupportStatus.valueOf(rawValue);
-        } catch (IllegalArgumentException ignored) {
-            return ClientSupportStatus.RECEIVED;
-        }
+        return SafeEnumParser.parseOrDefault(
+                ClientSupportStatus.class,
+                rawValue,
+                ClientSupportStatus.RECEIVED
+        );
     }
 
     private long resolveTimestampMillis(@Nullable Object rawValue) {

@@ -56,6 +56,7 @@ import com.example.bodeul.domain.model.SupportInquiryCategory;
 import com.example.bodeul.domain.model.SupportInquiryStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
@@ -1371,9 +1372,14 @@ public class FirebaseAdminRepository implements AdminRepository {
             return null;
         }
 
+        UserRole role = SafeEnumParser.parseOrNull(UserRole.class, roleValue);
+        if (role == null) {
+            return null;
+        }
+
         return new User(
                 documentSnapshot.getId(),
-                UserRole.valueOf(roleValue),
+                role,
                 name,
                 email,
                 phone == null ? "" : phone
@@ -1725,6 +1731,11 @@ public class FirebaseAdminRepository implements AdminRepository {
             return null;
         }
 
+        AppointmentStatus status = SafeEnumParser.parseOrNull(AppointmentStatus.class, statusValue);
+        if (status == null) {
+            return null;
+        }
+
         return new AppointmentRequest(
                 documentSnapshot.getId(),
                 patientUserId,
@@ -1734,7 +1745,7 @@ public class FirebaseAdminRepository implements AdminRepository {
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
-                AppointmentStatus.valueOf(statusValue),
+                status,
                 managerUserId,
                 normalizeText(documentSnapshot.getString("patientName")),
                 normalizeText(documentSnapshot.getString("patientPhone")),
@@ -2311,59 +2322,40 @@ public class FirebaseAdminRepository implements AdminRepository {
     }
 
     private AdminSettlementStatus resolveAdminSettlementStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return AdminSettlementStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 상태 값은 기본 대기 상태로 보정한다.
-            }
-        }
-        return AdminSettlementStatus.PENDING;
+        return SafeEnumParser.parseOrDefault(
+                AdminSettlementStatus.class,
+                rawValue,
+                AdminSettlementStatus.PENDING
+        );
     }
 
     private AdminEmergencyIssueStatus resolveAdminEmergencyIssueStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return AdminEmergencyIssueStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 상태 값은 기본 접수 상태로 보정한다.
-            }
-        }
-        return AdminEmergencyIssueStatus.REPORTED;
+        return SafeEnumParser.parseOrDefault(
+                AdminEmergencyIssueStatus.class,
+                rawValue,
+                AdminEmergencyIssueStatus.REPORTED
+        );
     }
 
     private UserRole resolveUserRole(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return UserRole.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 기본 환자 권한으로 보정한다.
-            }
-        }
-        return UserRole.PATIENT;
+        return SafeEnumParser.parseOrDefault(UserRole.class, rawValue, UserRole.PATIENT);
     }
 
     private ManagerDocumentHistoryEventType resolveHistoryEventType(String rawValue) {
-        if (rawValue.isEmpty()) {
-            return ManagerDocumentHistoryEventType.SUBMITTED;
-        }
-        try {
-            return ManagerDocumentHistoryEventType.valueOf(rawValue);
-        } catch (IllegalArgumentException exception) {
-            return ManagerDocumentHistoryEventType.SUBMITTED;
-        }
+        return SafeEnumParser.parseOrDefault(
+                ManagerDocumentHistoryEventType.class,
+                rawValue,
+                ManagerDocumentHistoryEventType.SUBMITTED
+        );
     }
 
     private ManagerDocumentStatus resolveManagerDocumentStatus(
             @Nullable String rawStatus,
             @Nullable String documentSummary
     ) {
-        if (rawStatus != null) {
-            try {
-                return ManagerDocumentStatus.valueOf(rawStatus);
-            } catch (IllegalArgumentException ignored) {
-                // 알 수 없는 값은 기본 규칙으로 보정한다.
-            }
+        ManagerDocumentStatus status = SafeEnumParser.parseOrNull(ManagerDocumentStatus.class, rawStatus);
+        if (status != null) {
+            return status;
         }
         if (normalizeText(documentSummary).isEmpty()) {
             return ManagerDocumentStatus.NOT_SUBMITTED;

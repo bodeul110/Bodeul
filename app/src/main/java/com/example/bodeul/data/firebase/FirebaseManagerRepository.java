@@ -33,6 +33,7 @@ import com.example.bodeul.domain.model.SupportInquiryCategory;
 import com.example.bodeul.domain.model.SupportInquiryStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.SafeEnumParser;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
@@ -1239,9 +1240,14 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return null;
         }
 
+        UserRole role = SafeEnumParser.parseOrNull(UserRole.class, roleValue);
+        if (role == null) {
+            return null;
+        }
+
         return new User(
                 documentSnapshot.getId(),
-                UserRole.valueOf(roleValue),
+                role,
                 name,
                 email,
                 phone == null ? "" : phone
@@ -1295,6 +1301,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return null;
         }
 
+        AppointmentStatus status = SafeEnumParser.parseOrNull(AppointmentStatus.class, statusValue);
+        if (status == null) {
+            return null;
+        }
+
         return new AppointmentRequest(
                 documentSnapshot.getId(),
                 patientUserId,
@@ -1304,7 +1315,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
-                AppointmentStatus.valueOf(statusValue),
+                status,
                 managerUserId,
                 stringOrEmpty(documentSnapshot.getString("patientName")),
                 stringOrEmpty(documentSnapshot.getString("patientPhone")),
@@ -1423,12 +1434,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 continue;
             }
             long sentAtMillis = resolveTimestampMillis(valueMap.get("sentAtMillis"));
-            UserRole senderRole;
-            try {
-                senderRole = roleValue.isEmpty() ? UserRole.MANAGER : UserRole.valueOf(roleValue);
-            } catch (IllegalArgumentException exception) {
-                senderRole = UserRole.MANAGER;
-            }
+            UserRole senderRole = SafeEnumParser.parseOrDefault(
+                    UserRole.class,
+                    roleValue,
+                    UserRole.MANAGER
+            );
             messages.add(new CompanionChatMessage(senderRole, body, sentAtMillis, attachments));
         }
         return messages;
@@ -1673,37 +1683,28 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     private SupportInquiryStatus resolveSupportInquiryStatus(@Nullable String rawValue) {
-        if (rawValue != null) {
-            try {
-                return SupportInquiryStatus.valueOf(rawValue);
-            } catch (IllegalArgumentException ignored) {
-                // ?????녿뒗 ?곹깭 媛믪? ?묒닔?⑥쑝濡?蹂댁젙?쒕떎.
-            }
-        }
-        return SupportInquiryStatus.RECEIVED;
+        return SafeEnumParser.parseOrDefault(
+                SupportInquiryStatus.class,
+                rawValue,
+                SupportInquiryStatus.RECEIVED
+        );
     }
 
     private ManagerDocumentHistoryEventType resolveHistoryEventType(String rawValue) {
-        if (rawValue.isEmpty()) {
-            return ManagerDocumentHistoryEventType.SUBMITTED;
-        }
-        try {
-            return ManagerDocumentHistoryEventType.valueOf(rawValue);
-        } catch (IllegalArgumentException exception) {
-            return ManagerDocumentHistoryEventType.SUBMITTED;
-        }
+        return SafeEnumParser.parseOrDefault(
+                ManagerDocumentHistoryEventType.class,
+                rawValue,
+                ManagerDocumentHistoryEventType.SUBMITTED
+        );
     }
 
     private ManagerDocumentStatus resolveManagerDocumentStatus(
             @Nullable String rawStatus,
             @Nullable String documentSummary
     ) {
-        if (rawStatus != null) {
-            try {
-                return ManagerDocumentStatus.valueOf(rawStatus);
-            } catch (IllegalArgumentException ignored) {
-                // ?????녿뒗 媛믪? ?꾨옒 湲곕낯 洹쒖튃?쇰줈 蹂댁젙?쒕떎.
-            }
+        ManagerDocumentStatus status = SafeEnumParser.parseOrNull(ManagerDocumentStatus.class, rawStatus);
+        if (status != null) {
+            return status;
         }
         if (normalizeText(documentSummary).isEmpty()) {
             return ManagerDocumentStatus.NOT_SUBMITTED;
