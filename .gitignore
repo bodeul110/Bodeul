@@ -37,4 +37,5 @@ temp.txt
 !/docs/local/README.md
 /design_refs/local/*
 !/design_refs/local/README.md
+/design_refs/*.exe
 /package-lock.json

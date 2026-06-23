@@ -1,4 +1,4 @@
-﻿# 2026-06-20 전체 프로젝트 점검 후속 조치
+# 2026-06-20 전체 프로젝트 점검 후속 조치
 
 ## 구현한 내용
 
@@ -103,7 +103,7 @@
   - `gradle/libs.versions.toml`
   - `gradle/wrapper/gradle-wrapper.properties`
 - 문서
-  - `docs/project-check-followup-2026-06-20.md`
+  - `project-check-followup-2026-06-20.md`
 
 ## 검증
 
