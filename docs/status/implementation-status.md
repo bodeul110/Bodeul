@@ -1,99 +1,102 @@
 # 구현 상태
 
-기준: 2026-06-06
+기준: 2026-06-23
+
+이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다.
 
 ## 1. 현재 동작하는 기능
 
 ### 인증
 
 - 이메일 로그인 / 회원가입 / 비밀번호 재설정
-- Google, Kakao, Naver 로그인
+- Google 로그인, Kakao 로그인
+- Naver 로그인 코드 경로와 Functions callable은 남아 있으나, 앱에는 클라이언트 시크릿을 포함하지 않기 위해 `naver_login_enabled=false` 상태로 버튼을 숨긴다.
 - 이메일 인증, 프로필 보완
 - Firebase 미설정 시 목업 모드 자동 전환
+- Android 13+ 알림 권한 안내와 거부 후 재설정 진입 경로
 
 ### 환자 / 보호자
 
-- 병원 동행 신청 생성
-- 내 신청 목록 조회
-- `REQUESTED` 상태 요청 수정 / 취소
-- `MATCHED` 상태 요청 취소
-- 권한 없음 / 로그인 필요 / 불러오기 실패 상태 패널 표시
-- 신청 단계에서 환자-보호자 연결 정보 입력
-- 기존 계정이 있으면 이메일 또는 전화번호 기준 자동 연결
+- 병원 동행 신청 생성, 내 신청 목록 조회
+- `REQUESTED` 상태 요청 수정 / 취소, `MATCHED` 상태 요청 취소
+- 신청 단계에서 환자-보호자 연결 정보 입력과 이메일/전화번호 기준 자동 연결
 - 계정이 없어도 신청 시점 이름 / 전화번호 / 이메일 스냅샷 저장
-- 보호자 진행 현황 조회 및 카카오맵 기반 실시간 위치 확인
-- 최종 진료 리포트 조회
+- 환자/보호자 홈, 예약 진행 상태, 후속 처리, 보호자 진행 현황 조회
+- 건강정보 읽기 화면
+- 카카오 지도 기반 실시간 위치 확인, 위치 이력, 병원/약국 실좌표 마커 표시
+- 세션 공용 안심 채팅, 채팅 푸시, 읽음 상태, 이미지/PDF 첨부와 다건 첨부
+- 최종 진료 리포트 조회, 후기/정산 후속/SOS 후속 처리
+- 문의 접수와 관리자 응답 조회
 
 ### 매니저
 
-- 매니저 홈
-- 서류 등록 요약 저장
+- 매니저 홈, 과거 이력, 내 페이지, 문의 화면
+- 원본 서류 업로드, 미리보기, 재제출, 심사 상태 확인
 - 활동 가능 일정 저장
-- 매니저 홈 권한 / 로그인 / 불러오기 실패 상태 패널 표시
-- 병원 동행 가이드 진행 및 카카오맵 기반 실시간 위치 전송
-- 동행 가이드 권한 / 로그인 / 불러오기 실패 상태 패널 표시
-- 보호자 공유 메시지 저장
-- 복약 메모 저장
-- 진료 리포트 저장
+- 병원 동행 가이드 진행, 보호자 공유 메시지, 복약 메모, 진료 리포트 저장
+- 백그라운드 위치 서비스와 카카오 지도 기반 위치 공유
+- 위치 권한 / 로그인 / 불러오기 실패 상태 패널 표시
 
-### 관리자
+### 관리자 앱
 
-- 미배정 요청 조회
-- 수동 매칭
-- 병원 가이드 등록
-- 병원 가이드 수정 / 삭제
-- 운영 이력 상태별 필터
-- 운영 이력 날짜별 필터
-- 운영 요청 상세 정보 펼침
-- 운영 중 요청 조회
-- 권한 없음 / 로그인 필요 / 불러오기 실패 상태 패널 표시
+- 미배정 요청 조회와 수동 매칭
+- 운영 중 요청 조회, 상태/날짜 필터, 요청 상세 펼침
+- 매니저 서류 심사, 심사 이력, 파일 미리보기
+- 병원 가이드 등록 / 수정 / 삭제
+- 환자/보호자 문의와 매니저 문의 통합 조회, 응답 저장
+- 후속 알림 액션 센터, 읽음/해결, 액션 전달 이력 조회
+- 관리자 전용 숨김 진입과 이메일 로그인
 
-### 알림 / 서버
+### 관리자 웹
+
+- Firebase Auth 기준 관리자 로그인과 `users/{uid}.role == ADMIN` 검증
+- 매니저 서류 목록, 상세 심사 모달, Storage 원본 파일 미리보기
+- 승인 / 반려 저장, 검토 메모 저장
+- 목록 기본 마스킹, 상세 모달에서만 원문 확인
+- 15분 유휴 세션 자동 로그아웃
+
+### 알림 / 서버 / 운영 도구
 
 - 예약 시 `appointmentAtEpochMillis`, `appointmentDateKey`, `reminderStages` 저장
 - 매일 오전 9시 기준 `D7`, `D3`, `D1` 알림 작업 생성
 - 알림 작업 큐 처리 및 시뮬레이션 / 실발송 상태 기록
 - 사용자 문서 생성 / 수정 시 기존 신청 문서 자동 재연결
 - 예약 취소 / 삭제 / 일정 변경 시 남아 있는 `appointmentReminderJobs` 자동 정리
+- 관리자 후속 알림 전달 작업 생성, 큐 처리, 수동 재실행
+- FCM 토큰 수명주기 저장과 채팅/위치/문의 푸시 표시
+- Firebase 기준선 초기화, 샘플 데이터 주입, 백업/복원, 상태 점검, 프리플라이트, 운영 리포트
 
-## 2. 이번 작업에서 구현한 내용
+## 2. 현재 구조 기준
 
-- 관리자 운영 이력에 `오늘`, `다가오는 일정`, `지난 일정` 날짜 필터를 추가했다.
-- 운영 카드마다 상세 정보 펼침 영역을 추가해 요청 ID, 세션 상태, 계정 연결 상태, 보호자 공유 메시지, 복약 메모를 바로 확인할 수 있게 했다.
-- 상태 필터와 날짜 필터를 함께 적용해 현재 표시 건수와 집계를 동시에 보도록 정리했다.
-- 관련 문자열과 현재 작업 상태 문서를 업데이트했다.
+- Android 앱은 `Java + XML` 기반이며 `Activity -> Coordinator -> Binder -> ScreenModel/Formatter -> Repository` 경계를 유지한다.
+- 데이터 접근은 Firebase 구현과 Mock 구현을 `ServiceLocator`에서 분기한다.
+- `functions/index.js`는 `initializeApp()`과 모듈 export 집계만 맡고, 실제 함수는 `functions/src/` 아래 기능별 파일로 분리돼 있다.
+- 관리자 앱의 주요 섹션은 `SectionController`와 기능별 Firebase store로 분리돼 있다.
+- 관리자 웹은 인증 화면, 셸, 심사 목록, 심사 모달, 유휴 세션 훅, 미리보기 훅으로 분리돼 있다.
 
-## 3. 변경된 범위
+## 3. 남은 범위
 
-- `app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java`
-- `app/src/main/res/layout/activity_admin.xml`
-- `app/src/main/res/layout/item_admin_request.xml`
-- `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- 실제 PG 연동과 초과 시간 자동 추가 결제
+- AI 음성 녹음 기반 진료 리포트 자동 생성
+- OCR 기반 처방전/약봉투 인식과 자동 복약 비교
+- 건강정보 별도 프로필 영속 저장
+- 실운영용 카카오 알림톡/외부 메시지 채널 연동값 확정
+- App Check 강제 적용, 운영/개발 Firebase 환경 분리, 배포 절차 고정
 
-## 4. 남은 범위
+## 4. 검증 기준
 
-### 기능
+- 새 기능 또는 동작 변경 후 기본 검증은 `.\gradlew.bat assembleDebug`로 한다.
+- 영향 범위가 테스트에 걸리면 `.\gradlew.bat testDebugUnitTest`를 함께 실행한다.
+- 관리자 웹 변경은 `npm --prefix admin-web run lint`와 `npm --prefix admin-web run build`를 함께 본다.
+- 문서 전용 변경은 Markdown 링크와 프로젝트 기준 문서 정합성을 우선 확인한다.
 
-- 운영 이력 전용 별도 상세 화면은 아직 없다.
-- 매니저 서류 파일 업로드, 증빙 이미지 첨부, 관리자 승인 상태는 아직 없다.
-- `IN_PROGRESS` 이후 요청 변경 / 취소 정책은 아직 앱에서 막기만 하고 별도 운영 대응 화면은 없다.
+## 5. 최근 세부 기록 위치
 
-### UI
+- 2026-06-20 이후 장문 점검과 실기기 확인 기록은 `../reports/` 아래 성격별 보고서에 둔다.
+- 최신 전체 점검 결과는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)을 기준으로 본다.
+- 문서 정합성 정리 결과는 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 둔다.
 
-- 실제 소셜 아이콘 리소스 교체
-- 날짜 / 시간 선택기 주변 빠른 선택 UX 보강 여부 검토
-
-## 5. 다음 권장 순서
-
-1. 매니저 서류 파일 업로드 / 승인 상태 확장
-2. 관리자 운영 이력 전용 상세 화면 검토
-3. 날짜 / 시간 선택기 주변 빠른 선택 UX 검토
-
-## 6. 검증
-
-- `.\gradlew.bat assembleDebug --console=plain`
-- `.\gradlew.bat testDebugUnitTest --console=plain`
+## 6. 누적 변경 이력
 
 ## 7. 2026-04-15 추가 업데이트
 
@@ -199,7 +202,7 @@
 - `layout`: `dialog_admin_document_history.xml`, `item_admin_document_history.xml`, `item_admin_manager_document.xml`
 - `values`: `strings.xml`
 - `test`: `MockBodeulRepositoryTest`
-- `docs`: `data-api-draft.md`, `implementation-status.md`
+- `docs`: `../architecture/data-api.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -211,7 +214,7 @@
 
 ### 구현
 
-- 기능 설명서와 피그마 캡처 기준으로 전면 개편용 목표 구조 문서 `docs/restructure-target-map.md`를 추가했다.
+- 기능 설명서와 피그마 캡처 기준으로 전면 개편용 목표 구조 문서 `../planning/screen-restructure-target.md`를 추가했다.
 - 작업 규칙에 `액티비티/프래그먼트에는 흐름 제어만 남기고 역할별 객체로 분리하는 객체지향 원칙`을 명시했다.
 - 스플래시 진입 분기를 `EntryFlowCoordinator`로 분리해 `스플래시 -> 권한 안내 -> 유형 선택 -> 로그인` 흐름을 조정할 수 있게 바꿨다.
 - `PermissionGuideActivity`, `PermissionGuideCatalog`, `PermissionGuideItem`, `PermissionGuideItemBinder`, `PermissionGuidePreferences`를 추가해 권한 안내 화면과 권한 요청/저장 로직을 객체로 분리했다.
@@ -221,7 +224,7 @@
 ### 변경 범위
 
 - `AGENTS.md`
-- `docs`: `implementation-status.md`, `restructure-target-map.md`
+- `docs`: `implementation-status.md`, `../planning/screen-restructure-target.md`
 - `manifest`: `AndroidManifest.xml`
 - `ui/auth`: `SplashActivity`, `RoleSelectionActivity`, `LoginActivity`, `EntryFlowCoordinator`, `PermissionGuideActivity`, `PermissionGuideCatalog`, `PermissionGuideItem`, `PermissionGuideItemBinder`, `PermissionGuidePreferences`, `RoleOptionCardBinder`
 - `layout`: `activity_permission_guide.xml`, `item_permission_guide.xml`, `activity_role_selection.xml`
@@ -530,10 +533,10 @@
 
 ### 구현
 
-- 루트/앱 빌드 스크립트의 하드코딩된 플러그인과 라이브러리 버전을 [gradle/libs.versions.toml](/D:/BoDeul/gradle/libs.versions.toml:1) 기준의 version catalog로 옮겼다.
-- [build.gradle.kts](/D:/BoDeul/build.gradle.kts:1), [app/build.gradle.kts](/D:/BoDeul/app/build.gradle.kts:1)는 catalog alias를 사용하도록 바꿨고, 실제 버전 값은 유지했다.
+- 루트/앱 빌드 스크립트의 하드코딩된 플러그인과 라이브러리 버전을 [gradle/libs.versions.toml](../../gradle/libs.versions.toml:1) 기준의 version catalog로 옮겼다.
+- [build.gradle.kts](../../build.gradle.kts:1), [app/build.gradle.kts](../../app/build.gradle.kts:1)는 catalog alias를 사용하도록 바꿨고, 실제 버전 값은 유지했다.
 - 관리자 병원 가이드 영역은 `AdminGuideCoordinator`, `AdminGuideCardBinder`, `AdminGuideFormBinder`와 가이드 카드/폼 모델들로 분리했다.
-- [AdminActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java:68)는 이제 병원 가이드 목록 카드와 폼 모드 문자열을 직접 조합하지 않고, 가이드 코디네이터와 바인더를 통해 렌더링한다.
+- [AdminActivity.java](../../app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java:68)는 이제 병원 가이드 목록 카드와 폼 모드 문자열을 직접 조합하지 않고, 가이드 코디네이터와 바인더를 통해 렌더링한다.
 - `assembleDebug --console=plain`, `testDebugUnitTest --console=plain` 검증을 완료했다.
 
 ### 변경 범위
@@ -811,7 +814,7 @@
 - `data/firebase`: `FirebaseAdminRepository`
 - `ui/admin`: `AdminActionDeliveryCoordinator`, `AdminActionDeliveryPresentationFormatter`, `AdminActionDeliveryCardModel`, `AdminActionDeliveryCardBinder`
 - `layout/values`: `item_admin_action_delivery_entry.xml`, `strings_admin_action_delivery_extension.xml`
-- `docs`: `data-api-draft.md`, `firebase-setup.md`
+- `docs`: `../architecture/data-api.md`, `../operations/firebase/setup.md`
 - `test`: `MockBodeulRepositoryTest`
 
 ### 남은 범위
@@ -827,14 +830,14 @@
 - `functions/index.js`에 `deliverAdminActionDeliveryJobs`, `dispatchAdminActionDeliveryJobs`를 추가하고, `adminActionDeliveryJobs`의 `PENDING/FAILED` 작업을 선점해 실제 발송 또는 시뮬레이션 처리한 뒤 결과를 `adminActionDeliveries`에 다시 반영하도록 구성했다.
 - Functions는 수신 관리자 계정을 `ADMIN` 역할 사용자 기준으로 해석하고, 연동값이 없으면 `SIMULATED`, 수신자 없음이면 `SKIPPED`, 오류면 `FAILED`, 성공이면 `SENT` 작업 상태로 남긴다.
 - `firestore.rules`에 `appointmentFollowUps`, `supportInquiries`, `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs`, `appointmentReminderJobs` 접근 규칙을 추가해 Firebase 관리자 저장소와 큐 문서가 실제 권한 범위 안에서 동작하도록 정리했다.
-- `data-api-draft.md`, `firebase-setup.md`에 `adminActionDeliveryJobs` 컬렉션, Functions 엔트리, 환경 변수, 처리 흐름을 문서화했다.
+- `../architecture/data-api.md`, `../operations/firebase/setup.md`에 `adminActionDeliveryJobs` 컬렉션, Functions 엔트리, 환경 변수, 처리 흐름을 문서화했다.
 
 ### 변경 범위
 
 - `data/firebase`: `FirebaseAdminRepository`
 - `functions`: `functions/index.js`
 - `firebase`: `firestore.rules`
-- `docs`: `data-api-draft.md`, `firebase-setup.md`
+- `docs`: `../architecture/data-api.md`, `../operations/firebase/setup.md`
 
 ### 남은 범위
 
@@ -898,7 +901,7 @@
 - `data/mock`: `MockAdminRepository`
 - `data/firebase`: `FirebaseAdminRepository`
 - `ui/admin`: `AdminActionCenterCoordinator`, `AdminActionDeliveryCoordinator`, `AdminActivity`
-- `docs`: `data-api-draft.md`, `implementation-status.md`
+- `docs`: `../architecture/data-api.md`, `implementation-status.md`
 - `test`: `MockBodeulRepositoryTest`
 
 ### 남은 범위
@@ -908,15 +911,15 @@
 ## 41. 2026-04-24 Firebase 개발용 기준선 초기화 절차 정리
 ### 구현
 
-- Firestore에 누적된 테스트 데이터와 `merge` 기반 후속 문서 잔존 필드를 한 번에 정리할 수 있도록 [firebase-reset-baseline.md](/D:/BoDeul/docs/firebase-reset-baseline.md)를 추가해 초기화 원칙, 삭제 대상 컬렉션, 재시드 기준선을 문서로 고정했다.
-- [reset-firestore-baseline.js](/D:/BoDeul/tools/firebase/reset-firestore-baseline.js)를 추가해 `appointmentRequests`, `companionSessions`, `sessionReports`, `appointmentFollowUps`, `supportInquiries`, 관리자 후속 처리 컬렉션, `appointmentReminderJobs`까지 비우고, 기존 Auth UID 기준으로 `users`, `hospitalGuides`를 다시 만드는 개발용 절차를 자동화했다.
+- Firestore에 누적된 테스트 데이터와 `merge` 기반 후속 문서 잔존 필드를 한 번에 정리할 수 있도록 [../operations/firebase/reset-baseline.md](../operations/firebase/reset-baseline.md)를 추가해 초기화 원칙, 삭제 대상 컬렉션, 재시드 기준선을 문서로 고정했다.
+- [reset-firestore-baseline.js](../../tools/firebase/reset-firestore-baseline.js)를 추가해 `appointmentRequests`, `companionSessions`, `sessionReports`, `appointmentFollowUps`, `supportInquiries`, 관리자 후속 처리 컬렉션, `appointmentReminderJobs`까지 비우고, 기존 Auth UID 기준으로 `users`, `hospitalGuides`를 다시 만드는 개발용 절차를 자동화했다.
 - 스크립트는 실제 삭제 전에 기준선 이메일 4개(`admin`, `patient`, `guardian`, `manager`)가 `Firebase Authentication`에 모두 존재하는지 확인하고, `--apply`에서는 누락된 계정도 기준선으로 자동 생성하도록 구성했다.
-- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에도 기준선 초기화 문서와 실행 스크립트 링크를 연결했다.
+- [../operations/firebase/setup.md](../operations/firebase/setup.md)에도 기준선 초기화 문서와 실행 스크립트 링크를 연결했다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `reset-firestore-baseline.js`
-- `docs`: `firebase-reset-baseline.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/reset-baseline.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -925,16 +928,16 @@
 ## 42. 2026-04-24 Firebase 운영 스크립트 디렉터리 분리
 ### 구현
 
-- 개발용 기준선 초기화 스크립트를 배포 코드인 `functions/`에서 분리해 [tools/firebase](/D:/BoDeul/tools/firebase) 디렉터리로 옮겼다.
-- `functions/package.json`에 붙어 있던 기준선 초기화 npm 스크립트는 제거하고, 운영 도구 전용 [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)을 추가해 `reset:baseline:dry-run`, `reset:baseline:apply`만 별도로 실행할 수 있게 정리했다.
-- 새 [reset-firestore-baseline.js](/D:/BoDeul/tools/firebase/reset-firestore-baseline.js)는 `firebase-admin`이나 ADC에 기대지 않고, 로컬 `firebase login` 토큰과 REST API만으로 Auth 조회/기준선 생성, Firestore 컬렉션 초기화, `users`/`hospitalGuides` 재시드를 처리하도록 바꿨다.
+- 개발용 기준선 초기화 스크립트를 배포 코드인 `functions/`에서 분리해 [tools/firebase](../../tools/firebase) 디렉터리로 옮겼다.
+- `functions/package.json`에 붙어 있던 기준선 초기화 npm 스크립트는 제거하고, 운영 도구 전용 [tools/firebase/package.json](../../tools/firebase/package.json)을 추가해 `reset:baseline:dry-run`, `reset:baseline:apply`만 별도로 실행할 수 있게 정리했다.
+- 새 [reset-firestore-baseline.js](../../tools/firebase/reset-firestore-baseline.js)는 `firebase-admin`이나 ADC에 기대지 않고, 로컬 `firebase login` 토큰과 REST API만으로 Auth 조회/기준선 생성, Firestore 컬렉션 초기화, `users`/`hospitalGuides` 재시드를 처리하도록 바꿨다.
 - 초기화/시드/마이그레이션 같은 운영 도구는 앞으로도 `tools/firebase` 아래에 모으고, `functions/`는 실제 배포되는 백엔드 코드만 남기는 기준으로 정리했다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `reset-firestore-baseline.js`
 - `functions`: `package.json`
-- `docs`: `firebase-reset-baseline.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/reset-baseline.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -944,16 +947,16 @@
 ### 구현
 
 - `tools/firebase/lib` 공용 helper를 추가해 프로젝트 ID/토큰 해석, Auth 조회, Firestore 컬렉션 조회/삭제/저장 로직을 운영 스크립트들이 공통으로 쓰도록 정리했다.
-- [check-firestore-state.js](/D:/BoDeul/tools/firebase/check-firestore-state.js)를 추가해 기준선 Auth 계정 존재 여부, `users` 문서 존재 여부, 관리 대상 컬렉션 문서 수를 한 번에 점검할 수 있게 했다.
-- [backup-firestore-state.js](/D:/BoDeul/tools/firebase/backup-firestore-state.js)를 추가해 관리 대상 컬렉션을 JSON 백업 파일로 저장하도록 했고, 백업 파일은 `tools/firebase/backups/` 아래에 쌓이도록 정리했다.
-- [restore-firestore-state.js](/D:/BoDeul/tools/firebase/restore-firestore-state.js)를 추가해 백업 파일 기준 dry-run / 실제 복원을 나눠 실행할 수 있게 했다. 복원은 Firestore 문서만 대상으로 하고 Auth 계정은 유지한다.
-- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)를 추가해 `check/reset/backup/restore` 사용법과 디렉터리 운영 기준을 문서화했다.
+- [check-firestore-state.js](../../tools/firebase/check-firestore-state.js)를 추가해 기준선 Auth 계정 존재 여부, `users` 문서 존재 여부, 관리 대상 컬렉션 문서 수를 한 번에 점검할 수 있게 했다.
+- [backup-firestore-state.js](../../tools/firebase/backup-firestore-state.js)를 추가해 관리 대상 컬렉션을 JSON 백업 파일로 저장하도록 했고, 백업 파일은 `tools/firebase/backups/` 아래에 쌓이도록 정리했다.
+- [restore-firestore-state.js](../../tools/firebase/restore-firestore-state.js)를 추가해 백업 파일 기준 dry-run / 실제 복원을 나눠 실행할 수 있게 했다. 복원은 Firestore 문서만 대상으로 하고 Auth 계정은 유지한다.
+- [../operations/firebase/tools.md](../operations/firebase/tools.md)를 추가해 `check/reset/backup/restore` 사용법과 디렉터리 운영 기준을 문서화했다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `check-firestore-state.js`, `backup-firestore-state.js`, `restore-firestore-state.js`, `reset-firestore-baseline.js`, `backups/.gitkeep`
 - `tools/firebase/lib`: `baseline-config.js`, `firebase-toolkit.js`
-- `docs`: `firebase-setup.md`, `firebase-operations-tools.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/setup.md`, `../operations/firebase/tools.md`, `implementation-status.md`
 - 루트 설정: `.gitignore`
 
 ### 남은 범위
@@ -964,16 +967,16 @@
 ## 44. 2026-04-24 Firebase 샘플 서비스 데이터 주입 스크립트 추가
 ### 구현
 
-- [seed-sample-service-data.js](/D:/BoDeul/tools/firebase/seed-sample-service-data.js)를 추가해 기준선 Auth / `users` 문서가 준비된 상태에서 예약 대기, 진행 중 동행, 종료 후속 처리 3개 시나리오를 한 번에 Firestore에 주입할 수 있게 했다.
+- [seed-sample-service-data.js](../../tools/firebase/seed-sample-service-data.js)를 추가해 기준선 Auth / `users` 문서가 준비된 상태에서 예약 대기, 진행 중 동행, 종료 후속 처리 3개 시나리오를 한 번에 Firestore에 주입할 수 있게 했다.
 - 샘플 데이터는 `appointmentRequests`, `companionSessions`, `sessionReports`, `appointmentFollowUps`, `supportInquiries`, `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs`, `appointmentReminderJobs`를 고정 ID로 upsert하도록 구성해 반복 실행 시 중복 문서가 늘어나지 않게 했다.
 - 요청 문서에는 예약 확장 필드(`appointmentAtEpochMillis`, `appointmentDateKey`, 결제/옵션/연결 사용자 정보)를 함께 넣고, 완료 시나리오에는 후기/정산/SOS 후속 기록과 관리자 후속 알림/전달 기록, 푸시 큐 작업까지 같이 생성하도록 맞췄다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `seed:sample:dry-run`, `seed:sample:apply` 실행점을 추가하고, [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 사용 절차를 문서화했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `seed:sample:dry-run`, `seed:sample:apply` 실행점을 추가하고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 사용 절차를 문서화했다.
 - 검증은 `npm run seed:sample:dry-run`, `npm run seed:sample:apply`, `npm run check:state`, `.\gradlew.bat assembleDebug --console=plain` 순서로 다시 확인한다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `seed-sample-service-data.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -983,15 +986,15 @@
 ## 45. 2026-04-24 Firebase 백업 검증 / 상태 diff 도구 추가
 ### 구현
 
-- [validate-firestore-backup.js](/D:/BoDeul/tools/firebase/validate-firestore-backup.js)를 추가해 백업 파일의 `schemaVersion`, `collections`, 문서 `path`/`id`/`fields` 구조를 검사하고, 관리 대상 컬렉션 누락이나 잘못된 경로, 중복 path를 오류/경고로 알려주도록 했다.
-- [diff-firestore-state.js](/D:/BoDeul/tools/firebase/diff-firestore-state.js)를 추가해 백업 파일과 현재 Firestore 상태를 비교하고, 컬렉션별 추가/삭제/변경 문서를 요약할 수 있게 했다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `validate:backup`, `diff:state` 실행점을 추가하고, [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 사용 방법을 반영했다.
+- [validate-firestore-backup.js](../../tools/firebase/validate-firestore-backup.js)를 추가해 백업 파일의 `schemaVersion`, `collections`, 문서 `path`/`id`/`fields` 구조를 검사하고, 관리 대상 컬렉션 누락이나 잘못된 경로, 중복 path를 오류/경고로 알려주도록 했다.
+- [diff-firestore-state.js](../../tools/firebase/diff-firestore-state.js)를 추가해 백업 파일과 현재 Firestore 상태를 비교하고, 컬렉션별 추가/삭제/변경 문서를 요약할 수 있게 했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `validate:backup`, `diff:state` 실행점을 추가하고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 사용 방법을 반영했다.
 - 검증은 `node --check`로 스크립트 문법을 확인한 뒤 `npm run validate:backup -- --file ...`, `npm run diff:state -- --file ...`, `.\gradlew.bat assembleDebug --console=plain`로 다시 확인한다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `validate-firestore-backup.js`, `diff-firestore-state.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -1001,18 +1004,18 @@
 ## 46. 2026-04-24 Firebase 역할별 화면 진입 점검 / 운영 리포트 추가
 ### 구현
 
-- [check-role-screen-readiness.js](/D:/BoDeul/tools/firebase/check-role-screen-readiness.js)를 추가해 환자/보호자/매니저/관리자 기준선 계정이 현재 Firebase 샘플 데이터만으로 실제 화면 진입에 필요한 컬렉션을 갖췄는지 자동 점검할 수 있게 했다.
+- [check-role-screen-readiness.js](../../tools/firebase/check-role-screen-readiness.js)를 추가해 환자/보호자/매니저/관리자 기준선 계정이 현재 Firebase 샘플 데이터만으로 실제 화면 진입에 필요한 컬렉션을 갖췄는지 자동 점검할 수 있게 했다.
 - 점검 기준은 현재 Firebase 저장소 코드가 읽는 조합에 맞춰 잡았고, `예약 대기`, `진행 중 동행`, `종료 후속 처리` 샘플 시나리오가 요청/세션/리포트/후속 처리/관리자 전달 기록까지 연결됐는지도 함께 확인하도록 구성했다.
-- [generate-operations-report.js](/D:/BoDeul/tools/firebase/generate-operations-report.js)와 [operations-report.js](/D:/BoDeul/tools/firebase/lib/operations-report.js)를 추가해 현재 상태, 역할별 점검 결과, 기준선 계정 상태, 컬렉션 문서 수, 백업 대비 diff를 한 번에 담은 HTML 운영 리포트를 생성할 수 있게 했다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `check:readiness`, `report:ops` 실행점을 추가했고, [docs/firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [docs/firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 사용 방법을 반영했다.
-- 생성 리포트는 `tools/firebase/reports/` 아래에 저장하고, [.gitignore](/D:/BoDeul/.gitignore)에 HTML 결과물을 Git 추적 대상에서 제외하도록 정리했다.
+- [generate-operations-report.js](../../tools/firebase/generate-operations-report.js)와 [operations-report.js](../../tools/firebase/lib/operations-report.js)를 추가해 현재 상태, 역할별 점검 결과, 기준선 계정 상태, 컬렉션 문서 수, 백업 대비 diff를 한 번에 담은 HTML 운영 리포트를 생성할 수 있게 했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `check:readiness`, `report:ops` 실행점을 추가했고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 사용 방법을 반영했다.
+- 생성 리포트는 `tools/firebase/reports/` 아래에 저장하고, [.gitignore](../../.gitignore)에 HTML 결과물을 Git 추적 대상에서 제외하도록 정리했다.
 - 검증은 `npm run check:readiness`, `npm run report:ops -- --file backups/firestore-backup-20260424-015754.json`, `.\gradlew.bat assembleDebug --console=plain` 순서로 다시 확인한다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `check-role-screen-readiness.js`, `generate-operations-report.js`, `reports/.gitkeep`
 - `tools/firebase/lib`: `operations-report.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 - 루트 설정: `.gitignore`
 
 ### 남은 범위
@@ -1023,18 +1026,18 @@
 ## 47. 2026-04-24 Firebase 운영 워크플로 스크립트 추가
 ### 구현
 
-- [backup-validator.js](/D:/BoDeul/tools/firebase/lib/backup-validator.js)로 백업 검증 로직을 공용 helper로 분리하고, [validate-firestore-backup.js](/D:/BoDeul/tools/firebase/validate-firestore-backup.js)도 같은 로직을 재사용하도록 정리했다.
-- [run-operations-workflow.js](/D:/BoDeul/tools/firebase/run-operations-workflow.js)를 추가해 현재 Firebase 상태 수집, 역할별 화면 진입 점검, 백업 검증, diff 계산, HTML 리포트 생성, JSON 요약 저장을 한 번에 수행할 수 있게 했다.
-- 워크플로는 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js:9)에서 `firebase login` 저장 토큰이 만료되면 자동으로 refresh token으로 갱신하도록 보강한 뒤 실행되도록 맞췄다. 그래서 Studio 재시작이나 시간이 지난 뒤에도 운영 스크립트가 다시 401로 끊기지 않게 했다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `workflow:ops` 실행점을 추가했고, [docs/firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [docs/firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 `--strict`, `--json` 포함 사용 절차를 반영했다.
-- 워크플로 산출물인 JSON 요약도 `tools/firebase/reports/` 아래에 저장하고 [.gitignore](/D:/BoDeul/.gitignore)에 HTML/JSON 산출물을 Git 추적 대상에서 제외하도록 정리했다.
+- [backup-validator.js](../../tools/firebase/lib/backup-validator.js)로 백업 검증 로직을 공용 helper로 분리하고, [validate-firestore-backup.js](../../tools/firebase/validate-firestore-backup.js)도 같은 로직을 재사용하도록 정리했다.
+- [run-operations-workflow.js](../../tools/firebase/run-operations-workflow.js)를 추가해 현재 Firebase 상태 수집, 역할별 화면 진입 점검, 백업 검증, diff 계산, HTML 리포트 생성, JSON 요약 저장을 한 번에 수행할 수 있게 했다.
+- 워크플로는 [firebase-toolkit.js](../../tools/firebase/lib/firebase-toolkit.js:9)에서 `firebase login` 저장 토큰이 만료되면 자동으로 refresh token으로 갱신하도록 보강한 뒤 실행되도록 맞췄다. 그래서 Studio 재시작이나 시간이 지난 뒤에도 운영 스크립트가 다시 401로 끊기지 않게 했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `workflow:ops` 실행점을 추가했고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 `--strict`, `--json` 포함 사용 절차를 반영했다.
+- 워크플로 산출물인 JSON 요약도 `tools/firebase/reports/` 아래에 저장하고 [.gitignore](../../.gitignore)에 HTML/JSON 산출물을 Git 추적 대상에서 제외하도록 정리했다.
 - 검증은 `npm run validate:backup -- --file backups/firestore-backup-20260424-015754.json`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json`, `.\gradlew.bat assembleDebug --console=plain` 순서로 다시 확인한다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `validate-firestore-backup.js`, `run-operations-workflow.js`
 - `tools/firebase/lib`: `backup-validator.js`, `firebase-toolkit.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 - 루트 설정: `.gitignore`
 
 ### 남은 범위
@@ -1045,17 +1048,17 @@
 ## 48. 2026-04-24 로컬 프리플라이트 스크립트 추가
 ### 구현
 
-- [run-local-preflight.js](/D:/BoDeul/tools/firebase/run-local-preflight.js)를 추가해 Firebase 운영 워크플로, `assembleDebug`, `testDebugUnitTest`를 한 번에 실행하는 로컬 프리플라이트 루틴을 만들었다.
+- [run-local-preflight.js](../../tools/firebase/run-local-preflight.js)를 추가해 Firebase 운영 워크플로, `assembleDebug`, `testDebugUnitTest`를 한 번에 실행하는 로컬 프리플라이트 루틴을 만들었다.
 - 프리플라이트는 중간 단계가 실패해도 마지막까지 실행한 뒤 전체 상태를 계산하고, 워크플로가 생성한 HTML/JSON 산출물과 함께 별도의 Markdown/JSON 요약 파일을 `tools/firebase/reports/` 아래에 남기도록 구성했다.
 - 워크플로 단계는 `workflow:ops`를 내부에서 재사용하고, 백업 파일 경로가 주어지면 Firebase 점검 결과와 Gradle 빌드/테스트 결과를 한 묶음으로 기록한다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `preflight:local` 실행점을 추가했고, [docs/firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [docs/firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 사용 방법과 `--skip-workflow`, `--skip-build`, `--skip-tests` 옵션을 반영했다.
-- 프리플라이트가 생성하는 Markdown 요약도 운영 리포트와 마찬가지로 [.gitignore](/D:/BoDeul/.gitignore)에 Git 추적 대상에서 제외하도록 정리했다.
-- 검증은 `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json` 실행으로 완료했고, Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 요약 파일 [local-preflight-summary-20260424-125837.md](/D:/BoDeul/tools/firebase/reports/local-preflight-summary-20260424-125837.md), [local-preflight-summary-20260424-125837.json](/D:/BoDeul/tools/firebase/reports/local-preflight-summary-20260424-125837.json)을 생성했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `preflight:local` 실행점을 추가했고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 사용 방법과 `--skip-workflow`, `--skip-build`, `--skip-tests` 옵션을 반영했다.
+- 프리플라이트가 생성하는 Markdown 요약도 운영 리포트와 마찬가지로 [.gitignore](../../.gitignore)에 Git 추적 대상에서 제외하도록 정리했다.
+- 검증은 `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json` 실행으로 완료했고, Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 요약 파일 [local-preflight-summary-20260424-125837.md](../../tools/firebase/reports/local-preflight-summary-20260424-125837.md), [local-preflight-summary-20260424-125837.json](../../tools/firebase/reports/local-preflight-summary-20260424-125837.json)을 생성했다.
 
 ### 변경 범위
 
 - `tools/firebase`: `package.json`, `run-local-preflight.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 - 루트 설정: `.gitignore`
 
 ### 남은 범위
@@ -1066,12 +1069,12 @@
 ## 49. 2026-04-24 앱 화면 증적 캡처 및 운영 리포트 연동
 ### 구현
 
-- [capture-app-navigation-evidence.js](/D:/BoDeul/tools/firebase/capture-app-navigation-evidence.js)를 추가해 연결된 에뮬레이터/디바이스의 현재 화면을 캡처하고, `reports/screenshots/` 아래 PNG와 `app-navigation-evidence-latest.json` 증적 파일로 남기도록 구성했다.
-- 공용 helper [android-toolkit.js](/D:/BoDeul/tools/firebase/lib/android-toolkit.js)에서 `adb` 경로 탐색, 디바이스 선택, 현재 화면 캡처, 디바이스 메타데이터 수집을 분리했고, [app-navigation-evidence.js](/D:/BoDeul/tools/firebase/lib/app-navigation-evidence.js)에서 증적 파일 로드/정규화/기본 경로 결정을 맡도록 나눴다.
-- [operations-report.js](/D:/BoDeul/tools/firebase/lib/operations-report.js), [generate-operations-report.js](/D:/BoDeul/tools/firebase/generate-operations-report.js), [run-operations-workflow.js](/D:/BoDeul/tools/firebase/run-operations-workflow.js), [run-local-preflight.js](/D:/BoDeul/tools/firebase/run-local-preflight.js)에 `--app-evidence` 연결을 추가해, 증적 파일이 있으면 운영 리포트 HTML과 워크플로/프리플라이트 요약에 앱 화면 섹션과 통계가 함께 반영되도록 했다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `capture:app` 실행점을 추가했고, [.gitignore](/D:/BoDeul/.gitignore)에 `reports/screenshots/*.png`를 제외하도록 정리했다.
-- 증적 포맷 예시는 [app-navigation-evidence.sample.json](/D:/BoDeul/tools/firebase/templates/app-navigation-evidence.sample.json)에 남겨 두었다.
-- 검증은 `node --check tools/firebase/capture-app-navigation-evidence.js`, `node --check tools/firebase/generate-operations-report.js`, `node --check tools/firebase/run-operations-workflow.js`, `node --check tools/firebase/run-local-preflight.js`로 문법을 확인했고, `npm run report:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 리포트 [firestore-operations-report-20260424-131150.html](/D:/BoDeul/tools/firebase/reports/firestore-operations-report-20260424-131150.html), 요약 [firestore-operations-summary-20260424-131150.json](/D:/BoDeul/tools/firebase/reports/firestore-operations-summary-20260424-131150.json), 프리플라이트 [local-preflight-summary-20260424-131152.md](/D:/BoDeul/tools/firebase/reports/local-preflight-summary-20260424-131152.md)를 생성했다. 실제 `adb` 캡처는 연결된 디바이스가 없어 도움말 확인까지만 수행했다.
+- [capture-app-navigation-evidence.js](../../tools/firebase/capture-app-navigation-evidence.js)를 추가해 연결된 에뮬레이터/디바이스의 현재 화면을 캡처하고, `reports/screenshots/` 아래 PNG와 `app-navigation-evidence-latest.json` 증적 파일로 남기도록 구성했다.
+- 공용 helper [android-toolkit.js](../../tools/firebase/lib/android-toolkit.js)에서 `adb` 경로 탐색, 디바이스 선택, 현재 화면 캡처, 디바이스 메타데이터 수집을 분리했고, [app-navigation-evidence.js](../../tools/firebase/lib/app-navigation-evidence.js)에서 증적 파일 로드/정규화/기본 경로 결정을 맡도록 나눴다.
+- [operations-report.js](../../tools/firebase/lib/operations-report.js), [generate-operations-report.js](../../tools/firebase/generate-operations-report.js), [run-operations-workflow.js](../../tools/firebase/run-operations-workflow.js), [run-local-preflight.js](../../tools/firebase/run-local-preflight.js)에 `--app-evidence` 연결을 추가해, 증적 파일이 있으면 운영 리포트 HTML과 워크플로/프리플라이트 요약에 앱 화면 섹션과 통계가 함께 반영되도록 했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `capture:app` 실행점을 추가했고, [.gitignore](../../.gitignore)에 `reports/screenshots/*.png`를 제외하도록 정리했다.
+- 증적 포맷 예시는 [app-navigation-evidence.sample.json](../../tools/firebase/templates/app-navigation-evidence.sample.json)에 남겨 두었다.
+- 검증은 `node --check tools/firebase/capture-app-navigation-evidence.js`, `node --check tools/firebase/generate-operations-report.js`, `node --check tools/firebase/run-operations-workflow.js`, `node --check tools/firebase/run-local-preflight.js`로 문법을 확인했고, `npm run report:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 리포트 [firestore-operations-report-20260424-131150.html](../../tools/firebase/reports/firestore-operations-report-20260424-131150.html), 요약 [firestore-operations-summary-20260424-131150.json](../../tools/firebase/reports/firestore-operations-summary-20260424-131150.json), 프리플라이트 [local-preflight-summary-20260424-131152.md](../../tools/firebase/reports/local-preflight-summary-20260424-131152.md)를 생성했다. 실제 `adb` 캡처는 연결된 디바이스가 없어 도움말 확인까지만 수행했다.
 
 ### 변경 범위
 
@@ -1079,7 +1082,7 @@
 - `tools/firebase/lib`: `android-toolkit.js`, `app-navigation-evidence.js`, `operations-report.js`
 - `tools/firebase/templates`: `app-navigation-evidence.sample.json`
 - `tools/firebase/reports/screenshots`: `.gitkeep`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 - 루트 설정: `.gitignore`
 
 ### 남은 범위
@@ -1090,19 +1093,19 @@
 ## 50. 2026-04-24 CI 프리플라이트 및 GitHub Actions 연동
 ### 구현
 
-- [run-ci-preflight.js](/D:/BoDeul/tools/firebase/run-ci-preflight.js)를 추가해 CI 환경에서 Firebase 입력이 준비되면 전체 프리플라이트를, 준비되지 않았으면 `--skip-workflow` 모드로 빌드/테스트만 수행하도록 분기했다.
-- CI 실행점은 [run-local-preflight.js](/D:/BoDeul/tools/firebase/run-local-preflight.js)를 그대로 재사용하고, `--require-firebase`가 들어오면 `FIREBASE_TOKEN` 또는 프로젝트 식별 정보가 없을 때 실패로 종료하도록 했다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `preflight:ci` 스크립트를 추가했다.
-- [.github/workflows/android-preflight.yml](/D:/BoDeul/.github/workflows/android-preflight.yml)을 추가해 `pull_request`, `workflow_dispatch`에서 JDK 17/Node 22를 설정한 뒤 CI 프리플라이트를 실행하고, `tools/firebase/reports/` 산출물을 아티팩트로 업로드하도록 구성했다.
+- [run-ci-preflight.js](../../tools/firebase/run-ci-preflight.js)를 추가해 CI 환경에서 Firebase 입력이 준비되면 전체 프리플라이트를, 준비되지 않았으면 `--skip-workflow` 모드로 빌드/테스트만 수행하도록 분기했다.
+- CI 실행점은 [run-local-preflight.js](../../tools/firebase/run-local-preflight.js)를 그대로 재사용하고, `--require-firebase`가 들어오면 `FIREBASE_TOKEN` 또는 프로젝트 식별 정보가 없을 때 실패로 종료하도록 했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `preflight:ci` 스크립트를 추가했다.
+- [.github/workflows/android-preflight.yml](../../.github/workflows/android-preflight.yml)을 추가해 `pull_request`, `workflow_dispatch`에서 JDK 17/Node 22를 설정한 뒤 CI 프리플라이트를 실행하고, `tools/firebase/reports/` 산출물을 아티팩트로 업로드하도록 구성했다.
 - 워크플로는 `secrets.GOOGLE_SERVICES_JSON`, `secrets.FIREBASERC_JSON`, `secrets.FIREBASE_TOKEN`, `vars.FIREBASE_PROJECT_ID`가 있으면 Firebase 운영 점검까지 포함하고, 없으면 자동으로 Android 빌드/테스트만 수행한다.
-- 사용 방법과 필요한 시크릿 이름은 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 반영했다.
-- 검증은 `node --check tools/firebase/run-ci-preflight.js`로 문법을 확인했고, `npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 산출물 [firestore-operations-report-20260424-131815.html](/D:/BoDeul/tools/firebase/reports/firestore-operations-report-20260424-131815.html), [firestore-operations-summary-20260424-131815.json](/D:/BoDeul/tools/firebase/reports/firestore-operations-summary-20260424-131815.json), [local-preflight-summary-20260424-131817.md](/D:/BoDeul/tools/firebase/reports/local-preflight-summary-20260424-131817.md)를 생성했다.
+- 사용 방법과 필요한 시크릿 이름은 [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 반영했다.
+- 검증은 `node --check tools/firebase/run-ci-preflight.js`로 문법을 확인했고, `npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 산출물 [firestore-operations-report-20260424-131815.html](../../tools/firebase/reports/firestore-operations-report-20260424-131815.html), [firestore-operations-summary-20260424-131815.json](../../tools/firebase/reports/firestore-operations-summary-20260424-131815.json), [local-preflight-summary-20260424-131817.md](../../tools/firebase/reports/local-preflight-summary-20260424-131817.md)를 생성했다.
 
 ### 변경 범위
 
 - `tools/firebase`: `run-ci-preflight.js`, `package.json`
 - `.github/workflows`: `android-preflight.yml`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -1112,10 +1115,10 @@
 ## 51. 2026-04-24 debug 자동 진입 액티비티 및 프리셋 캡처 연동
 ### 구현
 
-- [AutomationEntryActivity.java](/D:/BoDeul/app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)와 [app/src/debug/AndroidManifest.xml](/D:/BoDeul/app/src/debug/AndroidManifest.xml)을 추가해 debug 빌드에서만 `adb`가 직접 열 수 있는 자동 진입 액티비티를 만들었다.
+- [AutomationEntryActivity.java](../../app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)와 [app/src/debug/AndroidManifest.xml](../../app/src/debug/AndroidManifest.xml)을 추가해 debug 빌드에서만 `adb`가 직접 열 수 있는 자동 진입 액티비티를 만들었다.
 - 자동 진입 액티비티는 `role`, `screen`, `requestId`, `forceSignIn` extra를 받아 기준선 계정(`admin@bodeul.app`, `manager@bodeul.app`, `patient@bodeul.app`, `guardian@bodeul.app`)으로 로그인한 뒤 홈, 예약 상세, 후속 처리, 보호자 리포트, 매니저 홈/과거 이력/가이드/문의/내 페이지, 관리자 대시보드로 라우팅한다.
-- [app-navigation-routes.js](/D:/BoDeul/tools/firebase/lib/app-navigation-routes.js)에 역할별 프리셋과 기대 액티비티를 정리했고, [android-toolkit.js](/D:/BoDeul/tools/firebase/lib/android-toolkit.js)에 debug 자동 진입 실행과 포커스 대기 helper를 추가했다.
-- [capture-app-navigation-evidence.js](/D:/BoDeul/tools/firebase/capture-app-navigation-evidence.js)는 `--preset` 기반 자동 진입, 포커스 확인, 상태 자동 판정(`passed`/`failed`)을 지원하도록 확장했다.
+- [app-navigation-routes.js](../../tools/firebase/lib/app-navigation-routes.js)에 역할별 프리셋과 기대 액티비티를 정리했고, [android-toolkit.js](../../tools/firebase/lib/android-toolkit.js)에 debug 자동 진입 실행과 포커스 대기 helper를 추가했다.
+- [capture-app-navigation-evidence.js](../../tools/firebase/capture-app-navigation-evidence.js)는 `--preset` 기반 자동 진입, 포커스 확인, 상태 자동 판정(`passed`/`failed`)을 지원하도록 확장했다.
 - 문서에는 프리셋 목록과 예시 명령을 반영했다.
 - 검증은 `node --check tools/firebase/capture-app-navigation-evidence.js`, `node --check tools/firebase/lib/android-toolkit.js`, `node --check tools/firebase/lib/app-navigation-routes.js`, `.\gradlew.bat assembleDebug --console=plain`, `node tools/firebase/capture-app-navigation-evidence.js --help`로 확인했다.
 
@@ -1124,7 +1127,7 @@
 - `app/src/debug`: `AndroidManifest.xml`, `java/com/example/bodeul/debug/AutomationEntryActivity.java`
 - `tools/firebase`: `capture-app-navigation-evidence.js`
 - `tools/firebase/lib`: `android-toolkit.js`, `app-navigation-routes.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -1134,18 +1137,18 @@
 ## 52. 2026-04-24 실기기 프리셋 자동 진입 및 화면 증적 실측
 ### 구현
 
-- 연결된 실기기 `SM-S921N (Android 16)`에 [installDebug](/D:/BoDeul/app/build/outputs/apk/debug/app-debug.apk) 기준 최신 debug 앱을 다시 설치한 뒤 프리셋 전체를 실측했다.
-- 자동 진입 실측 과정에서 `adb shell am start`만으로는 현재 태스크에 인텐트가 재전달되며 포커스 검증이 흔들리는 문제가 있어, [android-toolkit.js](/D:/BoDeul/tools/firebase/lib/android-toolkit.js)에서 프리셋 자동 진입 시 `-S` 강제 재시작을 붙이도록 수정했다.
-- [app-navigation-routes.js](/D:/BoDeul/tools/firebase/lib/app-navigation-routes.js)의 기본 대기 시간을 10초로 늘렸고, [capture-app-navigation-evidence.js](/D:/BoDeul/tools/firebase/capture-app-navigation-evidence.js)에서는 `com.example.bodeul/.MainActivity`처럼 축약된 액티비티 표기도 정상 비교하도록 포커스 판정을 보강했다.
-- 프리셋 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `manager-home`, `manager-history`, `manager-guide`, `manager-support`, `manager-profile`, `admin-dashboard`를 모두 실행했고, [app-navigation-evidence-latest.json](/D:/BoDeul/tools/firebase/reports/app-navigation-evidence-latest.json)에 `통과 12 / 경고 0 / 실패 0`으로 기록했다.
-- 실기기 증적을 반영한 운영 리포트 [firestore-operations-report-20260424-133404.html](/D:/BoDeul/tools/firebase/reports/firestore-operations-report-20260424-133404.html), 요약 [firestore-operations-summary-20260424-133404.json](/D:/BoDeul/tools/firebase/reports/firestore-operations-summary-20260424-133404.json), 프리플라이트 [local-preflight-summary-20260424-133408.md](/D:/BoDeul/tools/firebase/reports/local-preflight-summary-20260424-133408.md)를 다시 생성했다.
+- 연결된 실기기 `SM-S921N (Android 16)`에 [installDebug](../../app/build/outputs/apk/debug/app-debug.apk) 기준 최신 debug 앱을 다시 설치한 뒤 프리셋 전체를 실측했다.
+- 자동 진입 실측 과정에서 `adb shell am start`만으로는 현재 태스크에 인텐트가 재전달되며 포커스 검증이 흔들리는 문제가 있어, [android-toolkit.js](../../tools/firebase/lib/android-toolkit.js)에서 프리셋 자동 진입 시 `-S` 강제 재시작을 붙이도록 수정했다.
+- [app-navigation-routes.js](../../tools/firebase/lib/app-navigation-routes.js)의 기본 대기 시간을 10초로 늘렸고, [capture-app-navigation-evidence.js](../../tools/firebase/capture-app-navigation-evidence.js)에서는 `com.example.bodeul/.MainActivity`처럼 축약된 액티비티 표기도 정상 비교하도록 포커스 판정을 보강했다.
+- 프리셋 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `manager-home`, `manager-history`, `manager-guide`, `manager-support`, `manager-profile`, `admin-dashboard`를 모두 실행했고, [app-navigation-evidence-latest.json](../../tools/firebase/reports/app-navigation-evidence-latest.json)에 `통과 12 / 경고 0 / 실패 0`으로 기록했다.
+- 실기기 증적을 반영한 운영 리포트 [firestore-operations-report-20260424-133404.html](../../tools/firebase/reports/firestore-operations-report-20260424-133404.html), 요약 [firestore-operations-summary-20260424-133404.json](../../tools/firebase/reports/firestore-operations-summary-20260424-133404.json), 프리플라이트 [local-preflight-summary-20260424-133408.md](../../tools/firebase/reports/local-preflight-summary-20260424-133408.md)를 다시 생성했다.
 - 검증은 `.\gradlew.bat installDebug --console=plain`, 프리셋 전체 `node tools/firebase/capture-app-navigation-evidence.js --preset ...`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence reports/app-navigation-evidence-latest.json`, `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json --app-evidence reports/app-navigation-evidence-latest.json` 순서로 수행했다.
 
 ### 변경 범위
 
 - `tools/firebase`: `capture-app-navigation-evidence.js`
 - `tools/firebase/lib`: `android-toolkit.js`, `app-navigation-routes.js`
-- `docs`: `firebase-operations-tools.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -1155,11 +1158,11 @@
 ### 구현
 
 - GitHub 원격과 CLI 인증 상태를 점검한 결과, 원격은 `git@github.com:bodeul110/Bodeul.git`이고 SSH 키는 `bodeul110` 계정으로 인증되지만, 현재 `gh` 로그인 계정은 `21017053`이라 `repos/bodeul110/Bodeul` API 접근이 `404`로 막혀 있는 상태를 확인했다.
-- Firebase 공식 문서 기준 `FIREBASE_TOKEN`은 `firebase login:ci`가 발급하는 refresh token인데, 기존 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)는 이를 단순 access token처럼 사용하고 있었다. 이를 보강해 `FIREBASE_TOKEN`이 refresh token이면 access token으로 자동 교환하고, 기존 access token 입력도 그대로 허용하도록 수정했다.
+- Firebase 공식 문서 기준 `FIREBASE_TOKEN`은 `firebase login:ci`가 발급하는 refresh token인데, 기존 [firebase-toolkit.js](../../tools/firebase/lib/firebase-toolkit.js)는 이를 단순 access token처럼 사용하고 있었다. 이를 보강해 `FIREBASE_TOKEN`이 refresh token이면 access token으로 자동 교환하고, 기존 access token 입력도 그대로 허용하도록 수정했다.
 - 같은 파일에 `resolveFirebaseCiToken()`과 `resolveProjectId()` export를 추가해, GitHub 시크릿 반영 스크립트가 로컬 Firebase 로그인 상태나 `.firebaserc` / `app/google-services.json` 값을 그대로 재사용할 수 있게 했다.
-- [github-toolkit.js](/D:/BoDeul/tools/github/lib/github-toolkit.js)를 추가해 origin 원격 해석, `gh api` 기반 저장소 접근 점검, GitHub Actions secret/variable 반영, `workflow_dispatch` 실행을 공용 helper로 분리했다.
-- [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)는 `secrets.FIREBASE_TOKEN`, `secrets.GOOGLE_SERVICES_JSON`, `secrets.FIREBASERC_JSON`, `vars.FIREBASE_PROJECT_ID`를 한 번에 반영하고, `--dispatch`가 있으면 `android-preflight.yml`까지 바로 실행하도록 구성했다.
-- 문서 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에는 `FIREBASE_TOKEN`의 refresh token 기준과 GitHub CLI 계정 권한 전제조건을 반영했다.
+- [github-toolkit.js](../../tools/github/lib/github-toolkit.js)를 추가해 origin 원격 해석, `gh api` 기반 저장소 접근 점검, GitHub Actions secret/variable 반영, `workflow_dispatch` 실행을 공용 helper로 분리했다.
+- [configure-actions-firebase.js](../../tools/github/configure-actions-firebase.js)는 `secrets.FIREBASE_TOKEN`, `secrets.GOOGLE_SERVICES_JSON`, `secrets.FIREBASERC_JSON`, `vars.FIREBASE_PROJECT_ID`를 한 번에 반영하고, `--dispatch`가 있으면 `android-preflight.yml`까지 바로 실행하도록 구성했다.
+- 문서 [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에는 `FIREBASE_TOKEN`의 refresh token 기준과 GitHub CLI 계정 권한 전제조건을 반영했다.
 - 검증은 `node --check tools/github/configure-actions-firebase.js`, `node --check tools/github/lib/github-toolkit.js`, `node --check tools/firebase/lib/firebase-toolkit.js`, `node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dry-run --skip-access-check`, `node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dry-run`, `npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.json`, `.\gradlew.bat assembleDebug --console=plain`로 진행했고, 실제 접근 점검 모드에서는 현재 `gh` 계정이 `21017053`라 저장소 API 권한 부족으로 중단되는 것을 확인했다.
 
 ### 변경 범위
@@ -1167,7 +1170,7 @@
 - `tools/firebase/lib`: `firebase-toolkit.js`
 - `tools/github`: `configure-actions-firebase.js`
 - `tools/github/lib`: `github-toolkit.js`
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -1178,7 +1181,7 @@
 ### 구현
 
 - `gh` 로그인 계정을 `bodeul110`으로 다시 맞춘 뒤 `gh api repos/bodeul110/Bodeul`로 저장소 관리자 권한을 확인했다.
-- [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)를 실제 실행해 GitHub Actions 시크릿과 변수를 반영했다.
+- [configure-actions-firebase.js](../../tools/github/configure-actions-firebase.js)를 실제 실행해 GitHub Actions 시크릿과 변수를 반영했다.
   - `secrets.FIREBASE_TOKEN`
   - `secrets.GOOGLE_SERVICES_JSON`
   - `secrets.FIREBASERC_JSON`
@@ -1189,7 +1192,7 @@
 
 ### 변경 범위
 
-- `docs`: `firebase-operations-tools.md`, `firebase-setup.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `../operations/firebase/setup.md`, `implementation-status.md`
 - 외부 상태: `bodeul110/Bodeul` 저장소 GitHub Actions 시크릿 3개, 변수 1개
 
 ### 남은 범위
@@ -1201,14 +1204,14 @@
 ### 구현
 
 - 첫 번째 GitHub Actions 전체 모드 실행에서 `CI 프리플라이트 실행` 단계가 `tools/firebase/tools/firebase/templates/app-navigation-evidence.sample.json`를 찾다가 실패하는 것을 확인했다.
-- 원인은 [app-navigation-evidence.js](/D:/BoDeul/tools/firebase/lib/app-navigation-evidence.js)가 `--app-evidence` 입력을 현재 작업 디렉터리 기준으로만 해석해서, `tools/firebase` 내부에서 실행될 때 repo 루트 기준 경로를 중복으로 붙이던 점이었다.
+- 원인은 [app-navigation-evidence.js](../../tools/firebase/lib/app-navigation-evidence.js)가 `--app-evidence` 입력을 현재 작업 디렉터리 기준으로만 해석해서, `tools/firebase` 내부에서 실행될 때 repo 루트 기준 경로를 중복으로 붙이던 점이었다.
 - 이를 수정해 `--app-evidence`가 들어오면 현재 작업 디렉터리 기준 경로와 repo 루트 기준 경로를 모두 검사하고, 실제 존재하는 파일을 우선 사용하도록 보정했다.
 - 검증은 `node --check tools/firebase/lib/app-navigation-evidence.js`, `node tools/firebase/run-ci-preflight.js --require-firebase --app-evidence tools/firebase/templates/app-navigation-evidence.sample.json`, `.\gradlew.bat assembleDebug --console=plain`로 진행했고 모두 통과했다.
 
 ### 변경 범위
 
 - `tools/firebase/lib`: `app-navigation-evidence.js`
-- `docs`: `firebase-operations-tools.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `implementation-status.md`
 
 ### 남은 범위
 
@@ -1225,7 +1228,7 @@
 
 ### 변경 범위
 
-- `docs`: `firebase-operations-tools.md`, `implementation-status.md`
+- `docs`: `../operations/firebase/tools.md`, `implementation-status.md`
 - 외부 상태: GitHub Actions run `24873140407` 성공
 
 ### 남은 범위
@@ -1235,13 +1238,13 @@
 ## 57. 2026-04-24 다중 작업자 협업 규칙 문서화
 ### 구현
 
-- 여러 작업자가 동시에 들어와도 충돌을 줄일 수 있도록 [collaboration-rules.md](/D:/BoDeul/docs/collaboration-rules.md)를 새로 추가했다.
+- 여러 작업자가 동시에 들어와도 충돌을 줄일 수 있도록 [../operations/collaboration-rules.md](../operations/collaboration-rules.md)를 새로 추가했다.
 - 문서에는 시작 전 확인 순서, 충돌 위험이 큰 파일, 담당 범위 권장안, `implementation-status.md` 갱신 규칙, Firebase 운영 작업 단일 담당 원칙, 종료 전 체크리스트를 정리했다.
-- [README.md](/D:/BoDeul/README.md) 문서 목록과 협업 설정 섹션에도 협업 규칙 문서 링크를 추가해 처음 들어오는 사람이 바로 찾을 수 있게 했다.
+- [README.md](../../README.md) 문서 목록과 협업 설정 섹션에도 협업 규칙 문서 링크를 추가해 처음 들어오는 사람이 바로 찾을 수 있게 했다.
 
 ### 변경 범위
 
-- `docs`: `collaboration-rules.md`, `implementation-status.md`
+- `docs`: `../operations/collaboration-rules.md`, `implementation-status.md`
 - 루트 문서: `README.md`
 
 ### 남은 범위
@@ -1251,13 +1254,13 @@
 ## 58. 2026-04-24 협업 규칙에 작업 전 확인 절차 구체화
 ### 구현
 
-- [collaboration-rules.md](/D:/BoDeul/docs/collaboration-rules.md)에 `누가 최근에 작업했는지`, `로컬과 원격 중 어느 쪽이 최신인지`, `안전하게 pull --rebase 하는 방법`을 구체적인 명령과 판별 기준까지 포함해 추가했다.
+- [../operations/collaboration-rules.md](../operations/collaboration-rules.md)에 `누가 최근에 작업했는지`, `로컬과 원격 중 어느 쪽이 최신인지`, `안전하게 pull --rebase 하는 방법`을 구체적인 명령과 판별 기준까지 포함해 추가했다.
 - `git log --format="%h %an %ad %s" --date=short -10`, `git rev-list --left-right --count HEAD...origin/master`, `git diff --stat HEAD..origin/master`, `git stash push -u` 같은 실사용 명령을 그대로 넣어 처음 보는 작업자도 바로 따라 할 수 있게 정리했다.
-- [README.md](/D:/BoDeul/README.md) 협업 절차에도 시작 전에 최근 작업자와 로컬/원격 최신 여부를 먼저 확인하라는 안내와 핵심 명령을 추가했다.
+- [README.md](../../README.md) 협업 절차에도 시작 전에 최근 작업자와 로컬/원격 최신 여부를 먼저 확인하라는 안내와 핵심 명령을 추가했다.
 
 ### 변경 범위
 
-- `docs`: `collaboration-rules.md`, `implementation-status.md`
+- `docs`: `../operations/collaboration-rules.md`, `implementation-status.md`
 - 루트 문서: `README.md`
 
 ### 남은 범위
@@ -1267,7 +1270,7 @@
 ## 59. 2026-04-25 README 관리자 데모 계정 표기 보완
 ### 구현
 
-- [README.md](/D:/BoDeul/README.md)의 `데모 로그인` 섹션에 빠져 있던 관리자 계정 `admin@bodeul.app / bodeul1234`를 추가했다.
+- [README.md](../../README.md)의 `데모 로그인` 섹션에 빠져 있던 관리자 계정 `admin@bodeul.app / bodeul1234`를 추가했다.
 - 기존 기준선 문서에는 관리자 계정이 있었지만, 저장소 첫 진입 문서인 README에는 누락돼 있어 팀원이 바로 확인할 수 있게 맞췄다.
 
 ### 변경 범위
@@ -1283,9 +1286,9 @@
 ### 구현
 
 - 다른 팀원이 관리자 계정 로그인 시 `선택한 사용자 유형과 계정 유형이 일치하지 않습니다.` 오류를 재현했고, 원인이 로그인 검증이 아니라 인증 UI에 관리자 역할 선택 경로가 없던 점임을 확인했다.
-- [RoleSelectionActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java)와 [activity_role_selection.xml](/D:/BoDeul/app/src/main/res/layout/activity_role_selection.xml)에 관리자 카드와 선택 상태 바인딩을 추가해 관리자도 역할 힌트를 `ADMIN`으로 넘길 수 있게 정리했다.
-- [LoginActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)에서 관리자 역할을 고정 로그인 역할로 처리하고, 관리자 진입에서는 회원가입 전환과 소셜 로그인 버튼을 숨기며 이메일 로그인만 허용하도록 보완했다.
-- [activity_login.xml](/D:/BoDeul/app/src/main/res/layout/activity_login.xml), [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 관리자 로그인 전용 문구와 관리자 역할용 뷰 ID를 추가했다.
+- [RoleSelectionActivity](../../app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java)와 [activity_role_selection.xml](../../app/src/main/res/layout/activity_role_selection.xml)에 관리자 카드와 선택 상태 바인딩을 추가해 관리자도 역할 힌트를 `ADMIN`으로 넘길 수 있게 정리했다.
+- [LoginActivity](../../app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)에서 관리자 역할을 고정 로그인 역할로 처리하고, 관리자 진입에서는 회원가입 전환과 소셜 로그인 버튼을 숨기며 이메일 로그인만 허용하도록 보완했다.
+- [activity_login.xml](../../app/src/main/res/layout/activity_login.xml), [strings.xml](../../app/src/main/res/values/strings.xml)에 관리자 로그인 전용 문구와 관리자 역할용 뷰 ID를 추가했다.
 
 ### 변경 범위
 
@@ -1303,9 +1306,9 @@
 ### 구현
 
 - 공개 역할 선택 화면에 노출했던 관리자 카드는 일반 사용자 관점에서 불필요하게 관리자 진입 경로를 드러내므로 제거했다.
-- [RoleSelectionActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java)와 [activity_role_selection.xml](/D:/BoDeul/app/src/main/res/layout/activity_role_selection.xml)을 정리해 역할 선택 화면에는 다시 `매니저`, `환자/보호자` 카드만 남겼다.
+- [RoleSelectionActivity](../../app/src/main/java/com/example/bodeul/ui/auth/RoleSelectionActivity.java)와 [activity_role_selection.xml](../../app/src/main/res/layout/activity_role_selection.xml)을 정리해 역할 선택 화면에는 다시 `매니저`, `환자/보호자` 카드만 남겼다.
 - 대신 역할 선택 화면 상단 로고를 `1.5초 안에 5회 탭`하면 관리자 로그인 화면으로 이동하는 숨김 진입을 추가했다.
-- 관리자 로그인 화면 자체는 계속 [LoginActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)의 `ADMIN` 고정 모드를 사용하며, 이메일 로그인만 허용하고 회원가입/소셜 로그인 노출은 막아 일반 사용자 플로우와 분리했다.
+- 관리자 로그인 화면 자체는 계속 [LoginActivity](../../app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)의 `ADMIN` 고정 모드를 사용하며, 이메일 로그인만 허용하고 회원가입/소셜 로그인 노출은 막아 일반 사용자 플로우와 분리했다.
 
 ### 변경 범위
 
@@ -1323,7 +1326,7 @@
 ### 구현
 
 - `admin-web` 브랜치의 관리자 웹이 `localStorage` 플래그만으로 로그인 상태를 유지하고 실제 Firebase 세션을 종료하지 않던 문제를 정리했다.
-- [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts)에서 `auth` 인스턴스를 함께 내보내고, [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)는 `onAuthStateChanged`로 실제 관리자 세션을 검증하도록 바꿨다.
+- [admin-web/firebase.ts](../../admin-web/firebase.ts)에서 `auth` 인스턴스를 함께 내보내고, [admin-web/src/App.tsx](../../admin-web/src/App.tsx)는 `onAuthStateChanged`로 실제 관리자 세션을 검증하도록 바꿨다.
 - 로그인 후에는 `users/{uid}.role == ADMIN`을 다시 확인하고, 관리자가 아니면 즉시 `signOut()` 처리하도록 보강했다.
 - 로그아웃도 `localStorage` 대신 실제 Firebase Auth `signOut()`을 호출하도록 수정했다.
 - 매니저 승인/반려 저장은 기존 앱 계약에 맞춰 `managerDocumentStatus`, `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentHistory`를 함께 저장하도록 맞췄다.
@@ -1342,17 +1345,17 @@
 ## 63. 2026-05-04 관리자 웹 서류 Storage 미리보기 연동
 ### 구현
 
-- [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts)에 `storage` 인스턴스를 추가하고, [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)는 매니저 심사 모달에서 `Storage` 원본을 직접 읽어 미리보기 하도록 확장했다.
+- [admin-web/firebase.ts](../../admin-web/firebase.ts)에 `storage` 인스턴스를 추가하고, [admin-web/src/App.tsx](../../admin-web/src/App.tsx)는 매니저 심사 모달에서 `Storage` 원본을 직접 읽어 미리보기 하도록 확장했다.
 - 관리자 웹은 `users/{uid}.managerDocumentFiles` 메타데이터가 있으면 해당 `fullPath`를 우선 사용하고, 없으면 `manager-documents/{managerUserId}/{documentKey}/파일명` 폴더 규약을 기준으로 최신 파일을 탐색한다.
 - 이미지 파일은 인라인 미리보기, PDF는 `iframe` 미리보기, 그 외 형식은 `원본 열기` 링크로 정리해 운영자가 서류 원본을 바로 검토할 수 있게 맞췄다.
 - `ManagerApproval`은 더 이상 별도 Firestore 리스너를 만들지 않고, 상위 `App`이 구독한 매니저 목록과 파일 메타데이터를 그대로 받아 사용하도록 정리했다.
-- [storage.rules](/D:/BoDeul/storage.rules), [firebase.json](/D:/BoDeul/firebase.json)에 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로 규칙을 추가해, 관리자 읽기 / 본인 매니저 쓰기 정책을 저장소 설정으로 버전 관리하게 바꿨다.
+- [storage.rules](../../storage.rules), [firebase.json](../../firebase.json)에 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로 규칙을 추가해, 관리자 읽기 / 본인 매니저 쓰기 정책을 저장소 설정으로 버전 관리하게 바꿨다.
 
 ### 변경 범위
 
 - `admin-web`: `firebase.ts`, `src/App.tsx`
 - Firebase 설정: `firebase.json`, `storage.rules`
-- `docs`: `implementation-status.md`, `data-api-draft.md`, `firebase-setup.md`
+- `docs`: `implementation-status.md`, `../architecture/data-api.md`, `../operations/firebase/setup.md`
 
 ### 남은 범위
 
@@ -1363,7 +1366,7 @@
 ## 64. 2026-05-04 storage.rules 실제 배포
 ### 구현
 
-- [storage.rules](/D:/BoDeul/storage.rules)를 Firebase 프로젝트 `bodeul-dev`에 실제 배포했다.
+- [storage.rules](../../storage.rules)를 Firebase 프로젝트 `bodeul-dev`에 실제 배포했다.
 - `firebase deploy --only storage --project bodeul-dev --non-interactive` 명령으로 Storage Rules 컴파일과 릴리스를 확인했다.
 - 관리자 웹이 사용하는 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로 규칙이 이제 콘솔 설정이 아니라 배포된 Storage Rules 기준으로 적용된다.
 
@@ -1381,7 +1384,7 @@
 ### 구현
 
 - Firebase Rules API로 `projects/bodeul-dev/releases/firebase.storage/bodeul-dev.firebasestorage.app` 릴리스를 직접 조회해, 원격 Storage 규칙이 로컬과 동일한 상태로 배포돼 있음을 먼저 확인했다.
-- [storage.rules](/D:/BoDeul/storage.rules)에 `currentUserExists()`, `isManager()`, `isAllowedDocumentKey()`를 추가해 권한 범위를 좁혔다.
+- [storage.rules](../../storage.rules)에 `currentUserExists()`, `isManager()`, `isAllowedDocumentKey()`를 추가해 권한 범위를 좁혔다.
 - 이제 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 경로는 아래 조건으로만 접근된다.
   - 읽기: 관리자 전체 또는 본인 매니저
   - 쓰기: 본인 매니저 + 허용된 `documentKey(idCard, license, criminalRecord)`만 가능
@@ -1399,13 +1402,13 @@
 ## 66. 2026-05-04 매니저 앱 원본 서류 업로드 연동
 ### 구현
 
-- [ManagerProfileActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 `원본 파일 업로드` 버튼과 SAF 문서 선택 흐름을 추가했다.
+- [ManagerProfileActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 `원본 파일 업로드` 버튼과 SAF 문서 선택 흐름을 추가했다.
 - 업로드 대상은 `신분증`, `자격증`, `범죄경력 조회서` 3종으로 제한하고, 선택 가능한 MIME은 `application/pdf`, `image/*`로 묶었다.
-- [FirebaseManagerDocumentStorageUploader](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)를 추가해 Storage 업로드와 목업 메타데이터 생성을 분리했다.
-- [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 `managerDocumentFiles` 메타데이터 저장 흐름을 추가했다.
+- [FirebaseManagerDocumentStorageUploader](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)를 추가해 Storage 업로드와 목업 메타데이터 생성을 분리했다.
+- [FirebaseManagerRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](../../app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 `managerDocumentFiles` 메타데이터 저장 흐름을 추가했다.
 - Firestore 저장 형식은 `managerDocumentFiles.{documentKey}`, `managerDocumentFilePaths.{documentKey}`, 레거시 경로 필드(`managerIdCardStoragePath` 등)를 함께 갱신하도록 맞췄다.
 - 매니저 내 페이지 문서 카드에는 원본 파일 요약 라인을 추가해서 업로드 여부와 최신 파일명을 바로 볼 수 있게 했다.
-- [MockBodeulRepositoryTest](/D:/BoDeul/app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java)에 업로드 메타데이터 저장 후 심사 상태 초기화와 파일명 반영을 검증하는 테스트를 추가했다.
+- [MockBodeulRepositoryTest](../../app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java)에 업로드 메타데이터 저장 후 심사 상태 초기화와 파일명 반영을 검증하는 테스트를 추가했다.
 
 ### 변경 범위
 
@@ -1417,7 +1420,7 @@
   - `ui/manager`: `ManagerProfileActivity`, `ManagerProfileCoordinator`, `ManagerHomePresentationFormatter`
   - `res`: `activity_manager_profile.xml`, `strings.xml`
   - `test`: `MockBodeulRepositoryTest`
-- `docs`: `implementation-status.md`, `data-api-draft.md`, `firebase-setup.md`
+- `docs`: `implementation-status.md`, `../architecture/data-api.md`, `../operations/firebase/setup.md`
 
 ### 검증
 
@@ -1431,9 +1434,9 @@
 ## 67. 2026-05-04 매니저 서류 Storage 감사 도구 추가
 ### 구현
 
-- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)를 추가해 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 실제 Storage 객체를 비교하도록 했다.
-- [seed-manager-document-storage-sample.js](/D:/BoDeul/tools/firebase/seed-manager-document-storage-sample.js)를 추가해 `manager@bodeul.app` 기준 샘플 PNG 3종을 업로드하고 같은 경로를 Firestore 메타데이터에 반영하도록 했다.
-- 공용 도구 [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에 Storage 조회/목록/업로드 API와 Firestore `updateMask.fieldPaths` 기반 부분 업데이트를 추가했다.
+- [check-manager-document-storage.js](../../tools/firebase/check-manager-document-storage.js)를 추가해 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 실제 Storage 객체를 비교하도록 했다.
+- [seed-manager-document-storage-sample.js](../../tools/firebase/seed-manager-document-storage-sample.js)를 추가해 `manager@bodeul.app` 기준 샘플 PNG 3종을 업로드하고 같은 경로를 Firestore 메타데이터에 반영하도록 했다.
+- 공용 도구 [firebase-toolkit.js](../../tools/firebase/lib/firebase-toolkit.js)에 Storage 조회/목록/업로드 API와 Firestore `updateMask.fieldPaths` 기반 부분 업데이트를 추가했다.
 - 샘플 업로드 직후 매니저 사용자 문서 일부 필드가 누락되는 문제가 확인돼, `patchDocumentFields()`를 부분 업데이트로 고친 뒤 `manager@bodeul.app` 사용자 문서의 `name/email/phone/role/provider/providerUserId`를 복구했다.
 - 실제 Firebase 검증 결과 `manager@bodeul.app` 기준 참조 파일 3건, 일치 객체 3건, 누락 0건, 경로 불일치 0건으로 확인했다.
 
@@ -1446,8 +1449,8 @@
   - `package.json`
 - `docs`
   - `implementation-status.md`
-  - `firebase-setup.md`
-  - `firebase-operations-tools.md`
+  - `../operations/firebase/setup.md`
+  - `../operations/firebase/tools.md`
 
 ### 검증
 
@@ -1466,7 +1469,7 @@
 ## 68. 2026-05-04 디버그 자동 업로드로 매니저 원본 파일 실기기 검증
 ### 구현
 
-- [AutomationEntryActivity](/D:/BoDeul/app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)에 `uploadDocumentType`, `uploadDocumentPath` extra를 추가해 디버그 자동 진입에서 매니저 원본 파일 업로드와 Firestore 메타데이터 저장까지 같은 앱 코드 경로로 실행할 수 있게 했다.
+- [AutomationEntryActivity](../../app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)에 `uploadDocumentType`, `uploadDocumentPath` extra를 추가해 디버그 자동 진입에서 매니저 원본 파일 업로드와 Firestore 메타데이터 저장까지 같은 앱 코드 경로로 실행할 수 있게 했다.
 - 디바이스 파일 경로가 없거나 접근이 막히는 경우를 대비해 디버그 캐시에 1x1 PNG 샘플 파일을 생성해 업로드하도록 보강했다.
 - 실기기에서 `MANAGER / MANAGER_PROFILE / idCard` 자동 업로드를 실행한 뒤 매니저 프로필 화면으로 복귀하는 것까지 확인했다.
 - 실기기 화면 덤프 기준 `원본 파일` 항목이 `신분증: automation-idCard.png (2026-05-04 17:10)`으로 갱신된 것을 확인했다.
@@ -1474,7 +1477,7 @@
 ### 변경 범위
 
 - `app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1490,17 +1493,17 @@
 ## 69. 2026-05-04 관리자 웹 승인/미리보기 안정화
 ### 구현
 
-- [App.tsx](/D:/BoDeul/admin-web/src/App.tsx)에서 Storage 메타데이터 경로가 끊긴 경우 폴더의 다른 파일로 자동 대체하지 않고 오류 상태로 멈추도록 수정했다.
+- [App.tsx](../../admin-web/src/App.tsx)에서 Storage 메타데이터 경로가 끊긴 경우 폴더의 다른 파일로 자동 대체하지 않고 오류 상태로 멈추도록 수정했다.
 - 문서 미리보기 로딩을 `Promise.allSettled` 기반으로 바꿔 일부 문서 미리보기 실패가 전체 모달 무한 로딩으로 이어지지 않도록 보강했다.
 - 반려 버튼의 가짜 2단계 동작을 제거하고 즉시 반려 저장 로직만 타도록 정리했다.
 - 매니저 Firestore 구독에 에러 콜백과 상단 오류 배너를 추가해 권한/네트워크 실패를 화면에서 바로 확인할 수 있게 했다.
-- Firebase Console Storage 링크가 프로젝트/버킷 하드코딩 문자열에 의존하지 않도록 [firebase.ts](/D:/BoDeul/admin-web/firebase.ts) 설정값을 사용하게 바꿨다.
+- Firebase Console Storage 링크가 프로젝트/버킷 하드코딩 문자열에 의존하지 않도록 [firebase.ts](../../admin-web/firebase.ts) 설정값을 사용하게 바꿨다.
 
 ### 변경 범위
 
 - `admin-web/src/App.tsx`
 - `admin-web/firebase.ts`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1515,13 +1518,13 @@
 ## 70. 2026-05-04 관리자 웹 번들 청크 분리
 ### 구현
 
-- [vite.config.ts](/D:/BoDeul/admin-web/vite.config.ts)에 `manualChunks`를 추가해 `firebase`와 `react` 계열 의존성을 별도 vendor 청크로 분리했다.
+- [vite.config.ts](../../admin-web/vite.config.ts)에 `manualChunks`를 추가해 `firebase`와 `react` 계열 의존성을 별도 vendor 청크로 분리했다.
 - 관리자 웹 메인 청크를 줄여 초기 로드 파일을 가볍게 하고, 빌드 시 `500kB` 초과 경고가 다시 뜨지 않도록 정리했다.
 
 ### 변경 범위
 
 - `admin-web/vite.config.ts`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1535,11 +1538,11 @@
 ## 71. 2026-05-04 users 공개 검색 제거 1차
 ### 구현
 
-- [FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)에서 예약 연결 참여자 탐색을 직접 `users` 쿼리 대신 Firebase callable `resolveLinkedParticipant`로 전환했다.
-- [FirebaseAuthRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 소셜 로그인 첫 가입 시 중복 이메일 확인을 callable `findSocialDuplicateEmailProvider`로 옮겼다.
-- [functions/index.js](/D:/BoDeul/functions/index.js)에 두 callable 함수를 추가해 예약 연결 탐색과 소셜 중복 이메일 판별을 관리자 SDK 쿼리로 중계하도록 구현했다.
-- [firestore.rules](/D:/BoDeul/firestore.rules)에서 `users` 컬렉션 규칙을 `get`/`list`로 분리해 비관리자 클라이언트의 `users` 목록 조회를 차단했다.
-- 보안 작업 정리는 [firestore-security-hardening.md](/D:/BoDeul/docs/firestore-security-hardening.md)에 이어서 기록했다.
+- [FirebaseBookingRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)에서 예약 연결 참여자 탐색을 직접 `users` 쿼리 대신 Firebase callable `resolveLinkedParticipant`로 전환했다.
+- [FirebaseAuthRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 소셜 로그인 첫 가입 시 중복 이메일 확인을 callable `findSocialDuplicateEmailProvider`로 옮겼다.
+- [functions/index.js](../../functions/index.js)에 두 callable 함수를 추가해 예약 연결 탐색과 소셜 중복 이메일 판별을 관리자 SDK 쿼리로 중계하도록 구현했다.
+- [firestore.rules](../../firestore.rules)에서 `users` 컬렉션 규칙을 `get`/`list`로 분리해 비관리자 클라이언트의 `users` 목록 조회를 차단했다.
+- 보안 작업 정리는 [../security/firestore-hardening.md](../security/firestore-hardening.md)에 이어서 기록했다.
 
 ### 변경 범위
 
@@ -1547,8 +1550,8 @@
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
 - `functions/index.js`
 - `firestore.rules`
-- `docs/firestore-security-hardening.md`
-- `docs/implementation-status.md`
+- `../security/firestore-hardening.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1567,11 +1570,11 @@
 ## 72. 2026-05-04 네이버 로그인 앱 시크릿 제거
 ### 구현
 
-- [app/build.gradle.kts](/D:/BoDeul/app/build.gradle.kts)에서 `naver_client_secret` 리소스 주입을 제거했다.
+- [app/build.gradle.kts](../../app/build.gradle.kts)에서 `naver_client_secret` 리소스 주입을 제거했다.
 - 네이버 로그인은 서버 중계 플로우가 준비될 때까지 비활성화하도록 `naver_login_enabled=false` 빌드 리소스를 추가했다.
-- [BodeulApplication.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/BodeulApplication.java)에서 네이버 SDK 초기화를 제거했다.
-- [FirebaseAuthRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 네이버 로그인 가능 여부 판단을 `R.bool.naver_login_enabled` 기준으로 바꾸고, 비활성화 상태 안내 메시지를 정리했다.
-- [LoginActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)에서 네이버 로그인 버튼을 숨기고, 코드 경로로 호출되더라도 안내 토스트만 표시하도록 막았다.
+- [BodeulApplication.java](../../app/src/main/java/com/example/bodeul/BodeulApplication.java)에서 네이버 SDK 초기화를 제거했다.
+- [FirebaseAuthRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 네이버 로그인 가능 여부 판단을 `R.bool.naver_login_enabled` 기준으로 바꾸고, 비활성화 상태 안내 메시지를 정리했다.
+- [LoginActivity.java](../../app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java)에서 네이버 로그인 버튼을 숨기고, 코드 경로로 호출되더라도 안내 토스트만 표시하도록 막았다.
 
 ### 변경 범위
 
@@ -1580,7 +1583,7 @@
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
 - `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1593,11 +1596,11 @@
 ## 73. 2026-05-04 users 직접 조회 self/admin 제한
 ### 구현
 
-- [FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)에서 예약 상세의 환자/보호자 프로필을 `appointmentRequests` 문서 스냅샷으로 복원하도록 바꾸고, 배정 매니저 정보는 callable `resolveAssignedManagerProfile`로 가져오게 정리했다.
-- [FirebaseGuardianReportRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java)에서도 보호자 리포트의 매니저 프로필을 직접 `users/{uid}` 읽기 대신 callable로 전환했다.
-- [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java)에서 매니저 대시보드와 과거 이력의 환자/보호자 프로필을 요청 문서 스냅샷으로 구성하도록 바꿨다.
-- [firestore.rules](/D:/BoDeul/firestore.rules)에서 `users` 직접 읽기 권한을 본인과 관리자만 허용하도록 축소했다.
-- 보안 작업 정리는 [firestore-security-hardening.md](/D:/BoDeul/docs/firestore-security-hardening.md)에 이어서 기록했다.
+- [FirebaseBookingRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)에서 예약 상세의 환자/보호자 프로필을 `appointmentRequests` 문서 스냅샷으로 복원하도록 바꾸고, 배정 매니저 정보는 callable `resolveAssignedManagerProfile`로 가져오게 정리했다.
+- [FirebaseGuardianReportRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java)에서도 보호자 리포트의 매니저 프로필을 직접 `users/{uid}` 읽기 대신 callable로 전환했다.
+- [FirebaseManagerRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java)에서 매니저 대시보드와 과거 이력의 환자/보호자 프로필을 요청 문서 스냅샷으로 구성하도록 바꿨다.
+- [firestore.rules](../../firestore.rules)에서 `users` 직접 읽기 권한을 본인과 관리자만 허용하도록 축소했다.
+- 보안 작업 정리는 [../security/firestore-hardening.md](../security/firestore-hardening.md)에 이어서 기록했다.
 
 ### 변경 범위
 
@@ -1605,8 +1608,8 @@
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java`
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
 - `firestore.rules`
-- `docs/firestore-security-hardening.md`
-- `docs/implementation-status.md`
+- `../security/firestore-hardening.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1626,20 +1629,20 @@
 ## 74. 2026-05-04 매니저 서류 Storage 고아 파일 정리 흐름 보강
 ### 구현
 
-- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)에 고아 파일 정리용 `dry-run -> apply` 흐름을 추가했다.
+- [check-manager-document-storage.js](../../tools/firebase/check-manager-document-storage.js)에 고아 파일 정리용 `dry-run -> apply` 흐름을 추가했다.
 - `--delete-orphans`만으로는 삭제를 수행하지 않고, `--apply`가 함께 있을 때만 실제 삭제를 수행하도록 바꿨다.
 - 누락 객체나 경로 불일치가 있으면 기본적으로 삭제를 차단하고, 예외 상황에서만 `--force`로 우회할 수 있게 했다.
 - 대량 삭제 방지를 위해 기본 최대 삭제 수 20건 제한을 추가하고, `--max-delete`로만 조정하게 했다.
-- [tools/firebase/package.json](/D:/BoDeul/tools/firebase/package.json)에 `cleanup:manager-storage:dry-run`, `cleanup:manager-storage:apply` 실행점을 추가했다.
-- 운영 절차는 [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 반영했다.
+- [tools/firebase/package.json](../../tools/firebase/package.json)에 `cleanup:manager-storage:dry-run`, `cleanup:manager-storage:apply` 실행점을 추가했다.
+- 운영 절차는 [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 반영했다.
 
 ### 변경 범위
 
 - `tools/firebase/check-manager-document-storage.js`
 - `tools/firebase/package.json`
-- `docs/firebase-operations-tools.md`
-- `docs/firebase-setup.md`
-- `docs/implementation-status.md`
+- `../operations/firebase/tools.md`
+- `../operations/firebase/setup.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1655,16 +1658,16 @@
 ## 75. 2026-05-04 관리자 권한 QA 체크리스트 정리
 ### 구현
 
-- [admin-access-qa-checklist.md](/D:/BoDeul/docs/admin-access-qa-checklist.md)를 추가해 관리자 앱 숨김 진입, 관리자 웹 로그인, 매니저 서류 검토, 권한 실패 시나리오를 한 문서에서 점검할 수 있게 정리했다.
-- [README.md](/D:/BoDeul/README.md) 문서 목록에 관리자 권한 QA 체크리스트 링크를 추가했다.
-- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 관리자 권한 검증 기준 문서 연결을 추가했다.
+- [../operations/admin-access-qa-checklist.md](../operations/admin-access-qa-checklist.md)를 추가해 관리자 앱 숨김 진입, 관리자 웹 로그인, 매니저 서류 검토, 권한 실패 시나리오를 한 문서에서 점검할 수 있게 정리했다.
+- [README.md](../../README.md) 문서 목록에 관리자 권한 QA 체크리스트 링크를 추가했다.
+- [../operations/firebase/tools.md](../operations/firebase/tools.md)에 관리자 권한 검증 기준 문서 연결을 추가했다.
 
 ### 변경 범위
 
-- `docs/admin-access-qa-checklist.md`
+- `../operations/admin-access-qa-checklist.md`
 - `README.md`
-- `docs/firebase-operations-tools.md`
-- `docs/implementation-status.md`
+- `../operations/firebase/tools.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1677,19 +1680,19 @@
 ## 76. 2026-05-04 보안 리뷰 최신화와 Storage 업로드 제약 강화
 ### 구현
 
-- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)를 현재 코드 기준으로 전면 최신화했다.
+- [../security/review-2026-04-29.md](../security/review-2026-04-29.md)를 현재 코드 기준으로 전면 최신화했다.
 - 기존 지적 사항을 `해결`, `부분 해결`, `미해결`로 다시 분류하고, 런타임 앱 / 관리자 웹 / Firebase 운영 도구 기준 남은 위험을 재정리했다.
-- [storage.rules](/D:/BoDeul/storage.rules)에 매니저 서류 업로드 제약을 추가했다.
+- [storage.rules](../../storage.rules)에 매니저 서류 업로드 제약을 추가했다.
   - 허용 MIME: `application/pdf`, `image/*`
   - 최대 크기: `10MB`
-- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)에 Storage 업로드 제약을 문서화했다.
+- [../operations/firebase/setup.md](../operations/firebase/setup.md)에 Storage 업로드 제약을 문서화했다.
 
 ### 변경 범위
 
-- `docs/security-review-2026-04-29.md`
+- `../security/review-2026-04-29.md`
 - `storage.rules`
-- `docs/firebase-setup.md`
-- `docs/implementation-status.md`
+- `../operations/firebase/setup.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1703,20 +1706,20 @@
 ## 77. 2026-05-04 AES 적용 범위 판단 정리
 ### 구현
 
-- [aes-scope-assessment.md](/D:/BoDeul/docs/aes-scope-assessment.md)를 추가해 `AES-256 이상의 보안` 요구를 현재 프로젝트 구조 기준으로 다시 해석했다.
+- [../security/aes-scope-assessment.md](../security/aes-scope-assessment.md)를 추가해 `AES-256 이상의 보안` 요구를 현재 프로젝트 구조 기준으로 다시 해석했다.
 - 실제 코드 기준으로 로컬 영속 저장 지점을 다시 확인했다.
-  - [PermissionGuidePreferences.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java): 권한 안내 완료 여부만 저장
-  - [ServiceLocator.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ServiceLocator.java): Firestore 디스크 캐시 비활성화
-  - [FirebaseManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java): 원본 서류를 로컬 복사 없이 바로 Storage 업로드
-  - [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts), [App.tsx](/D:/BoDeul/admin-web/src/App.tsx): 관리자 웹은 Firebase Auth 세션만 사용
+  - [PermissionGuidePreferences.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java): 권한 안내 완료 여부만 저장
+  - [ServiceLocator.java](../../app/src/main/java/com/example/bodeul/data/ServiceLocator.java): Firestore 디스크 캐시 비활성화
+  - [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java): 원본 서류를 로컬 복사 없이 바로 Storage 업로드
+  - [admin-web/firebase.ts](../../admin-web/firebase.ts), [App.tsx](../../admin-web/src/App.tsx): 관리자 웹은 Firebase Auth 세션만 사용
 - 결론은 `지금 릴리스 경로에는 앱이 직접 영속 저장하는 민감 비즈니스 데이터가 거의 없으므로, 전면 AES 도입보다 로컬 저장 금지 원칙과 App Check가 우선`이라는 점으로 정리했다.
-- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 AES 적용 범위 판단 링크를 추가했다.
+- [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 AES 적용 범위 판단 링크를 추가했다.
 
 ### 변경 범위
 
-- `docs/aes-scope-assessment.md`
-- `docs/security-review-2026-04-29.md`
-- `docs/implementation-status.md`
+- `../security/aes-scope-assessment.md`
+- `../security/review-2026-04-29.md`
+- `implementation-status.md`
 
 ### 검증
 
@@ -1730,17 +1733,17 @@
 ### 구현
 
 - Android 앱에 App Check 초기화 경로를 추가했다.
-  - [BodeulApplication.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/BodeulApplication.java)에서 시작 시 App Check를 설치한다.
-  - `debug` 변형은 [app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java](/D:/BoDeul/app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Debug provider를 사용한다.
-  - `release` 변형은 [app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java](/D:/BoDeul/app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Play Integrity provider를 사용한다.
-- [app/build.gradle.kts](/D:/BoDeul/app/build.gradle.kts), [libs.versions.toml](/D:/BoDeul/gradle/libs.versions.toml)에 App Check 의존성을 추가했다.
+  - [BodeulApplication.java](../../app/src/main/java/com/example/bodeul/BodeulApplication.java)에서 시작 시 App Check를 설치한다.
+  - `debug` 변형은 [app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java](../../app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Debug provider를 사용한다.
+  - `release` 변형은 [app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java](../../app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Play Integrity provider를 사용한다.
+- [app/build.gradle.kts](../../app/build.gradle.kts), [libs.versions.toml](../../gradle/libs.versions.toml)에 App Check 의존성을 추가했다.
 - 관리자 웹에 선택적 App Check 초기화 경로를 추가했다.
-  - [admin-web/src/appCheck.ts](/D:/BoDeul/admin-web/src/appCheck.ts)
-  - [admin-web/src/main.tsx](/D:/BoDeul/admin-web/src/main.tsx)
-  - [admin-web/firebase.ts](/D:/BoDeul/admin-web/firebase.ts)
+  - [admin-web/src/appCheck.ts](../../admin-web/src/appCheck.ts)
+  - [admin-web/src/main.tsx](../../admin-web/src/main.tsx)
+  - [admin-web/firebase.ts](../../admin-web/firebase.ts)
   - `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있을 때만 reCAPTCHA 기반 App Check를 활성화하고, 로컬 개발에서는 디버그 토큰을 허용한다.
-- [functions/index.js](/D:/BoDeul/functions/index.js)에 callable 공통 옵션 `CALLABLE_FUNCTIONS_OPTIONS`를 추가하고, `ENABLE_APPCHECK_ENFORCEMENT=true`일 때만 `enforceAppCheck`를 켜게 정리했다.
-- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md), [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 App Check 1단계 메모를 반영했다.
+- [functions/index.js](../../functions/index.js)에 callable 공통 옵션 `CALLABLE_FUNCTIONS_OPTIONS`를 추가하고, `ENABLE_APPCHECK_ENFORCEMENT=true`일 때만 `enforceAppCheck`를 켜게 정리했다.
+- [../operations/firebase/setup.md](../operations/firebase/setup.md), [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 App Check 1단계 메모를 반영했다.
 
 ### 변경 범위
 
@@ -1753,9 +1756,9 @@
 - `admin-web/src/appCheck.ts`
 - `admin-web/src/main.tsx`
 - `functions/index.js`
-- `docs/firebase-setup.md`
-- `docs/security-review-2026-04-29.md`
-- `docs/implementation-status.md`
+- `../operations/firebase/setup.md`
+- `../security/review-2026-04-29.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1765,24 +1768,24 @@
 ## 79. 2026-05-04 Firebase 운영 도구 OAuth secret 분리
 ### 구현
 
-- [firebase-toolkit.js](/D:/BoDeul/tools/firebase/lib/firebase-toolkit.js)에서 refresh token 교환용 OAuth client secret 하드코딩을 제거했다.
+- [firebase-toolkit.js](../../tools/firebase/lib/firebase-toolkit.js)에서 refresh token 교환용 OAuth client secret 하드코딩을 제거했다.
 - 이제 Firebase 운영 도구는 아래 우선순위로 OAuth client secret을 읽는다.
   - `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수
   - `local.properties`의 `firebaseOauthClientSecret`
 - OAuth client id는 비밀값이 아니므로 기본값을 코드에 두고, 필요하면 `FIREBASE_OAUTH_CLIENT_ID` 또는 `local.properties`의 `firebaseOauthClientId`로 덮어쓸 수 있게 했다.
-- [configure-actions-firebase.js](/D:/BoDeul/tools/github/configure-actions-firebase.js)는 `FIREBASE_TOKEN`이 refresh token일 때 `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 GitHub Actions secret으로 반영하게 바꿨다.
-- [.github/workflows/android-preflight.yml](/D:/BoDeul/.github/workflows/android-preflight.yml)에 `secrets.FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수를 추가했다.
-- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md), [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 운영 도구 secret 분리 기준을 반영했다.
+- [configure-actions-firebase.js](../../tools/github/configure-actions-firebase.js)는 `FIREBASE_TOKEN`이 refresh token일 때 `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 GitHub Actions secret으로 반영하게 바꿨다.
+- [.github/workflows/android-preflight.yml](../../.github/workflows/android-preflight.yml)에 `secrets.FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수를 추가했다.
+- [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md), [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 운영 도구 secret 분리 기준을 반영했다.
 
 ### 변경 범위
 
 - `tools/firebase/lib/firebase-toolkit.js`
 - `tools/github/configure-actions-firebase.js`
 - `.github/workflows/android-preflight.yml`
-- `docs/firebase-operations-tools.md`
-- `docs/firebase-setup.md`
-- `docs/security-review-2026-04-29.md`
-- `docs/implementation-status.md`
+- `../operations/firebase/tools.md`
+- `../operations/firebase/setup.md`
+- `../security/review-2026-04-29.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1792,13 +1795,13 @@
 ## 80. 2026-05-04 Android 권한 표면 최소화
 ### 구현
 
-- [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml)에서 현재 기능이 실제로 쓰지 않는 위험 권한을 제거했다.
+- [AndroidManifest.xml](../../app/src/main/AndroidManifest.xml)에서 현재 기능이 실제로 쓰지 않는 위험 권한을 제거했다.
   - 제거 대상: 위치, 카메라, 외부 저장소 읽기, 블루투스, 전화, 연락처
-- [PermissionGuideCatalog.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java)를 현재 버전 안내 기준으로 바꿨다.
+- [PermissionGuideCatalog.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java)를 현재 버전 안내 기준으로 바꿨다.
   - 시스템 권한을 실제로 요청하지 않음
   - 서버 중심 데이터 처리, 시스템 문서 선택기 사용, 추후 기능 추가 시 재요청 원칙만 안내
-- [PermissionGuideActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java) 주석과 [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml) 문구를 현재 구조에 맞게 정리했다.
-- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 권한 표면 이슈 최신 상태를 반영했다.
+- [PermissionGuideActivity.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java) 주석과 [strings.xml](../../app/src/main/res/values/strings.xml) 문구를 현재 구조에 맞게 정리했다.
+- [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 권한 표면 이슈 최신 상태를 반영했다.
 
 ### 변경 범위
 
@@ -1806,8 +1809,8 @@
 - `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java`
 - `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java`
 - `app/src/main/res/values/strings.xml`
-- `docs/security-review-2026-04-29.md`
-- `docs/implementation-status.md`
+- `../security/review-2026-04-29.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1816,8 +1819,8 @@
 ## 81. 2026-05-04 매니저 서류 업로드 사전 검증 보강
 ### 구현
 
-- [ManagerDocumentUploadPolicy.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java)를 추가해 매니저 원본 서류 업로드 전에 파일 형식과 용량을 먼저 검사하도록 정리했다.
-- [FirebaseManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 `PDF` 또는 `image/*`만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다.
+- [ManagerDocumentUploadPolicy.java](../../app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java)를 추가해 매니저 원본 서류 업로드 전에 파일 형식과 용량을 먼저 검사하도록 정리했다.
+- [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 `PDF` 또는 `image/*`만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다.
 - 서버 규칙에서 막히기 전에 앱에서 같은 기준으로 먼저 안내해, 매니저가 업로드 실패 이유를 바로 이해할 수 있게 맞췄다.
 
 ### 변경 범위
@@ -1825,7 +1828,7 @@
 - `app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java`
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java`
 - `app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1834,7 +1837,7 @@
 ## 82. 2026-05-04 미사용 placeholder 경로 정리
 ### 구현
 
-- 더 이상 어떤 화면에서도 쓰지 않는 [FeaturePlaceholderActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/common/FeaturePlaceholderActivity.java)와 전용 레이아웃을 제거했다.
+- 더 이상 어떤 화면에서도 쓰지 않는 `FeaturePlaceholderActivity`와 전용 레이아웃을 제거했다.
 - 함께 남아 있던 미사용 안내 문구 `social_login_pending`, `toast_placeholder`도 정리해 현재 로그인/예외 흐름과 맞지 않는 dead resource를 줄였다.
 - 실제 사용자 경로에는 이미 구체적인 상태 화면과 오류 메시지가 들어가 있으므로, 공용 placeholder를 유지할 이유가 없다고 판단했다.
 
@@ -1843,7 +1846,7 @@
 - `app/src/main/java/com/example/bodeul/ui/common/FeaturePlaceholderActivity.java`
 - `app/src/main/res/layout/activity_feature_placeholder.xml`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1852,7 +1855,7 @@
 ## 83. 2026-05-04 인증 예외 문구와 미사용 문의 문구 정리
 ### 구현
 
-- [FirebaseAuthRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 카카오/네이버/Firebase Functions 로그인 예외를 원문 메시지 그대로 노출하지 않고, 코드 기준 사용자 안내 문구로 정리했다.
+- [FirebaseAuthRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 카카오/네이버/Firebase Functions 로그인 예외를 원문 메시지 그대로 노출하지 않고, 코드 기준 사용자 안내 문구로 정리했다.
 - Functions가 직접 내려주는 `details.message`는 계속 우선 사용하되, 그 외에는 `INVALID_ARGUMENT`, `PERMISSION_DENIED`, `UNAUTHENTICATED`, `UNAVAILABLE` 기준으로 한국어 문구를 고정했다.
 - 네이버 SDK 요청 실패도 내부 `errorDesc`를 그대로 붙이지 않고, 취소/네트워크/일반 실패로 나눠 안내한다.
 - 더 이상 쓰지 않는 `manager_support_hero_body` 문구를 제거해 문의 화면 문자열도 현재 구조에 맞췄다.
@@ -1861,7 +1864,7 @@
 
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1870,14 +1873,14 @@
 ## 84. 2026-05-04 네이버 로그인 deprecated SDK 경로 정리
 ### 구현
 
-- [FirebaseAuthRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 `NaverIdLoginSDK` 사용 경로를 `NidOAuth` 기준으로 교체했다.
+- [FirebaseAuthRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java)에서 `NaverIdLoginSDK` 사용 경로를 `NidOAuth` 기준으로 교체했다.
 - 네이버 로그인 요청, 토큰 조회, 로그아웃 모두 동일한 동작을 유지하면서 deprecated SDK 래퍼 의존만 제거했다.
 - 이 변경으로 빌드 로그에 남던 `FirebaseAuthRepository` 경고 원인 하나를 현재 SDK 권장 경로로 맞췄다.
 
 ### 변경 범위
 
 - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseAuthRepository.java`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1886,16 +1889,16 @@
 ## 85. 2026-05-05 관리자 웹 민감정보 마스킹과 유휴 세션 종료
 ### 구현
 
-- [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)에서 매니저 승인 목록의 이메일과 전화번호를 기본 마스킹 형태로 바꿨다.
+- [admin-web/src/App.tsx](../../admin-web/src/App.tsx)에서 매니저 승인 목록의 이메일과 전화번호를 기본 마스킹 형태로 바꿨다.
 - 상세 심사 모달에서는 기존처럼 원문을 유지해 실제 검토 업무는 그대로 가능하게 두고, 목록 화면의 기본 노출 범위만 줄였다.
 - 관리자 웹은 15분 동안 입력이나 스크롤 등 활동이 없으면 자동으로 로그아웃되도록 세션 타이머를 추가했다.
-- [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 관리자 웹 세션/마스킹 최신 상태를 반영했다.
+- [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 관리자 웹 세션/마스킹 최신 상태를 반영했다.
 
 ### 변경 범위
 
 - `admin-web/src/App.tsx`
-- `docs/security-review-2026-04-29.md`
-- `docs/implementation-status.md`
+- `../security/review-2026-04-29.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1904,20 +1907,20 @@
 ## 86. 2026-05-05 프로젝트 문서 인덱스와 오래된 설명 정리
 ### 구현
 
-- [document-guide.md](/D:/BoDeul/docs/document-guide.md)를 추가해 문서 우선순위, 시작 순서, 문서 분류, 현재 저장소 구성 요약을 한 곳에 모았다.
-- [README.md](/D:/BoDeul/README.md)의 문서 목록을 현재 구조에 맞게 다시 정리하고, 새로 들어온 작업자가 먼저 볼 순서를 명시했다.
-- [admin-web/README.md](/D:/BoDeul/admin-web/README.md)를 실제 관리자 웹 구조와 현재 기능 기준으로 다시 작성했다.
-- [data-api-draft.md](/D:/BoDeul/docs/data-api-draft.md)에서 이미 구현된 후기 저장소 흐름과 매니저 원본 서류 업로드를 아직 미래 계획처럼 적어둔 문장을 현재형으로 수정했다.
-- [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 현재 운영 도구 범위와 시작 흐름을 추가해 문서 역할을 더 분명하게 맞췄다.
+- [../README.md](../README.md)를 추가해 문서 우선순위, 시작 순서, 문서 분류, 현재 저장소 구성 요약을 한 곳에 모았다.
+- [README.md](../../README.md)의 문서 목록을 현재 구조에 맞게 다시 정리하고, 새로 들어온 작업자가 먼저 볼 순서를 명시했다.
+- [admin-web/README.md](../../admin-web/README.md)를 실제 관리자 웹 구조와 현재 기능 기준으로 다시 작성했다.
+- [../architecture/data-api.md](../architecture/data-api.md)에서 이미 구현된 후기 저장소 흐름과 매니저 원본 서류 업로드를 아직 미래 계획처럼 적어둔 문장을 현재형으로 수정했다.
+- [../operations/firebase/tools.md](../operations/firebase/tools.md)에 현재 운영 도구 범위와 시작 흐름을 추가해 문서 역할을 더 분명하게 맞췄다.
 
 ### 변경 범위
 
-- `docs/document-guide.md`
+- `../README.md`
 - `README.md`
 - `admin-web/README.md`
-- `docs/data-api-draft.md`
-- `docs/firebase-operations-tools.md`
-- `docs/implementation-status.md`
+- `../architecture/data-api.md`
+- `../operations/firebase/tools.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1926,15 +1929,15 @@
 ## 87. 2026-05-05 최신 디자인 레퍼런스 검토 메모 정리
 ### 구현
 
-- `design_refs/보들 가이드.zip`의 합본 이미지와 개별 화면 PNG를 현재 실기기 캡처, 관리자 웹 구현과 대조해 [design-reference-review-2026-05-05.md](/D:/BoDeul/docs/archive/design-reference-review-2026-05-05.md)로 정리했다.
+- `design_refs/보들 가이드.zip`의 합본 이미지와 개별 화면 PNG를 현재 실기기 캡처, 관리자 웹 구현과 대조해 [design-reference-review-2026-05-05.md](../archive/design-reference-review-2026-05-05.md)로 정리했다.
 - 이 문서에는 `확정 명세가 아닌 참고 디자인`이라는 전제를 두고, 현재 구현과 맞는 축, 바로 반영 가치가 있는 차이, 지금은 유지하는 것이 맞는 차이를 구분해 적었다.
-- [README.md](/D:/BoDeul/README.md) 문서 목록에도 디자인 검토 메모를 추가해 나중에 화면 polish 작업을 할 때 바로 찾을 수 있게 맞췄다.
+- [README.md](../../README.md) 문서 목록에도 디자인 검토 메모를 추가해 나중에 화면 polish 작업을 할 때 바로 찾을 수 있게 맞췄다.
 
 ### 변경 범위
 
 - `docs/archive/design-reference-review-2026-05-05.md`
 - `README.md`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1944,8 +1947,8 @@
 ## 88. 2026-05-05 사용자·매니저 환경 배지 숨김 정리
 ### 구현
 
-- 사용자와 매니저 경로에서는 `Firebase 연동 모드`/`데모 데이터 기반` 배지를 기본으로 숨기고, 관리자 화면만 유지하도록 [EnvironmentModeBadgeHelper.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/util/EnvironmentModeBadgeHelper.java)를 추가했다.
-- [MainActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/MainActivity.java), [BookingActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingActivity.java)에서 상단 모드 배지를 공통 helper 기준으로 바꿨다.
+- 사용자와 매니저 경로에서는 `Firebase 연동 모드`/`데모 데이터 기반` 배지를 기본으로 숨기고, 관리자 화면만 유지하도록 [EnvironmentModeBadgeHelper.java](../../app/src/main/java/com/example/bodeul/util/EnvironmentModeBadgeHelper.java)를 추가했다.
+- [MainActivity.java](../../app/src/main/java/com/example/bodeul/MainActivity.java), [BookingActivity.java](../../app/src/main/java/com/example/bodeul/ui/booking/BookingActivity.java)에서 상단 모드 배지를 공통 helper 기준으로 바꿨다.
 - 예약 상세/후속, 보호자 리포트, 매니저 홈/가이드/이력/내 페이지/문의 화면의 binder와 coordinator가 빈 모드 라벨을 받으면 배지를 자동으로 숨기도록 정리했다.
 - 관리자 화면은 내부 운영 성격이 강하므로 기존 환경 배지를 그대로 유지했다.
 
@@ -1971,7 +1974,7 @@
 - `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileBinder.java`
 - `app/src/main/java/com/example/bodeul/ui/manager/ManagerSupportCoordinator.java`
 - `app/src/main/java/com/example/bodeul/ui/manager/ManagerSupportBinder.java`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -1981,10 +1984,10 @@
 ## 89. 2026-05-05 권한 안내 화면 위계 polish
 ### 구현
 
-- [activity_permission_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_permission_guide.xml)에 상단 요약 카드를 추가해 `필요한 시점에만 최소 권한 요청` 원칙을 먼저 보여주도록 정리했다.
-- [item_permission_guide.xml](/D:/BoDeul/app/src/main/res/layout/item_permission_guide.xml)에 카드 주제 배지를 추가해 `데이터 보호`, `문서 업로드`, `추후 확장` 구분이 바로 보이게 바꿨다.
-- [PermissionGuideItem.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItem.java), [PermissionGuideCatalog.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java), [PermissionGuideItemBinder.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItemBinder.java)를 배지 텍스트까지 다루도록 확장했다.
-- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 권한 안내 요약 카드와 배지 문구를 추가했다.
+- [activity_permission_guide.xml](../../app/src/main/res/layout/activity_permission_guide.xml)에 상단 요약 카드를 추가해 `필요한 시점에만 최소 권한 요청` 원칙을 먼저 보여주도록 정리했다.
+- [item_permission_guide.xml](../../app/src/main/res/layout/item_permission_guide.xml)에 카드 주제 배지를 추가해 `데이터 보호`, `문서 업로드`, `추후 확장` 구분이 바로 보이게 바꿨다.
+- [PermissionGuideItem.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItem.java), [PermissionGuideCatalog.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideCatalog.java), [PermissionGuideItemBinder.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideItemBinder.java)를 배지 텍스트까지 다루도록 확장했다.
+- [strings.xml](../../app/src/main/res/values/strings.xml)에 권한 안내 요약 카드와 배지 문구를 추가했다.
 
 ### 변경 범위
 
@@ -1994,7 +1997,7 @@
 - `app/src/main/res/layout/activity_permission_guide.xml`
 - `app/src/main/res/layout/item_permission_guide.xml`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2003,10 +2006,10 @@
 ## 90. 2026-05-05 매니저 내 페이지 서류 업로드 위계 polish
 ### 구현
 
-- [activity_manager_profile.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_profile.xml)의 서류 영역을 `업로드 준비 안내 -> 원본 파일 현황 -> 요약/타임라인/검토 메모` 순서로 재구성했다.
+- [activity_manager_profile.xml](../../app/src/main/res/layout/activity_manager_profile.xml)의 서류 영역을 `업로드 준비 안내 -> 원본 파일 현황 -> 요약/타임라인/검토 메모` 순서로 재구성했다.
 - 업로드 CTA를 상단 강조 블록으로 올리고, 신분증/자격증/범죄경력 조회서를 각각 상태 카드로 분리해 현재 업로드 여부와 최근 업로드 시각이 바로 보이게 바꿨다.
-- [ManagerProfileScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileScreenModel.java), [ManagerProfileCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java), [ManagerProfileBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileBinder.java)에 업로드 강조 문구와 원본 파일 카드 모델을 추가했다.
-- [ManagerDocumentFileCardModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardModel.java), [ManagerDocumentFileCardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardBinder.java), [item_manager_document_file_status.xml](/D:/BoDeul/app/src/main/res/layout/item_manager_document_file_status.xml)로 파일 상태 표시를 분리했다.
+- [ManagerProfileScreenModel](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileScreenModel.java), [ManagerProfileCoordinator](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java), [ManagerProfileBinder](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileBinder.java)에 업로드 강조 문구와 원본 파일 카드 모델을 추가했다.
+- [ManagerDocumentFileCardModel](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardModel.java), [ManagerDocumentFileCardBinder](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerDocumentFileCardBinder.java), [item_manager_document_file_status.xml](../../app/src/main/res/layout/item_manager_document_file_status.xml)로 파일 상태 표시를 분리했다.
 
 ### 변경 범위
 
@@ -2019,7 +2022,7 @@
 - `app/src/main/res/layout/activity_manager_profile.xml`
 - `app/src/main/res/layout/item_manager_document_file_status.xml`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2029,7 +2032,7 @@
 ## 91. 2026-05-05 관리자 웹 심사 목록과 상세 모달 위계 polish
 ### 구현
 
-- [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)의 매니저 서류 승인 화면 상단에 `전체 대상`, `요약 제출`, `원본 3종 완료`, `검토 메모 있음` 요약 카드를 추가했다.
+- [admin-web/src/App.tsx](../../admin-web/src/App.tsx)의 매니저 서류 승인 화면 상단에 `전체 대상`, `요약 제출`, `원본 3종 완료`, `검토 메모 있음` 요약 카드를 추가했다.
 - 심사 목록 표는 `매니저 / 연락처 / 서류 요약 / 원본 파일 / 상태 / 관리` 기준으로 재배치하고, 각 행에서 원본 파일 업로드 수와 최근 보완 메모 여부가 바로 보이도록 정리했다.
 - 상세 모달은 상단 요약 띠를 추가해 현재 상태, 원본 파일 수, 체크리스트 진행, 요약 제출 상태를 먼저 보여주도록 바꿨다.
 - 문서 탭은 파일명과 상태가 같이 보이는 카드형 선택 UI로 바꾸고, 우측 검토 패널은 진행 수치와 액션 버튼을 묶어 스크롤 중에도 판단 기준이 유지되게 정리했다.
@@ -2037,7 +2040,7 @@
 ### 변경 범위
 
 - `admin-web/src/App.tsx`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2046,24 +2049,24 @@
 ## 92. 2026-05-05 내부 테스트 가이드와 운영 문서 연결 정리
 ### 구현
 
-- [internal-test-guide.md](/D:/BoDeul/docs/internal-test-guide.md)를 추가해 기획/내부 QA가 바로 사용할 테스트 계정, 더미 데이터, 역할별 테스트 순서를 한 문서에 정리했습니다.
+- [../operations/internal-test-guide.md](../operations/internal-test-guide.md)를 추가해 기획/내부 QA가 바로 사용할 테스트 계정, 더미 데이터, 역할별 테스트 순서를 한 문서에 정리했습니다.
 - 샘플 예약 시나리오 `request-seed-requested`, `request-seed-progress`, `request-seed-completed`와 매니저 서류 샘플 상태를 내부 테스트 기준선으로 명시했습니다.
 - 관리자 앱 숨김 진입 방식(역할 선택 화면 로고 1.5초 안에 5회 탭)과 관리자 웹 로컬 실행 주소를 내부 테스트 가이드에 함께 적었습니다.
-- [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md), [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md), [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)에 내부 테스트 가이드 링크와 운영 도구 실행 전제 조건을 반영했습니다.
+- [README.md](../../README.md), [../README.md](../README.md), [../operations/firebase/setup.md](../operations/firebase/setup.md), [../operations/firebase/tools.md](../operations/firebase/tools.md)에 내부 테스트 가이드 링크와 운영 도구 실행 전제 조건을 반영했습니다.
 - `check:state`, `check:readiness`, `preflight:local` 같은 운영 명령이 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 설정이 없으면 실행되지 않는 점을 문서에 분리해 적었습니다.
 
 ### 변경 범위
 
 - `README.md`
-- `docs/document-guide.md`
-- `docs/firebase-setup.md`
-- `docs/firebase-operations-tools.md`
-- `docs/implementation-status.md`
-- `docs/internal-test-guide.md`
+- `../README.md`
+- `../operations/firebase/setup.md`
+- `../operations/firebase/tools.md`
+- `implementation-status.md`
+- `../operations/internal-test-guide.md`
 
 ### 남은 범위
 
-- 기획측 내부 테스트가 실제로 시작되면 자주 나온 질문이나 실패 사례를 `internal-test-guide.md`에 FAQ 형태로 계속 누적하면 됩니다.
+- 기획측 내부 테스트가 실제로 시작되면 자주 나온 질문이나 실패 사례를 `../operations/internal-test-guide.md`에 FAQ 형태로 계속 누적하면 됩니다.
 - Firebase 운영 도구를 직접 돌릴 개발자 PC에는 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수를 별도로 맞춰야 합니다.
 
 ## 93. 2026-05-05 매니저 서류 등록 간호사/요양보호사 자격증 통합
@@ -2090,18 +2093,18 @@
 
 ### 구현
 
-- [storage.rules](/D:/BoDeul/storage.rules)에 `healthCertificate` 키를 추가해 간호사 자격증 파일도 실제 Firebase Storage 업로드 허용 대상에 포함했습니다.
-- [admin-web/src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)에서 관리자 웹의 `자격증` 슬롯이 `license`뿐 아니라 `healthCertificate` 메타데이터와 Storage 폴더도 함께 읽도록 보정했습니다.
+- [storage.rules](../../storage.rules)에 `healthCertificate` 키를 추가해 간호사 자격증 파일도 실제 Firebase Storage 업로드 허용 대상에 포함했습니다.
+- [admin-web/src/App.tsx](../../admin-web/src/App.tsx)에서 관리자 웹의 `자격증` 슬롯이 `license`뿐 아니라 `healthCertificate` 메타데이터와 Storage 폴더도 함께 읽도록 보정했습니다.
 - 관리자 웹의 Storage 콘솔 링크와 경로 안내도 실제 메타데이터 경로나 `license / healthCertificate` 대체 경로를 기준으로 보이게 맞췄습니다.
-- [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)와 [manager-document-registration-2026-05-05.md](/D:/BoDeul/docs/manager-document-registration-2026-05-05.md)에 연동 상태를 반영했습니다.
+- [../operations/firebase/setup.md](../operations/firebase/setup.md)와 [../features/manager-document-registration-2026-05-05.md](../features/manager-document-registration-2026-05-05.md)에 연동 상태를 반영했습니다.
 
 ### 변경 범위
 
 - `admin-web/src/App.tsx`
 - `storage.rules`
-- `docs/firebase-setup.md`
-- `docs/implementation-status.md`
-- `docs/manager-document-registration-2026-05-05.md`
+- `../operations/firebase/setup.md`
+- `implementation-status.md`
+- `../features/manager-document-registration-2026-05-05.md`
 
 ### 남은 범위
 
@@ -2111,19 +2114,19 @@
 
 ### 구현
 
-- [check-manager-document-storage.js](/D:/BoDeul/tools/firebase/check-manager-document-storage.js)에서 `healthCertificate`를 점검 대상 문서 키에 포함해, 간호사 자격증 파일이 고아 파일로 잘못 분류되지 않도록 보정했다.
-- [ManagerProfileActivity.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 기존 내 페이지 업로드 경로를 새 서류 등록 규칙과 맞췄다. `자격증`을 누르면 `간호사 자격증`과 `요양보호사 자격증`을 한 번 더 고르게 하고, 선택 결과에 따라 `HEALTH_CERTIFICATE` 또는 `LICENSE`로 업로드한다.
-- [ManagerProfileCoordinator.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java)에서 원본 파일 카드도 새 규칙을 반영해 `간호사 자격증` 또는 `요양보호사 자격증` 중 실제 업로드된 파일을 우선 보여주도록 정리했다.
-- [data-api-draft.md](/D:/BoDeul/docs/data-api-draft.md), [security-review-2026-04-29.md](/D:/BoDeul/docs/security-review-2026-04-29.md)에 `healthCertificate`를 현재 운영 기준 문서 키로 반영했다.
+- [check-manager-document-storage.js](../../tools/firebase/check-manager-document-storage.js)에서 `healthCertificate`를 점검 대상 문서 키에 포함해, 간호사 자격증 파일이 고아 파일로 잘못 분류되지 않도록 보정했다.
+- [ManagerProfileActivity.java](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 기존 내 페이지 업로드 경로를 새 서류 등록 규칙과 맞췄다. `자격증`을 누르면 `간호사 자격증`과 `요양보호사 자격증`을 한 번 더 고르게 하고, 선택 결과에 따라 `HEALTH_CERTIFICATE` 또는 `LICENSE`로 업로드한다.
+- [ManagerProfileCoordinator.java](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java)에서 원본 파일 카드도 새 규칙을 반영해 `간호사 자격증` 또는 `요양보호사 자격증` 중 실제 업로드된 파일을 우선 보여주도록 정리했다.
+- [../architecture/data-api.md](../architecture/data-api.md), [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 `healthCertificate`를 현재 운영 기준 문서 키로 반영했다.
 
 ### 변경 범위
 
 - `tools/firebase/check-manager-document-storage.js`
 - `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java`
 - `app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileCoordinator.java`
-- `docs/data-api-draft.md`
-- `docs/security-review-2026-04-29.md`
-- `docs/implementation-status.md`
+- `../architecture/data-api.md`
+- `../security/review-2026-04-29.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2135,19 +2138,19 @@
 ### 구현
 
 - `./local/보들_플랫폼_기능설명서.pdf`를 기준으로 문서 우선순위를 다시 맞췄다.
-- [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 최신 기능설명서를 최상위 기준으로 명시하고 문서 진입 순서를 정리했다.
-- [restructure-target-map.md](/D:/BoDeul/docs/restructure-target-map.md)를 최신 기능설명서의 20개 항목 기준으로 다시 정리하고, 현재 구현 상태를 `구현 완료`, `부분 구현`, `후속 설계`로 구분했다.
-- [mvp-scope.md](/D:/BoDeul/docs/mvp-scope.md)를 최신 기능설명서 기준 MVP 범위와 후속 범위로 다시 정리했다.
-- [architecture-draft.md](/D:/BoDeul/docs/architecture-draft.md)에 Android 앱, 관리자 웹, Firebase 운영 도구를 포함한 현재 아키텍처 경계를 최신 기능 축 기준으로 다시 정리했다.
+- [README.md](../../README.md), [../README.md](../README.md)에 최신 기능설명서를 최상위 기준으로 명시하고 문서 진입 순서를 정리했다.
+- [../planning/screen-restructure-target.md](../planning/screen-restructure-target.md)를 최신 기능설명서의 20개 항목 기준으로 다시 정리하고, 현재 구현 상태를 `구현 완료`, `부분 구현`, `후속 설계`로 구분했다.
+- [../planning/mvp-scope.md](../planning/mvp-scope.md)를 최신 기능설명서 기준 MVP 범위와 후속 범위로 다시 정리했다.
+- [../architecture/overview.md](../architecture/overview.md)에 Android 앱, 관리자 웹, Firebase 운영 도구를 포함한 현재 아키텍처 경계를 최신 기능 축 기준으로 다시 정리했다.
 
 ### 변경 범위
 
 - `README.md`
-- `docs/document-guide.md`
-- `docs/restructure-target-map.md`
-- `docs/mvp-scope.md`
-- `docs/architecture-draft.md`
-- `docs/implementation-status.md`
+- `../README.md`
+- `../planning/screen-restructure-target.md`
+- `../planning/mvp-scope.md`
+- `../architecture/overview.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2159,15 +2162,15 @@
 ### 구현
 
 - `docs/local/보들_플랫폼_기능설명서.pdf`와 당시 피그마 ZIP을 각각 다시 확인해 기준을 분리했다.
-- 새 문서 [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 추가해 기능설명서의 20개 항목, 추가 기획 메모, GPS/지도 요구와 피그마 화면 보드 범위를 따로 정리했다.
-- [README.md](/D:/BoDeul/README.md)와 [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 새 점검 문서 링크를 추가해, 기능 기준과 디자인 기준을 혼동하지 않게 진입 경로를 정리했다.
+- 새 문서 [../design/feature-spec-figma-audit-2026-05-22.md](../design/feature-spec-figma-audit-2026-05-22.md)를 추가해 기능설명서의 20개 항목, 추가 기획 메모, GPS/지도 요구와 피그마 화면 보드 범위를 따로 정리했다.
+- [README.md](../../README.md)와 [../README.md](../README.md)에 새 점검 문서 링크를 추가해, 기능 기준과 디자인 기준을 혼동하지 않게 진입 경로를 정리했다.
 
 ### 변경 범위
 
 - `README.md`
-- `docs/document-guide.md`
-- `docs/implementation-status.md`
-- `docs/feature-spec-figma-audit-2026-05-22.md`
+- `../README.md`
+- `implementation-status.md`
+- `../design/feature-spec-figma-audit-2026-05-22.md`
 
 ### 남은 범위
 
@@ -2178,16 +2181,16 @@
 
 ### 구현
 
-- 새 문서 [feature-spec-gap-checklist-2026-05-22.md](/D:/BoDeul/docs/feature-spec-gap-checklist-2026-05-22.md)를 추가해 기능설명서의 20개 항목을 `완료`, `부분 완료`, `미구현`, `후속 설계`로 다시 잘랐다.
-- 이 체크리스트는 [restructure-target-map.md](/D:/BoDeul/docs/restructure-target-map.md)의 구조 정리와 [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)의 원문 재점검 결과를 바탕으로 작성했다.
-- [README.md](/D:/BoDeul/README.md)와 [document-guide.md](/D:/BoDeul/docs/document-guide.md)에 새 체크리스트 링크를 추가해, 기능 기준 gap을 바로 확인할 수 있게 정리했다.
+- 새 문서 [../design/feature-spec-gap-checklist-2026-05-22.md](../design/feature-spec-gap-checklist-2026-05-22.md)를 추가해 기능설명서의 20개 항목을 `완료`, `부분 완료`, `미구현`, `후속 설계`로 다시 잘랐다.
+- 이 체크리스트는 [../planning/screen-restructure-target.md](../planning/screen-restructure-target.md)의 구조 정리와 [../design/feature-spec-figma-audit-2026-05-22.md](../design/feature-spec-figma-audit-2026-05-22.md)의 원문 재점검 결과를 바탕으로 작성했다.
+- [README.md](../../README.md)와 [../README.md](../README.md)에 새 체크리스트 링크를 추가해, 기능 기준 gap을 바로 확인할 수 있게 정리했다.
 
 ### 변경 범위
 
 - `README.md`
-- `docs/document-guide.md`
-- `docs/implementation-status.md`
-- `docs/feature-spec-gap-checklist-2026-05-22.md`
+- `../README.md`
+- `implementation-status.md`
+- `../design/feature-spec-gap-checklist-2026-05-22.md`
 
 ### 남은 범위
 
@@ -2198,10 +2201,10 @@
 
 ### 구현
 
-- [ManagerGuideMapActionModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionModel.java), [ManagerGuideMapActionBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionBinder.java), [ManagerGuideMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java)를 추가해 동행 가이드의 외부 지도 fallback 액션을 화면 모델과 런처로 분리했다.
-- [ManagerGuideCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java)에서 병원명, 진료과, 만남 위치를 기준으로 `병원 안내도`, `만남 위치`, `인근 약국` 3개 fallback 액션을 조합하도록 확장했다.
-- [activity_manager_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_guide.xml)에 `병원 지도 fallback` 섹션을 추가했고, [ManagerGuideDashboardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java)가 동적으로 액션 카드를 렌더링하도록 바꿨다.
-- [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java)는 액션 클릭 시 외부 지도 앱, Google Maps 검색, 일반 웹 검색 순서로 실행만 담당하도록 정리했다.
+- [ManagerGuideMapActionModel](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionModel.java), [ManagerGuideMapActionBinder](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapActionBinder.java), [ManagerGuideMapFallbackLauncher](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java)를 추가해 동행 가이드의 외부 지도 fallback 액션을 화면 모델과 런처로 분리했다.
+- [ManagerGuideCoordinator](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java)에서 병원명, 진료과, 만남 위치를 기준으로 `병원 안내도`, `만남 위치`, `인근 약국` 3개 fallback 액션을 조합하도록 확장했다.
+- [activity_manager_guide.xml](../../app/src/main/res/layout/activity_manager_guide.xml)에 `병원 지도 fallback` 섹션을 추가했고, [ManagerGuideDashboardBinder](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java)가 동적으로 액션 카드를 렌더링하도록 바꿨다.
+- [ManagerGuideActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java)는 액션 클릭 시 외부 지도 앱, Google Maps 검색, 일반 웹 검색 순서로 실행만 담당하도록 정리했다.
 
 ### 변경 범위
 
@@ -2215,7 +2218,7 @@
 - `app/src/main/res/layout/activity_manager_guide.xml`
 - `app/src/main/res/layout/item_manager_guide_map_action.xml`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2226,11 +2229,11 @@
 
 ### 구현
 
-- [CompanionSession](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java)에 `pharmacySummary`, `pharmacyCompleted` 필드를 추가해 약국 단계 진행 메모와 완료 여부를 세션 상태로 같이 관리하도록 확장했다.
-- [ManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ManagerRepository.java), [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 약국 진행 저장/완료 토글 경로를 추가했다.
-- [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java), [ManagerGuideDashboardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java), [ManagerGuideCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java), [activity_manager_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_guide.xml)에 `약국 진행 요약` 입력과 `약국 단계 완료` 토글을 추가했다.
-- [BookingStatusCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java), [GuardianReportCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java)에 현장 약국 진행 요약과 단계 상태를 함께 노출하도록 반영했다.
-- Firebase 세션 읽기/생성 경로([FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java), [FirebaseGuardianReportRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java), [FirebaseAdminRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java))도 같은 필드를 읽도록 맞췄다.
+- [CompanionSession](../../app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java)에 `pharmacySummary`, `pharmacyCompleted` 필드를 추가해 약국 단계 진행 메모와 완료 여부를 세션 상태로 같이 관리하도록 확장했다.
+- [ManagerRepository](../../app/src/main/java/com/example/bodeul/data/ManagerRepository.java), [FirebaseManagerRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](../../app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 약국 진행 저장/완료 토글 경로를 추가했다.
+- [ManagerGuideActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java), [ManagerGuideDashboardBinder](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java), [ManagerGuideCoordinator](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java), [activity_manager_guide.xml](../../app/src/main/res/layout/activity_manager_guide.xml)에 `약국 진행 요약` 입력과 `약국 단계 완료` 토글을 추가했다.
+- [BookingStatusCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java), [GuardianReportCoordinator](../../app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java)에 현장 약국 진행 요약과 단계 상태를 함께 노출하도록 반영했다.
+- Firebase 세션 읽기/생성 경로([FirebaseBookingRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java), [FirebaseGuardianReportRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java), [FirebaseAdminRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java))도 같은 필드를 읽도록 맞췄다.
 
 ### 변경 범위
 
@@ -2251,7 +2254,7 @@
 - `app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java`
 - `app/src/main/res/layout/activity_manager_guide.xml`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2262,10 +2265,10 @@
 
 ### 구현
 
-- [HealthInfoActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/health/HealthInfoActivity.java), [HealthInfoCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/health/HealthInfoCoordinator.java), [HealthInfoBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/health/HealthInfoBinder.java), [HealthInfoScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/health/HealthInfoScreenModel.java)를 추가해 환자/보호자가 최근 또는 진행 중인 예약 기준 건강 프로필을 읽는 전용 화면을 구현했다.
-- [MainActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/MainActivity.java)에서 환자 홈의 보조 액션을 `건강정보` 화면으로 연결했고, 보호자는 기존처럼 리포트 동선을 유지했다.
+- [HealthInfoActivity](../../app/src/main/java/com/example/bodeul/ui/health/HealthInfoActivity.java), [HealthInfoCoordinator](../../app/src/main/java/com/example/bodeul/ui/health/HealthInfoCoordinator.java), [HealthInfoBinder](../../app/src/main/java/com/example/bodeul/ui/health/HealthInfoBinder.java), [HealthInfoScreenModel](../../app/src/main/java/com/example/bodeul/ui/health/HealthInfoScreenModel.java)를 추가해 환자/보호자가 최근 또는 진행 중인 예약 기준 건강 프로필을 읽는 전용 화면을 구현했다.
+- [MainActivity](../../app/src/main/java/com/example/bodeul/MainActivity.java)에서 환자 홈의 보조 액션을 `건강정보` 화면으로 연결했고, 보호자는 기존처럼 리포트 동선을 유지했다.
 - 화면은 예약에 이미 저장된 `건강 메모`, `복약 정보`, `이동 보조`, `동행 유형`, `선호 매니저`, `예약 연결 정보`를 읽기 전용으로 보여준다.
-- [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml), [activity_health_info.xml](/D:/BoDeul/app/src/main/res/layout/activity_health_info.xml), [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 건강정보 화면 진입과 한국어 문구를 반영했다.
+- [AndroidManifest.xml](../../app/src/main/AndroidManifest.xml), [activity_health_info.xml](../../app/src/main/res/layout/activity_health_info.xml), [strings.xml](../../app/src/main/res/values/strings.xml)에 건강정보 화면 진입과 한국어 문구를 반영했다.
 
 ### 변경 범위
 
@@ -2278,9 +2281,9 @@
 - `app/src/main/res/layout/activity_health_info.xml`
 - `app/src/main/res/values/strings.xml`
 - `app/src/main/AndroidManifest.xml`
-- `docs/feature-spec-gap-checklist-2026-05-22.md`
-- `docs/restructure-target-map.md`
-- `docs/implementation-status.md`
+- `../design/feature-spec-gap-checklist-2026-05-22.md`
+- `../planning/screen-restructure-target.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2291,10 +2294,10 @@
 
 ### 구현
 
-- [AppointmentFollowUpSettlementStatus](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/AppointmentFollowUpSettlementStatus.java)에 `OVERTIME_REVIEW`, `REFUND_REVIEW`를 추가하고, 정산 후속 처리 상태를 더 세분화했다.
-- [BookingFollowUpActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingFollowUpActivity.java), [BookingFollowUpCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingFollowUpCoordinator.java), [BookingPresentationFormatter](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingPresentationFormatter.java)에서 환자 후속 화면의 정산 선택, 저장, 요약 문구를 확장했다.
-- [AdminOperationsCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/admin/AdminOperationsCoordinator.java), [ManagerHistoryCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerHistoryCoordinator.java)에서 같은 정산 상태를 운영 화면과 매니저 과거 이력에도 같은 기준으로 반영했다.
-- 관련 문자열 리소스([strings_follow_up_status_extension.xml](/D:/BoDeul/app/src/main/res/values/strings_follow_up_status_extension.xml), [strings_admin_operation_extension.xml](/D:/BoDeul/app/src/main/res/values/strings_admin_operation_extension.xml), [strings_manager_history_extension.xml](/D:/BoDeul/app/src/main/res/values/strings_manager_history_extension.xml))를 추가해 화면별 문구를 분리했다.
+- [AppointmentFollowUpSettlementStatus](../../app/src/main/java/com/example/bodeul/domain/model/AppointmentFollowUpSettlementStatus.java)에 `OVERTIME_REVIEW`, `REFUND_REVIEW`를 추가하고, 정산 후속 처리 상태를 더 세분화했다.
+- [BookingFollowUpActivity](../../app/src/main/java/com/example/bodeul/ui/booking/BookingFollowUpActivity.java), [BookingFollowUpCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingFollowUpCoordinator.java), [BookingPresentationFormatter](../../app/src/main/java/com/example/bodeul/ui/booking/BookingPresentationFormatter.java)에서 환자 후속 화면의 정산 선택, 저장, 요약 문구를 확장했다.
+- [AdminOperationsCoordinator](../../app/src/main/java/com/example/bodeul/ui/admin/AdminOperationsCoordinator.java), [ManagerHistoryCoordinator](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerHistoryCoordinator.java)에서 같은 정산 상태를 운영 화면과 매니저 과거 이력에도 같은 기준으로 반영했다.
+- 관련 문자열 리소스([strings_follow_up_status_extension.xml](../../app/src/main/res/values/strings_follow_up_status_extension.xml), [strings_admin_operation_extension.xml](../../app/src/main/res/values/strings_admin_operation_extension.xml), [strings_manager_history_extension.xml](../../app/src/main/res/values/strings_manager_history_extension.xml))를 추가해 화면별 문구를 분리했다.
 
 ### 변경된 범위
 
@@ -2308,8 +2311,8 @@
 - `app/src/main/res/values/strings_admin_operation_extension.xml`
 - `app/src/main/res/values/strings_manager_history_extension.xml`
 - `app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java`
-- `docs/feature-spec-gap-checklist-2026-05-22.md`
-- `docs/implementation-status.md`
+- `../design/feature-spec-gap-checklist-2026-05-22.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2320,11 +2323,11 @@
 
 ### 구현
 
-- [BookingStatusCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java), [BookingStatusActionType](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingStatusActionType.java), [BookingStatusActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingStatusActivity.java)에서 예약 상태 화면에 실시간 위치 확인 진입 액션을 추가했다.
-- [BookingLiveLocationActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java), [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java), [BookingLiveLocationBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationBinder.java), [BookingLiveLocationScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationScreenModel.java)을 추가해 보호자용 위치 확인 화면을 만들었다.
+- [BookingStatusCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingStatusCoordinator.java), [BookingStatusActionType](../../app/src/main/java/com/example/bodeul/ui/booking/BookingStatusActionType.java), [BookingStatusActivity](../../app/src/main/java/com/example/bodeul/ui/booking/BookingStatusActivity.java)에서 예약 상태 화면에 실시간 위치 확인 진입 액션을 추가했다.
+- [BookingLiveLocationActivity](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java), [BookingLiveLocationCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java), [BookingLiveLocationBinder](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationBinder.java), [BookingLiveLocationScreenModel](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationScreenModel.java)을 추가해 보호자용 위치 확인 화면을 만들었다.
 - 동행 세션 모델과 화면 모델에 현재 위치, 마지막 공유 좌표, 위치 요약 정보를 연결해 예약 상태 화면과 위치 확인 화면이 같은 기준 데이터를 읽도록 맞췄다.
-- 외부 지도 예외에 대비한 [BookingLiveLocationMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java)를 추가했다.
-- 위치 화면 레이아웃과 액션 아이템([activity_booking_live_location.xml](/D:/BoDeul/app/src/main/res/layout/activity_booking_live_location.xml), [item_booking_live_location_map_action.xml](/D:/BoDeul/app/src/main/res/layout/item_booking_live_location_map_action.xml))을 함께 정리했다.
+- 외부 지도 예외에 대비한 [BookingLiveLocationMapFallbackLauncher](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java)를 추가했다.
+- 위치 화면 레이아웃과 액션 아이템([activity_booking_live_location.xml](../../app/src/main/res/layout/activity_booking_live_location.xml), [item_booking_live_location_map_action.xml](../../app/src/main/res/layout/item_booking_live_location_map_action.xml))을 함께 정리했다.
 
 ### 변경된 범위
 
@@ -2342,7 +2345,7 @@
 - `app/src/main/res/layout/item_booking_live_location_map_action.xml`
 - `app/src/main/res/values/strings.xml`
 - `app/src/main/AndroidManifest.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2353,10 +2356,10 @@
 
 ### 구현
 
-- [CompanionChatActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java), [CompanionChatCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatCoordinator.java), [CompanionChatBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatBinder.java), [CompanionChatScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatScreenModel.java), [CompanionChatMessageItemModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatMessageItemModel.java)을 추가해 안심 채팅 화면의 기본 구조를 만들었다.
-- [CompanionSession](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java), [CompanionChatMessage](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionChatMessage.java), [BookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/BookingRepository.java), [ManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ManagerRepository.java)에 채팅 메시지 저장/조회 모델을 추가했다.
-- Firebase/Mock 저장소에 `chatMessages` 조회와 저장 흐름을 연결하고, [BookingLiveLocationActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java)와 [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java)에서 [CompanionChatActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java)로 바로 이동할 수 있게 연결했다.
-- [MockBodeulRepositoryTest](/D:/BoDeul/app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java)로 기본 송수신 흐름을 검증했다.
+- [CompanionChatActivity](../../app/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java), [CompanionChatCoordinator](../../app/src/main/java/com/example/bodeul/ui/chat/CompanionChatCoordinator.java), [CompanionChatBinder](../../app/src/main/java/com/example/bodeul/ui/chat/CompanionChatBinder.java), [CompanionChatScreenModel](../../app/src/main/java/com/example/bodeul/ui/chat/CompanionChatScreenModel.java), [CompanionChatMessageItemModel](../../app/src/main/java/com/example/bodeul/ui/chat/CompanionChatMessageItemModel.java)을 추가해 안심 채팅 화면의 기본 구조를 만들었다.
+- [CompanionSession](../../app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java), [CompanionChatMessage](../../app/src/main/java/com/example/bodeul/domain/model/CompanionChatMessage.java), [BookingRepository](../../app/src/main/java/com/example/bodeul/data/BookingRepository.java), [ManagerRepository](../../app/src/main/java/com/example/bodeul/data/ManagerRepository.java)에 채팅 메시지 저장/조회 모델을 추가했다.
+- Firebase/Mock 저장소에 `chatMessages` 조회와 저장 흐름을 연결하고, [BookingLiveLocationActivity](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java)와 [ManagerGuideActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java)에서 [CompanionChatActivity](../../app/src/main/java/com/example/bodeul/ui/chat/CompanionChatActivity.java)로 바로 이동할 수 있게 연결했다.
+- [MockBodeulRepositoryTest](../../app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java)로 기본 송수신 흐름을 검증했다.
 
 ### 변경된 범위
 
@@ -2383,7 +2386,7 @@
 - `app/src/main/res/values/strings.xml`
 - `app/src/main/AndroidManifest.xml`
 - `app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2393,9 +2396,9 @@
 
 ### 구현
 
-- [KakaoMapExternalLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/util/KakaoMapExternalLauncher.java)를 추가해 외부 지도 fallback 검색을 카카오맵 앱 -> 카카오맵 모바일웹 -> 카카오 지도 웹 링크 -> 일반 지도 검색 순서로 통일했다.
-- [ManagerGuideMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java)와 [BookingLiveLocationMapFallbackLauncher](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java)가 공용 카카오 지도 런처를 사용하도록 바꿨다.
-- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)과 [feature-spec-gap-checklist-2026-05-22.md](/D:/BoDeul/docs/feature-spec-gap-checklist-2026-05-22.md)에 지도 fallback이 카카오 기준이라는 점을 반영했다.
+- [KakaoMapExternalLauncher](../../app/src/main/java/com/example/bodeul/util/KakaoMapExternalLauncher.java)를 추가해 외부 지도 fallback 검색을 카카오맵 앱 -> 카카오맵 모바일웹 -> 카카오 지도 웹 링크 -> 일반 지도 검색 순서로 통일했다.
+- [ManagerGuideMapFallbackLauncher](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java)와 [BookingLiveLocationMapFallbackLauncher](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java)가 공용 카카오 지도 런처를 사용하도록 바꿨다.
+- [strings.xml](../../app/src/main/res/values/strings.xml)과 [../design/feature-spec-gap-checklist-2026-05-22.md](../design/feature-spec-gap-checklist-2026-05-22.md)에 지도 fallback이 카카오 기준이라는 점을 반영했다.
 
 ### 변경 범위
 
@@ -2403,8 +2406,8 @@
 - pp/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java`r
 - pp/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java`r
 - pp/src/main/res/values/strings.xml`r
-- docs/feature-spec-gap-checklist-2026-05-22.md`r
-- docs/implementation-status.md`r
+- ../design/feature-spec-gap-checklist-2026-05-22.md`r
+- implementation-status.md`r
 
 ### 남은 범위
 
@@ -2415,12 +2418,12 @@
 
 ### 구현
 
-- [CompanionSession](/D:/BoDeul/app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java)에 sharedLatitude, sharedLongitude, sharedLocationUpdatedAtMillis를 추가해 세션이 실제 위치 좌표와 갱신 시각을 같이 보관하도록 확장했다.
-- [ManagerCurrentLocationSharer](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerCurrentLocationSharer.java)를 추가해 매니저 가이드 화면에서 기기 현재 위치를 한 번 읽어 위치 요약과 좌표를 함께 저장하도록 만들었다.
-- [ManagerGuideActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java), [activity_manager_guide.xml](/D:/BoDeul/app/src/main/res/layout/activity_manager_guide.xml), [ManagerGuideDashboardBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java)에 현재 위치 공유 버튼과 위치 권한 요청 흐름을 추가했다.
-- [FirebaseManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [FirebaseBookingRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java), [FirebaseGuardianReportRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java), [FirebaseAdminRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java), [MockBodeulRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java), [MockManagerRepository](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java)가 공유 좌표를 저장하고 읽도록 맞췄다.
-- [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)가 좌표가 있을 때 kakaomap://look 링크를 우선 열어 보호자/환자 화면에서 공유 위치를 바로 카카오맵으로 보낼 수 있게 했다.
-- [AndroidManifest.xml](/D:/BoDeul/app/src/main/AndroidManifest.xml)에 ACCESS_FINE_LOCATION을 추가했고, [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml), [feature-spec-gap-checklist-2026-05-22.md](/D:/BoDeul/docs/feature-spec-gap-checklist-2026-05-22.md)에 현재 수준을 반영했다.
+- [CompanionSession](../../app/src/main/java/com/example/bodeul/domain/model/CompanionSession.java)에 sharedLatitude, sharedLongitude, sharedLocationUpdatedAtMillis를 추가해 세션이 실제 위치 좌표와 갱신 시각을 같이 보관하도록 확장했다.
+- [ManagerCurrentLocationSharer](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerCurrentLocationSharer.java)를 추가해 매니저 가이드 화면에서 기기 현재 위치를 한 번 읽어 위치 요약과 좌표를 함께 저장하도록 만들었다.
+- [ManagerGuideActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideActivity.java), [activity_manager_guide.xml](../../app/src/main/res/layout/activity_manager_guide.xml), [ManagerGuideDashboardBinder](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideDashboardBinder.java)에 현재 위치 공유 버튼과 위치 권한 요청 흐름을 추가했다.
+- [FirebaseManagerRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [FirebaseBookingRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java), [FirebaseGuardianReportRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java), [FirebaseAdminRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java), [MockBodeulRepository](../../app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java), [MockManagerRepository](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java)가 공유 좌표를 저장하고 읽도록 맞췄다.
+- [BookingLiveLocationCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)가 좌표가 있을 때 kakaomap://look 링크를 우선 열어 보호자/환자 화면에서 공유 위치를 바로 카카오맵으로 보낼 수 있게 했다.
+- [AndroidManifest.xml](../../app/src/main/AndroidManifest.xml)에 ACCESS_FINE_LOCATION을 추가했고, [strings.xml](../../app/src/main/res/values/strings.xml), [../design/feature-spec-gap-checklist-2026-05-22.md](../design/feature-spec-gap-checklist-2026-05-22.md)에 현재 수준을 반영했다.
 
 ### 변경 범위
 
@@ -2439,8 +2442,8 @@
 - app/src/main/res/layout/activity_manager_guide.xml
 - app/src/main/res/values/strings.xml
 - app/src/main/AndroidManifest.xml
-- docs/feature-spec-gap-checklist-2026-05-22.md
-- docs/implementation-status.md
+- ../design/feature-spec-gap-checklist-2026-05-22.md
+- implementation-status.md
 
 ### 남은 범위
 
@@ -2450,10 +2453,10 @@
 
 ### 구현
 
-- [ManagerGuideCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java)가 공유 위치 메모나 좌표가 있을 때 현재 공유 위치 바로 열기 카드를 먼저 노출하고, 좌표가 있으면 카카오맵 look 링크를 직접 열도록 보강했다.
-- [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)에 최근 위치 공유 시각 상태 줄을 추가해 보호자/환자 화면에서 마지막 위치 공유 시각을 바로 확인할 수 있게 했다.
-- [GuardianReportCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java)에도 같은 시각 정보를 노출해 보호자 리포트 카드에서 위치 공유 최신성을 바로 판단할 수 있게 했다.
-- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 공유 위치 직행 카드와 위치 공유 시각 문구를 추가했다.
+- [ManagerGuideCoordinator](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideCoordinator.java)가 공유 위치 메모나 좌표가 있을 때 현재 공유 위치 바로 열기 카드를 먼저 노출하고, 좌표가 있으면 카카오맵 look 링크를 직접 열도록 보강했다.
+- [BookingLiveLocationCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)에 최근 위치 공유 시각 상태 줄을 추가해 보호자/환자 화면에서 마지막 위치 공유 시각을 바로 확인할 수 있게 했다.
+- [GuardianReportCoordinator](../../app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java)에도 같은 시각 정보를 노출해 보호자 리포트 카드에서 위치 공유 최신성을 바로 판단할 수 있게 했다.
+- [strings.xml](../../app/src/main/res/values/strings.xml)에 공유 위치 직행 카드와 위치 공유 시각 문구를 추가했다.
 
 ### 변경 범위
 
@@ -2461,7 +2464,7 @@
 - app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java
 - app/src/main/java/com/example/bodeul/ui/report/GuardianReportCoordinator.java
 - app/src/main/res/values/strings.xml
-- docs/implementation-status.md
+- implementation-status.md
 
 ### 남은 범위
 
@@ -2471,10 +2474,10 @@
 
 ### 구현
 
-- [BookingLiveLocationActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java)와 [activity_booking_live_location.xml](/D:/BoDeul/app/src/main/res/layout/activity_booking_live_location.xml)에 `현재 위치 다시 불러오기` 버튼을 추가해 보호자/환자가 실시간 위치 확인 화면에서 수동 재조회할 수 있게 했다.
-- [BookingLiveLocationBinder](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationBinder.java), [BookingLiveLocationScreenModel](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationScreenModel.java), [BookingLiveLocationCoordinator](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)를 확장해 새로고침 버튼 문구를 화면 모델에서 같이 관리하도록 맞췄다.
-- [GuardianReportActivity](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/report/GuardianReportActivity.java)와 [activity_guardian_report.xml](/D:/BoDeul/app/src/main/res/layout/activity_guardian_report.xml)에 `진행 현황 다시 불러오기` 버튼을 추가해 보호자 리포트도 같은 기준으로 재조회할 수 있게 했다.
-- [strings.xml](/D:/BoDeul/app/src/main/res/values/strings.xml)에 위치 확인/보호자 리포트 새로고침 문구를 추가했다.
+- [BookingLiveLocationActivity](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationActivity.java)와 [activity_booking_live_location.xml](../../app/src/main/res/layout/activity_booking_live_location.xml)에 `현재 위치 다시 불러오기` 버튼을 추가해 보호자/환자가 실시간 위치 확인 화면에서 수동 재조회할 수 있게 했다.
+- [BookingLiveLocationBinder](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationBinder.java), [BookingLiveLocationScreenModel](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationScreenModel.java), [BookingLiveLocationCoordinator](../../app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationCoordinator.java)를 확장해 새로고침 버튼 문구를 화면 모델에서 같이 관리하도록 맞췄다.
+- [GuardianReportActivity](../../app/src/main/java/com/example/bodeul/ui/report/GuardianReportActivity.java)와 [activity_guardian_report.xml](../../app/src/main/res/layout/activity_guardian_report.xml)에 `진행 현황 다시 불러오기` 버튼을 추가해 보호자 리포트도 같은 기준으로 재조회할 수 있게 했다.
+- [strings.xml](../../app/src/main/res/values/strings.xml)에 위치 확인/보호자 리포트 새로고침 문구를 추가했다.
 
 ### 변경 범위
 
@@ -2486,7 +2489,7 @@
 - app/src/main/res/layout/activity_booking_live_location.xml
 - app/src/main/res/layout/activity_guardian_report.xml
 - app/src/main/res/values/strings.xml
-- docs/implementation-status.md
+- implementation-status.md
 
 ### 남은 범위
 
@@ -2515,14 +2518,14 @@
 - `design_refs/README.md`
 - `docs/local/README.md`
 - `design_refs/local/README.md`
-- `docs/architecture-draft.md`
-- `docs/document-guide.md`
-- `docs/design-reference-review-2026-05-22.md`
-- `docs/feature-spec-figma-audit-2026-05-22.md`
-- `docs/feature-spec-gap-checklist-2026-05-22.md`
-- `docs/infrastructure-overview.md`
-- `docs/mvp-scope.md`
-- `docs/restructure-target-map.md`
+- `../architecture/overview.md`
+- `../README.md`
+- `../design/reference-review-2026-05-22.md`
+- `../design/feature-spec-figma-audit-2026-05-22.md`
+- `../design/feature-spec-gap-checklist-2026-05-22.md`
+- `../architecture/infrastructure.md`
+- `../planning/mvp-scope.md`
+- `../planning/screen-restructure-target.md`
 - `docs/planning/README.md`
 - `docs/archive/design-reference-review-2026-05-05.md`
 
@@ -2543,25 +2546,25 @@
 
 - `design_refs/보들 가이드.zip`
 - `design_refs/README.md`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
 - 이후 디자인 원본은 `design_refs/local/` 아래만 추가한다.
 - 구형 자산은 archive 문서에서만 이력으로 남기고, 저장소 기준 자산 목록에서는 제외한다.
-- [design_refs/README.md](/D:/BoDeul/design_refs/README.md)를 최신 원본/분할 화면/보조 참조/비사용 파일 기준으로 전면 정리했다.
-- [design-reference-review-2026-05-22.md](/D:/BoDeul/docs/design-reference-review-2026-05-22.md)를 새로 추가해 인증/공통, 환자 홈, 환자 진행 화면, 매니저 홈/가이드, 서류 등록 기준의 UI polish 우선순위를 다시 정했다.
-- [feature-spec-figma-audit-2026-05-22.md](/D:/BoDeul/docs/feature-spec-figma-audit-2026-05-22.md)를 최신 분할 화면 세트 기준으로 다시 작성해 기능 기준과 디자인 기준을 명확히 분리했다.
-- [README.md](/D:/BoDeul/README.md), [document-guide.md](/D:/BoDeul/docs/document-guide.md)의 디자인 문서 링크를 최신 메모 기준으로 교체했다.
+- [design_refs/README.md](../../design_refs/README.md)를 최신 원본/분할 화면/보조 참조/비사용 파일 기준으로 전면 정리했다.
+- [../design/reference-review-2026-05-22.md](../design/reference-review-2026-05-22.md)를 새로 추가해 인증/공통, 환자 홈, 환자 진행 화면, 매니저 홈/가이드, 서류 등록 기준의 UI polish 우선순위를 다시 정했다.
+- [../design/feature-spec-figma-audit-2026-05-22.md](../design/feature-spec-figma-audit-2026-05-22.md)를 최신 분할 화면 세트 기준으로 다시 작성해 기능 기준과 디자인 기준을 명확히 분리했다.
+- [README.md](../../README.md), [../README.md](../README.md)의 디자인 문서 링크를 최신 메모 기준으로 교체했다.
 
 ### 변경 범위
 
 - README.md
 - design_refs/README.md
-- docs/design-reference-review-2026-05-22.md
-- docs/feature-spec-figma-audit-2026-05-22.md
-- docs/document-guide.md
-- docs/implementation-status.md
+- ../design/reference-review-2026-05-22.md
+- ../design/feature-spec-figma-audit-2026-05-22.md
+- ../README.md
+- implementation-status.md
 
 ### 남은 범위
 
@@ -2604,8 +2607,8 @@
 - app/src/main/res/layout/item_admin_manager_document.xml
 - app/src/main/res/values/strings.xml
 - app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java
-- docs/manager-document-registration-2026-05-05.md
-- docs/implementation-status.md
+- ../features/manager-document-registration-2026-05-05.md
+- implementation-status.md
 
 ### 남은 범위
 
@@ -2697,8 +2700,6 @@
 ### 남은 범위
 
 - 앱 해시 키가 카카오 플랫폼에 미등록되었을 때의 예외 처리 (현재는 미등록 시 지도가 안 나타날 수 있음)
-## 113. 2026-06-05 ߰ Ʈ (īī Ŀ   )
-
 ## 113. 2026-06-05 추가 업데이트 (카카오맵 마커 및 추적 개선)
 
 ### 구현
@@ -2729,9 +2730,9 @@
 
 ### 변경 범위
 
-- `docs/infrastructure-overview.md`
+- `../architecture/infrastructure.md`
 - `README.md`
-- `docs/document-guide.md`
+- `../README.md`
 
 ### 남은 범위
 
@@ -2756,7 +2757,7 @@
 ### 변경 범위
 
 - `.gitignore`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2769,13 +2770,13 @@
 
 - 문서 경로를 한 번에 크게 옮기지 않고, 카테고리 디렉터리와 색인 `README.md`를 추가해 문서 진입 구조를 정리했다.
 - `docs/architecture`, `docs/planning`, `docs/operations`, `docs/security`, `docs/design`, `docs/archive` 디렉터리를 추가했다.
-- 루트 `README.md`와 `docs/document-guide.md`를 카테고리 진입 기준으로 다시 정리했다.
+- 루트 `README.md`와 `../README.md`를 카테고리 진입 기준으로 다시 정리했다.
 - 구버전 디자인 검토 메모, 팀 작업 분해 초안, 기능설명서 추출본은 `docs/archive/`로 이동했다.
 
 ### 변경 범위
 
 - `README.md`
-- `docs/document-guide.md`
+- `../README.md`
 - `docs/architecture/README.md`
 - `docs/planning/README.md`
 - `docs/operations/README.md`
@@ -2804,9 +2805,9 @@
 
 - `design_refs/README.md`
 - `design_refs/local/README.md`
-- `docs/design-reference-review-2026-05-22.md`
-- `docs/feature-spec-figma-audit-2026-05-22.md`
-- `docs/implementation-status.md`
+- `../design/reference-review-2026-05-22.md`
+- `../design/feature-spec-figma-audit-2026-05-22.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2834,7 +2835,7 @@
 - `app/src/main/res/layout/activity_role_selection.xml`
 - `app/src/main/res/layout/activity_login.xml`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2852,7 +2853,7 @@
 ### 변경 범위
 
 - `app/src/main/res/layout/activity_main.xml`
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2870,9 +2871,9 @@
 ### 변경 범위
 
 - `design_refs/README.md`
-- `docs/design-reference-review-2026-05-22.md`
-- `docs/feature-spec-figma-audit-2026-05-22.md`
-- `docs/implementation-status.md`
+- `../design/reference-review-2026-05-22.md`
+- `../design/feature-spec-figma-audit-2026-05-22.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
@@ -2885,19 +2886,95 @@
 
 - `implementation-status.md`는 손상 없이 복구 가능한 마지막 저손상 이력(섹션 120까지)을 기준으로 정리했다.
 - 2026-06-19 이후 세부 배치 기록은 성격별 후속 문서로 분리해 참조하도록 정리했다.
-  - `docs/project-check-followup-2026-06-20.md`
-  - `docs/app-test-ready-2026-06-20.md`
-  - `docs/device-test-report-2026-06-20.md`
-  - `docs/admin-action-test-report-2026-06-20.md`
-  - `docs/encoding-cleanup-followup-2026-06-20.md`
+  - `../reports/project-check-followup-2026-06-20.md`
+  - `../reports/app-test-ready-2026-06-20.md`
+  - `../reports/device-test-report-2026-06-20.md`
+  - `../reports/admin-action-test-report-2026-06-20.md`
+  - `../reports/encoding-cleanup-followup-2026-06-20.md`
   - `docs/planning/refactoring-roadmap-2026-06-20.md`
 - 이후 완료 기록은 이 문서에 요약만 남기고, 화면/테스트/운영 상세는 개별 보고서 문서에 누적한다.
 
 ### 변경된 범위
 
-- `docs/implementation-status.md`
+- `implementation-status.md`
 
 ### 남은 범위
 
 - 신규 작업이 생기면 `implementation-status.md`에는 완료 기준 요약만 추가한다.
 - 상세 단계 로그와 점검 증적은 성격별 문서에서 계속 관리한다.
+
+## 122. 2026-06-23 문서 디렉터리 구조 정리
+
+### 구현
+
+- `docs/README.md`를 문서 홈으로 만들고 기존 `document-guide.md` 역할을 병합했다.
+- `docs/` 루트에는 색인만 남기고 실제 문서는 주제별 디렉터리로 이동했다.
+- Firebase 운영 문서는 `../operations/firebase/`로 묶고, 날짜별 점검/테스트 기록은 `../reports/`로 분리했다.
+- 기능 단위 메모는 `../features/`, 현재 구현 상태는 `../status/`, 보안/디자인/기획/아키텍처 문서는 각 전용 디렉터리로 정리했다.
+- 깨진 README 추출 임시 파일 `temp.txt`를 제거했다.
+- 이동된 문서의 Markdown 링크를 새 상대 경로 기준으로 갱신했다.
+
+### 변경 범위
+
+- `../../README.md`
+- `../README.md`
+- `../status/README.md`
+- `../planning/README.md`
+- `../architecture/README.md`
+- `../operations/README.md`
+- `../operations/firebase/README.md`
+- `../security/README.md`
+- `../design/README.md`
+- `../features/README.md`
+- `../reports/README.md`
+- `../archive/README.md`
+- `../status/implementation-status.md`
+- `docs/` 하위 기존 루트 문서의 주제별 이동
+
+### 검증
+
+- Markdown 링크 존재 검사: `checked=543 broken=0`
+- `git diff --check` 통과
+- 문서 전용 변경이므로 `assembleDebug`는 실행하지 않았다.
+
+### 남은 범위
+
+- 현재 열린 문서 정리 잔여 범위는 없다.
+- 새 문서가 생기면 `docs/README.md`와 해당 주제 디렉터리 `README.md`에 함께 연결한다.
+
+## 123. 2026-06-23 문서 정합성 점검
+
+### 구현
+
+- 문서 홈, 루트 README, 상태/기획/아키텍처/운영/디자인/관리자 웹 문서를 현재 코드 구조와 다시 대조했다.
+- 최신 구현 요약을 문서 상단에 모으고, 날짜별 이력은 당시 기록으로만 보도록 기준을 명확히 했다.
+- 네이버 로그인 비활성 상태, 안심 채팅 첨부/푸시/읽음 구현 상태, Functions/관리자 앱/관리자 웹 분리 완료 상태를 최신 기준으로 맞췄다.
+- 프로젝트 기준 문서가 아닌 로컬 보조 산출물과 손상된 기능설명서 Markdown 추출본을 기준 문서에서 제외했다.
+
+### 변경 범위
+
+- `../../README.md`
+- `../README.md`
+- `../status/README.md`
+- `../status/implementation-status.md`
+- `../architecture/overview.md`
+- `../architecture/infrastructure.md`
+- `../planning/mvp-scope.md`
+- `../planning/screen-restructure-target.md`
+- `../planning/refactoring-roadmap-2026-06-20.md`
+- `../operations/firebase/setup.md`
+- `../archive/README.md`
+- `../reports/README.md`
+- `../reports/document-alignment-2026-06-23.md`
+- `../../design_refs/local/README.md`
+- `../../admin-web/README.md`
+
+### 검증
+
+- Markdown 링크 존재 검사: `checked=48 broken=0`
+- `.\gradlew.bat assembleDebug --console=plain`: 성공
+
+### 남은 범위
+
+- 날짜별 보고서와 `tools/firebase/reports/`의 생성 시점 로그는 이력 증적이므로 본문 정리 대상에서 제외했다.
+- 이후 기능 변경이 생기면 이 문서 상단 최신 요약과 해당 상세 문서를 함께 갱신한다.
