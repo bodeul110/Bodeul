@@ -1,0 +1,37 @@
+name: 작업 항목
+description: 리팩토링, 문서 정리, 운영 작업처럼 명확한 실행 단위를 기록합니다.
+title: "[작업] "
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: 작업 내용
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 우선순위
+      options:
+        - 높음
+        - 중간
+        - 낮음
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: 예상 변경 범위
+      description: 파일, 모듈, 문서, GitHub 설정 범위를 적습니다.
+  - type: textarea
+    id: validation
+    attributes:
+      label: 검증 기준
+      placeholder: |
+        - `.\gradlew.bat assembleDebug`
+        - ...
+  - type: textarea
+    id: notes
+    attributes:
+      label: 메모
+      description: 충돌 위험, 선행 작업, 남은 범위를 적습니다.
