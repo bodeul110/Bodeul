@@ -848,7 +848,16 @@ public class FirebaseAuthRepository implements AuthRepository {
 
     @Nullable
     private String resolveGoogleServerClientId(Context context) {
-        String serverClientId = context.getString(R.string.default_web_client_id);
+        // Dependabot CI처럼 google-services.json이 없는 환경에서는 생성 리소스가 없을 수 있다.
+        int resourceId = context.getResources().getIdentifier(
+                "default_web_client_id",
+                "string",
+                context.getPackageName()
+        );
+        if (resourceId == 0) {
+            return null;
+        }
+        String serverClientId = context.getString(resourceId);
         return TextUtils.isEmpty(serverClientId) ? null : serverClientId;
     }
 
