@@ -45,6 +45,7 @@
 
 ### 3. 파일 크기를 알 수 없는 URI는 앱 단 검증을 우회함
 - GitHub issue: https://github.com/bodeul110/Bodeul/issues/19
+- 처리 상태: 수정 완료
 - `ManagerDocumentUploadPolicy`와 `CompanionChatAttachmentUploadPolicy`는 파일 크기 조회에 실패하면 `-1L`을 반환한다.
 - 두 정책 모두 `fileSize > MAX_FILE_SIZE_BYTES`일 때만 차단하므로, 크기를 알 수 없는 문서는 앱 단에서 통과한다.
 - Storage Rules에는 10MB 제한이 있어 서버 측 방어는 남아 있지만, 사용자는 업로드 단계에서 늦게 실패할 수 있다.
@@ -53,6 +54,11 @@
   - `app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java`
   - `app/src/main/java/com/example/bodeul/data/CompanionChatAttachmentUploadPolicy.java`
   - `storage.rules`
+- 조치 내용
+  - 두 업로드 정책이 같은 `UploadFileSizePolicy`를 사용하도록 공통화했다.
+  - `OpenableColumns.SIZE`가 없으면 `file://` 실제 파일 길이를 확인하고, 그래도 알 수 없으면 스트림을 최대 제한 초과 지점까지만 읽어 크기를 판정한다.
+  - 스트림도 열 수 없어 크기를 확인할 수 없는 파일은 업로드 전에 차단한다.
+  - 메타데이터 없는 파일의 허용, 차단, 읽기 실패 fallback 단위 테스트를 추가했다.
 
 ### 4. Firestore enum 파싱이 일부 경로에서 예외에 취약함
 - GitHub issue: https://github.com/bodeul110/Bodeul/issues/20
@@ -68,7 +74,6 @@
 ## 테스트 공백
 - Firestore Rules의 필드 단위 업데이트 허용/차단 테스트가 없다.
 - 알림 권한 `닫기`, `거부`, `설정에서 다시 허용` 시나리오는 자동화 범위에서 직접 확인되지 않았다.
-- `OpenableColumns.SIZE`를 주지 않는 외부 문서 제공자에 대한 업로드 회귀 테스트가 없다.
 - Firestore의 잘못된 enum 값 입력에 대한 방어 테스트가 없다.
 
 ## 변경 범위
@@ -81,9 +86,13 @@
   - `app/src/main/java/com/example/bodeul/util/NotificationPermissionSupport.java`
   - `app/src/main/res/layout/activity_permission_guide.xml`
   - `app/src/main/res/values/strings.xml`
+- Android 업로드 크기 정책 변경
+  - `app/src/main/java/com/example/bodeul/data/UploadFileSizePolicy.java`
+  - `app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java`
+  - `app/src/main/java/com/example/bodeul/data/CompanionChatAttachmentUploadPolicy.java`
+  - `app/src/test/java/com/example/bodeul/data/UploadFileSizePolicyTest.java`
 - 문서 추가 및 갱신 1건
   - `docs/project-check-2026-06-23.md`
 
 ## 남은 범위
-- 업로드 정책에서 `unknown size`를 차단하거나 스트림 기반 크기 계산으로 보강
 - 핵심 mapper의 enum 파싱을 fallback 기반으로 통일
