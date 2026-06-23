@@ -20,9 +20,17 @@ on:
         default: "tools/firebase/templates/app-navigation-evidence.sample.json"
         type: string
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
@@ -35,8 +43,107 @@ jobs:
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 변경 범위 분류
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          changed_file="$(mktemp)"
+          android=false
+          admin_web=false
+          functions=false
+          firebase_tools=false
+          docs_only=true
+          unknown=false
+
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            if ! git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$changed_file"; then
+              git fetch --no-tags --depth=1 origin "$BASE_REF"
+              git diff --name-only "origin/$BASE_REF"...HEAD > "$changed_file"
+            fi
+          else
+            printf '%s\n' "__workflow_dispatch__" > "$changed_file"
+            android=true
+            admin_web=true
+            functions=true
+            firebase_tools=true
+            docs_only=false
+          fi
+
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
+              case "$file" in
+                app/*|build.gradle.kts|settings.gradle.kts|gradle.properties|gradlew|gradlew.bat|gradle/*)
+                  android=true
+                  docs_only=false
+                  ;;
+                admin-web/*)
+                  admin_web=true
+                  docs_only=false
+                  ;;
+                functions/*)
+                  functions=true
+                  docs_only=false
+                  ;;
+                tools/firebase/*|firebase.json|firestore.rules|storage.rules|.firebaserc)
+                  firebase_tools=true
+                  docs_only=false
+                  ;;
+                .github/workflows/*)
+                  android=true
+                  admin_web=true
+                  functions=true
+                  firebase_tools=true
+                  docs_only=false
+                  ;;
+                .github/*)
+                  firebase_tools=true
+                  docs_only=false
+                  ;;
+                docs/*|README.md|AGENTS.md|design_refs/*)
+                  ;;
+                *)
+                  android=true
+                  admin_web=true
+                  functions=true
+                  firebase_tools=true
+                  docs_only=false
+                  unknown=true
+                  ;;
+              esac
+            done < "$changed_file"
+          fi
+
+          {
+            echo "android=$android"
+            echo "admin_web=$admin_web"
+            echo "functions=$functions"
+            echo "firebase_tools=$firebase_tools"
+            echo "docs_only=$docs_only"
+            echo "unknown=$unknown"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "변경 파일"
+          sed 's/^/- /' "$changed_file"
+          echo "검증 범위"
+          echo "- Android: $android"
+          echo "- admin-web: $admin_web"
+          echo "- functions: $functions"
+          echo "- Firebase tools: $firebase_tools"
+          echo "- 문서 전용: $docs_only"
+          echo "- 미분류 파일 포함: $unknown"
 
       - name: JDK 17 설정
+        if: steps.scope.outputs.android == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -44,27 +151,34 @@ jobs:
           cache: gradle
 
       - name: Node.js 설정
+        if: steps.scope.outputs.android == 'true' || steps.scope.outputs.admin_web == 'true' || steps.scope.outputs.functions == 'true' || steps.scope.outputs.firebase_tools == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            admin-web/package-lock.json
+            functions/package-lock.json
 
       - name: Gradle 실행 권한 부여
+        if: steps.scope.outputs.android == 'true'
         run: chmod +x gradlew
 
       - name: google-services.json 복원
-        if: env.GOOGLE_SERVICES_JSON != ''
+        if: steps.scope.outputs.android == 'true' && env.GOOGLE_SERVICES_JSON != ''
         shell: bash
         run: |
           mkdir -p app
           printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
 
       - name: .firebaserc 복원
-        if: env.FIREBASERC_JSON != ''
+        if: steps.scope.outputs.firebase_tools == 'true' && env.FIREBASERC_JSON != ''
         shell: bash
         run: |
           printf '%s' "$FIREBASERC_JSON" > .firebaserc
 
-      - name: CI 프리플라이트 실행
+      - name: Android 프리플라이트 실행
+        if: steps.scope.outputs.android == 'true'
         shell: bash
         run: |
           ARGS=()
@@ -82,6 +196,41 @@ jobs:
             ARGS+=(--require-firebase)
           fi
           node tools/firebase/run-ci-preflight.js "${ARGS[@]}"
+
+      - name: 관리자 웹 빌드
+        if: steps.scope.outputs.admin_web == 'true'
+        working-directory: admin-web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Functions 의존성 확인
+        if: steps.scope.outputs.functions == 'true'
+        working-directory: functions
+        run: npm ci
+
+      - name: Firebase 도구 점검
+        if: steps.scope.outputs.firebase_tools == 'true'
+        shell: bash
+        run: |
+          find tools/firebase -name "*.js" -print0 | xargs -0 -n 1 node --check
+          node tools/firebase/run-ci-preflight.js --skip-workflow --skip-build --skip-tests --summary tools/firebase/reports/firebase-tools-light-preflight
+
+      - name: CI 범위 요약 작성
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p tools/firebase/reports
+          {
+            echo "# BoDeul CI 범위 요약"
+            echo ""
+            echo "- Android: ${{ steps.scope.outputs.android }}"
+            echo "- admin-web: ${{ steps.scope.outputs.admin_web }}"
+            echo "- functions: ${{ steps.scope.outputs.functions }}"
+            echo "- Firebase tools: ${{ steps.scope.outputs.firebase_tools }}"
+            echo "- 문서 전용: ${{ steps.scope.outputs.docs_only }}"
+            echo "- 미분류 파일 포함: ${{ steps.scope.outputs.unknown }}"
+          } > tools/firebase/reports/ci-scope-summary.md
 
       - name: 운영 리포트 아티팩트 업로드
         if: always()
