@@ -62,6 +62,7 @@ Windows self-hosted runner는 로컬 Gradle 캐시가 runner 사용자 디렉터
 - runner OS/라벨: `Windows`, `X64`, `self-hosted`, `bodeul`, `preflight`
 - 설치 경로: `D:\actions-runner\bodeul-preflight`
 - 실행 방식: 사용자 프로세스. Windows 서비스로는 등록하지 않았다.
+- 자동 시작: 현재 Windows runner 패키지에는 `svc.cmd`가 포함되어 있지 않아, 서비스 등록은 작업 스케줄러나 별도 서비스 래퍼를 검토한 뒤 진행한다.
 - 검증 workflow: `Android Preflight`
 - 검증 run:
   - `28031156324`: 최초 self-hosted 프리플라이트 통과
