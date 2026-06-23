@@ -81,7 +81,7 @@
 
 ## 실행 스크립트
 
-위 절차는 [reset-firestore-baseline.js](/D:/BoDeul/tools/firebase/reset-firestore-baseline.js)로 자동화했다.
+위 절차는 [reset-firestore-baseline.js](../../../tools/firebase/reset-firestore-baseline.js)로 자동화했다.
 
 이 스크립트는 배포 대상인 `functions/`가 아니라 운영 도구 디렉터리 `tools/firebase/`에 둔다. 기준선 초기화, 시드, 마이그레이션 같은 작업은 앱 런타임 코드와 분리해 두는 편이 이후 관리가 쉽다.
 
