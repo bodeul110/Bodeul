@@ -19,7 +19,7 @@
 
 ### 1. 앱 SharedPreferences
 
-- [PermissionGuidePreferences.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java)
+- [PermissionGuidePreferences.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java)
 - 저장 값:
   - 권한 안내 온보딩 완료 여부 `completed`
 
@@ -30,7 +30,7 @@
 
 ### 2. Firestore 로컬 캐시
 
-- [ServiceLocator.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/ServiceLocator.java)
+- [ServiceLocator.java](../../app/src/main/java/com/example/bodeul/data/ServiceLocator.java)
 - 현재 설정:
   - `MemoryCacheSettings`
   - 디스크 영속 캐시 사용 안 함
@@ -45,8 +45,8 @@
 - Android 앱:
   - Firebase Auth SDK가 로그인 세션을 자체 보관한다.
 - 관리자 웹:
-  - [firebase.ts](/D:/BoDeul/admin-web/firebase.ts)
-  - [App.tsx](/D:/BoDeul/admin-web/src/App.tsx)
+  - [firebase.ts](../../admin-web/firebase.ts)
+  - [App.tsx](../../admin-web/src/App.tsx)
   - 별도 `localStorage` 인증 상태는 제거했고, Firebase Auth 세션을 사용한다.
 
 판단:
@@ -56,7 +56,7 @@
 
 ### 4. 디버그 전용 임시 파일
 
-- [AutomationEntryActivity.java](/D:/BoDeul/app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)
+- [AutomationEntryActivity.java](../../app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java)
 - `getCacheDir()` 아래에 자동 업로드 검증용 샘플 파일을 만든다.
 
 판단:
@@ -76,7 +76,7 @@
 
 관련 코드:
 
-- [FirebaseBookingRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)
+- [FirebaseBookingRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)
 - `specialNotes`
 - `patientConditionSummary`
 - `medicationSummary`
@@ -89,8 +89,8 @@
 
 관련 코드:
 
-- [FirebaseBookingRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)
-- [FirebaseGuardianReportRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java)
+- [FirebaseBookingRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseBookingRepository.java)
+- [FirebaseGuardianReportRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseGuardianReportRepository.java)
 - `summary`
 - `treatmentNotes`
 - `medicationNotes`
@@ -104,7 +104,7 @@
 
 관련 코드:
 
-- [FirebaseAdminRepository.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java)
+- [FirebaseAdminRepository.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseAdminRepository.java)
 
 ### 4. 매니저 원본 서류
 
@@ -114,7 +114,7 @@
 
 관련 코드:
 
-- [FirebaseManagerDocumentStorageUploader.java](/D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java)
+- [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java)
 
 판단:
 

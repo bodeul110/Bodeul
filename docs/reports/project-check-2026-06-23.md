@@ -109,4 +109,4 @@
   - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseClientSupportRepository.java`
   - `app/src/main/java/com/example/bodeul/ui/auth/LoginActivity.java`
 - 문서 추가 및 갱신 1건
-  - `docs/project-check-2026-06-23.md`
+  - `project-check-2026-06-23.md`
