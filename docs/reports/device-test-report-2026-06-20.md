@@ -26,7 +26,7 @@
   - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseClientSupportRepository.java`
   - `app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java`
 - 문서
-  - `docs/device-test-report-2026-06-20.md`
+  - `device-test-report-2026-06-20.md`
 
 ## 테스트 환경
 
