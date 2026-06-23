@@ -1,4 +1,4 @@
-﻿# 2026-06-20 관리자 액션/심사 검증 보고서
+# 2026-06-20 관리자 액션/심사 검증 보고서
 ## 구현한 내용
 
 - `AutomationEntryActivity`에 관리자 후속 처리 자동화 extra를 추가했다.
@@ -23,7 +23,7 @@
   - `app/src/debug/java/com/example/bodeul/debug/AutomationEntryActivity.java`
   - `tools/firebase/lib/baseline-config.js`
 - 문서
-  - `docs/admin-action-test-report-2026-06-20.md`
+  - `admin-action-test-report-2026-06-20.md`
 
 ## 검증 결과
 

@@ -1,8 +1,10 @@
 # 리팩토링 로드맵
 
-기준일: 2026-06-20
+기준일: 2026-06-23
 
-이 문서는 현재 코드베이스에서 `지금 손대야 하는 리팩토링`만 추려 우선순위와 분할 기준을 고정한 계획 문서다.
+이 문서는 2026-06-20 리팩토링 라운드에서 `지금 손대야 하는 리팩토링`만 추려 우선순위와 분할 기준을 고정한 계획 문서다.
+
+2026-06-23 기준으로 이 문서의 `#7` ~ `#10` 계획 범위는 완료됐다. 아래 우선순위는 당시 실행 계획과 완료 기준을 보존한 기록이며, 최신 구조 요약은 [현재 구현 상태](../status/implementation-status.md)를 우선한다.
 
 ## 판단 기준
 
@@ -10,13 +12,14 @@
 - 단순 파일 길이보다 `서로 다른 책임이 한 파일에 섞여 있는지`를 더 중요하게 본다.
 - 전면 재작성 대신 `기존 동작 유지 + 모듈 분리` 방식으로 진행한다.
 
-## 현재 우선순위
+## 계획 범위와 현재 상태
 
 ### 1. Firebase Functions 분리
 
 - 현재 상태
-  - `functions/index.js`가 인증, 리마인더, 문의, 채팅, 위치 알림, 토큰 정리를 한 파일에서 담당한다.
-  - 배포 영향 범위가 너무 넓고, 작은 수정도 전체 함수 파일 검토가 필요하다.
+  - 완료.
+  - `functions/index.js`는 `initializeApp()`과 모듈 export 집계만 맡는다.
+  - 인증, 알림, 액션 전달, 동기화, 리마인더 로직은 `functions/src/` 아래 파일로 분리돼 있다.
 - 목표
   - `auth`
   - `reminder`
@@ -32,8 +35,9 @@
 ### 2. 관리자 앱 화면/저장소 분리
 
 - 현재 상태
-  - `AdminActivity`가 관리자 대시보드 대부분의 렌더링과 이벤트를 한 화면에서 처리한다.
-  - `FirebaseAdminRepository`가 요청, 운영, 가이드, 서류, 문의, 액션센터까지 같이 다룬다.
+  - 완료.
+  - 관리자 앱 주요 섹션은 `Admin*SectionController`로 분리됐다.
+  - `FirebaseAdminRepository`의 요청, 운영, 가이드, 서류, 문의, 액션센터 저장 축은 기능별 store/mapper로 분리됐다.
 - 목표
   - `request`
   - `operations`
@@ -50,8 +54,8 @@
 ### 3. Mock 저장소 분리
 
 - 현재 상태
-  - `MockBodeulRepository`가 예약, 문의, 위치, 채팅, 관리자 동작을 모두 한 파일에서 처리한다.
-  - Firebase 동작과 mock 동작의 차이를 추적하기 어렵다.
+  - 완료.
+  - 예약, 매니저, 문의, 관리자 축을 `Mock*Store`로 나누고, `MockBodeulRepository`는 공유 상태와 helper 제공 범위로 좁혔다.
 - 목표
   - `mock booking`
   - `mock manager`
@@ -64,7 +68,9 @@
 ### 4. 관리자 웹 구성 분리
 
 - 현재 상태
-  - `admin-web/src/App.tsx`가 로그인, 세션, 목록, 상세 모달, Storage 미리보기, idle timer를 함께 처리한다.
+  - 완료.
+  - `AdminAuthScreen`, `AdminShell`, `ManagerApprovalList`, `ManagerReviewModal`, `useAdminIdleSession`, `useManagerDocumentPreviews`로 분리했다.
+  - `admin-web/src/App.tsx`는 인증 상태, 목록 구독, 저장 액션, 화면 전환을 조합하는 셸 역할로 줄었다.
 - 목표
   - `auth shell`
   - `manager review list`
@@ -85,14 +91,14 @@
 
 이 항목들은 리팩토링이 아니라 기능 확장 또는 운영 정책 결정이 더 먼저 필요하다.
 
-## 작업 순서
+## 완료된 작업 순서
 
 1. Functions 분리
 2. 관리자 앱 분리
 3. Mock 저장소 분리
 4. 관리자 웹 분리
 
-이 순서를 유지하는 이유는 다음과 같다.
+이 순서를 유지했던 이유는 다음과 같다.
 
 - Functions는 배포 영향 범위가 가장 넓다.
 - 관리자 앱/저장소는 내부 복잡도가 가장 높다.
