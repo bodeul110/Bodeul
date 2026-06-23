@@ -28,10 +28,10 @@
     - `updatedAtMillis`
 
 앱 쪽 구현:
-- [FirebaseNotificationTokenRegistrar.java](D:/BoDeul/app/src/main/java/com/example/bodeul/data/firebase/FirebaseNotificationTokenRegistrar.java)
+- [FirebaseNotificationTokenRegistrar.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseNotificationTokenRegistrar.java)
 
 서버 쪽 구현:
-- [functions/index.js](D:/BoDeul/functions/index.js)
+- [functions/index.js](../../functions/index.js)
 
 ## 동기화 기준
 

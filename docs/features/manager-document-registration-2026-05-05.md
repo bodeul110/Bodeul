@@ -25,7 +25,7 @@
 - `app/src/main/res/layout/item_manager_document_registration.xml`
 - `app/src/main/res/values/strings.xml`
 - `app/src/main/AndroidManifest.xml`
-- `docs/manager-document-registration-2026-05-05.md`
+- `manager-document-registration-2026-05-05.md`
 
 ## 남은 범위
 
@@ -64,7 +64,7 @@
 - `app/src/main/res/layout/item_admin_manager_document.xml`
 - `app/src/main/res/values/strings.xml`
 - `app/src/test/java/com/example/bodeul/MockBodeulRepositoryTest.java`
-- `docs/manager-document-registration-2026-05-05.md`
+- `manager-document-registration-2026-05-05.md`
 
 ### 남은 범위
 

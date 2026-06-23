@@ -38,13 +38,25 @@ npm run dev
 
 ## 주요 파일
 
-- [firebase.ts](/D:/BoDeul/admin-web/firebase.ts)
+- [firebase.ts](firebase.ts)
   - Firebase 앱과 서비스 초기화
-- [src/App.tsx](/D:/BoDeul/admin-web/src/App.tsx)
-  - 관리자 로그인, 세션 검증, 매니저 승인 UI
-- [src/appCheck.ts](/D:/BoDeul/admin-web/src/appCheck.ts)
+- [src/App.tsx](src/App.tsx)
+  - 인증 상태, 매니저 목록 구독, 저장 액션, 화면 전환 조합
+- [src/components/AdminAuthScreen.tsx](src/components/AdminAuthScreen.tsx)
+  - 관리자 로그인 화면
+- [src/components/AdminShell.tsx](src/components/AdminShell.tsx)
+  - 관리자 웹 공통 셸
+- [src/components/ManagerApprovalList.tsx](src/components/ManagerApprovalList.tsx)
+  - 매니저 승인 목록
+- [src/components/ManagerReviewModal.tsx](src/components/ManagerReviewModal.tsx)
+  - 서류 상세 심사 모달
+- [src/hooks/useAdminIdleSession.ts](src/hooks/useAdminIdleSession.ts)
+  - 15분 유휴 세션 종료
+- [src/hooks/useManagerDocumentPreviews.ts](src/hooks/useManagerDocumentPreviews.ts)
+  - Storage 원본 파일 미리보기 상태 관리
+- [src/appCheck.ts](src/appCheck.ts)
   - 선택적 App Check 초기화
-- [vite.config.ts](/D:/BoDeul/admin-web/vite.config.ts)
+- [vite.config.ts](vite.config.ts)
   - 빌드와 vendor chunk 분리 설정
 
 ## 환경 변수
@@ -71,4 +83,4 @@ npm run build
 - 목록 화면의 이메일/전화번호는 기본 마스킹된다.
 - 상세 심사 모달에서만 원문을 확인한다.
 - 15분 동안 활동이 없으면 자동 로그아웃된다.
-- 세부 검증 절차는 [관리자 권한 QA 체크리스트](../docs/admin-access-qa-checklist.md)를 따른다.
+- 세부 검증 절차는 [관리자 권한 QA 체크리스트](../docs/operations/admin-access-qa-checklist.md)를 따른다.

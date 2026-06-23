@@ -27,7 +27,7 @@
 ## 사용 원칙
 
 - 최신 디자인 기준은 `local/보들 가이드.zip`과 `local/latest_figma_2026-06-19/`이다.
-- 기능 우선순위와 제품 요구사항은 `docs/local/보들_플랫폼_기능설명서.pdf`와 `docs/restructure-target-map.md`를 먼저 따른다.
+- 기능 우선순위와 제품 요구사항은 `docs/local/보들_플랫폼_기능설명서.pdf`와 `../docs/planning/screen-restructure-target.md`를 먼저 따른다.
 - 디자인 자산은 확정 명세가 아니라 UI polish와 위계 판단 기준으로만 사용한다.
 
 ## 보조 자산
