@@ -9,6 +9,7 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.util.NotificationPermissionSupport;
 
 /**
  * 앱 첫 실행 시 어떤 화면으로 보낼지 결정하는 진입 흐름 조정자다.
@@ -24,27 +25,23 @@ public final class EntryFlowCoordinator {
     private final Context appContext;
     private final AuthRepository authRepository;
     private final PermissionGuidePreferences permissionGuidePreferences;
-    private final PermissionGuideCatalog permissionGuideCatalog;
 
     public EntryFlowCoordinator(Context context) {
         this(
                 context.getApplicationContext(),
                 ServiceLocator.provideAuthRepository(context),
-                new PermissionGuidePreferences(context),
-                new PermissionGuideCatalog()
+                new PermissionGuidePreferences(context)
         );
     }
 
     EntryFlowCoordinator(
             Context appContext,
             AuthRepository authRepository,
-            PermissionGuidePreferences permissionGuidePreferences,
-            PermissionGuideCatalog permissionGuideCatalog
+            PermissionGuidePreferences permissionGuidePreferences
     ) {
         this.appContext = appContext;
         this.authRepository = authRepository;
         this.permissionGuidePreferences = permissionGuidePreferences;
-        this.permissionGuideCatalog = permissionGuideCatalog;
     }
 
     public void resolveLaunchIntent(@NonNull Callback callback) {
@@ -78,7 +75,12 @@ public final class EntryFlowCoordinator {
         if (!permissionGuidePreferences.hasCompletedGuide()) {
             return true;
         }
-        return !permissionGuidePreferences.hasCompletedNotificationPrompt()
-                && permissionGuideCatalog.hasPendingRuntimePermissionRequest(appContext);
+        if (NotificationPermissionSupport.canPostNotifications(appContext)) {
+            return false;
+        }
+        if (permissionGuidePreferences.hasCompletedNotificationPrompt()) {
+            permissionGuidePreferences.markNotificationPromptPending();
+        }
+        return true;
     }
 }

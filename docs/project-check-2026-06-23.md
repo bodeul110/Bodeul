@@ -28,6 +28,7 @@
 
 ### 2. Android 13+ 알림 권한이 사실상 1회성 선택으로 고정됨
 - GitHub issue: https://github.com/bodeul110/Bodeul/issues/18
+- 처리 상태: 수정 완료
 - `PermissionGuideActivity`는 안내를 닫거나 권한 요청 결과가 돌아온 직후 항상 `markCompleted()`와 `markNotificationPromptCompleted()`를 함께 기록한다.
 - `EntryFlowCoordinator`는 `hasCompletedNotificationPrompt()`가 `true`가 되면 다시는 알림 권한 안내를 열지 않는다.
 - 앱 내부에는 `POST_NOTIFICATIONS`를 다시 요청하거나 시스템 알림 설정으로 보내는 경로가 없다.
@@ -36,6 +37,11 @@
   - `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java`
   - `app/src/main/java/com/example/bodeul/ui/auth/EntryFlowCoordinator.java`
   - `app/src/main/java/com/example/bodeul/util/NotificationPermissionSupport.java`
+- 조치 내용
+  - 알림을 실제로 게시할 수 있을 때만 알림 프롬프트 완료 상태를 저장하도록 변경했다.
+  - 기존 저장값이 완료 상태여도 실제 알림 게시가 불가능하면 프롬프트 상태를 다시 미완료로 보정한다.
+  - 권한 거부 또는 앱 알림 비활성 상태에서 시스템 알림 설정으로 이동하는 버튼을 추가했다.
+  - 설정 화면에서 돌아온 뒤 알림 게시 가능 상태를 다시 확인하고 안내 문구를 표시한다.
 
 ### 3. 파일 크기를 알 수 없는 URI는 앱 단 검증을 우회함
 - GitHub issue: https://github.com/bodeul110/Bodeul/issues/19
@@ -68,10 +74,16 @@
 ## 변경 범위
 - Firestore 보안 규칙 변경
   - `firestore.rules`
+- Android 알림 권한 복구 경로 변경
+  - `app/src/main/java/com/example/bodeul/ui/auth/EntryFlowCoordinator.java`
+  - `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuideActivity.java`
+  - `app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java`
+  - `app/src/main/java/com/example/bodeul/util/NotificationPermissionSupport.java`
+  - `app/src/main/res/layout/activity_permission_guide.xml`
+  - `app/src/main/res/values/strings.xml`
 - 문서 추가 및 갱신 1건
   - `docs/project-check-2026-06-23.md`
 
 ## 남은 범위
-- 알림 권한 재요청 정책을 정하고 앱 내부 복구 경로를 추가할지 결정
 - 업로드 정책에서 `unknown size`를 차단하거나 스트림 기반 크기 계산으로 보강
 - 핵심 mapper의 enum 파싱을 fallback 기반으로 통일
