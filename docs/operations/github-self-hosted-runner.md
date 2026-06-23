@@ -61,5 +61,10 @@ Windows self-hosted runner는 로컬 Gradle 캐시가 runner 사용자 디렉터
 - runner 버전: `2.335.1`
 - runner OS/라벨: `Windows`, `X64`, `self-hosted`, `bodeul`, `preflight`
 - 설치 경로: `D:\actions-runner\bodeul-preflight`
+- 실행 방식: 사용자 프로세스. Windows 서비스로는 등록하지 않았다.
 - 검증 workflow: `Android Preflight`
+- 검증 run:
+  - `28031156324`: 최초 self-hosted 프리플라이트 통과
+  - `28032579258`: self-hosted 전용 Gradle Actions cache 비활성화 후 프리플라이트 통과
 - 검증 결과: `workflow_dispatch`에서 `runner_profile=self-hosted-bodeul`로 실행한 프리플라이트가 통과했다.
+- 잔여 경고: `actions/checkout@v4`의 Node.js 20 deprecation annotation이 남아 있다. runner 구성 실패는 아니며, 액션 버전 업데이트 대상이다.
