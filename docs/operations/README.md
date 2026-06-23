@@ -10,6 +10,8 @@
   - 테스트 계정, 더미 데이터, 역할별 테스트 순서
 - [관리자 권한 QA 체크리스트](admin-access-qa-checklist.md)
   - 관리자 앱/웹 권한 검증 시나리오
+- [GitHub self-hosted runner 운영 기준](github-self-hosted-runner.md)
+  - 수동 프리플라이트용 자체 실행기 등록, 라벨, 보안 기준
 
 ## Firebase 운영
 

@@ -19,6 +19,14 @@ on:
         required: false
         default: "tools/firebase/templates/app-navigation-evidence.sample.json"
         type: string
+      runner_profile:
+        description: "프리플라이트 실행기 종류"
+        required: false
+        default: "github-hosted"
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted-bodeul
 
 permissions:
   contents: read
@@ -29,7 +37,7 @@ concurrency:
 
 jobs:
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_profile == 'self-hosted-bodeul' && fromJSON('["self-hosted","bodeul","preflight"]') || 'ubuntu-latest' }}
     timeout-minutes: 20
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
@@ -224,6 +232,7 @@ jobs:
           {
             echo "# BoDeul CI 범위 요약"
             echo ""
+            echo "- 실행기: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_profile || 'github-hosted' }}"
             echo "- Android: ${{ steps.scope.outputs.android }}"
             echo "- admin-web: ${{ steps.scope.outputs.admin_web }}"
             echo "- functions: ${{ steps.scope.outputs.functions }}"
