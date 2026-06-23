@@ -7,7 +7,7 @@
 - 공용 기준 브랜치는 `master`다.
 - 기능 작업은 가능하면 `feature/작업이름` 브랜치에서 진행한다.
 - 같은 시간대에 같은 영역을 동시에 수정하지 않는다.
-- 작업 시작 전 `implementation-status.md` 최신 항목과 현재 원격 변경분을 먼저 확인한다.
+- 작업 시작 전 `../status/implementation-status.md` 최신 항목과 현재 원격 변경분을 먼저 확인한다.
 - 작업 종료 전에는 자신의 변경 범위와 남은 범위를 문서에 남긴다.
 
 ## 작업 시작 전
@@ -17,7 +17,7 @@
 1. 현재 로컬 상태를 확인한다.
 2. 최근 누가 무엇을 작업했는지 확인한다.
 3. 로컬 브랜치와 원격 `master` 중 어느 쪽이 최신인지 확인한다.
-4. [implementation-status.md](/D:/BoDeul/docs/implementation-status.md)를 열어 가장 마지막 작업 항목과 남은 범위를 확인한다.
+4. [../status/implementation-status.md](../status/implementation-status.md)를 열어 가장 마지막 작업 항목과 남은 범위를 확인한다.
 5. 자신의 담당 영역을 짧게 공유한다.
 6. 같은 파일을 이미 다른 사람이 잡고 있으면 시간대를 조정하거나 범위를 나눈다.
 
@@ -62,7 +62,7 @@ git diff --stat HEAD..origin/master
 작업 전에는 아래를 같이 본다.
 
 1. 최근 커밋 작성자
-2. 최근 `implementation-status.md` 작성 항목
+2. 최근 `../status/implementation-status.md` 작성 항목
 3. 팀 채널이나 메신저에 남은 현재 작업 선언
 
 가능하면 아래 정보를 짧게 공유한다.
@@ -127,7 +127,7 @@ git stash pop
 - `app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java`
 - `functions/index.js`
 - `app/src/main/res/values/strings.xml`
-- `docs/implementation-status.md`
+- `../status/implementation-status.md`
 - `tools/firebase/**`
 
 이 구간을 수정할 때는 작업 전에 `누가 언제까지 잡는지`를 먼저 정한다.
@@ -145,19 +145,19 @@ git stash pop
 
 ## 문서 갱신 규칙
 
-- [implementation-status.md](/D:/BoDeul/docs/implementation-status.md)는 작업이 끝난 사람이 마지막에만 갱신한다.
+- [../status/implementation-status.md](../status/implementation-status.md)는 작업이 끝난 사람이 마지막에만 갱신한다.
 - 같은 날 여러 작업이 있으면 최신 항목 아래에 순서대로 새 섹션을 추가한다.
-- 작업 중간 메모는 채팅이나 별도 공유 채널에 남기고, `implementation-status.md`에는 완료 기준만 기록한다.
+- 작업 중간 메모는 채팅이나 별도 공유 채널에 남기고, `../status/implementation-status.md`에는 완료 기준만 기록한다.
 - 구조나 기준이 바뀌면 관련 문서도 함께 맞춘다.
-  - [restructure-target-map.md](/D:/BoDeul/docs/restructure-target-map.md)
-  - [firebase-setup.md](/D:/BoDeul/docs/firebase-setup.md)
-  - [firebase-operations-tools.md](/D:/BoDeul/docs/firebase-operations-tools.md)
+  - [../planning/screen-restructure-target.md](../planning/screen-restructure-target.md)
+  - [firebase/setup.md](firebase/setup.md)
+  - [firebase/tools.md](firebase/tools.md)
 
 ## Firebase 작업 규칙
 
 - 기준선 초기화, 샘플 데이터 주입, 백업/복원, CI 시크릿 변경은 동시에 두 사람이 하지 않는다.
 - `tools/firebase`와 GitHub Actions 설정은 한 번에 한 명만 수정한다.
-- Firestore 개발 데이터 정리는 [firebase-reset-baseline.md](/D:/BoDeul/docs/firebase-reset-baseline.md) 절차를 따른다.
+- Firestore 개발 데이터 정리는 [firebase/reset-baseline.md](firebase/reset-baseline.md) 절차를 따른다.
 
 ## 작업 중 규칙
 
@@ -200,7 +200,7 @@ git log --oneline --decorate -5
 - 시작 전에 최근 작업자와 최신 `master` 상태를 확인했는가
 - 로컬과 원격 중 어느 쪽이 최신인지 확인했는가
 - 같은 파일을 다른 사람이 수정 중인지 확인했는가
-- `implementation-status.md` 최신 항목을 읽었는가
+- `../status/implementation-status.md` 최신 항목을 읽었는가
 - Firebase 운영 작업 담당이 겹치지 않는가
 - pull 전 내 로컬 변경을 안전하게 정리했는가
 - 종료 전에 문서와 검증 결과를 남겼는가
