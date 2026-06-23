@@ -4,12 +4,12 @@
 
 - 전체 점검 후속 조치가 `master`에 병합된 상태를 기준으로 앱 테스트 준비를 마감했다.
 - 테스트용 Android debug APK 위치, 설치 기준, 우선 확인 시나리오를 정리했다.
-- 점검 상세 내역과 변경 근거는 `docs/project-check-followup-2026-06-20.md`에 연결했다.
+- 점검 상세 내역과 변경 근거는 `project-check-followup-2026-06-20.md`에 연결했다.
 
 ## 변경된 범위
 
 - 문서
-  - `docs/app-test-ready-2026-06-20.md`
+  - `app-test-ready-2026-06-20.md`
 
 ## 앱 테스트 준비 상태
 
@@ -63,7 +63,7 @@ adb install D:\BoDeul\app\build\outputs\apk\debug\app-debug.apk
 
 ## 참고 문서
 
-- 점검 상세: `docs/project-check-followup-2026-06-20.md`
+- 점검 상세: `project-check-followup-2026-06-20.md`
 
 ## 남은 범위
 
