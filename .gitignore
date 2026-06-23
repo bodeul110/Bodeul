@@ -33,6 +33,7 @@ temp.txt
 /tools/firebase/reports/screenshots/*.png
 !/tools/firebase/reports/.gitkeep
 !/tools/firebase/reports/screenshots/.gitkeep
+/tools/github/*.log
 /docs/local/*
 !/docs/local/README.md
 /design_refs/local/*

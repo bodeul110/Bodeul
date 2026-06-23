@@ -39,6 +39,9 @@ jobs:
   preflight:
     runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_profile == 'self-hosted-bodeul' && fromJSON('["self-hosted","bodeul","preflight"]') || 'ubuntu-latest' }}
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
       FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
@@ -174,6 +177,32 @@ jobs:
           cache-dependency-path: |
             admin-web/package-lock.json
             functions/package-lock.json
+
+      - name: Android SDK 경로 설정 (self-hosted)
+        if: steps.scope.outputs.android == 'true' && github.event_name == 'workflow_dispatch' && inputs.runner_profile == 'self-hosted-bodeul'
+        env:
+          SELF_HOSTED_ANDROID_HOME: ${{ vars.SELF_HOSTED_ANDROID_HOME }}
+        run: |
+          if [ -z "$SELF_HOSTED_ANDROID_HOME" ]; then
+            echo "SELF_HOSTED_ANDROID_HOME 저장소 변수가 비어 있습니다." >&2
+            exit 1
+          fi
+
+          sdk_path="$SELF_HOSTED_ANDROID_HOME"
+          sdk_check_path="$sdk_path"
+          if command -v cygpath >/dev/null 2>&1; then
+            sdk_check_path="$(cygpath -u "$sdk_path")"
+          fi
+
+          if [ ! -d "$sdk_check_path" ]; then
+            echo "Android SDK 경로가 없습니다: $sdk_path" >&2
+            exit 1
+          fi
+
+          {
+            printf 'ANDROID_HOME=%s\n' "$sdk_path"
+            printf 'ANDROID_SDK_ROOT=%s\n' "$sdk_path"
+          } >> "$GITHUB_ENV"
 
       - name: Gradle 실행 권한 부여
         if: steps.scope.outputs.android == 'true'
