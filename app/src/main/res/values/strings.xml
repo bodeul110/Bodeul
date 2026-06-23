@@ -26,6 +26,10 @@
     <string name="permission_guide_highlight_body">문의 답변, 안심 채팅, 위치 자동 알림은 알림 권한을 허용하면 바로 받을 수 있습니다. 길 안내와 실시간 위치 공유는 실제 화면에 들어갔을 때만 위치 권한을 다시 확인합니다.</string>
     <string name="permission_guide_footer">권한을 허용하지 않아도 기본 화면은 둘러볼 수 있지만, 알림과 실시간 위치 기능은 제한될 수 있습니다.</string>
     <string name="permission_guide_confirm">계속</string>
+    <string name="permission_notification_settings">알림 설정 열기</string>
+    <string name="permission_notification_recovery_notice">알림을 받으려면 앱 알림 설정에서 권한을 허용해주세요.</string>
+    <string name="permission_notification_enabled_notice">알림 권한이 허용되었습니다.</string>
+    <string name="permission_notification_settings_unavailable">알림 설정 화면을 열 수 없습니다. 기기 설정에서 보듈 알림을 허용해주세요.</string>
     <string name="permission_item_badge_data">데이터 보호</string>
     <string name="permission_item_badge_notification">알림 안내</string>
     <string name="permission_item_badge_document">문서 업로드</string>

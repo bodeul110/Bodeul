@@ -35,4 +35,8 @@ public final class PermissionGuidePreferences {
     public void markNotificationPromptCompleted() {
         preferences.edit().putBoolean(KEY_NOTIFICATION_PROMPT_COMPLETED, true).apply();
     }
+
+    public void markNotificationPromptPending() {
+        preferences.edit().putBoolean(KEY_NOTIFICATION_PROMPT_COMPLETED, false).apply();
+    }
 }
