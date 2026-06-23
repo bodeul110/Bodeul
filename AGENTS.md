@@ -1,9 +1,67 @@
-# 작업 규칙
+# BoDeul 작업 규칙
 
-- UI 문구는 전부 한국어로 유지한다.
-- 새 기능 추가 후 반드시 `assembleDebug`로 검증한다.
-- 사용자 승인 없이 의존성 버전을 올리지 않는다.
-- 화면, 도메인, 데이터 로직은 역할이 분리된 객체로 나누고 액티비티/프래그먼트에는 흐름 제어만 남기는 객체지향 구조를 유지한다.
-- 주석 등 프로그램 동작에 직접적인 영향을 주지 않는 문장은 모두 한국어로 통일한다.
-- 코드가 어떤 기능을 하는지 이해가 필요한 부분에는 목적이 드러나는 주석을 한국어로 작성한다.
-- 작업 완료 후 구현한 내용, 변경된 범위, 남은 범위를 답변과 문서에 정리한다.
+## 기본 원칙
+
+- UI 문구, 사용자에게 보이는 오류/안내 문구, 주석, 문서의 설명 문장은 한국어로 작성한다.
+- 파일 인코딩은 UTF-8을 유지한다. 깨진 한글이나 mojibake를 발견하면 해당 파일을 수정할 때 함께 바로잡는다.
+- 사용자 승인 없이 의존성 버전, Gradle/Android SDK 버전, Node 런타임 버전, Firebase 패키지 버전을 올리지 않는다.
+- 보안값, API 키, `google-services.json`, `local.properties`, Firebase 토큰, 서비스 계정 키는 커밋하지 않는다.
+- 기존 사용자 변경을 되돌리지 않는다. 특히 문서 정리, 파일 이동, 로컬 설정 변경이 섞인 상태에서는 요청 범위의 파일만 좁게 수정한다.
+
+## 프로젝트 구조
+
+- `app/`: Android 앱. Java 기반이며 화면 흐름, Firebase 데이터 접근, 인증/예약/위치/리포트 기능을 포함한다.
+- `admin-web/`: Vite + React 관리자 웹.
+- `functions/`: Firebase Functions. Node 22 기준으로 운영한다.
+- `tools/firebase/`: Firebase 점검, 백업, seed, preflight, 운영 리포트용 Node 스크립트.
+- `docs/`: 설계, 운영, 보안, 상태, 보고서 문서의 기준 위치.
+- `.github/`: PR/Issue 템플릿, CODEOWNERS, Dependabot, SECURITY 정책, Actions workflow.
+
+## Android 앱 작업
+
+- 새 기능, 리팩터링, 버그 수정 후에는 반드시 `.\gradlew.bat assembleDebug --console=plain`로 검증한다.
+- 화면, 도메인, 데이터 로직은 역할이 분리된 객체로 나눈다. Activity/Fragment에는 화면 흐름 제어와 연결 코드만 남긴다.
+- Firebase, 인증, 위치, 예약, 리포트처럼 외부 상태와 연결되는 코드는 Repository/Service 계층에 둔다.
+- UI 문구는 하드코딩을 피하고 가능한 리소스 문자열로 관리한다.
+- `google-services.json`이 없는 CI/Dependabot 환경에서도 컴파일이 깨지지 않도록 fallback을 고려한다.
+- 사용자가 볼 수 없는 내부 로그도 한국어 맥락을 유지하되, 민감정보는 남기지 않는다.
+
+## 관리자 웹 작업
+
+- `admin-web/` 변경 후에는 변경 범위에 따라 `npm --prefix admin-web run build`를 우선 실행한다.
+- 린트 영향이 있는 변경이면 `npm --prefix admin-web run lint`도 실행한다.
+- 운영 도구 성격의 화면은 장식보다 반복 사용, 스캔, 비교가 쉬운 구성을 우선한다.
+- Firebase 설정값과 운영 환경값은 코드에 직접 박지 말고 환경 설정 경로를 사용한다.
+
+## Firebase와 운영 스크립트
+
+- `functions/` 변경은 Node 22 기준을 유지한다.
+- Firebase Rules, Functions, 운영 스크립트 변경은 `docs/operations/firebase/` 또는 `docs/reports/`에 영향 범위와 검증 결과를 남긴다.
+- `tools/firebase/` 스크립트 변경은 가능한 경우 `npm --prefix tools/firebase run preflight:local` 또는 관련 개별 스크립트로 검증한다.
+- 운영 데이터에 쓰기 작업을 하는 스크립트는 기본적으로 dry-run 경로를 먼저 사용하고, apply 실행은 명시적 요청이 있을 때만 한다.
+- Firestore/Storage Rules 변경은 배포 전에 로컬 검증과 영향 범위 문서화를 우선한다.
+
+## GitHub 운영
+
+- `master`는 PR과 `preflight` 체크를 거쳐 반영한다.
+- merge 방식은 squash merge를 기본으로 한다.
+- Dependabot PR은 의존성 변경이므로 사용자 승인 없이 병합하지 않는다.
+- GitHub Project `BoDeul 작업 백로그`와 Issue/Milestone을 실제 작업 추적의 기준으로 사용한다.
+- 작업 PR 본문에는 변경 범위, 영향, 검증 결과, 남은 범위를 적는다.
+- 보안 취약점이나 실제 비밀값은 공개 Issue/PR 댓글에 적지 않고 private vulnerability reporting 경로를 사용한다.
+
+## 검증 기준
+
+- Android 앱 코드 변경: `.\gradlew.bat assembleDebug --console=plain`
+- 관리자 웹 변경: `npm --prefix admin-web run build`
+- 관리자 웹 lint 영향 변경: `npm --prefix admin-web run lint`
+- Firebase 운영 스크립트 변경: `npm --prefix tools/firebase run preflight:local` 또는 관련 스크립트
+- GitHub YAML 변경: `yq e '.' <파일>`로 파싱 확인
+- 문서 전용 변경은 빌드가 필요하지 않지만, 링크와 경로가 현재 구조와 맞는지 확인한다.
+
+## 문서화
+
+- 작업 완료 후 답변과 문서에 `구현한 내용`, `변경된 범위`, `검증`, `남은 범위`를 정리한다.
+- 설계 판단은 `docs/design/`, 아키텍처와 데이터 계약은 `docs/architecture/`, 운영 절차는 `docs/operations/`, 결과 보고는 `docs/reports/`에 둔다.
+- 문서 이동이나 이름 변경은 기존 링크 영향까지 확인한다.
+- 코드 의도를 이해해야 하는 부분에는 목적이 드러나는 짧은 한국어 주석을 남긴다.
