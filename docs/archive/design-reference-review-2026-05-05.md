@@ -7,7 +7,7 @@
 중요한 전제:
 
 - 이 ZIP은 참고 디자인이다. 확정 명세로 바로 취급하지 않는다.
-- 기능 구조와 권한/운영 정책은 `../local/보들_플랫폼_기능설명서.pdf`, [화면 개편 목표 정리](../restructure-target-map.md), [현재 구현 상태](../implementation-status.md)를 우선 기준으로 둔다.
+- 기능 구조와 권한/운영 정책은 `../local/보들_플랫폼_기능설명서.pdf`, [화면 개편 목표 정리](../planning/screen-restructure-target.md), [현재 구현 상태](../status/implementation-status.md)를 우선 기준으로 둔다.
 - 디자인이 보안, 운영, QA 요구와 충돌하면 현재 정책을 우선한다.
 
 ## 확인한 최신 자료

@@ -182,8 +182,8 @@ npm run check:manager-storage -- --strict
 
 ## 9. 관련 문서
 
-- [현재 구현 상태](implementation-status.md)
-- [문서 안내](document-guide.md)
-- [Firebase 설정](firebase-setup.md)
-- [Firebase 운영 도구](firebase-operations-tools.md)
+- [현재 구현 상태](../status/implementation-status.md)
+- [문서 안내](../README.md)
+- [Firebase 설정](firebase/setup.md)
+- [Firebase 운영 도구](firebase/tools.md)
 - [관리자 권한 QA 체크리스트](admin-access-qa-checklist.md)
