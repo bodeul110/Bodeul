@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 문서 홈
+    url: https://github.com/bodeul110/Bodeul/blob/master/docs/README.md
+    about: 기능 기준과 현재 구현 상태를 먼저 확인합니다.
+  - name: 내부 테스트 가이드
+    url: https://github.com/bodeul110/Bodeul/blob/master/docs/operations/internal-test-guide.md
+    about: 역할별 데모 계정과 테스트 흐름을 확인합니다.
