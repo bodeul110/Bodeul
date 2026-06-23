@@ -195,7 +195,7 @@ npm run check:manager-storage -- --strict
 
 이미 반영된 자동 검증:
 
-- [firestore-security-hardening.md](/D:/BoDeul/docs/firestore-security-hardening.md)
+- [../security/firestore-hardening.md](../security/firestore-hardening.md)
 
 ### 5-2. Storage 정리 전 안전장치 확인
 
