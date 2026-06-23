@@ -119,6 +119,274 @@ service cloud.firestore {
           );
     }
 
+    function createdOnly(allowedKeys) {
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function affectedOnly(allowedKeys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
+    }
+
+    function affectedAny(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
+
+    function isClientRole() {
+      return isPatient() || isGuardian();
+    }
+
+    function isAppointmentRequestOwner(data) {
+      return signedIn()
+          && (
+            (isPatient() && data.patientUserId == request.auth.uid)
+            || (isGuardian() && data.guardianUserId == request.auth.uid)
+          );
+    }
+
+    function appointmentRequestClientWritableFields() {
+      return [
+        'patientUserId',
+        'patientName',
+        'patientPhone',
+        'patientEmail',
+        'guardianUserId',
+        'guardianName',
+        'guardianPhone',
+        'guardianEmail',
+        'hospitalName',
+        'departmentName',
+        'appointmentAt',
+        'meetingPlace',
+        'specialNotes',
+        'patientConditionSummary',
+        'medicationSummary',
+        'mobilitySupportCode',
+        'tripTypeCode',
+        'managerGenderPreferenceCode',
+        'paymentMethodCode',
+        'couponCode',
+        'basePrice',
+        'optionSurchargePrice',
+        'couponDiscountPrice',
+        'finalPrice',
+        'paymentStatusCode',
+        'paymentApprovalCode',
+        'paymentApprovedAt',
+        'paymentProviderLabel',
+        'appointmentAtEpochMillis',
+        'appointmentDateKey',
+        'reminderStages',
+        'status',
+        'managerUserId',
+        'requesterUserId',
+        'requesterRole',
+        'requesterName',
+        'requesterPhone',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function canClientCreateAppointmentRequest() {
+      return isClientRole()
+          && createdOnly(appointmentRequestClientWritableFields())
+          && request.resource.data.keys().hasAll([
+            'status',
+            'managerUserId',
+            'requesterUserId',
+            'requesterRole',
+            'createdAt'
+          ])
+          && request.resource.data.status == 'REQUESTED'
+          && request.resource.data.managerUserId == null
+          && request.resource.data.requesterUserId == request.auth.uid
+          && request.resource.data.requesterRole == currentRole()
+          && isAppointmentRequestOwner(request.resource.data);
+    }
+
+    function canClientEditAppointmentRequest() {
+      return isClientRole()
+          && isAppointmentRequestOwner(resource.data)
+          && isAppointmentRequestOwner(request.resource.data)
+          && resource.data.status == 'REQUESTED'
+          && request.resource.data.status == 'REQUESTED'
+          && request.resource.data.managerUserId == null
+          && request.resource.data.requesterUserId == request.auth.uid
+          && request.resource.data.requesterRole == currentRole()
+          && affectedOnly(appointmentRequestClientWritableFields());
+    }
+
+    function canClientCancelAppointmentRequest() {
+      return isClientRole()
+          && isAppointmentRequestOwner(resource.data)
+          && resource.data.status in ['REQUESTED', 'MATCHED']
+          && request.resource.data.status == 'CANCELED'
+          && affectedOnly(['status', 'updatedAt']);
+    }
+
+    function canManagerUpdateAppointmentStatus() {
+      return isManager()
+          && resource.data.managerUserId == request.auth.uid
+          && resource.data.status in ['MATCHED', 'IN_PROGRESS']
+          && request.resource.data.status in ['IN_PROGRESS', 'COMPLETED']
+          && affectedOnly(['status']);
+    }
+
+    function companionSessionCreateFields() {
+      return [
+        'appointmentRequestId',
+        'managerUserId',
+        'currentStepOrder',
+        'currentStatus',
+        'guardianUpdate',
+        'locationSummary',
+        'fieldPhotoNote',
+        'medicationNote',
+        'pharmacySummary',
+        'prescriptionCollected',
+        'pharmacyCompleted',
+        'medicationGuidanceCompleted',
+        'liveLocationSharingActive',
+        'sharedLocationHistory',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function companionSessionManagerWritableFields() {
+      return [
+        'currentStepOrder',
+        'currentStatus',
+        'guardianUpdate',
+        'locationSummary',
+        'fieldPhotoNote',
+        'medicationNote',
+        'pharmacySummary',
+        'prescriptionCollected',
+        'pharmacyCompleted',
+        'medicationGuidanceCompleted',
+        'sharedLatitude',
+        'sharedLongitude',
+        'sharedLocationUpdatedAt',
+        'sharedLocationHistory',
+        'liveLocationSharingActive',
+        'liveLocationSharingStartedAt',
+        'chatMessages',
+        'managerChatReadAt',
+        'locationAlertStage',
+        'locationAlertSentAt',
+        'updatedAt'
+      ];
+    }
+
+    function canManagerCreateCompanionSession() {
+      return isManager()
+          && createdOnly(companionSessionCreateFields())
+          && request.resource.data.managerUserId == request.auth.uid
+          && request.resource.data.currentStatus == 'READY'
+          && request.resource.data.liveLocationSharingActive == false
+          && appointmentExists(request.resource.data.appointmentRequestId)
+          && appointmentDoc(request.resource.data.appointmentRequestId).data.managerUserId == request.auth.uid;
+    }
+
+    function canManagerUpdateCompanionSession() {
+      return isManager()
+          && resource.data.managerUserId == request.auth.uid
+          && affectedOnly(companionSessionManagerWritableFields())
+          && (
+            !affectedAny(['currentStatus'])
+            || request.resource.data.currentStatus in ['READY', 'IN_PROGRESS', 'COMPLETED']
+          );
+    }
+
+    function canClientCancelCompanionSession() {
+      return isClientRole()
+          && isAppointmentParticipant(resource.data.appointmentRequestId)
+          && request.resource.data.currentStatus == 'CANCELED'
+          && request.resource.data.liveLocationSharingActive == false
+          && affectedOnly([
+            'currentStatus',
+            'liveLocationSharingActive',
+            'liveLocationSharingStartedAt',
+            'updatedAt'
+          ]);
+    }
+
+    function canPatientUpdateCompanionChat() {
+      return isPatient()
+          && isAppointmentParticipant(resource.data.appointmentRequestId)
+          && affectedOnly(['chatMessages', 'patientChatReadAt', 'updatedAt']);
+    }
+
+    function canGuardianUpdateCompanionChat() {
+      return isGuardian()
+          && isAppointmentParticipant(resource.data.appointmentRequestId)
+          && affectedOnly(['chatMessages', 'guardianChatReadAt', 'updatedAt']);
+    }
+
+    function appointmentFollowUpClientWritableFields() {
+      return [
+        'requestId',
+        'reviewRatingCode',
+        'reviewSavedByUserId',
+        'reviewSavedAt',
+        'settlementFollowUpStatus',
+        'settlementFollowUpNote',
+        'settlementFollowUpSavedByUserId',
+        'settlementFollowUpSavedAt',
+        'supportEscalationStatus',
+        'supportEscalatedByUserId',
+        'supportEscalatedAt',
+        'updatedAt'
+      ];
+    }
+
+    function followUpCreateActorFieldsAreValid() {
+      return (
+            !request.resource.data.keys().hasAny(['reviewSavedByUserId'])
+            || request.resource.data.reviewSavedByUserId == request.auth.uid
+          )
+          && (
+            !request.resource.data.keys().hasAny(['settlementFollowUpSavedByUserId'])
+            || request.resource.data.settlementFollowUpSavedByUserId == request.auth.uid
+          )
+          && (
+            !request.resource.data.keys().hasAny(['supportEscalatedByUserId'])
+            || request.resource.data.supportEscalatedByUserId == request.auth.uid
+          );
+    }
+
+    function followUpUpdateActorFieldsAreValid() {
+      return (
+            !affectedAny(['reviewSavedByUserId'])
+            || request.resource.data.reviewSavedByUserId == request.auth.uid
+          )
+          && (
+            !affectedAny(['settlementFollowUpSavedByUserId'])
+            || request.resource.data.settlementFollowUpSavedByUserId == request.auth.uid
+          )
+          && (
+            !affectedAny(['supportEscalatedByUserId'])
+            || request.resource.data.supportEscalatedByUserId == request.auth.uid
+          );
+    }
+
+    function canClientCreateAppointmentFollowUp(appointmentRequestId) {
+      return isClientRole()
+          && isAppointmentParticipant(appointmentRequestId)
+          && createdOnly(appointmentFollowUpClientWritableFields())
+          && request.resource.data.requestId == appointmentRequestId
+          && followUpCreateActorFieldsAreValid();
+    }
+
+    function canClientUpdateAppointmentFollowUp(appointmentRequestId) {
+      return isClientRole()
+          && isAppointmentParticipant(appointmentRequestId)
+          && affectedOnly(appointmentFollowUpClientWritableFields())
+          && request.resource.data.requestId == appointmentRequestId
+          && followUpUpdateActorFieldsAreValid();
+    }
+
     match /users/{userId} {
       // 사용자 문서는 본인과 관리자만 직접 읽고, 교차 프로필 참조는 Functions 중계를 사용한다.
       allow get: if canGetUser(userId);
@@ -146,18 +414,13 @@ service cloud.firestore {
 
       // 신규 신청은 환자, 보호자, 관리자만 생성할 수 있다.
       allow create: if isAdmin()
-          || (
-            isPatient()
-            && request.resource.data.patientUserId == request.auth.uid
-          )
-          || (
-            isGuardian()
-            && request.resource.data.guardianUserId == request.auth.uid
-          );
+          || canClientCreateAppointmentRequest();
 
       // 매칭과 상태 변경은 배정된 매니저 또는 관리자가 담당한다.
       allow update: if isAdmin()
-          || (isManager() && resource.data.managerUserId == request.auth.uid);
+          || canClientEditAppointmentRequest()
+          || canClientCancelAppointmentRequest()
+          || canManagerUpdateAppointmentStatus();
       allow delete: if isAdmin();
     }
 
@@ -167,13 +430,12 @@ service cloud.firestore {
 
       // 세션 생성과 수정은 배정된 매니저 또는 관리자가 수행한다.
       allow create: if isAdmin()
-          || (
-            isManager()
-            && request.resource.data.managerUserId == request.auth.uid
-          );
+          || canManagerCreateCompanionSession();
       allow update: if isAdmin()
-          || (isManager() && resource.data.managerUserId == request.auth.uid)
-          || isAppointmentParticipant(resource.data.appointmentRequestId);
+          || canManagerUpdateCompanionSession()
+          || canClientCancelCompanionSession()
+          || canPatientUpdateCompanionChat()
+          || canGuardianUpdateCompanionChat();
       allow delete: if isAdmin();
     }
 
@@ -195,7 +457,8 @@ service cloud.firestore {
 
     match /appointmentFollowUps/{appointmentRequestId} {
       allow read: if isAdmin() || isAppointmentParticipant(appointmentRequestId);
-      allow create, update: if isAdmin() || isAppointmentParticipant(appointmentRequestId);
+      allow create: if isAdmin() || canClientCreateAppointmentFollowUp(appointmentRequestId);
+      allow update: if isAdmin() || canClientUpdateAppointmentFollowUp(appointmentRequestId);
       allow delete: if isAdmin();
     }
 
