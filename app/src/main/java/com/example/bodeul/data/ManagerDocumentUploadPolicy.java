@@ -1,22 +1,19 @@
 package com.example.bodeul.data;
 
 import android.content.ContentResolver;
-import android.database.Cursor;
 import android.net.Uri;
-import android.provider.OpenableColumns;
 import android.text.TextUtils;
 import android.webkit.MimeTypeMap;
 
 import androidx.annotation.Nullable;
 
-import java.io.File;
 import java.util.Locale;
 
 /**
  * 매니저 원본 서류 업로드 전에 형식과 크기를 같은 기준으로 검사한다.
  */
 public final class ManagerDocumentUploadPolicy {
-    public static final long MAX_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
+    public static final long MAX_FILE_SIZE_BYTES = UploadFileSizePolicy.MAX_FILE_SIZE_BYTES;
 
     private ManagerDocumentUploadPolicy() {
     }
@@ -32,9 +29,16 @@ public final class ManagerDocumentUploadPolicy {
             return "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.";
         }
 
-        long fileSize = resolveFileSize(resolver, fileUri);
-        if (fileSize > MAX_FILE_SIZE_BYTES) {
+        UploadFileSizePolicy.Result sizeResult = UploadFileSizePolicy.validate(
+                resolver,
+                fileUri,
+                MAX_FILE_SIZE_BYTES
+        );
+        if (sizeResult.isTooLarge()) {
             return "원본 서류는 10MB 이하 파일만 업로드할 수 있습니다.";
+        }
+        if (sizeResult.isUnknown()) {
+            return "원본 서류 파일 크기를 확인할 수 없습니다. 다시 선택해주세요.";
         }
 
         return null;
@@ -76,33 +80,6 @@ public final class ManagerDocumentUploadPolicy {
         }
         return "application/pdf".equals(contentType)
                 || contentType.startsWith("image/");
-    }
-
-    private static long resolveFileSize(ContentResolver resolver, Uri fileUri) {
-        Cursor cursor = null;
-        try {
-            cursor = resolver.query(fileUri, null, null, null, null);
-            if (cursor != null && cursor.moveToFirst()) {
-                int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
-                if (sizeIndex >= 0) {
-                    return cursor.getLong(sizeIndex);
-                }
-            }
-        } catch (Exception ignored) {
-            // SAF 메타데이터 조회가 실패하면 file 경로 기준으로 한 번 더 확인한다.
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
-
-        if ("file".equalsIgnoreCase(fileUri.getScheme())) {
-            File localFile = new File(normalizeText(fileUri.getPath()));
-            if (localFile.isFile()) {
-                return localFile.length();
-            }
-        }
-        return -1L;
     }
 
     private static String normalizeText(String value) {
