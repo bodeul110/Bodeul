@@ -91,7 +91,7 @@ npm --prefix admin-web run build
 2. 배포 전 미리보기 채널에 올려 확인한다.
 
 ```powershell
-firebase hosting:channel:deploy admin-web-preview --only hosting --project <firebase-project-id> --expires 7d
+firebase hosting:channel:deploy admin-web-preview --project <firebase-project-id> --expires 7d
 ```
 
 3. 운영 반영 시 Hosting만 배포한다.
@@ -100,7 +100,7 @@ firebase hosting:channel:deploy admin-web-preview --only hosting --project <fire
 firebase deploy --only hosting --project <firebase-project-id>
 ```
 
-Hosting 설정은 루트 [firebase.json](../firebase.json)의 `hosting` 블록을 기준으로 한다. `admin-web/dist`만 배포하며, `/assets/**`는 Vite 해시 파일이므로 장기 캐시하고 `/index.html`은 새 배포가 바로 반영되도록 no-cache로 둔다.
+Hosting 설정은 루트 [firebase.json](../firebase.json)의 `hosting` 블록을 기준으로 한다. `admin-web/dist`만 배포하며, `/assets/**`는 Vite 해시 파일이므로 장기 캐시하고 나머지 HTML/SPA 경로는 새 배포가 바로 반영되도록 no-cache로 둔다.
 
 ## 보안 메모
 

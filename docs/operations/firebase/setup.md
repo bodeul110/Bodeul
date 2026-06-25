@@ -53,7 +53,7 @@ npm --prefix admin-web run build
 미리보기 채널:
 
 ```powershell
-firebase hosting:channel:deploy admin-web-preview --only hosting --project <firebase-project-id> --expires 7d
+firebase hosting:channel:deploy admin-web-preview --project <firebase-project-id> --expires 7d
 ```
 
 운영 배포:
@@ -66,7 +66,7 @@ firebase deploy --only hosting --project <firebase-project-id>
 
 - `admin-web/dist`는 빌드 산출물이므로 Git에 커밋하지 않는다.
 - `/assets/**`는 Vite 해시 파일 기준 장기 캐시한다.
-- `/index.html`은 새 배포가 바로 반영되도록 no-cache로 둔다.
+- HTML과 SPA fallback 경로는 새 배포가 바로 반영되도록 no-cache로 둔다.
 - 관리자 웹 진입은 Firebase Auth 로그인과 `users/{uid}.role == ADMIN` 검증을 모두 통과해야 한다.
 
 ## 현재 쓰는 컬렉션

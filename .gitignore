@@ -16,6 +16,8 @@
 local.properties
 app/google-services.json
 .firebaserc
+.firebase/
+firebase-debug.log
 temp.txt
 .vscode/
 .idea/deploymentTargetSelector.xml
