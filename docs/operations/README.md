@@ -12,6 +12,8 @@
   - 관리자 앱/웹 권한 검증 시나리오
 - [GitHub self-hosted runner 운영 기준](github-self-hosted-runner.md)
   - 수동 프리플라이트용 자체 실행기 등록, 라벨, 보안 기준
+- [App Check 적용 로드맵](app-check-enforcement-roadmap.md)
+  - Android, 관리자 웹, Functions, Firestore, Storage enforcement 전환 기준
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
 

@@ -63,7 +63,7 @@ Firebase 설정이 없거나 네트워크가 불안한 환경에서도 데모와
 
 ### App Check는 왜 아직 강제하지 않았나?
 
-초기에는 시연, preview, 디버그 환경이 자주 바뀌어서 enforcement를 바로 켜면 정상 검증이 막힐 수 있다. site key와 도메인, 디버그 토큰, 앱 provider 설정이 확정된 뒤 단계적으로 강제한다.
+초기에는 시연, preview, 디버그 환경이 자주 바뀌어서 enforcement를 바로 켜면 정상 검증이 막힐 수 있다. App Check는 Auth와 Rules를 대체하는 기능이 아니라 정상 앱/기기에서 온 요청인지 확인하는 추가 방어선이다. 현재는 Android debug/release provider, 관리자 웹 site key 경로, Functions 전환 스위치까지 준비했고, debug token과 웹 site key, 릴리스 provider 검증이 끝난 뒤 Functions, Storage, Firestore 순서로 단계적으로 강제한다. 세부 기준은 [App Check 적용 로드맵](../operations/app-check-enforcement-roadmap.md)에 정리했다.
 
 ### 백업/복원은 실제로 테스트했나?
 
@@ -72,4 +72,3 @@ Firebase 설정이 없거나 네트워크가 불안한 환경에서도 데모와
 ### API Key는 어디에 두나?
 
 Firebase Web API Key는 클라이언트 설정에 포함될 수 있지만 Rules/App Check/Auth 설정과 함께 보호한다. 서버 전용 비밀값과 Kakao/푸시 대행사 민감 키는 Git에 넣지 않고 Functions 환경 변수로 관리한다.
-

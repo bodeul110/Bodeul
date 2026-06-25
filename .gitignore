@@ -16,6 +16,15 @@
 local.properties
 app/google-services.json
 .firebaserc
+.env
+.env.*
+!/.env.example
+admin-web/.env
+admin-web/.env.*
+!admin-web/.env.example
+functions/.env
+functions/.env.*
+!functions/.env.example
 .firebase/
 firebase-debug.log
 temp.txt
