@@ -481,6 +481,7 @@ npm run seed:manager-docs:apply
 
 - 현재 단계는 `클라이언트 App Check 토큰 발급 준비`와 `Functions enforcement 전환 스위치 추가`까지 반영한 상태다.
 - 아직 Firebase Console enforcement를 바로 켜지 않은 이유는 Android 앱, 관리자 웹, 개발용 디버그 토큰을 먼저 안정화해야 하기 때문이다.
+- 2026-06-25 기준 세부 전환 순서와 롤백 기준은 [App Check 적용 로드맵](../app-check-enforcement-roadmap.md)을 기준으로 한다.
 
 ### Android 앱
 
@@ -501,12 +502,14 @@ npm run seed:manager-docs:apply
   - 선택: `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`
 - `localhost`, `127.0.0.1` 개발 환경에서는 디버그 토큰이 없으면 `FIREBASE_APPCHECK_DEBUG_TOKEN=true`로 토큰을 발급받는다.
 - 실제 reCAPTCHA 사이트 키가 없으면 관리자 웹은 App Check 초기화를 건너뛴다.
+- 현재 구현은 reCAPTCHA v3 provider 기준이다. 운영 enforcement 전에는 reCAPTCHA Enterprise 전환 여부를 별도로 판단한다.
 
 ### Functions callable
 
 - [functions/index.js](../../../functions/index.js)의 callable 함수들은 `CALLABLE_FUNCTIONS_OPTIONS`를 공통 사용한다.
 - `ENABLE_APPCHECK_ENFORCEMENT=true` 환경 변수로만 `enforceAppCheck`를 켜게 했다.
 - 즉 지금 배포해도 기본값은 기존과 동일하고, 클라이언트 준비가 끝나면 환경 변수만으로 enforcement 전환이 가능하다.
+- 이 값은 변경 뒤 Functions 재배포가 필요하다. 환경 파일에는 다른 비밀값이 섞일 수 있으므로 Git에 커밋하지 않는다.
 
 ### 2026-06-19 관리자 문의 화면 메모
 

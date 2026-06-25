@@ -16,7 +16,7 @@
 | Firestore Rules | `users/{uid}.role` 기반으로 환자/보호자/매니저/관리자 권한을 나눈다. | emulator 테스트와 실계정 QA 증적을 추가한다. |
 | Storage Rules | 매니저 서류와 채팅 첨부를 역할/참여자 기준으로 제한한다. | 관리자 심사, 매니저 본인 접근, 세션 참여자 접근 테스트를 반복한다. |
 | 관리자 권한 | custom claims가 아니라 Firestore `users.role == ADMIN` 기준이다. | 관리자 수가 늘면 custom claims와 MFA를 검토한다. |
-| App Check | 코드 경로는 있으나 enforcement는 보류 상태다. | custom domain/site key 확정 후 debug token, preview, live 순서로 강제 전환한다. |
+| App Check | 코드 경로는 있으나 enforcement는 보류 상태다. | debug token, site key, release provider를 확인한 뒤 Functions, Storage, Firestore 순서로 강제 전환한다. |
 | 백업/복원 | `bodeul-dev` 기준 읽기 전용 리허설은 완료했지만, 실제 write 복원은 격리 대상이 필요하다. | 별도 dev 프로젝트 또는 emulator에서 `restore:state:apply` 리허설을 기록한다. |
 | 비용 | Firestore read/write, Storage, Functions, Kakao API 호출량 추정이 필요하다. | 비용 리스크 표와 예산 알림 설정을 유지한다. |
 | Kakao REST API Key | Android 앱 직접 호출 경로가 있다. | 쿼터/보안 리스크가 커지면 Functions 프록시로 이동한다. |
@@ -41,6 +41,8 @@ App Check는 abuse 방어를 위한 후속 단계다. 현재는 앱과 관리자
 - 관리자 웹 custom domain 또는 최종 live 도메인이 확정된다.
 - Android 디버그/릴리스 앱의 App Check provider 설정이 정리된다.
 - Functions, Firestore, Storage별 차단 영향이 preview에서 검증된다.
+
+전환 순서는 [App Check 적용 로드맵](../operations/app-check-enforcement-roadmap.md)을 따른다. 현재 판단은 Functions callable을 먼저 켜고, 파일 업로드/미리보기 검증 후 Storage, 마지막으로 직접 DB 접근 범위가 가장 넓은 Firestore를 켜는 것이다.
 
 ## 백업/복원
 

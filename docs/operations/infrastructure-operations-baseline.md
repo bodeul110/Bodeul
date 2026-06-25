@@ -56,19 +56,22 @@ firebase deploy --only hosting --project <firebase-project-id>
 - 관리자 웹은 `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있으면 reCAPTCHA v3 App Check를 초기화한다.
 - Functions callable은 `ENABLE_APPCHECK_ENFORCEMENT=true`일 때만 `enforceAppCheck`를 켠다.
 - Firebase Console의 전면 enforcement는 아직 보류 상태다.
+- 세부 전환 기준은 [App Check 적용 로드맵](app-check-enforcement-roadmap.md)을 기준으로 한다.
 
 로드맵:
 
 | 단계 | 조건 | 액션 |
 | --- | --- | --- |
-| 1. 개발 토큰 정리 | Android debug token, 관리자 웹 debug token이 안정적으로 등록됨 | Firebase Console allowlist와 로컬 설정 절차를 문서화한다. |
-| 2. 릴리스 검증 | Play Integrity, reCAPTCHA 사이트 키가 실제 빌드/도메인에서 정상 동작함 | 실기기와 관리자 웹 배포 URL에서 App Check token 발급을 확인한다. |
-| 3. Functions부터 강제 | callable 호출 실패율이 낮고 디버그 토큰 회수 기준이 정리됨 | `ENABLE_APPCHECK_ENFORCEMENT=true`로 Functions callable enforcement를 켠다. |
-| 4. Firestore/Storage enforcement 검토 | 모든 클라이언트가 App Check token을 안정적으로 붙임 | Firebase Console에서 Firestore/Storage enforcement를 단계적으로 켠다. |
-| 5. 운영 모니터링 | 403/App Check 실패 로그가 정상 범위 | 실패 로그, 고객 문의, debug token 남용 여부를 주간 점검한다. |
+| 1. 개발 토큰 정리 | Android debug token, 관리자 웹 debug token이 안정적으로 등록됨 | Firebase Console allowlist와 로컬 설정 절차를 정리한다. |
+| 2. 릴리스 검증 | Play Integrity, 웹 site key가 실제 빌드/도메인에서 정상 동작함 | 실기기와 관리자 웹 preview/live URL에서 App Check token 발급을 확인한다. |
+| 3. Functions부터 강제 | callable 호출 실패가 없고 디버그 토큰 회수 기준이 정리됨 | `ENABLE_APPCHECK_ENFORCEMENT=true`로 Functions callable enforcement를 켠다. |
+| 4. Storage enforcement | 서류/첨부 업로드와 미리보기가 안정적으로 통과함 | Firebase Console에서 Storage enforcement를 켠다. |
+| 5. Firestore enforcement | 앱과 관리자 웹의 모든 직접 Firestore 접근 흐름이 통과함 | Firebase Console에서 Firestore enforcement를 켠다. |
+| 6. 운영 모니터링 | 403/App Check 실패 로그가 정상 범위 | 실패 로그, 고객 문의, debug token 남용 여부를 주간 점검한다. |
 
 롤백 기준:
 - 정상 사용자 로그인, 예약, 서류 업로드, 관리자 심사 흐름에서 App Check 관련 실패가 반복되면 먼저 Functions 환경 변수 enforcement를 끄고, Firebase Console enforcement는 서비스별로 되돌린다.
+- Firebase Console의 enforcement 전환은 반영까지 시간이 걸릴 수 있으므로 전환 직후 최소 15분 동안 주요 흐름을 반복 확인한다.
 
 ## Firestore 인덱스와 쿼리 목록
 
