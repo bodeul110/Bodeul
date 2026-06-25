@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-06-23
+기준일: 2026-06-25
 
 이 문서는 현재 `BoDeul` 프로젝트가 어떤 실행 구성으로 동작하는지 빠르게 파악하기 위한 인프라 기준 문서다. 화면 설계나 기능 범위는 기능설명서와 구현 상태 문서를 따르고, 이 문서는 런타임 구성과 운영 경계를 설명한다.
 
@@ -31,6 +31,8 @@ Android 앱(app/)
 ```
 
 핵심은 별도 상시 백엔드 서버를 두는 구조가 아니라, `Firebase 중심 BaaS + Android 앱 + 관리자 웹 + 로컬 운영 도구` 구조라는 점이다.
+
+전체 흐름은 [시스템 아키텍처 다이어그램](system-architecture-diagram.md)을 기준으로 본다.
 
 ## 2. 클라이언트 구성
 
@@ -80,6 +82,29 @@ Android 앱(app/)
   - `appointmentFollowUps`
   - `supportInquiries`
   - 관리자 운영 컬렉션들
+
+### 3-2-1. DB 선택 근거 요약
+
+BoDeul은 초기 MVP에서 Firestore를 사용한다.
+
+선택 이유:
+- Android 앱과 관리자 웹에서 같은 Firebase 프로젝트를 공유할 수 있다.
+- 사용자, 예약 요청, 동행 세션, 리포트, 채팅 메시지처럼 문서 단위로 관리하기 좋은 데이터가 많다.
+- 실시간 위치 확인, 채팅, 상태 변경 알림처럼 실시간 반영이 필요한 기능과 잘 맞는다.
+- 별도 DB 서버 운영, 백엔드 서버 운영, 배포/스케일링 부담을 줄일 수 있다.
+
+검토한 대안:
+- MySQL/PostgreSQL + Spring/Node 백엔드
+- Supabase/PostgreSQL
+- Firebase Realtime Database
+- 자체 VM + DB 직접 운영
+
+단점 및 보완:
+- 관계형 조인 중심 설계에는 적합하지 않다.
+- 복잡한 통계/정산/검색이 필요해지면 별도 집계 컬렉션, BigQuery 연동, PostgreSQL 이전을 검토한다.
+- 보안은 Firestore Rules, Storage Rules, `users/{uid}.role`, Cloud Functions 검증 로직으로 보완한다.
+
+상세 비교는 [DB 선택 근거](database-selection.md)를 기준으로 본다.
 
 앱에서는 Firestore 디스크 캐시를 끄고 메모리 캐시만 사용한다. 이 설정은 [`ServiceLocator.java`](../../app/src/main/java/com/example/bodeul/data/ServiceLocator.java)에서 적용한다.
 

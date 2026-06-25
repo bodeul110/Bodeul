@@ -6,6 +6,10 @@
 
 - [인프라 개요](infrastructure.md)
   - Android 앱, 관리자 웹, Firebase, 운영 도구, CI 구성
+- [시스템 아키텍처 다이어그램](system-architecture-diagram.md)
+  - Android, 관리자 웹, Firebase, Functions, FCM, Kakao API 흐름
+- [DB 선택 근거](database-selection.md)
+  - Firestore 선택 이유와 MySQL/PostgreSQL/Supabase/Realtime Database 대안 비교
 - [아키텍처 개요](overview.md)
   - 화면/도메인/데이터 역할 분리 기준
 - [데이터 및 API 문서](data-api.md)
