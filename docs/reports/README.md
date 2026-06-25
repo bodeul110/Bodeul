@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [이슈 28 예약 병원/약국 검색 정책 정리 (2026-06-25)](issue-28-booking-hospital-search-2026-06-25.md)
 - [보안 의존성 점검 기록 (2026-06-23)](security-dependency-audit-2026-06-23.md)
 - [프로젝트 전체 점검 기록 (2026-06-23)](project-check-2026-06-23.md)
 - [문서 정합성 점검 기록 (2026-06-23)](document-alignment-2026-06-23.md)

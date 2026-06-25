@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -135,8 +136,12 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
         Tasks.whenAllSuccess(Arrays.asList(sessionTask, guideTask, managerTask))
                 .addOnSuccessListener(results -> {
                     CompanionSession session = toSession((QuerySnapshot) results.get(0));
-                    HospitalGuide guide = findGuide(
-                            (QuerySnapshot) results.get(1),
+                    HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                            findGuide(
+                                    (QuerySnapshot) results.get(1),
+                                    request.getDepartmentName()
+                            ),
+                            request.getHospitalName(),
                             request.getDepartmentName()
                     );
                     User manager = (User) results.get(2);
@@ -288,6 +293,8 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
         String specialNotes = documentSnapshot.getString("specialNotes");
         String statusValue = documentSnapshot.getString("status");
         String managerUserId = documentSnapshot.getString("managerUserId");
+        Double hospitalLatitude = doubleOrNull(documentSnapshot.get("hospitalLatitude"));
+        Double hospitalLongitude = doubleOrNull(documentSnapshot.get("hospitalLongitude"));
         if (patientUserId == null
                 || guardianUserId == null
                 || hospitalName == null
@@ -308,6 +315,8 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                hospitalLatitude == null ? 0.0 : hospitalLatitude,
+                hospitalLongitude == null ? 0.0 : hospitalLongitude,
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,

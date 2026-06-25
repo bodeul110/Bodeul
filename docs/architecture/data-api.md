@@ -29,6 +29,8 @@
 - `guardianEmail`
 - `hospitalName`
 - `departmentName`
+- `hospitalLatitude`
+- `hospitalLongitude`
 - `appointmentAt`
 - `appointmentAtEpochMillis`
 - `appointmentDateKey`
@@ -645,3 +647,14 @@
 - `AdminDashboard`에 `clientSupportRequests`를 포함해 관리자 문의 응답 섹션에서 매니저 문의와 함께 정렬한다.
 - 관리자 응답 저장 시 `clientSupportRequests/{id}` 문서의 `status`, `responseText`, `respondedByName`, `respondedAt`를 갱신한다.
 - 응답 후 관리자 액션 아티팩트는 기존 문의 응답 흐름과 같은 기준으로 남긴다.
+
+### 2026-06-24 병원 지도/검색 고도화 및 Fallback 메모
+
+- 예약 시 병원 검색은 카카오 로컬 REST API를 우선 사용하며, 병원 검색 범주는 `HP8`, 약국 검색 범주는 `PM9`를 사용한다.
+- 선택 시 실좌표는 `appointmentRequests.hospitalLatitude`, `appointmentRequests.hospitalLongitude`에 저장한다.
+- 카카오 REST API 키가 없거나 통신/검색에 실패하면 앱 크래시 없이 `hospitalGuides`에 등록된 병원명 기반 검색 결과로 대체한다.
+- 카카오 병원 결과가 관리자 가이드의 병원명과 정확히 일치하면 해당 `hospitalName`과 `departmentName` 목록을 연결한다.
+- 카카오 병원 결과가 있지만 일치하는 진료과가 없거나 검색 결과가 없으면 병원명/진료과 직접 입력을 허용한다.
+- 좌표가 없는 직접 입력 또는 로컬 가이드 fallback 선택은 `hospitalLatitude=0.0`, `hospitalLongitude=0.0`으로 저장한다.
+- 관리자 가이드는 `hospitalGuides.hospitalName`과 `hospitalGuides.departmentName` 조합으로 연결한다.
+- 연결되는 가이드가 없으면 공통 기본 병원 동행 스텝을 노출해 매니저/보호자 상세 화면이 중단되지 않게 한다.

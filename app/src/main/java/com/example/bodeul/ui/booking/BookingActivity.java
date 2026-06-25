@@ -59,6 +59,7 @@ public class BookingActivity extends AppCompatActivity {
     private BookingDashboard currentDashboard;
     private AppointmentRequest editingRequest;
     private String pendingEditRequestId;
+    private boolean preserveFormOnNextDashboardBind;
     private ActivityResultLauncher<Intent> hospitalSelectorLauncher;
     private ActivityResultLauncher<Intent> locationSelectorLauncher;
     private ActivityResultLauncher<Intent> paymentApprovalLauncher;
@@ -307,6 +308,11 @@ public class BookingActivity extends AppCompatActivity {
             editingRequest = findRequestById(dashboard, pendingEditRequestId);
             pendingEditRequestId = null;
         }
+        if (preserveFormOnNextDashboardBind) {
+            // 선택 화면에서 돌아올 때 onStart 재조회가 사용자가 고른 값을 지우지 않게 한다.
+            preserveFormOnNextDashboardBind = false;
+            return;
+        }
         if (editingRequest == null) {
             formBinder.bindCreateMode(currentUser);
             return;
@@ -545,6 +551,7 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private void openHospitalSelector() {
+        preserveFormOnNextDashboardBind = true;
         hospitalSelectorLauncher.launch(BookingHospitalSelectorActivity.createIntent(
                 this,
                 formBinder.getHospitalSelection()
@@ -557,6 +564,7 @@ public class BookingActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.booking_location_selector_hospital_required, Toast.LENGTH_SHORT).show();
             return;
         }
+        preserveFormOnNextDashboardBind = true;
         locationSelectorLauncher.launch(BookingLocationSelectorActivity.createIntent(
                 this,
                 hospitalSelection,

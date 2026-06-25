@@ -13,6 +13,8 @@ public final class BookingRequestDraft {
     private final String medicationSummary;
     private final String hospitalName;
     private final String departmentName;
+    private final double hospitalLatitude;
+    private final double hospitalLongitude;
     private final String appointmentAt;
     private final String meetingPlace;
     private final String specialNotes;
@@ -32,6 +34,8 @@ public final class BookingRequestDraft {
         medicationSummary = normalize(builder.medicationSummary);
         hospitalName = normalize(builder.hospitalName);
         departmentName = normalize(builder.departmentName);
+        hospitalLatitude = builder.hospitalLatitude;
+        hospitalLongitude = builder.hospitalLongitude;
         appointmentAt = normalize(builder.appointmentAt);
         meetingPlace = normalize(builder.meetingPlace);
         specialNotes = normalize(builder.specialNotes);
@@ -70,6 +74,14 @@ public final class BookingRequestDraft {
 
     public String getDepartmentName() {
         return departmentName;
+    }
+
+    public double getHospitalLatitude() {
+        return hospitalLatitude;
+    }
+
+    public double getHospitalLongitude() {
+        return hospitalLongitude;
     }
 
     public String getAppointmentAt() {
@@ -125,6 +137,8 @@ public final class BookingRequestDraft {
                 .medicationSummary(medicationSummary)
                 .hospitalName(hospitalName)
                 .departmentName(departmentName)
+                .hospitalLatitude(hospitalLatitude)
+                .hospitalLongitude(hospitalLongitude)
                 .appointmentAt(appointmentAt)
                 .meetingPlace(meetingPlace)
                 .specialNotes(specialNotes)
@@ -155,6 +169,8 @@ public final class BookingRequestDraft {
         private String medicationSummary = "";
         private String hospitalName = "";
         private String departmentName = "";
+        private double hospitalLatitude = 0.0;
+        private double hospitalLongitude = 0.0;
         private String appointmentAt = "";
         private String meetingPlace = "";
         private String specialNotes = "";
@@ -198,6 +214,16 @@ public final class BookingRequestDraft {
 
         public Builder departmentName(String departmentName) {
             this.departmentName = departmentName;
+            return this;
+        }
+
+        public Builder hospitalLatitude(double hospitalLatitude) {
+            this.hospitalLatitude = hospitalLatitude;
+            return this;
+        }
+
+        public Builder hospitalLongitude(double hospitalLongitude) {
+            this.hospitalLongitude = hospitalLongitude;
             return this;
         }
 

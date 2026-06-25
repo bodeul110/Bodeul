@@ -102,11 +102,23 @@
             android:textColor="@color/bodeul_text_secondary"
             android:textSize="13sp" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonBookingHospitalManualInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/textBookingHospitalResultCount"
+            android:layout_marginTop="12dp"
+            android:backgroundTint="@color/bodeul_primary"
+            android:text="@string/booking_hospital_selector_manual_button"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            app:cornerRadius="18dp" />
+
         <ListView
             android:id="@+id/listBookingHospitalOptions"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_below="@id/textBookingHospitalResultCount"
+            android:layout_below="@id/buttonBookingHospitalManualInput"
             android:layout_alignParentBottom="true"
             android:layout_marginTop="12dp"
             android:divider="@android:color/transparent"
@@ -119,7 +131,7 @@
             android:id="@+id/textBookingHospitalEmpty"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/textBookingHospitalResultCount"
+            android:layout_below="@id/buttonBookingHospitalManualInput"
             android:layout_marginTop="28dp"
             android:background="@drawable/bg_surface_pill"
             android:gravity="center"

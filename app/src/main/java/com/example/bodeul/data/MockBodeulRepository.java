@@ -34,6 +34,7 @@ import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentFileType;
@@ -148,7 +149,11 @@ public class MockBodeulRepository implements BodeulRepository {
         User manager = findUserById(request.getManagerUserId());
         CompanionSession session = findSessionByRequestId(requestId);
         SessionReport report = session == null ? null : getSessionReport(session.getId());
-        HospitalGuide guide = getHospitalGuide(request.getHospitalName(), request.getDepartmentName());
+        HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                getHospitalGuide(request.getHospitalName(), request.getDepartmentName()),
+                request.getHospitalName(),
+                request.getDepartmentName()
+        );
         AppointmentFollowUpRecord followUpRecord = request.getStatus() == AppointmentStatus.COMPLETED
                 ? getAppointmentFollowUpRecord(requestId)
                 : null;
@@ -1236,10 +1241,14 @@ public class MockBodeulRepository implements BodeulRepository {
 
         User patient = findUserById(request.getPatientUserId());
         User guardian = findUserById(request.getGuardianUserId());
-        HospitalGuide guide = getHospitalGuide(request.getHospitalName(), request.getDepartmentName());
+        HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                getHospitalGuide(request.getHospitalName(), request.getDepartmentName()),
+                request.getHospitalName(),
+                request.getDepartmentName()
+        );
         SessionReport report = getSessionReport(session.getId());
 
-        if (patient == null || guardian == null || guide == null) {
+        if (patient == null || guardian == null) {
             return null;
         }
 
@@ -1914,6 +1923,8 @@ public class MockBodeulRepository implements BodeulRepository {
                 guardianUserId,
                 normalizeText(bookingRequestDraft.getHospitalName()),
                 normalizeText(bookingRequestDraft.getDepartmentName()),
+                bookingRequestDraft.getHospitalLatitude(),
+                bookingRequestDraft.getHospitalLongitude(),
                 normalizeText(bookingRequestDraft.getAppointmentAt()),
                 normalizeText(bookingRequestDraft.getMeetingPlace()),
                 normalizeText(bookingRequestDraft.getSpecialNotes()),

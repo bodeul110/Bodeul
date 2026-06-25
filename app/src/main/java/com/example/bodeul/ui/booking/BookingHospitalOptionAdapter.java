@@ -64,12 +64,17 @@ public final class BookingHospitalOptionAdapter extends BaseAdapter {
         }
 
         BookingHospitalOption option = getItem(position);
-        viewHolder.textBadge.setText(parent.getContext().getString(
-                R.string.booking_hospital_selector_count_badge,
-                option.getDepartmentCount()
-        ));
+        if (option.getDepartmentCount() == 0) {
+            viewHolder.textBadge.setText(R.string.booking_hospital_selector_department_manual_badge);
+            viewHolder.textDepartments.setText(R.string.booking_hospital_selector_department_manual_helper);
+        } else {
+            viewHolder.textBadge.setText(parent.getContext().getString(
+                    R.string.booking_hospital_selector_count_badge,
+                    option.getDepartmentCount()
+            ));
+            viewHolder.textDepartments.setText(TextUtils.join(" · ", option.getDepartmentNames()));
+        }
         viewHolder.textName.setText(option.getHospitalName());
-        viewHolder.textDepartments.setText(TextUtils.join(" · ", option.getDepartmentNames()));
         return convertView;
     }
 

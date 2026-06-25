@@ -6,10 +6,18 @@ package com.example.bodeul.domain.model;
 public final class BookingHospitalSelection {
     private final String hospitalName;
     private final String departmentName;
+    private final double hospitalLatitude;
+    private final double hospitalLongitude;
 
     public BookingHospitalSelection(String hospitalName, String departmentName) {
+        this(hospitalName, departmentName, 0.0, 0.0);
+    }
+
+    public BookingHospitalSelection(String hospitalName, String departmentName, double hospitalLatitude, double hospitalLongitude) {
         this.hospitalName = normalize(hospitalName);
         this.departmentName = normalize(departmentName);
+        this.hospitalLatitude = hospitalLatitude;
+        this.hospitalLongitude = hospitalLongitude;
     }
 
     public String getHospitalName() {
@@ -18,6 +26,14 @@ public final class BookingHospitalSelection {
 
     public String getDepartmentName() {
         return departmentName;
+    }
+
+    public double getHospitalLatitude() {
+        return hospitalLatitude;
+    }
+
+    public double getHospitalLongitude() {
+        return hospitalLongitude;
     }
 
     public boolean isComplete() {

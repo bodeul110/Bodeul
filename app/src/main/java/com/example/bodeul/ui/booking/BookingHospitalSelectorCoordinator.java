@@ -4,8 +4,16 @@ import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import android.text.TextUtils;
+
+import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
+import com.example.bodeul.data.map.KakaoPlaceCoordinate;
 
 /**
  * 병원 선택 화면에 필요한 저장소 조회와 화면용 목록 조합을 맡는다.
@@ -28,6 +36,67 @@ public final class BookingHospitalSelectorCoordinator {
             @Override
             public void onError(String message) {
                 callback.onError(message);
+            }
+        });
+    }
+
+    public void searchOptions(
+            String query,
+            BookingHospitalCatalog catalog,
+            KakaoLocalPlaceSearchClient kakaoClient,
+            RepositoryCallback<List<BookingHospitalOption>> callback
+    ) {
+        if (TextUtils.isEmpty(query)) {
+            callback.onSuccess(catalog.filter(query));
+            return;
+        }
+
+        List<BookingHospitalOption> localResults = catalog.filter(query);
+
+        if (!kakaoClient.isConfigured()) {
+            callback.onSuccess(localResults);
+            return;
+        }
+
+        kakaoClient.searchKeyword(query, new KakaoLocalPlaceSearchClient.KeywordCallback() {
+            @Override
+            public void onSuccess(List<KakaoPlaceCoordinate> results) {
+                if (results.isEmpty()) {
+                    callback.onSuccess(localResults);
+                    return;
+                }
+
+                List<BookingHospitalOption> combined = new ArrayList<>();
+                Set<String> seen = new HashSet<>();
+
+                for (KakaoPlaceCoordinate kakao : results) {
+                    String name = kakao.getName();
+                    seen.add(name);
+
+                    List<BookingHospitalOption> matchingLocal = catalog.filter(name);
+                    List<String> departments = Collections.emptyList();
+                    for (BookingHospitalOption local : matchingLocal) {
+                        if (TextUtils.equals(local.getHospitalName(), name)) {
+                            departments = local.getDepartmentNames();
+                            break;
+                        }
+                    }
+
+                    combined.add(new BookingHospitalOption(name, departments, kakao.getLatitude(), kakao.getLongitude()));
+                }
+
+                for (BookingHospitalOption local : localResults) {
+                    if (!seen.contains(local.getHospitalName())) {
+                        combined.add(local);
+                    }
+                }
+
+                callback.onSuccess(combined);
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onSuccess(localResults);
             }
         });
     }

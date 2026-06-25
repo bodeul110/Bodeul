@@ -1,6 +1,7 @@
 package com.example.bodeul.ui.manager;
 
 import android.content.Context;
+import android.net.Uri;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
@@ -141,6 +142,10 @@ public final class ManagerGuideCoordinator {
             meetingPlace = context.getString(R.string.guide_map_default_meeting_place, hospitalName);
         }
 
+        double hospitalLat = dashboard.getAppointmentRequest().getHospitalLatitude();
+        double hospitalLng = dashboard.getAppointmentRequest().getHospitalLongitude();
+        boolean hasCoordinates = hospitalLat != 0.0 || hospitalLng != 0.0;
+
         List<ManagerGuideMapActionModel> actions = new ArrayList<>();
         if (!TextUtils.isEmpty(session.getLocationSummary()) || session.hasSharedLocationCoordinates()) {
             actions.add(new ManagerGuideMapActionModel(
@@ -153,28 +158,57 @@ public final class ManagerGuideCoordinator {
                     buildSharedLocationDirectUrl(session)
             ));
         }
+
+        String hospitalMapUrl = hasCoordinates
+                ? buildKakaoMapUrl(hospitalName, hospitalLat, hospitalLng)
+                : resolveHospitalFallbackUrl(hospitalName);
+
         actions.add(new ManagerGuideMapActionModel(
                 context.getString(R.string.guide_map_action_hospital_title),
                 context.getString(R.string.guide_map_action_hospital_body, hospitalName, departmentName),
                 context.getString(R.string.guide_map_action_hospital_button),
                 hospitalName + " " + departmentName + " 안내 지도",
-                resolveHospitalFallbackUrl(hospitalName)
+                hospitalMapUrl
         ));
+
+        String meetingMapUrl = hasCoordinates
+                ? buildKakaoMapUrl(hospitalName + " " + meetingPlace, hospitalLat, hospitalLng)
+                : null;
+
         actions.add(new ManagerGuideMapActionModel(
                 context.getString(R.string.guide_map_action_meeting_title),
                 context.getString(R.string.guide_map_action_meeting_body, meetingPlace),
                 context.getString(R.string.guide_map_action_meeting_button),
                 hospitalName + " " + meetingPlace,
-                null
+                meetingMapUrl
         ));
+
+        String pharmacyQuery = hospitalName + " 인근 약국";
+        String pharmacySearchUrl = hasCoordinates
+                ? buildKakaoSearchUrl(pharmacyQuery)
+                : null;
+
         actions.add(new ManagerGuideMapActionModel(
                 context.getString(R.string.guide_map_action_pharmacy_title),
                 context.getString(R.string.guide_map_action_pharmacy_body, hospitalName),
                 context.getString(R.string.guide_map_action_pharmacy_button),
-                hospitalName + " 인근 약국",
-                null
+                pharmacyQuery,
+                pharmacySearchUrl
         ));
         return actions;
+    }
+
+    private String buildKakaoMapUrl(String label, double latitude, double longitude) {
+        return "https://map.kakao.com/link/map/"
+                + Uri.encode(label)
+                + ","
+                + latitude
+                + ","
+                + longitude;
+    }
+
+    private String buildKakaoSearchUrl(String query) {
+        return "https://map.kakao.com/link/search/" + Uri.encode(query);
     }
 
     private HospitalMapPreviewModel buildHospitalMapPreviewModel(ManagerDashboard dashboard) {

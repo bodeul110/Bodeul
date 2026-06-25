@@ -19,6 +19,7 @@ import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SessionReport;
@@ -700,7 +701,11 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(results -> {
                     User manager = (User) results.get(0);
                     CompanionSession session = findSession((QuerySnapshot) results.get(1));
-                    HospitalGuide guide = findGuide((QuerySnapshot) results.get(2), request.getDepartmentName());
+                    HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                            findGuide((QuerySnapshot) results.get(2), request.getDepartmentName()),
+                            request.getHospitalName(),
+                            request.getDepartmentName()
+                    );
 
                     if (session == null) {
                         callback.onSuccess(new AppointmentRequestDetail(
@@ -787,6 +792,8 @@ public class FirebaseBookingRepository implements BookingRepository {
 
         requestDocument.put("hospitalName", normalizeText(bookingRequestDraft.getHospitalName()));
         requestDocument.put("departmentName", normalizeText(bookingRequestDraft.getDepartmentName()));
+        requestDocument.put("hospitalLatitude", bookingRequestDraft.getHospitalLatitude());
+        requestDocument.put("hospitalLongitude", bookingRequestDraft.getHospitalLongitude());
         requestDocument.put("appointmentAt", normalizeText(bookingRequestDraft.getAppointmentAt()));
         requestDocument.put("meetingPlace", normalizeText(bookingRequestDraft.getMeetingPlace()));
         requestDocument.put("specialNotes", normalizeText(bookingRequestDraft.getSpecialNotes()));
@@ -1101,6 +1108,8 @@ public class FirebaseBookingRepository implements BookingRepository {
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                doubleOrDefault(documentSnapshot.get("hospitalLatitude"), 0.0),
+                doubleOrDefault(documentSnapshot.get("hospitalLongitude"), 0.0),
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,
@@ -1427,6 +1436,13 @@ public class FirebaseBookingRepository implements BookingRepository {
             return ((Number) value).doubleValue();
         }
         return null;
+    }
+
+    private double doubleOrDefault(@Nullable Object value, double defaultValue) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return defaultValue;
     }
 
     private long timestampToMillis(@Nullable Object value) {
