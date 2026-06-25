@@ -106,12 +106,15 @@ firebase deploy --only hosting --project <firebase-project-id>
 현재 상태:
 - `tools/firebase`에는 `backup:state`, `validate:backup`, `diff:state`, `restore:state:dry-run`, `restore:state:apply`가 있다.
 - 기존 구현 상태 문서에는 백업 검증, diff, workflow, preflight 실행 기록이 있다.
-- 격리된 Firebase 프로젝트 또는 emulator에 `restore:state:apply`를 실제로 수행하고 앱/관리자 웹에서 복구 상태를 확인한 리허설 기록은 현재 문서상 확인되지 않는다.
+- 2026-06-25에 `bodeul-dev`에서 `backup -> validate -> restore dry-run -> diff` 순서의 읽기 전용 리허설을 수행했다.
+- 읽기 전용 리허설 결과는 백업 구조 오류 0건, 경고 0건, 백업 직후 diff 추가/삭제/변경 0건이다.
+- 격리된 Firebase 프로젝트 또는 emulator에 `restore:state:apply`를 실제로 수행하고 앱/관리자 웹에서 복구 상태를 확인한 리허설 기록은 아직 없다.
 
 운영 기준:
 - 운영 프로젝트에서는 바로 `restore:state:apply`를 실행하지 않는다.
 - 월 1회 또는 큰 데이터 계약 변경 전에는 격리 프로젝트에서 `backup -> validate -> restore dry-run -> restore apply -> diff -> readiness/report` 순서로 리허설을 남긴다.
 - 리허설 결과는 `docs/reports/`에 날짜별로 저장한다.
+- 현재 읽기 전용 리허설 증적은 [Firestore 백업/복원 리허설 기록](../reports/firestore-backup-restore-rehearsal-2026-06-25.md)을 기준으로 한다.
 
 권장 리허설 명령:
 

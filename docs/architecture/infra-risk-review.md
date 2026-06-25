@@ -17,7 +17,7 @@
 | Storage Rules | 매니저 서류와 채팅 첨부를 역할/참여자 기준으로 제한한다. | 관리자 심사, 매니저 본인 접근, 세션 참여자 접근 테스트를 반복한다. |
 | 관리자 권한 | custom claims가 아니라 Firestore `users.role == ADMIN` 기준이다. | 관리자 수가 늘면 custom claims와 MFA를 검토한다. |
 | App Check | 코드 경로는 있으나 enforcement는 보류 상태다. | custom domain/site key 확정 후 debug token, preview, live 순서로 강제 전환한다. |
-| 백업/복원 | 도구 경로는 있으나 복원 리허설 증적이 더 필요하다. | 샘플 백업 파일로 별도 dev 환경 복원 리허설을 기록한다. |
+| 백업/복원 | `bodeul-dev` 기준 읽기 전용 리허설은 완료했지만, 실제 write 복원은 격리 대상이 필요하다. | 별도 dev 프로젝트 또는 emulator에서 `restore:state:apply` 리허설을 기록한다. |
 | 비용 | Firestore read/write, Storage, Functions, Kakao API 호출량 추정이 필요하다. | 비용 리스크 표와 예산 알림 설정을 유지한다. |
 | Kakao REST API Key | Android 앱 직접 호출 경로가 있다. | 쿼터/보안 리스크가 커지면 Functions 프록시로 이동한다. |
 | Hosting 배포 | preview/live 수동 배포는 검증했다. | GitHub Actions 자동화를 검토한다. |
@@ -44,7 +44,11 @@ App Check는 abuse 방어를 위한 후속 단계다. 현재는 앱과 관리자
 
 ## 백업/복원
 
-`tools/firebase`에는 백업/복원 도구 경로가 있다. 그러나 도구가 있다는 것과 실제 복원 가능하다는 것은 다르다. 다음 회의 전에는 최소한 dev 데이터 일부를 백업하고, 별도 안전한 대상에서 복원 리허설을 수행한 기록이 필요하다.
+`tools/firebase`에는 백업/복원 도구 경로가 있다. 2026-06-25에는 `bodeul-dev`에서 `backup -> validate -> restore dry-run -> diff` 순서의 읽기 전용 리허설을 수행했고, 백업 구조 오류 0건과 diff 추가/삭제/변경 0건을 확인했다.
+
+다만 도구가 있다는 것과 실제 write 복원이 가능하다는 것은 다르다. 현재 접근 가능한 Firebase 프로젝트는 `bodeul-dev`뿐이므로 운영 기준 프로젝트에 `restore:state:apply`를 바로 실행하지 않았다. 다음 단계는 별도 dev 프로젝트 또는 emulator에 백업을 복원하고, 앱/관리자 웹에서 복구 상태를 확인하는 것이다.
+
+상세 증적은 [Firestore 백업/복원 리허설 기록](../reports/firestore-backup-restore-rehearsal-2026-06-25.md)을 기준으로 한다.
 
 ## API Key 운영
 
@@ -62,4 +66,3 @@ App Check는 abuse 방어를 위한 후속 단계다. 현재는 앱과 관리자
 - 실시간 리스너는 필요한 화면에만 둔다.
 - Storage 원본 파일 크기와 업로드 제한을 유지한다.
 - Firebase 예산 알림과 월별 운영 리포트를 연결한다.
-
