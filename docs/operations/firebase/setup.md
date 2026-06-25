@@ -11,6 +11,7 @@
 - Functions: `functions/index.js` 집계 파일과 `functions/src/` 기능별 모듈
 - Firebase 설정이 없으면 앱은 자동으로 목업 모드로 동작한다.
 - 최신 기능설명서 기준으로 예약 후속, 문의, 관리자 후속 알림/전달 기록 컬렉션까지 확장 중이다.
+- 관리자 웹 운영 배포는 Firebase Hosting을 기준으로 하며, 루트 `firebase.json`의 `hosting` 블록이 `admin-web/dist`를 배포 대상으로 지정한다.
 
 ## 소셜 로그인 로컬 설정
 
@@ -36,6 +37,37 @@ kakaoRestApiKey=발급받은_카카오_로컬_REST_API_키
 5. Authentication의 `Email/Password` 활성화
 6. Firestore 생성
 7. `firestore.rules`, `firestore.indexes.json` 배포
+8. 관리자 웹 운영 배포가 필요하면 Firebase Hosting 사이트와 도메인 설정 확인
+
+## 관리자 웹 Firebase Hosting
+
+관리자 웹은 Vite 빌드 산출물인 `admin-web/dist`를 Firebase Hosting에 배포한다. 이 설정은 루트 [firebase.json](../../../firebase.json)의 `hosting` 블록에 둔다.
+
+배포 전 검증:
+
+```powershell
+cd D:\BoDeul
+npm --prefix admin-web run build
+```
+
+미리보기 채널:
+
+```powershell
+firebase hosting:channel:deploy admin-web-preview --only hosting --project <firebase-project-id> --expires 7d
+```
+
+운영 배포:
+
+```powershell
+firebase deploy --only hosting --project <firebase-project-id>
+```
+
+운영 주의:
+
+- `admin-web/dist`는 빌드 산출물이므로 Git에 커밋하지 않는다.
+- `/assets/**`는 Vite 해시 파일 기준 장기 캐시한다.
+- `/index.html`은 새 배포가 바로 반영되도록 no-cache로 둔다.
+- 관리자 웹 진입은 Firebase Auth 로그인과 `users/{uid}.role == ADMIN` 검증을 모두 통과해야 한다.
 
 ## 현재 쓰는 컬렉션
 
