@@ -4,6 +4,8 @@
 
 ## 최신 점검
 
+- [관리자 웹 Firebase Hosting live 배포 판단 기록 (2026-06-25)](admin-web-live-deploy-2026-06-25.md)
+- [관리자 웹 Firebase Hosting 설정/preview 배포 기록 (2026-06-25)](admin-web-hosting-2026-06-25.md)
 - [이슈 28 예약 병원/약국 검색 정책 정리 (2026-06-25)](issue-28-booking-hospital-search-2026-06-25.md)
 - [보안 의존성 점검 기록 (2026-06-23)](security-dependency-audit-2026-06-23.md)
 - [프로젝트 전체 점검 기록 (2026-06-23)](project-check-2026-06-23.md)
