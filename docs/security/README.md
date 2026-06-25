@@ -5,6 +5,7 @@
 ## 핵심 문서
 
 - [Firestore 보안 정리](firestore-hardening.md)
+- [Firestore/Storage Rules 검증 정리](firebase-rules-validation.md)
 - [보안 리뷰 최신화 메모](review-2026-04-29.md)
 - [AES 적용 범위 판단](aes-scope-assessment.md)
 - [FCM 토큰 수명주기 정책](fcm-token-lifecycle-policy.md)
