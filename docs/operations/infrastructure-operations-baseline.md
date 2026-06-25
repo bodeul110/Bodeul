@@ -16,8 +16,17 @@
 
 현재 상태:
 - `admin-web`은 `npm --prefix admin-web run build`로 정적 산출물을 만들 수 있다.
-- `firebase.json`에는 아직 `hosting` 블록이 없다.
-- 다음 작업에서 `admin-web/dist`를 대상으로 Hosting 설정과 preview/deploy 절차를 추가해야 한다.
+- `firebase.json`의 `hosting` 블록은 `admin-web/dist`를 배포 대상으로 둔다.
+- `/assets/**`는 Vite 해시 파일 기준 장기 캐시하고, `/index.html`은 no-cache로 둔다.
+- 라우팅은 SPA fallback을 위해 모든 경로를 `/index.html`로 rewrite한다.
+
+배포 절차:
+
+```powershell
+npm --prefix admin-web run build
+firebase hosting:channel:deploy admin-web-preview --only hosting --project <firebase-project-id> --expires 7d
+firebase deploy --only hosting --project <firebase-project-id>
+```
 
 ## 비용 리스크
 
