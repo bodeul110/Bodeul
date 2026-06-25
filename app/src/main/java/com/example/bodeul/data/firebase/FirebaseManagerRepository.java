@@ -17,6 +17,7 @@ import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentFileType;
@@ -116,14 +117,18 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                                 request.getGuardianEmail(),
                                                 request.getGuardianPhone()
                                         );
-                                        HospitalGuide guide = findGuide(
-                                                (QuerySnapshot) results.get(1),
+                                        HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                                                findGuide(
+                                                        (QuerySnapshot) results.get(1),
+                                                        request.getDepartmentName()
+                                                ),
+                                                request.getHospitalName(),
                                                 request.getDepartmentName()
                                         );
                                         SessionReport report = toReport((QuerySnapshot) results.get(2));
 
-                                        if (manager == null || patient == null || guardian == null || guide == null) {
-                                            callback.onError("Firebase 而щ젆??users, hospitalGuides) ?곗씠?곕? ?뺤씤?댁＜?몄슂.");
+                                        if (manager == null || patient == null || guardian == null) {
+                                            callback.onError("Firebase 연결 데이터(users)를 확인해 주세요.");
                                             return;
                                         }
 
@@ -932,8 +937,12 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                         request.getGuardianEmail(),
                                         request.getGuardianPhone()
                                 );
-                                HospitalGuide hospitalGuide = findGuide(
-                                        (QuerySnapshot) historyResults.get(0),
+                                HospitalGuide hospitalGuide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                                        findGuide(
+                                                (QuerySnapshot) historyResults.get(0),
+                                                request.getDepartmentName()
+                                        ),
+                                        request.getHospitalName(),
                                         request.getDepartmentName()
                                 );
                                 SessionReport report = toReport((QuerySnapshot) historyResults.get(1));
@@ -1291,6 +1300,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
         String specialNotes = documentSnapshot.getString("specialNotes");
         String statusValue = documentSnapshot.getString("status");
         String managerUserId = documentSnapshot.getString("managerUserId");
+        Double hospitalLatitude = doubleOrNull(documentSnapshot.get("hospitalLatitude"));
+        Double hospitalLongitude = doubleOrNull(documentSnapshot.get("hospitalLongitude"));
 
         if (patientUserId == null
                 || guardianUserId == null
@@ -1312,6 +1323,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                hospitalLatitude == null ? 0.0 : hospitalLatitude,
+                hospitalLongitude == null ? 0.0 : hospitalLongitude,
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,

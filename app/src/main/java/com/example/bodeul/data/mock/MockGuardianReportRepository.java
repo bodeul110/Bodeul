@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -40,7 +41,11 @@ public class MockGuardianReportRepository implements GuardianReportRepository {
         for (AppointmentRequest request : requests) {
             CompanionSession session = repository.findSessionByRequestId(request.getId());
             SessionReport report = session == null ? null : repository.getSessionReport(session.getId());
-            HospitalGuide guide = repository.getHospitalGuide(
+            HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                    repository.getHospitalGuide(
+                            request.getHospitalName(),
+                            request.getDepartmentName()
+                    ),
                     request.getHospitalName(),
                     request.getDepartmentName()
             );

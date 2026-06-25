@@ -69,9 +69,12 @@ public final class BookingFormBinder {
     private final BookingOptionGroupBinder<BookingMobilitySupport> mobilityGroupBinder;
     private final BookingOptionGroupBinder<BookingTripType> tripTypeGroupBinder;
     private final BookingOptionGroupBinder<BookingManagerGenderPreference> managerGenderGroupBinder;
-    private final BookingOptionGroupBinder<BookingPaymentMethod> paymentMethodGroupBinder;
-    private final BookingOptionGroupBinder<BookingCouponType> couponTypeGroupBinder;
+    private BookingOptionGroupBinder<BookingPaymentMethod> paymentMethodGroupBinder;
+    private BookingOptionGroupBinder<BookingCouponType> couponTypeGroupBinder;
+
     private String selectedMeetingPointId = "";
+    private double selectedHospitalLatitude = 0.0;
+    private double selectedHospitalLongitude = 0.0;
 
     public BookingFormBinder(
             Context context,
@@ -225,7 +228,12 @@ public final class BookingFormBinder {
         inputLinkedPhone.setText(resolveLinkedPhone(currentUser, request));
         inputLinkedEmail.setText(resolveLinkedEmail(currentUser, request));
         applyHospitalSelection(
-                new BookingHospitalSelection(request.getHospitalName(), request.getDepartmentName()),
+                new BookingHospitalSelection(
+                        request.getHospitalName(),
+                        request.getDepartmentName(),
+                        request.getHospitalLatitude(),
+                        request.getHospitalLongitude()
+                ),
                 false
         );
         applyMeetingLocationSelection(new BookingMeetingLocationSelection("", request.getMeetingPlace()));
@@ -284,6 +292,8 @@ public final class BookingFormBinder {
                 .linkedParticipantEmail(linkedEmail)
                 .hospitalName(hospitalName)
                 .departmentName(departmentName)
+                .hospitalLatitude(selectedHospitalLatitude)
+                .hospitalLongitude(selectedHospitalLongitude)
                 .appointmentAt(appointmentSelector.getAppointmentAt())
                 .meetingPlace(meetingPlace)
                 .specialNotes(valueOf(inputSpecialNotes))
@@ -307,7 +317,9 @@ public final class BookingFormBinder {
     public BookingHospitalSelection getHospitalSelection() {
         return new BookingHospitalSelection(
                 valueOf(inputHospitalName),
-                valueOf(inputDepartmentName)
+                valueOf(inputDepartmentName),
+                selectedHospitalLatitude,
+                selectedHospitalLongitude
         );
     }
 
@@ -398,6 +410,8 @@ public final class BookingFormBinder {
         inputLinkedEmail.setText(null);
         inputHospitalName.setText(null);
         inputDepartmentName.setText(null);
+        selectedHospitalLatitude = 0.0;
+        selectedHospitalLongitude = 0.0;
         inputMeetingPlace.setText(null);
         selectedMeetingPointId = "";
         inputSpecialNotes.setText(null);
@@ -416,6 +430,8 @@ public final class BookingFormBinder {
                 || !TextUtils.equals(valueOf(inputDepartmentName), selection.getDepartmentName());
         inputHospitalName.setText(selection.getHospitalName());
         inputDepartmentName.setText(selection.getDepartmentName());
+        selectedHospitalLatitude = selection.getHospitalLatitude();
+        selectedHospitalLongitude = selection.getHospitalLongitude();
         if (suggestMeetingPlace && hospitalChanged) {
             selectedMeetingPointId = "";
             inputMeetingPlace.setText(null);

@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentHistoryEntry;
@@ -273,7 +274,11 @@ public class MockManagerRepository implements ManagerRepository {
                     manager,
                     session,
                     report,
-                    repository.getHospitalGuide(request.getHospitalName(), request.getDepartmentName()),
+                    HospitalGuideFallbackFactory.fallbackIfMissing(
+                            repository.getHospitalGuide(request.getHospitalName(), request.getDepartmentName()),
+                            request.getHospitalName(),
+                            request.getDepartmentName()
+                    ),
                     repository.getAppointmentFollowUpRecord(request.getId())
             ));
         }

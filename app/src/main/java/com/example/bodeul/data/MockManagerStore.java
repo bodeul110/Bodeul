@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
@@ -40,13 +41,17 @@ public final class MockManagerStore {
 
         User patient = repository.findUserById(request.getPatientUserId());
         User guardian = repository.findUserById(request.getGuardianUserId());
-        HospitalGuide guide = repository.getHospitalGuide(
+        HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                repository.getHospitalGuide(
+                        request.getHospitalName(),
+                        request.getDepartmentName()
+                ),
                 request.getHospitalName(),
                 request.getDepartmentName()
         );
         SessionReport report = repository.getSessionReport(session.getId());
 
-        if (patient == null || guardian == null || guide == null) {
+        if (patient == null || guardian == null) {
             return null;
         }
 

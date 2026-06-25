@@ -15,6 +15,8 @@ public class AppointmentRequest {
     private final String guardianEmail;
     private final String hospitalName;
     private final String departmentName;
+    private final double hospitalLatitude;
+    private final double hospitalLongitude;
     private final String appointmentAt;
     private final String meetingPlace;
     private final String specialNotes;
@@ -54,6 +56,38 @@ public class AppointmentRequest {
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                0.0,
+                0.0,
+                appointmentAt,
+                meetingPlace,
+                specialNotes,
+                status,
+                managerUserId
+        );
+    }
+
+    public AppointmentRequest(
+            String id,
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            double hospitalLatitude,
+            double hospitalLongitude,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes,
+            AppointmentStatus status,
+            String managerUserId
+    ) {
+        this(
+                id,
+                patientUserId,
+                guardianUserId,
+                hospitalName,
+                departmentName,
+                hospitalLatitude,
+                hospitalLongitude,
                 appointmentAt,
                 meetingPlace,
                 specialNotes,
@@ -107,6 +141,50 @@ public class AppointmentRequest {
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                0.0,
+                0.0,
+                appointmentAt,
+                meetingPlace,
+                specialNotes,
+                status,
+                managerUserId,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail
+        );
+    }
+
+    public AppointmentRequest(
+            String id,
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            double hospitalLatitude,
+            double hospitalLongitude,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes,
+            AppointmentStatus status,
+            String managerUserId,
+            String patientName,
+            String patientPhone,
+            String patientEmail,
+            String guardianName,
+            String guardianPhone,
+            String guardianEmail
+    ) {
+        this(
+                id,
+                patientUserId,
+                guardianUserId,
+                hospitalName,
+                departmentName,
+                hospitalLatitude,
+                hospitalLongitude,
                 appointmentAt,
                 meetingPlace,
                 specialNotes,
@@ -171,6 +249,72 @@ public class AppointmentRequest {
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                0.0,
+                0.0,
+                appointmentAt,
+                meetingPlace,
+                specialNotes,
+                status,
+                managerUserId,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail,
+                patientConditionSummary,
+                medicationSummary,
+                mobilitySupportCode,
+                tripTypeCode,
+                managerGenderPreferenceCode,
+                paymentMethodCode,
+                couponCode,
+                basePrice,
+                optionSurchargePrice,
+                couponDiscountPrice,
+                finalPrice
+        );
+    }
+
+    public AppointmentRequest(
+            String id,
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            double hospitalLatitude,
+            double hospitalLongitude,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes,
+            AppointmentStatus status,
+            String managerUserId,
+            String patientName,
+            String patientPhone,
+            String patientEmail,
+            String guardianName,
+            String guardianPhone,
+            String guardianEmail,
+            String patientConditionSummary,
+            String medicationSummary,
+            String mobilitySupportCode,
+            String tripTypeCode,
+            String managerGenderPreferenceCode,
+            String paymentMethodCode,
+            String couponCode,
+            int basePrice,
+            int optionSurchargePrice,
+            int couponDiscountPrice,
+            int finalPrice
+    ) {
+        this(
+                id,
+                patientUserId,
+                guardianUserId,
+                hospitalName,
+                departmentName,
+                hospitalLatitude,
+                hospitalLongitude,
                 appointmentAt,
                 meetingPlace,
                 specialNotes,
@@ -233,6 +377,78 @@ public class AppointmentRequest {
             String paymentApprovedAt,
             String paymentProviderLabel
     ) {
+        this(
+                id,
+                patientUserId,
+                guardianUserId,
+                hospitalName,
+                departmentName,
+                0.0,
+                0.0,
+                appointmentAt,
+                meetingPlace,
+                specialNotes,
+                status,
+                managerUserId,
+                patientName,
+                patientPhone,
+                patientEmail,
+                guardianName,
+                guardianPhone,
+                guardianEmail,
+                patientConditionSummary,
+                medicationSummary,
+                mobilitySupportCode,
+                tripTypeCode,
+                managerGenderPreferenceCode,
+                paymentMethodCode,
+                couponCode,
+                basePrice,
+                optionSurchargePrice,
+                couponDiscountPrice,
+                finalPrice,
+                paymentStatusCode,
+                paymentApprovalCode,
+                paymentApprovedAt,
+                paymentProviderLabel
+        );
+    }
+
+    public AppointmentRequest(
+            String id,
+            String patientUserId,
+            String guardianUserId,
+            String hospitalName,
+            String departmentName,
+            double hospitalLatitude,
+            double hospitalLongitude,
+            String appointmentAt,
+            String meetingPlace,
+            String specialNotes,
+            AppointmentStatus status,
+            String managerUserId,
+            String patientName,
+            String patientPhone,
+            String patientEmail,
+            String guardianName,
+            String guardianPhone,
+            String guardianEmail,
+            String patientConditionSummary,
+            String medicationSummary,
+            String mobilitySupportCode,
+            String tripTypeCode,
+            String managerGenderPreferenceCode,
+            String paymentMethodCode,
+            String couponCode,
+            int basePrice,
+            int optionSurchargePrice,
+            int couponDiscountPrice,
+            int finalPrice,
+            String paymentStatusCode,
+            String paymentApprovalCode,
+            String paymentApprovedAt,
+            String paymentProviderLabel
+    ) {
         this.id = id;
         this.patientUserId = patientUserId;
         this.guardianUserId = guardianUserId;
@@ -244,6 +460,8 @@ public class AppointmentRequest {
         this.guardianEmail = guardianEmail;
         this.hospitalName = hospitalName;
         this.departmentName = departmentName;
+        this.hospitalLatitude = hospitalLatitude;
+        this.hospitalLongitude = hospitalLongitude;
         this.appointmentAt = appointmentAt;
         this.meetingPlace = meetingPlace;
         this.specialNotes = specialNotes;
@@ -308,6 +526,14 @@ public class AppointmentRequest {
 
     public String getDepartmentName() {
         return departmentName;
+    }
+
+    public double getHospitalLatitude() {
+        return hospitalLatitude;
+    }
+
+    public double getHospitalLongitude() {
+        return hospitalLongitude;
     }
 
     public String getAppointmentAt() {

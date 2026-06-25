@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
@@ -50,7 +51,11 @@ public final class MockBookingStore {
         User manager = repository.findUserById(request.getManagerUserId());
         CompanionSession session = repository.findSessionByRequestId(requestId);
         SessionReport report = session == null ? null : repository.getSessionReport(session.getId());
-        HospitalGuide guide = repository.getHospitalGuide(
+        HospitalGuide guide = HospitalGuideFallbackFactory.fallbackIfMissing(
+                repository.getHospitalGuide(
+                        request.getHospitalName(),
+                        request.getDepartmentName()
+                ),
                 request.getHospitalName(),
                 request.getDepartmentName()
         );

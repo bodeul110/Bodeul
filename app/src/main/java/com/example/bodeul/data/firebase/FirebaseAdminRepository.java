@@ -1722,6 +1722,8 @@ public class FirebaseAdminRepository implements AdminRepository {
         String specialNotes = documentSnapshot.getString("specialNotes");
         String statusValue = documentSnapshot.getString("status");
         String managerUserId = documentSnapshot.getString("managerUserId");
+        Double hospitalLatitude = doubleOrNull(documentSnapshot.get("hospitalLatitude"));
+        Double hospitalLongitude = doubleOrNull(documentSnapshot.get("hospitalLongitude"));
         if (patientUserId == null
                 || guardianUserId == null
                 || hospitalName == null
@@ -1742,6 +1744,8 @@ public class FirebaseAdminRepository implements AdminRepository {
                 guardianUserId,
                 hospitalName,
                 departmentName,
+                hospitalLatitude == null ? 0.0 : hospitalLatitude,
+                hospitalLongitude == null ? 0.0 : hospitalLongitude,
                 appointmentAt,
                 meetingPlace == null ? "" : meetingPlace,
                 specialNotes == null ? "" : specialNotes,

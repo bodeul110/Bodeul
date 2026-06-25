@@ -18,13 +18,16 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 카카오 로컬 REST API로 병원/약국 실좌표를 조회한다.
+ * 카카오 로컬 REST API로 병원과 약국의 실좌표를 조회한다.
  */
 public final class KakaoLocalPlaceSearchClient {
     public interface Callback {
@@ -33,8 +36,16 @@ public final class KakaoLocalPlaceSearchClient {
         void onError(String message);
     }
 
+    public interface KeywordCallback {
+        void onSuccess(List<KakaoPlaceCoordinate> results);
+
+        void onError(String message);
+    }
+
     private static final String KEYWORD_SEARCH_ENDPOINT =
-            "https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=";
+            "https://dapi.kakao.com/v2/local/search/keyword.json";
+    private static final String CATEGORY_HOSPITAL = "HP8";
+    private static final String CATEGORY_PHARMACY = "PM9";
     private static final long CACHE_TTL_MILLIS = 6L * 60L * 60L * 1000L;
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -74,11 +85,13 @@ public final class KakaoLocalPlaceSearchClient {
             try {
                 KakaoPlaceCoordinate hospitalCoordinate = searchWithFallback(
                         query.buildPrimaryHospitalQuery(),
-                        query.buildFallbackHospitalQuery()
+                        query.buildFallbackHospitalQuery(),
+                        CATEGORY_HOSPITAL
                 );
                 KakaoPlaceCoordinate pharmacyCoordinate = searchWithFallback(
                         query.buildPrimaryPharmacyQuery(),
-                        query.buildFallbackPharmacyQuery()
+                        query.buildFallbackPharmacyQuery(),
+                        CATEGORY_PHARMACY
                 );
                 HospitalMapCoordinateResult result = new HospitalMapCoordinateResult(
                         hospitalCoordinate,
@@ -88,6 +101,26 @@ public final class KakaoLocalPlaceSearchClient {
                 postSuccess(callback, result);
             } catch (Exception exception) {
                 postError(callback, context.getString(R.string.kakao_map_coordinate_load_error));
+            }
+        });
+    }
+
+    public void searchKeyword(String query, KeywordCallback callback) {
+        if (TextUtils.isEmpty(query)) {
+            postKeywordSuccess(callback, Collections.emptyList());
+            return;
+        }
+        if (!isConfigured()) {
+            postKeywordSuccess(callback, Collections.emptyList());
+            return;
+        }
+
+        EXECUTOR.execute(() -> {
+            try {
+                List<KakaoPlaceCoordinate> results = searchAll(query, CATEGORY_HOSPITAL);
+                postKeywordSuccess(callback, results);
+            } catch (Exception exception) {
+                postKeywordError(callback, context.getString(R.string.kakao_local_keyword_search_error));
             }
         });
     }
@@ -118,25 +151,35 @@ public final class KakaoLocalPlaceSearchClient {
     }
 
     @Nullable
-    private KakaoPlaceCoordinate searchWithFallback(String primaryQuery, String fallbackQuery)
-            throws Exception {
-        KakaoPlaceCoordinate result = searchFirst(primaryQuery);
+    private KakaoPlaceCoordinate searchWithFallback(
+            String primaryQuery,
+            String fallbackQuery,
+            String categoryGroupCode
+    ) throws Exception {
+        KakaoPlaceCoordinate result = searchFirst(primaryQuery, categoryGroupCode);
         if (result != null || TextUtils.equals(primaryQuery, fallbackQuery)) {
             return result;
         }
-        return searchFirst(fallbackQuery);
+        return searchFirst(fallbackQuery, categoryGroupCode);
     }
 
     @Nullable
-    private KakaoPlaceCoordinate searchFirst(String query) throws Exception {
-        if (TextUtils.isEmpty(query)) {
+    private KakaoPlaceCoordinate searchFirst(String query, String categoryGroupCode) throws Exception {
+        List<KakaoPlaceCoordinate> results = searchAll(query, categoryGroupCode);
+        if (results.isEmpty()) {
             return null;
         }
+        return results.get(0);
+    }
 
-        String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.name());
+    private List<KakaoPlaceCoordinate> searchAll(String query, String categoryGroupCode) throws Exception {
+        if (TextUtils.isEmpty(query)) {
+            return Collections.emptyList();
+        }
+
         HttpURLConnection connection = null;
         try {
-            connection = (HttpURLConnection) new java.net.URL(KEYWORD_SEARCH_ENDPOINT + encodedQuery)
+            connection = (HttpURLConnection) new java.net.URL(buildKeywordSearchUrl(query, categoryGroupCode))
                     .openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(5000);
@@ -149,33 +192,46 @@ public final class KakaoLocalPlaceSearchClient {
                     ? connection.getInputStream()
                     : connection.getErrorStream();
             if (stream == null) {
-                return null;
+                return Collections.emptyList();
             }
 
             String payload = readAll(stream);
             JSONObject root = new JSONObject(payload);
             JSONArray documents = root.optJSONArray("documents");
             if (documents == null || documents.length() == 0) {
-                return null;
+                return Collections.emptyList();
             }
 
-            JSONObject first = documents.optJSONObject(0);
-            if (first == null) {
-                return null;
+            List<KakaoPlaceCoordinate> results = new ArrayList<>();
+            for (int i = 0; i < documents.length(); i++) {
+                JSONObject item = documents.optJSONObject(i);
+                if (item == null) {
+                    continue;
+                }
+                String name = item.optString("place_name");
+                double latitude = parseCoordinate(item.optString("y"));
+                double longitude = parseCoordinate(item.optString("x"));
+                if (latitude != 0d || longitude != 0d) {
+                    results.add(new KakaoPlaceCoordinate(name, latitude, longitude));
+                }
             }
-
-            String name = first.optString("place_name");
-            double latitude = parseCoordinate(first.optString("y"));
-            double longitude = parseCoordinate(first.optString("x"));
-            if (latitude == 0d && longitude == 0d) {
-                return null;
-            }
-            return new KakaoPlaceCoordinate(name, latitude, longitude);
+            return results;
         } finally {
             if (connection != null) {
                 connection.disconnect();
             }
         }
+    }
+
+    private String buildKeywordSearchUrl(String query, String categoryGroupCode) throws Exception {
+        StringBuilder builder = new StringBuilder(KEYWORD_SEARCH_ENDPOINT)
+                .append("?size=15&query=")
+                .append(URLEncoder.encode(query, StandardCharsets.UTF_8.name()));
+        if (!TextUtils.isEmpty(categoryGroupCode)) {
+            builder.append("&category_group_code=")
+                    .append(URLEncoder.encode(categoryGroupCode, StandardCharsets.UTF_8.name()));
+        }
+        return builder.toString();
     }
 
     private double parseCoordinate(String value) {
@@ -206,6 +262,14 @@ public final class KakaoLocalPlaceSearchClient {
     }
 
     private void postError(Callback callback, String message) {
+        mainHandler.post(() -> callback.onError(message));
+    }
+
+    private void postKeywordSuccess(KeywordCallback callback, List<KakaoPlaceCoordinate> results) {
+        mainHandler.post(() -> callback.onSuccess(results));
+    }
+
+    private void postKeywordError(KeywordCallback callback, String message) {
         mainHandler.post(() -> callback.onError(message));
     }
 

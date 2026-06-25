@@ -10,10 +10,18 @@ import java.util.List;
 public final class BookingHospitalOption {
     private final String hospitalName;
     private final List<String> departmentNames;
+    private final double latitude;
+    private final double longitude;
 
     public BookingHospitalOption(String hospitalName, List<String> departmentNames) {
+        this(hospitalName, departmentNames, 0.0, 0.0);
+    }
+
+    public BookingHospitalOption(String hospitalName, List<String> departmentNames, double latitude, double longitude) {
         this.hospitalName = normalize(hospitalName);
         this.departmentNames = Collections.unmodifiableList(new ArrayList<>(departmentNames));
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public String getHospitalName() {
@@ -22,6 +30,14 @@ public final class BookingHospitalOption {
 
     public List<String> getDepartmentNames() {
         return departmentNames;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
     }
 
     public int getDepartmentCount() {
