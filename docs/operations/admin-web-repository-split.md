@@ -63,7 +63,7 @@
 | 2 | 분리 준비 계획 문서화 | `docs/operations/admin-web-repository-split.md` | 완료 |
 | 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 완료 |
 | 4 | preview/live 배포 권한과 secret 목록 정리 | `docs/operations/admin-web-environments.md` | 완료 |
-| 5 | Firebase Hosting 설정 소유권 결정 | 의사결정 기록 | 대기 |
+| 5 | Firebase Hosting preview 배포 workflow 추가 | `.github/workflows/admin-web-preview-deploy.yml` | 완료 |
 | 6 | 별도 레포 생성 여부 최종 결정 | 후속 이슈 | 대기 |
 | 7 | 실제 레포 분리 | `bodeul-admin-web` 후보 | 대기 |
 
@@ -76,7 +76,9 @@
 - callable Functions 사용 여부가 문서화돼 있다.
 - Firebase Web config를 환경 변수로 주입할지 결정돼 있다.
 - App Check site key와 debug token 운영 방식이 문서화돼 있다.
-- Firebase Hosting preview/live 배포 권한이 분리돼 있다.
+- Firebase Hosting preview 배포는 수동 workflow로 검증할 수 있다.
+- Firebase Hosting live 배포 권한은 아직 자동화하지 않는다.
+- Firebase Hosting preview/live 배포 권한이 최종적으로 분리돼 있다.
 - Firestore/Storage Rules 변경 시 관리자 웹 영향 검토 절차가 있다.
 - 분리 후 공통 데이터 계약 변경을 추적할 이슈 템플릿 또는 라벨이 있다.
 

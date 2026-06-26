@@ -1,0 +1,119 @@
+name: Admin Web Preview Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: "Firebase Hosting preview channel id"
+        required: false
+        default: "admin-web-preview"
+      expires:
+        description: "Preview channel expiration, max 30d"
+        required: false
+        default: "7d"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.channel_id }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: deploy-preview
+    runs-on: ubuntu-latest
+    environment: admin-web-preview
+    timeout-minutes: 20
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+
+      - name: 관리자 웹 의존성 설치
+        working-directory: admin-web
+        run: npm ci
+
+      - name: 관리자 웹 lint
+        working-directory: admin-web
+        run: npm run lint
+
+      - name: 관리자 웹 빌드
+        working-directory: admin-web
+        run: npm run build
+
+      - name: Firebase Hosting preview 배포
+        env:
+          CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
+          EXPIRES: ${{ inputs.expires || vars.FIREBASE_HOSTING_EXPIRES || '7d' }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${FIREBASE_PROJECT_ID}" ]]; then
+            echo "FIREBASE_PROJECT_ID가 비어 있습니다." >&2
+            exit 1
+          fi
+
+          if [[ -z "${FIREBASE_TOKEN}" ]]; then
+            echo "FIREBASE_TOKEN secret이 비어 있습니다." >&2
+            exit 1
+          fi
+
+          npx --yes firebase-tools@15.22.2 hosting:channel:deploy "${CHANNEL_ID}" \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --expires "${EXPIRES}" \
+            --json | tee firebase-preview-deploy.json
+
+      - name: Preview 배포 결과 요약
+        env:
+          CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
+          EXPIRES: ${{ inputs.expires || vars.FIREBASE_HOSTING_EXPIRES || '7d' }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+
+          const rawOutput = fs.existsSync('firebase-preview-deploy.json')
+            ? fs.readFileSync('firebase-preview-deploy.json', 'utf8')
+            : ''
+          const urls = Array.from(new Set(rawOutput.match(/https:\/\/[^\s"'<>]+/g) || []))
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY
+          const lines = [
+            '## 관리자 웹 Preview 배포',
+            '',
+            `- Firebase project: ${process.env.FIREBASE_PROJECT_ID || ''}`,
+            `- Channel: ${process.env.CHANNEL_ID || ''}`,
+            `- Expires: ${process.env.EXPIRES || ''}`,
+            '',
+          ]
+
+          if (urls.length) {
+            lines.push('### URLs', '')
+            for (const url of urls) {
+              lines.push(`- ${url}`)
+            }
+          } else {
+            lines.push('배포 URL을 자동 추출하지 못했습니다. Firebase deploy 로그를 확인해 주세요.')
+          }
+
+          fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`)
+          NODE

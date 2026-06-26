@@ -99,7 +99,7 @@ environment: admin-web-preview
 3. `npm run build`
 4. `admin-web/dist` 산출물 업로드
 
-이번 단계에서는 Firebase Hosting 배포를 수행하지 않는다. 자동 preview/live 배포는 Hosting site, App Check, 운영 프로젝트 경계가 확정된 뒤 별도 PR에서 추가한다.
+이 workflow는 Firebase Hosting 배포를 수행하지 않는다. build/lint 검증과 산출물 업로드만 담당한다.
 
 ## 배포 workflow 기준
 
@@ -107,10 +107,19 @@ environment: admin-web-preview
 
 조건:
 
-- PR 또는 수동 실행에서만 동작한다.
+- 현재는 `workflow_dispatch` 수동 실행에서만 동작한다.
 - `admin-web` build/lint가 통과해야 한다.
 - Firebase Hosting preview channel에만 배포한다.
-- 배포 URL과 만료일을 PR 댓글 또는 job summary에 남긴다.
+- 배포 URL과 만료일을 job summary에 남긴다.
+- 모든 PR마다 자동 배포하는 방식은 관리자 웹 전용 배포 인증이 분리된 뒤 다시 검토한다.
+
+현재 workflow:
+
+- `.github/workflows/admin-web-preview-deploy.yml`
+- 이름: `Admin Web Preview Deploy`
+- 기본 channel: `admin-web-preview`
+- 기본 만료: 7일
+- Firebase CLI: `firebase-tools@15.22.2`
 
 권장 명령:
 
@@ -120,6 +129,16 @@ npm --prefix admin-web run lint
 npm --prefix admin-web run build
 firebase hosting:channel:deploy "$FIREBASE_HOSTING_CHANNEL" --project "$FIREBASE_PROJECT_ID" --expires 7d
 ```
+
+preview workflow가 사용하는 Environment 값:
+
+| 이름 | 종류 | 설명 |
+| --- | --- | --- |
+| `FIREBASE_PROJECT_ID` | variable | preview 배포 대상 Firebase project id |
+| `FIREBASE_HOSTING_CHANNEL` | variable | 기본 preview channel id |
+| `FIREBASE_HOSTING_EXPIRES` | variable | 기본 preview channel 만료 기간 |
+| `FIREBASE_TOKEN` | repo-level secret | 현재 Firebase CLI 배포 인증. 관리자 웹 전용 인증으로 분리 예정 |
+| `VITE_FIREBASE_*` | variables/secrets | 관리자 웹 빌드용 Firebase Web config |
 
 ### production
 
@@ -145,14 +164,17 @@ firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID"
 - dev Firebase Web config를 `admin-web-preview` variables/secrets로 옮겼다.
 - `admin-web/firebase.ts`의 하드코딩 dev 값을 제거했다.
 - 로컬 개발용 `.env.example`을 추가했다.
-- Hosting 배포 workflow는 추가하지 않았다.
+- 수동 실행용 Firebase Hosting preview deploy workflow를 추가했다.
+- 모든 PR마다 자동 preview 배포하는 단계는 보류했다.
 
 ## 다음 작업
 
-1. Firebase Hosting preview workflow를 추가할지 결정한다.
-2. `admin-web-production` 운영 Firebase 프로젝트와 Hosting site를 확정한다.
-3. production Environment 값을 설정한다.
-4. App Check 적용 시점과 강제 기준을 production 배포 전에 재확인한다.
+1. preview workflow를 한 번 수동 실행해 Hosting URL과 Auth authorized domain 동작을 확인한다.
+2. 관리자 웹 전용 배포 인증을 repo-level `FIREBASE_TOKEN`에서 Environment 전용 인증으로 분리한다.
+3. 모든 PR마다 preview 배포를 자동 실행할지 재검토한다.
+4. `admin-web-production` 운영 Firebase 프로젝트와 Hosting site를 확정한다.
+5. production Environment 값을 설정한다.
+6. App Check 적용 시점과 강제 기준을 production 배포 전에 재확인한다.
 
 ## 관련 이슈
 
