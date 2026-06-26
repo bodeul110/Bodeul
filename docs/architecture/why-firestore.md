@@ -7,6 +7,8 @@
 
 이 문서는 Firestore 선택 이유만 따로 설명한다. 더 긴 비교는 [DB 선택 근거](database-selection.md)를 기준으로 본다.
 
+2026-06-26 이후 운영 source of truth는 PostgreSQL과 서버 API로 전환하기로 결정했다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유와 당시 전환 조건을 설명하는 기록으로 유지하고, 실제 운영 전환 계획은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+
 ## 결론
 
 현재 BoDeul 데이터 구조는 예약 요청, 동행 세션, 리포트, 문의, 관리자 운영 상태처럼 문서 단위로 읽고 갱신하는 흐름이 중심이다. 그래서 초기 MVP에서는 Cloud Firestore가 MySQL/PostgreSQL보다 현재 규모에 맞는다.
@@ -52,4 +54,3 @@
 - Firestore 읽기/쓰기 비용이 반복적으로 예산 기준을 넘는다.
 - 여러 컬렉션 조인이 대부분의 화면에서 필수가 된다.
 - 관리자/매니저 권한 정책이 복잡해져 Rules보다 서버 API가 더 안전해진다.
-

@@ -7,6 +7,8 @@
 
 이 문서는 다음 회의에서 한 장으로 설명할 현재 BoDeul 인프라 구성도다. 자세한 런타임 설명은 [인프라 개요](infrastructure.md), 상세 흐름은 [시스템 아키텍처 다이어그램](system-architecture-diagram.md)을 기준으로 본다.
 
+2026-06-26 이후 운영 source of truth는 PostgreSQL과 서버 API로 전환하기로 결정했다. 이 문서는 전환 전 현재 구조를 설명하는 기준이고, 전환 목표 구조는 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+
 ## 한 장 구성도
 
 ```mermaid
@@ -92,4 +94,3 @@ flowchart LR
 - 정산, 통계, 검색이 핵심 기능이 되면 BigQuery export나 PostgreSQL 보조 저장소를 검토한다.
 - Rules로 표현하기 어려운 권한이 늘면 Functions API 또는 custom claims 전환을 검토한다.
 - 운영 도메인, App Check enforcement, Hosting 자동 배포는 아직 후속 운영 과제다.
-
