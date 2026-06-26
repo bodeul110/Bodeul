@@ -79,10 +79,21 @@ jobs:
             exit 1
           fi
 
+          set +e
           npx --yes firebase-tools@15.22.2 hosting:channel:deploy "${CHANNEL_ID}" \
             --project "${FIREBASE_PROJECT_ID}" \
             --expires "${EXPIRES}" \
             --json | tee firebase-preview-deploy.json
+          deploy_status="${PIPESTATUS[0]}"
+          set -e
+
+          if [[ "${deploy_status}" -ne 0 ]]; then
+            if grep -q "current active version" firebase-preview-deploy.json; then
+              echo "같은 산출물이 이미 preview channel의 현재 active version이므로 성공으로 처리합니다."
+            else
+              exit "${deploy_status}"
+            fi
+          fi
 
       - name: Preview 배포 결과 요약
         env:
@@ -105,6 +116,10 @@ jobs:
             `- Expires: ${process.env.EXPIRES || ''}`,
             '',
           ]
+
+          if (rawOutput.includes('current active version')) {
+            lines.push('동일 산출물이 이미 현재 active version이라 no-op 배포로 처리했습니다.', '')
+          }
 
           if (urls.length) {
             lines.push('### URLs', '')

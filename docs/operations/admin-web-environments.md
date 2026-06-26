@@ -120,6 +120,7 @@ environment: admin-web-preview
 - 기본 channel: `admin-web-preview`
 - 기본 만료: 7일
 - Firebase CLI: `firebase-tools@15.22.2`
+- 동일 산출물이 이미 preview channel의 current active version이면 no-op 성공으로 처리
 
 권장 명령:
 
