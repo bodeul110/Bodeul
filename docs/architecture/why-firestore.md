@@ -7,7 +7,7 @@
 
 이 문서는 Firestore 선택 이유만 따로 설명한다. 더 긴 비교는 [DB 선택 근거](database-selection.md)를 기준으로 본다.
 
-2026-06-26 이후 운영 source of truth는 PostgreSQL과 서버 API로 전환하기로 결정했다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유와 당시 전환 조건을 설명하는 기록으로 유지하고, 실제 운영 전환 계획은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+2026-06-26 이후 운영 DB는 Supabase PostgreSQL로 단계 전환하기로 결정했다. Firebase Auth, FCM, Storage, Hosting은 유지하고 Firestore는 전환 전 기준 데이터, 호환 읽기, 캐시, shadow 저장소로 낮춘다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유와 당시 전환 조건을 설명하는 기록으로 유지하고, 실제 운영 전환 계획은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
 
 ## 결론
 

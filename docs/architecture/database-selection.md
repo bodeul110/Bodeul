@@ -4,7 +4,7 @@
 
 BoDeul의 초기 MVP와 현재 운영 준비 단계에서는 Cloud Firestore를 주 저장소로 사용한다. 결론은 `Firebase 중심 BaaS + Android 앱 + 관리자 웹 + 운영 도구` 구조를 유지하고, 서버가 반드시 책임져야 하는 권한 보조, 외부 API 호출, 알림 큐만 Cloud Functions로 분리하는 것이다.
 
-2026-06-26 멘토 피드백 이후에는 운영 source of truth를 PostgreSQL과 서버 API로 옮기는 방향을 새 결정으로 잡았다. 이 문서는 초기 MVP에서 Firestore를 선택한 근거로 유지하고, 운영 전환 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+2026-06-26 멘토 피드백 이후에는 Firebase 인프라는 유지하고 운영 DB를 Supabase PostgreSQL로 옮기는 방향을 새 결정으로 잡았다. 이 문서는 초기 MVP에서 Firestore를 선택한 근거로 유지하고, 운영 전환 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
 
 ## 판단 기준
 
