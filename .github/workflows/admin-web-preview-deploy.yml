@@ -62,9 +62,25 @@ jobs:
         working-directory: admin-web
         run: npm run build
 
+      - name: WIF 설정 확인
+        env:
+          ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER }}
+          ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT: ${{ vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER}" ]]; then
+            echo "ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER variable이 비어 있습니다." >&2
+            exit 1
+          fi
+
+          if [[ -z "${ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT}" ]]; then
+            echo "ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT variable이 비어 있습니다." >&2
+            exit 1
+          fi
+
       - name: Google Cloud 인증
         id: gcp-auth
-        if: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ vars.FIREBASE_PROJECT_ID }}
@@ -78,8 +94,6 @@ jobs:
       - name: Firebase Hosting preview 배포
         env:
           ADMIN_WEB_GCP_ACCESS_TOKEN: ${{ steps.gcp-auth.outputs.access_token }}
-          ADMIN_WEB_FIREBASE_TOKEN: ${{ secrets.ADMIN_WEB_FIREBASE_TOKEN }}
-          USE_WORKLOAD_IDENTITY: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' }}
           CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
           EXPIRES: ${{ inputs.expires || vars.FIREBASE_HOSTING_EXPIRES || '7d' }}
         run: |
@@ -90,23 +104,13 @@ jobs:
             exit 1
           fi
 
-          if [[ "${USE_WORKLOAD_IDENTITY}" == "true" ]]; then
-            if [[ -z "${ADMIN_WEB_GCP_ACCESS_TOKEN}" ]]; then
-              echo "Workload Identity access token이 비어 있습니다." >&2
-              exit 1
-            fi
-
-            export FIREBASE_TOKEN="${ADMIN_WEB_GCP_ACCESS_TOKEN}"
-            echo "Workload Identity access token 인증을 사용합니다."
-          else
-            if [[ -z "${ADMIN_WEB_FIREBASE_TOKEN}" ]]; then
-              echo "ADMIN_WEB_FIREBASE_TOKEN secret이 비어 있습니다." >&2
-              exit 1
-            fi
-
-            export FIREBASE_TOKEN="${ADMIN_WEB_FIREBASE_TOKEN}"
-            echo "Environment token 인증을 사용합니다."
+          if [[ -z "${ADMIN_WEB_GCP_ACCESS_TOKEN}" ]]; then
+            echo "Workload Identity access token이 비어 있습니다." >&2
+            exit 1
           fi
+
+          export FIREBASE_TOKEN="${ADMIN_WEB_GCP_ACCESS_TOKEN}"
+          echo "Workload Identity access token 인증을 사용합니다."
 
           set +e
           npx --yes firebase-tools@15.22.3 hosting:channel:deploy "${CHANNEL_ID}" \
@@ -126,7 +130,7 @@ jobs:
 
       - name: Preview 배포 결과 요약
         env:
-          AUTH_MODE: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' && 'Workload Identity' || 'Environment token' }}
+          AUTH_MODE: Workload Identity
           CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
           EXPIRES: ${{ inputs.expires || vars.FIREBASE_HOSTING_EXPIRES || '7d' }}
         run: |
