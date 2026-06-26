@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 20
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      FIREBASE_TOKEN: ${{ secrets.ADMIN_WEB_FIREBASE_TOKEN }}
       VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
       VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -75,7 +75,7 @@ jobs:
           fi
 
           if [[ -z "${FIREBASE_TOKEN}" ]]; then
-            echo "FIREBASE_TOKEN secret이 비어 있습니다." >&2
+            echo "ADMIN_WEB_FIREBASE_TOKEN secret이 비어 있습니다." >&2
             exit 1
           fi
 

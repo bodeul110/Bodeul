@@ -138,8 +138,10 @@ preview workflow가 사용하는 Environment 값:
 | `FIREBASE_PROJECT_ID` | variable | preview 배포 대상 Firebase project id |
 | `FIREBASE_HOSTING_CHANNEL` | variable | 기본 preview channel id |
 | `FIREBASE_HOSTING_EXPIRES` | variable | 기본 preview channel 만료 기간 |
-| `FIREBASE_TOKEN` | repo-level secret | 현재 Firebase CLI 배포 인증. 관리자 웹 전용 인증으로 분리 예정 |
+| `ADMIN_WEB_FIREBASE_TOKEN` | Environment secret | 현재 Firebase CLI preview 배포 인증 |
 | `VITE_FIREBASE_*` | variables/secrets | 관리자 웹 빌드용 Firebase Web config |
+
+`ADMIN_WEB_FIREBASE_TOKEN`은 현재 Firebase refresh token 기반이다. GitHub secret 경계는 `admin-web-preview` Environment로 분리했지만, Firebase IAM 최소권한까지 분리한 것은 아니다. 다음 단계에서는 Hosting preview deploy만 가능한 서비스 계정 또는 Workload Identity 전환을 검토한다.
 
 ### production
 
@@ -171,7 +173,7 @@ firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID"
 ## 다음 작업
 
 1. preview workflow를 한 번 수동 실행해 Hosting URL과 Auth authorized domain 동작을 확인한다.
-2. 관리자 웹 전용 배포 인증을 repo-level `FIREBASE_TOKEN`에서 Environment 전용 인증으로 분리한다.
+2. 관리자 웹 preview 배포 인증을 Hosting preview deploy 전용 서비스 계정 또는 Workload Identity로 전환할지 검토한다.
 3. 모든 PR마다 preview 배포를 자동 실행할지 재검토한다.
 4. `admin-web-production` 운영 Firebase 프로젝트와 Hosting site를 확정한다.
 5. production Environment 값을 설정한다.
