@@ -53,7 +53,8 @@
 
 ## 보완 계획
 
+- 관리자 웹이 사용하는 Firebase 계약은 [관리자 웹 데이터 계약](admin-web-data-contract.md)을 기준으로 추적한다.
 - 관리자 권한 검증은 [Firestore/Storage Rules 검증 정리](../security/firebase-rules-validation.md)와 함께 유지한다.
 - 운영 배포 결과는 [관리자 웹 Firebase Hosting live 배포 판단 보고서](../reports/admin-web-live-deploy-2026-06-25.md)에 기록한다.
 - App Check, custom domain, GitHub Actions 자동 배포는 [인프라 리스크/보완 계획](infra-risk-review.md)에서 추적한다.
-
+- 레포 분리 판단은 [관리자 웹 레포 분리 준비 계획](../operations/admin-web-repository-split.md)을 기준으로 한다.
