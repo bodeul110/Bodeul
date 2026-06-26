@@ -147,6 +147,8 @@ preview workflow가 사용하는 Environment 값:
 
 `ADMIN_WEB_FIREBASE_TOKEN`은 현재 Firebase refresh token 기반이다. GitHub secret 경계는 `admin-web-preview` Environment로 분리했지만, Firebase IAM 최소권한까지 분리한 것은 아니다. Workload Identity 변수 2개가 모두 설정되면 preview workflow는 `google-github-actions/auth@v3`로 Google Cloud 인증을 먼저 수행하고, 설정되지 않은 동안에는 기존 Environment token을 fallback으로 사용한다.
 
+Firebase CLI가 GitHub Actions WIF external account credentials file을 직접 읽는 경로에서 인증 실패를 보였기 때문에, 현재 workflow는 WIF로 발급한 짧은 수명 OAuth access token을 Firebase CLI에 명시적으로 전달한다. 이 값은 장기 저장 secret이 아니며 job 실행 중에만 사용된다. Firebase CLI의 ADC/WIF 처리 경로가 안정적으로 검증되면 access token 전달 우회는 제거 대상으로 다시 본다.
+
 ### preview 배포 인증 전환 기준
 
 선택한 방향:
@@ -158,7 +160,7 @@ preview workflow가 사용하는 Environment 값:
 근거:
 
 - Firebase CLI는 CI 환경에서 서비스 계정 기반 Application Default Credentials를 사용할 수 있다.
-- `google-github-actions/auth@v3`는 credentials file을 생성하고 `GOOGLE_APPLICATION_CREDENTIALS`를 후속 step에 export할 수 있다.
+- `google-github-actions/auth@v3`는 credentials file을 생성하고 `GOOGLE_APPLICATION_CREDENTIALS`를 후속 step에 export할 수 있으며, 필요하면 OAuth access token을 출력할 수 있다.
 - Google Cloud Workload Identity Federation은 GitHub Actions OIDC 토큰을 Google Cloud 인증으로 교환하므로 장기 수명 JSON key나 Firebase refresh token 보관 부담을 줄인다.
 - 현재 규모에서는 preview 배포 하나 때문에 즉시 레포를 쪼개기보다, 모노레포 안에서 인증 경계를 먼저 분리하고 실제 배포 로그로 권한 범위를 확인하는 편이 안전하다.
 
@@ -215,6 +217,7 @@ firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID"
 - 수동 실행용 Firebase Hosting preview deploy workflow를 추가했다.
 - preview deploy workflow를 Workload Identity 우선, Environment token fallback 구조로 바꿨다.
 - WIF/ADC 인증 회귀를 피하기 위해 preview deploy Firebase CLI를 `15.22.3`으로 올렸다.
+- WIF 경로에서는 `google-github-actions/auth@v3`가 발급한 짧은 수명 access token을 Firebase CLI에 전달하도록 바꿨다.
 - 모든 PR마다 자동 preview 배포하는 단계는 보류했다.
 
 ## 다음 작업

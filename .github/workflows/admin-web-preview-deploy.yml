@@ -63,6 +63,7 @@ jobs:
         run: npm run build
 
       - name: Google Cloud 인증
+        id: gcp-auth
         if: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v3
         with:
@@ -71,9 +72,12 @@ jobs:
           service_account: ${{ vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
           export_environment_variables: true
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform
 
       - name: Firebase Hosting preview 배포
         env:
+          ADMIN_WEB_GCP_ACCESS_TOKEN: ${{ steps.gcp-auth.outputs.access_token }}
           ADMIN_WEB_FIREBASE_TOKEN: ${{ secrets.ADMIN_WEB_FIREBASE_TOKEN }}
           USE_WORKLOAD_IDENTITY: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' }}
           CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
@@ -87,7 +91,13 @@ jobs:
           fi
 
           if [[ "${USE_WORKLOAD_IDENTITY}" == "true" ]]; then
-            echo "Workload Identity 인증을 사용합니다."
+            if [[ -z "${ADMIN_WEB_GCP_ACCESS_TOKEN}" ]]; then
+              echo "Workload Identity access token이 비어 있습니다." >&2
+              exit 1
+            fi
+
+            export FIREBASE_TOKEN="${ADMIN_WEB_GCP_ACCESS_TOKEN}"
+            echo "Workload Identity access token 인증을 사용합니다."
           else
             if [[ -z "${ADMIN_WEB_FIREBASE_TOKEN}" ]]; then
               echo "ADMIN_WEB_FIREBASE_TOKEN secret이 비어 있습니다." >&2
