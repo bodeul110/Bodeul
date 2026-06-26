@@ -77,6 +77,11 @@ firebase deploy --only hosting --project <firebase-project-id>
 
 현재 `firestore.indexes.json`에는 복합 인덱스가 없다. 현재 코드가 쓰는 대부분의 쿼리는 단일 필드 필터, 문서 직접 조회, `limit(1)` 조회, 또는 소량 컬렉션 조합이다. 운영 데이터가 늘면 아래 쿼리부터 서버 필터와 복합 인덱스가 필요해질 가능성이 높다.
 
+2026-06-26 점검 결과:
+- 현재 코드에는 `where(...) + orderBy(...)` 형태의 운영 복합 쿼리가 없어 `firestore.indexes.json`은 변경하지 않는다.
+- 관리자 앱 대시보드는 여러 운영 컬렉션을 전체 조회하므로, 복합 인덱스보다 페이지네이션과 서버 필터 전환이 먼저 필요한 리스크다.
+- 세부 점검 기록은 [Firestore 쿼리/인덱스 운영 점검](../reports/firestore-query-index-review-2026-06-26.md)을 기준으로 한다.
+
 | 위치 | 쿼리/조회 | 현재 인덱스 판단 |
 | --- | --- | --- |
 | `admin-web/src/App.tsx` | `users where role == MANAGER` | 단일 필드. 현재 복합 인덱스 없음 |
@@ -100,9 +105,12 @@ firebase deploy --only hosting --project <firebase-project-id>
 우선 후보:
 - `appointmentRequests`: `status + appointmentAtEpochMillis desc`
 - `appointmentRequests`: `managerUserId + status + appointmentAtEpochMillis desc`
+- `companionSessions`: `managerUserId + currentStatus`
+- `clientSupportRequests`: `userId + createdAt desc`
 - `clientSupportRequests`: `status + createdAt desc`
 - `supportInquiries`: `managerUserId + createdAt desc`
 - `adminActionNotifications`: `state + priority + createdAt desc`
+- `adminActionDeliveryJobs`: `state + nextAttemptAt asc`
 
 ## 백업/복원 리허설
 
