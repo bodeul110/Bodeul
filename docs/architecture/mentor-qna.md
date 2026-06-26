@@ -23,6 +23,18 @@
 
 정산/통계/검색이 커지면 BigQuery export, PostgreSQL 보조 저장소, 별도 API 서버를 검토한다. Firestore 단독 구조를 버리는 기준은 비용, 조인 요구, 서버 검증 요구가 실제 지표로 확인될 때다.
 
+### 멘토 피드백 이후에는 어떻게 전환하나?
+
+운영 source of truth를 Supabase PostgreSQL과 Oracle Cloud API 서버로 옮기는 방향으로 결정했다. 다만 Firebase Auth, FCM, Storage, Hosting을 한 번에 제거하지는 않는다. 먼저 API 서버가 Firebase ID token을 검증하고 PostgreSQL의 역할/운영 데이터를 기준으로 응답하도록 만든 뒤, 관리자 웹과 Android 앱의 Firestore 직접 접근을 화면 단위로 API 호출로 바꾼다.
+
+### 왜 Supabase를 1순위로 잡았나?
+
+PostgreSQL을 쓰면서도 Realtime 기능을 검토할 수 있기 때문이다. Neon도 PostgreSQL 대안으로 좋지만, 실시간 구독은 별도 WebSocket/SSE 서버 구현 부담이 더 크다. 현재 멘토님이 지적한 “RDBMS 전환”과 “실시간 가능성”을 같이 설명하기에는 Supabase PostgreSQL이 더 맞다.
+
+### 왜 Oracle Cloud에는 DB가 아니라 API 서버만 올리나?
+
+Oracle VM에 PostgreSQL까지 직접 운영하면 백업, 보안 패치, 장애 대응을 모두 팀이 책임져야 한다. 현재 팀 규모에서는 DB는 관리형 Supabase를 쓰고, Oracle VM은 API 서버 운영 경험과 배포 구조를 만들기 위해 쓰는 편이 현실적이다.
+
 ## 앱 구조
 
 ### Activity는 무엇을 담당하나?

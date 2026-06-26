@@ -12,6 +12,10 @@
   - Firebase 중심 BaaS 구조를 유지하는 이유와 대안, 전환 조건
 - [Firestore 선택 근거](why-firestore.md)
   - Firestore를 MySQL/PostgreSQL/Supabase 대신 쓰는 이유와 보완 조건
+- [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
+  - 멘토 피드백 이후 Supabase PostgreSQL과 Oracle Cloud API 서버로 운영 source of truth를 옮기는 결정
+- [PostgreSQL schema 초안](postgres-schema-draft.sql)
+  - Firestore 운영 데이터를 PostgreSQL로 옮기기 위한 초기 테이블 초안
 - [Android 앱 구조 설명](app-architecture.md)
   - Activity, Coordinator, Binder, Repository, Mock/Firebase 모드 역할
 - [관리자 웹 역할 설명](admin-web-architecture.md)
