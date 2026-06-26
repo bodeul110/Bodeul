@@ -6,6 +6,7 @@ on:
       - "admin-web/**"
       - "firebase.json"
       - ".github/workflows/admin-web.yml"
+      - ".github/workflows/admin-web-preview-deploy.yml"
   workflow_dispatch:
 
 permissions:
