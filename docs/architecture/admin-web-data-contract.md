@@ -7,27 +7,27 @@
 
 ## 작업 목적
 
-`admin-web`을 별도 레포로 분리할 수 있는지 판단하기 위해 관리자 웹이 의존하는 Firebase Auth, Firestore, Storage, Functions 계약을 명확히 한다.
+`admin-web`을 별도 레포로 분리할 수 있는지 판단하기 위해 관리자 웹이 의존하는 Firebase Auth, Firestore, Storage, Functions, 환경변수 계약을 명확히 한다.
 
 ## 선택한 방식
 
-현재 코드 기준으로 `admin-web`이 직접 읽고 쓰는 계약만 먼저 문서화한다. 아직 구현되지 않은 호출이나 예정 기능은 분리 후속 조건으로 둔다.
+현재 코드가 실제로 읽고 쓰는 계약만 먼저 문서화한다. 아직 구현하지 않은 API 노출, 서버 프록시, 자동 배포 기능은 분리 전제 조건으로 분리한다.
 
 ## 대안
 
-- 레포를 먼저 분리한 뒤 깨지는 계약을 따라가며 보완한다.
+- 레포를 먼저 분리하고 깨지는 계약을 따라가며 보완한다.
 - Android 앱, Functions, Rules까지 전체 데이터 계약을 한 번에 문서화한다.
 - 관리자 웹을 분리하지 않고 현재 저장소 내부 문서만 유지한다.
 
 ## 선택 이유
 
-관리자 웹은 Firestore와 Storage를 직접 사용하므로, 별도 레포로 분리하면 데이터 계약이 저장소 사이의 API 역할을 하게 된다. 현재 규모에서는 전체 플랫폼 계약보다 관리자 웹이 실제 사용하는 최소 계약을 먼저 고정하는 편이 안전하다.
+관리자 웹은 Firestore와 Storage를 직접 사용한다. 별도 레포로 분리하면 데이터 계약이 저장소 사이의 API 역할을 하므로, 현재 규모에서는 전체 플랫폼 계약보다 관리자 웹이 실제 사용하는 최소 계약을 먼저 고정하는 편이 안전하다.
 
 ## 리스크
 
 - 이 문서는 2026-06-26 현재 `admin-web` 코드 기준이다.
 - Firestore Rules, Storage Rules, Functions가 바뀌면 이 문서도 함께 갱신해야 한다.
-- 관리자 웹에 문의 응답, 알림 수동 실행, 정산 관리 기능이 추가되면 계약 범위가 늘어난다.
+- 문의 응답, 알림 수동 실행, 정산 관리 기능이 관리자 웹에 추가되면 계약 범위가 늘어난다.
 
 ## Firebase Auth 계약
 
@@ -37,9 +37,9 @@
 | 관리자 판별 | 로그인한 사용자의 `users/{uid}.role == ADMIN` |
 | 비관리자 처리 | 세션 검증 실패 후 `signOut` |
 | 유휴 세션 | 15분 동안 활동이 없으면 로그아웃 |
-| App Check | `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있을 때 웹 App Check 초기화 |
+| App Check | `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있을 때만 초기화 |
 
-관리자 웹은 custom claims를 사용하지 않는다. 운영자가 늘거나 관리자 권한 변경 이력이 중요해지면 custom claims, MFA, 감사 로그 강화 여부를 별도로 검토한다.
+관리자 웹은 현재 custom claims를 사용하지 않는다. 운영자가 많아지거나 관리자 권한 변경 이력이 중요해지면 custom claims, MFA, 감사 로그 강화를 별도 이슈로 검토한다.
 
 ## Firestore 읽기 계약
 
@@ -55,6 +55,7 @@
 | 표시 필드 | `name`, `email` |
 
 조건:
+
 - 문서가 없으면 관리자 세션으로 보지 않는다.
 - `role`이 `ADMIN`이 아니면 관리자 화면에 진입시키지 않는다.
 
@@ -75,17 +76,16 @@
 | `name` | 매니저 이름 표시 | 없으면 `이름 없음` |
 | `email` | 연락처 표시, 기본 마스킹 | 상세 모달에서 원문 확인 |
 | `phone` | 연락처 표시, 기본 마스킹 | 상세 모달에서 원문 확인 |
-| `createdAt` | 신청일 표시 | `Date`, epoch, Firestore Timestamp를 허용 |
+| `createdAt` | 신청일 표시 | `Date`, epoch, Firestore Timestamp 허용 |
 | `managerDocumentStatus` | 심사 상태 표시 | `PENDING_REVIEW`, `UNDER_REVIEW`, `APPROVED`, `REJECTED` |
 | `managerDocumentSummary` | 제출 서류 요약 | 승인/반려 전 필수로 본다 |
 | `managerDocumentReviewNote` | 반려 사유 또는 보완 메모 | 반려 시 입력 |
 | `managerDocumentFiles` | Storage 원본 메타데이터 | 우선 사용 |
 | `managerDocumentFilePaths` | Storage 경로 fallback | 이전 계약 호환 |
-| 레거시 파일 경로 필드 | 이전 업로드 경로 fallback | 아래 레거시 필드 표 참고 |
 
-레거시 파일 경로 필드:
+이전 업로드 경로 fallback 필드:
 
-| 문서 슬롯 | 후보 필드 |
+| 문서 종류 | 후보 필드 |
 | --- | --- |
 | 신분증 | `managerIdCardFilePath`, `idCardFilePath`, `managerIdCardStoragePath` |
 | 자격증 | `managerLicenseFilePath`, `licenseFilePath`, `managerLicenseStoragePath`, `managerHealthCertificateFilePath`, `healthCertificateFilePath`, `managerHealthCertificateStoragePath` |
@@ -124,9 +124,10 @@
 | `reviewNote` | 반려 사유 또는 빈 문자열 |
 
 주의:
+
 - 심사 저장 전 `managerDocumentSummary`가 비어 있으면 저장하지 않는다.
-- 승인 시 신분증, 자격증, 범죄경력 조회 체크리스트가 모두 확인돼야 한다.
-- 반려 시 반려 사유가 필요하다.
+- 승인 전 신분증, 자격증, 범죄경력 조회 체크리스트가 모두 확인되어야 한다.
+- 반려 전 반려 사유가 필요하다.
 
 ## Storage 읽기 계약
 
@@ -135,8 +136,8 @@
 | 항목 | 값 |
 | --- | --- |
 | 기본 폴더 | `manager-documents/{managerUserId}/{documentKey}` |
-| 문서 슬롯 | `idCard`, `license`, `criminalRecord` |
-| 호환 슬롯 | `healthCertificate`는 `license` 슬롯 후보로 함께 읽음 |
+| 문서 키 | `idCard`, `license`, `criminalRecord` |
+| 호환 키 | `healthCertificate`를 `license` 후보로 함께 읽음 |
 | 읽기 API | `getDownloadURL`, `getMetadata`, `listAll` |
 | 코드 위치 | `admin-web/src/App.tsx` |
 
@@ -144,55 +145,69 @@
 
 1. `users/{managerUserId}.managerDocumentFiles`의 명시 경로를 우선 사용한다.
 2. `managerDocumentFilePaths`를 fallback으로 사용한다.
-3. 레거시 파일 경로 필드를 fallback으로 사용한다.
-4. 명시 경로가 없으면 `manager-documents/{managerUserId}/{documentKey}` 폴더를 탐색한다.
+3. 이전 파일 경로 필드를 fallback으로 사용한다.
+4. 명시 경로가 없으면 `manager-documents/{managerUserId}/{documentKey}` 폴더를 검색한다.
 
-관리자 웹은 Storage 원본을 쓰거나 삭제하지 않는다.
+관리자 웹은 Storage 원본을 업로드하거나 삭제하지 않는다.
 
 ## Functions 계약
 
 현재 `admin-web` 코드는 callable Functions를 직접 호출하지 않는다.
 
-향후 아래 기능이 관리자 웹에 연결되면 이 문서를 갱신해야 한다.
+향후 아래 기능을 관리자 웹에 연결하면 이 문서를 갱신해야 한다.
 
 | 예정 가능 기능 | 관련 Functions 후보 |
 | --- | --- |
-| 관리자 후속 알림 수동 발송 | `dispatchAdminActionDeliveryJobs` |
+| 관리자 접속 알림 수동 발송 | `dispatchAdminActionDeliveryJobs` |
 | 예약 리마인더 수동 발송 | `dispatchAppointmentReminderJobs` |
 | 관리자 권한 검증 서버화 | 신규 callable 또는 서버 API |
 
-## 환경 변수와 배포 계약
+## 환경변수와 배포 계약
 
-| 항목 | 현재 기준 |
-| --- | --- |
-| Firebase Web config | `admin-web/firebase.ts`에 dev 프로젝트 값이 직접 들어 있음 |
-| App Check site key | `VITE_FIREBASE_APPCHECK_SITE_KEY` |
-| App Check debug token | `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` |
-| 빌드 명령 | `npm --prefix admin-web run build` |
-| 배포 대상 | Firebase Hosting `admin-web/dist` |
-| preview 배포 | `firebase hosting:channel:deploy admin-web-preview --project <firebase-project-id> --expires 7d` |
-| live 배포 | `firebase deploy --only hosting --project <firebase-project-id>` |
+Firebase Web config는 `admin-web/firebase.ts`에 직접 넣지 않는다. Vite 빌드 시점에 아래 값을 주입한다.
 
-레포 분리 전에는 Firebase Web config를 환경별로 주입할지, 파일로 유지할지 결정해야 한다. 분리 후에는 `admin-web` 레포의 secret과 GitHub Environment 기준을 별도로 둔다.
+| 이름 | 필수 여부 | 설명 |
+| --- | --- | --- |
+| `VITE_FIREBASE_API_KEY` | 필수 | Firebase Web API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | 필수 | Firebase Auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | 필수 | Firebase project id |
+| `VITE_FIREBASE_STORAGE_BUCKET` | 필수 | Firebase Storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | 필수 | Firebase sender id |
+| `VITE_FIREBASE_APP_ID` | 필수 | Firebase Web app id |
+| `VITE_FIREBASE_APPCHECK_SITE_KEY` | 선택 | App Check site key |
+| `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` | 선택 | 로컬/CI debug token |
+
+필수 값이 없으면 `admin-web/firebase.ts`가 즉시 오류를 발생시킨다. dev config로 fallback하지 않는다.
+
+빌드 명령:
+
+```powershell
+npm --prefix admin-web run build
+```
+
+GitHub Actions에서는 `admin-web-preview` Environment의 variables/secrets를 사용한다. production 값은 운영 Firebase 프로젝트가 확정된 뒤 `admin-web-production` Environment에 설정한다.
 
 ## Rules 영향
 
-관리자 웹 분리 후에도 `firestore.rules`와 `storage.rules`는 데이터 접근의 실제 보안 경계다.
+관리자 웹 분리 전에는 `firestore.rules`와 `storage.rules`의 데이터 접근이 실제 보안 경계다.
 
 필수 접근:
+
 - 관리자 계정은 `users`의 매니저 문서를 읽을 수 있어야 한다.
 - 관리자 계정은 매니저 서류 심사 필드를 업데이트할 수 있어야 한다.
 - 관리자 계정은 `manager-documents/{managerUserId}/...` Storage 객체를 읽을 수 있어야 한다.
 
-Rules가 이 계약을 깨면 관리자 웹은 별도 레포로 분리돼 있어도 정상 동작하지 않는다.
+Rules가 이 계약을 깨면 관리자 웹은 별도 레포로 분리되어 있어도 정상 동작하지 않는다.
 
-## 레포 분리 시 갱신 기준
+## 레포 분리 전 갱신 기준
 
 아래 파일이나 규칙이 바뀌면 이 문서를 함께 갱신한다.
 
 - `admin-web/src/App.tsx`
 - `admin-web/src/adminSession.ts`
 - `admin-web/firebase.ts`
+- `admin-web/.env.example`
+- `.github/workflows/admin-web.yml`
 - `firestore.rules`
 - `storage.rules`
 - `functions/src/*.js` 중 관리자 웹 callable 추가분
