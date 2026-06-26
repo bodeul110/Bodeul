@@ -99,7 +99,7 @@ jobs:
           fi
 
           set +e
-          npx --yes firebase-tools@15.22.2 hosting:channel:deploy "${CHANNEL_ID}" \
+          npx --yes firebase-tools@15.22.3 hosting:channel:deploy "${CHANNEL_ID}" \
             --project "${FIREBASE_PROJECT_ID}" \
             --expires "${EXPIRES}" \
             --json | tee firebase-preview-deploy.json

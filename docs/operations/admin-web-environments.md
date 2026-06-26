@@ -119,8 +119,10 @@ environment: admin-web-preview
 - 이름: `Admin Web Preview Deploy`
 - 기본 channel: `admin-web-preview`
 - 기본 만료: 7일
-- Firebase CLI: `firebase-tools@15.22.2`
+- Firebase CLI: `firebase-tools@15.22.3`
 - 동일 산출물이 이미 preview channel의 current active version이면 no-op 성공으로 처리
+
+`firebase-tools@15.22.2`는 GitHub Actions WIF/ADC 인증에서 `Failed to authenticate, have you run firebase login?` 오류가 발생하는 회귀가 확인되어 사용하지 않는다. `15.22.3`은 해당 회귀 수정 후 버전으로, WIF 기반 preview 배포 검증 기준 버전으로 둔다.
 
 권장 명령:
 
@@ -212,6 +214,7 @@ firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID"
 - 로컬 개발용 `.env.example`을 추가했다.
 - 수동 실행용 Firebase Hosting preview deploy workflow를 추가했다.
 - preview deploy workflow를 Workload Identity 우선, Environment token fallback 구조로 바꿨다.
+- WIF/ADC 인증 회귀를 피하기 위해 preview deploy Firebase CLI를 `15.22.3`으로 올렸다.
 - 모든 PR마다 자동 preview 배포하는 단계는 보류했다.
 
 ## 다음 작업
