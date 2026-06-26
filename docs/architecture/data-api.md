@@ -87,8 +87,20 @@
 - `prescriptionCollected`
 - `pharmacyCompleted`
 - `medicationGuidanceCompleted`
+- `sharedLatitude`
+- `sharedLongitude`
+- `sharedLocationUpdatedAtMillis`
+- `liveLocationSharingActive`
+- `liveLocationSharingStartedAt`
+- `sharedLocationHistory`
 - `createdAt`
 - `updatedAt`
+
+설명:
+
+- `sharedLocationHistory`는 진행 중 위치 확인을 위한 최근 좌표 이력이며 세션당 최근 10건만 유지한다.
+- `sharedLatitude`, `sharedLongitude`는 마지막 공유 좌표이고 `sharedLocationUpdatedAtMillis`는 마지막 갱신 시각이다.
+- 위치 원본 이력은 장기 분석 데이터로 보관하지 않고, 보관 및 노출 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)을 따른다.
 
 ### SessionReport
 
