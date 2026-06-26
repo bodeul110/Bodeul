@@ -1,0 +1,9 @@
+name: BoDeul CodeQL
+
+paths-ignore:
+  - "admin-web/dist/**"
+  - "app/build/**"
+  - "build/**"
+  - "functions/node_modules/**"
+  - "tools/firebase/backups/**"
+  - "tools/firebase/reports/**"
