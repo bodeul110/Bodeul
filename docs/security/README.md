@@ -9,6 +9,7 @@
 - [보안 리뷰 최신화 메모](review-2026-04-29.md)
 - [AES 적용 범위 판단](aes-scope-assessment.md)
 - [FCM 토큰 수명주기 정책](fcm-token-lifecycle-policy.md)
+- [CodeQL/code scanning 운영 기준](codeql-code-scanning.md)
 
 ## 같이 볼 문서
 

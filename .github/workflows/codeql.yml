@@ -1,0 +1,170 @@
+name: CodeQL
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: "23 18 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scope:
+    name: scope
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      android: ${{ steps.scope.outputs.android }}
+      javascript: ${{ steps.scope.outputs.javascript }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 분석 범위 분류
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          changed_file="$(mktemp)"
+          android=false
+          javascript=false
+
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$changed_file"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            if [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+              git diff --name-only "$BEFORE_SHA" "$HEAD_SHA" > "$changed_file"
+            else
+              git ls-tree -r --name-only "$HEAD_SHA" > "$changed_file"
+            fi
+          else
+            android=true
+            javascript=true
+            printf '%s\n' "__full_scan__" > "$changed_file"
+          fi
+
+          if [ "$android" != "true" ] || [ "$javascript" != "true" ]; then
+            while IFS= read -r file; do
+              [ -z "$file" ] && continue
+              case "$file" in
+                app/*|build.gradle.kts|settings.gradle.kts|gradle.properties|gradlew|gradlew.bat|gradle/*|.github/workflows/codeql.yml|.github/codeql/*)
+                  android=true
+                  ;;
+              esac
+              case "$file" in
+                admin-web/*|functions/*|tools/firebase/*|.github/workflows/codeql.yml|.github/codeql/*)
+                  javascript=true
+                  ;;
+              esac
+            done < "$changed_file"
+          fi
+
+          {
+            echo "android=$android"
+            echo "javascript=$javascript"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "변경 파일"
+          sed 's/^/- /' "$changed_file"
+          echo "CodeQL 분석 범위"
+          echo "- Android Java/Kotlin: $android"
+          echo "- JavaScript/TypeScript: $javascript"
+
+  analyze-android:
+    name: analyze-android-java-kotlin
+    needs: scope
+    if: needs.scope.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: JDK 17 설정
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: google-services.json 복원
+        if: env.GOOGLE_SERVICES_JSON != ''
+        run: |
+          mkdir -p app
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      - name: Gradle 실행 권한 부여
+        run: chmod +x gradlew
+
+      - name: CodeQL 초기화
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
+          queries: +security-extended
+
+      - name: Android 분석 빌드
+        run: ./gradlew assembleDebug --console=plain
+
+      - name: CodeQL 분석
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java-kotlin"
+
+  analyze-javascript:
+    name: analyze-javascript-typescript
+    needs: scope
+    if: needs.scope.outputs.javascript == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: CodeQL 초기화
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          config-file: ./.github/codeql/codeql-config.yml
+          queries: +security-extended
+
+      - name: CodeQL 분석
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"
