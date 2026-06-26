@@ -36,7 +36,7 @@
 
 1. [관리자 웹 데이터 계약](../architecture/admin-web-data-contract.md)이 최신 코드와 맞는다.
 2. `admin-web` 변경만 감지하는 build workflow가 현재 저장소에서 먼저 안정적으로 돈다.
-3. Firebase Hosting preview/live 배포 권한과 secret 소유권이 분리된다.
+3. Firebase Hosting preview/live 배포 권한과 secret 소유권이 [관리자 웹 GitHub Environment 기준](admin-web-environments.md)으로 분리된다.
 4. `admin-web-preview`, `admin-web-production` GitHub Environment를 둔다.
 5. Rules/Functions/Firebase Hosting 설정을 어느 레포가 소유할지 결정한다.
 6. 분리 후 데이터 계약 변경을 어떻게 양쪽 이슈/PR로 연결할지 정한다.
@@ -62,7 +62,7 @@
 | 1 | 관리자 웹 데이터 계약 문서화 | `docs/architecture/admin-web-data-contract.md` | 완료 |
 | 2 | 분리 준비 계획 문서화 | `docs/operations/admin-web-repository-split.md` | 완료 |
 | 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 완료 |
-| 4 | preview/live 배포 권한과 secret 목록 정리 | GitHub Environment 설정 문서 | 다음 작업 |
+| 4 | preview/live 배포 권한과 secret 목록 정리 | `docs/operations/admin-web-environments.md` | 완료 |
 | 5 | Firebase Hosting 설정 소유권 결정 | 의사결정 기록 | 대기 |
 | 6 | 별도 레포 생성 여부 최종 결정 | 후속 이슈 | 대기 |
 | 7 | 실제 레포 분리 | `bodeul-admin-web` 후보 | 대기 |
