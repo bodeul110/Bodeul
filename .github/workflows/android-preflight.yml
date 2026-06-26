@@ -169,13 +169,12 @@ jobs:
           java-version: "17"
 
       - name: Node.js 설정
-        if: steps.scope.outputs.android == 'true' || steps.scope.outputs.admin_web == 'true' || steps.scope.outputs.functions == 'true' || steps.scope.outputs.firebase_tools == 'true'
+        if: steps.scope.outputs.android == 'true' || steps.scope.outputs.functions == 'true' || steps.scope.outputs.firebase_tools == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            admin-web/package-lock.json
             functions/package-lock.json
 
       - name: Android SDK 경로 설정 (self-hosted)
@@ -240,13 +239,6 @@ jobs:
             ARGS+=(--require-firebase)
           fi
           node tools/firebase/run-ci-preflight.js "${ARGS[@]}"
-
-      - name: 관리자 웹 빌드
-        if: steps.scope.outputs.admin_web == 'true'
-        working-directory: admin-web
-        run: |
-          npm ci
-          npm run build
 
       - name: Functions 의존성 확인
         if: steps.scope.outputs.functions == 'true'

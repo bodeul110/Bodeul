@@ -59,9 +59,9 @@
 
 | 단계 | 작업 | 산출물 | GitHub 상태 |
 | --- | --- | --- | --- |
-| 1 | 관리자 웹 데이터 계약 문서화 | `docs/architecture/admin-web-data-contract.md` | 진행 중 |
-| 2 | 분리 준비 계획 문서화 | `docs/operations/admin-web-repository-split.md` | 진행 중 |
-| 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 다음 작업 |
+| 1 | 관리자 웹 데이터 계약 문서화 | `docs/architecture/admin-web-data-contract.md` | 완료 |
+| 2 | 분리 준비 계획 문서화 | `docs/operations/admin-web-repository-split.md` | 완료 |
+| 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 완료 |
 | 4 | preview/live 배포 권한과 secret 목록 정리 | GitHub Environment 설정 문서 | 다음 작업 |
 | 5 | Firebase Hosting 설정 소유권 결정 | 의사결정 기록 | 대기 |
 | 6 | 별도 레포 생성 여부 최종 결정 | 후속 이슈 | 대기 |
@@ -69,8 +69,8 @@
 
 ## 분리 전 체크리스트
 
-- `npm --prefix admin-web run build`가 독립 workflow에서 통과한다.
-- `npm --prefix admin-web run lint`가 독립 workflow에서 통과한다.
+- `npm --prefix admin-web run build`가 `Admin Web Build` workflow에서 통과한다.
+- `npm --prefix admin-web run lint`가 `Admin Web Build` workflow에서 통과한다.
 - `admin-web`이 읽고 쓰는 Firestore 필드가 문서화돼 있다.
 - `admin-web`이 읽는 Storage 경로가 문서화돼 있다.
 - callable Functions 사용 여부가 문서화돼 있다.
