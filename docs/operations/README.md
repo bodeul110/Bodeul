@@ -16,6 +16,8 @@
   - Android, 관리자 웹, Functions, Firestore, Storage enforcement 전환 기준
 - [관리자 웹 레포 분리 준비 계획](admin-web-repository-split.md)
   - 관리자 웹 분리 전 데이터 계약, 배포 경계, 소유권 정리
+- [관리자 웹 GitHub Environment 기준](admin-web-environments.md)
+  - 관리자 웹 preview/production 환경, 변수, secret, 배포 승인 기준
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
 
