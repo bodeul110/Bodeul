@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.channel_id }}
@@ -27,7 +28,6 @@ jobs:
     timeout-minutes: 20
     env:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-      FIREBASE_TOKEN: ${{ secrets.ADMIN_WEB_FIREBASE_TOKEN }}
       VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
       VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -62,8 +62,20 @@ jobs:
         working-directory: admin-web
         run: npm run build
 
+      - name: Google Cloud 인증
+        if: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
       - name: Firebase Hosting preview 배포
         env:
+          ADMIN_WEB_FIREBASE_TOKEN: ${{ secrets.ADMIN_WEB_FIREBASE_TOKEN }}
+          USE_WORKLOAD_IDENTITY: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' }}
           CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
           EXPIRES: ${{ inputs.expires || vars.FIREBASE_HOSTING_EXPIRES || '7d' }}
         run: |
@@ -74,9 +86,16 @@ jobs:
             exit 1
           fi
 
-          if [[ -z "${FIREBASE_TOKEN}" ]]; then
-            echo "ADMIN_WEB_FIREBASE_TOKEN secret이 비어 있습니다." >&2
-            exit 1
+          if [[ "${USE_WORKLOAD_IDENTITY}" == "true" ]]; then
+            echo "Workload Identity 인증을 사용합니다."
+          else
+            if [[ -z "${ADMIN_WEB_FIREBASE_TOKEN}" ]]; then
+              echo "ADMIN_WEB_FIREBASE_TOKEN secret이 비어 있습니다." >&2
+              exit 1
+            fi
+
+            export FIREBASE_TOKEN="${ADMIN_WEB_FIREBASE_TOKEN}"
+            echo "Environment token 인증을 사용합니다."
           fi
 
           set +e
@@ -97,6 +116,7 @@ jobs:
 
       - name: Preview 배포 결과 요약
         env:
+          AUTH_MODE: ${{ vars.ADMIN_WEB_WORKLOAD_IDENTITY_PROVIDER != '' && vars.ADMIN_WEB_DEPLOY_SERVICE_ACCOUNT != '' && 'Workload Identity' || 'Environment token' }}
           CHANNEL_ID: ${{ inputs.channel_id || vars.FIREBASE_HOSTING_CHANNEL || 'admin-web-preview' }}
           EXPIRES: ${{ inputs.expires || vars.FIREBASE_HOSTING_EXPIRES || '7d' }}
         run: |
@@ -114,6 +134,7 @@ jobs:
             `- Firebase project: ${process.env.FIREBASE_PROJECT_ID || ''}`,
             `- Channel: ${process.env.CHANNEL_ID || ''}`,
             `- Expires: ${process.env.EXPIRES || ''}`,
+            `- Auth mode: ${process.env.AUTH_MODE || ''}`,
             '',
           ]
 
