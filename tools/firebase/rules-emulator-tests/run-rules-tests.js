@@ -27,6 +27,14 @@ const repoRoot = path.resolve(__dirname, "..", "..", "..");
 const toolsRoot = path.resolve(__dirname, "..");
 const projectId = process.env.RULES_TEST_PROJECT_ID || "bodeul-rules-test";
 const insideEmulator = process.argv.includes("--inside-emulator");
+const adminOnlyCollections = [
+  "adminSettlementRecords",
+  "adminEmergencyIssues",
+  "adminActionNotifications",
+  "adminAuditLogs",
+  "adminActionDeliveries",
+  "adminActionDeliveryJobs",
+];
 
 setLogLevel("silent");
 
@@ -358,6 +366,39 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.admin), "appointmentReminderJobs", "job-created-by-admin"),
             { state: "PENDING" },
         ));
+      },
+    },
+    {
+      name: "관리자 전용 컬렉션은 관리자만 읽고 쓸 수 있다",
+      run: async () => {
+        await seedFirestore(testEnv);
+
+        for (const collectionName of adminOnlyCollections) {
+          const adminDb = firestoreFor(testEnv, users.admin);
+          const managerDb = firestoreFor(testEnv, users.manager);
+          const documentId = `rules-test-${collectionName}`;
+          const adminReference = doc(adminDb, collectionName, documentId);
+          const managerReference = doc(managerDb, collectionName, documentId);
+
+          await assertSucceeds(setDoc(adminReference, {
+            createdAt: 1,
+            status: "PENDING",
+          }));
+          await assertSucceeds(getDoc(adminReference));
+          await assertFails(getDoc(managerReference));
+          await assertFails(setDoc(managerReference, {
+            createdAt: 2,
+            status: "PENDING",
+          }));
+          await assertSucceeds(updateDoc(adminReference, {
+            status: "DONE",
+          }));
+          await assertFails(updateDoc(managerReference, {
+            status: "DONE",
+          }));
+          await assertSucceeds(deleteDoc(adminReference));
+          await assertFails(deleteDoc(managerReference));
+        }
       },
     },
     {

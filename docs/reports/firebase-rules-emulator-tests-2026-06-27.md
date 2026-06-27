@@ -30,7 +30,8 @@
 | `appointmentRequests` | 환자/보호자/매니저 참여자 읽기, 비참여자 거부, 환자 생성/취소 허용, 매니저 생성 거부 |
 | `companionSessions` | 참여자 읽기, 배정 매니저 생성/진행 수정, 환자 채팅 수정, 보호자 비허용 필드 수정 거부 |
 | `sessionReports` | 참여자 읽기, 배정 매니저 작성 허용, 보호자 작성 거부 |
-| 관리자 운영 컬렉션 | 관리자 쓰기 허용, 매니저 쓰기 거부, `appointmentReminderJobs` 관리자 읽기와 쓰기 금지 확인 |
+| 관리자 운영 컬렉션 | `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs` 관리자 CRUD 허용과 매니저 읽기/쓰기/삭제 거부 |
+| `appointmentReminderJobs` | 관리자 읽기와 클라이언트 쓰기 금지 확인 |
 | `manager-documents` | 매니저 본인/관리자 읽기, 환자 읽기 거부, 문서 키/파일 형식/타 매니저 쓰기 거부 |
 | `companion-chat-attachments` | 세션 참여자와 관리자 읽기, 보호자 업로드 허용, 비참여자와 비허용 파일 형식 거부 |
 
@@ -51,7 +52,7 @@ npm --prefix tools/firebase run test:rules
 결과:
 
 ```text
-Rules emulator 테스트 통과: 6/6
+Rules emulator 테스트 통과: 7/7
 ```
 
 ## 남은 범위

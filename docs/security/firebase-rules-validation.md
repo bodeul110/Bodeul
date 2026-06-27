@@ -77,7 +77,8 @@ npm --prefix tools/firebase run test:rules
 - `users`: 본인/관리자 읽기, 관리자 목록 조회, 클라이언트 역할 생성 제한
 - `appointmentRequests`: 참여자 읽기, 환자 생성/취소, 비참여자 거부
 - `companionSessions`: 참여자 읽기, 배정 매니저 생성/진행 수정, 환자 채팅 수정, 비허용 필드 거부
-- `sessionReports`, 관리자 운영 컬렉션, `appointmentReminderJobs`: 역할별 쓰기/읽기 경계
+- `sessionReports`, 관리자 전용 컬렉션, `appointmentReminderJobs`: 역할별 쓰기/읽기 경계
+- 관리자 전용 컬렉션: `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs`
 - Storage `manager-documents`: 매니저 본인과 관리자 읽기, 허용 문서 키/파일 형식 검증
 - Storage `companion-chat-attachments`: 세션 참여자 읽기/쓰기, 비참여자와 비허용 파일 형식 거부
 
