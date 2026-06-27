@@ -212,6 +212,7 @@ Functions 프록시로 이전할 조건:
 | `npm --prefix tools/firebase run workflow:ops -- --file ...` | 상태 점검, 백업 검증, diff, 리포트를 한 번에 수행 | 읽기, 로컬 파일 생성 |
 | `npm --prefix tools/firebase run preflight:local -- --file ...` | Firebase 운영 워크플로, Android 빌드/테스트를 로컬에서 묶어 검증 | 읽기, 빌드 산출물 생성 |
 | `npm --prefix tools/firebase run preflight:ci` | GitHub Actions용 프리플라이트 | CI 환경 기준 |
+| `npm --prefix tools/firebase run test:rules` | Firestore/Storage Rules emulator 테스트 | 로컬 emulator 실행 |
 | `npm --prefix tools/firebase run reset:baseline:dry-run` | 기준선 초기화 영향 확인 | 읽기 |
 | `npm --prefix tools/firebase run reset:baseline:apply` | 개발용 Firestore 기준선 재생성 | 쓰기 |
 | `npm --prefix tools/firebase run seed:sample:dry-run` | 샘플 예약/세션 데이터 주입 영향 확인 | 읽기 |

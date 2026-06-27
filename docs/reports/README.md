@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Firestore/Storage Rules emulator 테스트 추가 (2026-06-27)](firebase-rules-emulator-tests-2026-06-27.md)
 - [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](firestore-query-index-review-2026-06-26.md)
 - [이슈 29 위치 이력 보관 정책 정리 (2026-06-26)](issue-29-location-retention-policy-2026-06-26.md)
 - [Firestore 백업/복원 리허설 기록 (2026-06-25)](firestore-backup-restore-rehearsal-2026-06-25.md)

@@ -238,6 +238,20 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispat
 - 현재 로컬 원격은 `git@github.com:bodeul110/Bodeul.git`이지만, GitHub CLI 계정이 해당 저장소 API 접근 권한이 없는 상태면 시크릿 반영은 실패한다. 이 경우 `gh auth login` 또는 `gh auth switch`로 저장소 권한이 있는 계정으로 바꾼 뒤 다시 실행한다.
 - `--app-evidence` 경로는 repo 루트 기준 경로와 `tools/firebase` 작업 디렉터리 기준 경로를 둘 다 허용한다. CI에서는 `tools/firebase/templates/app-navigation-evidence.sample.json`처럼 repo 루트 기준 경로를 그대로 써도 된다.
 - 원격 전체 모드 검증은 `gh workflow run android-preflight.yml --repo bodeul110/Bodeul --ref master --field require_firebase_ops=true --field app_evidence_path=tools/firebase/templates/app-navigation-evidence.sample.json`로 수행했고, 실행 결과는 [GitHub Actions run 24873140407](https://github.com/bodeul110/Bodeul/actions/runs/24873140407)에서 확인할 수 있다.
+
+### Rules emulator 테스트
+
+```powershell
+cd D:\BoDeul
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+npm --prefix tools/firebase run test:rules
+```
+
+- [rules-emulator-tests/run-rules-tests.js](../../../tools/firebase/rules-emulator-tests/run-rules-tests.js)는 Firebase emulator를 띄운 뒤 Firestore/Storage Rules 허용/거부 시나리오를 실행한다.
+- 테스트 대상은 `users`, `appointmentRequests`, `companionSessions`, `sessionReports`, 관리자 운영 컬렉션, `manager-documents`, `companion-chat-attachments`다.
+- Firebase CLI 15.22.3 emulator는 Java 21 이상이 필요하다. Android Studio JBR 21 또는 CI의 `setup-java@v5` Java 21을 사용한다.
+- GitHub Actions에서는 [.github/workflows/firebase-rules.yml](../../../.github/workflows/firebase-rules.yml)이 같은 테스트를 실행한다.
 ## 2026-05-04 추가된 도구
 
 ### 매니저 서류 Storage 점검

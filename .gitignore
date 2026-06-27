@@ -27,6 +27,9 @@ functions/.env.*
 !functions/.env.example
 .firebase/
 firebase-debug.log
+firestore-debug.log
+storage-debug.log
+ui-debug.log
 temp.txt
 .vscode/
 .idea/deploymentTargetSelector.xml
@@ -36,6 +39,7 @@ temp.txt
 .idea/easycode.ignore
 .idea/easycode/
 /functions/node_modules
+/tools/firebase/node_modules
 /tools/firebase/backups/*.json
 !/tools/firebase/backups/.gitkeep
 /tools/firebase/reports/*.html
