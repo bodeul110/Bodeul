@@ -22,7 +22,7 @@
 | --- | --- |
 | 정적 규칙 검토 | 2026-06-25 기준 `firestore.rules`, `storage.rules`를 다시 읽어 역할별 허용 범위를 문서화했다. |
 | 기존 실계정 검증 기록 | `docs/security/firestore-hardening.md`에 2026-05-04 기준 guardian, manager, patient 권한 축소 검증 기록이 있다. |
-| 자동 Rules 테스트 | 저장소에 Firestore/Storage emulator 기반 자동 Rules 테스트는 아직 없다. 운영 전에는 최소 권한 시나리오를 자동화해야 한다. |
+| 자동 Rules 테스트 | `tools/firebase`의 `test:rules`와 `.github/workflows/firebase-rules.yml`로 Firestore/Storage emulator 기반 자동 테스트를 실행한다. |
 | 배포 검증 | Rules 파일 변경이 없으므로 이번 작업에서는 배포를 수행하지 않았다. |
 
 ## Firestore 권한 경계
@@ -58,6 +58,31 @@
 
 ## 남은 보강
 
-- Firestore/Storage Rules emulator 테스트를 추가해 역할별 허용/거부 시나리오를 CI에서 반복 검증한다.
+- Rules 변경 시 PR에서 `Firebase Rules` workflow 결과를 확인한다.
 - 관리자 custom claims 전환 여부는 관리자 계정 수, role read 비용, 긴급 권한 회수 정책이 확정된 뒤 다시 판단한다.
 - `companion-chat-attachments`에 관리자 감사 목적 읽기 권한이 필요한지 운영 요구를 확정한다.
+
+## 자동 테스트
+
+로컬 실행:
+
+```powershell
+cd D:\BoDeul
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+npm --prefix tools/firebase run test:rules
+```
+
+검증 범위:
+- `users`: 본인/관리자 읽기, 관리자 목록 조회, 클라이언트 역할 생성 제한
+- `appointmentRequests`: 참여자 읽기, 환자 생성/취소, 비참여자 거부
+- `companionSessions`: 참여자 읽기, 배정 매니저 생성/진행 수정, 환자 채팅 수정, 비허용 필드 거부
+- `sessionReports`, 관리자 전용 컬렉션, `appointmentReminderJobs`: 역할별 쓰기/읽기 경계
+- 관리자 전용 컬렉션: `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs`
+- Storage `manager-documents`: 매니저 본인과 관리자 읽기, 허용 문서 키/파일 형식 검증
+- Storage `companion-chat-attachments`: 세션 참여자 읽기/쓰기, 비참여자와 비허용 파일 형식 거부
+
+CI 실행:
+- workflow: `.github/workflows/firebase-rules.yml`
+- 실행 조건: Rules 파일, Firebase 설정, Rules 테스트, `tools/firebase` 테스트 의존성 변경 PR
+- emulator 실행을 위해 JDK 21을 사용한다.

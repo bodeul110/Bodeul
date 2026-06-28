@@ -15,6 +15,7 @@
     "workflow:ops": "node run-operations-workflow.js",
     "preflight:ci": "node run-ci-preflight.js",
     "preflight:local": "node run-local-preflight.js",
+    "test:rules": "node rules-emulator-tests/run-rules-tests.js",
     "reset:baseline:dry-run": "node reset-firestore-baseline.js --dry-run",
     "reset:baseline:apply": "node reset-firestore-baseline.js --apply",
     "seed:sample:dry-run": "node seed-sample-service-data.js --dry-run",
@@ -23,5 +24,10 @@
     "seed:manager-docs:apply": "node seed-manager-document-storage-sample.js --apply",
     "restore:state:dry-run": "node restore-firestore-state.js",
     "restore:state:apply": "node restore-firestore-state.js --apply"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
+    "firebase": "12.15.0",
+    "firebase-tools": "15.22.3"
   }
 }
