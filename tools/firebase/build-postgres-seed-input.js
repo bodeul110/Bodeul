@@ -491,6 +491,9 @@ function resolveOutputPath(outputPath) {
 
 function stableUuid(scope, key) {
   const namespaceBytes = Buffer.from(UUID_NAMESPACE.replaceAll("-", ""), "hex");
+
+  // 보안용 해시가 아니라 Firestore 문서 키를 반복 가능한 UUID로 바꾸기 위한 식별자 해시다.
+  // codeql[js/weak-cryptographic-algorithm]
   const hash = crypto.createHash("sha1")
       .update(namespaceBytes)
       .update(`${scope}:${key}`)
