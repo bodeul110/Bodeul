@@ -14,6 +14,8 @@
   - Firestore를 MySQL/PostgreSQL/Supabase 대신 쓰는 이유와 보완 조건
 - [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
   - 멘토 피드백 이후 Firebase 인프라는 유지하고 Supabase PostgreSQL로 운영 DB를 옮기는 결정
+- [PostgreSQL API 경계 기준](postgres-api-boundary.md)
+  - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)
   - Firestore 운영 데이터를 PostgreSQL로 옮기기 위한 초기 테이블 초안
 - [Android 앱 구조 설명](app-architecture.md)

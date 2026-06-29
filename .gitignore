@@ -45,6 +45,7 @@ temp.txt
 /tools/firebase/reports/*.html
 /tools/firebase/reports/*.json
 /tools/firebase/reports/*.md
+/tools/firebase/reports/*.sql
 /tools/firebase/reports/screenshots/*.png
 !/tools/firebase/reports/.gitkeep
 !/tools/firebase/reports/screenshots/.gitkeep
