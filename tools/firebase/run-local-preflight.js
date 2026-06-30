@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const {spawn} = require("child_process");
+const {main: runOperationsWorkflow} = require("./run-operations-workflow");
 
 async function main() {
   const options = parseOptions(process.argv.slice(2));
@@ -25,7 +26,6 @@ async function main() {
 
   if (!options.skipWorkflow) {
     const workflowStartedAt = Date.now();
-    const workflowArgs = [path.join(toolsRoot, "run-operations-workflow.js")];
     const workflowEnv = {};
     if (options.filePath) {
       workflowEnv.BODEUL_WORKFLOW_FILE_PATH = options.filePath;
@@ -34,9 +34,7 @@ async function main() {
       workflowEnv.BODEUL_WORKFLOW_APP_EVIDENCE_PATH = options.appEvidencePath;
     }
 
-    const workflowStep = await runCommand({
-      command: resolveNodeCommand(),
-      args: workflowArgs,
+    const workflowStep = await runWorkflow({
       cwd: toolsRoot,
       env: workflowEnv,
       label: "Firebase 운영 워크플로",
@@ -114,14 +112,6 @@ function printHelp() {
   console.log("- 최종 결과를 reports 폴더의 Markdown/JSON 요약으로 남깁니다.");
 }
 
-function resolveNpmCommand() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
-}
-
-function resolveNodeCommand() {
-  return process.platform === "win32" ? "node.exe" : "node";
-}
-
 function resolveGradleCommand() {
   return process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 }
@@ -136,7 +126,46 @@ function buildAndroidStepLabel({skipBuild, skipTests}) {
   return "Android testDebugUnitTest";
 }
 
-async function runCommand({command, args, cwd, env = {}, label}) {
+async function runWorkflow({cwd, env = {}, label}) {
+  const startedAt = Date.now();
+  const previousCwd = process.cwd();
+  const commandText = "node run-operations-workflow.js";
+
+  try {
+    process.chdir(cwd);
+    await runOperationsWorkflow([], {
+      ...process.env,
+      ...env,
+    });
+    return {
+      label,
+      command: commandText,
+      cwd,
+      startedAt: new Date(startedAt).toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMillis: Date.now() - startedAt,
+      exitCode: 0,
+      success: true,
+      errorMessage: "",
+    };
+  } catch (error) {
+    return {
+      label,
+      command: commandText,
+      cwd,
+      startedAt: new Date(startedAt).toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMillis: Date.now() - startedAt,
+      exitCode: -1,
+      success: false,
+      errorMessage: `${error.message}`,
+    };
+  } finally {
+    process.chdir(previousCwd);
+  }
+}
+
+async function runCommand({command, args, cwd, label}) {
   const startedAt = Date.now();
   const safeCommand = resolveAllowedCommand(command);
   const safeArgs = args.map(validateSpawnArgument);
@@ -146,10 +175,6 @@ async function runCommand({command, args, cwd, env = {}, label}) {
   return new Promise((resolve) => {
     const child = spawn(spawnConfig.command, spawnConfig.args, {
       cwd,
-      env: {
-        ...process.env,
-        ...env,
-      },
       stdio: "inherit",
       shell: false,
     });
@@ -202,8 +227,6 @@ function resolveWindowsCommandProcessor() {
 
 function resolveAllowedCommand(command) {
   const allowedCommands = new Set([
-    resolveNpmCommand(),
-    resolveNodeCommand(),
     resolveGradleCommand(),
   ]);
   if (!allowedCommands.has(command)) {
