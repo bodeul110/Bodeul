@@ -18,8 +18,8 @@ const {
   writeReportFile,
 } = require("./lib/operations-report");
 
-async function main() {
-  const options = parseOptions(process.argv.slice(2));
+async function main(args = process.argv.slice(2), env = process.env) {
+  const options = parseOptions(args, env);
   if (options.help) {
     printHelp();
     return;
@@ -81,7 +81,7 @@ async function main() {
   }
 }
 
-function parseOptions(args) {
+function parseOptions(args, env = process.env) {
   const appEvidenceIndex = args.indexOf("--app-evidence");
   const fileIndex = args.indexOf("--file");
   const outputIndex = args.indexOf("--output");
@@ -225,8 +225,14 @@ function printSummary(summary) {
   console.log(`- JSON 요약: ${summary.summaryPath}`);
 }
 
-main().catch((error) => {
-  console.error("운영 워크플로 스크립트 실행 중 오류가 발생했습니다.");
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error("운영 워크플로 스크립트 실행 중 오류가 발생했습니다.");
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  main,
+};
