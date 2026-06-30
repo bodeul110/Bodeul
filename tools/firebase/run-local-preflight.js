@@ -187,12 +187,17 @@ async function runCommand({command, args, cwd, env = {}, label}) {
 function resolveSpawnConfig(command, args) {
   if (process.platform === "win32" && /\.(cmd|bat)$/i.test(command)) {
     return {
-      command: process.env.ComSpec || "cmd.exe",
+      command: resolveWindowsCommandProcessor(),
       args: ["/d", "/s", "/c", formatWindowsCommand(command, args)],
     };
   }
 
   return {command, args};
+}
+
+function resolveWindowsCommandProcessor() {
+  const defaultCommandProcessor = "C:\\Windows\\System32\\cmd.exe";
+  return fs.existsSync(defaultCommandProcessor) ? defaultCommandProcessor : "cmd.exe";
 }
 
 function resolveAllowedCommand(command) {
