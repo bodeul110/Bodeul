@@ -119,7 +119,7 @@ function resolveNpmCommand() {
 }
 
 function resolveNodeCommand() {
-  return process.execPath;
+  return process.platform === "win32" ? "node.exe" : "node";
 }
 
 function resolveGradleCommand() {
