@@ -19,7 +19,8 @@ Firebase 인프라는 유지하면서 운영 DB를 Supabase PostgreSQL로 옮기
 | 개발 프로젝트 | `bodeul-dev-rdb` |
 | 운영 프로젝트 | `bodeul-prod-rdb` |
 | DB 엔진 | PostgreSQL |
-| 리전 | 콘솔에서 선택 가능한 한국 또는 가장 가까운 Asia Pacific 리전 |
+| 개발 리전 | `ap-northeast-2` |
+| 운영 리전 | 개발 리허설 후 한국 또는 가장 가까운 Asia Pacific 리전으로 결정 |
 | 초기 schema | `public` |
 | 초기 테이블 접두어 | 없음. PostgreSQL 표준 snake_case 테이블명 사용 |
 
@@ -28,6 +29,8 @@ Firebase 인프라는 유지하면서 운영 DB를 Supabase PostgreSQL로 옮기
 1. 먼저 `bodeul-dev-rdb`만 만든다.
 2. Firestore 백업 import, schema 검증, 비교 리포트가 끝난 뒤 `bodeul-prod-rdb`를 만든다.
 3. 운영 프로젝트에는 테스트 데이터를 넣지 않는다.
+
+2026-06-29 기준 `bodeul-dev-rdb`는 생성됐고 schema 적용, seed 적용, row count/FK/주요 필드 spot check까지 완료됐다.
 
 ### Oracle Cloud
 
@@ -102,6 +105,19 @@ DB schema와 import dry-run만 진행하는 동안에는 GitHub Environment secr
 
 API 서버는 Firebase 전체 대체 서버가 아니다. PostgreSQL 접근, 서버 검증이 필요한 쓰기 작업, 관리자 권한 검증을 담당하는 얇은 경계로 시작한다.
 
+세부 경계는 [PostgreSQL API 경계 기준](../architecture/postgres-api-boundary.md)을 따른다.
+
+첫 API 후보:
+
+| 후보 | 목적 |
+| --- | --- |
+| `GET /healthz` | 배포와 모니터링 최소 기준 |
+| `GET /admin/hospital-guides` | 낮은 위험의 관리자 read API 검증 |
+| `GET /admin/manager-document-reviews` | 매니저 서류 심사 메타데이터 조회 검증 |
+| `GET /admin/support-requests` | 문의 통합 테이블 조회 검증 |
+
+write API는 read API의 인증, 권한, row 비교가 통과한 뒤 별도 PR에서 진행한다.
+
 ## 초기 검증 범위
 
 1. PostgreSQL schema 초안 보완
@@ -110,6 +126,8 @@ API 서버는 Firebase 전체 대체 서버가 아니다. PostgreSQL 접근, 서
 4. Firestore와 PostgreSQL의 row count 비교
 5. 주요 도메인별 필드 누락 비교
 6. 관리자 웹에서 먼저 전환할 후보 도메인 선정
+
+2026-06-29 기준 1~5번은 완료됐다. 6번은 첫 API 후보를 병원 가이드, 매니저 서류 심사 메타데이터, 문의 조회로 좁힌 상태다.
 
 초기 범위에서 제외:
 
@@ -136,6 +154,22 @@ API 서버는 Firebase 전체 대체 서버가 아니다. PostgreSQL 접근, 서
 6. 전환 후보 도메인의 source of truth 변경 조건 기록
 7. API 서버가 필요한 경우 `api/` 골격과 `GET /healthz`를 추가한다.
 8. 문제가 없으면 운영 DB와 운영 API 서버를 별도 이슈로 준비한다.
+
+Issue #87 실행 결과:
+
+| 항목 | 상태 |
+| --- | --- |
+| Supabase 개발 DB 생성 | 완료 |
+| schema 적용 | 완료 |
+| 실제 Firestore 백업 검증 | 오류 0건, 경고 0건 |
+| seed 입력 JSON 생성 | 완료 |
+| rollback SQL 검증 | 완료 |
+| 적용 SQL 실행 | 완료 |
+| row count 비교 | 일치 |
+| FK spot check | 누락 0건 |
+| 주요 필드 spot check | 통과 |
+
+상세 결과는 [PostgreSQL seed dry-run 기준 기록](../reports/postgres-seed-dry-run-plan-2026-06-29.md)에 둔다.
 
 ## 전환 플래그
 
@@ -179,11 +213,11 @@ Rollback 방식:
 
 ## 인프라 담당자에게 넘길 작업
 
-1. Supabase 계정을 만들고 `bodeul-dev-rdb` 프로젝트를 생성한다.
-2. 프로젝트 이름과 리전만 팀에 공유한다.
-3. DB connection string 원문은 채팅, Issue, PR에 적지 않는다.
-4. GitHub에는 아직 DB secret을 넣지 않는다. import/API 연결 방식이 PR로 준비된 뒤 담당자가 직접 넣는다.
-5. Oracle Cloud VM은 아직 만들지 않아도 된다. API 서버 배포가 실제 작업으로 잡히면 `bodeul-dev-api-01` 명칭으로 준비한다.
+1. 완료: Supabase 계정을 만들고 `bodeul-dev-rdb` 프로젝트를 생성한다.
+2. 완료: 프로젝트 이름과 리전만 팀에 공유한다.
+3. 유지: DB connection string 원문은 채팅, Issue, PR에 적지 않는다.
+4. 보류: GitHub에는 아직 DB secret을 넣지 않는다. import/API 연결 방식이 PR로 준비된 뒤 담당자가 직접 넣는다.
+5. 보류: Oracle Cloud VM은 아직 만들지 않아도 된다. API 서버 배포가 실제 작업으로 잡히면 `bodeul-dev-api-01` 명칭으로 준비한다.
 
 인프라 담당자가 공유해야 하는 값:
 

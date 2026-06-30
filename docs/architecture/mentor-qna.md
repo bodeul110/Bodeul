@@ -23,6 +23,8 @@
 
 정산/통계/검색이 커지면 Firestore 단독 구조에서 PostgreSQL 운영 DB로 전환한다. Firestore를 바로 제거하는 것이 아니라 먼저 Firestore 백업을 PostgreSQL로 import하고, row count와 주요 필드 비교가 통과한 도메인부터 source of truth를 옮긴다.
 
+2026-06-29 기준 Supabase 개발 DB `bodeul-dev-rdb`에 실제 Firestore 백업 기반 seed 적용과 row count/FK/주요 필드 비교를 완료했다.
+
 ### 멘토 피드백 이후에는 어떻게 전환하나?
 
 역할을 고정한 혼용 구조로 전환한다. Firebase Auth, FCM, Storage, Hosting은 유지하고, 예약, 세션, 관리자 운영, 정산/통계처럼 관계형 조회가 커질 데이터는 Supabase PostgreSQL로 옮긴다. API 서버는 Firebase 대체 서버가 아니라 PostgreSQL 접근과 Firebase ID token 검증, 관리자/민감 쓰기 검증을 위한 얇은 경계로 시작한다.
@@ -38,6 +40,8 @@ PostgreSQL을 쓰면서도 Realtime 기능을 검토할 수 있기 때문이다.
 ### Oracle Cloud는 언제 쓰나?
 
 지금 당장 필수는 아니다. Firestore 백업 import, PostgreSQL schema 검증, 비교 리포트가 먼저다. 관리자 웹이나 Android 앱이 PostgreSQL 쓰기 API를 실제로 호출해야 할 때 `bodeul-api`를 올릴 실행 환경으로 Oracle Cloud VM을 검토한다. Oracle VM에 PostgreSQL까지 직접 운영하면 백업, 보안 패치, 장애 대응을 모두 팀이 책임져야 하므로 초기 DB로는 관리형 Supabase를 쓴다.
+
+현재는 Oracle VM을 만들지 않는다. `api/` 서버 골격, `GET /healthz`, secret 주입 방식, 배포/롤백 기준이 PR로 준비된 뒤 `bodeul-dev-api-01`을 만든다.
 
 ## 앱 구조
 

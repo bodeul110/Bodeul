@@ -24,6 +24,8 @@
 | API 서버 | PostgreSQL 접근, 서버 검증, 관리자 쓰기 작업에 필요한 얇은 경계로 둔다. Oracle VM은 API 경계가 필요해지는 시점에 사용한다. |
 | Firestore | 전환 전 기준 데이터, 호환 읽기, 캐시, shadow 저장소로 낮춘다. 전환 완료 도메인에서는 source of truth가 아니다. |
 
+API 경계의 세부 기준은 [PostgreSQL API 경계 기준](postgres-api-boundary.md)을 따른다. 클라이언트는 PostgreSQL connection string을 직접 사용하지 않고, `bodeul-api` 같은 얇은 서버 경계를 통해 PostgreSQL을 사용한다.
+
 ## 혼용 원칙
 
 1. 같은 도메인의 source of truth는 하나만 둔다.
@@ -182,6 +184,20 @@
 5. 관리자 웹 매니저 서류 심사 read API 필요 여부 판단
 
 첫 기능 전환 후보는 관리자 웹의 병원 가이드 또는 매니저 서류 심사 메타데이터다. Android 앱의 예약/세션 전환은 그 다음이다.
+
+## Issue #87 완료 기준
+
+2026-06-29 기준 Issue #87에서는 아래 범위를 완료 상태로 본다.
+
+- Supabase 개발 프로젝트 `bodeul-dev-rdb` 생성
+- 개발 DB 리전 `ap-northeast-2` 기록
+- PostgreSQL schema 초안 검증과 개발 DB 적용
+- 실제 Firestore 백업 기반 seed 입력 JSON과 upsert SQL 생성
+- Supabase 개발 DB seed 적용
+- row count, FK, 주요 필드 spot check 통과
+- API 서버와 Oracle VM 생성 조건 문서화
+
+Issue #87에서는 API 서버 구현과 클라이언트 연동을 하지 않는다. 해당 구현은 `bodeul-api` 서버 골격과 첫 read API 후보를 다루는 후속 이슈에서 진행한다.
 
 ## 리스크
 
