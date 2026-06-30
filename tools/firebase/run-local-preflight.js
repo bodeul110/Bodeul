@@ -135,8 +135,10 @@ function buildAndroidStepLabel({skipBuild, skipTests}) {
 
 async function runCommand({command, args, cwd, label}) {
   const startedAt = Date.now();
-  const commandText = [command].concat(args).join(" ");
-  const spawnConfig = resolveSpawnConfig(command, args);
+  const safeCommand = resolveAllowedCommand(command);
+  const safeArgs = args.map(validateSpawnArgument);
+  const commandText = [safeCommand].concat(safeArgs).join(" ");
+  const spawnConfig = resolveSpawnConfig(safeCommand, safeArgs);
 
   return new Promise((resolve) => {
     const child = spawn(spawnConfig.command, spawnConfig.args, {
@@ -184,6 +186,25 @@ function resolveSpawnConfig(command, args) {
   }
 
   return {command, args};
+}
+
+function resolveAllowedCommand(command) {
+  const allowedCommands = new Set([
+    resolveNpmCommand(),
+    resolveGradleCommand(),
+  ]);
+  if (!allowedCommands.has(command)) {
+    throw new Error(`허용되지 않은 로컬 preflight 명령입니다: ${command}`);
+  }
+  return command;
+}
+
+function validateSpawnArgument(value) {
+  const argument = String(value);
+  if (/[\0\r\n]/.test(argument)) {
+    throw new Error("로컬 preflight 명령 인자에 사용할 수 없는 제어문자가 포함되어 있습니다.");
+  }
+  return argument;
 }
 
 function formatWindowsCommand(command, args) {
