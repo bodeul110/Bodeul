@@ -1013,6 +1013,13 @@
     <string name="booking_follow_up_action_open_detail">예약 상세로 돌아가기</string>
     <string name="booking_follow_up_emergency_dialog_title">긴급 안내</string>
     <string name="booking_follow_up_emergency_dialog_body">환자 상태가 급격히 나빠졌거나 안전 문제가 의심되면 즉시 119에 연락하고, 이후 담당 매니저와 보호자/환자 연락처를 순서대로 확인해 주세요. 마지막 공유 위치와 병원/약국 이동 경로도 함께 전달하면 대응이 빨라집니다.</string>
+    <string name="booking_follow_up_dial_dialog_title">전화 앱으로 연결할까요?</string>
+    <string name="booking_follow_up_dial_dialog_body">선택하면 전화 앱에 %1$s 번호가 입력됩니다. 실제 통화는 전화 앱에서 한 번 더 확인해 주세요.</string>
+    <string name="booking_follow_up_dial_dialog_action">전화 앱 열기</string>
+    <string name="booking_follow_up_dial_invalid_dialog_title">연결할 수 없는 번호입니다.</string>
+    <string name="booking_follow_up_dial_invalid_dialog_body">담당 매니저 연락처가 비어 있거나 전화 앱에서 사용할 수 없는 형식입니다. 예약 상세 정보를 다시 확인해 주세요.</string>
+    <string name="booking_follow_up_dial_unavailable_dialog_title">전화 앱을 열 수 없습니다.</string>
+    <string name="booking_follow_up_dial_unavailable_dialog_body">기기에 기본 전화 앱이 설정되어 있지 않습니다. 담당 매니저 연락처를 예약 상세에서 다시 확인해 주세요.</string>
     <string name="booking_follow_up_dialog_confirm">확인</string>
     <string name="booking_follow_up_unavailable_title">종료 후 확인은 동행 완료 후 열립니다.</string>
     <string name="booking_follow_up_unavailable_body">아직 완료되지 않은 일정입니다. 예약 상세 화면에서 현재 단계와 실시간 공유를 먼저 확인해 주세요.</string>

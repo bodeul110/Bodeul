@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const {spawn} = require("child_process");
+const {main: runOperationsWorkflow} = require("./run-operations-workflow");
 
 async function main() {
   const options = parseOptions(process.argv.slice(2));
@@ -25,21 +26,17 @@ async function main() {
 
   if (!options.skipWorkflow) {
     const workflowStartedAt = Date.now();
-    const workflowArgs = ["run", "workflow:ops"];
+    const workflowEnv = {};
     if (options.filePath) {
-      workflowArgs.push("--", "--file", options.filePath);
+      workflowEnv.BODEUL_WORKFLOW_FILE_PATH = options.filePath;
     }
     if (options.appEvidencePath) {
-      if (!options.filePath) {
-        workflowArgs.push("--");
-      }
-      workflowArgs.push("--app-evidence", options.appEvidencePath);
+      workflowEnv.BODEUL_WORKFLOW_APP_EVIDENCE_PATH = options.appEvidencePath;
     }
 
-    const workflowStep = await runCommand({
-      command: resolveNpmCommand(),
-      args: workflowArgs,
+    const workflowStep = await runWorkflow({
       cwd: toolsRoot,
+      env: workflowEnv,
       label: "Firebase 운영 워크플로",
     });
     steps.push(workflowStep);
@@ -115,10 +112,6 @@ function printHelp() {
   console.log("- 최종 결과를 reports 폴더의 Markdown/JSON 요약으로 남깁니다.");
 }
 
-function resolveNpmCommand() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
-}
-
 function resolveGradleCommand() {
   return process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 }
@@ -133,10 +126,51 @@ function buildAndroidStepLabel({skipBuild, skipTests}) {
   return "Android testDebugUnitTest";
 }
 
+async function runWorkflow({cwd, env = {}, label}) {
+  const startedAt = Date.now();
+  const previousCwd = process.cwd();
+  const commandText = "node run-operations-workflow.js";
+
+  try {
+    process.chdir(cwd);
+    await runOperationsWorkflow([], {
+      ...process.env,
+      ...env,
+    });
+    return {
+      label,
+      command: commandText,
+      cwd,
+      startedAt: new Date(startedAt).toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMillis: Date.now() - startedAt,
+      exitCode: 0,
+      success: true,
+      errorMessage: "",
+    };
+  } catch (error) {
+    return {
+      label,
+      command: commandText,
+      cwd,
+      startedAt: new Date(startedAt).toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMillis: Date.now() - startedAt,
+      exitCode: -1,
+      success: false,
+      errorMessage: `${error.message}`,
+    };
+  } finally {
+    process.chdir(previousCwd);
+  }
+}
+
 async function runCommand({command, args, cwd, label}) {
   const startedAt = Date.now();
-  const commandText = [command].concat(args).join(" ");
-  const spawnConfig = resolveSpawnConfig(command, args);
+  const safeCommand = resolveAllowedCommand(command);
+  const safeArgs = args.map(validateSpawnArgument);
+  const commandText = [safeCommand].concat(safeArgs).join(" ");
+  const spawnConfig = resolveSpawnConfig(safeCommand, safeArgs);
 
   return new Promise((resolve) => {
     const child = spawn(spawnConfig.command, spawnConfig.args, {
@@ -178,12 +212,35 @@ async function runCommand({command, args, cwd, label}) {
 function resolveSpawnConfig(command, args) {
   if (process.platform === "win32" && /\.(cmd|bat)$/i.test(command)) {
     return {
-      command: process.env.ComSpec || "cmd.exe",
+      command: resolveWindowsCommandProcessor(),
       args: ["/d", "/s", "/c", formatWindowsCommand(command, args)],
     };
   }
 
   return {command, args};
+}
+
+function resolveWindowsCommandProcessor() {
+  const defaultCommandProcessor = "C:\\Windows\\System32\\cmd.exe";
+  return fs.existsSync(defaultCommandProcessor) ? defaultCommandProcessor : "cmd.exe";
+}
+
+function resolveAllowedCommand(command) {
+  const allowedCommands = new Set([
+    resolveGradleCommand(),
+  ]);
+  if (!allowedCommands.has(command)) {
+    throw new Error(`허용되지 않은 로컬 preflight 명령입니다: ${command}`);
+  }
+  return command;
+}
+
+function validateSpawnArgument(value) {
+  const argument = String(value);
+  if (/[\0\r\n]/.test(argument)) {
+    throw new Error("로컬 preflight 명령 인자에 사용할 수 없는 제어문자가 포함되어 있습니다.");
+  }
+  return argument;
 }
 
 function formatWindowsCommand(command, args) {

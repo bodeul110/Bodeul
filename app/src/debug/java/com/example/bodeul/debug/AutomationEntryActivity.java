@@ -1031,7 +1031,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         try {
             return UserRole.valueOf(roleName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            Log.w(TAG, "지원하지 않는 자동 진입 역할: " + roleName, exception);
+            Log.w(TAG, "지원하지 않는 자동 진입 역할입니다.");
             return null;
         }
     }
@@ -1044,7 +1044,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         try {
             return AutomationScreen.valueOf(screenName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            Log.w(TAG, "지원하지 않는 자동 진입 화면: " + screenName, exception);
+            Log.w(TAG, "지원하지 않는 자동 진입 화면입니다.");
             return null;
         }
     }
@@ -1062,7 +1062,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         try {
             return ManagerDocumentFileType.valueOf(normalizedName.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            Log.w(TAG, "지원하지 않는 자동 업로드 서류 유형: " + documentTypeName, exception);
+            Log.w(TAG, "지원하지 않는 자동 업로드 서류 유형입니다.");
             return null;
         }
     }
@@ -1075,7 +1075,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         try {
             return AdminSettlementStatus.valueOf(statusName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            Log.w(TAG, "지원하지 않는 관리자 정산 상태: " + statusName, exception);
+            Log.w(TAG, "지원하지 않는 관리자 정산 상태입니다.");
             return null;
         }
     }
@@ -1088,7 +1088,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         try {
             return AdminEmergencyIssueStatus.valueOf(statusName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            Log.w(TAG, "지원하지 않는 관리자 긴급 상태: " + statusName, exception);
+            Log.w(TAG, "지원하지 않는 관리자 긴급 상태입니다.");
             return null;
         }
     }
@@ -1101,7 +1101,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         try {
             return AdminActionOperation.valueOf(operationName.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            Log.w(TAG, "지원하지 않는 관리자 알림 작업: " + operationName, exception);
+            Log.w(TAG, "지원하지 않는 관리자 알림 작업입니다.");
             return null;
         }
     }

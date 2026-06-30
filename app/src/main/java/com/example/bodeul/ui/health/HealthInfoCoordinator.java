@@ -94,7 +94,7 @@ public final class HealthInfoCoordinator {
                 context.getString(R.string.health_info_action_open_history),
                 context.getString(R.string.health_info_support_section),
                 context.getString(R.string.health_info_support_section_helper),
-                createAccountLines(currentUser, detail),
+                createLinkedProfileLines(currentUser, detail),
                 createProfileLines(detail),
                 createRequestLines(detail),
                 createHistoryLines(requests),
@@ -231,7 +231,7 @@ public final class HealthInfoCoordinator {
         }
     }
 
-    private List<HealthInfoLineItem> createAccountLines(User currentUser, AppointmentRequestDetail detail) {
+    private List<HealthInfoLineItem> createLinkedProfileLines(User currentUser, AppointmentRequestDetail detail) {
         List<HealthInfoLineItem> items = new ArrayList<>();
         items.add(new HealthInfoLineItem(
                 context.getString(R.string.health_info_line_account_name),
