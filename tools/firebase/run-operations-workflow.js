@@ -87,14 +87,25 @@ function parseOptions(args) {
   const outputIndex = args.indexOf("--output");
   const summaryIndex = args.indexOf("--summary");
   return {
-    appEvidencePath: appEvidenceIndex >= 0 ? args[appEvidenceIndex + 1] : "",
-    filePath: fileIndex >= 0 ? args[fileIndex + 1] : "",
+    appEvidencePath: appEvidenceIndex >= 0 ?
+      args[appEvidenceIndex + 1] :
+      sanitizeEnvOption(process.env.BODEUL_WORKFLOW_APP_EVIDENCE_PATH),
+    filePath: fileIndex >= 0 ?
+      args[fileIndex + 1] :
+      sanitizeEnvOption(process.env.BODEUL_WORKFLOW_FILE_PATH),
     help: args.includes("--help") || args.includes("-h"),
     json: args.includes("--json"),
     outputPath: outputIndex >= 0 ? args[outputIndex + 1] : "",
     strict: args.includes("--strict"),
     summaryPath: summaryIndex >= 0 ? args[summaryIndex + 1] : "",
   };
+}
+
+function sanitizeEnvOption(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value).trim();
 }
 
 function printHelp() {

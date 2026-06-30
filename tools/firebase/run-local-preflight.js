@@ -25,21 +25,20 @@ async function main() {
 
   if (!options.skipWorkflow) {
     const workflowStartedAt = Date.now();
-    const workflowArgs = ["run", "workflow:ops"];
+    const workflowArgs = [path.join(toolsRoot, "run-operations-workflow.js")];
+    const workflowEnv = {};
     if (options.filePath) {
-      workflowArgs.push("--", "--file", options.filePath);
+      workflowEnv.BODEUL_WORKFLOW_FILE_PATH = options.filePath;
     }
     if (options.appEvidencePath) {
-      if (!options.filePath) {
-        workflowArgs.push("--");
-      }
-      workflowArgs.push("--app-evidence", options.appEvidencePath);
+      workflowEnv.BODEUL_WORKFLOW_APP_EVIDENCE_PATH = options.appEvidencePath;
     }
 
     const workflowStep = await runCommand({
-      command: resolveNpmCommand(),
+      command: resolveNodeCommand(),
       args: workflowArgs,
       cwd: toolsRoot,
+      env: workflowEnv,
       label: "Firebase 운영 워크플로",
     });
     steps.push(workflowStep);
@@ -119,6 +118,10 @@ function resolveNpmCommand() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
+function resolveNodeCommand() {
+  return process.execPath;
+}
+
 function resolveGradleCommand() {
   return process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 }
@@ -133,7 +136,7 @@ function buildAndroidStepLabel({skipBuild, skipTests}) {
   return "Android testDebugUnitTest";
 }
 
-async function runCommand({command, args, cwd, label}) {
+async function runCommand({command, args, cwd, env = {}, label}) {
   const startedAt = Date.now();
   const safeCommand = resolveAllowedCommand(command);
   const safeArgs = args.map(validateSpawnArgument);
@@ -143,6 +146,10 @@ async function runCommand({command, args, cwd, label}) {
   return new Promise((resolve) => {
     const child = spawn(spawnConfig.command, spawnConfig.args, {
       cwd,
+      env: {
+        ...process.env,
+        ...env,
+      },
       stdio: "inherit",
       shell: false,
     });
@@ -191,6 +198,7 @@ function resolveSpawnConfig(command, args) {
 function resolveAllowedCommand(command) {
   const allowedCommands = new Set([
     resolveNpmCommand(),
+    resolveNodeCommand(),
     resolveGradleCommand(),
   ]);
   if (!allowedCommands.has(command)) {
