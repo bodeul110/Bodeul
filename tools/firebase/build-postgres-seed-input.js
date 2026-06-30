@@ -112,7 +112,7 @@ function buildSeedInput({backupPath, snapshot, validation, collections}) {
       backupSchemaVersion: snapshot.schemaVersion ?? null,
     },
     idMapping: {
-      strategy: "deterministic_uuid_v5_like_sha1",
+      strategy: "deterministic_uuid_sha256_truncated",
       namespace: UUID_NAMESPACE,
       rule: "테이블명과 Firestore 문서 ID 또는 논리 키를 조합해 같은 입력은 항상 같은 UUID로 변환한다.",
     },
@@ -599,6 +599,12 @@ function pickValue(data, aliases) {
 }
 
 function timestampFromMillis(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? new Date(numberValue).toISOString() : null;
 }

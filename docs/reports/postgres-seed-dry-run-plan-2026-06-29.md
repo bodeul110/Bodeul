@@ -131,7 +131,7 @@ PostgreSQL schema 초안은 UUID 기본키를 사용하고, Firestore 백업은 
 | `manager_document_reviews.id` | `manager_document_reviews:<manager uid>:<history index>:<status>` |
 | `admin_audit_logs.id` | `admin_audit_logs:<adminAuditLogs 문서 ID>` |
 
-UUID는 고정 namespace `8e884ace-2c0f-4a5b-9ddf-2ff3d8efb9d1`와 SHA-1 기반 deterministic UUID 형식으로 만든다. 같은 백업을 여러 번 변환해도 같은 row는 같은 UUID를 가진다.
+UUID는 고정 namespace `8e884ace-2c0f-4a5b-9ddf-2ff3d8efb9d1`와 SHA-256 기반 deterministic UUID 형식으로 만든다. 같은 백업을 여러 번 변환해도 같은 row는 같은 UUID를 가진다. 이 해시는 보안용 암호화가 아니라 Firestore 문서 키와 논리 키를 반복 가능한 PostgreSQL UUID로 바꾸기 위한 식별자 생성 규칙이다.
 
 FK는 원본 Firestore 필드의 문서 ID를 위 규칙으로 다시 변환해 연결한다.
 
@@ -198,6 +198,7 @@ FK는 원본 Firestore 필드의 문서 ID를 위 규칙으로 다시 변환해 
 | 문의 응답 시간 보정 | `RECEIVED` 문의의 `responded_at`은 `null`, `ANSWERED` 문의 2건만 응답 시간 유지 |
 | 문의 수정 시간 보정 | `support_requests.updated_at`은 schema의 `not null` 제약에 맞춰 원본 `updatedAt`이 없으면 `created_at`으로 채움 |
 | Supabase 문의 시간 spot check | `support_requests` 8건 모두 `updated_at` 값 존재, `RECEIVED` 6건의 `responded_at`은 `null`, `ANSWERED` 2건의 `responded_at`은 값 존재 |
+| 2026-06-30 리뷰 요청 반영 | UUID 생성 설명을 SHA-256 기준으로 정정하고 `appointmentAtEpochMillis`의 `null`/빈 문자열 방어 검증 |
 
 실제 백업, seed 입력 JSON, seed SQL은 운영 데이터와 개인정보를 포함할 수 있으므로 `.gitignore` 대상 경로에만 보관하고 커밋하지 않는다. secret 원문은 문서와 이슈에 기록하지 않는다.
 
