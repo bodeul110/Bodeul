@@ -39,6 +39,11 @@ temp.txt
 .idea/easycode.ignore
 .idea/easycode/
 /functions/node_modules
+/api/node_modules
+/api/dist
+api/.env
+api/.env.*
+!api/.env.example
 /tools/firebase/node_modules
 /tools/firebase/backups/*.json
 !/tools/firebase/backups/.gitkeep

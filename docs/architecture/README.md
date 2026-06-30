@@ -24,6 +24,8 @@
   - 관리자 웹을 서비스 신뢰성 운영 도구로 둔 이유
 - [관리자 웹 데이터 계약](admin-web-data-contract.md)
   - 레포 분리 전 고정해야 하는 Auth, Firestore, Storage, Functions 계약
+- [관리자 API 초기 응답 계약](admin-api-contract.md)
+  - `bodeul-api`로 관리자 웹을 전환하기 전 고정한 초기 인증과 응답 계약
 - [인프라 리스크와 보완 계획](infra-risk-review.md)
   - Rules, App Check, 백업/복원, API Key, 비용, Hosting 리스크
 - [멘토 Q&A 준비](mentor-qna.md)

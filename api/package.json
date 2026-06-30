@@ -1,0 +1,20 @@
+{
+  "name": "bodeul-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/server.test.js dist/auth.test.js",
+    "check": "npm run typecheck && npm run build && node --test dist/server.test.js dist/auth.test.js",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "typescript": "~6.0.2"
+  }
+}

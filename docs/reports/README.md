@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 88 API 서버 골격 1차 기록 (2026-06-30)](issue-88-api-skeleton-2026-06-30.md)
 - [Firestore/Storage Rules emulator 테스트 추가 (2026-06-27)](firebase-rules-emulator-tests-2026-06-27.md)
 - [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](firestore-query-index-review-2026-06-26.md)
 - [이슈 29 위치 이력 보관 정책 정리 (2026-06-26)](issue-29-location-retention-policy-2026-06-26.md)
