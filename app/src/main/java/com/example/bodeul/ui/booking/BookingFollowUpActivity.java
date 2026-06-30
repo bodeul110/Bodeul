@@ -2,6 +2,8 @@ package com.example.bodeul.ui.booking;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -123,14 +125,10 @@ public class BookingFollowUpActivity extends AppCompatActivity
         buttonSettlementConfirm.setOnClickListener(view ->
                 saveSettlementSelection(AppointmentFollowUpSettlementStatus.CONFIRMED));
         buttonSettlementHelp.setOnClickListener(view -> showSettlementInquiryDialog());
-        buttonCallManager.setOnClickListener(view -> {
-            recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus.MANAGER_CALLED);
-            callManager();
-        });
-        findViewById(R.id.buttonBookingFollowUpEmergencyDial).setOnClickListener(view -> {
-            recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus.DIALED_119);
-            openDialer("119");
-        });
+        buttonCallManager.setOnClickListener(view -> callManager());
+        findViewById(R.id.buttonBookingFollowUpEmergencyDial).setOnClickListener(
+                view -> openDialer("119", AppointmentFollowUpSupportEscalationStatus.DIALED_119)
+        );
         findViewById(R.id.buttonBookingFollowUpEmergencyGuide).setOnClickListener(
                 view -> {
                     recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus.GUIDE_VIEWED);
@@ -383,11 +381,80 @@ public class BookingFollowUpActivity extends AppCompatActivity
         if (TextUtils.isEmpty(phone)) {
             return;
         }
-        openDialer(phone);
+        openDialer(phone, AppointmentFollowUpSupportEscalationStatus.MANAGER_CALLED);
     }
 
-    private void openDialer(String phoneNumber) {
-        startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phoneNumber)));
+    private void openDialer(String phoneNumber,
+                            AppointmentFollowUpSupportEscalationStatus escalationStatus) {
+        String dialablePhoneNumber = normalizeDialablePhoneNumber(phoneNumber);
+        if (TextUtils.isEmpty(dialablePhoneNumber)) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.booking_follow_up_dial_invalid_dialog_title)
+                    .setMessage(R.string.booking_follow_up_dial_invalid_dialog_body)
+                    .setPositiveButton(R.string.booking_follow_up_dialog_confirm, null)
+                    .show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.booking_follow_up_dial_dialog_title)
+                .setMessage(getString(R.string.booking_follow_up_dial_dialog_body, dialablePhoneNumber))
+                .setPositiveButton(R.string.booking_follow_up_dial_dialog_action, (dialog, which) -> {
+                    Intent intent = createExplicitDialIntent(dialablePhoneNumber);
+                    if (intent == null) {
+                        showDialUnavailableDialog();
+                        return;
+                    }
+                    recordSupportEscalation(escalationStatus);
+                    startActivity(intent);
+                })
+                .setNegativeButton(R.string.booking_follow_up_dialog_cancel, null)
+                .show();
+    }
+
+    @Nullable
+    private Intent createExplicitDialIntent(String dialablePhoneNumber) {
+        Intent intent = new Intent(
+                Intent.ACTION_DIAL,
+                Uri.fromParts("tel", dialablePhoneNumber, null)
+        );
+        ResolveInfo dialerInfo = getPackageManager().resolveActivity(
+                intent,
+                PackageManager.MATCH_DEFAULT_ONLY
+        );
+        if (dialerInfo == null
+                || dialerInfo.activityInfo == null
+                || TextUtils.isEmpty(dialerInfo.activityInfo.packageName)) {
+            return null;
+        }
+        intent.setPackage(dialerInfo.activityInfo.packageName);
+        return intent;
+    }
+
+    private void showDialUnavailableDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.booking_follow_up_dial_unavailable_dialog_title)
+                .setMessage(R.string.booking_follow_up_dial_unavailable_dialog_body)
+                .setPositiveButton(R.string.booking_follow_up_dialog_confirm, null)
+                .show();
+    }
+
+    private String normalizeDialablePhoneNumber(String phoneNumber) {
+        if (TextUtils.isEmpty(phoneNumber)) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        boolean hasLeadingPlus = false;
+        for (int index = 0; index < phoneNumber.length(); index++) {
+            char current = phoneNumber.charAt(index);
+            if (Character.isDigit(current) || current == '*' || current == '#') {
+                builder.append(current);
+            } else if (current == '+' && builder.length() == 0 && !hasLeadingPlus) {
+                builder.append(current);
+                hasLeadingPlus = true;
+            }
+        }
+        return builder.toString();
     }
 
     private void showEmergencyGuideDialog() {
