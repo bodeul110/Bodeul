@@ -5,14 +5,21 @@ const path = require("path");
 const {DEFAULT_PASSWORD, LIST_PAGE_SIZE} = require("./baseline-config");
 const DEFAULT_FIREBASE_OAUTH_CLIENT_ID =
   "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
+const FIRESTORE_API_ORIGIN = "https://firestore.googleapis.com";
+const IDENTITY_TOOLKIT_API_ORIGIN = "https://identitytoolkit.googleapis.com";
+const STORAGE_API_ORIGIN = "https://storage.googleapis.com";
+const PROJECT_ID_PATTERN = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
+const STORAGE_BUCKET_PATTERN = /^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$/;
 
 async function createCliContext() {
   const projectId = resolveProjectId();
   if (!projectId) {
     throw new Error("프로젝트 ID를 찾지 못했습니다. .firebaserc 또는 app/google-services.json을 확인해 주세요.");
   }
+  assertProjectId(projectId);
 
   const storageBucket = resolveStorageBucket(projectId);
+  assertStorageBucket(storageBucket);
   const accessToken = await resolveFirebaseAccessToken();
   if (!accessToken) {
     throw new Error("firebase login 토큰을 찾지 못했습니다. `firebase login`으로 다시 로그인한 뒤 실행해 주세요.");
@@ -22,9 +29,6 @@ async function createCliContext() {
     projectId,
     storageBucket,
     accessToken,
-    firestoreBaseUrl: `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`,
-    identityToolkitBaseUrl: `https://identitytoolkit.googleapis.com/v1/projects/${projectId}`,
-    storageBaseUrl: `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(storageBucket)}`,
   };
 }
 
@@ -88,9 +92,7 @@ async function resolveFirebaseAccessToken() {
     return storedToken.accessToken;
   }
 
-  const refreshedToken = await refreshFirebaseAccessToken(storedToken);
-  persistFirebaseAccessToken(storedToken, refreshedToken);
-  return refreshedToken.accessToken;
+  return (await refreshFirebaseAccessToken(storedToken)).accessToken;
 }
 
 async function resolveAccessTokenFromRawToken(rawToken) {
@@ -117,13 +119,17 @@ function resolveRepoRoot() {
   return path.resolve(__dirname, "..", "..", "..");
 }
 
-function resolveStoredFirebaseToken() {
+function resolveFirebaseTokenConfigCandidates() {
   const homeDirectory = os.homedir();
-  const candidates = [
+  return [
     path.join(homeDirectory, ".config", "configstore", "firebase-tools.json"),
     path.join(homeDirectory, "AppData", "Roaming", "configstore", "firebase-tools.json"),
     path.join(homeDirectory, "AppData", "Local", "configstore", "firebase-tools.json"),
   ];
+}
+
+function resolveStoredFirebaseToken() {
+  const candidates = resolveFirebaseTokenConfigCandidates();
 
   for (const candidate of candidates) {
     const config = readJsonFile(candidate);
@@ -142,8 +148,6 @@ function resolveStoredFirebaseToken() {
       refreshToken,
       expiresAt: Number(config?.tokens?.expires_at || 0),
       scope: sanitizeText(config?.tokens?.scope),
-      config,
-      configPath: candidate,
     };
   }
 
@@ -172,6 +176,109 @@ function sanitizeText(value) {
     return "";
   }
   return String(value).trim();
+}
+
+function assertProjectId(projectId) {
+  const value = sanitizeText(projectId);
+  if (!PROJECT_ID_PATTERN.test(value)) {
+    throw new Error("프로젝트 ID 형식이 올바르지 않습니다.");
+  }
+  return value;
+}
+
+function assertStorageBucket(storageBucket) {
+  const value = sanitizeText(storageBucket);
+  if (!STORAGE_BUCKET_PATTERN.test(value) || value.includes("..")) {
+    throw new Error("Storage 버킷 형식이 올바르지 않습니다.");
+  }
+  return value;
+}
+
+function assertApiPathSegment(value, label) {
+  const segment = sanitizeText(value);
+  if (!segment || segment === "." || segment === ".."
+      || /[\u0000-\u001f\u007f?#\\]/.test(segment)
+      || segment.includes("://")) {
+    throw new Error(`${label} 형식이 올바르지 않습니다.`);
+  }
+  return segment;
+}
+
+function assertFirestoreRelativePath(relativePath, label = "Firestore 경로") {
+  const value = sanitizeText(relativePath);
+  const segments = value.split("/");
+  if (!value || segments.some((segment) => !assertApiPathSegment(segment, label))) {
+    throw new Error(`${label} 형식이 올바르지 않습니다.`);
+  }
+  return value;
+}
+
+function assertStorageObjectName(objectName, label = "Storage 객체 경로") {
+  const value = sanitizeText(objectName);
+  const segments = value.split("/");
+  if (!value || /[\u0000-\u001f\u007f?#\\]/.test(value)
+      || segments.some((segment) => segment === "." || segment === "..")) {
+    throw new Error(`${label} 형식이 올바르지 않습니다.`);
+  }
+  return value;
+}
+
+function encodeApiPath(relativePath, label) {
+  return assertFirestoreRelativePath(relativePath, label)
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+}
+
+function buildApiUrl(origin, pathname, queryParams) {
+  const url = new URL(pathname, origin);
+  if (queryParams) {
+    for (const [key, value] of queryParams.entries()) {
+      url.searchParams.append(key, value);
+    }
+  }
+  return url.toString();
+}
+
+function buildIdentityToolkitUrl(context, endpoint) {
+  const safeEndpoint = assertApiPathSegment(endpoint, "Identity Toolkit 엔드포인트");
+  return buildApiUrl(
+      IDENTITY_TOOLKIT_API_ORIGIN,
+      `/v1/projects/${encodeURIComponent(assertProjectId(context.projectId))}/${safeEndpoint}`,
+  );
+}
+
+function buildFirestoreDocumentUrl(context, relativePath, queryParams) {
+  return buildApiUrl(
+      FIRESTORE_API_ORIGIN,
+      `/v1/projects/${encodeURIComponent(assertProjectId(context.projectId))}` +
+      `/databases/(default)/documents/${encodeApiPath(relativePath, "Firestore 문서 경로")}`,
+      queryParams,
+  );
+}
+
+function buildStorageListUrl(context, queryParams) {
+  return buildApiUrl(
+      STORAGE_API_ORIGIN,
+      `/storage/v1/b/${encodeURIComponent(assertStorageBucket(context.storageBucket))}/o`,
+      queryParams,
+  );
+}
+
+function buildStorageObjectUrl(context, objectName) {
+  return buildApiUrl(
+      STORAGE_API_ORIGIN,
+      `/storage/v1/b/${encodeURIComponent(assertStorageBucket(context.storageBucket))}` +
+      `/o/${encodeURIComponent(assertStorageObjectName(objectName))}`,
+  );
+}
+
+function buildStorageUploadUrl(context, queryParams) {
+  return buildApiUrl(
+      STORAGE_API_ORIGIN,
+      `/upload/storage/v1/b/${encodeURIComponent(assertStorageBucket(context.storageBucket))}/o`,
+      queryParams,
+  );
 }
 
 function isLikelyAccessToken(token) {
@@ -217,28 +324,6 @@ async function refreshFirebaseAccessToken(storedToken) {
   };
 }
 
-function persistFirebaseAccessToken(storedToken, refreshedToken) {
-  if (!storedToken?.configPath || !storedToken?.config) {
-    return;
-  }
-
-  const nextConfig = {
-    ...storedToken.config,
-    tokens: {
-      ...(storedToken.config.tokens || {}),
-      access_token: refreshedToken.accessToken,
-      expires_at: refreshedToken.expiresAt,
-      expires_in: Math.max(
-          Math.round((refreshedToken.expiresAt - Date.now()) / 1000),
-          0,
-      ),
-      scope: refreshedToken.scope || sanitizeText(storedToken.config?.tokens?.scope),
-      refresh_token: storedToken.refreshToken || sanitizeText(storedToken.config?.tokens?.refresh_token),
-    },
-  };
-  fs.writeFileSync(storedToken.configPath, `${JSON.stringify(nextConfig, null, "\t")}\n`, "utf8");
-}
-
 async function resolveBaselineUsers(context, baselineUsers, createMissingUsers) {
   const foundUsers = [];
   const missingUsers = [];
@@ -272,7 +357,7 @@ async function resolveBaselineUsers(context, baselineUsers, createMissingUsers) 
 
 async function lookupAuthUserByEmail(context, email) {
   const response = await postJson(
-      `${context.identityToolkitBaseUrl}/accounts:lookup`,
+      buildIdentityToolkitUrl(context, "accounts:lookup"),
       context.accessToken,
       {email: [email]},
   );
@@ -284,7 +369,7 @@ async function lookupAuthUserByEmail(context, email) {
 
 async function createAuthUser(context, baselineUser) {
   return postJson(
-      `${context.identityToolkitBaseUrl}/accounts`,
+      buildIdentityToolkitUrl(context, "accounts"),
       context.accessToken,
       {
         email: baselineUser.email,
@@ -316,7 +401,7 @@ async function listCollectionDocuments(context, collectionName) {
     }
 
     const response = await fetch(
-        `${context.firestoreBaseUrl}/${collectionName}?${query.toString()}`,
+        buildFirestoreDocumentUrl(context, collectionName, query),
         {
           headers: {
             Authorization: `Bearer ${context.accessToken}`,
@@ -341,7 +426,7 @@ async function listCollectionDocuments(context, collectionName) {
 
 async function getDocument(context, relativePath) {
   const response = await fetch(
-      `${context.firestoreBaseUrl}/${relativePath}`,
+      buildFirestoreDocumentUrl(context, relativePath),
       {
         headers: {
           Authorization: `Bearer ${context.accessToken}`,
@@ -369,8 +454,9 @@ async function deleteCollectionDocuments(context, collectionName) {
 }
 
 async function deleteDocument(context, documentName) {
+  const relativePath = extractRelativeDocumentPath(documentName, context.projectId);
   const response = await fetch(
-      `https://firestore.googleapis.com/v1/${documentName}`,
+      buildFirestoreDocumentUrl(context, relativePath),
       {
         method: "DELETE",
         headers: {
@@ -387,7 +473,7 @@ async function deleteDocument(context, documentName) {
 
 async function getStorageObject(context, objectName) {
   const response = await fetch(
-      `${context.storageBaseUrl}/o/${encodeURIComponent(objectName)}`,
+      buildStorageObjectUrl(context, objectName),
       {
         headers: {
           Authorization: `Bearer ${context.accessToken}`,
@@ -413,14 +499,14 @@ async function listStorageObjects(context, prefix) {
   while (true) {
     const query = new URLSearchParams();
     if (prefix) {
-      query.set("prefix", prefix);
+      query.set("prefix", assertStorageObjectName(prefix, "Storage 접두어"));
     }
     if (pageToken) {
       query.set("pageToken", pageToken);
     }
 
     const response = await fetch(
-        `${context.storageBaseUrl}/o?${query.toString()}`,
+        buildStorageListUrl(context, query),
         {
           headers: {
             Authorization: `Bearer ${context.accessToken}`,
@@ -445,7 +531,7 @@ async function listStorageObjects(context, prefix) {
 
 async function deleteStorageObject(context, objectName) {
   const response = await fetch(
-      `${context.storageBaseUrl}/o/${encodeURIComponent(objectName)}`,
+      buildStorageObjectUrl(context, objectName),
       {
         method: "DELETE",
         headers: {
@@ -468,10 +554,10 @@ async function deleteStorageObject(context, objectName) {
 async function uploadStorageObject(context, objectName, contentType, body) {
   const query = new URLSearchParams();
   query.set("uploadType", "media");
-  query.set("name", objectName);
+  query.set("name", assertStorageObjectName(objectName));
 
   const response = await fetch(
-      `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(context.storageBucket)}/o?${query.toString()}`,
+      buildStorageUploadUrl(context, query),
       {
         method: "POST",
         headers: {
@@ -499,7 +585,7 @@ async function patchDocumentFields(context, relativePath, fields) {
   }
 
   const response = await fetch(
-      `${context.firestoreBaseUrl}/${relativePath}${query.toString() ? `?${query.toString()}` : ""}`,
+      buildFirestoreDocumentUrl(context, relativePath, query),
       {
         method: "PATCH",
         headers: {
@@ -574,11 +660,16 @@ function toFirestoreValue(value) {
 }
 
 function extractRelativeDocumentPath(documentName, projectId) {
-  const prefix = `projects/${projectId}/databases/(default)/documents/`;
-  if (documentName.startsWith(prefix)) {
-    return documentName.slice(prefix.length);
+  const safeProjectId = assertProjectId(projectId);
+  const value = sanitizeText(documentName);
+  const prefix = `projects/${safeProjectId}/databases/(default)/documents/`;
+  if (value.startsWith(prefix)) {
+    return assertFirestoreRelativePath(value.slice(prefix.length));
   }
-  return documentName;
+  if (value.startsWith("projects/")) {
+    throw new Error("Firestore 문서 이름이 현재 프로젝트와 일치하지 않습니다.");
+  }
+  return assertFirestoreRelativePath(value);
 }
 
 function buildBackupFileName() {

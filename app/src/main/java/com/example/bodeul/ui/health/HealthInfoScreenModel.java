@@ -23,8 +23,8 @@ public final class HealthInfoScreenModel {
     private final String bookingStatusActionLabel;
     private final String guardianReportActionLabel;
     private final String supportActionLabel;
-    private final String accountSectionTitle;
-    private final String accountSectionHelper;
+    private final String linkedProfileSectionTitle;
+    private final String linkedProfileSectionHelper;
     private final String profileSectionTitle;
     private final String profileSectionHelper;
     private final String requestSectionTitle;
@@ -34,7 +34,7 @@ public final class HealthInfoScreenModel {
     private final String historyActionLabel;
     private final String supportSectionTitle;
     private final String supportSectionHelper;
-    private final List<HealthInfoLineItem> accountLines;
+    private final List<HealthInfoLineItem> linkedProfileLines;
     private final List<HealthInfoLineItem> profileLines;
     private final List<HealthInfoLineItem> requestLines;
     private final List<HealthInfoLineItem> historyLines;
@@ -61,8 +61,8 @@ public final class HealthInfoScreenModel {
             String bookingStatusActionLabel,
             String guardianReportActionLabel,
             String supportActionLabel,
-            String accountSectionTitle,
-            String accountSectionHelper,
+            String linkedProfileSectionTitle,
+            String linkedProfileSectionHelper,
             String profileSectionTitle,
             String profileSectionHelper,
             String requestSectionTitle,
@@ -72,7 +72,7 @@ public final class HealthInfoScreenModel {
             String historyActionLabel,
             String supportSectionTitle,
             String supportSectionHelper,
-            List<HealthInfoLineItem> accountLines,
+            List<HealthInfoLineItem> linkedProfileLines,
             List<HealthInfoLineItem> profileLines,
             List<HealthInfoLineItem> requestLines,
             List<HealthInfoLineItem> historyLines,
@@ -98,8 +98,8 @@ public final class HealthInfoScreenModel {
         this.bookingStatusActionLabel = bookingStatusActionLabel;
         this.guardianReportActionLabel = guardianReportActionLabel;
         this.supportActionLabel = supportActionLabel;
-        this.accountSectionTitle = accountSectionTitle;
-        this.accountSectionHelper = accountSectionHelper;
+        this.linkedProfileSectionTitle = linkedProfileSectionTitle;
+        this.linkedProfileSectionHelper = linkedProfileSectionHelper;
         this.profileSectionTitle = profileSectionTitle;
         this.profileSectionHelper = profileSectionHelper;
         this.requestSectionTitle = requestSectionTitle;
@@ -109,7 +109,7 @@ public final class HealthInfoScreenModel {
         this.historyActionLabel = historyActionLabel;
         this.supportSectionTitle = supportSectionTitle;
         this.supportSectionHelper = supportSectionHelper;
-        this.accountLines = accountLines;
+        this.linkedProfileLines = linkedProfileLines;
         this.profileLines = profileLines;
         this.requestLines = requestLines;
         this.historyLines = historyLines;
@@ -190,12 +190,12 @@ public final class HealthInfoScreenModel {
         return supportActionLabel;
     }
 
-    public String getAccountSectionTitle() {
-        return accountSectionTitle;
+    public String getLinkedProfileSectionTitle() {
+        return linkedProfileSectionTitle;
     }
 
-    public String getAccountSectionHelper() {
-        return accountSectionHelper;
+    public String getLinkedProfileSectionHelper() {
+        return linkedProfileSectionHelper;
     }
 
     public String getProfileSectionTitle() {
@@ -234,8 +234,8 @@ public final class HealthInfoScreenModel {
         return supportSectionHelper;
     }
 
-    public List<HealthInfoLineItem> getAccountLines() {
-        return accountLines;
+    public List<HealthInfoLineItem> getLinkedProfileLines() {
+        return linkedProfileLines;
     }
 
     public List<HealthInfoLineItem> getProfileLines() {

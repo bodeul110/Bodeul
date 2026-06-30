@@ -40,8 +40,8 @@ public final class HealthInfoBinder {
     private final TextView textServiceSectionTitle;
     private final TextView textServiceSectionHelper;
     private final LinearLayout serviceLineContainer;
-    private final TextView textAccountSectionTitle;
-    private final TextView textAccountSectionHelper;
+    private final TextView textLinkedProfileSectionTitle;
+    private final TextView textLinkedProfileSectionHelper;
     private final TextView textProfileSectionTitle;
     private final TextView textProfileSectionHelper;
     private final TextView textRequestSectionTitle;
@@ -50,7 +50,7 @@ public final class HealthInfoBinder {
     private final TextView textHistorySectionHelper;
     private final TextView textSupportSectionTitle;
     private final TextView textSupportSectionHelper;
-    private final LinearLayout accountLineContainer;
+    private final LinearLayout linkedProfileLineContainer;
     private final LinearLayout profileLineContainer;
     private final LinearLayout requestLineContainer;
     private final LinearLayout historyLineContainer;
@@ -84,8 +84,8 @@ public final class HealthInfoBinder {
             TextView textServiceSectionTitle,
             TextView textServiceSectionHelper,
             LinearLayout serviceLineContainer,
-            TextView textAccountSectionTitle,
-            TextView textAccountSectionHelper,
+            TextView textLinkedProfileSectionTitle,
+            TextView textLinkedProfileSectionHelper,
             TextView textProfileSectionTitle,
             TextView textProfileSectionHelper,
             TextView textRequestSectionTitle,
@@ -94,7 +94,7 @@ public final class HealthInfoBinder {
             TextView textHistorySectionHelper,
             TextView textSupportSectionTitle,
             TextView textSupportSectionHelper,
-            LinearLayout accountLineContainer,
+            LinearLayout linkedProfileLineContainer,
             LinearLayout profileLineContainer,
             LinearLayout requestLineContainer,
             LinearLayout historyLineContainer,
@@ -127,8 +127,8 @@ public final class HealthInfoBinder {
         this.textServiceSectionTitle = textServiceSectionTitle;
         this.textServiceSectionHelper = textServiceSectionHelper;
         this.serviceLineContainer = serviceLineContainer;
-        this.textAccountSectionTitle = textAccountSectionTitle;
-        this.textAccountSectionHelper = textAccountSectionHelper;
+        this.textLinkedProfileSectionTitle = textLinkedProfileSectionTitle;
+        this.textLinkedProfileSectionHelper = textLinkedProfileSectionHelper;
         this.textProfileSectionTitle = textProfileSectionTitle;
         this.textProfileSectionHelper = textProfileSectionHelper;
         this.textRequestSectionTitle = textRequestSectionTitle;
@@ -137,7 +137,7 @@ public final class HealthInfoBinder {
         this.textHistorySectionHelper = textHistorySectionHelper;
         this.textSupportSectionTitle = textSupportSectionTitle;
         this.textSupportSectionHelper = textSupportSectionHelper;
-        this.accountLineContainer = accountLineContainer;
+        this.linkedProfileLineContainer = linkedProfileLineContainer;
         this.profileLineContainer = profileLineContainer;
         this.requestLineContainer = requestLineContainer;
         this.historyLineContainer = historyLineContainer;
@@ -164,8 +164,8 @@ public final class HealthInfoBinder {
         textServiceSectionTitle.setText(screenModel.getServiceSectionTitle());
         textServiceSectionHelper.setText(screenModel.getServiceSectionHelper());
         bindLines(serviceLineContainer, screenModel.getServiceLines());
-        textAccountSectionTitle.setText(screenModel.getAccountSectionTitle());
-        textAccountSectionHelper.setText(screenModel.getAccountSectionHelper());
+        textLinkedProfileSectionTitle.setText(screenModel.getLinkedProfileSectionTitle());
+        textLinkedProfileSectionHelper.setText(screenModel.getLinkedProfileSectionHelper());
         textProfileSectionTitle.setText(screenModel.getProfileSectionTitle());
         textProfileSectionHelper.setText(screenModel.getProfileSectionHelper());
         textRequestSectionTitle.setText(screenModel.getRequestSectionTitle());
@@ -180,7 +180,7 @@ public final class HealthInfoBinder {
         bindOptionalButton(buttonGuardianReport, screenModel.getGuardianReportActionLabel());
         bindOptionalButton(buttonSupport, screenModel.getSupportActionLabel());
         buttonPrimary.setText(screenModel.getPrimaryActionLabel());
-        bindLines(accountLineContainer, screenModel.getAccountLines());
+        bindLines(linkedProfileLineContainer, screenModel.getLinkedProfileLines());
         bindLines(profileLineContainer, screenModel.getProfileLines());
         bindLines(requestLineContainer, screenModel.getRequestLines());
         bindLines(historyLineContainer, screenModel.getHistoryLines());
