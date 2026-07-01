@@ -4,13 +4,13 @@ import {type QueryResult} from "pg";
 
 import {createPostgresClient} from "./database.js";
 
-test("DATABASE_URL? ??? PostgreSQL client? ??? ???", () => {
+test("DATABASE_URL이 없으면 PostgreSQL client를 만들지 않는다", () => {
   const client = createPostgresClient({}, createFakeDependencies());
 
   assert.equal(client, null);
 });
 
-test("DATABASE_URL? ??? ??? pool ???? PostgreSQL client? ???", async () => {
+test("DATABASE_URL이 있으면 제한된 pool 설정으로 PostgreSQL client를 만든다", async () => {
   const calls: unknown[] = [];
   const queries: Array<{sql: string; values?: readonly unknown[]}> = [];
   const client = createPostgresClient(
@@ -32,7 +32,7 @@ test("DATABASE_URL? ??? ??? pool ???? PostgreSQL client? ???", async () => {
   assert.deepEqual(queries, [{sql: "select $1::text as value", values: ["ok"]}]);
 });
 
-test("PostgreSQL client ?? ? pool? ???", async () => {
+test("PostgreSQL client 종료 시 pool을 닫는다", async () => {
   let closed = false;
   const client = createPostgresClient(
       {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
@@ -46,7 +46,7 @@ test("PostgreSQL client ?? ? pool? ???", async () => {
   assert.equal(closed, true);
 });
 
-test("PostgreSQL ?? ??? ???? ok? ????", async () => {
+test("PostgreSQL 연결 확인이 성공하면 ok를 반환한다", async () => {
   const client = createPostgresClient(
       {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
       createFakeDependencies(),
@@ -55,7 +55,7 @@ test("PostgreSQL ?? ??? ???? ok? ????", async () => {
   assert.deepEqual(await client?.checkConnection(), {ok: true});
 });
 
-test("PostgreSQL ?? ?? ??? connection string ?? ?? ??? ????", async () => {
+test("PostgreSQL 연결 확인 실패는 connection string 없이 요약 오류만 반환한다", async () => {
   const client = createPostgresClient(
       {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
       createFakeDependencies({queryError: new Error("connection refused")}),
