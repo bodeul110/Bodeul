@@ -5,6 +5,7 @@ export interface ServerConfig {
 
 export interface DatabaseConfig {
   readonly status: "configured" | "missing";
+  readonly connectionString?: string;
 }
 
 const DEFAULT_HOST = "127.0.0.1";
@@ -38,7 +39,7 @@ export function getDatabaseConfig(env: NodeJS.ProcessEnv): DatabaseConfig {
     throw new Error("DATABASE_URL에는 host와 database 이름이 포함되어야 합니다.");
   }
 
-  return {status: "configured"};
+  return {status: "configured", connectionString: rawUrl};
 }
 
 function parsePort(value: string | undefined): number {
