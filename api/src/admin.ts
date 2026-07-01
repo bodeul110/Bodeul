@@ -12,7 +12,7 @@ export interface AdminApiContractPayload {
   readonly status: "ok";
   readonly service: "bodeul-api";
   readonly resource: "admin-api-contract";
-  readonly version: "2026-06-30";
+  readonly version: "2026-07-01";
   readonly timestamp: string;
   readonly database: {
     readonly status: DatabaseConfig["status"];
@@ -29,7 +29,7 @@ export function createAdminApiContractPayload(database: DatabaseConfig, now: () 
     status: "ok",
     service: "bodeul-api",
     resource: "admin-api-contract",
-    version: "2026-06-30",
+    version: "2026-07-01",
     timestamp: now().toISOString(),
     database: {
       status: database.status,
@@ -52,6 +52,13 @@ export function createAdminApiContractPayload(database: DatabaseConfig, now: () 
         auth: "firebase_id_token",
         response: "AdminApiContractPayload",
         description: "관리자 웹 초기 API 응답 계약과 서버 설정 상태를 확인합니다.",
+      },
+      {
+        method: "GET",
+        path: "/admin/hospital-guides",
+        auth: "firebase_id_token",
+        response: "HospitalGuidesPayload",
+        description: "관리자 권한으로 병원 가이드 목록을 PostgreSQL에서 조회합니다.",
       },
     ],
   };

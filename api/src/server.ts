@@ -5,6 +5,7 @@ import {authenticateFirebaseRequest, type FirebaseIdTokenVerifier} from "./auth.
 import {authorizeAdminRequest, type AdminRoleAuthorizer} from "./authorization.js";
 import {getDatabaseConfig, type DatabaseConfig} from "./config.js";
 import {createHealthPayload} from "./health.js";
+import {parseHospitalGuideLimit, type HospitalGuideReader} from "./hospital-guides.js";
 
 interface ErrorPayload {
   readonly error: string;
@@ -16,6 +17,7 @@ export interface ApiServerOptions {
   readonly env?: NodeJS.ProcessEnv;
   readonly firebaseVerifier?: FirebaseIdTokenVerifier | null;
   readonly adminRoleAuthorizer?: AdminRoleAuthorizer | null;
+  readonly hospitalGuideReader?: HospitalGuideReader | null;
 }
 
 interface RequestContext {
@@ -23,6 +25,7 @@ interface RequestContext {
   readonly database: DatabaseConfig;
   readonly firebaseVerifier: FirebaseIdTokenVerifier | null | undefined;
   readonly adminRoleAuthorizer: AdminRoleAuthorizer | null | undefined;
+  readonly hospitalGuideReader: HospitalGuideReader | null | undefined;
 }
 
 export function createApiServer(optionsOrNow: ApiServerOptions | (() => Date) = {}): Server {
@@ -32,6 +35,7 @@ export function createApiServer(optionsOrNow: ApiServerOptions | (() => Date) = 
     database: getDatabaseConfig(options.env ?? process.env),
     firebaseVerifier: options.firebaseVerifier,
     adminRoleAuthorizer: options.adminRoleAuthorizer,
+    hospitalGuideReader: options.hospitalGuideReader,
   };
 
   return createServer((request, response) => {
@@ -54,6 +58,11 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
 
   if (url.pathname === "/admin/api-contract") {
     await handleAdminApiContract(request, response, context);
+    return;
+  }
+
+  if (url.pathname === "/admin/hospital-guides") {
+    await handleAdminHospitalGuides(request, response, context, url);
     return;
   }
 
@@ -99,6 +108,57 @@ async function handleAdminApiContract(request: IncomingMessage, response: Server
   }
 
   sendJson(response, 200, createAdminApiContractPayload(context.database, context.now), request.method === "HEAD");
+}
+
+async function handleAdminHospitalGuides(
+    request: IncomingMessage,
+    response: ServerResponse,
+    context: RequestContext,
+    url: URL,
+): Promise<void> {
+  if (request.method !== "GET") {
+    response.setHeader("Allow", "GET");
+    sendJson(response, 405, {
+      error: "method_not_allowed",
+      message: "병원 가이드 조회는 GET 요청만 허용합니다.",
+    });
+    return;
+  }
+
+  const authResult = await authenticateFirebaseRequest(request.headers, context.firebaseVerifier);
+  if (!authResult.ok) {
+    sendJson(response, authResult.failure.statusCode, authResult.failure);
+    return;
+  }
+
+  const authorizationResult = await authorizeAdminRequest(authResult.context, context.adminRoleAuthorizer);
+  if (!authorizationResult.ok) {
+    sendJson(response, authorizationResult.failure.statusCode, authorizationResult.failure);
+    return;
+  }
+
+  if (!context.hospitalGuideReader) {
+    sendJson(response, 503, {
+      error: "hospital_guides_not_configured",
+      message: "병원 가이드 조회기가 아직 설정되지 않았습니다.",
+    });
+    return;
+  }
+
+  const limitResult = parseHospitalGuideLimit(url.searchParams.get("limit"));
+  if (!limitResult.ok) {
+    sendJson(response, limitResult.failure.statusCode, limitResult.failure);
+    return;
+  }
+
+  try {
+    sendJson(response, 200, await context.hospitalGuideReader.listHospitalGuides(limitResult.limit));
+  } catch {
+    sendJson(response, 503, {
+      error: "hospital_guides_lookup_failed",
+      message: "병원 가이드 조회에 실패했습니다.",
+    });
+  }
 }
 
 function sendJson(response: ServerResponse, statusCode: number, payload: ErrorPayload | object, omitBody = false): void {

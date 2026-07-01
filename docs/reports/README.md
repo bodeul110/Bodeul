@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 113 병원 가이드 read API 기록 (2026-07-01)](issue-113-hospital-guides-read-api-2026-07-01.md)
 - [Issue 112 관리자 role 기반 인가 기록 (2026-07-01)](issue-112-admin-role-authz-2026-07-01.md)
 - [Issue 111 PostgreSQL client 초기화 기록 (2026-07-01)](issue-111-postgres-client-2026-07-01.md)
 - [Issue 110 Firebase Admin SDK 인증 연결 기록 (2026-07-01)](issue-110-firebase-admin-auth-2026-07-01.md)

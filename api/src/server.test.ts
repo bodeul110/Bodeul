@@ -130,6 +130,7 @@ test("GET /admin/api-contract는 Firebase 토큰 검증 후 초기 계약을 반
     assert.equal(body.resource, "admin-api-contract");
     assert.equal(body.database?.status, "configured");
     assert.equal(body.endpoints?.some((endpoint) => endpoint.path === "/admin/api-contract"), true);
+    assert.equal(body.endpoints?.some((endpoint) => endpoint.path === "/admin/hospital-guides"), true);
   } finally {
     await close(server);
   }
@@ -256,6 +257,214 @@ test("GET /admin/api-contract는 role 조회 실패 시 503을 반환한다", as
 
     assert.equal(response.status, 503);
     assert.equal(body.error, "role_lookup_failed");
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/hospital-guides는 관리자 권한으로 병원 가이드 목록을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
+    firebaseVerifier: {
+      async verifyIdToken(idToken) {
+        assert.equal(idToken, "firebase-token");
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid(uid) {
+        assert.equal(uid, "admin-1");
+        return "ADMIN";
+      },
+    },
+    hospitalGuideReader: {
+      async listHospitalGuides(limit) {
+        assert.equal(limit, 50);
+        return {
+          items: [
+            {
+              id: "bad67ae3-b0ef-5a63-806d-7274ac4ce3d3",
+              hospitalName: "서울내과병원",
+              departmentName: "내과",
+              steps: [{title: "접수", description: "원무과에서 접수합니다."}],
+              createdAt: "2026-04-23T16:48:39.766Z",
+              updatedAt: "2026-04-23T16:48:39.766Z",
+            },
+          ],
+          limit,
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {
+      limit?: number;
+      items?: Array<{hospitalName?: string; departmentName?: string; steps?: unknown[]}>;
+    };
+
+    assert.equal(response.status, 200);
+    assert.equal(body.limit, 50);
+    assert.equal(body.items?.[0]?.hospitalName, "서울내과병원");
+    assert.equal(body.items?.[0]?.departmentName, "내과");
+    assert.equal(Array.isArray(body.items?.[0]?.steps), true);
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/hospital-guides는 limit query를 조회기에 전달한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid() {
+        return "ADMIN";
+      },
+    },
+    hospitalGuideReader: {
+      async listHospitalGuides(limit) {
+        assert.equal(limit, 2);
+        return {items: [], limit};
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides?limit=2`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {limit?: number};
+
+    assert.equal(response.status, 200);
+    assert.equal(body.limit, 2);
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/hospital-guides는 잘못된 limit이면 400을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid() {
+        return "ADMIN";
+      },
+    },
+    hospitalGuideReader: {
+      async listHospitalGuides() {
+        assert.fail("잘못된 limit에서는 병원 가이드 조회기를 호출하지 않아야 한다.");
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides?limit=101`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "invalid_limit");
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/hospital-guides는 조회기가 없으면 503을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid() {
+        return "ADMIN";
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 503);
+    assert.equal(body.error, "hospital_guides_not_configured");
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/hospital-guides는 조회 실패 시 503을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid() {
+        return "ADMIN";
+      },
+    },
+    hospitalGuideReader: {
+      async listHospitalGuides() {
+        throw new Error("db down");
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 503);
+    assert.equal(body.error, "hospital_guides_lookup_failed");
+  } finally {
+    await close(server);
+  }
+});
+
+test("지원하지 않는 병원 가이드 API 메서드는 405를 반환한다", async () => {
+  const server = createApiServer({now: fixedNow, env: {}});
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides`, {method: "POST"});
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 405);
+    assert.equal(response.headers.get("allow"), "GET");
+    assert.equal(body.error, "method_not_allowed");
   } finally {
     await close(server);
   }
