@@ -23,7 +23,7 @@
 ## 리스크
 
 - 실제 운영 데이터 조회 API가 아니므로 관리자 웹 전환 자체를 완료하지는 못한다.
-- Firebase Admin SDK가 아직 연결되지 않아 로컬 실행 서버에서는 verifier가 없으면 503을 반환한다.
+- Firebase Admin SDK 설정이 없는 로컬/CI 환경에서는 verifier가 없으면 503을 반환한다.
 - PostgreSQL role 기반 인가는 후속 API에서 별도로 구현해야 한다.
 
 ## 공통 인증
@@ -36,6 +36,13 @@
 | Bearer 형식 아님 | 401 | `invalid_authorization` |
 | Firebase verifier 미설정 | 503 | `auth_not_configured` |
 | Firebase token 검증 실패 | 401 | `invalid_firebase_token` |
+
+Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
+
+| 이름 | 용도 |
+| --- | --- |
+| `FIREBASE_PROJECT_ID` | Application Default Credentials를 사용할 때 Firebase project를 지정한다. |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | 서비스 계정 JSON 문자열을 주입한다. 실제 값은 문서, Issue, PR에 적지 않는다. |
 
 ## `GET /healthz`
 
@@ -65,7 +72,7 @@
   },
   "authentication": {
     "type": "firebase_id_token",
-    "status": "draft"
+    "status": "configured"
   },
   "endpoints": [
     {
@@ -95,7 +102,6 @@
 
 ## 후속 범위
 
-- Firebase Admin SDK 초기화
 - PostgreSQL client 초기화
 - PostgreSQL `app_users.role` 기반 관리자 권한 확인
 - 병원 가이드, 매니저 서류 심사, 문의 조회 중 하나를 실제 read API로 승격
