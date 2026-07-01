@@ -2,6 +2,7 @@ import {createServer, type IncomingMessage, type Server, type ServerResponse} fr
 
 import {createAdminApiContractPayload} from "./admin.js";
 import {authenticateFirebaseRequest, type FirebaseIdTokenVerifier} from "./auth.js";
+import {authorizeAdminRequest, type AdminRoleAuthorizer} from "./authorization.js";
 import {getDatabaseConfig, type DatabaseConfig} from "./config.js";
 import {createHealthPayload} from "./health.js";
 
@@ -14,12 +15,14 @@ export interface ApiServerOptions {
   readonly now?: () => Date;
   readonly env?: NodeJS.ProcessEnv;
   readonly firebaseVerifier?: FirebaseIdTokenVerifier | null;
+  readonly adminRoleAuthorizer?: AdminRoleAuthorizer | null;
 }
 
 interface RequestContext {
   readonly now: () => Date;
   readonly database: DatabaseConfig;
   readonly firebaseVerifier: FirebaseIdTokenVerifier | null | undefined;
+  readonly adminRoleAuthorizer: AdminRoleAuthorizer | null | undefined;
 }
 
 export function createApiServer(optionsOrNow: ApiServerOptions | (() => Date) = {}): Server {
@@ -28,6 +31,7 @@ export function createApiServer(optionsOrNow: ApiServerOptions | (() => Date) = 
     now: options.now ?? (() => new Date()),
     database: getDatabaseConfig(options.env ?? process.env),
     firebaseVerifier: options.firebaseVerifier,
+    adminRoleAuthorizer: options.adminRoleAuthorizer,
   };
 
   return createServer((request, response) => {
@@ -85,6 +89,12 @@ async function handleAdminApiContract(request: IncomingMessage, response: Server
   const authResult = await authenticateFirebaseRequest(request.headers, context.firebaseVerifier);
   if (!authResult.ok) {
     sendJson(response, authResult.failure.statusCode, authResult.failure);
+    return;
+  }
+
+  const authorizationResult = await authorizeAdminRequest(authResult.context, context.adminRoleAuthorizer);
+  if (!authorizationResult.ok) {
+    sendJson(response, authorizationResult.failure.statusCode, authorizationResult.failure);
     return;
   }
 

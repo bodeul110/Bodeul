@@ -105,6 +105,12 @@ test("GET /admin/api-contract는 Firebase 토큰 검증 후 초기 계약을 반
         return {uid: "admin-1", claims: {role: "ADMIN"}};
       },
     },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid(uid) {
+        assert.equal(uid, "admin-1");
+        return "ADMIN";
+      },
+    },
   });
   const baseUrl = await listen(server);
 
@@ -146,6 +152,31 @@ test("GET /admin/api-contract는 Firebase verifier가 없으면 503을 반환한
   }
 });
 
+test("GET /admin/api-contract는 관리자 권한 확인기가 없으면 503을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/api-contract`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 503);
+    assert.equal(body.error, "authorization_not_configured");
+  } finally {
+    await close(server);
+  }
+});
+
 test("GET /admin/api-contract는 Authorization 헤더가 없으면 401을 반환한다", async () => {
   const server = createApiServer({
     now: fixedNow,
@@ -164,6 +195,67 @@ test("GET /admin/api-contract는 Authorization 헤더가 없으면 401을 반환
 
     assert.equal(response.status, 401);
     assert.equal(body.error, "missing_authorization");
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/api-contract는 비관리자 role이면 403을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "manager-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid(uid) {
+        assert.equal(uid, "manager-1");
+        return "MANAGER";
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/api-contract`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 403);
+    assert.equal(body.error, "admin_role_required");
+  } finally {
+    await close(server);
+  }
+});
+
+test("GET /admin/api-contract는 role 조회 실패 시 503을 반환한다", async () => {
+  const server = createApiServer({
+    now: fixedNow,
+    env: {},
+    firebaseVerifier: {
+      async verifyIdToken() {
+        return {uid: "admin-1", claims: {}};
+      },
+    },
+    adminRoleAuthorizer: {
+      async getRoleByFirebaseUid() {
+        throw new Error("db down");
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/api-contract`, {
+      headers: {Authorization: "Bearer firebase-token"},
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 503);
+    assert.equal(body.error, "role_lookup_failed");
   } finally {
     await close(server);
   }
