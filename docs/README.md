@@ -52,8 +52,9 @@
 
 - `.tmp/` 아래 파일은 임시 산출물이므로 현재 기준 문서로 보지 않는다.
 - `tools/firebase/reports/` 아래 프리플라이트 결과는 생성 시점의 증적이며, 최신 판단은 `reports/`와 `status/`를 우선한다.
-- `docs/local/`과 `design_refs/local/`의 원본/바이너리 파일은 참조 원본이며, 정리 대상 문서 본문은 각 디렉터리의 `README.md`다.
-- `design_refs/local/automated_income_tool_report.md`는 프로젝트 기준 문서가 아니므로 보조 산출물로만 보관한다.
+- `docs/local/`의 원본성 강한 자료는 로컬 참조로만 보고, 정리 대상 문서 본문은 `docs/local/README.md`다.
+- `design_refs/local/` 아래 파일은 Figma 원본을 확인하기 어려울 때 쓰는 임시 export/cache이며, 현재 디자인 기준 원본은 Figma 파일이다.
+- `design_refs/local/automated_income_tool_report.md`처럼 프로젝트와 무관한 자동 산출물은 기준 문서로 보지 않는다.
 
 ## 운영 원칙
 
