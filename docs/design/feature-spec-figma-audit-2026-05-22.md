@@ -1,24 +1,18 @@
 # 기능설명서와 피그마 대조 메모
 
-기준일: 2026-06-19
+기준일: 2026-07-02
 
-이 문서는 최신 기능설명서와 최신 피그마 산출물을 각각 따로 보고, 무엇을 기능 기준으로 보고 무엇을 디자인 기준으로 볼지 다시 정리한 메모다.
+이 문서는 최신 기능설명서와 Figma 디자인 기준을 각각 따로 보고, 무엇을 기능 기준으로 보고 무엇을 디자인 기준으로 볼지 다시 정리한 메모다.
 
 ## 확인한 원본
 
 - 기능 기준
   - `docs/local/보들_플랫폼_기능설명서.pdf`
 - 디자인 기준
-  - `design_refs/local/보들 가이드.zip`
-  - `design_refs/local/latest_figma_2026-06-19/`
-    - `환자 홈 화면 (예약 완료 후).png`
-    - `환자 홈 화면 (예약 완료 후)-1.png`
-    - `동행가이드1.png` ~ `동행가이드12.png`
-    - `Main.png`
-    - `Body.png`
-    - `보들 가이드.pdf`
-  - `design_refs/local/bodeul_original_resolution_screens.zip`
-  - `design_refs/local/bodeul_split_screens/`
+  - Figma 원본 파일
+  - Codex-Figma 연결 확인: 2026-07-02
+  - 기준 파일: [보들 가이드](https://www.figma.com/design/E2EaCod0aNjnI1uGXZQKok/%EB%B3%B4%EB%93%A4-%EA%B0%80%EC%9D%B4%EB%93%9C?node-id=0-1&t=1bVoxluZrRsPeS15-1), file key `E2EaCod0aNjnI1uGXZQKok`, 기준 URL node `0:1`
+  - `design_refs/local/보들 가이드.zip`, `design_refs/local/latest_figma_2026-06-19/`, `design_refs/local/bodeul_split_screens/`는 2026-06-19 검토 당시 다운로드 산출물이며 현재는 임시 export/cache 이력으로만 본다.
 
 ## 기능설명서 기준으로 계속 우선할 것
 
@@ -97,8 +91,8 @@
 
 ### 디자인 기준
 
-- 최신 디자인 기준은 `design_refs/local/latest_figma_2026-06-19/`의 보드형 PNG 세트다.
-- `bodeul_split_screens`는 이전 기준 보조 세트로만 유지한다.
+- 최신 디자인 기준은 Figma 원본 파일이다.
+- `design_refs/local/` 아래 다운로드 산출물은 이전 기준 보조 세트 또는 임시 export/cache로만 유지한다.
 
 ### 적용 방식
 
@@ -123,5 +117,5 @@
 ## 결론
 
 - 기능 기준은 계속 기능설명서다.
-- 디자인 기준은 이제 `보들 가이드.zip` 해제본이 최상위다.
-- `bodeul_split_screens`는 보조 비교 세트로만 남긴다.
+- 디자인 기준은 Figma 원본 파일이 최상위다.
+- `design_refs/local/` 다운로드 산출물은 보조 비교 세트나 임시 캐시로만 남긴다.

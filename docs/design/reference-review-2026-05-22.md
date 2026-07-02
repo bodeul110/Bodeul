@@ -1,32 +1,20 @@
 # 디자인 레퍼런스 재정리 메모
 
-기준일: 2026-06-19
+기준일: 2026-07-02
 
-이 문서는 최신 기능설명서와 최신 피그마 산출물을 분리해서 보고, UI polish 우선순위를 정리한 메모다.
+이 문서는 최신 기능설명서와 Figma 디자인 기준을 분리해서 보고, UI polish 우선순위를 정리한 메모다.
 
 기능 기준은 계속 `docs/local/보들_플랫폼_기능설명서.pdf`를 우선한다. 이 문서는 화면 위계와 시각 polish 우선순위를 정하는 용도로만 쓴다.
 
 ## 확인한 자료
 
-- 최신 기준 ZIP: `design_refs/local/보들 가이드.zip`
-- 최신 해제본: `design_refs/local/latest_figma_2026-06-19/`
-  - `첫 화면.png`
-  - `권한 설정.png`
-  - `환자 홈 화면.png`
-  - `환자 홈 화면 (예약 완료 후).png`
-  - `환자 홈 화면 (예약 완료 후)-1.png`
-  - `매니저 홈 화면.png`
-  - `사용자 설정.png`
-  - `건강리포트- 병원 편.png`
-  - `건강리포트-복약 변화.png`
-  - `병원 내 지도.png`
-  - `동행가이드1.png` ~ `동행가이드12.png`
-  - `Main.png`
-  - `Body.png`
-  - `보들 가이드.pdf`
-- 보조 비교 세트
-  - `design_refs/local/bodeul_original_resolution_screens.zip`
-  - `design_refs/local/bodeul_split_screens/`
+- 기능 기준: `docs/local/보들_플랫폼_기능설명서.pdf`
+- 디자인 기준: Figma 원본 파일
+  - Codex-Figma 연결 확인: 2026-07-02
+  - 기준 파일: [보들 가이드](https://www.figma.com/design/E2EaCod0aNjnI1uGXZQKok/%EB%B3%B4%EB%93%A4-%EA%B0%80%EC%9D%B4%EB%93%9C?node-id=0-1&t=1bVoxluZrRsPeS15-1), file key `E2EaCod0aNjnI1uGXZQKok`, 기준 URL node `0:1`
+- 과거 다운로드 산출물
+  - `design_refs/local/보들 가이드.zip`, `design_refs/local/latest_figma_2026-06-19/`는 2026-06-19 검토 당시 근거였고, 현재는 기준 원본이 아니라 임시 export/cache 이력으로만 본다.
+  - 이 문서의 `첫 화면`, `환자 홈 화면`, `동행가이드1` 같은 화면 이름은 당시 Figma 보드 이름을 가리킨다.
 
 ## 이번 디자인에서 더 분명해진 축
 
@@ -117,6 +105,6 @@
 
 ## 결론
 
-- 최신 디자인 기준은 이제 `design_refs/local/보들 가이드.zip`과 `design_refs/local/latest_figma_2026-06-19/`이다.
-- `bodeul_split_screens`는 보조 비교용으로만 유지한다.
+- 최신 디자인 기준은 다운로드 ZIP이 아니라 Figma 원본 파일이다.
+- `design_refs/local/`은 필요할 때만 쓰는 임시 export/cache로 유지한다.
 - 기능 우선순위는 바뀌지 않는다.
