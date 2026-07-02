@@ -70,6 +70,7 @@ jobs:
           changed_file="$(mktemp)"
           android=false
           admin_web=false
+          api=false
           functions=false
           firebase_tools=false
           docs_only=true
@@ -99,6 +100,10 @@ jobs:
                   ;;
                 admin-web/*)
                   admin_web=true
+                  docs_only=false
+                  ;;
+                api/*)
+                  api=true
                   docs_only=false
                   ;;
                 functions/*)
@@ -137,6 +142,7 @@ jobs:
           {
             echo "android=$android"
             echo "admin_web=$admin_web"
+            echo "api=$api"
             echo "functions=$functions"
             echo "firebase_tools=$firebase_tools"
             echo "docs_only=$docs_only"
@@ -148,6 +154,7 @@ jobs:
           echo "검증 범위"
           echo "- Android: $android"
           echo "- admin-web: $admin_web"
+          echo "- API: $api"
           echo "- functions: $functions"
           echo "- Firebase tools: $firebase_tools"
           echo "- 문서 전용: $docs_only"
@@ -263,6 +270,7 @@ jobs:
             echo "- 실행기: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_profile || 'github-hosted' }}"
             echo "- Android: ${{ steps.scope.outputs.android }}"
             echo "- admin-web: ${{ steps.scope.outputs.admin_web }}"
+            echo "- API: ${{ steps.scope.outputs.api }}"
             echo "- functions: ${{ steps.scope.outputs.functions }}"
             echo "- Firebase tools: ${{ steps.scope.outputs.firebase_tools }}"
             echo "- 문서 전용: ${{ steps.scope.outputs.docs_only }}"

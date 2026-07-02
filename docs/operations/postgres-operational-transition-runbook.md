@@ -97,7 +97,7 @@ DB schema와 import dry-run만 진행하는 동안에는 GitHub Environment secr
 | 디렉터리 후보 | `api/` |
 | 런타임 | Node 22 |
 | 언어 후보 | TypeScript |
-| 서버 프레임워크 후보 | Fastify |
+| 서버 프레임워크 후보 | 1차는 Node 기본 `http`, 라우팅 확장 시 Fastify 검토 |
 | DB 접근 후보 | Drizzle ORM 또는 node-postgres |
 | 인증 | Firebase ID token 검증 |
 | 권한 | PostgreSQL `app_users.role` 기준 |
