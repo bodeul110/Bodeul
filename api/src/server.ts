@@ -3,7 +3,7 @@ import {createServer, type IncomingMessage, type Server, type ServerResponse} fr
 import {createAdminApiContractPayload} from "./admin.js";
 import {authenticateFirebaseRequest, type FirebaseIdTokenVerifier} from "./auth.js";
 import {authorizeAdminRequest, type AdminRoleAuthorizer} from "./authorization.js";
-import {getDatabaseConfig, type DatabaseConfig} from "./config.js";
+import {getCorsConfig, getDatabaseConfig, type CorsConfig, type DatabaseConfig} from "./config.js";
 import {createHealthPayload} from "./health.js";
 import {parseHospitalGuideLimit, type HospitalGuideReader} from "./hospital-guides.js";
 
@@ -23,6 +23,7 @@ export interface ApiServerOptions {
 interface RequestContext {
   readonly now: () => Date;
   readonly database: DatabaseConfig;
+  readonly cors: CorsConfig;
   readonly firebaseVerifier: FirebaseIdTokenVerifier | null | undefined;
   readonly adminRoleAuthorizer: AdminRoleAuthorizer | null | undefined;
   readonly hospitalGuideReader: HospitalGuideReader | null | undefined;
@@ -33,6 +34,7 @@ export function createApiServer(optionsOrNow: ApiServerOptions | (() => Date) = 
   const context: RequestContext = {
     now: options.now ?? (() => new Date()),
     database: getDatabaseConfig(options.env ?? process.env),
+    cors: getCorsConfig(options.env ?? process.env),
     firebaseVerifier: options.firebaseVerifier,
     adminRoleAuthorizer: options.adminRoleAuthorizer,
     hospitalGuideReader: options.hospitalGuideReader,
@@ -50,6 +52,13 @@ export function createApiServer(optionsOrNow: ApiServerOptions | (() => Date) = 
 
 async function handleRequest(request: IncomingMessage, response: ServerResponse, context: RequestContext): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
+  const corsOrigin = resolveCorsOrigin(request, context.cors);
+  applyCorsHeaders(response, corsOrigin);
+
+  if (request.method === "OPTIONS") {
+    handleCorsPreflight(response, corsOrigin);
+    return;
+  }
 
   if (url.pathname === "/healthz") {
     handleHealthz(request, response, context.now);
@@ -70,6 +79,42 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse,
     error: "not_found",
     message: "요청한 API 경로를 찾을 수 없습니다.",
   });
+}
+
+function resolveCorsOrigin(request: IncomingMessage, cors: CorsConfig): string | null {
+  const origin = request.headers.origin;
+  if (typeof origin !== "string") {
+    return null;
+  }
+
+  return cors.allowedOrigins.includes(origin) ? origin : null;
+}
+
+function applyCorsHeaders(response: ServerResponse, origin: string | null): void {
+  response.setHeader("Vary", "Origin");
+  if (!origin) {
+    return;
+  }
+
+  response.setHeader("Access-Control-Allow-Origin", origin);
+  response.setHeader("Access-Control-Expose-Headers", "Content-Type, Content-Length");
+}
+
+function handleCorsPreflight(response: ServerResponse, origin: string | null): void {
+  if (!origin) {
+    sendJson(response, 403, {
+      error: "cors_origin_not_allowed",
+      message: "허용되지 않은 관리자 웹 origin입니다.",
+    });
+    return;
+  }
+
+  response.statusCode = 204;
+  response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  response.setHeader("Access-Control-Max-Age", "600");
+  response.setHeader("Content-Length", "0");
+  response.end();
 }
 
 function handleHealthz(request: IncomingMessage, response: ServerResponse, now: () => Date): void {

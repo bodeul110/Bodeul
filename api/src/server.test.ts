@@ -3,7 +3,7 @@ import {type AddressInfo} from "node:net";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {getDatabaseConfig, getServerConfig} from "./config.js";
+import {getCorsConfig, getDatabaseConfig, getServerConfig} from "./config.js";
 import {createApiServer} from "./server.js";
 
 const fixedNow = () => new Date("2026-06-30T00:00:00.000Z");
@@ -78,6 +78,63 @@ test("포트 환경변수는 1부터 65535 사이의 정수만 허용한다", ()
   assert.equal(getServerConfig({BODEUL_API_PORT: ""}).port, 8080);
   assert.throws(() => getServerConfig({BODEUL_API_PORT: "0"}), /BODEUL_API_PORT/);
   assert.throws(() => getServerConfig({BODEUL_API_PORT: "abc"}), /BODEUL_API_PORT/);
+});
+
+test("CORS origin은 기본 관리자 웹 로컬 주소와 명시 설정만 허용한다", () => {
+  assert.deepEqual(getCorsConfig({}).allowedOrigins, ["http://localhost:5173", "http://127.0.0.1:5173"]);
+  assert.deepEqual(getCorsConfig({BODEUL_API_ALLOWED_ORIGINS: "https://admin.example.com, http://localhost:5173/"}).allowedOrigins, [
+    "https://admin.example.com",
+    "http://localhost:5173",
+  ]);
+  assert.deepEqual(getCorsConfig({BODEUL_API_ALLOWED_ORIGINS: ""}).allowedOrigins, []);
+  assert.throws(() => getCorsConfig({BODEUL_API_ALLOWED_ORIGINS: "https://admin.example.com/path"}), /BODEUL_API_ALLOWED_ORIGINS/);
+});
+
+test("OPTIONS preflight는 허용된 관리자 웹 origin에 CORS 헤더를 반환한다", async () => {
+  const server = createApiServer(fixedNow);
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://localhost:5173",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "Authorization",
+      },
+    });
+    const body = await response.text();
+
+    assert.equal(response.status, 204);
+    assert.equal(body, "");
+    assert.equal(response.headers.get("access-control-allow-origin"), "http://localhost:5173");
+    assert.equal(response.headers.get("access-control-allow-methods"), "GET, HEAD, OPTIONS");
+    assert.match(response.headers.get("access-control-allow-headers") || "", /Authorization/);
+  } finally {
+    await close(server);
+  }
+});
+
+test("OPTIONS preflight는 허용되지 않은 origin을 거부한다", async () => {
+  const server = createApiServer(fixedNow);
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/admin/hospital-guides`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://unknown.example.com",
+        "Access-Control-Request-Method": "GET",
+      },
+    });
+    const body = await response.json() as {error?: string};
+
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get("access-control-allow-origin"), null);
+    assert.equal(body.error, "cors_origin_not_allowed");
+  } finally {
+    await close(server);
+  }
 });
 
 test("DATABASE_URL이 없으면 DB 설정 누락 상태로 처리한다", () => {
