@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type MenuKey = "dashboard" | "approval";
+type MenuKey = "dashboard" | "approval" | "hospitalGuides";
 
 type AdminShellProps = {
   adminName: string;
@@ -19,6 +19,12 @@ export function AdminShell({
   onLogout,
   children,
 }: AdminShellProps) {
+  const currentMenuLabel: Record<MenuKey, string> = {
+    dashboard: "대시보드",
+    approval: "매니저 승인",
+    hospitalGuides: "병원 가이드",
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans text-sm antialiased">
       <aside className="w-56 bg-slate-900 p-4 text-white shadow-lg">
@@ -45,6 +51,15 @@ export function AdminShell({
           >
             매니저 승인
           </button>
+          <button
+            type="button"
+            onClick={() => onMenuChange("hospitalGuides")}
+            className={`w-full rounded-md px-3 py-2 text-left transition ${
+              currentMenu === "hospitalGuides" ? "bg-blue-600" : "hover:bg-slate-800"
+            }`}
+          >
+            병원 가이드
+          </button>
         </nav>
       </aside>
 
@@ -52,7 +67,7 @@ export function AdminShell({
         <header className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">
-              {currentMenu === "dashboard" ? "대시보드" : "매니저 승인"}
+              {currentMenuLabel[currentMenu]}
             </h2>
           </div>
 

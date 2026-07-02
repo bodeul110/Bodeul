@@ -3,6 +3,10 @@ export interface ServerConfig {
   readonly port: number;
 }
 
+export interface CorsConfig {
+  readonly allowedOrigins: readonly string[];
+}
+
 export interface DatabaseConfig {
   readonly status: "configured" | "missing";
   readonly connectionString?: string;
@@ -10,11 +14,25 @@ export interface DatabaseConfig {
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 8080;
+const DEFAULT_CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"] as const;
 
 export function getServerConfig(env: NodeJS.ProcessEnv): ServerConfig {
   return {
     host: env.BODEUL_API_HOST?.trim() || DEFAULT_HOST,
     port: parsePort(env.BODEUL_API_PORT),
+  };
+}
+
+export function getCorsConfig(env: NodeJS.ProcessEnv): CorsConfig {
+  if (env.BODEUL_API_ALLOWED_ORIGINS === undefined) {
+    return {allowedOrigins: DEFAULT_CORS_ALLOWED_ORIGINS};
+  }
+
+  return {
+    allowedOrigins: env.BODEUL_API_ALLOWED_ORIGINS
+      .split(",")
+      .map((origin) => normalizeOrigin(origin))
+      .filter((origin): origin is string => Boolean(origin)),
   };
 }
 
@@ -53,4 +71,22 @@ function parsePort(value: string | undefined): number {
   }
 
   return port;
+}
+
+function normalizeOrigin(value: string): string | null {
+  const rawOrigin = value.trim();
+  if (!rawOrigin) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(rawOrigin);
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+      throw new Error("invalid origin");
+    }
+
+    return parsed.origin;
+  } catch {
+    throw new Error("BODEUL_API_ALLOWED_ORIGINS는 쉼표로 구분한 http 또는 https origin이어야 합니다.");
+  }
 }

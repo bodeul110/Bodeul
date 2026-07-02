@@ -9,6 +9,7 @@
 - 매니저 서류 심사 대상 목록 조회
 - Firebase Storage 원본 파일 미리보기
 - 매니저 서류 승인/반려 저장
+- `VITE_BODEUL_DATA_BACKEND=api`일 때 병원 가이드 read API 검증
 - 목록 기본 마스킹
 - 15분 유휴 세션 자동 로그아웃
 
@@ -19,6 +20,7 @@
 - Vite
 - Tailwind CSS
 - Firebase Authentication / Firestore / Storage
+- 선택적 `bodeul-api` read API
 
 ## 환경 설정
 
@@ -46,8 +48,24 @@ Copy-Item .env.example .env.local
 | --- | --- |
 | `VITE_FIREBASE_APPCHECK_SITE_KEY` | App Check reCAPTCHA v3 site key |
 | `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN` | 로컬/CI 검증용 App Check debug token |
+| `VITE_BODEUL_DATA_BACKEND` | `firebase` 또는 `api`. 기본값은 `firebase`이며, `api`일 때 병원 가이드 검증 화면에서 `bodeul-api`를 호출한다. |
+| `VITE_BODEUL_API_BASE_URL` | `bodeul-api` base URL. 예: `http://127.0.0.1:8080` |
 
 `.env.local`은 로컬 전용 파일이며 커밋하지 않습니다. GitHub Actions에서는 `admin-web-preview` Environment의 variables/secrets를 사용합니다.
+
+## bodeul-api 검증 모드
+
+병원 가이드 read API 연결을 확인하려면 관리자 웹과 `bodeul-api`를 함께 실행합니다.
+
+```powershell
+$env:VITE_BODEUL_DATA_BACKEND = "api"
+$env:VITE_BODEUL_API_BASE_URL = "http://127.0.0.1:8080"
+npm --prefix admin-web run dev
+```
+
+API 서버는 관리자 웹 origin을 허용해야 합니다. 로컬 기본 origin인 `http://localhost:5173`, `http://127.0.0.1:5173`은 기본 허용값입니다. 운영/preview 도메인은 API 서버의 `BODEUL_API_ALLOWED_ORIGINS`에 별도로 추가합니다.
+
+rollback은 `VITE_BODEUL_DATA_BACKEND=firebase`로 되돌리는 방식이다. 이때 병원 가이드 메뉴는 API를 호출하지 않고 기존 Firebase 기반 관리자 기능은 그대로 유지된다.
 
 ## 실행
 
@@ -66,9 +84,11 @@ npm run dev
 ## 주요 파일
 
 - [firebase.ts](firebase.ts): Firebase 설정과 서비스 초기화
+- [src/bodeulApi.ts](src/bodeulApi.ts): `bodeul-api` 호출과 응답 검증
 - [src/App.tsx](src/App.tsx): 인증 상태, 매니저 목록 구독, 저장 액션, 화면 전환 조합
 - [src/components/AdminAuthScreen.tsx](src/components/AdminAuthScreen.tsx): 관리자 로그인 화면
 - [src/components/AdminShell.tsx](src/components/AdminShell.tsx): 관리자 웹 공통 레이아웃
+- [src/components/HospitalGuideApiPanel.tsx](src/components/HospitalGuideApiPanel.tsx): 병원 가이드 read API 검증 화면
 - [src/components/ManagerApprovalList.tsx](src/components/ManagerApprovalList.tsx): 매니저 심사 목록
 - [src/components/ManagerReviewModal.tsx](src/components/ManagerReviewModal.tsx): 서류 상세 심사 모달
 - [src/hooks/useAdminIdleSession.ts](src/hooks/useAdminIdleSession.ts): 15분 유휴 세션 종료
