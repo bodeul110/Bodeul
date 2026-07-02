@@ -1,6 +1,6 @@
 # 관리자 API 초기 응답 계약
 
-기준일: 2026-06-30
+기준일: 2026-07-01
 
 ## 작업 목적
 
@@ -8,7 +8,7 @@
 
 ## 선택한 방식
 
-첫 read API는 운영 데이터를 반환하지 않는 `GET /admin/api-contract`로 둔다. 이 엔드포인트는 Firebase ID token 검증 경로와 PostgreSQL 설정 상태 응답 형식을 먼저 고정한다.
+첫 운영 read API는 `GET /admin/hospital-guides`로 둔다. `GET /admin/api-contract`는 Firebase ID token 검증 경로와 PostgreSQL 설정 상태 응답 형식을 확인하는 계약 API로 유지한다.
 
 ## 대안
 
@@ -18,13 +18,13 @@
 
 ## 선택 이유
 
-현재 MVP 규모에서는 PostgreSQL query와 관리자 화면 전환을 한 PR에 묶으면 검증 범위가 커진다. 계약 확인 API를 먼저 두면 관리자 웹이 기대할 공통 응답, 인증 실패, DB 설정 상태를 낮은 위험으로 검증할 수 있다.
+현재 MVP 규모에서는 PostgreSQL query와 관리자 화면 전환을 한 PR에 묶으면 검증 범위가 커진다. 병원 가이드는 개인정보 노출 위험이 낮고 `steps`가 `jsonb` 배열로 확인되어 첫 실제 read API로 적합하다. 관리자 웹 레포 분리 작업과 충돌하지 않도록 이번 범위에서는 API 서버와 문서만 수정한다.
 
 ## 리스크
 
-- 실제 운영 데이터 조회 API가 아니므로 관리자 웹 전환 자체를 완료하지는 못한다.
 - Firebase Admin SDK 설정이 없는 로컬/CI 환경에서는 verifier가 없으면 503을 반환한다.
-- PostgreSQL role 기반 인가는 후속 API에서 별도로 구현해야 한다.
+- PostgreSQL `hospital_guides`와 기존 Firestore 데이터가 어긋나면 관리자 웹 전환 QA에서 차이가 발생할 수 있다.
+- 관리자 웹 연결은 레포 분리 작업 이후 별도 PR에서 검증해야 한다.
 
 ## 공통 인증
 
@@ -39,6 +39,9 @@
 | 관리자 권한 확인기 미설정 | 503 | `authorization_not_configured` |
 | PostgreSQL role이 `ADMIN`이 아님 | 403 | `admin_role_required` |
 | PostgreSQL role 조회 실패 | 503 | `role_lookup_failed` |
+| 병원 가이드 조회기 미설정 | 503 | `hospital_guides_not_configured` |
+| 병원 가이드 조회 실패 | 503 | `hospital_guides_lookup_failed` |
+| 병원 가이드 `limit` 오류 | 400 | `invalid_limit` |
 
 Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
 
@@ -68,7 +71,7 @@ Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
   "status": "ok",
   "service": "bodeul-api",
   "resource": "admin-api-contract",
-  "version": "2026-06-30",
+  "version": "2026-07-01",
   "timestamp": "2026-06-30T00:00:00.000Z",
   "database": {
     "status": "missing"
@@ -91,6 +94,13 @@ Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
       "auth": "firebase_id_token",
       "response": "AdminApiContractPayload",
       "description": "관리자 웹 초기 API 응답 계약과 서버 설정 상태를 확인합니다."
+    },
+    {
+      "method": "GET",
+      "path": "/admin/hospital-guides",
+      "auth": "firebase_id_token",
+      "response": "HospitalGuidesPayload",
+      "description": "관리자 권한으로 병원 가이드 목록을 PostgreSQL에서 조회합니다."
     }
   ]
 }
@@ -119,7 +129,45 @@ select role from app_users where firebase_uid = $1 limit 1
 
 `role`이 `ADMIN`이면 관리자 API를 허용한다. role이 없거나 `ADMIN`이 아니면 403을 반환하고, DB 장애는 503으로 구분한다.
 
+## `GET /admin/hospital-guides`
+
+관리자 권한으로 PostgreSQL `hospital_guides`를 조회하는 첫 실제 read API다.
+
+```sql
+select id, hospital_name, department_name, steps, created_at, updated_at
+from hospital_guides
+order by updated_at desc, hospital_name asc, department_name asc
+limit $1
+```
+
+요청 query:
+
+| 이름 | 기본값 | 제한 |
+| --- | --- | --- |
+| `limit` | `50` | 1부터 100 사이의 정수 |
+
+응답 예시:
+
+```json
+{
+  "items": [
+    {
+      "id": "bad67ae3-b0ef-5a63-806d-7274ac4ce3d3",
+      "hospitalName": "서울내과병원",
+      "departmentName": "내과",
+      "steps": [],
+      "createdAt": "2026-04-23T16:48:39.766Z",
+      "updatedAt": "2026-04-23T16:48:39.766Z"
+    }
+  ],
+  "limit": 50
+}
+```
+
+Supabase 조회 기준으로 `hospital_guides.steps`는 `jsonb` 배열이다. 이번 PR은 기존 스키마를 읽기만 하며 Supabase schema, seed, migration은 변경하지 않는다.
+
 ## 후속 범위
 
-- 병원 가이드, 매니저 서류 심사, 문의 조회 중 하나를 실제 read API로 승격
-- 관리자 웹의 `VITE_BODEUL_DATA_BACKEND=api` 전환
+- 관리자 웹 레포 분리 이후 `VITE_BODEUL_DATA_BACKEND=api` 전환
+- Firestore 기준 병원 가이드 응답과 PostgreSQL/API 응답 비교 검증
+- 매니저 서류 심사, 문의 조회 등 추가 read API 확장

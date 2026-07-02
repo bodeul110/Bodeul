@@ -2,13 +2,15 @@ import {getServerConfig} from "./config.js";
 import {createPostgresClient} from "./database.js";
 import {createFirebaseAdminVerifier} from "./firebase-admin.js";
 import {createPostgresAdminRoleAuthorizer} from "./authorization.js";
+import {createPostgresHospitalGuideReader} from "./hospital-guides.js";
 import {createApiServer} from "./server.js";
 
 const config = getServerConfig(process.env);
 const firebaseVerifier = createVerifierOrExit(process.env);
 const postgresClient = createPostgresClient(process.env);
 const adminRoleAuthorizer = createPostgresAdminRoleAuthorizer(postgresClient);
-const server = createApiServer({env: process.env, firebaseVerifier, adminRoleAuthorizer});
+const hospitalGuideReader = createPostgresHospitalGuideReader(postgresClient);
+const server = createApiServer({env: process.env, firebaseVerifier, adminRoleAuthorizer, hospitalGuideReader});
 
 if (!postgresClient) {
   console.log("DATABASE_URL 설정이 없어 PostgreSQL client를 초기화하지 않습니다.");
