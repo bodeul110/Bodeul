@@ -1,10 +1,16 @@
 import {getServerConfig} from "./config.js";
+import {createPostgresClient} from "./database.js";
 import {createFirebaseAdminVerifier} from "./firebase-admin.js";
 import {createApiServer} from "./server.js";
 
 const config = getServerConfig(process.env);
 const firebaseVerifier = createVerifierOrExit(process.env);
+const postgresClient = createPostgresClient(process.env);
 const server = createApiServer({env: process.env, firebaseVerifier});
+
+if (!postgresClient) {
+  console.log("DATABASE_URL 설정이 없어 PostgreSQL client를 초기화하지 않습니다.");
+}
 
 server.listen(config.port, config.host, () => {
   console.log(`bodeul-api 서버가 http://${config.host}:${config.port} 에서 실행 중입니다.`);
@@ -17,7 +23,7 @@ function shutdown(signal: NodeJS.Signals): void {
       console.error("bodeul-api 서버 종료 중 오류가 발생했습니다.", error);
       process.exitCode = 1;
     }
-    process.exit();
+    void closePostgresAndExit();
   });
 }
 
@@ -32,6 +38,17 @@ function createVerifierOrExit(env: NodeJS.ProcessEnv) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
     console.error("Firebase Admin SDK 설정을 초기화하지 못했습니다.", message);
     process.exit(1);
+  }
+}
+
+async function closePostgresAndExit(): Promise<void> {
+  try {
+    await postgresClient?.close();
+  } catch {
+    console.error("PostgreSQL client 종료 중 오류가 발생했습니다.");
+    process.exitCode = 1;
+  } finally {
+    process.exit();
   }
 }
 

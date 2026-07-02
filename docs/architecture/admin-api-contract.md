@@ -98,11 +98,18 @@ Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
 | 값 | 의미 |
 | --- | --- |
 | `missing` | `DATABASE_URL`이 설정되지 않았다. CI와 로컬 secret 없는 검증에서 허용한다. |
-| `configured` | `DATABASE_URL`이 PostgreSQL URL 형식으로 설정되어 있다. |
+| `configured` | `DATABASE_URL`이 PostgreSQL URL 형식으로 설정되어 있고 서버 내부 PostgreSQL pool 초기화 대상이다. |
+
+서버 내부 PostgreSQL client 기준은 다음과 같다.
+
+- `DATABASE_URL`이 없으면 pool을 만들지 않는다.
+- `DATABASE_URL`이 있으면 `pg` pool을 만든다.
+- pool 기본값은 `max=5`, `idleTimeoutMillis=10000`, `connectionTimeoutMillis=5000`이다.
+- 서버 종료 시 HTTP 서버를 닫은 뒤 pool을 닫는다.
+- 연결 확인 실패는 `db_connection_failed`로만 요약하고 connection string은 응답이나 로그에 남기지 않는다.
 
 ## 후속 범위
 
-- PostgreSQL client 초기화
 - PostgreSQL `app_users.role` 기반 관리자 권한 확인
 - 병원 가이드, 매니저 서류 심사, 문의 조회 중 하나를 실제 read API로 승격
 - 관리자 웹의 `VITE_BODEUL_DATA_BACKEND=api` 전환

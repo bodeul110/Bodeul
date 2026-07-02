@@ -86,8 +86,9 @@ test("DATABASE_URL이 없으면 DB 설정 누락 상태로 처리한다", () => 
 });
 
 test("DATABASE_URL은 PostgreSQL connection string만 허용한다", () => {
-  assert.deepEqual(getDatabaseConfig({DATABASE_URL: "postgresql://user:pass@localhost:5432/bodeul"}), {
+  assert.deepEqual(getDatabaseConfig({DATABASE_URL: "postgresql://localhost:5432/bodeul"}), {
     status: "configured",
+    connectionString: "postgresql://localhost:5432/bodeul",
   });
   assert.throws(() => getDatabaseConfig({DATABASE_URL: "https://localhost/bodeul"}), /DATABASE_URL/);
   assert.throws(() => getDatabaseConfig({DATABASE_URL: "postgresql://localhost"}), /DATABASE_URL/);
@@ -97,7 +98,7 @@ test("DATABASE_URL은 PostgreSQL connection string만 허용한다", () => {
 test("GET /admin/api-contract는 Firebase 토큰 검증 후 초기 계약을 반환한다", async () => {
   const server = createApiServer({
     now: fixedNow,
-    env: {DATABASE_URL: "postgresql://user:pass@localhost:5432/bodeul"},
+    env: {DATABASE_URL: "postgresql://localhost:5432/bodeul"},
     firebaseVerifier: {
       async verifyIdToken(idToken) {
         assert.equal(idToken, "firebase-token");

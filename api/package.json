@@ -15,9 +15,11 @@
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
+    "@types/pg": "8.20.0",
     "typescript": "~6.0.2"
   },
   "dependencies": {
-    "firebase-admin": "14.1.0"
+    "firebase-admin": "14.1.0",
+    "pg": "8.22.0"
   }
 }
