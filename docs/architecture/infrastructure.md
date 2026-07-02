@@ -1,10 +1,10 @@
 # 인프라 개요
 
-기준일: 2026-06-25
+기준일: 2026-07-02
 
 이 문서는 현재 `BoDeul` 프로젝트가 어떤 실행 구성으로 동작하는지 빠르게 파악하기 위한 인프라 기준 문서다. 화면 설계나 기능 범위는 기능설명서와 구현 상태 문서를 따르고, 이 문서는 런타임 구성과 운영 경계를 설명한다.
 
-## 1. 전체 구성
+## 1. 현재 구성 요약
 
 ```text
 Android 앱(app/)
@@ -12,27 +12,48 @@ Android 앱(app/)
   ├─ Firestore
   ├─ Firebase Storage
   ├─ Cloud Functions
-  └─ Google/Kakao 로그인, Kakao 지도
+  └─ Google/Kakao 로그인, Kakao 지도/Local API
 
 관리자 웹(admin-web/)
   ├─ Firebase Auth
   ├─ Firestore
-  └─ Firebase Storage
+  ├─ Firebase Storage
+  ├─ Firebase Hosting
+  └─ bodeul-api 병원 가이드 API 검증 경로
+
+bodeul-api(api/)
+  ├─ Node 22 + TypeScript
+  ├─ Firebase Admin SDK ID token 검증
+  ├─ PostgreSQL client(pg)
+  ├─ PostgreSQL app_users.role 기반 ADMIN 인가
+  └─ 병원 가이드 read API
+
+Firebase 인프라
+  ├─ Auth
+  ├─ Firestore
+  ├─ Storage
+  ├─ Cloud Functions v2
+  ├─ FCM
+  └─ Hosting
+
+Supabase PostgreSQL
+  ├─ 개발 DB: bodeul-dev-rdb
+  ├─ Firestore 백업 기반 seed 적용 검증 완료
+  └─ API read 전환 후보 테이블 운영
 
 운영 도구(tools/firebase/)
-  ├─ 기준선 초기화
-  ├─ 샘플 데이터 주입
   ├─ 상태 점검
   ├─ 백업/복원
-  └─ 운영 리포트/프리플라이트
+  ├─ 운영 리포트/프리플라이트
+  └─ PostgreSQL seed dry-run/build/sql/rollback
 
 배포/검증
   └─ GitHub Actions(.github/workflows/)
 ```
 
-핵심은 별도 상시 백엔드 서버를 두는 구조가 아니라, `Firebase 중심 BaaS + Android 앱 + 관리자 웹 + 로컬 운영 도구` 구조라는 점이다.
+현재 핵심 구조는 `Firebase 중심 BaaS + Supabase PostgreSQL 전환 경로 + bodeul-api 서버 경계`다.
 
-전체 흐름은 [시스템 아키텍처 다이어그램](system-architecture-diagram.md)을 기준으로 본다.
+Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다. PostgreSQL은 운영 DB 전환 대상으로 준비됐고, `bodeul-api`는 클라이언트가 PostgreSQL에 직접 접근하지 않도록 인증과 권한을 통제하는 얇은 서버 경계로 시작했다.
 
 ## 2. 클라이언트 구성
 
@@ -43,8 +64,8 @@ Android 앱(app/)
 - 화면 구조: `Activity -> Coordinator -> Binder -> ScreenModel/Formatter -> Repository`
 - 역할:
   - 환자/보호자/매니저 사용자 흐름
-  - 예약, 동행, 리포트, 후기, 문의, 서류 등록
-  - 실시간 위치 확인, 안심 채팅, 카카오 지도 연동
+  - 예약, 동행, 리포트, 알림, 문의, 서류 등록
+  - 실시간 위치 확인, 채팅, Kakao 지도/Local API 연동
 
 앱은 [`ServiceLocator.java`](../../app/src/main/java/com/example/bodeul/data/ServiceLocator.java)에서 실제 Firebase 구현과 Mock 구현을 분기한다.
 
@@ -52,193 +73,220 @@ Android 앱(app/)
 
 - 위치: `admin-web/`
 - 기술 스택: `React + Vite`
+- 배포 기준: Firebase Hosting
 - 역할:
   - 관리자 로그인
-  - 매니저 서류 심사/미리보기
+  - 매니저 서류 심사와 미리보기
   - 운영 상태 확인
-  - 관리자 민감정보 마스킹과 유휴 세션 종료
+  - 민감정보 마스킹과 유휴 세션 종료
 
-웹은 [`firebase.ts`](../../admin-web/firebase.ts)에서 Firebase App/Auth/Firestore/Storage를 직접 초기화한다.
+관리자 웹은 [`firebase.ts`](../../admin-web/firebase.ts)에서 Firebase App/Auth/Firestore/Storage를 초기화한다. 기본 데이터 경로는 Firebase지만, `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출한다.
 
-## 3. Firebase 구성
+## 3. 서버/API 구성
 
-### 3-1. Authentication
+### 3-1. bodeul-api
 
-- 용도: 사용자 로그인, 역할 구분, 관리자 인증
-- 사용 위치:
-  - Android 앱 로그인/세션 유지
-  - 관리자 웹 로그인
-  - Functions callable 인증
-- 현재 Android 앱에서 이메일, Google, Kakao 로그인은 열려 있고, Naver 로그인은 클라이언트 시크릿을 앱에 포함하지 않기 위해 버튼을 숨긴 상태다.
+- 위치: `api/`
+- 기술 스택: `Node 22 + TypeScript`
+- 검증 명령: `npm --prefix api run check`
+- GitHub Actions: `.github/workflows/api.yml`
+- 현재 엔드포인트:
+  - `GET /healthz`
+  - `HEAD /healthz`
+  - `GET /admin/api-contract`
+  - `HEAD /admin/api-contract`
+  - `GET /admin/hospital-guides`
 
-### 3-2. Firestore
+`bodeul-api`는 Firebase 전체 대체 서버가 아니다. 현재 목적은 PostgreSQL 접근, Firebase ID token 검증, 관리자 권한 검증, 낮은 위험 read API 전환을 위한 서버 경계다.
 
-- 용도: 주요 서비스 데이터 저장
-- 대표 컬렉션:
-  - `users`
-  - `appointmentRequests`
-  - `companionSessions`
-  - `sessionReports`
-  - `appointmentFollowUps`
-  - `supportInquiries`
-  - 관리자 운영 컬렉션들
+### 3-2. 인증과 권한
 
-### 3-2-1. DB 선택 근거 요약
+관리자 API는 `Authorization: Bearer <Firebase ID token>` 헤더를 사용한다.
 
-BoDeul은 초기 MVP에서 Firestore를 사용한다.
+| 단계 | 기준 |
+| --- | --- |
+| token 검증 | Firebase Admin SDK `verifyIdToken` |
+| 사용자 연결 | token의 `uid`와 PostgreSQL `app_users.firebase_uid` |
+| 관리자 권한 | PostgreSQL `app_users.role == 'ADMIN'` |
+| 권한 없음 | 403 `admin_role_required` |
+| DB/인가 설정 없음 | 503 `authorization_not_configured` |
 
-선택 이유:
-- Android 앱과 관리자 웹에서 같은 Firebase 프로젝트를 공유할 수 있다.
-- 사용자, 예약 요청, 동행 세션, 리포트, 채팅 메시지처럼 문서 단위로 관리하기 좋은 데이터가 많다.
-- 실시간 위치 확인, 채팅, 상태 변경 알림처럼 실시간 반영이 필요한 기능과 잘 맞는다.
-- 별도 DB 서버 운영, 백엔드 서버 운영, 배포/스케일링 부담을 줄일 수 있다.
+API 서버 환경변수는 다음 기준으로 둔다.
 
-검토한 대안:
-- MySQL/PostgreSQL + Spring/Node 백엔드
-- Supabase/PostgreSQL
-- Firebase Realtime Database
-- 자체 VM + DB 직접 운영
+| 이름 | 용도 | 비고 |
+| --- | --- | --- |
+| `DATABASE_URL` | Supabase PostgreSQL 연결 문자열 | 문서, 이슈, PR 본문에 원문을 남기지 않는다. |
+| `FIREBASE_PROJECT_ID` | ADC 사용 시 Firebase project 지정 | 서비스 계정 JSON이 없을 때 사용 가능 |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase Admin SDK 서비스 계정 JSON | GitHub Environment secret 또는 서버 비공개 설정으로만 주입 |
 
-단점 및 보완:
-- 관계형 조인 중심 설계에는 적합하지 않다.
-- 복잡한 통계/정산/검색이 필요해지면 별도 집계 컬렉션, BigQuery 연동, PostgreSQL 이전을 검토한다.
-- 보안은 Firestore Rules, Storage Rules, `users/{uid}.role`, Cloud Functions 검증 로직으로 보완한다.
+### 3-3. PostgreSQL client
 
-상세 비교는 [DB 선택 근거](database-selection.md)를 기준으로 본다.
+현재 DB client는 `pg` pool을 직접 사용한다.
 
-앱에서는 Firestore 디스크 캐시를 끄고 메모리 캐시만 사용한다. 이 설정은 [`ServiceLocator.java`](../../app/src/main/java/com/example/bodeul/data/ServiceLocator.java)에서 적용한다.
+| 항목 | 현재 값 |
+| --- | --- |
+| pool max | `5` |
+| idle timeout | `10000ms` |
+| connection timeout | `5000ms` |
+| 연결 확인 실패 응답 | `db_connection_failed` |
+| 비밀값 노출 방침 | connection string 원문을 응답이나 로그에 남기지 않는다. |
 
-### 3-3. Firebase Storage
+ORM은 아직 도입하지 않았다. 현재 범위에서는 SQL과 DTO를 작게 유지하고, 쿼리와 마이그레이션 범위가 커질 때 Drizzle/Prisma 같은 도입 여부를 다시 판단한다.
 
-- 용도: 매니저 원본 서류 저장
+## 4. Firebase 구성
+
+### 4-1. Authentication
+
+- 사용자 로그인, 세션, Firebase ID token 발급 기준이다.
+- Android 앱과 관리자 웹은 Firebase Auth를 계속 사용한다.
+- `bodeul-api`도 Firebase Auth token을 서버에서 검증한다.
+
+### 4-2. Firestore
+
+현재 Android 앱과 관리자 웹의 주요 운영 데이터 source of truth다.
+
+대표 컬렉션:
+
+- `users`
+- `appointmentRequests`
+- `companionSessions`
+- `sessionReports`
+- `appointmentFollowUps`
+- `supportInquiries`
+- 관리자 운영 컬렉션
+
+PostgreSQL 전환 중에도 도메인별 전환 조건이 충족되기 전까지 Firestore를 유지한다.
+
+### 4-3. Firebase Storage
+
+- 매니저 서류 원본과 채팅 첨부 원본을 저장한다.
 - 대표 경로:
   - `manager-documents/{managerUserId}/{documentKey}/{fileName}`
+  - `companion-chat-attachments/{sessionId}/{timestamp-fileName}`
 
-현재 문서 키는 아래를 기준으로 운영한다.
+PostgreSQL 전환 대상은 원본 파일 자체가 아니라 메타데이터, 심사 이력, 감사 이력이다.
 
-- `idCard`
-- `license`
-- `healthCertificate`
-- `criminalRecord`
-
-### 3-4. Cloud Functions
+### 4-4. Cloud Functions
 
 - 위치: `functions/`
-- 런타임: Firebase Functions v2
+- 런타임: Node 22
 - 기본 리전: `asia-northeast3`
-- 구조: `functions/index.js`는 초기화와 export 집계만 맡고, 실제 함수는 `functions/src/` 아래 기능별 파일에 둔다.
 - 역할:
-  - Kakao custom token 발급
-  - Naver custom token callable 유지
+  - Kakao/Naver custom token 발급
   - 연결 사용자 조회 보조
-  - 관리자/리마인더 전달 작업
-  - 예약/유저 동기화 보조
+  - FCM 알림
+  - 예약 리마인더와 관리자 액션 전달 작업
+  - Firestore 동기화 보조
 
-App Check 강제는 함수 옵션으로 준비돼 있지만, 현재는 환경 변수 기반 스위치로만 열어둔 상태다.
+Cloud Functions는 FCM, Storage 보조, Firebase 인프라와 가까운 작업을 계속 담당한다. PostgreSQL read/write 경계는 `bodeul-api`로 분리한다.
 
-## 4. 운영 도구 구성
+## 5. Supabase PostgreSQL 구성
+
+### 5-1. 현재 상태
+
+- 개발 프로젝트명: `bodeul-dev-rdb`
+- 운영 프로젝트명 후보: `bodeul-prod-rdb`
+- GitHub Issue #87과 PR #101 기준으로 개발 DB schema 적용, Firestore 백업 기반 seed, row count, FK spot check를 완료했다.
+- 병원 가이드 read API는 PostgreSQL `hospital_guides`를 조회한다.
+
+### 5-2. 전환 원칙
+
+- 클라이언트는 PostgreSQL connection string을 직접 사용하지 않는다.
+- PostgreSQL 접근은 `bodeul-api`나 운영 도구에서만 수행한다.
+- 특정 도메인의 source of truth를 PostgreSQL로 바꾸기 전에는 Firestore와 PostgreSQL 결과 비교, rollback 기준, write 경계가 필요하다.
+- 실시간 위치처럼 쓰기 빈도가 높은 기능은 마지막에 부하 테스트 후 결정한다.
+
+## 6. 운영 도구 구성
 
 위치: `tools/firebase/`
 
 주요 역할:
 
-- Firestore 기준선 초기화
-- 샘플 데이터 주입
-- 매니저 서류 Storage 점검/정리
+- Firestore 상태 점검
+- 매니저 서류 Storage 정합성 점검
 - 백업/복원
-- 상태 점검, readiness 점검
 - 운영 리포트 생성
 - 로컬/CI 프리플라이트
+- Firestore/Storage Rules emulator 테스트
+- PostgreSQL seed dry-run/build/sql/rollback
 
-이 도구들은 개발자와 운영 확인용이며, 앱 런타임에는 포함되지 않는다.
+PostgreSQL 관련 명령:
 
-## 5. 배포 및 검증
+| 명령 | 용도 |
+| --- | --- |
+| `npm --prefix tools/firebase run postgres:seed:dry-run` | Firestore 백업을 PostgreSQL seed 후보로 변환하기 전 row count와 필수 필드 누락 점검 |
+| `npm --prefix tools/firebase run postgres:seed:build` | PostgreSQL seed 입력 JSON 생성 |
+| `npm --prefix tools/firebase run postgres:seed:sql` | Supabase SQL Editor 또는 psql 검토용 upsert SQL 생성 |
+| `npm --prefix tools/firebase run postgres:seed:rollback` | seed 적용 rollback SQL 생성 |
 
-### 5-1. Android 앱
+쓰기 작업은 dry-run을 먼저 사용하고, apply 또는 SQL 실행은 명시적 요청과 대상 환경 확인 후 수행한다.
 
-- 기본 검증: `assembleDebug`
-- 필요 시 `testDebugUnitTest`
-- 내부 테스트 기준 계정/더미 데이터는 [`../operations/internal-test-guide.md`](../operations/internal-test-guide.md)를 따른다.
+## 7. 배포와 검증
 
-### 5-2. 관리자 웹
+### 7-1. 관리자 웹
 
-- 기본 검증:
-  - `npm --prefix admin-web run lint`
-  - `npm --prefix admin-web run build`
+- 기본 배포: Firebase Hosting
+- Firebase project: `.firebaserc` 기준 `bodeul-dev`
+- Hosting public: `admin-web/dist`
+- live URL 기준: `https://bodeul-dev.web.app`
+- preview workflow: `.github/workflows/admin-web-preview-deploy.yml`
+- build workflow: `.github/workflows/admin-web.yml`
 
-### 5-3. GitHub Actions
+관리자 웹 preview 배포는 GitHub Actions OIDC와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다.
 
-- 위치: `.github/workflows/`
-- 역할:
-  - Android 빌드 프리플라이트
-  - Firebase 운영 점검 스크립트 실행
-  - 리포트 산출물 업로드
+### 7-2. API
 
-## 6. 실시간 기능 구성
+- workflow: `.github/workflows/api.yml`
+- 트리거: `api/**`, workflow 파일 변경, 수동 실행
+- CI Node 버전: 22
+- 검증: `npm ci`, `npm run check`
 
-### 6-1. 위치 공유
+최근 병합 PR #109, #114, #115, #116, #117, #121에서 `API Build`, `Admin Web Build`, `Android Preflight`, `CodeQL`이 통과했다.
 
-- 매니저 앱이 위치를 공유하면 세션 문서에 위치와 시각을 저장한다.
-- 사용자 앱은 해당 세션을 다시 읽어 `실시간 위치 확인` 화면에 반영한다.
-- 카카오 지도는 현재
-  - 외부 앱/링크 fallback
-  - 네이티브 지도 SDK 화면
-  를 함께 사용한다.
+### 7-3. Android/Firebase/보안
 
-### 6-2. 안심 채팅
+| workflow | 역할 |
+| --- | --- |
+| `android-preflight.yml` | Android 빌드, Firebase 운영 도구 preflight, 선택적 self-hosted runner 실행 |
+| `firebase-rules.yml` | Firestore/Storage Rules emulator 테스트 |
+| `codeql.yml` | Android/Java/Kotlin, JavaScript/TypeScript CodeQL 분석 |
 
-- 세션 단위 `chatMessages`를 기준으로 동작한다.
-- 텍스트 메시지, 읽음 상태, FCM 푸시, 이미지/PDF 첨부를 지원한다.
-- 첨부는 최대 3개까지 대기 목록에 담고, 파일당 최대 `10MB`로 제한한다.
-- Firebase 모드에서는 `companion-chat-attachments/{sessionId}/{timestamp-fileName}` Storage 경로를 사용하고, Mock 모드에서는 같은 화면 흐름으로 미리보기를 제공한다.
+2026-07-02 확인 기준 GitHub code scanning open alert는 0건이다.
 
-## 7. 환경 구분
+## 8. GitHub 기준 현재 상태
 
-### 7-1. Firebase 모드
+최근 인프라 관련 병합:
 
-- `google-services.json` 등 Firebase 설정이 있으면 실제 Firebase 저장소를 사용한다.
-- Android 앱, 관리자 웹, Functions, 운영 도구가 같은 Firebase 프로젝트를 기준으로 연결된다.
+- #101 Supabase 개발 DB seed 검증 기준 추가
+- #109 `bodeul-api` 서버 골격 추가
+- #114 Firebase Admin SDK 인증 연결
+- #115 PostgreSQL client 초기화
+- #116 관리자 role 기반 인가 추가
+- #117 병원 가이드 read API 추가
+- #121 관리자 웹 병원 가이드 API 연결
 
-### 7-2. Mock 모드
+주의할 GitHub 상태:
 
-- Firebase 설정이 없으면 Android 앱은 Mock Repository로 동작한다.
-- 기능 데모나 구조 검증은 가능하지만, 운영 검증 기준은 Firebase 모드다.
+- #88과 #113은 완료 근거를 남기고 종료했다.
+- #122는 관리자 웹 API 환경변수와 CORS origin 설정 확정을 추적한다.
+- #123은 병원 가이드 Firestore/API 응답 비교 기록을 추적한다.
+- #103 `uuid` 전이 취약점 검토가 open이고, 2026-07-02 GitHub Actions의 Dependabot Updates에서 `/api` uuid 업데이트 실패 run이 있었다.
+- #32, #64, #65, #66, #74는 운영 전환 전 계속 추적해야 하는 인프라 이슈다.
 
-## 8. 보안 기준
+## 9. 보안과 운영 기준
 
-- Firestore 권한: `firestore.rules`
-- Storage 권한: `storage.rules`
-- 백업 제한: Android `allowBackup=false`
-- Firestore 디스크 캐시 비활성화
-- 관리자 웹 민감정보 마스킹 및 유휴 세션 종료
-- App Check:
-  - Android/웹 초기화 코드는 준비됨
-  - Play Console 준비 전까지는 강제 적용 보류
-
-현재 보안 상태의 상세 내용은 아래 문서를 기준으로 본다.
-
-- [`../security/firestore-hardening.md`](../security/firestore-hardening.md)
-- [`../security/review-2026-04-29.md`](../security/review-2026-04-29.md)
-- [`../security/aes-scope-assessment.md`](../security/aes-scope-assessment.md)
-
-## 9. 현재 운영상의 주의점
-
-- 실제 운영 인프라는 Firebase 프로젝트와 규칙 설정에 강하게 의존한다.
-- App Check는 아직 준비 단계라, 최종 운영 전에 강제 적용 검증이 필요하다.
-- 위치 추적, 카카오 지도, 관리자 심사 흐름은 Android 앱과 관리자 웹, Storage 규칙이 함께 맞아야 한다.
-- 개발자 로컬 환경 파일(`design_refs`, `package-lock.json` 등)은 인프라 기준 문서에 포함하지 않는다.
+- 보안값, API key, `DATABASE_URL`, Firebase service account JSON, Supabase service role key는 저장소와 공개 GitHub 이슈/PR에 남기지 않는다.
+- App Check는 Android와 관리자 웹 초기화 경로가 있으나 enforcement는 단계적으로 적용한다.
+- Firestore/Storage Rules는 emulator 테스트와 영향 범위 문서화를 거쳐 배포한다.
+- 운영 데이터 쓰기 작업은 dry-run과 백업을 먼저 수행한다.
+- 관리자 API는 Firestore role이 아니라 PostgreSQL `app_users.role` 기준으로 검증한다.
 
 ## 10. 같이 봐야 할 문서
 
-1. `../local/보들_플랫폼_기능설명서.pdf`
-2. [`../planning/screen-restructure-target.md`](../planning/screen-restructure-target.md)
-3. [`../status/implementation-status.md`](../status/implementation-status.md)
-4. [`overview.md`](overview.md)
-5. [`../operations/firebase/setup.md`](../operations/firebase/setup.md)
-6. [`../operations/firebase/tools.md`](../operations/firebase/tools.md)
-
-## 11. 카카오 병원/약국 실좌표 검색
-- 카카오 모빌리티 기본 SDK는 화면 임베드와 외부 지도 fallback용으로 사용한다.
-- 병원/약국 실좌표 검색이 필요한 환경에서는 `kakaoRestApiKey`를 설정해 카카오 로컬 REST API를 함께 호출한다.
-- 조회 결과는 같은 질의에 대해 6시간 메모리 캐시를 적용해 화면 재진입 시 중복 REST 호출을 줄인다.
-- 키가 없는 환경에서는 병원/약국 실좌표 조회를 생략하고, 안내 미니맵과 외부 지도 fallback만 사용한다.
+1. [현재 인프라 구성도](infra-overview.md)
+2. [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
+3. [PostgreSQL API 경계 기준](postgres-api-boundary.md)
+4. [관리자 API 초기 응답 계약](admin-api-contract.md)
+5. [PostgreSQL seed dry-run 기준 기록](../reports/postgres-seed-dry-run-plan-2026-06-29.md)
+6. [인프라 운영 기준](../operations/infrastructure-operations-baseline.md)
+7. [관리자 웹 GitHub Environment 기준](../operations/admin-web-environments.md)
