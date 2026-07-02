@@ -19,7 +19,7 @@ export interface AdminApiContractPayload {
   };
   readonly authentication: {
     readonly type: "firebase_id_token";
-    readonly status: "draft";
+    readonly status: "configured";
   };
   readonly endpoints: readonly AdminApiContractEndpoint[];
 }
@@ -36,7 +36,7 @@ export function createAdminApiContractPayload(database: DatabaseConfig, now: () 
     },
     authentication: {
       type: "firebase_id_token",
-      status: "draft",
+      status: "configured",
     },
     endpoints: [
       {

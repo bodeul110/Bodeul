@@ -4,18 +4,18 @@
 
 ## 현재 범위
 
-Issue #88 1차 범위는 서버 골격, 헬스체크, Firebase ID token 검증 경계 초안, `DATABASE_URL` 설정 검증, 관리자 웹 초기 계약 확인 API를 포함한다.
+Issue #88 1차 범위는 서버 골격, 헬스체크, Firebase ID token 검증 경계, `DATABASE_URL` 설정 검증, 관리자 웹 초기 계약 확인 API를 포함한다.
 
 - Node 22
 - TypeScript
 - Node 기본 `http` 서버
 - `GET /healthz`
 - `GET /admin/api-contract`
-- Firebase ID token 검증 유틸과 관리자 API 연결
+- Firebase Admin SDK 기반 ID token 검증
 - `DATABASE_URL` 누락/형식 검증
 - 로컬 build/typecheck/test 스크립트
 
-Firebase Admin SDK 실제 초기화, PostgreSQL client 초기화, 운영 데이터 조회 API는 후속 PR에서 추가한다.
+PostgreSQL client 초기화, 운영 데이터 조회 API, role 기반 인가는 후속 PR에서 추가한다.
 
 ## 로컬 실행
 
@@ -68,7 +68,7 @@ curl http://127.0.0.1:8080/healthz
 curl -H "Authorization: Bearer <Firebase ID token>" http://127.0.0.1:8080/admin/api-contract
 ```
 
-현재 구현은 Firebase ID token verifier 주입 경로를 고정하기 위한 초안이다. 로컬 실행 서버에는 아직 Firebase Admin SDK가 연결되어 있지 않으므로 실제 토큰 검증은 후속 범위다.
+이 API는 Firebase Admin SDK verifier가 설정된 서버에서만 실제 Firebase ID token을 검증한다. Firebase 설정이 없는 로컬/CI 환경에서는 관리자 API 인증 요청을 `auth_not_configured` 503으로 처리한다.
 
 응답 예시:
 
@@ -84,7 +84,7 @@ curl -H "Authorization: Bearer <Firebase ID token>" http://127.0.0.1:8080/admin/
   },
   "authentication": {
     "type": "firebase_id_token",
-    "status": "draft"
+    "status": "configured"
   },
   "endpoints": [
     {
@@ -112,11 +112,19 @@ curl -H "Authorization: Bearer <Firebase ID token>" http://127.0.0.1:8080/admin/
 | `BODEUL_API_HOST` | `127.0.0.1` | 로컬 서버 바인딩 host |
 | `BODEUL_API_PORT` | `8080` | 로컬 서버 port |
 | `DATABASE_URL` | 없음 | PostgreSQL connection string. 누락은 `missing` 상태로 처리하고, 값이 있으면 `postgres` 또는 `postgresql` URL 형식만 허용한다. |
+| `FIREBASE_PROJECT_ID` | 없음 | Application Default Credentials를 사용할 때 Firebase project를 지정한다. 값이 없고 서비스 계정 JSON도 없으면 Firebase verifier를 만들지 않는다. |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | 없음 | Firebase Admin SDK 서비스 계정 JSON 문자열. 공개 문서, Issue, PR 본문에 실제 값을 적지 않는다. |
+
+Firebase 인증 설정은 다음 기준을 따른다.
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON`이 있으면 해당 서비스 계정으로 Admin SDK를 초기화한다.
+- `FIREBASE_SERVICE_ACCOUNT_JSON`이 없고 `FIREBASE_PROJECT_ID`가 있으면 Application Default Credentials 기준으로 Admin SDK를 초기화한다.
+- 둘 다 없으면 서버는 실행되지만 관리자 API 인증 요청은 503을 반환한다.
+- 서비스 계정 JSON 형식이 잘못되면 서버 시작 단계에서 실패한다.
 
 ## 보류 범위
 
 - PostgreSQL client 초기화와 실제 query
-- Firebase Admin SDK 초기화
 - PostgreSQL role 기반 관리자 권한 확인
 - 관리자 웹/Android 연동
 - Oracle VM 배포
