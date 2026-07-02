@@ -36,6 +36,9 @@
 | Bearer 형식 아님 | 401 | `invalid_authorization` |
 | Firebase verifier 미설정 | 503 | `auth_not_configured` |
 | Firebase token 검증 실패 | 401 | `invalid_firebase_token` |
+| 관리자 권한 확인기 미설정 | 503 | `authorization_not_configured` |
+| PostgreSQL role이 `ADMIN`이 아님 | 403 | `admin_role_required` |
+| PostgreSQL role 조회 실패 | 503 | `role_lookup_failed` |
 
 Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
 
@@ -108,8 +111,15 @@ Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
 - 서버 종료 시 HTTP 서버를 닫은 뒤 pool을 닫는다.
 - 연결 확인 실패는 `db_connection_failed`로만 요약하고 connection string은 응답이나 로그에 남기지 않는다.
 
+관리자 권한 확인은 다음 SQL 기준을 사용한다.
+
+```sql
+select role from app_users where firebase_uid = $1 limit 1
+```
+
+`role`이 `ADMIN`이면 관리자 API를 허용한다. role이 없거나 `ADMIN`이 아니면 403을 반환하고, DB 장애는 503으로 구분한다.
+
 ## 후속 범위
 
-- PostgreSQL `app_users.role` 기반 관리자 권한 확인
 - 병원 가이드, 매니저 서류 심사, 문의 조회 중 하나를 실제 read API로 승격
 - 관리자 웹의 `VITE_BODEUL_DATA_BACKEND=api` 전환

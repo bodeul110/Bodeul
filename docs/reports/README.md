@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 112 관리자 role 기반 인가 기록 (2026-07-01)](issue-112-admin-role-authz-2026-07-01.md)
 - [Issue 111 PostgreSQL client 초기화 기록 (2026-07-01)](issue-111-postgres-client-2026-07-01.md)
 - [Issue 110 Firebase Admin SDK 인증 연결 기록 (2026-07-01)](issue-110-firebase-admin-auth-2026-07-01.md)
 - [Issue 88 API 서버 골격 1차 기록 (2026-06-30)](issue-88-api-skeleton-2026-06-30.md)
