@@ -2981,3 +2981,75 @@
 
 - 날짜별 보고서와 `tools/firebase/reports/`의 생성 시점 로그는 이력 증적이므로 본문 정리 대상에서 제외했다.
 - 이후 기능 변경이 생기면 이 문서 상단 최신 요약과 해당 상세 문서를 함께 갱신한다.
+
+## 124. 2026-07-02 Issue 113 관리자 웹 병원 가이드 API 연결
+
+### 구현
+
+- API 서버에 관리자 웹 브라우저 호출용 CORS origin 설정과 `OPTIONS` preflight 응답을 추가했다.
+- 관리자 웹에 `VITE_BODEUL_DATA_BACKEND=firebase|api`, `VITE_BODEUL_API_BASE_URL` 기준의 `bodeul-api` client를 추가했다.
+- 관리자 웹 메뉴에 `병원 가이드` 검증 화면을 추가해 `GET /admin/hospital-guides?limit=50` 응답을 표시하도록 했다.
+- 기본값은 `firebase` 모드로 유지해 기존 매니저 심사 화면의 Firestore 직접 조회와 승인 저장 흐름은 변경하지 않았다.
+- Issue 113 구현 기록을 `../reports/issue-113-admin-web-api-connection-2026-07-02.md`에 남겼다.
+
+### 변경 범위
+
+- `../../api/src/config.ts`
+- `../../api/src/server.ts`
+- `../../api/src/server.test.ts`
+- `../../api/README.md`
+- `../../admin-web/.env.example`
+- `../../admin-web/README.md`
+- `../../admin-web/src/App.tsx`
+- `../../admin-web/src/bodeulApi.ts`
+- `../../admin-web/src/components/AdminShell.tsx`
+- `../../admin-web/src/components/HospitalGuideApiPanel.tsx`
+- `../../admin-web/src/vite-env.d.ts`
+- `../architecture/admin-api-contract.md`
+- `../reports/README.md`
+- `../reports/issue-113-admin-web-api-connection-2026-07-02.md`
+
+### 검증
+
+- API 서버 CORS와 병원 가이드 계약 테스트를 추가했다.
+- `npm --prefix admin-web run lint` 통과.
+- `npm --prefix admin-web run build` 통과.
+- `npm --prefix api run check` 통과.
+- PR #121에서 `API Build`, `Admin Web Build`, `Android Preflight`, `CodeQL / analyze-javascript-typescript`가 통과했고 리뷰 승인 후 squash merge됐다.
+
+### 남은 범위
+
+- 운영/preview API 배포 URL이 정해지면 `BODEUL_API_ALLOWED_ORIGINS`에 관리자 웹 origin을 추가한다. 이 범위는 Issue #122에서 추적한다.
+- Firestore 병원 가이드 결과와 PostgreSQL/API 응답 비교 기록은 Issue #123에서 추적한다.
+- 매니저 서류 심사, 문의 조회 등 추가 read API 전환은 별도 이슈에서 다룬다.
+
+## 125. 2026-07-02 인프라 문서 현재 상태 갱신
+
+### 구현
+
+- 인프라 문서를 `Firebase 인프라 유지 + Supabase PostgreSQL 전환 준비 + bodeul-api 서버 경계` 기준으로 갱신했다.
+- `bodeul-api`의 Firebase ID token 검증, PostgreSQL client, 관리자 role 인가, 병원 가이드 read API, 관리자 웹 1차 연결 상태를 문서에 반영했다.
+- #88과 #113은 완료 처리했고, 남은 환경 설정과 응답 비교 범위는 #122, #123으로 분리했다.
+- API 배포 환경, App Check, 백업/복원, 비용 모니터링, Kakao Local REST API key, 관리자 웹 레포 분리 같은 남은 운영 이슈를 최신 목록으로 정리했다.
+
+### 변경 범위
+
+- `../architecture/README.md`
+- `../architecture/infra-overview.md`
+- `../architecture/infrastructure.md`
+- `../architecture/postgres-api-boundary.md`
+- `../architecture/postgres-operational-transition.md`
+- `../operations/infrastructure-operations-baseline.md`
+- `../status/implementation-status.md`
+
+### 검증
+
+- 문서 전용 변경이므로 Android, 관리자 웹, API 빌드는 실행하지 않았다.
+- GitHub 이슈 상태 기준으로 #88, #113 종료와 #122, #123 생성 상태를 확인했다.
+- `git diff --check` 검증 대상이다.
+
+### 남은 범위
+
+- #122에서 관리자 웹 API 환경변수와 CORS origin을 환경별로 확정한다.
+- #123에서 병원 가이드 Firestore/API 응답 비교 기록을 남긴다.
+- API 배포 실행 환경은 Oracle VM 또는 동등 실행 환경 기준으로 별도 결정이 필요하다.
