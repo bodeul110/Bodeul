@@ -3077,8 +3077,9 @@
 
 ### 검증
 
-- 문서 전용 변경이지만, API CORS preflight 계약이 유지되는지 `npm --prefix api run check`로 확인한다.
-- `git diff --check`로 문서 공백 오류를 확인한다.
+- 문서 전용 변경이지만, API CORS preflight 계약이 유지되는지 `npm --prefix api run check`로 확인했다. API 테스트 50개가 모두 통과했다.
+- 로컬 API 서버를 `127.0.0.1:18080`으로 임시 실행하고 `OPTIONS /admin/hospital-guides?limit=50` preflight가 HTTP `204`와 CORS 허용 헤더를 반환하는지 확인했다.
+- `git diff --cached --check`로 문서 공백 오류가 없음을 확인했다.
 
 ### 남은 범위
 

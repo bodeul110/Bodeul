@@ -41,8 +41,10 @@
 
 ## 검증
 
-- `npm --prefix api run check`로 CORS preflight 계약 테스트를 포함한 API 검증을 수행한다.
-- `git diff --check`로 문서 공백 오류를 확인한다.
+- `npm --prefix api run check` 통과. CORS preflight 계약 테스트를 포함해 API 테스트 50개가 모두 통과했다.
+- 로컬 API 서버를 `127.0.0.1:18080`으로 임시 실행하고 `OPTIONS /admin/hospital-guides?limit=50` preflight를 확인했다.
+- 로컬 preflight 응답은 HTTP `204`, `Access-Control-Allow-Origin: http://localhost:5173`, `Access-Control-Allow-Headers: Authorization, Content-Type`이었다.
+- `git diff --cached --check` 통과.
 
 ## 남은 범위
 
