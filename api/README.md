@@ -191,6 +191,8 @@ PostgreSQL 설정은 다음 기준을 따른다.
 
 관리자 웹 origin이 API 서버의 `BODEUL_API_ALLOWED_ORIGINS`에 없으면 preflight가 실패한다.
 
+환경별 관리자 웹 API 전환값과 CORS allow-list 기준은 [관리자 웹 API 환경변수와 CORS 기준](../docs/operations/admin-api-environments.md)을 따른다.
+
 ## 보류 범위
 
 - 매니저 서류 심사, 문의 조회 등 추가 read API 확장
