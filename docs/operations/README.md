@@ -18,6 +18,8 @@
   - 관리자 웹 분리 전 데이터 계약, 배포 경계, 소유권 정리
 - [관리자 웹 GitHub Environment 기준](admin-web-environments.md)
   - 관리자 웹 preview/production 환경, 변수, secret, 배포 승인 기준
+- [관리자 웹 API 환경변수와 CORS 기준](admin-api-environments.md)
+  - `bodeul-api` 호출을 위한 관리자 웹 환경변수, API CORS allow-list, rollback 기준
 - [PostgreSQL 운영 전환 런북](postgres-operational-transition-runbook.md)
   - Supabase, Oracle Cloud, GitHub Environment, API 서버 전환 준비 절차
 - [인프라 운영 기준](infrastructure-operations-baseline.md)

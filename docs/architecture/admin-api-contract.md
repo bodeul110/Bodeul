@@ -1,6 +1,6 @@
 # 관리자 API 초기 응답 계약
 
-기준일: 2026-07-02
+기준일: 2026-07-04
 
 ## 작업 목적
 
@@ -60,6 +60,8 @@ Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
 | `BODEUL_API_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | 관리자 웹 origin 허용 목록. 쉼표로 구분한다. |
 
 운영/preview 배포 URL은 이 목록에 명시적으로 추가한다. origin이 맞지 않으면 `cors_origin_not_allowed` 403으로 preflight를 거부한다.
+
+환경별 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`, `BODEUL_API_ALLOWED_ORIGINS` 기준과 rollback 절차는 [관리자 웹 API 환경변수와 CORS 기준](../operations/admin-api-environments.md)을 따른다.
 
 ## `GET /healthz`
 

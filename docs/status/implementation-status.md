@@ -3053,3 +3053,36 @@
 - #122에서 관리자 웹 API 환경변수와 CORS origin을 환경별로 확정한다.
 - #123에서 병원 가이드 Firestore/API 응답 비교 기록을 남긴다.
 - API 배포 실행 환경은 Oracle VM 또는 동등 실행 환경 기준으로 별도 결정이 필요하다.
+
+## 126. 2026-07-04 Issue 122 관리자 웹 API 환경변수와 CORS 기준 정리
+
+### 구현
+
+- 관리자 웹 API 전환 환경값과 CORS allow-list 기준을 `../operations/admin-api-environments.md`에 정리했다.
+- local, preview, production별 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`, `BODEUL_API_ALLOWED_ORIGINS` 기준을 표로 고정했다.
+- GitHub Environment에 둘 관리자 웹 값과 API 서버 환경변수에 둘 값을 분리했다.
+- CORS preflight 확인 명령, 실패 증상, rollback 기준을 문서화했다.
+- 기존 관리자 API 계약, 관리자 웹 README, API README에서 새 운영 기준 문서로 연결했다.
+
+### 변경 범위
+
+- `../operations/admin-api-environments.md`
+- `../operations/README.md`
+- `../architecture/admin-api-contract.md`
+- `../../admin-web/README.md`
+- `../../api/README.md`
+- `../reports/README.md`
+- `../reports/issue-122-admin-api-environments-2026-07-04.md`
+- `../status/implementation-status.md`
+
+### 검증
+
+- 문서 전용 변경이지만, API CORS preflight 계약이 유지되는지 `npm --prefix api run check`로 확인했다. API 테스트 50개가 모두 통과했다.
+- 로컬 API 서버를 `127.0.0.1:18080`으로 임시 실행하고 `OPTIONS /admin/hospital-guides?limit=50` preflight가 HTTP `204`와 CORS 허용 헤더를 반환하는지 확인했다.
+- `git diff --cached --check`로 문서 공백 오류가 없음을 확인했다.
+
+### 남은 범위
+
+- preview API URL이 확정되면 `admin-web-preview`와 API 서버 환경변수에 실제 값을 설정한다.
+- production API URL이 확정되면 `admin-web-production`과 운영 API 서버 환경변수에 실제 값을 설정한다.
+- 병원 가이드 Firestore/API 응답 비교는 Issue #123에서 진행한다.

@@ -67,6 +67,8 @@ API 서버는 관리자 웹 origin을 허용해야 합니다. 로컬 기본 orig
 
 rollback은 `VITE_BODEUL_DATA_BACKEND=firebase`로 되돌리는 방식이다. 이때 병원 가이드 메뉴는 API를 호출하지 않고 기존 Firebase 기반 관리자 기능은 그대로 유지된다.
 
+환경별 API 전환값과 CORS 기준은 [관리자 웹 API 환경변수와 CORS 기준](../docs/operations/admin-api-environments.md)을 따른다.
+
 ## 실행
 
 ```powershell
