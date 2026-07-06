@@ -1,6 +1,6 @@
 # 관리자 웹 레포 분리 준비 계획
 
-기준일: 2026-06-26
+기준일: 2026-07-06
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -11,7 +11,7 @@
 
 ## 선택한 방식
 
-즉시 별도 레포를 만들지 않고, 현재 저장소에서 관리자 웹의 데이터 계약, 배포 경계, 소유권을 먼저 고정한다. 이후 build/deploy workflow와 GitHub Environment를 분리한 다음 실제 레포 분리를 진행한다.
+즉시 별도 레포를 만들지 않고, 현재 저장소에서 관리자 웹의 데이터 계약, 배포 경계, 소유권을 먼저 고정한다. 이후 build/deploy workflow와 GitHub Environment를 분리하고, production 배포 기준까지 확정한 다음 실제 레포 분리를 진행한다.
 
 ## 대안
 
@@ -32,14 +32,15 @@
 
 ## 현재 판단
 
-장기 방향은 `admin-web` 별도 레포 분리다. 단, 실제 이동 전에 아래 조건을 만족해야 한다.
+장기 방향은 `admin-web` 별도 레포 분리다. 2026-07-06 현재 preview 배포와 GitHub Environment 경계는 대부분 고정됐지만, production Firebase 프로젝트와 live 배포 기준이 아직 비어 있으므로 실제 파일 이동은 보류한다. 실제 이동 전에 아래 조건을 만족해야 한다.
 
 1. [관리자 웹 데이터 계약](../architecture/admin-web-data-contract.md)이 최신 코드와 맞는다.
 2. `admin-web` 변경만 감지하는 build workflow가 현재 저장소에서 먼저 안정적으로 돈다.
-3. Firebase Hosting preview/live 배포 권한과 secret 소유권이 [관리자 웹 GitHub Environment 기준](admin-web-environments.md)으로 분리된다.
+3. Firebase Hosting preview 배포 권한과 secret 소유권이 [관리자 웹 GitHub Environment 기준](admin-web-environments.md)으로 분리된다.
 4. `admin-web-preview`, `admin-web-production` GitHub Environment를 둔다.
-5. Rules/Functions/Firebase Hosting 설정을 어느 레포가 소유할지 결정한다.
-6. 분리 후 데이터 계약 변경을 어떻게 양쪽 이슈/PR로 연결할지 정한다.
+5. production Firebase 프로젝트, Hosting site, App Check 기준을 확정한다.
+6. Rules/Functions/Firebase Hosting 설정을 어느 레포가 소유할지 결정한다.
+7. 분리 후 데이터 계약 변경을 어떻게 양쪽 이슈/PR로 연결할지 정한다.
 
 ## 소유권 초안
 
@@ -48,12 +49,12 @@
 | Android 앱 | `Bodeul/app` | `Bodeul/app` | 현재 저장소 유지 |
 | 관리자 웹 UI | `Bodeul/admin-web` | `bodeul-admin-web` | 분리 대상 |
 | 관리자 웹 build workflow | `Bodeul/.github/workflows` | `bodeul-admin-web/.github/workflows` | 분리 전 현재 저장소에서 전용 workflow 검증 |
-| Firebase Hosting 설정 | `Bodeul/firebase.json` | 결정 필요 | Rules/Functions와 함께 둘지, admin-web 레포로 옮길지 검토 |
+| Firebase Hosting 설정 | `Bodeul/firebase.json` | `bodeul-admin-web/firebase.json` 후보 | 관리자 웹 Hosting 설정만 분리하고, Rules/Functions 설정은 본 저장소에 유지 |
 | Firestore Rules | `Bodeul/firestore.rules` | `Bodeul` 유지 후보 | Android와 관리자 웹 권한이 함께 걸려 있음 |
 | Storage Rules | `Bodeul/storage.rules` | `Bodeul` 유지 후보 | 앱 업로드와 관리자 웹 미리보기가 같은 규칙 사용 |
 | Functions | `Bodeul/functions` | `Bodeul` 유지 후보 | Android와 관리자 웹이 같이 호출할 수 있음 |
 | 운영 문서 | `Bodeul/docs` | 주 문서는 `Bodeul`, 웹 전용 문서는 `bodeul-admin-web` 후보 | 계약 문서는 양쪽에서 링크 |
-| Firebase project secret | GitHub repo secrets/vars | 각 레포 Environment secrets/vars | preview/live 분리 필요 |
+| Firebase project secret | GitHub repo secrets/vars | 각 레포 Environment secrets/vars | preview는 WIF 전용으로 분리 완료, production은 값 확정 필요 |
 
 ## 단계별 진행 계획
 
@@ -63,24 +64,33 @@
 | 2 | 분리 준비 계획 문서화 | `docs/operations/admin-web-repository-split.md` | 완료 |
 | 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 완료 |
 | 4 | preview/live 배포 권한과 secret 목록 정리 | `docs/operations/admin-web-environments.md` | 완료 |
-| 5 | Firebase Hosting preview 배포 workflow 추가 | `.github/workflows/admin-web-preview-deploy.yml` | 완료 |
-| 6 | 별도 레포 생성 여부 최종 결정 | 후속 이슈 | 대기 |
+| 5 | Firebase Hosting preview 배포 workflow와 WIF 전용 인증 추가 | `.github/workflows/admin-web-preview-deploy.yml` | 완료 |
+| 6 | 별도 레포 생성 여부 최종 결정 | 후속 이슈 | 진행 가능 |
 | 7 | 실제 레포 분리 | `bodeul-admin-web` 후보 | 대기 |
 
 ## 분리 전 체크리스트
 
-- `npm --prefix admin-web run build`가 `Admin Web Build` workflow에서 통과한다.
-- `npm --prefix admin-web run lint`가 `Admin Web Build` workflow에서 통과한다.
-- `admin-web`이 읽고 쓰는 Firestore 필드가 문서화돼 있다.
-- `admin-web`이 읽는 Storage 경로가 문서화돼 있다.
-- callable Functions 사용 여부가 문서화돼 있다.
-- Firebase Web config를 환경 변수로 주입할지 결정돼 있다.
-- App Check site key와 debug token 운영 방식이 문서화돼 있다.
-- Firebase Hosting preview 배포는 수동 workflow로 검증할 수 있다.
-- Firebase Hosting live 배포 권한은 아직 자동화하지 않는다.
-- Firebase Hosting preview/live 배포 권한이 최종적으로 분리돼 있다.
-- Firestore/Storage Rules 변경 시 관리자 웹 영향 검토 절차가 있다.
-- 분리 후 공통 데이터 계약 변경을 추적할 이슈 템플릿 또는 라벨이 있다.
+- [x] `npm --prefix admin-web run build`가 `Admin Web Build` workflow에서 통과한다.
+- [x] `npm --prefix admin-web run lint`가 `Admin Web Build` workflow에서 통과한다.
+- [x] `admin-web`이 읽고 쓰는 Firestore 필드가 문서화돼 있다.
+- [x] `admin-web`이 읽는 Storage 경로가 문서화돼 있다.
+- [x] callable Functions 사용 여부가 문서화돼 있다.
+- [x] Firebase Web config를 환경 변수로 주입한다.
+- [x] Firebase Hosting preview 배포는 WIF 전용 수동 workflow로 검증할 수 있다.
+- [x] preview 배포용 Firebase refresh token fallback은 제거돼 있다.
+- [ ] App Check site key와 debug token 운영 방식을 production 적용 기준과 연결한다.
+- [ ] Firebase Hosting live 배포 권한과 workflow 기준을 확정한다.
+- [ ] production Firebase 프로젝트와 Hosting site를 확정한다.
+- [ ] Firestore/Storage Rules 변경 시 관리자 웹 영향 검토 절차를 PR 템플릿 또는 체크리스트에 연결한다.
+- [ ] 분리 후 공통 데이터 계약 변경을 추적할 이슈 템플릿 또는 라벨이 있다.
+
+## 2026-07-06 진행 판단
+
+현재 상태에서는 #74 안에서 실제 레포 이동을 바로 실행하지 않는다. 대신 별도 레포를 만들 수 있는 기준과 남은 차단 조건을 정리하는 단계까지 진행한다.
+
+- 진행 가능: preview build/deploy 경계 검증 결과 반영, 소유권 후보 확정, 실제 분리 전 체크리스트 정리
+- 보류: `bodeul-admin-web` 저장소 생성, 파일 히스토리를 보존한 `admin-web` 이동, production live workflow 추가
+- 선행 조건: `admin-web-production` Environment 값, production Hosting site, App Check site key, Auth authorized domain 확정
 
 ## 분리 후 이슈 연결 규칙 초안
 
