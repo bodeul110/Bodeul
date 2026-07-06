@@ -36,7 +36,7 @@
 | 관리자 role 인가 | 완료 | [#116](https://github.com/bodeul110/Bodeul/pull/116), [#112](https://github.com/bodeul110/Bodeul/issues/112) | `api/src/authorization.ts` |
 | 첫 read API | API 서버와 관리자 웹 병원 가이드 1차 연결 완료, 이슈 #113 종료 | [#117](https://github.com/bodeul110/Bodeul/pull/117), [#121](https://github.com/bodeul110/Bodeul/pull/121), [#113](https://github.com/bodeul110/Bodeul/issues/113) | `api/src/hospital-guides.ts`, `admin-web/src/components/HospitalGuideApiPanel.tsx`, [관리자 API 계약](admin-api-contract.md) |
 | API 환경 설정 | 후속 진행 | [#122](https://github.com/bodeul110/Bodeul/issues/122) | `BODEUL_API_ALLOWED_ORIGINS`, `VITE_BODEUL_API_BASE_URL`, `VITE_BODEUL_DATA_BACKEND` |
-| API 응답 비교 | 후속 진행 | [#123](https://github.com/bodeul110/Bodeul/issues/123) | Firestore `hospitalGuides`와 PostgreSQL/API 응답 비교 기록 |
+| API 응답 비교 | 로컬 API 라우트 비교 완료, 라이브 API 호출 검증 남음 | [#123](https://github.com/bodeul110/Bodeul/issues/123) | [병원 가이드 Firestore/API 응답 비교 기록](../reports/hospital-guide-firestore-api-comparison-2026-07-06.md) |
 | API 배포 인프라 | 미정 | 별도 결정 필요 | Oracle VM 또는 동등 실행 환경, `api-preview`/`api-production` Environment 결정 필요 |
 
 ## 선택한 방식
