@@ -13,5 +13,16 @@
   "dependencies": {
     "firebase-admin": "13.10.0",
     "firebase-functions": "7.2.5"
+  },
+  "overrides": {
+    "gaxios": {
+      "uuid": "11.1.1"
+    },
+    "google-gax": {
+      "uuid": "11.1.1"
+    },
+    "teeny-request": {
+      "uuid": "11.1.1"
+    }
   }
 }
