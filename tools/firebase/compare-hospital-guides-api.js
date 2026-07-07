@@ -54,9 +54,13 @@ function parseOptions(args) {
     limit: 50,
     help: false,
   };
+  const positionalArgs = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === "--") {
+      continue;
+    }
     if (arg === "--help" || arg === "-h") {
       options.help = true;
       continue;
@@ -91,10 +95,56 @@ function parseOptions(args) {
       index += 1;
       continue;
     }
+    if (!arg.startsWith("--")) {
+      positionalArgs.push(arg);
+      continue;
+    }
     throw new Error(`알 수 없는 옵션입니다: ${arg}`);
   }
 
+  applyPositionalArgs(options, positionalArgs);
   return options;
+}
+
+function applyPositionalArgs(options, positionalArgs) {
+  if (positionalArgs.length === 0) {
+    return;
+  }
+  if (positionalArgs.length > 4) {
+    throw new Error("위치 인자는 최대 4개까지만 사용할 수 있습니다: backup, 비교 대상 JSON, output, markdown");
+  }
+
+  if (!options.backupPath) {
+    options.backupPath = positionalArgs[0] || "";
+  }
+
+  const actualPath = positionalArgs[1] || "";
+  if (actualPath && !options.apiResponsePath && !options.seedInputPath) {
+    const detectedSource = detectActualSourcePath(actualPath);
+    if (detectedSource === "api-response") {
+      options.apiResponsePath = actualPath;
+    } else {
+      options.seedInputPath = actualPath;
+    }
+  }
+
+  if (positionalArgs[2] && !options.outputPath) {
+    options.outputPath = positionalArgs[2];
+  }
+  if (positionalArgs[3] && !options.markdownPath) {
+    options.markdownPath = positionalArgs[3];
+  }
+}
+
+function detectActualSourcePath(filePath) {
+  const json = readJsonFile(resolvePath(filePath));
+  if (Array.isArray(json?.items)) {
+    return "api-response";
+  }
+  if (Array.isArray(json?.rows?.hospital_guides)) {
+    return "seed-input";
+  }
+  throw new Error("두 번째 위치 인자는 API 응답 JSON(items) 또는 seed 입력 JSON(rows.hospital_guides)이어야 합니다.");
 }
 
 function validateOptions(options) {
@@ -131,6 +181,7 @@ function printHelp() {
   console.log("사용법:");
   console.log("  node compare-hospital-guides-api.js --backup backups/firestore-backup.json --api-response reports/hospital-guides-api-response.json");
   console.log("  node compare-hospital-guides-api.js --backup backups/firestore-backup.json --seed-input reports/postgres-seed-input.json");
+  console.log("  node compare-hospital-guides-api.js backups/firestore-backup.json reports/postgres-seed-input.json");
   console.log("");
   console.log("옵션:");
   console.log("  --backup <path>        Firestore 백업 JSON 경로");

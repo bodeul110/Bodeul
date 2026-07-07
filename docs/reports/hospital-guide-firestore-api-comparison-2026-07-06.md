@@ -52,7 +52,7 @@
 ```powershell
 npm --prefix tools/firebase run validate:backup -- --file backups/firestore-backup-20260625-rehearsal.json
 npm --prefix tools/firebase run postgres:seed:build -- backups/firestore-backup-20260625-rehearsal.json reports/issue-123-hospital-guides-seed-input.json
-npm --prefix tools/firebase run compare:hospital-guides -- --backup backups/firestore-backup-20260625-rehearsal.json --seed-input reports/issue-123-hospital-guides-seed-input.json --output reports/issue-123-hospital-guides-comparison.json --markdown reports/issue-123-hospital-guides-comparison.md
+npm --prefix tools/firebase run compare:hospital-guides -- -- --backup backups/firestore-backup-20260625-rehearsal.json --seed-input reports/issue-123-hospital-guides-seed-input.json --output reports/issue-123-hospital-guides-comparison.json --markdown reports/issue-123-hospital-guides-comparison.md
 npm --prefix api run check
 ```
 
@@ -67,13 +67,22 @@ npm --prefix api run check
 seed 입력 기준 재검증:
 
 ```powershell
-npm --prefix tools/firebase run compare:hospital-guides -- --backup backups/firestore-backup-20260625-rehearsal.json --seed-input reports/issue-123-hospital-guides-seed-input.json
+npm --prefix tools/firebase run compare:hospital-guides -- -- --backup backups/firestore-backup-20260625-rehearsal.json --seed-input reports/issue-123-hospital-guides-seed-input.json
 ```
 
 실제 API 응답 기준 재검증:
 
 ```powershell
-npm --prefix tools/firebase run compare:hospital-guides -- --backup backups/firestore-backup-20260625-rehearsal.json --api-response reports/hospital-guides-api-response.json
+npm --prefix tools/firebase run compare:hospital-guides -- -- --backup backups/firestore-backup-20260625-rehearsal.json --api-response reports/hospital-guides-api-response.json
+```
+
+npm/PowerShell 조합에 따른 인자 전달 차이를 피하려면 `tools/firebase` 디렉터리에서 직접 실행해도 된다.
+비교 도구는 옵션형 입력과 위치 인자 입력을 모두 허용한다.
+
+```powershell
+cd tools/firebase
+node compare-hospital-guides-api.js --backup backups/firestore-backup-20260625-rehearsal.json --seed-input reports/issue-123-hospital-guides-seed-input.json
+node compare-hospital-guides-api.js backups/firestore-backup-20260625-rehearsal.json reports/issue-123-hospital-guides-seed-input.json
 ```
 
 `reports/hospital-guides-api-response.json`은 실제 `/admin/hospital-guides?limit=50` 응답을 저장한 파일이어야 한다.
