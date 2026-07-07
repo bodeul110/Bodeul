@@ -1,6 +1,6 @@
 # 관리자 웹 API 환경변수와 CORS 기준
 
-기준일: 2026-07-04
+기준일: 2026-07-07
 
 ## 작업 목적
 
@@ -8,7 +8,7 @@
 
 ## 선택한 방식
 
-기존 관리자 웹의 기본 데이터 경로는 `firebase`로 유지한다. 병원 가이드 API 검증이 필요한 환경에서만 `VITE_BODEUL_DATA_BACKEND=api`와 `VITE_BODEUL_API_BASE_URL`을 설정한다.
+기존 관리자 웹의 기본 데이터 경로는 `firebase`로 유지한다. 병원 가이드 API 검증이 필요한 환경에서만 `VITE_BODEUL_DATA_BACKEND=api`와 `VITE_BODEUL_API_BASE_URL`을 설정한다. 2026-07-07 기준 #140은 Oracle API, Supabase, Firebase Admin 인증, Vercel preview 관리자 웹을 묶어 #123의 실연동 검증 blocker를 해소하는 preview 환경 구축 이슈다.
 
 API 서버는 `BODEUL_API_ALLOWED_ORIGINS` allow-list에 있는 관리자 웹 origin만 브라우저 호출로 허용한다.
 
@@ -28,10 +28,11 @@ API 서버는 `BODEUL_API_ALLOWED_ORIGINS` allow-list에 있는 관리자 웹 or
 | --- | --- | --- | --- | --- | --- |
 | local 기본 | `http://localhost:5173`, `http://127.0.0.1:5173` | `firebase` | `http://127.0.0.1:8080` | 기본값 사용 | 기본 개발 경로 |
 | local API 검증 | `http://localhost:5173`, `http://127.0.0.1:5173` | `api` | `http://127.0.0.1:8080` | `http://localhost:5173,http://127.0.0.1:5173` | 즉시 검증 가능 |
-| preview | Firebase Hosting preview channel URL | `firebase` 기본, API 검증 시 `api` | preview API URL 확정 후 설정 | preview channel origin을 쉼표 목록에 추가 | API 배포 URL 확정 전까지 보류 |
-| production | 운영 Firebase Hosting URL | `firebase` | 운영 API URL 확정 후 설정 | 운영 관리자 웹 origin만 추가 | 운영 API 배포 전까지 보류 |
+| Firebase Hosting preview | Firebase Hosting preview channel URL | `firebase` 기본, API 검증 시 `api` | preview API URL 확정 후 설정 | preview channel origin을 쉼표 목록에 추가 | WIF preview 배포 workflow로 검증 가능 |
+| Vercel preview API 검증 | Vercel preview URL | `api` | Oracle API preview URL | Vercel preview origin을 쉼표 목록에 추가 | #140 범위에서 진행 |
+| production | #134에서 확정할 운영 관리자 웹 URL | `firebase` | 운영 API URL 확정 후 설정 | 운영 관리자 웹 origin만 추가 | #134 완료 전까지 보류 |
 
-preview와 production의 실제 URL은 배포 시점에 확정되는 값이므로 공개 이슈나 PR 본문에 secret과 함께 적지 않는다. URL 자체가 공개 가능한 값이어도, 운영 전환 전에는 GitHub Environment와 배포 서버 설정 위치만 문서화한다.
+preview와 production의 실제 URL은 배포 시점에 확정되는 값이므로 공개 이슈나 PR 본문에 secret과 함께 적지 않는다. URL 자체가 공개 가능한 값이어도, 운영 전환 전에는 GitHub Environment, Vercel Environment, API 배포 서버 설정 위치만 문서화한다.
 
 ## 설정 위치
 
@@ -56,19 +57,21 @@ VITE_BODEUL_API_BASE_URL=http://127.0.0.1:8080
 | Environment | 이름 | 종류 | 기준 |
 | --- | --- | --- | --- |
 | `admin-web-preview` | `VITE_BODEUL_DATA_BACKEND` | variable | 기본 `firebase`, API 검증 배포에서만 `api` |
-| `admin-web-preview` | `VITE_BODEUL_API_BASE_URL` | variable | preview API URL 확정 후 설정 |
+| `admin-web-preview` | `VITE_BODEUL_API_BASE_URL` | variable | Firebase Hosting preview에서 API 검증을 할 때 preview API URL 설정 |
 | `admin-web-production` | `VITE_BODEUL_DATA_BACKEND` | variable | 운영 전환 전까지 `firebase` |
 | `admin-web-production` | `VITE_BODEUL_API_BASE_URL` | variable | 운영 API URL 확정 후 설정 |
 
 `VITE_*` 값은 브라우저 번들에 포함될 수 있는 값이다. 다만 preview/production 경계를 명확히 하기 위해 GitHub Environment variable로 관리한다.
+
+Vercel preview를 사용하는 #140 검증에서는 같은 이름의 Vercel Environment Variable을 사용한다. 이 값도 브라우저 번들에 들어갈 수 있으므로 secret 원문을 넣지 않고, API base URL과 전환 flag처럼 공개 가능한 설정만 둔다.
 
 ### API 서버
 
 | 환경 | 이름 | 설정 위치 | 기준 |
 | --- | --- | --- | --- |
 | local | `BODEUL_API_ALLOWED_ORIGINS` | 로컬 shell 또는 `.env` 로더를 쓰는 실행 환경 | 미설정 시 로컬 관리자 웹 origin 기본 허용 |
-| preview | `BODEUL_API_ALLOWED_ORIGINS` | preview API 배포 서버 환경변수 | preview 관리자 웹 origin만 추가 |
-| production | `BODEUL_API_ALLOWED_ORIGINS` | 운영 API 배포 서버 환경변수 | 운영 관리자 웹 origin만 추가 |
+| preview | `BODEUL_API_ALLOWED_ORIGINS` | preview API 배포 서버 환경변수 | Firebase Hosting preview 또는 Vercel preview 관리자 웹 origin만 추가 |
+| production | `BODEUL_API_ALLOWED_ORIGINS` | 운영 API 배포 서버 환경변수 | #134에서 확정한 운영 관리자 웹 origin만 추가 |
 
 `BODEUL_API_ALLOWED_ORIGINS`는 쉼표로 구분한 origin 목록이다. 경로가 붙은 URL은 허용하지 않는다.
 
@@ -140,7 +143,9 @@ VITE_BODEUL_DATA_BACKEND=firebase
 ## 완료 판단
 
 - local 환경의 API 모드와 CORS preflight 기준을 문서화했다.
-- preview와 production은 실제 API 배포 URL이 확정되기 전까지 `firebase` 기본값을 유지한다.
+- Firebase Hosting preview는 WIF 수동 workflow로 검증할 수 있다.
+- Vercel preview API 검증은 #140 범위에서만 `api` 모드를 켠다.
+- production은 #134에서 URL, Auth domain, App Check, WIF live deploy 조건이 확정되기 전까지 `firebase` 기본값을 유지한다.
 - API URL과 origin을 둘 위치를 GitHub Environment와 API 서버 환경변수로 분리했다.
 - 장애 시 rollback 기준은 `VITE_BODEUL_DATA_BACKEND=firebase`로 고정했다.
 
@@ -150,3 +155,6 @@ VITE_BODEUL_DATA_BACKEND=firebase
 - [관리자 웹 GitHub Environment 기준](admin-web-environments.md)
 - [PostgreSQL API 경계 기준](../architecture/postgres-api-boundary.md)
 - [Issue 113 관리자 웹 병원 가이드 API 연결 기록](../reports/issue-113-admin-web-api-connection-2026-07-02.md)
+- [Issue 123 병원 가이드 Firestore/API 응답 비교 기록](https://github.com/bodeul110/Bodeul/issues/123)
+- [Issue 134 관리자 웹 production 배포 기준 확정](https://github.com/bodeul110/Bodeul/issues/134)
+- [Issue 140 Oracle/Vercel 기반 관리자 웹 API 모드 실연동 검증 환경 구축](https://github.com/bodeul110/Bodeul/issues/140)

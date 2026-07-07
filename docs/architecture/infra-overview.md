@@ -1,6 +1,6 @@
 # 현재 인프라 구성도
 
-기준일: 2026-07-02
+기준일: 2026-07-07
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -15,6 +15,8 @@
 - Supabase PostgreSQL 개발 DB는 seed 적용과 row count/FK 점검이 끝난 상태다.
 - `bodeul-api`는 Node 22 + TypeScript 기반으로 추가됐고, Firebase ID token 검증, PostgreSQL 연결, `ADMIN` role 인가, 병원 가이드 read API까지 구현됐다.
 - 관리자 웹은 기본값을 `firebase`로 유지한다. 다만 `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출할 수 있다.
+- #140에서 Oracle API 실행 환경, Supabase 개발 DB, Firebase Admin 인증, Vercel preview 관리자 웹 API 모드를 묶어 #123의 실연동 비교 blocker를 해소한다.
+- production 관리자 웹 배포 기준은 #134에서 확정한다.
 
 ## 한 장 구성도
 
@@ -29,7 +31,7 @@ flowchart LR
 
   subgraph Clients["클라이언트"]
     Android["Android 앱\nJava + XML"]
-    AdminWeb["관리자 웹\nReact + Vite\nFirebase Hosting"]
+    AdminWeb["관리자 웹\nReact + Vite\nFirebase/Vercel preview 검증"]
   end
 
   subgraph Firebase["Firebase project: bodeul-dev"]
@@ -38,11 +40,12 @@ flowchart LR
     Storage["Firebase Storage\n매니저 서류, 채팅 첨부"]
     Functions["Cloud Functions v2\nKakao token, FCM, 운영 보조"]
     FCM["Firebase Cloud Messaging\n푸시 알림"]
-    Hosting["Firebase Hosting\nadmin-web 배포"]
+    Hosting["Firebase Hosting\nadmin-web preview/live 후보"]
   end
 
   subgraph Api["bodeul-api"]
     ApiServer["Node 22 + TypeScript\n/healthz\n/admin/api-contract\n/admin/hospital-guides"]
+    Oracle["Oracle preview 실행 환경\n#140 검증 후보"]
     FirebaseAdmin["Firebase Admin SDK\nID token 검증"]
     AdminRole["PostgreSQL app_users.role\nADMIN 인가"]
   end
@@ -78,7 +81,8 @@ flowchart LR
   AdminWeb --> Storage
   AdminWeb --> Hosting
 
-  AdminWeb -. "전환 후보" .-> ApiServer
+  AdminWeb -. "api 모드 검증" .-> ApiServer
+  Oracle --> ApiServer
   ApiServer --> FirebaseAdmin
   FirebaseAdmin --> Auth
   ApiServer --> AdminRole
@@ -111,12 +115,12 @@ flowchart LR
 | 관리자 권한 | Firebase Auth + PostgreSQL `app_users.role` | API 경계에서는 `ADMIN` role만 허용한다. 기존 Firebase/Firestore 관리자 경로와 병행 기간이 있다. |
 | 파일 원본 | Firebase Storage | 매니저 서류와 채팅 첨부 원본은 Storage 유지. 메타데이터만 PostgreSQL 전환 후보. |
 | 푸시/알림 | FCM + Functions | DB 전환과 분리해서 유지한다. |
-| 관리자 웹 배포 | Firebase Hosting | `bodeul-dev.web.app` 기준. preview는 GitHub Actions WIF 경로로 유지한다. |
+| 관리자 웹 배포 | Firebase Hosting preview + Vercel preview 검증 후보 | Firebase Hosting preview는 GitHub Actions WIF 경로로 유지한다. #140 API 모드 실연동 검증에서는 Vercel preview를 사용할 수 있다. production 기준은 #134에서 확정한다. |
 | 운영 DB 후보 | Supabase PostgreSQL | `bodeul-dev-rdb` 개발 DB seed 검증 완료. 운영 DB는 개발 리허설 후 생성한다. |
 
 ## GitHub 반영 근거
 
-2026-07-02 현재 `master`에 다음 인프라 관련 PR이 병합됐다.
+2026-07-07 현재 `master`에 다음 인프라 관련 PR이 병합됐다.
 
 | PR | 반영 내용 | 현재 문서 판단 |
 | --- | --- | --- |
@@ -130,21 +134,25 @@ flowchart LR
 | [#116](https://github.com/bodeul110/Bodeul/pull/116) | 관리자 role 기반 인가 추가 | `app_users.firebase_uid`와 `ADMIN` role 기준 |
 | [#117](https://github.com/bodeul110/Bodeul/pull/117) | 병원 가이드 read API 추가 | 첫 PostgreSQL read API 구현 완료 |
 | [#121](https://github.com/bodeul110/Bodeul/pull/121) | 관리자 웹 병원 가이드 API 연결 | `api` 모드에서 관리자 웹이 병원 가이드 read API를 호출 |
+| [#128](https://github.com/bodeul110/Bodeul/pull/128) | 관리자 웹 API 환경변수와 CORS 기준 정리 | #122 종료 근거 |
+| [#136](https://github.com/bodeul110/Bodeul/pull/136) | uuid 전이 취약 경로 override 적용 | #103 종료 근거 |
+| [#137](https://github.com/bodeul110/Bodeul/pull/137) | 병원 가이드 Firestore/API 로컬 비교 기록 | #123 1차 비교 근거 |
+| [#138](https://github.com/bodeul110/Bodeul/pull/138) | 병원 가이드 비교 도구 추가 | 배포 API 응답 JSON 재검증 준비 |
 
-GitHub Actions 기준으로 최근 `API Build`, `Admin Web Build`, `Android Preflight`, `CodeQL`은 PR #121 병합 시점에 통과했다. Code scanning open alert는 2026-07-02 확인 기준 0건이다.
+GitHub Actions 기준으로 최근 인프라 관련 PR의 `API Build`, `Admin Web Build`, `Android Preflight`, `CodeQL`은 병합 전 통과한 상태로 확인됐다.
 
 ## 남은 운영 판단
 
 | GitHub 이슈 | 남은 판단 |
 | --- | --- |
-| [#122](https://github.com/bodeul110/Bodeul/issues/122) | 관리자 웹 API 환경변수와 CORS origin 설정을 환경별로 확정한다. |
-| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 병원 가이드 Firestore/API 응답 비교 기록을 남긴다. |
+| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 병원 가이드 Firestore/API 응답 비교 기록을 남긴다. 로컬 비교는 완료됐고 배포 API 응답 검증이 남아 있다. |
+| [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준을 확정한다. |
+| [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비를 추적한다. |
+| [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Vercel 기반 preview 실연동 검증으로 #123 blocker를 해소한다. |
 | [#32](https://github.com/bodeul110/Bodeul/issues/32) | App Check 강제 적용과 Firebase 환경 분리 계획 확정 |
 | [#64](https://github.com/bodeul110/Bodeul/issues/64) | 격리 환경에서 `restore:state:apply`까지 포함한 백업/복원 리허설 |
 | [#65](https://github.com/bodeul110/Bodeul/issues/65) | Firebase 비용 모니터링과 예산 알림 설정 |
 | [#66](https://github.com/bodeul110/Bodeul/issues/66) | Kakao Local REST API key 운영 리스크 점검 |
-| [#74](https://github.com/bodeul110/Bodeul/issues/74) | 관리자 웹 별도 레포 분리 기준 확정 |
-| [#103](https://github.com/bodeul110/Bodeul/issues/103) | `uuid` 전이 취약점 업데이트 범위 검토 |
 
 ## 설명 포인트
 
