@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-07-02
+기준일: 2026-07-07
 
 이 문서는 현재 `BoDeul` 프로젝트가 어떤 실행 구성으로 동작하는지 빠르게 파악하기 위한 인프라 기준 문서다. 화면 설계나 기능 범위는 기능설명서와 구현 상태 문서를 따르고, 이 문서는 런타임 구성과 운영 경계를 설명한다.
 
@@ -18,7 +18,8 @@ Android 앱(app/)
   ├─ Firebase Auth
   ├─ Firestore
   ├─ Firebase Storage
-  ├─ Firebase Hosting
+  ├─ Firebase Hosting preview workflow
+  ├─ Vercel preview API 모드 검증 후보
   └─ bodeul-api 병원 가이드 API 검증 경로
 
 bodeul-api(api/)
@@ -80,7 +81,7 @@ Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다
   - 운영 상태 확인
   - 민감정보 마스킹과 유휴 세션 종료
 
-관리자 웹은 [`firebase.ts`](../../admin-web/firebase.ts)에서 Firebase App/Auth/Firestore/Storage를 초기화한다. 기본 데이터 경로는 Firebase지만, `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출한다.
+관리자 웹은 [`firebase.ts`](../../admin-web/firebase.ts)에서 Firebase App/Auth/Firestore/Storage를 초기화한다. 기본 데이터 경로는 Firebase지만, `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출한다. #140의 preview 실연동 검증에서는 Vercel preview origin을 API CORS allow-list에 추가해 Oracle API URL을 호출할 수 있다.
 
 ## 3. 서버/API 구성
 
@@ -225,14 +226,15 @@ PostgreSQL 관련 명령:
 
 ### 7-1. 관리자 웹
 
-- 기본 배포: Firebase Hosting
+- 현재 검증 경로: Firebase Hosting preview workflow
+- API 모드 실연동 검증 후보: Vercel preview
 - Firebase project: `.firebaserc` 기준 `bodeul-dev`
 - Hosting public: `admin-web/dist`
-- live URL 기준: `https://bodeul-dev.web.app`
+- dev live URL 기준: `https://bodeul-dev.web.app`
 - preview workflow: `.github/workflows/admin-web-preview-deploy.yml`
 - build workflow: `.github/workflows/admin-web.yml`
 
-관리자 웹 preview 배포는 GitHub Actions OIDC와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다.
+관리자 웹 Firebase Hosting preview 배포는 GitHub Actions OIDC와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. production live 배포 기준은 #134에서 확정하고, #140의 Vercel preview 사용은 production 결정이 아니라 API 모드 검증으로 한정한다.
 
 ### 7-2. API
 
@@ -241,7 +243,7 @@ PostgreSQL 관련 명령:
 - CI Node 버전: 22
 - 검증: `npm ci`, `npm run check`
 
-최근 병합 PR #109, #114, #115, #116, #117, #121에서 `API Build`, `Admin Web Build`, `Android Preflight`, `CodeQL`이 통과했다.
+최근 병합 PR #109, #114, #115, #116, #117, #121, #128, #136, #137, #138에서 관련 검증 workflow가 통과했다.
 
 ### 7-3. Android/Firebase/보안
 
@@ -251,7 +253,7 @@ PostgreSQL 관련 명령:
 | `firebase-rules.yml` | Firestore/Storage Rules emulator 테스트 |
 | `codeql.yml` | Android/Java/Kotlin, JavaScript/TypeScript CodeQL 분석 |
 
-2026-07-02 확인 기준 GitHub code scanning open alert는 0건이다.
+2026-07-02 확인 기준 GitHub code scanning open alert는 0건이었다. 이후 보안 의존성 이슈 #103은 PR #136 병합으로 종료됐다.
 
 ## 8. GitHub 기준 현재 상태
 
@@ -268,10 +270,11 @@ PostgreSQL 관련 명령:
 주의할 GitHub 상태:
 
 - #88과 #113은 완료 근거를 남기고 종료했다.
-- #122는 관리자 웹 API 환경변수와 CORS origin 설정 확정을 추적한다.
-- #123은 병원 가이드 Firestore/API 응답 비교 기록을 추적한다.
-- #103 `uuid` 전이 취약점 검토가 open이고, 2026-07-02 GitHub Actions의 Dependabot Updates에서 `/api` uuid 업데이트 실패 run이 있었다.
-- #32, #64, #65, #66, #74는 운영 전환 전 계속 추적해야 하는 인프라 이슈다.
+- #122는 관리자 웹 API 환경변수와 CORS origin 설정 확정으로 종료했다.
+- #123은 병원 가이드 Firestore/API 응답 비교 기록을 추적한다. 로컬 비교와 비교 도구는 반영됐고, 배포 API 응답 검증은 #140 이후 진행한다.
+- #103 `uuid` 전이 취약점 검토는 PR #136 병합 후 종료했다.
+- #134, #135, #140은 관리자 웹 production 기준, 레포 분리 실행 준비, Oracle/Vercel preview 실연동 검증을 각각 추적한다.
+- #32, #64, #65, #66은 운영 전환 전 계속 추적해야 하는 인프라 이슈다.
 
 ## 9. 보안과 운영 기준
 

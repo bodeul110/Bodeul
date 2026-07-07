@@ -113,9 +113,15 @@ npm --prefix admin-web run lint
 npm --prefix admin-web run build
 ```
 
-## Firebase Hosting 배포
+## 배포와 preview 검증
 
-관리자 웹 운영 배포는 Firebase Hosting을 기준으로 합니다. 현재 자동 배포 workflow는 켜지지 않았고, `Admin Web Build` workflow는 lint/build 검증과 산출물 업로드만 수행합니다.
+현재 저장소 기준의 관리자 웹 검증 경로는 두 갈래입니다.
+
+- 기본 build 검증은 `Admin Web Build` workflow가 담당하며, lint/build와 산출물 업로드만 수행합니다.
+- Firebase Hosting preview는 `Admin Web Preview Deploy` workflow가 담당하며, `admin-web-preview` Environment와 WIF 인증을 사용합니다.
+- #140의 실연동 검증에서는 Vercel preview를 관리자 웹 API 모드 검증용으로 사용할 수 있습니다. 이 경우에도 목적은 production 전환이 아니라 Oracle API, Supabase, Firebase Admin 인증, CORS, 화면 표시를 확인하는 것입니다.
+
+production live 배포 기준은 #134에서 확정합니다. 따라서 이 문서의 배포 명령은 현재 저장소에서 검증 가능한 Firebase Hosting 경로를 설명하는 것이며, 최종 production 채널, custom domain, Auth domain, App Check enforcement, WIF live deploy 조건을 확정하지 않습니다.
 
 수동 preview 배포:
 
@@ -130,6 +136,17 @@ firebase deploy --only hosting --project <firebase-project-id>
 ```
 
 Hosting 설정은 루트 [firebase.json](../firebase.json)의 `hosting` 블록을 기준으로 합니다. `admin-web/dist`만 배포하며, `/assets/**`는 Vite 해시 파일이므로 길게 캐시하고 나머지 HTML/SPA 경로는 배포가 바로 반영되도록 no-cache로 둡니다.
+
+Vercel preview를 사용할 때도 환경 변수 기준은 동일합니다.
+
+| 값 | 기준 |
+| --- | --- |
+| `VITE_BODEUL_DATA_BACKEND` | API 검증 preview에서만 `api` |
+| `VITE_BODEUL_API_BASE_URL` | Oracle에 배포한 `bodeul-api` preview URL |
+| Firebase Web config | 관리자 웹 preview 환경의 값 |
+| API CORS | `BODEUL_API_ALLOWED_ORIGINS`에 Vercel preview origin 추가 |
+
+실패 시에는 `VITE_BODEUL_DATA_BACKEND=firebase`로 되돌려 기존 Firebase 기반 관리자 기능을 유지합니다.
 
 ## 보안 메모
 
