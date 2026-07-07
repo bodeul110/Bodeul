@@ -16,6 +16,7 @@
 - [디자인 레퍼런스 재정리 메모](reference-review-2026-05-22.md)
 - [기능설명서와 피그마 대조 메모](feature-spec-figma-audit-2026-05-22.md)
 - [기능설명서 항목별 구현 체크리스트](feature-spec-gap-checklist-2026-05-22.md)
+- [AI 음성 리포트 자동 생성 후속 설계](ai-voice-report-followup-design.md)
 
 ## 같이 볼 문서
 
