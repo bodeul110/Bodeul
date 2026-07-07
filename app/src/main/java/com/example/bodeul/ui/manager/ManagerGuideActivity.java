@@ -12,6 +12,7 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
@@ -25,6 +26,7 @@ import com.example.bodeul.data.map.HospitalMapCoordinateQuery;
 import com.example.bodeul.data.map.HospitalMapCoordinateResult;
 import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
 import com.example.bodeul.data.map.KakaoPlaceCoordinate;
+import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
@@ -186,6 +188,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonTogglePrescriptionCollected).setOnClickListener(view -> viewModel.togglePrescriptionCollected());
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> viewModel.togglePharmacyCompleted());
         findViewById(R.id.buttonToggleMedicationGuidanceCompleted).setOnClickListener(view -> viewModel.toggleMedicationGuidanceCompleted());
+        findViewById(R.id.buttonFillVoiceReportDraft).setOnClickListener(view -> showVoiceReportDraftDialog());
         findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> viewModel.submitReport(
                 valueOf(inputReportSummary),
                 valueOf(inputReportTreatment),
@@ -469,6 +472,141 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void openCompanionChat() {
         startActivity(CompanionChatActivity.createIntent(this));
+    }
+
+    private void showVoiceReportDraftDialog() {
+        if (currentDashboard == null) {
+            Toast.makeText(this, R.string.guide_voice_draft_no_session, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.guide_voice_draft_dialog_title)
+                .setMessage(R.string.guide_voice_draft_dialog_body)
+                .setNegativeButton(R.string.guide_voice_draft_dialog_cancel, null)
+                .setPositiveButton(R.string.guide_voice_draft_dialog_apply,
+                        (dialogInterface, which) -> applyVoiceReportMockDraft())
+                .show();
+    }
+
+    private void applyVoiceReportMockDraft() {
+        if (currentDashboard == null) {
+            return;
+        }
+
+        int filledCount = 0;
+        filledCount += setTextIfEmpty(inputReportSummary, buildVoiceDraftSummary());
+        filledCount += setTextIfEmpty(inputReportTreatment, buildVoiceDraftTreatment());
+        filledCount += setTextIfEmpty(inputNextVisit, getString(R.string.guide_voice_draft_next_visit));
+
+        if (hasMedicationDraftSource()) {
+            filledCount += setTextIfEmpty(inputReportMedicationName, getString(R.string.guide_voice_draft_medication_name));
+            filledCount += setTextIfEmpty(
+                    inputReportMedicationChangeSummary,
+                    getString(R.string.guide_voice_draft_medication_change)
+            );
+            filledCount += setTextIfEmpty(
+                    inputReportMedicationScheduleNote,
+                    getString(R.string.guide_voice_draft_medication_schedule)
+            );
+            filledCount += setTextIfEmpty(
+                    inputReportMedicationComparisonNote,
+                    getString(R.string.guide_voice_draft_medication_compare_note)
+            );
+            if (groupReportMedicationComparisonDecision.getCheckedRadioButtonId() == -1) {
+                groupReportMedicationComparisonDecision.check(R.id.radioMedicationComparisonRecheck);
+                filledCount++;
+            }
+        }
+
+        Toast.makeText(
+                this,
+                filledCount > 0
+                        ? R.string.guide_voice_draft_applied
+                        : R.string.guide_voice_draft_no_empty_fields,
+                Toast.LENGTH_SHORT
+        ).show();
+    }
+
+    private String buildVoiceDraftSummary() {
+        AppointmentRequest request = currentDashboard.getAppointmentRequest();
+        String patientName = fallbackText(request.getPatientName(), R.string.guide_voice_draft_patient_fallback);
+        String hospitalName = fallbackText(request.getHospitalName(), R.string.guide_voice_draft_hospital_fallback);
+        String departmentName = fallbackText(request.getDepartmentName(), R.string.guide_voice_draft_department_fallback);
+        return getString(
+                R.string.guide_voice_draft_summary_format,
+                patientName,
+                hospitalName,
+                departmentName
+        );
+    }
+
+    private String buildVoiceDraftTreatment() {
+        AppointmentRequest request = currentDashboard.getAppointmentRequest();
+        CompanionSession session = currentDashboard.getSession();
+        StringBuilder builder = new StringBuilder(getString(
+                R.string.guide_voice_draft_treatment_header_format,
+                fallbackText(request.getHospitalName(), R.string.guide_voice_draft_hospital_fallback),
+                fallbackText(request.getDepartmentName(), R.string.guide_voice_draft_department_fallback)
+        ));
+        appendDraftLine(
+                builder,
+                getString(R.string.guide_voice_draft_step_line_format, session.getCurrentStepOrder())
+        );
+        appendDraftLineIfPresent(
+                builder,
+                R.string.guide_voice_draft_request_note_format,
+                request.getSpecialNotes()
+        );
+        appendDraftLineIfPresent(
+                builder,
+                R.string.guide_voice_draft_location_note_format,
+                session.getLocationSummary()
+        );
+        appendDraftLineIfPresent(
+                builder,
+                R.string.guide_voice_draft_guardian_note_format,
+                session.getGuardianUpdate()
+        );
+        appendDraftLineIfPresent(
+                builder,
+                R.string.guide_voice_draft_photo_note_format,
+                session.getFieldPhotoNote()
+        );
+        appendDraftLine(builder, getString(R.string.guide_voice_draft_treatment_review_required));
+        return builder.toString();
+    }
+
+    private boolean hasMedicationDraftSource() {
+        AppointmentRequest request = currentDashboard.getAppointmentRequest();
+        CompanionSession session = currentDashboard.getSession();
+        return !TextUtils.isEmpty(request.getMedicationSummary())
+                || !TextUtils.isEmpty(session.getMedicationNote())
+                || !TextUtils.isEmpty(valueOf(inputMedicationNote));
+    }
+
+    private int setTextIfEmpty(TextInputEditText input, String value) {
+        if (TextUtils.isEmpty(value) || !TextUtils.isEmpty(valueOf(input))) {
+            return 0;
+        }
+        input.setText(value);
+        return 1;
+    }
+
+    private String fallbackText(String value, int fallbackResId) {
+        return TextUtils.isEmpty(value) ? getString(fallbackResId) : value;
+    }
+
+    private void appendDraftLineIfPresent(StringBuilder builder, int formatResId, String value) {
+        if (!TextUtils.isEmpty(value)) {
+            appendDraftLine(builder, getString(formatResId, value));
+        }
+    }
+
+    private void appendDraftLine(StringBuilder builder, String line) {
+        if (TextUtils.isEmpty(line)) {
+            return;
+        }
+        builder.append('\n').append(line);
     }
 
     private void shareCurrentLocation() {

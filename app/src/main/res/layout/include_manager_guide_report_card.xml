@@ -45,6 +45,21 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/textGuideVoiceDraftHelper"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/guide_voice_draft_helper"
+            android:textColor="@color/bodeul_text_secondary"
+            android:textSize="13sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonFillVoiceReportDraft"
+            style="@style/BodeulOutlinedButton"
+            android:layout_marginTop="10dp"
+            android:text="@string/guide_voice_draft_button" />
+
         <com.google.android.material.textfield.TextInputLayout
             style="@style/BodeulFilledInput"
             android:layout_width="match_parent"

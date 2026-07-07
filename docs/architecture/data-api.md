@@ -153,6 +153,8 @@
 - `PATCH /sessions/{id}/progress`
 - `POST /sessions/{id}/location-updates`
 - `POST /sessions/{id}/report`
+- `POST /sessions/{id}/voice-report-drafts`
+- `PATCH /sessions/{id}/voice-report-drafts/{draftId}/confirm`
 - `GET /guardian/sessions/{id}/report`
 - `GET /hospital-guides?hospitalName=&departmentName=`
 - `POST /admin/hospital-guides`
@@ -168,6 +170,24 @@
 - `managerDocumentReviewNote`는 승인 메모 또는 보완 요청 사유를 담는다.
 - 서류 요약을 저장하면 `managerDocumentUpdatedAt`이 갱신되고, 관리자가 검토를 저장하면 `managerDocumentReviewedAt`, `managerDocumentReviewedByName`이 함께 기록된다.
 - `managerDocumentHistory` 배열에는 `eventType`, `happenedAt`, `actorName`, `summary`, `reviewNote`가 누적되어 관리자 검토 이력 다이얼로그에 바로 사용된다.
+
+### 2026-07-07 AI 음성 리포트 초안 API 메모
+
+AI 음성 리포트는 Android 앱이 STT/AI provider를 직접 호출하지 않고 `api/` 백엔드가 초안 생성 요청을 받는 구조로 둔다. 현재 구현은 provider, secret, 저장소 설정 없이 매니저 리포트 화면의 mock 초안 UX만 제공한다.
+
+초안 API 계약은 아래 기준으로 시작한다.
+
+- `POST /sessions/{id}/voice-report-drafts`
+  - 목적: 세션 담당 매니저가 음성 전사/요약 기반 리포트 초안 생성을 요청한다.
+  - 인증: Firebase ID token 또는 운영 전환 후 확정된 관리자/매니저 인증 토큰.
+  - 요청 본문 초안: `recordingSource`, `transcriptText`, `audioObjectPath`, `clientRequestId`.
+  - 응답 본문 초안: `draftId`, `status`, `summaryDraft`, `treatmentNotesDraft`, `medicationNotesDraft`, `warnings`, `expiresAt`.
+  - 운영 기준: provider key는 앱에 두지 않고 서버 secret으로만 주입한다. 원본 음성과 전사문은 기본 영구 저장하지 않는다.
+- `PATCH /sessions/{id}/voice-report-drafts/{draftId}/confirm`
+  - 목적: 매니저가 확인한 초안을 기존 `POST /sessions/{id}/report` 저장 흐름으로 확정한다.
+  - 주의: 보호자 화면은 확정된 `sessionReports`만 읽고, draft 원문은 노출하지 않는다.
+
+실제 provider 연동, 원본 음성 저장, 초안 TTL 삭제 작업은 OCR 처방전/복약 비교의 파일 처리와 검토 UX 기준을 먼저 확인한 뒤 진행한다.
 ### 2026-04-22 예약 확장 메모
 
 - 건강 프로필과 결제/쿠폰 정보는 요청 시점 스냅샷으로 함께 저장해, 매칭 이후에도 같은 기준으로 확인한다.
