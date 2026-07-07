@@ -27,23 +27,26 @@ AI 음성 녹음 기반 진료 리포트 자동 생성은 기능설명서와 gap
 - 최종 보호자 리포트의 source of truth는 매니저가 확인하고 저장한 `sessionReports`다.
 - 음성 녹음, 전사문, AI 요약은 확정 전 임시 초안 데이터로만 취급한다.
 - 앱이 STT/AI provider key를 직접 들고 외부 API를 호출하지 않는다.
-- 처리 주체는 Cloud Functions 또는 `api/` 백엔드 같은 서버 경유 구조로 둔다.
+- 처리 주체는 PostgreSQL 전환 후 도메인 API를 맡을 `api/` 백엔드를 우선 기준으로 둔다.
 - 원본 음성은 기본적으로 영구 저장하지 않고, provider 처리에 업로드가 필요할 때만 임시 저장 후 삭제한다.
+- AI 음성 리포트는 OCR 처방전/복약 비교 설계와 구현 기준이 잡힌 뒤 진행한다.
 
 ## 대안
 
 | 대안 | 장점 | 단점 | 판단 |
 |---|---|---|---|
 | 앱에서 직접 STT/AI API 호출 | 구현이 가장 단순하고 서버 작업이 적다. | provider key가 앱에 노출될 수 있고, 권한 검증과 호출량 제어가 어렵다. | 보류 |
-| Cloud Functions 프록시 | Firebase Auth, Storage, Firestore Rules와 연결하기 쉽다. | 장문 음성 처리와 장시간 실행에는 제한과 비용 리스크가 있다. | 초기 검증 후보 |
-| `api/` 백엔드 프록시 | PostgreSQL 전환, provider 교체, 감사 로그를 한 곳에서 다루기 쉽다. | 배포/운영/인증 연결을 먼저 안정화해야 한다. | 운영 전환 후보 |
+| Cloud Functions 프록시 | Firebase Auth, Storage, Firestore Rules와 연결하기 쉽다. | PostgreSQL 전환 후 같은 도메인 로직을 `api/`로 다시 옮겨야 하고, AI/OCR 처리 경계가 Firebase에 남는다. | 보조 역할만 검토 |
+| `api/` 백엔드 프록시 | PostgreSQL 전환, provider 교체, 감사 로그, rate limit, 데이터 계약을 한 곳에서 다루기 쉽다. | API 배포/운영/인증 연결을 먼저 안정화해야 한다. | 채택 |
 | 기능 미제공 | 민감정보와 환각 리스크가 없다. | 매니저 기록 부담을 줄이지 못한다. | MVP 기본값 |
 
 ## 선택 이유
 
 현재 BoDeul은 의료 동행 중 나온 내용을 보호자에게 전달하는 서비스라, 음성 원본과 전사문에는 민감 의료정보가 포함될 가능성이 높다. 따라서 초기 구현 편의보다 최소 수집, 서버 측 권한 검증, 매니저 확인 절차가 더 중요하다.
 
-현재 MVP 규모에서는 별도 AI 파이프라인을 먼저 키우기보다 기존 수동 리포트 흐름을 유지하고, 데이터와 운영 기준이 준비된 뒤 초안 생성만 보조 기능으로 붙이는 쪽이 맞다. 데이터/트래픽이 커지고 PostgreSQL/API 전환이 안정화되면 `api/` 백엔드 중심으로 처리 주체를 옮기는 것을 검토한다.
+현재 MVP 규모에서는 별도 AI 파이프라인을 먼저 키우기보다 기존 수동 리포트 흐름을 유지하고, 데이터와 운영 기준이 준비된 뒤 초안 생성만 보조 기능으로 붙이는 쪽이 맞다. PostgreSQL 전환이 확정된 기준에서는 AI 음성 처리도 처음부터 `api/` 백엔드에 붙여 도메인 로직과 감사 로그가 같은 경계에 남도록 한다.
+
+OCR 처방전/복약 비교는 이미지 파일, 약품명 추출, 기존 복약 정보와의 비교 규칙을 먼저 정해야 한다. AI 음성 리포트도 전사 결과를 기존 리포트 필드에 매핑하는 기능이므로, OCR에서 파일 업로드, 추출 신뢰도, 매니저 확인 UX, 민감정보 삭제 기준을 먼저 검증한 뒤 진행하는 순서가 맞다.
 
 ## 사용자 흐름 초안
 
@@ -77,16 +80,23 @@ AI 음성 녹음 기반 진료 리포트 자동 생성은 기능설명서와 gap
 
 ## 처리 주체 기준
 
-초기 검증은 Cloud Functions 프록시가 가장 낮은 변경 범위다. 다만 운영 전환 기준으로는 `api/` 백엔드가 DB 전환, provider 교체, 감사 로그, rate limit을 한 곳에서 관리하기 좋다.
+PostgreSQL 전환이 확정된 기준에서는 `api/` 백엔드를 1차 처리 주체로 둔다. Cloud Functions는 Firebase Auth/FCM/Storage 트리거처럼 Firebase에 강하게 묶인 작업에 남기고, AI 음성 리포트의 전사/요약/초안 생성 도메인 로직은 `api/`에서 관리한다.
+
+확인한 외부 실행 기준은 다음과 같다.
+
+- Cloud Run 서비스 요청 timeout은 기본 5분, 최대 60분까지 설정 가능하지만 15분을 넘기는 요청은 재시도와 idempotency 설계를 권장한다. AI 음성 처리는 긴 요청이 될 수 있으므로 동기 응답만 전제로 두지 않는다. 참고: https://cloud.google.com/run/docs/configuring/request-timeout
+- Cloud Functions for Firebase는 함수별 timeout, memory, instance, concurrency를 런타임 옵션으로 조정할 수 있다. 다만 이 기능은 Firebase 이벤트 처리에 적합한 도구로 보고, PostgreSQL 도메인 데이터와 provider 연동의 최종 소유권은 `api/`에 둔다. 참고: https://firebase.google.com/docs/functions/manage-functions
 
 따라서 구현 순서는 아래처럼 둔다.
 
-1. 문서 기준 확정과 provider 후보 비교
-2. 서버 프록시 인터페이스 정의
-3. 로컬 mock으로 Android 입력 폼 반영 검증
-4. Cloud Functions 또는 `api/` 중 실제 운영 주체 결정
-5. provider key를 GitHub/Firebase/서버 secret으로만 주입
-6. Rules 또는 API 인증 테스트 추가
+1. OCR 처방전/복약 비교 설계에서 파일 업로드, 추출 신뢰도, 매니저 확인 UX, 민감정보 삭제 기준을 먼저 확정한다.
+2. AI 음성 리포트 provider 후보와 보관 정책을 비교한다.
+3. `api/`에 초안 생성 인터페이스를 정의한다.
+4. Android는 Firebase ID token 또는 운영 전환 후 확정된 인증 토큰으로 `api/`에 초안 생성을 요청한다.
+5. `api/`는 세션 담당 매니저 권한, rate limit, 요청 idempotency, provider 호출, 초안 저장/삭제를 담당한다.
+6. 로컬 mock으로 Android 입력 폼 반영을 검증한다.
+7. provider key를 GitHub/API 서버 secret으로만 주입한다.
+8. API 인증, 초안 TTL 삭제, 보호자 미노출 테스트를 추가한다.
 
 앱에서 provider API를 직접 호출하는 방식은 secret 노출과 호출량 제어 문제 때문에 채택하지 않는다.
 
@@ -134,11 +144,12 @@ voiceReportDrafts/{draftId}
 
 ## 구현 전 체크리스트
 
+- [ ] OCR 처방전/복약 비교 설계와 구현 기준을 먼저 정리한다.
 - [ ] STT/요약 provider 후보, 리전, 보관 정책, 비용 기준을 비교한다.
 - [ ] 음성 녹음 동의/고지 문구와 마이크 권한 요청 시점을 확정한다.
 - [ ] 초안 데이터의 TTL과 삭제 주체를 확정한다.
-- [ ] Cloud Functions와 `api/` 백엔드 중 1차 처리 주체를 확정한다.
-- [ ] 매니저 본인 세션만 초안 생성을 요청할 수 있는 인증 테스트를 추가한다.
+- [ ] `api/` 백엔드 초안 생성 endpoint와 인증 방식을 확정한다.
+- [ ] 매니저 본인 세션만 초안 생성을 요청할 수 있는 API 인증 테스트를 추가한다.
 - [ ] 보호자에게는 확정 리포트만 노출되는지 테스트한다.
 - [ ] 원본 음성, 전사문, provider 응답 원문이 로그에 남지 않도록 점검한다.
 - [ ] 실패 시 수동 입력으로 돌아가는 UX를 준비한다.
@@ -147,5 +158,5 @@ voiceReportDrafts/{draftId}
 
 - STT/요약 provider를 무엇으로 쓸지 결정되지 않았다.
 - 음성 원본을 아예 앱 로컬에서만 처리할지, 서버 임시 업로드를 허용할지 결정되지 않았다.
-- 실제 운영 처리 주체를 Cloud Functions로 시작할지 `api/` 백엔드로 시작할지 결정되지 않았다.
+- AI 음성 리포트 착수 시점은 OCR 처방전/복약 비교 기준 정리 이후로 둔다.
 - 의료정보 처리 동의 문구와 개인정보 처리방침 반영 범위는 사람 검토가 필요하다.
