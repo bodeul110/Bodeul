@@ -1,6 +1,6 @@
 # 현재 인프라 구성도
 
-기준일: 2026-07-07
+기준일: 2026-07-10
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -15,7 +15,8 @@
 - Supabase PostgreSQL 개발 DB는 seed 적용과 row count/FK 점검이 끝난 상태다.
 - `bodeul-api`는 Node 22 + TypeScript 기반으로 추가됐고, Firebase ID token 검증, PostgreSQL 연결, `ADMIN` role 인가, 병원 가이드 read API까지 구현됐다.
 - 관리자 웹은 기본값을 `firebase`로 유지한다. 다만 `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출할 수 있다.
-- #140에서 Oracle API 실행 환경, Supabase 개발 DB, Firebase Admin 인증, Vercel preview 관리자 웹 API 모드를 묶어 #123의 실연동 비교 blocker를 해소한다.
+- #140/#123 댓글 기준으로 Oracle `bodeul-api`, Supabase 개발 DB, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교가 1차 통과했다.
+- Vercel preview는 production target 생성 문제로 #140 직접 완료 범위에서 제외됐고, 팀 공유 화면 검증은 후속 작업으로 분리한다.
 - production 관리자 웹 배포 기준은 #134에서 확정한다.
 
 ## 한 장 구성도
@@ -31,7 +32,7 @@ flowchart LR
 
   subgraph Clients["클라이언트"]
     Android["Android 앱\nJava + XML"]
-    AdminWeb["관리자 웹\nReact + Vite\nFirebase/Vercel preview 검증"]
+    AdminWeb["관리자 웹\nReact + Vite\nFirebase preview + API 모드 검증"]
   end
 
   subgraph Firebase["Firebase project: bodeul-dev"]
@@ -45,7 +46,7 @@ flowchart LR
 
   subgraph Api["bodeul-api"]
     ApiServer["Node 22 + TypeScript\n/healthz\n/admin/api-contract\n/admin/hospital-guides"]
-    Oracle["Oracle preview 실행 환경\n#140 검증 후보"]
+    Oracle["Oracle preview 실행 환경\n#140 1차 검증 완료"]
     FirebaseAdmin["Firebase Admin SDK\nID token 검증"]
     AdminRole["PostgreSQL app_users.role\nADMIN 인가"]
   end
@@ -115,12 +116,12 @@ flowchart LR
 | 관리자 권한 | Firebase Auth + PostgreSQL `app_users.role` | API 경계에서는 `ADMIN` role만 허용한다. 기존 Firebase/Firestore 관리자 경로와 병행 기간이 있다. |
 | 파일 원본 | Firebase Storage | 매니저 서류와 채팅 첨부 원본은 Storage 유지. 메타데이터만 PostgreSQL 전환 후보. |
 | 푸시/알림 | FCM + Functions | DB 전환과 분리해서 유지한다. |
-| 관리자 웹 배포 | Firebase Hosting preview + Vercel preview 검증 후보 | Firebase Hosting preview는 GitHub Actions WIF 경로로 유지한다. #140 API 모드 실연동 검증에서는 Vercel preview를 사용할 수 있다. production 기준은 #134에서 확정한다. |
+| 관리자 웹 배포 | Firebase Hosting preview + 후속 Vercel/Firebase preview API 모드 검증 | Firebase Hosting preview는 GitHub Actions WIF 경로로 유지한다. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했지만 Vercel preview는 제외됐다. production 기준은 #134에서 확정한다. |
 | 운영 DB 후보 | Supabase PostgreSQL | `bodeul-dev-rdb` 개발 DB seed 검증 완료. 운영 DB는 개발 리허설 후 생성한다. |
 
 ## GitHub 반영 근거
 
-2026-07-07 현재 `master`에 다음 인프라 관련 PR이 병합됐다.
+2026-07-10 현재 `master`에 다음 인프라 관련 PR이 병합됐다.
 
 | PR | 반영 내용 | 현재 문서 판단 |
 | --- | --- | --- |
@@ -141,14 +142,16 @@ flowchart LR
 
 GitHub Actions 기준으로 최근 인프라 관련 PR의 `API Build`, `Admin Web Build`, `Android Preflight`, `CodeQL`은 병합 전 통과한 상태로 확인됐다.
 
+2026-07-08 GitHub 이슈 댓글 기준으로는 #140에서 Oracle API 서버, Supabase PostgreSQL, Firebase Admin 인증, 로컬 관리자 웹 API 모드 검증이 기록됐고, #123에서 실제 API 응답과 Firestore 기준 데이터 비교 결과가 `passed`로 기록됐다. 이 기록은 팀원 검증 결과이며, 공개 문서에는 `DATABASE_URL`, Firebase service account JSON, Firebase ID token, Supabase password를 남기지 않는다.
+
 ## 남은 운영 판단
 
 | GitHub 이슈 | 남은 판단 |
 | --- | --- |
-| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 병원 가이드 Firestore/API 응답 비교 기록을 남긴다. 로컬 비교는 완료됐고 배포 API 응답 검증이 남아 있다. |
+| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 병원 가이드 Firestore/API 응답 비교를 추적한다. 로컬 비교와 실제 배포 API 응답 비교는 2026-07-08 댓글 기준 `passed`로 기록됐다. |
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준을 확정한다. |
 | [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비를 추적한다. |
-| [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Vercel 기반 preview 실연동 검증으로 #123 blocker를 해소한다. |
+| [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 검증은 기록됐다. Vercel preview 기반 팀 공유 화면 검증은 후속 분리 대상이다. |
 | [#32](https://github.com/bodeul110/Bodeul/issues/32) | App Check 강제 적용과 Firebase 환경 분리 계획 확정 |
 | [#64](https://github.com/bodeul110/Bodeul/issues/64) | 격리 환경에서 `restore:state:apply`까지 포함한 백업/복원 리허설 |
 | [#65](https://github.com/bodeul110/Bodeul/issues/65) | Firebase 비용 모니터링과 예산 알림 설정 |

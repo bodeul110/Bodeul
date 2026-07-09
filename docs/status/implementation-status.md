@@ -3086,3 +3086,39 @@
 - preview API URL이 확정되면 `admin-web-preview`와 API 서버 환경변수에 실제 값을 설정한다.
 - production API URL이 확정되면 `admin-web-production`과 운영 API 서버 환경변수에 실제 값을 설정한다.
 - 병원 가이드 Firestore/API 응답 비교는 Issue #123에서 진행한다.
+
+## 127. 2026-07-10 관리자 웹 분리/API 실연동 상태 최신화
+
+### 구현
+
+- #140/#123 댓글 기준으로 Oracle `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교 통과 상태를 문서에 반영했다.
+- Vercel preview는 #140 직접 완료 범위에서 제외됐고, production 전환이 아닌 팀 공유 화면 검증 후속 작업으로 분리한다고 정리했다.
+- 실제 `bodeul-admin-web` 저장소 분리는 여전히 보류하고, #134 production 기준과 #135 실행 준비 이슈가 선행 조건임을 유지했다.
+- #123 실제 배포 API 응답 비교 기록을 `../reports/issue-123-live-api-comparison-2026-07-08.md`에 추가했다.
+
+### 변경 범위
+
+- `../architecture/infra-overview.md`
+- `../architecture/infrastructure.md`
+- `../architecture/postgres-api-boundary.md`
+- `../architecture/postgres-operational-transition.md`
+- `../operations/admin-api-environments.md`
+- `../operations/admin-web-repository-split.md`
+- `../operations/infrastructure-operations-baseline.md`
+- `../operations/postgres-operational-transition-runbook.md`
+- `../reports/issue-123-live-api-comparison-2026-07-08.md`
+- `../../admin-web/README.md`
+- `../../api/README.md`
+
+### 검증
+
+- 문서 전용 변경이므로 Android, 관리자 웹, API 빌드는 실행하지 않는다.
+- GitHub 이슈 댓글로 #123, #140의 2026-07-08 실연동 기록을 확인했다.
+- `git diff --check`와 문서 링크 확인으로 검증한다.
+
+### 남은 범위
+
+- #123은 실제 배포 API 응답 비교 `passed` 반영 후 종료 또는 후속 분리 여부를 판단해야 한다.
+- #140은 Vercel 또는 Firebase Hosting preview URL 기반 팀 공유 화면 검증을 후속 작업으로 분리해야 한다.
+- #134에서 production Firebase project, Hosting site, Auth domain, App Check, live WIF 조건을 확정해야 한다.
+- #135에서 실제 `bodeul-admin-web` 저장소 분리 실행 여부와 체크리스트를 이어간다.
