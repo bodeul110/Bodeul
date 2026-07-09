@@ -11,7 +11,7 @@
 
 ## 선택한 방식
 
-즉시 별도 레포를 만들지 않고, 현재 저장소에서 관리자 웹의 데이터 계약, API 경계, 배포 경계, 소유권을 먼저 고정한다. 이후 build/deploy workflow와 GitHub Environment를 분리하고, production 배포 기준과 API mode 실연동 검증까지 마친 다음 실제 레포 분리를 진행한다.
+production 전환과 source-of-truth 변경은 #134 이후로 두고, 그 전 단계로 별도 저장소를 preview 검증용으로 먼저 준비한다. 새 저장소에는 `admin-web` 히스토리를 보존한 관리자 웹 UI, root 기준 build/deploy workflow, Hosting 전용 `firebase.json`만 둔다. 원 저장소는 Android, `bodeul-api`, Firestore/Storage Rules, Functions, 공통 문서, 현재 `admin-web/` source-of-truth를 계속 소유한다.
 
 ## 대안
 
@@ -32,7 +32,9 @@
 
 ## 현재 판단
 
-장기 방향은 `admin-web` 별도 레포 분리다. 2026-07-10 현재 preview build/deploy와 GitHub Environment 경계는 대부분 고정됐고, #140/#123 댓글 기준으로 Oracle `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 병원 가이드 실제 API 응답 비교까지 1차 통과했다. 다만 production Firebase 프로젝트와 live 배포 기준, Vercel 또는 Firebase Hosting preview URL 기반 팀 공유 화면 검증, 분리 후 계약 추적 절차가 남아 있으므로 실제 파일 이동은 보류한다. 실제 이동 전에 아래 조건을 만족해야 한다.
+장기 방향은 `admin-web` 별도 레포 분리다. 2026-07-10 현재 [bodeul110/bodeul-admin-web](https://github.com/bodeul110/bodeul-admin-web) 저장소를 생성했고, `git subtree split --prefix=admin-web`로 히스토리를 보존해 `master`에 push했다. 새 저장소에는 root 기준 README, AGENTS, Firebase Hosting 전용 `firebase.json`, build/preview deploy/CodeQL workflow, CODEOWNERS, Dependabot, PR 템플릿을 추가했다.
+
+#140/#123 댓글 기준으로 Oracle `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 병원 가이드 실제 API 응답 비교까지 1차 통과했다. 다만 새 저장소의 Environment secret은 GitHub에서 읽어 복사할 수 없었고, GCP Workload Identity Provider가 `bodeul110/bodeul-admin-web`까지 허용하는지는 아직 검증하지 않았다. 따라서 production 전환, 원 저장소 `admin-web/` 삭제 또는 freeze, source-of-truth 전환은 보류한다. 실제 전환 전에 아래 조건을 만족해야 한다.
 
 1. [관리자 웹 데이터 계약](../architecture/admin-web-data-contract.md)이 최신 코드와 맞는다.
 2. `admin-web` 변경만 감지하는 build workflow가 현재 저장소에서 먼저 안정적으로 돈다.
@@ -49,9 +51,9 @@
 | 범위 | 분리 전 소유 위치 | 분리 후 후보 소유 위치 | 비고 |
 | --- | --- | --- | --- |
 | Android 앱 | `Bodeul/app` | `Bodeul/app` | 현재 저장소 유지 |
-| 관리자 웹 UI | `Bodeul/admin-web` | `bodeul-admin-web` | 분리 대상 |
-| 관리자 웹 build workflow | `Bodeul/.github/workflows` | `bodeul-admin-web/.github/workflows` | 분리 전 현재 저장소에서 전용 workflow 검증 |
-| Firebase Hosting 설정 | `Bodeul/firebase.json` | `bodeul-admin-web/firebase.json` 후보 | 관리자 웹 Hosting 설정만 분리하고, Rules/Functions 설정은 본 저장소에 유지 |
+| 관리자 웹 UI | `Bodeul/admin-web` | `bodeul-admin-web` 준비 완료 | 새 저장소 push 완료, source-of-truth 전환 전까지 원 저장소 유지 |
+| 관리자 웹 build workflow | `Bodeul/.github/workflows` | `bodeul-admin-web/.github/workflows` 준비 완료 | 새 저장소 build workflow 통과 |
+| Firebase Hosting 설정 | `Bodeul/firebase.json` | `bodeul-admin-web/firebase.json` 준비 완료 | 관리자 웹 Hosting 설정만 분리하고, Rules/Functions 설정은 본 저장소에 유지 |
 | Firestore Rules | `Bodeul/firestore.rules` | `Bodeul` 유지 후보 | Android와 관리자 웹 권한이 함께 걸려 있음 |
 | Storage Rules | `Bodeul/storage.rules` | `Bodeul` 유지 후보 | 앱 업로드와 관리자 웹 미리보기가 같은 규칙 사용 |
 | Functions | `Bodeul/functions` | `Bodeul` 유지 후보 | Android와 관리자 웹이 같이 호출할 수 있음 |
@@ -67,8 +69,10 @@
 | 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 완료 |
 | 4 | preview/live 배포 권한과 secret 목록 정리 | `docs/operations/admin-web-environments.md` | 완료 |
 | 5 | Firebase Hosting preview 배포 workflow와 WIF 전용 인증 추가 | `.github/workflows/admin-web-preview-deploy.yml` | 완료 |
-| 6 | 별도 레포 생성 여부 최종 결정 | #135 | production 기준과 후속 preview 공유 검증 대기 |
-| 7 | 실제 레포 분리 | `bodeul-admin-web` 후보 | 대기 |
+| 6 | 별도 레포 생성 여부 최종 결정 | #135 | preview 검증용 선분리 진행 |
+| 7 | 히스토리 보존 새 저장소 bootstrap | `bodeul-admin-web` | 완료 |
+| 8 | 새 저장소 preview Environment 마무리 | `bodeul-admin-web` #6 | secret 등록, WIF 허용 조건, 수동 preview deploy 대기 |
+| 9 | source-of-truth 전환 여부 결정 | #134, #135 | production 기준과 preview 실검증 이후 |
 
 ## 분리 전 체크리스트
 
@@ -80,21 +84,28 @@
 - [x] Firebase Web config를 환경 변수로 주입한다.
 - [x] Firebase Hosting preview 배포는 WIF 전용 수동 workflow로 검증할 수 있다.
 - [x] preview 배포용 Firebase refresh token fallback은 제거돼 있다.
+- [x] `bodeul-admin-web` 저장소를 생성하고 `admin-web` 히스토리를 보존해 push했다.
+- [x] 새 저장소 root 기준 build workflow가 GitHub Actions에서 통과했다.
+- [x] 새 저장소 `admin-web-preview` Environment를 만들고 원 저장소의 공개 variables를 복사했다.
 - [ ] App Check site key와 debug token 운영 방식을 production 적용 기준과 연결한다.
 - [ ] Firebase Hosting live 배포 권한과 workflow 기준을 확정한다.
 - [ ] production Firebase 프로젝트와 Hosting site를 확정한다.
 - [x] #140/#123 댓글 기준으로 Oracle API, Supabase, Firebase Admin, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교가 통과했다.
 - [ ] Vercel 또는 Firebase Hosting preview URL에서 팀 공유 가능한 API 모드 화면 검증을 후속 작업으로 분리한다.
+- [ ] 새 저장소 `admin-web-preview` Environment secret을 등록한다.
+- [ ] GCP Workload Identity Provider가 `bodeul110/bodeul-admin-web` 저장소를 허용하는지 확인한다.
+- [ ] 새 저장소 `Admin Web Preview Deploy` workflow를 수동 실행해 Firebase Hosting preview URL을 확인한다.
 - [ ] Firestore/Storage Rules 변경 시 관리자 웹 영향 검토 절차를 PR 템플릿 또는 체크리스트에 연결한다.
 - [ ] 분리 후 공통 데이터 계약 변경을 추적할 이슈 템플릿 또는 라벨이 있다.
 
 ## 2026-07-10 진행 판단
 
-현재 상태에서는 실제 레포 이동을 바로 실행하지 않는다. #74는 분리 기준 검토로 종료됐고, 실제 실행 준비는 #135에서 추적한다. #140은 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 기준으로 1차 blocker를 해소했지만, Vercel preview는 production target 생성 문제로 제외됐고 후속 작업으로 분리해야 한다.
+현재 상태에서는 production 전환과 원 저장소 `admin-web/` 삭제를 실행하지 않는다. #74는 분리 기준 검토로 종료됐고, 실제 실행 준비는 #135에서 추적한다. #140은 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 기준으로 1차 blocker를 해소했으며, 팀 대화 기준 Vercel preview URL 확인은 있었지만 production target과 별개인 후속 검증으로 본다.
 
-- 진행 가능: #140/#123 결과 문서 반영, Vercel 또는 Firebase Hosting preview 팀 공유 검증 후속 이슈화, Firestore/Storage Rules 영향 체크리스트 연결
-- 보류: `bodeul-admin-web` 저장소 생성, 파일 히스토리를 보존한 `admin-web` 이동, production live workflow 추가
-- 선행 조건: `admin-web-production` Environment 값, production Hosting site, App Check site key, Auth authorized domain 확정, production WIF/live workflow 기준, preview 공유 화면 검증
+- 완료: `bodeul-admin-web` 저장소 생성, 파일 히스토리 보존 push, root 기준 workflow와 Hosting 설정 추가, `admin-web-preview` Environment 생성, 공개 variables 복사, build workflow 성공
+- 진행 가능: 새 저장소 secret 등록, WIF provider 허용 조건 확인, 수동 preview deploy 검증, Firestore/Storage Rules 영향 체크리스트 연결
+- 보류: 원 저장소 `admin-web/` 삭제 또는 freeze, production live workflow 추가, `admin-web-production` 값 설정, production Hosting site와 custom domain 확정
+- 선행 조건: `admin-web-production` Environment 값, production Hosting site, App Check site key, Auth authorized domain 확정, production WIF/live workflow 기준, 새 저장소 preview 배포 검증
 
 ## 분리 후 이슈 연결 규칙 초안
 
@@ -105,10 +116,11 @@
 
 ## 이번 단계에서 하지 않는 일
 
-- 새 GitHub 저장소 생성
-- 파일 히스토리를 보존한 실제 `admin-web` 이동
-- Firebase Console 설정 변경
-- GitHub Environment secret 생성 또는 수정
+- 원 저장소 `admin-web/` 삭제 또는 freeze
+- source-of-truth 전환
+- Firebase Console production 설정 변경
+- GitHub Environment secret 자동 복사
+- GCP Workload Identity Provider 조건 변경
 - Hosting live 자동 배포 변경
 
 ## 관련 이슈

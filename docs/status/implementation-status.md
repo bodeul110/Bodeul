@@ -3122,3 +3122,35 @@
 - #140은 Vercel 또는 Firebase Hosting preview URL 기반 팀 공유 화면 검증을 후속 작업으로 분리해야 한다.
 - #134에서 production Firebase project, Hosting site, Auth domain, App Check, live WIF 조건을 확정해야 한다.
 - #135에서 실제 `bodeul-admin-web` 저장소 분리 실행 여부와 체크리스트를 이어간다.
+
+## 128. 2026-07-10 관리자 웹 분리 저장소 bootstrap
+
+### 구현
+
+- `bodeul110/bodeul-admin-web` 저장소를 생성하고 `admin-web` 히스토리를 보존해 `master`에 push했다.
+- 새 저장소 root 기준 README, AGENTS, Firebase Hosting 전용 `firebase.json`, build/preview deploy/CodeQL workflow, CODEOWNERS, Dependabot, PR 템플릿을 추가했다.
+- 새 저장소 `admin-web-preview` GitHub Environment를 생성하고 원 저장소의 공개 variables를 복사했다.
+- 새 저장소의 Environment secret은 GitHub에서 값을 읽을 수 없으므로 자동 복사하지 않고, 후속 이슈로 분리했다.
+- 원 저장소 `admin-web/`은 아직 삭제하거나 freeze하지 않는다. source-of-truth 전환과 production live 기준은 #134와 #135 후속 판단에 따른다.
+
+### 변경 범위
+
+- `../operations/admin-web-repository-split.md`
+- `../operations/admin-web-environments.md`
+- `../status/implementation-status.md`
+- `../../admin-web/README.md`
+
+### 검증
+
+- 새 저장소 로컬 검증: `npm ci`, `npm run lint`, CI placeholder 환경값 기반 `npm run build`
+- 새 저장소 YAML 검증: `yq e '.' .github/workflows/admin-web.yml`, `yq e '.' .github/workflows/admin-web-preview-deploy.yml`, `yq e '.' .github/workflows/codeql.yml`
+- 새 저장소 공백 검증: `git diff --check`
+- 새 저장소 GitHub Actions: `Admin Web Build` workflow 성공
+
+### 남은 범위
+
+- 새 저장소 `admin-web-preview` Environment secret 등록
+- GCP Workload Identity Provider가 `bodeul110/bodeul-admin-web` 저장소를 허용하는지 확인
+- 새 저장소 `Admin Web Preview Deploy` 수동 실행 및 URL 확인
+- production Firebase project, Hosting site, Auth domain, App Check, live WIF 조건 확정
+- preview 검증 완료 전까지 원 저장소 `admin-web/` 삭제 또는 freeze 보류
