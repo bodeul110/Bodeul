@@ -1,6 +1,6 @@
 # 관리자 웹 API 환경변수와 CORS 기준
 
-기준일: 2026-07-07
+기준일: 2026-07-10
 
 ## 작업 목적
 
@@ -8,7 +8,7 @@
 
 ## 선택한 방식
 
-기존 관리자 웹의 기본 데이터 경로는 `firebase`로 유지한다. 병원 가이드 API 검증이 필요한 환경에서만 `VITE_BODEUL_DATA_BACKEND=api`와 `VITE_BODEUL_API_BASE_URL`을 설정한다. 2026-07-07 기준 #140은 Oracle API, Supabase, Firebase Admin 인증, Vercel preview 관리자 웹을 묶어 #123의 실연동 검증 blocker를 해소하는 preview 환경 구축 이슈다.
+기존 관리자 웹의 기본 데이터 경로는 `firebase`로 유지한다. 병원 가이드 API 검증이 필요한 환경에서만 `VITE_BODEUL_DATA_BACKEND=api`와 `VITE_BODEUL_API_BASE_URL`을 설정한다. 2026-07-10 기준 #140/#123에는 Oracle API, Supabase, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교가 통과한 기록이 있다. Vercel preview는 production target 생성 문제로 직접 완료 범위에서 제외됐고 후속 작업으로 분리한다.
 
 API 서버는 `BODEUL_API_ALLOWED_ORIGINS` allow-list에 있는 관리자 웹 origin만 브라우저 호출로 허용한다.
 
@@ -29,7 +29,7 @@ API 서버는 `BODEUL_API_ALLOWED_ORIGINS` allow-list에 있는 관리자 웹 or
 | local 기본 | `http://localhost:5173`, `http://127.0.0.1:5173` | `firebase` | `http://127.0.0.1:8080` | 기본값 사용 | 기본 개발 경로 |
 | local API 검증 | `http://localhost:5173`, `http://127.0.0.1:5173` | `api` | `http://127.0.0.1:8080` | `http://localhost:5173,http://127.0.0.1:5173` | 즉시 검증 가능 |
 | Firebase Hosting preview | Firebase Hosting preview channel URL | `firebase` 기본, API 검증 시 `api` | preview API URL 확정 후 설정 | preview channel origin을 쉼표 목록에 추가 | WIF preview 배포 workflow로 검증 가능 |
-| Vercel preview API 검증 | Vercel preview URL | `api` | Oracle API preview URL | Vercel preview origin을 쉼표 목록에 추가 | #140 범위에서 진행 |
+| Vercel preview API 검증 | Vercel preview URL | `api` | Oracle API preview URL | Vercel preview origin을 쉼표 목록에 추가 | #140에서 제외, 후속 분리 |
 | production | #134에서 확정할 운영 관리자 웹 URL | `firebase` | 운영 API URL 확정 후 설정 | 운영 관리자 웹 origin만 추가 | #134 완료 전까지 보류 |
 
 preview와 production의 실제 URL은 배포 시점에 확정되는 값이므로 공개 이슈나 PR 본문에 secret과 함께 적지 않는다. URL 자체가 공개 가능한 값이어도, 운영 전환 전에는 GitHub Environment, Vercel Environment, API 배포 서버 설정 위치만 문서화한다.
@@ -63,7 +63,7 @@ VITE_BODEUL_API_BASE_URL=http://127.0.0.1:8080
 
 `VITE_*` 값은 브라우저 번들에 포함될 수 있는 값이다. 다만 preview/production 경계를 명확히 하기 위해 GitHub Environment variable로 관리한다.
 
-Vercel preview를 사용하는 #140 검증에서는 같은 이름의 Vercel Environment Variable을 사용한다. 이 값도 브라우저 번들에 들어갈 수 있으므로 secret 원문을 넣지 않고, API base URL과 전환 flag처럼 공개 가능한 설정만 둔다.
+Vercel preview를 후속 검증으로 사용할 때는 같은 이름의 Vercel Environment Variable을 사용한다. 이 값도 브라우저 번들에 들어갈 수 있으므로 secret 원문을 넣지 않고, API base URL과 전환 flag처럼 공개 가능한 설정만 둔다. #140에서는 Vercel CLI 초기 프로젝트 생성 흐름이 production target을 만드는 문제가 있어 Vercel preview 검증을 제외했다.
 
 ### API 서버
 
@@ -144,7 +144,8 @@ VITE_BODEUL_DATA_BACKEND=firebase
 
 - local 환경의 API 모드와 CORS preflight 기준을 문서화했다.
 - Firebase Hosting preview는 WIF 수동 workflow로 검증할 수 있다.
-- Vercel preview API 검증은 #140 범위에서만 `api` 모드를 켠다.
+- Oracle API, Supabase, Firebase Admin, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교는 #140/#123 댓글 기준 통과했다.
+- Vercel preview API 검증은 후속 작업에서만 `api` 모드를 켠다.
 - production은 #134에서 URL, Auth domain, App Check, WIF live deploy 조건이 확정되기 전까지 `firebase` 기본값을 유지한다.
 - API URL과 origin을 둘 위치를 GitHub Environment와 API 서버 환경변수로 분리했다.
 - 장애 시 rollback 기준은 `VITE_BODEUL_DATA_BACKEND=firebase`로 고정했다.

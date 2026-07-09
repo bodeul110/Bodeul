@@ -1,6 +1,6 @@
 # 인프라 운영 기준
 
-기준일: 2026-07-07
+기준일: 2026-07-10
 
 이 문서는 현재 인프라 기준으로 운영자가 봐야 하는 배포, 보안, 비용, 백업, API 전환 항목을 한 곳에 정리한다. 실제 코드 기준은 `app/`, `admin-web/`, `api/`, `functions/`, `firestore.rules`, `storage.rules`, `tools/firebase/`, `.github/workflows/`를 확인해 반영했다.
 
@@ -8,12 +8,12 @@
 
 | 영역 | 현재 판단 |
 | --- | --- |
-| 관리자 웹 배포 | production 기준은 #134에서 확정. 현재 저장소에는 Firebase Hosting preview workflow가 있고, #140에서는 Vercel preview를 API 모드 검증용으로 사용할 수 있음 |
-| 관리자 웹 preview | Firebase Hosting WIF preview workflow 유지, Oracle API 연동 검증은 Vercel preview도 허용 |
+| 관리자 웹 배포 | production 기준은 #134에서 확정. 현재 저장소에는 Firebase Hosting preview workflow가 있고, Vercel/Firebase preview API 모드 팀 공유 검증은 후속 작업으로 분리 |
+| 관리자 웹 preview | Firebase Hosting WIF preview workflow 유지. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했고, Vercel preview는 제외됨 |
 | Android 앱 데이터 | Firestore/Storage 직접 접근 유지 |
 | 관리자 웹 데이터 | Firestore/Storage 직접 접근 유지, API 전환 후보 준비 |
 | 운영 DB 전환 | Supabase PostgreSQL 개발 DB seed 검증 완료 |
-| API 경계 | `bodeul-api` 구현 시작 완료. 관리자 웹 병원 가이드 read API 1차 연결 완료, #140에서 Oracle/Supabase/Firebase Admin/Vercel preview 실연동 검증 진행 |
+| API 경계 | `bodeul-api` 구현 시작 완료. 관리자 웹 병원 가이드 read API 1차 연결 완료, #140/#123 댓글 기준 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드와 실제 API 응답 비교 통과 |
 | Firebase Functions | FCM, Kakao/Naver custom token, 운영 보조 작업 유지 |
 | App Check | 초기화 경로는 있으나 enforcement는 단계 적용 |
 | Code scanning | 2026-07-02 확인 기준 open alert 0건 |
@@ -21,13 +21,13 @@
 
 ## 관리자 웹 배포 방식
 
-현재 저장소에서 검증된 관리자 웹 배포 경로는 Firebase Hosting preview다. production live 배포 기준은 #134에서 확정한다. #140에서는 Vercel preview를 관리자 웹 API 모드 실연동 검증용으로 사용할 수 있지만, 이것은 production 배포 방식 확정이 아니다.
+현재 저장소에서 검증된 관리자 웹 배포 경로는 Firebase Hosting preview다. production live 배포 기준은 #134에서 확정한다. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 실연동이 통과했지만, Vercel preview는 production target 생성 문제로 제외됐다. Vercel/Firebase preview URL에서 팀원이 공유 가능한 API 모드 화면 검증은 후속 작업으로 분리한다.
 
 선택 이유:
 
 - 관리자 웹은 Firebase Auth, Firestore, Storage를 직접 사용하므로 같은 Firebase 프로젝트 안에서 호스팅하는 편이 운영 경계가 단순하다.
 - Firebase Hosting은 정적 Vite 빌드 산출물 배포에 맞고, 커스텀 도메인과 SSL을 Firebase 콘솔에서 함께 관리할 수 있다.
-- Vercel preview는 #140의 API 모드 실연동 검증에는 적합하지만, production 기준은 도메인, Auth domain, App Check, live workflow, 권한 분리를 #134에서 별도로 결정해야 한다.
+- Vercel preview는 API 모드 팀 공유 검증 후보지만, production 기준은 도메인, Auth domain, App Check, live workflow, 권한 분리를 #134에서 별도로 결정해야 한다.
 - 로컬 실행은 개발/시연용이지 운영 배포 방식으로 보지 않는다.
 
 현재 상태:
@@ -43,7 +43,7 @@
 - `.github/workflows/admin-web.yml`
 - `.github/workflows/admin-web-preview-deploy.yml`
 
-Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. Vercel preview를 사용할 때도 Firebase Web config와 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`은 preview 전용 환경값으로 분리한다.
+Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. Vercel preview를 후속 검증에 사용할 때도 Firebase Web config와 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`은 preview 전용 환경값으로 분리한다.
 
 ## bodeul-api 운영 기준
 
@@ -65,7 +65,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 
 | 항목 | 상태 | 설명 |
 | --- | --- | --- |
-| API 실행 환경 | preview 검증 진행 | #140에서 Oracle Free Tier 또는 동등 실행 환경을 사용해 `/healthz`, 인증, CORS, 병원 가이드 API를 검증 |
+| API 실행 환경 | preview 1차 검증 완료 | #140/#123 댓글 기준 Oracle Free Tier 환경에서 `/healthz`, 인증, Supabase 조회, 병원 가이드 API, 로컬 관리자 웹 API 모드, 응답 비교가 통과 |
 | `api-preview` GitHub Environment | 후보 | GitHub Actions 기반 API 배포가 필요해질 때 생성. #140의 직접 Oracle/Vercel 검증은 서버/플랫폼 환경값으로 진행 가능 |
 | `api-production` GitHub Environment | 후보 | 운영 배포 리허설 후 생성 |
 | `DATABASE_URL` | 필요 | 서버 secret으로만 주입 |
@@ -78,11 +78,11 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 - `VITE_BODEUL_DATA_BACKEND=firebase`를 기본값으로 둔다.
 - `api` 전환은 화면 단위로 진행한다.
 - API 장애나 응답 불일치가 있으면 Firebase 직접 접근 경로로 되돌린다.
-- #140에서 배포된 API 응답 JSON을 확보하면 병원 가이드 화면의 Firestore/API 응답 비교 기록은 #123에서 남긴다.
+- #140에서 배포된 API 응답 JSON을 확보했고, #123 댓글 기준 병원 가이드 Firestore/API 응답 비교가 `passed`로 기록됐다.
 
 ## GitHub 기준 현재 상태
 
-2026-07-07 확인 기준:
+2026-07-10 확인 기준:
 
 - 최근 병합된 인프라 PR:
   - #101 Supabase 개발 DB seed 검증 기준 추가
@@ -96,17 +96,18 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
   - #136 uuid 전이 의존성 취약 경로 override 적용
   - #137 병원 가이드 Firestore/API 로컬 비교 기록 추가
   - #138 병원 가이드 비교 도구 추가
-- 최근 열린 인프라 관련 검증 이슈는 #140이다.
+- 2026-07-08 이슈 댓글 기준으로 #140에는 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 검증 결과가, #123에는 실제 배포 API 응답 비교 `passed` 결과가 기록됐다.
+- 최근 열린 관리자 웹/인프라 관련 이슈는 #123, #134, #135, #140이다.
 
 정합성 주의:
 
 - #88은 API 골격과 초기 경계 구축 기준으로 완료 처리했다.
 - #113은 관리자 웹 1차 read API 연결 기준으로 완료 처리했다.
 - #122는 API 환경변수와 CORS origin 기준 확정으로 종료됐다.
-- #123은 병원 가이드 Firestore/API 응답 비교 기록을 계속 추적한다. 로컬 비교와 비교 도구는 #137, #138로 반영됐고, 실제 배포 API 응답 검증은 #140 이후 진행한다.
+- #123은 병원 가이드 Firestore/API 응답 비교 기록을 계속 추적한다. 로컬 비교와 비교 도구는 #137, #138로 반영됐고, 실제 배포 API 응답 비교는 2026-07-08 댓글 기준 `passed`로 기록됐다.
 - #134는 production 관리자 웹 배포 기준을 확정한다.
 - #135는 `bodeul-admin-web` 저장소 분리 실행 준비를 추적한다.
-- #140은 Oracle/Vercel 기반 관리자 웹 API 모드 실연동 검증 환경을 구축한다.
+- #140은 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 1차 검증을 기록했다. Vercel preview 검증은 후속 분리 대상이다.
 
 ## 비용 리스크
 
@@ -121,7 +122,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | Cloud Functions | FCM, 리마인더, 관리자 액션 전달 job이 호출량을 만든다. | 배치 크기, 재시도 횟수, timeout을 관리한다. |
 | Firebase Hosting | 관리자 웹 자체 비용은 낮지만 정적 asset과 트래픽은 증가할 수 있다. | 정적 SPA만 Hosting에 두고 파일 원본은 Storage에 둔다. |
 | Supabase PostgreSQL | 관리자 API 전환 후 query/connection 사용량과 DB 저장량이 비용 요인이 된다. | pool max, query limit, row count 모니터링을 둔다. |
-| API 서버 | Oracle VM 또는 동등 실행 환경 비용과 로그 저장 비용이 생긴다. | #140 preview 검증 범위에서 최소 크기로 만들고, production 상시 운영은 #134 이후 별도 판단한다. |
+| API 서버 | Oracle VM 또는 동등 실행 환경 비용과 로그 저장 비용이 생긴다. | #140 preview 검증은 최소 범위로 진행됐다. production 상시 운영은 #134 이후 별도 판단한다. |
 | Kakao Local REST API | Android 직접 호출 구조라 쿼터 소진과 429 가능성이 있다. | 6시간 메모리 캐시, Kakao Console quota 확인, Functions proxy 전환 조건을 둔다. |
 
 후속 이슈:
@@ -306,10 +307,10 @@ Functions proxy 전환 조건:
 | [#64](https://github.com/bodeul110/Bodeul/issues/64) | 격리 프로젝트 복원 apply 리허설 필요 |
 | [#65](https://github.com/bodeul110/Bodeul/issues/65) | 비용 모니터링과 예산 알림 설정 필요 |
 | [#66](https://github.com/bodeul110/Bodeul/issues/66) | Kakao Local REST API 운영 리스크 점검 필요 |
-| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 병원 가이드 Firestore/API 응답 비교 기록 계속 진행 |
+| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 실제 배포 API 응답 비교 `passed` 반영 후 종료/후속 분리 판단 필요 |
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
 | [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비 |
-| [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Vercel 기반 관리자 웹 API 모드 실연동 검증 환경 구축 |
+| [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Supabase/Firebase Admin/로컬 API 모드 검증 반영, Vercel preview 후속 분리 필요 |
 
 ## 참고 문서
 

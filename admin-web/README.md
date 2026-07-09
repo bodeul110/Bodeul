@@ -119,7 +119,7 @@ npm --prefix admin-web run build
 
 - 기본 build 검증은 `Admin Web Build` workflow가 담당하며, lint/build와 산출물 업로드만 수행합니다.
 - Firebase Hosting preview는 `Admin Web Preview Deploy` workflow가 담당하며, `admin-web-preview` Environment와 WIF 인증을 사용합니다.
-- #140의 실연동 검증에서는 Vercel preview를 관리자 웹 API 모드 검증용으로 사용할 수 있습니다. 이 경우에도 목적은 production 전환이 아니라 Oracle API, Supabase, Firebase Admin 인증, CORS, 화면 표시를 확인하는 것입니다.
+- #140/#123 댓글 기준으로 Oracle API, Supabase, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교가 통과했습니다. Vercel preview는 production target 생성 문제로 직접 완료 범위에서 제외됐고 후속 작업으로 분리합니다.
 
 production live 배포 기준은 #134에서 확정합니다. 따라서 이 문서의 배포 명령은 현재 저장소에서 검증 가능한 Firebase Hosting 경로를 설명하는 것이며, 최종 production 채널, custom domain, Auth domain, App Check enforcement, WIF live deploy 조건을 확정하지 않습니다.
 
@@ -137,7 +137,7 @@ firebase deploy --only hosting --project <firebase-project-id>
 
 Hosting 설정은 루트 [firebase.json](../firebase.json)의 `hosting` 블록을 기준으로 합니다. `admin-web/dist`만 배포하며, `/assets/**`는 Vite 해시 파일이므로 길게 캐시하고 나머지 HTML/SPA 경로는 배포가 바로 반영되도록 no-cache로 둡니다.
 
-Vercel preview를 사용할 때도 환경 변수 기준은 동일합니다.
+Vercel preview를 후속 검증으로 사용할 때도 환경 변수 기준은 동일합니다. 이 검증은 production 전환이 아니라 팀원이 공유 가능한 preview URL에서 API 모드 화면을 확인하기 위한 범위로 제한합니다.
 
 | 값 | 기준 |
 | --- | --- |

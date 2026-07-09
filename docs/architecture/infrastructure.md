@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-07-07
+기준일: 2026-07-10
 
 이 문서는 현재 `BoDeul` 프로젝트가 어떤 실행 구성으로 동작하는지 빠르게 파악하기 위한 인프라 기준 문서다. 화면 설계나 기능 범위는 기능설명서와 구현 상태 문서를 따르고, 이 문서는 런타임 구성과 운영 경계를 설명한다.
 
@@ -19,7 +19,7 @@ Android 앱(app/)
   ├─ Firestore
   ├─ Firebase Storage
   ├─ Firebase Hosting preview workflow
-  ├─ Vercel preview API 모드 검증 후보
+  ├─ Vercel/Firebase preview API 모드 후속 검증 후보
   └─ bodeul-api 병원 가이드 API 검증 경로
 
 bodeul-api(api/)
@@ -81,7 +81,7 @@ Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다
   - 운영 상태 확인
   - 민감정보 마스킹과 유휴 세션 종료
 
-관리자 웹은 [`firebase.ts`](../../admin-web/firebase.ts)에서 Firebase App/Auth/Firestore/Storage를 초기화한다. 기본 데이터 경로는 Firebase지만, `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출한다. #140의 preview 실연동 검증에서는 Vercel preview origin을 API CORS allow-list에 추가해 Oracle API URL을 호출할 수 있다.
+관리자 웹은 [`firebase.ts`](../../admin-web/firebase.ts)에서 Firebase App/Auth/Firestore/Storage를 초기화한다. 기본 데이터 경로는 Firebase지만, `VITE_BODEUL_DATA_BACKEND=api` 환경에서는 병원 가이드 검증 화면이 `bodeul-api`를 호출한다. #140/#123 댓글 기준으로 Oracle API URL과 로컬 관리자 웹 API 모드 검증은 통과했고, Vercel 또는 Firebase Hosting preview URL 기반 팀 공유 화면 검증은 후속 작업으로 분리한다.
 
 ## 3. 서버/API 구성
 
@@ -227,14 +227,14 @@ PostgreSQL 관련 명령:
 ### 7-1. 관리자 웹
 
 - 현재 검증 경로: Firebase Hosting preview workflow
-- API 모드 실연동 검증 후보: Vercel preview
+- API 모드 실연동 검증: Oracle API + 로컬 관리자 웹 API 모드 1차 통과, Vercel/Firebase preview URL 검증은 후속 후보
 - Firebase project: `.firebaserc` 기준 `bodeul-dev`
 - Hosting public: `admin-web/dist`
 - dev live URL 기준: `https://bodeul-dev.web.app`
 - preview workflow: `.github/workflows/admin-web-preview-deploy.yml`
 - build workflow: `.github/workflows/admin-web.yml`
 
-관리자 웹 Firebase Hosting preview 배포는 GitHub Actions OIDC와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. production live 배포 기준은 #134에서 확정하고, #140의 Vercel preview 사용은 production 결정이 아니라 API 모드 검증으로 한정한다.
+관리자 웹 Firebase Hosting preview 배포는 GitHub Actions OIDC와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. production live 배포 기준은 #134에서 확정한다. #140에서는 Vercel preview를 직접 완료 범위에서 제외했으며, 이후 Vercel/Firebase preview URL을 쓰더라도 목적은 production 결정이 아니라 API 모드 팀 공유 검증으로 한정한다.
 
 ### 7-2. API
 
@@ -243,7 +243,7 @@ PostgreSQL 관련 명령:
 - CI Node 버전: 22
 - 검증: `npm ci`, `npm run check`
 
-최근 병합 PR #109, #114, #115, #116, #117, #121, #128, #136, #137, #138에서 관련 검증 workflow가 통과했다.
+최근 병합 PR #109, #114, #115, #116, #117, #121, #128, #136, #137, #138에서 관련 검증 workflow가 통과했다. 2026-07-08 GitHub 이슈 댓글 기준으로는 Oracle preview API의 `/healthz`, Supabase 조회, Firebase Admin 인증, 관리자 권한 API 호출, 로컬 관리자 웹 API 모드, 병원 가이드 응답 비교가 통과했다.
 
 ### 7-3. Android/Firebase/보안
 
@@ -271,9 +271,9 @@ PostgreSQL 관련 명령:
 
 - #88과 #113은 완료 근거를 남기고 종료했다.
 - #122는 관리자 웹 API 환경변수와 CORS origin 설정 확정으로 종료했다.
-- #123은 병원 가이드 Firestore/API 응답 비교 기록을 추적한다. 로컬 비교와 비교 도구는 반영됐고, 배포 API 응답 검증은 #140 이후 진행한다.
+- #123은 병원 가이드 Firestore/API 응답 비교 기록을 추적한다. 로컬 비교와 비교 도구는 반영됐고, 실제 배포 API 응답 비교는 2026-07-08 댓글 기준 `passed`로 기록됐다.
 - #103 `uuid` 전이 취약점 검토는 PR #136 병합 후 종료했다.
-- #134, #135, #140은 관리자 웹 production 기준, 레포 분리 실행 준비, Oracle/Vercel preview 실연동 검증을 각각 추적한다.
+- #134, #135, #140은 관리자 웹 production 기준, 레포 분리 실행 준비, Oracle/Supabase/Firebase Admin 실연동 검증과 Vercel preview 후속 분리를 각각 추적한다.
 - #32, #64, #65, #66은 운영 전환 전 계속 추적해야 하는 인프라 이슈다.
 
 ## 9. 보안과 운영 기준

@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-07-07
+기준일: 2026-07-10
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -18,7 +18,7 @@
 | Auth | Firebase Auth 유지. API 서버와 마이그레이션 도구는 Firebase ID token 또는 Firebase UID를 기준으로 사용자를 연결한다. |
 | FCM | 유지. 푸시 전송은 DB 전환과 분리한다. |
 | Storage | 유지. 매니저 서류와 채팅 첨부 원본은 Storage에 두고, 메타데이터와 심사 이력만 PostgreSQL 전환 후보로 둔다. |
-| Hosting | Firebase Hosting preview workflow는 유지한다. 관리자 웹 production 배포 기준은 #134에서 확정하고, #140의 Vercel preview 사용은 API 모드 실연동 검증으로 한정한다. |
+| Hosting | Firebase Hosting preview workflow는 유지한다. 관리자 웹 production 배포 기준은 #134에서 확정한다. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했고, Vercel/Firebase preview URL 팀 공유 검증은 후속 작업으로 분리한다. |
 | Functions | FCM, Kakao/Naver custom token, Firebase 인프라 보조 작업은 유지한다. |
 | 운영 트랜잭션 DB | Supabase PostgreSQL을 1차 운영 DB 후보로 둔다. |
 | API 서버 | `bodeul-api`를 PostgreSQL 접근, Firebase token 검증, 관리자/민감 작업 검증 경계로 둔다. |
@@ -36,8 +36,8 @@
 | 관리자 role 인가 | 완료 | [#116](https://github.com/bodeul110/Bodeul/pull/116), [#112](https://github.com/bodeul110/Bodeul/issues/112) | `api/src/authorization.ts` |
 | 첫 read API | API 서버와 관리자 웹 병원 가이드 1차 연결 완료, 이슈 #113 종료 | [#117](https://github.com/bodeul110/Bodeul/pull/117), [#121](https://github.com/bodeul110/Bodeul/pull/121), [#113](https://github.com/bodeul110/Bodeul/issues/113) | `api/src/hospital-guides.ts`, `admin-web/src/components/HospitalGuideApiPanel.tsx`, [관리자 API 계약](admin-api-contract.md) |
 | API 환경 설정 | 완료 | [#122](https://github.com/bodeul110/Bodeul/issues/122), [#128](https://github.com/bodeul110/Bodeul/pull/128) | `BODEUL_API_ALLOWED_ORIGINS`, `VITE_BODEUL_API_BASE_URL`, `VITE_BODEUL_DATA_BACKEND` 기준 문서화 |
-| API 응답 비교 | 로컬 API 라우트 비교와 비교 도구 준비 완료, 배포 API 호출 검증 남음 | [#123](https://github.com/bodeul110/Bodeul/issues/123), [#137](https://github.com/bodeul110/Bodeul/pull/137), [#138](https://github.com/bodeul110/Bodeul/pull/138) | [병원 가이드 Firestore/API 응답 비교 기록](../reports/hospital-guide-firestore-api-comparison-2026-07-06.md), `compare:hospital-guides` |
-| API preview 실연동 인프라 | 진행 예정 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle API 실행 환경, Supabase 개발 DB, Firebase Admin 인증, Vercel preview 관리자 웹 API 모드 검증 |
+| API 응답 비교 | 로컬 비교와 실제 배포 API 응답 비교 통과 | [#123](https://github.com/bodeul110/Bodeul/issues/123), [#137](https://github.com/bodeul110/Bodeul/pull/137), [#138](https://github.com/bodeul110/Bodeul/pull/138) | [병원 가이드 Firestore/API 응답 비교 기록](../reports/hospital-guide-firestore-api-comparison-2026-07-06.md), [실제 배포 API 응답 비교 기록](../reports/issue-123-live-api-comparison-2026-07-08.md), `compare:hospital-guides` |
+| API preview 실연동 인프라 | Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 1차 검증 완료, Vercel preview 후속 분리 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle API 실행 환경, Supabase 개발 DB, Firebase Admin 인증, 로컬 관리자 웹 API 모드 검증 |
 | production 배포 기준 | 미확정 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | production Firebase project, domain/Auth domain, App Check, WIF live deploy 조건 결정 필요 |
 
 ## 선택한 방식
@@ -64,7 +64,7 @@
 | API 개발 GitHub Environment 후보 | `api-preview` |
 | API 운영 GitHub Environment 후보 | `api-production` |
 
-`bodeul-dev-api-01`은 #140의 preview 실연동 검증에서 Oracle API 실행 환경이 필요할 때 사용할 후보명이다. `api-preview` GitHub Environment는 GitHub Actions 기반 API 배포 자동화가 필요해질 때 만들고, 단순 수동 preview 검증만 진행한다면 Oracle/Vercel/Supabase/Firebase 각 플랫폼의 비공개 환경값으로 시작할 수 있다.
+`bodeul-dev-api-01`은 #140 같은 preview 실연동 검증에서 Oracle API 실행 환경이 필요할 때 사용할 후보명이다. #140 댓글 기준 실제 검증은 Oracle Free Tier VM에서 수행됐다. `api-preview` GitHub Environment는 GitHub Actions 기반 API 배포 자동화가 필요해질 때 만들고, 단순 수동 preview 검증만 진행한다면 Oracle/Supabase/Firebase 각 플랫폼의 비공개 환경값으로 시작할 수 있다.
 
 ## 대안 비교
 
@@ -161,7 +161,7 @@ Android 앱 영향이 크므로 관리자 웹 전환보다 늦게 진행한다.
 | Firestore와 PostgreSQL 이중 운영 기간에 데이터 불일치가 생길 수 있다. | 도메인별 source of truth를 명확히 하고 비교 리포트를 만든다. |
 | 관리자 웹 API 환경값이 어긋나면 브라우저 preflight에서 막힌다. | #122/#128에서 정리한 `BODEUL_API_ALLOWED_ORIGINS`, `VITE_BODEUL_API_BASE_URL`, rollback 기준을 환경별로 적용한다. |
 | Firestore와 PostgreSQL 병원 가이드 데이터가 어긋날 수 있다. | #123에서 count와 주요 필드 spot check를 기록한다. |
-| 배포 API 응답 검증이 아직 없다. | #140에서 Oracle API 실행 환경과 Vercel preview 관리자 웹 API 모드로 `/healthz`, 인증, CORS, `/admin/hospital-guides?limit=50`을 확인한다. |
+| Vercel/Firebase preview URL 기반 팀 공유 화면 검증이 아직 없다. | #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했다. 후속 작업에서 production 전환 없이 preview URL 기준 화면 검증만 분리한다. |
 | production 배포 기준이 아직 없다. | #134에서 production Firebase project, domain/Auth domain, App Check, WIF live deploy 조건을 확정한다. |
 | API secret이 공개 GitHub 문맥에 노출될 수 있다. | `DATABASE_URL`, service account JSON, service role key는 GitHub Environment secret 또는 서버 비공개 설정에만 둔다. |
 | 전이 의존성 취약점이 다시 열릴 수 있다. | #103/#136에서 적용한 좁은 override 원칙처럼 영향 범위를 나눠 Dependabot/수동 업데이트를 판단한다. |

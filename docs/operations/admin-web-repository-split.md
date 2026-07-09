@@ -1,6 +1,6 @@
 # 관리자 웹 레포 분리 준비 계획
 
-기준일: 2026-07-07
+기준일: 2026-07-10
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -32,7 +32,7 @@
 
 ## 현재 판단
 
-장기 방향은 `admin-web` 별도 레포 분리다. 2026-07-07 현재 preview build/deploy와 GitHub Environment 경계는 대부분 고정됐지만, production Firebase 프로젝트와 live 배포 기준, 그리고 Oracle/Vercel 기반 API 모드 실연동 검증이 남아 있으므로 실제 파일 이동은 보류한다. 실제 이동 전에 아래 조건을 만족해야 한다.
+장기 방향은 `admin-web` 별도 레포 분리다. 2026-07-10 현재 preview build/deploy와 GitHub Environment 경계는 대부분 고정됐고, #140/#123 댓글 기준으로 Oracle `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 병원 가이드 실제 API 응답 비교까지 1차 통과했다. 다만 production Firebase 프로젝트와 live 배포 기준, Vercel 또는 Firebase Hosting preview URL 기반 팀 공유 화면 검증, 분리 후 계약 추적 절차가 남아 있으므로 실제 파일 이동은 보류한다. 실제 이동 전에 아래 조건을 만족해야 한다.
 
 1. [관리자 웹 데이터 계약](../architecture/admin-web-data-contract.md)이 최신 코드와 맞는다.
 2. `admin-web` 변경만 감지하는 build workflow가 현재 저장소에서 먼저 안정적으로 돈다.
@@ -41,7 +41,8 @@
 5. production Firebase 프로젝트, Hosting site, App Check 기준을 확정한다.
 6. Rules/Functions/Firebase Hosting 설정을 어느 레포가 소유할지 결정한다.
 7. 분리 후 데이터 계약 변경을 어떻게 양쪽 이슈/PR로 연결할지 정한다.
-8. #140에서 관리자 웹 API 모드가 Oracle `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, CORS 기준으로 실제 preview 환경에서 동작하는지 확인한다.
+8. #140/#123에 기록된 Oracle `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, CORS, 병원 가이드 API 비교 결과를 문서에 반영한다.
+9. Vercel 또는 Firebase Hosting preview URL 기반 팀 공유 화면 검증을 후속 작업으로 분리한다.
 
 ## 소유권 초안
 
@@ -66,7 +67,7 @@
 | 3 | 현재 저장소에 admin-web 전용 build workflow 추가 | `.github/workflows/admin-web.yml` | 완료 |
 | 4 | preview/live 배포 권한과 secret 목록 정리 | `docs/operations/admin-web-environments.md` | 완료 |
 | 5 | Firebase Hosting preview 배포 workflow와 WIF 전용 인증 추가 | `.github/workflows/admin-web-preview-deploy.yml` | 완료 |
-| 6 | 별도 레포 생성 여부 최종 결정 | #135 | 차단 조건 정리 |
+| 6 | 별도 레포 생성 여부 최종 결정 | #135 | production 기준과 후속 preview 공유 검증 대기 |
 | 7 | 실제 레포 분리 | `bodeul-admin-web` 후보 | 대기 |
 
 ## 분리 전 체크리스트
@@ -82,17 +83,18 @@
 - [ ] App Check site key와 debug token 운영 방식을 production 적용 기준과 연결한다.
 - [ ] Firebase Hosting live 배포 권한과 workflow 기준을 확정한다.
 - [ ] production Firebase 프로젝트와 Hosting site를 확정한다.
-- [ ] #140에서 API 모드 preview 실연동 검증을 완료한다.
+- [x] #140/#123 댓글 기준으로 Oracle API, Supabase, Firebase Admin, 로컬 관리자 웹 API 모드, 실제 병원 가이드 API 응답 비교가 통과했다.
+- [ ] Vercel 또는 Firebase Hosting preview URL에서 팀 공유 가능한 API 모드 화면 검증을 후속 작업으로 분리한다.
 - [ ] Firestore/Storage Rules 변경 시 관리자 웹 영향 검토 절차를 PR 템플릿 또는 체크리스트에 연결한다.
 - [ ] 분리 후 공통 데이터 계약 변경을 추적할 이슈 템플릿 또는 라벨이 있다.
 
-## 2026-07-07 진행 판단
+## 2026-07-10 진행 판단
 
-현재 상태에서는 실제 레포 이동을 바로 실행하지 않는다. #74는 분리 기준 검토로 종료됐고, 실제 실행 준비는 #135에서 추적한다. #140은 레포 분리 전에 API 모드가 preview 환경에서 실제로 동작하는지 확인하는 blocker 해소 작업으로 본다.
+현재 상태에서는 실제 레포 이동을 바로 실행하지 않는다. #74는 분리 기준 검토로 종료됐고, 실제 실행 준비는 #135에서 추적한다. #140은 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 기준으로 1차 blocker를 해소했지만, Vercel preview는 production target 생성 문제로 제외됐고 후속 작업으로 분리해야 한다.
 
-- 진행 가능: preview build/deploy 경계 검증 결과 반영, 소유권 후보 확정, 실제 분리 전 체크리스트 정리, #140 결과 반영
+- 진행 가능: #140/#123 결과 문서 반영, Vercel 또는 Firebase Hosting preview 팀 공유 검증 후속 이슈화, Firestore/Storage Rules 영향 체크리스트 연결
 - 보류: `bodeul-admin-web` 저장소 생성, 파일 히스토리를 보존한 `admin-web` 이동, production live workflow 추가
-- 선행 조건: `admin-web-production` Environment 값, production Hosting site, App Check site key, Auth authorized domain 확정, API mode preview 실연동 검증
+- 선행 조건: `admin-web-production` Environment 값, production Hosting site, App Check site key, Auth authorized domain 확정, production WIF/live workflow 기준, preview 공유 화면 검증
 
 ## 분리 후 이슈 연결 규칙 초안
 
@@ -112,5 +114,6 @@
 ## 관련 이슈
 
 - [#74 관리자 웹 레포 분리 기준 검토](https://github.com/bodeul110/Bodeul/issues/74)
+- [#123 병원 가이드 Firestore/API 응답 비교 기록](https://github.com/bodeul110/Bodeul/issues/123)
 - [#135 bodeul-admin-web 저장소 분리 실행 준비](https://github.com/bodeul110/Bodeul/issues/135)
 - [#140 Oracle/Vercel 기반 관리자 웹 API 모드 실연동 검증 환경 구축](https://github.com/bodeul110/Bodeul/issues/140)
