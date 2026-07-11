@@ -9,7 +9,7 @@
 [![Firebase Rules](https://github.com/bodeul110/Bodeul/actions/workflows/firebase-rules.yml/badge.svg?branch=master)](https://github.com/bodeul110/Bodeul/actions/workflows/firebase-rules.yml)
 [![CodeQL](https://github.com/bodeul110/Bodeul/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/bodeul110/Bodeul/actions/workflows/codeql.yml)
 
-[문서 홈](docs/README.md) · [현재 구현 상태](docs/status/implementation-status.md) · [관리자 웹](https://bodeul-admin-web-iota.vercel.app/) · [관리자 웹 저장소](https://github.com/bodeul110/bodeul-admin-web) · [GitHub Issues](https://github.com/bodeul110/Bodeul/issues)
+[문서 홈](docs/README.md) · [현재 구현 상태](docs/status/implementation-status.md) · [관리자 웹 공유 배포](https://bodeul-admin-web-iota.vercel.app/) · [관리자 웹 저장소](https://github.com/bodeul110/bodeul-admin-web) · [GitHub Issues](https://github.com/bodeul110/Bodeul/issues)
 
 </div>
 
@@ -25,8 +25,6 @@
 - 매니저 서류 심사, 일정 관리, 동행 기록과 최종 리포트를 제공합니다.
 - 관리자 웹과 운영 도구로 심사, 문의, 병원 가이드, 데이터 점검을 처리합니다.
 - Firebase의 실시간 기능을 유지하면서 관계형 조회와 운영 이력이 필요한 영역부터 PostgreSQL로 옮깁니다.
-
-초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다. 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 ## 목차
 
