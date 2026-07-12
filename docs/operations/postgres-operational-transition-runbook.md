@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 런북
 
-기준일: 2026-07-10
+기준일: 2026-07-12
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -8,6 +8,8 @@
 ## 작업 목적
 
 Firebase 인프라는 유지하면서 운영 DB를 Supabase PostgreSQL로 옮기기 위해 인프라 담당자가 만들어야 하는 외부 리소스, GitHub 설정, 초기 검증 순서를 고정한다. 2026-07-10 기준 Oracle Cloud API 서버는 #140의 preview 실연동 검증에서 사용됐지만, production 서버나 live 전환 기준은 아니다.
+
+2026-07-12 멘토링 이후 운영 목표는 Next.js 관리자 서버와 Spring Core API가 공용 PostgreSQL에 각각 접근하는 구조로 갱신됐다. 이 문서의 Node `api/` 절차는 이미 수행한 전환 검증 기록으로 유지한다. 새 Core API 구축은 [Spring Core API 인프라 런북](core-api-infrastructure-runbook.md)을 따른다.
 
 ## 인프라 담당자가 생성할 리소스
 
@@ -92,7 +94,7 @@ DB schema와 import dry-run만 진행하는 동안에는 GitHub Environment secr
 - `DATABASE_URL`은 서버 전용이다. Android 앱이나 관리자 웹에 노출하지 않는다.
 - Supabase service role key는 기본값으로 만들지 않는다. 필요할 때 별도 근거를 남기고 추가한다.
 
-## API 서버 기준
+## 기존 Node API 검증 기준
 
 | 항목 | 결정 |
 | --- | --- |
@@ -106,6 +108,8 @@ DB schema와 import dry-run만 진행하는 동안에는 GitHub Environment secr
 | 헬스체크 | `GET /healthz` |
 
 API 서버는 Firebase 전체 대체 서버가 아니다. PostgreSQL 접근, 서버 검증이 필요한 쓰기 작업, 관리자 권한 검증을 담당하는 얇은 경계로 시작한다.
+
+이 Node API는 Spring Core API와 Next.js 관리자 서버가 같은 인증·인가·DB 계약을 구현할 때 참고하는 프로토타입이다. production 목표 런타임으로 확장하지 않고, 새 서버의 parity 검증 후 종료한다.
 
 세부 경계는 [PostgreSQL API 경계 기준](../architecture/postgres-api-boundary.md)을 따른다.
 
