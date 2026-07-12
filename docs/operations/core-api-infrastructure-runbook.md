@@ -9,6 +9,9 @@
 - [`bodeul110/bodeul-core-api`](https://github.com/bodeul110/bodeul-core-api) 저장소를 생성했다.
 - Java 21, Spring Boot 3.5.16, Gradle Wrapper, `/healthz`, local/database profile, CI 초기 구성을 반영했다.
 - 로컬 `./gradlew check`와 GitHub `Core API CI`가 통과했다.
+- `master`에 1명 승인, `check` CI, 대화 해결, linear history 보호 기준을 적용했다.
+- `core-api-preview`, `core-api-production` Environment를 생성했다. production은 `bodeul110` 승인을 요구하며 secret은 아직 넣지 않았다.
+- preview 공개 변수는 OCI 홈 리전 `ap-tokyo-1`과 서비스명 `bodeul-core-api-preview`만 등록했다.
 - 기존 `api/` Node.js 서버는 Oracle/Supabase/Firebase Admin preview 검증에 사용됐다.
 - 기존 Oracle VM을 Spring preview에 재사용할 수 있는지는 점검 전이다.
 - production 도메인과 HTTPS endpoint는 아직 없다.
