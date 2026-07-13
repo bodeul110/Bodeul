@@ -1,0 +1,78 @@
+name: Core API DB Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 적용할 DB 환경
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+      confirm_target:
+        description: 확인을 위해 target 값을 다시 입력하세요.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-api-migration-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: migrate-${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: core-api-migration-${{ inputs.target }}
+
+    defaults:
+      run:
+        working-directory: core-api
+
+    env:
+      MIGRATION_TARGET: ${{ inputs.target }}
+      MIGRATION_CONFIRM_TARGET: ${{ inputs.confirm_target }}
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: 대상 확인
+        shell: bash
+        run: |
+          if [ "$MIGRATION_TARGET" != "$MIGRATION_CONFIRM_TARGET" ]; then
+            echo "입력한 target이 일치하지 않습니다."
+            exit 1
+          fi
+
+      - name: migration secret 확인
+        shell: bash
+        env:
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: |
+          if [ -z "$MIGRATION_DB_JDBC_URL" ] || [ -z "$MIGRATION_DB_USERNAME" ] || [ -z "$MIGRATION_DB_PASSWORD" ]; then
+            echo "migration Environment secret이 준비되지 않았습니다."
+            exit 1
+          fi
+
+      - name: Java 21 설정
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Flyway migration 실행
+        env:
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: ./gradlew migrateDatabase --console=plain

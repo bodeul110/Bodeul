@@ -14,6 +14,10 @@
 - DB 접근은 repository에 둔다.
 - 외부 API 호출은 client에 둔다.
 - migration은 runtime 코드와 분리하고 `core-api/`에서만 소유한다.
+- 서버 전용 테이블은 Data API에 노출하지 않는 `bodeul` schema에 둔다.
+- Flyway migration은 `bodeul_migration` role로 객체를 만들고, runtime role의 권한은 migration에서 명시적으로 부여한다.
+- DB role 비밀번호와 connection string은 bootstrap 또는 migration 파일에 넣지 않는다.
+- 원격 migration은 `migrateDatabase` task와 승인된 migration Environment로만 실행한다.
 
 ## 검증
 

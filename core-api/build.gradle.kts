@@ -34,3 +34,10 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+tasks.register<JavaExec>("migrateDatabase") {
+	group = "application"
+	description = "migration profile로 Flyway를 실행한 뒤 종료합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.DatabaseMigrationApplication")
+}
