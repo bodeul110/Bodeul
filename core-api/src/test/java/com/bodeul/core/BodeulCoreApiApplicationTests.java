@@ -31,9 +31,10 @@ class BodeulCoreApiApplicationTests {
     }
 
     @Test
-    void unknownEndpointIsNotPublic() throws Exception {
+    void unknownEndpointRequiresAuthorization() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("missing_authorization"));
     }
 
 }

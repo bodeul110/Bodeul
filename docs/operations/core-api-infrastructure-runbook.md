@@ -16,6 +16,7 @@
 - 기존 Oracle VM을 Spring preview에 재사용할 수 있는지는 점검 전이다.
 - production 도메인과 HTTPS endpoint는 아직 없다.
 - 2026-07-13 개발 Supabase에 `bodeul` 비공개 schema와 분리 role 기반을 적용하고 GitHub Actions에서 migration 실접속을 확인했다. production에는 적용하지 않았다.
+- Spring Core API에 Firebase ID token 검증, PostgreSQL `app_users` 역할 조회, 인증 오류 계약을 구현했다. 개발 DB migration과 실제 preview token 검증은 아직 적용 전이다.
 
 ## 1. 소스 경로와 런타임
 
@@ -62,7 +63,11 @@
 4. token의 `uid`로 PostgreSQL `app_users.firebase_uid`를 조회한다.
 5. API별 role과 resource ownership을 확인한다.
 
-서비스 계정 JSON 파일을 서버 디스크와 저장소에 고정하지 않는다. OCI workload에서 사용할 자격 증명 주입 방식은 GitHub Environment와 서버 secret 파일 중 하나로 고정하고, 파일 권한과 rotation 절차를 함께 검증한다.
+Firebase custom claim은 PostgreSQL 역할을 대체하지 않는다. 서비스 역할은 `app_users.role`을 최종 기준으로 사용한다.
+
+OCI는 Google 외부 환경이므로 서비스 계정 JSON을 GitHub Environment secret에서 배포 시점에 제한된 서버 파일로 만들고, systemd의 `GOOGLE_APPLICATION_CREDENTIALS`에는 파일 경로만 전달한다. JSON 원문을 애플리케이션 환경변수로 직접 읽거나 로그에 출력하지 않는다. `FIREBASE_PROJECT_ID`를 명시해 Admin SDK의 audience와 issuer 검증 대상을 고정한다.
+
+기본 `verifyIdToken`은 token 폐기 여부를 추가 확인하지 않는다. 즉시 접근 차단은 우선 `app_users` 역할 제거로 처리하고, `verifyIdToken(token, true)` 또는 별도 폐기 캐시는 실제 요청량과 지연 시간을 확인한 뒤 결정한다.
 
 ## 4. OCI preview
 
@@ -107,7 +112,7 @@ Secrets 후보:
 - `CORE_DB_JDBC_URL`
 - `CORE_DB_USERNAME`
 - `CORE_DB_PASSWORD`
-- `FIREBASE_SERVICE_ACCOUNT_JSON`
+- `FIREBASE_SERVICE_ACCOUNT_JSON` (배포 단계에서 제한된 파일로 변환하고 애플리케이션에는 직접 전달하지 않음)
 - `KAKAO_REST_API_KEY`
 - 알림톡 provider를 확정한 뒤 필요한 provider secret
 
@@ -151,10 +156,9 @@ DB migration은 `Core API DB Migration` workflow에서만 수동 실행한다. `
 ## 7. 첫 API 범위
 
 1. `GET /healthz`
-2. Firebase ID token 검증 endpoint
-3. PostgreSQL role 조회
-4. Kakao Local keyword proxy
-5. Android 병원 검색 한 화면 전환
+2. `GET /api/auth/me` Firebase ID token 검증과 PostgreSQL role 조회
+3. Kakao Local keyword proxy
+4. Android 병원 검색 한 화면 전환
 
 관리자 Next.js 전환과 Spring Core API 첫 배포를 같은 PR이나 같은 cutover로 묶지 않는다.
 
@@ -164,7 +168,7 @@ DB migration은 `Core API DB Migration` workflow에서만 수동 실행한다. `
 
 - 배포 일시와 commit SHA
 - health check 결과
-- Firebase token 정상/만료/잘못된 token 응답
+- Firebase token 정상/만료/변조/다른 project token 응답
 - DB 연결과 role 인가 결과
 - Kakao proxy 정상/429/timeout/fallback 결과
 - 재시작 후 자동 기동 결과
