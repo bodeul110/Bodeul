@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: ${CORE_DB_JDBC_URL}
+    username: ${CORE_DB_USERNAME}
+    password: ${CORE_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${CORE_DB_POOL_MAX:5}
+      minimum-idle: 0
+      connection-timeout: 5000
+      idle-timeout: 10000
+      max-lifetime: 1800000
+  flyway:
+    enabled: false

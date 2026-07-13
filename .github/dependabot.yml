@@ -28,6 +28,26 @@ updates:
     commit-message:
       prefix: "chore"
 
+  - package-ecosystem: gradle
+    directory: /core-api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:20"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: org.springframework.boot
+        update-types:
+          - version-update:semver-major
+      - dependency-name: gradle-wrapper
+        update-types:
+          - version-update:semver-major
+    commit-message:
+      prefix: "chore"
+
   - package-ecosystem: npm
     directory: /admin-web
     schedule:

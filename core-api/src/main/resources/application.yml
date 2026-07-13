@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: bodeul-core-api
+  profiles:
+    default: local
+    group:
+      preview: database
+      production: database
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: health,info
+      path-mapping:
+        health: healthz
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true

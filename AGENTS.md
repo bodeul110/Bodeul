@@ -12,6 +12,8 @@
 
 - `app/`: Android 앱. Java 기반이며 화면 흐름, Firebase 데이터 접근, 인증/예약/위치/리포트 기능을 포함한다.
 - `admin-web/`: Vite + React 관리자 웹.
+- `api/`: Node 22 기반 전환 검증용 API. Spring 계약 이관 전까지 유지한다.
+- `core-api/`: Java 21 + Spring Boot 기반 사용자 서비스 API. OCI에 독립 배포한다.
 - `functions/`: Firebase Functions. Node 22 기준으로 운영한다.
 - `tools/firebase/`: Firebase 점검, 백업, seed, preflight, 운영 리포트용 Node 스크립트.
 - `docs/`: 설계, 운영, 보안, 상태, 보고서 문서의 기준 위치.
@@ -41,6 +43,14 @@
 - 운영 데이터에 쓰기 작업을 하는 스크립트는 기본적으로 dry-run 경로를 먼저 사용하고, apply 실행은 명시적 요청이 있을 때만 한다.
 - Firestore/Storage Rules 변경은 배포 전에 로컬 검증과 영향 범위 문서화를 우선한다.
 
+## Core API 작업
+
+- `core-api/`는 메인 저장소에서 관리하되 OCI의 독립 서비스로 배포한다.
+- 기존 Node `api/`를 중간 proxy로 호출하지 않고 필요한 계약을 Spring으로 직접 이관한다.
+- Java 21과 현재 Spring Boot 3.5.x 기준을 사용자 승인 없이 올리지 않는다.
+- Firebase ID token 검증, PostgreSQL role 인가, 외부 API key 처리는 서버 경계에 둔다.
+- 변경 후 `core-api` Gradle Wrapper로 검증한다.
+
 ## GitHub 운영
 
 - `master`는 PR과 `preflight` 체크를 거쳐 반영한다.
@@ -60,6 +70,7 @@
 - Android 앱 코드 변경: `.\gradlew.bat assembleDebug --console=plain`
 - 관리자 웹 변경: `npm --prefix admin-web run build`
 - 관리자 웹 lint 영향 변경: `npm --prefix admin-web run lint`
+- Core API 변경: `.\core-api\gradlew.bat check --console=plain`
 - Firebase 운영 스크립트 변경: `npm --prefix tools/firebase run preflight:local` 또는 관련 스크립트
 - GitHub YAML 변경: `yq e '.' <파일>`로 파싱 확인
 - 문서 전용 변경은 빌드가 필요하지 않지만, 링크와 경로가 현재 구조와 맞는지 확인한다.

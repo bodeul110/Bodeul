@@ -248,7 +248,7 @@ npm --prefix tools/firebase run preflight:local
 ## 로드맵
 
 - 병원 가이드에서 검증한 API 경계를 관리자 조회 도메인부터 단계적으로 확장합니다.
-- Spring Core API 저장소와 OCI preview 배포 기반을 먼저 구축합니다.
+- 메인 저장소의 `core-api/` Spring 프로젝트와 OCI preview 배포 기반을 먼저 구축합니다.
 - 관리자 웹은 기능을 유지하면서 Next.js로 단계 이전합니다.
 - 관리자 웹 별도 저장소의 source of truth, production 환경과 배포 책임을 확정합니다.
 - Firebase dev/prod 분리, App Check 강제, 백업·복원 리허설과 비용 모니터링을 완료합니다.
