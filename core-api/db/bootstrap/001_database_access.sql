@@ -33,16 +33,16 @@ alter role bodeul_admin_runtime
     nologin noinherit nocreatedb nocreaterole;
 
 alter role bodeul_migrator
-    nologin inherit nocreatedb nocreaterole connection limit 2;
+    inherit nocreatedb nocreaterole connection limit 2;
 alter role bodeul_core_service
-    nologin inherit nocreatedb nocreaterole connection limit 5;
+    inherit nocreatedb nocreaterole connection limit 5;
 alter role bodeul_admin_service
-    nologin inherit nocreatedb nocreaterole connection limit 5;
+    inherit nocreatedb nocreaterole connection limit 5;
 
 grant bodeul_migration to postgres with inherit false, set true;
-grant bodeul_migration to bodeul_migrator;
-grant bodeul_core_runtime to bodeul_core_service;
-grant bodeul_admin_runtime to bodeul_admin_service;
+grant bodeul_migration to bodeul_migrator with inherit true, set true;
+grant bodeul_core_runtime to bodeul_core_service with inherit true, set true;
+grant bodeul_admin_runtime to bodeul_admin_service with inherit true, set true;
 
 create schema if not exists bodeul authorization bodeul_migration;
 alter schema bodeul owner to bodeul_migration;

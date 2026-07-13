@@ -65,7 +65,7 @@ $env:CORE_DB_PASSWORD = "<runtime-password>"
 
 bootstrap은 개발 DB에서 `postgres` 권한으로 먼저 적용한다. 비밀번호는 SQL 파일에 추가하지 않고 보안 경로에서 별도로 설정한 뒤 각 로그인 role을 활성화한다.
 
-Flyway는 runtime profile에서 실행하지 않는다. migration 전용 자격 증명을 준비한 환경에서만 다음처럼 실행한다.
+Flyway는 runtime profile에서 실행하지 않는다. migration 전용 자격 증명을 준비한 환경에서만 다음처럼 실행한다. migration profile은 연결 직후 `SET ROLE bodeul_migration`을 실행해 history와 업무 객체의 소유자를 로그인 계정이 아닌 migration 권한 role로 통일한다.
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "migration"

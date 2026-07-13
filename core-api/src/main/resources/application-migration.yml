@@ -9,6 +9,7 @@ spring:
       connection-timeout: 5000
       idle-timeout: 10000
       max-lifetime: 1800000
+      connection-init-sql: SET ROLE bodeul_migration
   flyway:
     enabled: true
     create-schemas: false

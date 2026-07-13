@@ -9,13 +9,13 @@
 - Java 21, Spring Boot 3.5.16, Gradle Wrapper, `/healthz`, local/database profile을 메인 저장소의 `core-api/`에 반영했다.
 - `core-api/**` 변경만 검사하는 `Core API CI`와 `/core-api` Gradle Dependabot 경로를 추가했다.
 - Core API도 메인 저장소의 `master` 보호 규칙과 PR 검토 절차를 사용한다.
-- `core-api-preview`, `core-api-production` Environment는 메인 저장소에서 관리한다. production은 `bodeul110` 승인을 요구하며 secret은 아직 넣지 않았다.
+- `core-api-preview`, `core-api-production` Environment는 메인 저장소에서 관리한다. preview에는 개발 DB runtime secret 3개를 등록했고 production secret은 아직 넣지 않았다.
 - preview 공개 변수는 OCI 홈 리전 `ap-tokyo-1`과 서비스명 `bodeul-core-api-preview`만 등록한다.
 - 초기 Spring 스캐폴드를 만들었던 `bodeul110/bodeul-core-api` 저장소는 이전 안내를 남기고 archive했다.
 - 기존 `api/` Node.js 서버는 Oracle/Supabase/Firebase Admin preview 검증에 사용됐다.
 - 기존 Oracle VM을 Spring preview에 재사용할 수 있는지는 점검 전이다.
 - production 도메인과 HTTPS endpoint는 아직 없다.
-- 2026-07-13 개발 Supabase에 `bodeul` 비공개 schema와 분리 role 기반을 적용했다. production에는 적용하지 않았다.
+- 2026-07-13 개발 Supabase에 `bodeul` 비공개 schema와 분리 role 기반을 적용하고 GitHub Actions에서 migration 실접속을 확인했다. production에는 적용하지 않았다.
 
 ## 1. 소스 경로와 런타임
 
@@ -50,6 +50,7 @@
 - Vercel Next.js는 Supavisor transaction mode 6543 포트를 사용한다.
 - runtime과 migration connection string을 분리한다.
 - SSL을 강제하고 connection string을 로그에 출력하지 않는다.
+- migration 연결은 `SET ROLE bodeul_migration`을 실행해 Flyway가 만든 객체의 소유자를 권한 role로 통일한다.
 - 로그인용 role은 bootstrap에서 `NOLOGIN`으로 만들고, 비밀번호를 보안 경로에서 설정할 때만 활성화한다.
 - 개발 단계에서는 `bodeul_migrator`와 `bodeul_core_service`만 활성화한다. `bodeul_admin_service`는 관리자 웹이 서버형 Next.js로 전환되고 서버 전용 비밀값 경계가 확인될 때까지 `NOLOGIN`으로 유지한다.
 
@@ -118,7 +119,7 @@ Secrets 후보:
 - `MIGRATION_DB_USERNAME`
 - `MIGRATION_DB_PASSWORD`
 
-`core-api-migration-preview`와 `core-api-migration-production`은 보호 브랜치만 허용하고 `bodeul110` 수동 승인을 요구한다. 2026-07-13 Environment 껍데기만 생성했으며 secret은 아직 넣지 않았다.
+`core-api-migration-preview`와 `core-api-migration-production`은 보호 브랜치만 허용하고 `bodeul110` 수동 승인을 요구한다. preview에는 `MIGRATION_DB_*` 3개를 등록했고 production secret은 등록하지 않았다.
 
 Repository secret과 Environment secret을 중복 생성하지 않는다. preview와 production은 별도 자격 증명과 DB를 사용한다.
 Runtime 배포에는 `MIGRATION_DB_*`를 전달하지 않고, migration job에는 `CORE_DB_*`를 전달하지 않는다.

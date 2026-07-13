@@ -36,9 +36,9 @@ Spring Core API와 Next.js 관리자 서버가 같은 PostgreSQL을 사용하더
 | 구분 | role | 로그인 | 연결 상한 | schema CREATE |
 | --- | --- | --- | ---: | --- |
 | migration 권한 | `bodeul_migration` | 불가 | 제한 없음 | 가능 |
-| migration 접속 | `bodeul_migrator` | 불가 | 2 | membership으로 가능 |
+| migration 접속 | `bodeul_migrator` | 가능 | 2 | membership으로 가능 |
 | Core 권한 | `bodeul_core_runtime` | 불가 | 제한 없음 | 불가 |
-| Core 접속 | `bodeul_core_service` | 불가 | 5 | 불가 |
+| Core 접속 | `bodeul_core_service` | 가능 | 5 | 불가 |
 | Admin 권한 | `bodeul_admin_runtime` | 불가 | 제한 없음 | 불가 |
 | Admin 접속 | `bodeul_admin_service` | 불가 | 5 | 불가 |
 
@@ -49,6 +49,8 @@ Spring Core API와 Next.js 관리자 서버가 같은 PostgreSQL을 사용하더
 
 첫 migration 적용 과정에서 Supabase 관리형 `postgres`의 superuser 제한과 PostgreSQL 17 role membership 규칙을 확인했다. 실패 시도는 transaction으로 롤백됐고 role 잔여물이 없음을 확인한 뒤, `SET` membership과 `SET LOCAL ROLE`을 명시한 최종 migration만 적용했다.
 
+GitHub Actions 첫 실접속에서 생성된 Flyway history table은 로그인 role이 소유하고 있었다. 관리 API 경로에서는 소유자 권한이 없어 변경이 거부됐으며, 개발 DB의 migration 접속 계정으로 소유자를 `bodeul_migration`에 정렬한 뒤 다시 검증했다. 실패한 변경은 Supabase migration 이력에 남지 않았다.
+
 ## 검증 결과
 
 | 검증 | 결과 |
@@ -58,25 +60,24 @@ Spring Core API와 Next.js 관리자 서버가 같은 PostgreSQL을 사용하더
 | Core/Admin runtime의 `bodeul` schema CREATE | false |
 | migration role의 `bodeul` schema CREATE | true |
 | `anon`, `authenticated`, `service_role`의 `bodeul` schema USAGE | false |
-| 접속 role 상태 | 모두 `NOLOGIN` |
+| 접속 role 상태 | `bodeul_migrator`, `bodeul_core_service`는 `LOGIN`, `bodeul_admin_service`는 `NOLOGIN` |
 | 연결 상한 합계 | 12개, 개발 DB `max_connections`의 20% |
 | `public` 신규 객체 자동 grant | `postgres` 전용으로 축소 |
 | migration role 신규 함수 기본 실행 권한 | 소유자만 허용 |
-| 적용 후 advisor | security 0건, performance 0건 |
-| GitHub migration Environment | preview/production 생성, 보호 브랜치와 `bodeul110` 승인 적용, secret 미등록 |
+| 적용 후 advisor | security 0건, performance INFO 1건. migration이 아직 없어 Flyway history 성공 인덱스가 사용되지 않았다는 항목으로 유지 |
+| GitHub migration Environment | preview/production 생성, 보호 브랜치와 `bodeul110` 승인 적용, preview secret 3개 등록, production 미등록 |
 | migration 실행 경로 | `migrateDatabase` Gradle task와 수동 `Core API DB Migration` workflow 추가 |
+| 실제 migration 검증 | 첫 실행의 비웹 Security 설정 문제를 PR #165로 수정한 뒤 [preview 실행](https://github.com/bodeul110/Bodeul/actions/runs/29224126924) 성공 |
+| Flyway 객체 소유자 | 연결 시 `SET ROLE bodeul_migration`을 실행하고 `flyway_schema_history` 소유자를 `bodeul_migration`으로 통일 |
 
 검증 SQL은 `core-api/db/verification/001_database_access_checks.sql`에 둔다.
 
 ## 남은 범위
 
-1. 비밀번호 관리 도구에서 개발 migration과 Core API용 강한 비밀번호를 각각 생성한다.
-2. 개발 Supabase에서 `bodeul_migrator`, `bodeul_core_service`만 `LOGIN`으로 활성화한다.
-3. migration과 Core API connection string을 GitHub Environment와 OCI secret에 분리해 등록한다.
-4. runtime 환경에는 migration 자격 증명을 전달하지 않는지 확인한다.
-5. 현재 Vite 관리자 웹은 서버 비밀값을 보관할 수 없으므로 `bodeul_admin_service`는 `NOLOGIN`으로 유지한다. Next.js 서버 전환과 서버 전용 환경변수 경계가 확인된 뒤 별도 비밀번호로 활성화한다.
-6. 첫 업무 테이블 migration에서 Core/Admin DML grant와 필요한 RLS 정책을 명시한다.
-7. production 적용은 개발 DB 접속·권한·rollback 검증 이후 별도 승인으로 진행한다.
+1. OCI preview 배포에서는 `core-api-preview`의 runtime 자격 증명만 주입하고 migration 자격 증명이 전달되지 않는지 확인한다.
+2. 현재 Vite 관리자 웹은 서버 비밀값을 보관할 수 없으므로 `bodeul_admin_service`는 `NOLOGIN`으로 유지한다. Next.js 서버 전환과 서버 전용 환경변수 경계가 확인된 뒤 별도 비밀번호로 활성화한다.
+3. 첫 업무 테이블 migration에서 Core/Admin DML grant와 필요한 RLS 정책을 명시한다.
+4. production 적용은 개발 DB 접속·권한·rollback 검증 이후 별도 승인으로 진행한다.
 
 ## 참고
 

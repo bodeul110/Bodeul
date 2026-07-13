@@ -37,7 +37,10 @@ order by role_name;
 
 select
     member.rolname as member_role,
-    granted.rolname as granted_role
+    granted.rolname as granted_role,
+    membership.inherit_option,
+    membership.set_option,
+    membership.admin_option
 from pg_auth_members membership
 join pg_roles member on member.oid = membership.member
 join pg_roles granted on granted.oid = membership.roleid
@@ -66,3 +69,11 @@ where defaclrole in (
     (defaclrole = 'bodeul_migration'::regrole and defaclnamespace = 0)
   )
 order by owner_role, schema_name, object_type;
+
+select
+    schemaname,
+    tablename,
+    tableowner
+from pg_tables
+where schemaname = 'bodeul'
+  and tablename = 'flyway_schema_history';
