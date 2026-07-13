@@ -100,10 +100,9 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. 개발 DB에 `app_users` migration 적용 및 권한 검증
-2. OCI preview systemd 배포
-3. preview 서비스 계정 파일 주입과 실제 Firebase token 검증
-4. Kakao Local REST proxy
+1. OCI preview systemd 배포
+2. preview 서비스 계정 파일 주입과 실제 Firebase token 검증
+3. Kakao Local REST proxy
 
 ## 보안
 

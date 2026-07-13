@@ -16,7 +16,7 @@
 - 기존 Oracle VM을 Spring preview에 재사용할 수 있는지는 점검 전이다.
 - production 도메인과 HTTPS endpoint는 아직 없다.
 - 2026-07-13 개발 Supabase에 `bodeul` 비공개 schema와 분리 role 기반을 적용하고 GitHub Actions에서 migration 실접속을 확인했다. production에는 적용하지 않았다.
-- Spring Core API에 Firebase ID token 검증, PostgreSQL `app_users` 역할 조회, 인증 오류 계약을 구현했다. 개발 DB migration과 실제 preview token 검증은 아직 적용 전이다.
+- Spring Core API에 Firebase ID token 검증, PostgreSQL `app_users` 역할 조회, 인증 오류 계약을 구현했다. `app_users` 개발 DB migration과 권한 검증은 완료했고, 실제 preview token 검증은 아직 적용 전이다.
 
 ## 1. 소스 경로와 런타임
 
