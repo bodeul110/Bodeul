@@ -77,3 +77,33 @@ select
 from pg_tables
 where schemaname = 'bodeul'
   and tablename = 'flyway_schema_history';
+
+select
+    table_schema,
+    table_name,
+    table_type,
+    pg_get_userbyid(class.relowner) as table_owner,
+    class.relrowsecurity as rls_enabled
+from information_schema.tables
+join pg_class class on class.oid = format('%I.%I', table_schema, table_name)::regclass
+where table_schema = 'bodeul'
+  and table_name = 'app_users';
+
+select
+    grantee,
+    privilege_type
+from information_schema.role_table_grants
+where table_schema = 'bodeul'
+  and table_name = 'app_users'
+order by grantee, privilege_type;
+
+select
+    policyname,
+    roles,
+    cmd,
+    qual,
+    with_check
+from pg_policies
+where schemaname = 'bodeul'
+  and tablename = 'app_users'
+order by policyname;

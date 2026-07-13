@@ -4,6 +4,8 @@
 
 ## 최신 점검
 
+- [Issue 157 Spring Firebase/PostgreSQL 인가 이관 기록 (2026-07-13)](issue-157-core-api-firebase-postgres-auth-2026-07-13.md)
+- [Supabase DB 권한 기반 검증 (2026-07-13)](supabase-database-access-foundation-2026-07-13.md)
 - [Issue 123 실제 배포 API 응답 비교 기록 (2026-07-08)](issue-123-live-api-comparison-2026-07-08.md)
 - [Issue 122 관리자 웹 API 환경변수와 CORS 기준 정리 (2026-07-04)](issue-122-admin-api-environments-2026-07-04.md)
 - [Issue 113 관리자 웹 병원 가이드 API 연결 기록 (2026-07-02)](issue-113-admin-web-api-connection-2026-07-02.md)
