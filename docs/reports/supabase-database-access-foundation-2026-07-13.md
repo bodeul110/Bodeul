@@ -70,12 +70,13 @@ Spring Core API와 Next.js 관리자 서버가 같은 PostgreSQL을 사용하더
 
 ## 남은 범위
 
-1. 비밀번호 관리 도구에서 세 개의 강한 비밀번호를 생성한다.
-2. Supabase SQL Editor의 비공개 세션에서 `bodeul_migrator`, `bodeul_core_service`, `bodeul_admin_service`를 `LOGIN`으로 활성화한다.
-3. 각 connection string을 준비된 GitHub Environment와 OCI/Vercel secret에 분리해 등록한다.
+1. 비밀번호 관리 도구에서 개발 migration과 Core API용 강한 비밀번호를 각각 생성한다.
+2. 개발 Supabase에서 `bodeul_migrator`, `bodeul_core_service`만 `LOGIN`으로 활성화한다.
+3. migration과 Core API connection string을 GitHub Environment와 OCI secret에 분리해 등록한다.
 4. runtime 환경에는 migration 자격 증명을 전달하지 않는지 확인한다.
-5. 첫 업무 테이블 migration에서 Core/Admin DML grant와 필요한 RLS 정책을 명시한다.
-6. production 적용은 개발 DB 접속·권한·rollback 검증 이후 별도 승인으로 진행한다.
+5. 현재 Vite 관리자 웹은 서버 비밀값을 보관할 수 없으므로 `bodeul_admin_service`는 `NOLOGIN`으로 유지한다. Next.js 서버 전환과 서버 전용 환경변수 경계가 확인된 뒤 별도 비밀번호로 활성화한다.
+6. 첫 업무 테이블 migration에서 Core/Admin DML grant와 필요한 RLS 정책을 명시한다.
+7. production 적용은 개발 DB 접속·권한·rollback 검증 이후 별도 승인으로 진행한다.
 
 ## 참고
 

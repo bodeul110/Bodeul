@@ -51,6 +51,7 @@
 - runtime과 migration connection string을 분리한다.
 - SSL을 강제하고 connection string을 로그에 출력하지 않는다.
 - 로그인용 role은 bootstrap에서 `NOLOGIN`으로 만들고, 비밀번호를 보안 경로에서 설정할 때만 활성화한다.
+- 개발 단계에서는 `bodeul_migrator`와 `bodeul_core_service`만 활성화한다. `bodeul_admin_service`는 관리자 웹이 서버형 Next.js로 전환되고 서버 전용 비밀값 경계가 확인될 때까지 `NOLOGIN`으로 유지한다.
 
 ## 3. Firebase 인증
 
