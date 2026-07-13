@@ -1,7 +1,10 @@
 -- BoDeul PostgreSQL schema draft
 -- 기준일: 2026-06-26
 -- 목적: Firestore 운영 데이터를 Supabase PostgreSQL로 옮기기 위한 초안이다.
--- 주의: 이 파일은 운영 DB에 바로 적용하지 않는다. 실제 migration은 api/ 또는 db/migrations/에서 별도 관리한다.
+-- 주의: 이 파일은 운영 DB에 바로 적용하지 않는다. 실제 migration은 core-api/에서 별도 관리한다.
+-- 목표 schema는 Data API에 노출하지 않는 bodeul이다.
+
+set search_path = bodeul, public;
 
 create extension if not exists pgcrypto;
 

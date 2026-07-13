@@ -9,5 +9,3 @@ spring:
       connection-timeout: 5000
       idle-timeout: 10000
       max-lifetime: 1800000
-  flyway:
-    enabled: false

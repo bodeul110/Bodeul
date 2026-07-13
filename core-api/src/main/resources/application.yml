@@ -6,6 +6,8 @@ spring:
     group:
       preview: database
       production: database
+  flyway:
+    enabled: false
   lifecycle:
     timeout-per-shutdown-phase: 20s
 

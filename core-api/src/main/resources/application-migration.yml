@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${MIGRATION_DB_JDBC_URL}
+    username: ${MIGRATION_DB_USERNAME}
+    password: ${MIGRATION_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 0
+      connection-timeout: 5000
+      idle-timeout: 10000
+      max-lifetime: 1800000
+  flyway:
+    enabled: true
+    create-schemas: false
+    default-schema: bodeul
+    schemas:
+      - bodeul
+    table: flyway_schema_history
+    validate-migration-naming: true

@@ -40,5 +40,6 @@ out/
 .env
 .env.*
 !.env.example
+!.env.migration.example
 *.log
 run/
