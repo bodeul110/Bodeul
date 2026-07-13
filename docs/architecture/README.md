@@ -14,6 +14,8 @@
   - Firestore를 MySQL/PostgreSQL/Supabase 대신 쓰는 이유와 보완 조건
 - [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
   - 멘토 피드백 이후 Firebase 인프라는 유지하고 Supabase PostgreSQL로 운영 DB를 옮기는 결정
+- [목표 인프라 구조](target-infrastructure.md)
+  - Next.js 관리자 서버, Spring Core API, 공용 Supabase PostgreSQL, Firebase 유지 범위와 전환 순서
 - [PostgreSQL API 경계 기준](postgres-api-boundary.md)
   - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)
@@ -33,7 +35,7 @@
 - [인프라 개요](infrastructure.md)
   - Android 앱, 관리자 웹, `bodeul-api`, Firebase, Supabase PostgreSQL, 운영 도구, CI 구성
 - [시스템 아키텍처 다이어그램](system-architecture-diagram.md)
-  - Android, 관리자 웹, Firebase, Functions, FCM, Kakao API 흐름
+  - 현재 구현과 목표 인프라의 Android, 관리자 웹, Firebase, PostgreSQL, Kakao API 흐름
 - [DB 선택 근거](database-selection.md)
   - Firestore 선택 이유와 MySQL/PostgreSQL/Supabase/Realtime Database 대안 비교
 - [아키텍처 개요](overview.md)
@@ -44,5 +46,6 @@
 ## 같이 볼 문서
 
 - [Firebase 설정](../operations/firebase/setup.md)
+- [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)
 - [Firestore 보안 정리](../security/firestore-hardening.md)
 - [현재 구현 상태](../status/implementation-status.md)

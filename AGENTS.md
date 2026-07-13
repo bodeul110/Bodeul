@@ -12,6 +12,8 @@
 
 - `app/`: Android 앱. Java 기반이며 화면 흐름, Firebase 데이터 접근, 인증/예약/위치/리포트 기능을 포함한다.
 - `admin-web/`: Vite + React 관리자 웹.
+- `api/`: Node 22 기반 전환 검증용 API. Spring 계약 이관 전까지 유지한다.
+- `core-api/`: Java 21 + Spring Boot 기반 사용자 서비스 API. OCI에 독립 배포한다.
 - `functions/`: Firebase Functions. Node 22 기준으로 운영한다.
 - `tools/firebase/`: Firebase 점검, 백업, seed, preflight, 운영 리포트용 Node 스크립트.
 - `docs/`: 설계, 운영, 보안, 상태, 보고서 문서의 기준 위치.
@@ -41,13 +43,25 @@
 - 운영 데이터에 쓰기 작업을 하는 스크립트는 기본적으로 dry-run 경로를 먼저 사용하고, apply 실행은 명시적 요청이 있을 때만 한다.
 - Firestore/Storage Rules 변경은 배포 전에 로컬 검증과 영향 범위 문서화를 우선한다.
 
+## Core API 작업
+
+- `core-api/`는 메인 저장소에서 관리하되 OCI의 독립 서비스로 배포한다.
+- 기존 Node `api/`를 중간 proxy로 호출하지 않고 필요한 계약을 Spring으로 직접 이관한다.
+- Java 21과 현재 Spring Boot 3.5.x 기준을 사용자 승인 없이 올리지 않는다.
+- Firebase ID token 검증, PostgreSQL role 인가, 외부 API key 처리는 서버 경계에 둔다.
+- 변경 후 `core-api` Gradle Wrapper로 검증한다.
+
 ## GitHub 운영
 
 - `master`는 PR과 `preflight` 체크를 거쳐 반영한다.
 - merge 방식은 squash merge를 기본으로 한다.
 - Dependabot PR은 의존성 변경이므로 사용자 승인 없이 병합하지 않는다.
 - GitHub Project `BoDeul 작업 백로그`와 Issue/Milestone을 실제 작업 추적의 기준으로 사용한다.
-- 작업 PR 본문에는 작업 목적, 선택한 방식, 대안, 선택 이유, 리스크, 변경 범위, 영향, 검증 결과, 남은 범위를 적는다.
+- PR 제목에는 `[codex]`, `[AI]`처럼 사용한 도구를 표시하지 않고 실제 변경 내용을 적는다.
+- 일반 PR 본문은 `배경`, `변경 내용`, `확인`, 필요한 경우 `참고할 점`만 짧게 적는다. 빈 구획이나 작업과 무관한 체크리스트는 남기지 않는다.
+- 설계, 보안, 인프라처럼 판단 근거가 중요한 PR에는 선택한 방식, 검토한 대안, 선택 이유, 리스크를 자연스러운 문장으로 덧붙인다.
+- 리뷰 댓글은 결론과 확인 근거를 바로 적는다. 모든 댓글에 `리뷰 결과`, `병합 판단`, `남은 범위` 같은 형식의 제목을 반복하지 않는다.
+- 실행하지 않은 검증이나 확인하지 않은 운영 상태를 수행한 것처럼 적지 않는다.
 - “AI가 제안했다”는 선택 이유가 될 수 없다. AI 제안을 검토했더라도 최종 판단 근거는 현재 프로젝트 규모, 대안, 리스크와 연결해 적는다.
 - 보안 취약점이나 실제 비밀값은 공개 Issue/PR 댓글에 적지 않고 private vulnerability reporting 경로를 사용한다.
 
@@ -56,6 +70,7 @@
 - Android 앱 코드 변경: `.\gradlew.bat assembleDebug --console=plain`
 - 관리자 웹 변경: `npm --prefix admin-web run build`
 - 관리자 웹 lint 영향 변경: `npm --prefix admin-web run lint`
+- Core API 변경: `.\core-api\gradlew.bat check --console=plain`
 - Firebase 운영 스크립트 변경: `npm --prefix tools/firebase run preflight:local` 또는 관련 스크립트
 - GitHub YAML 변경: `yq e '.' <파일>`로 파싱 확인
 - 문서 전용 변경은 빌드가 필요하지 않지만, 링크와 경로가 현재 구조와 맞는지 확인한다.

@@ -3,6 +3,7 @@
 
 # 배포, 권한, 운영 자동화 변경은 저장소 소유자가 반드시 확인한다.
 .github/workflows/ @bodeul110
+core-api/ @bodeul110
 firestore.rules @bodeul110
 storage.rules @bodeul110
 firebase.json @bodeul110

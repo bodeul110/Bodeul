@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-07-10
+기준일: 2026-07-12
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -9,9 +9,21 @@
 
 멘토 피드백 이후 BoDeul 운영 저장소를 Firebase Firestore 단독 구조에서 PostgreSQL 기반 운영 DB 구조로 단계적으로 전환한다. 목표는 Firebase를 모두 제거하는 것이 아니라, Firebase가 잘 맡는 인프라 역할은 유지하고 예약, 매칭, 관리자 운영, 정산, 통계처럼 관계형 모델이 필요한 데이터를 PostgreSQL 중심으로 옮기는 것이다.
 
-## 현재 결론
+## 2026-07-12 목표 갱신
 
-운영 전환 기준은 `Firebase 인프라 유지 + Supabase PostgreSQL 운영 DB 전환 + bodeul-api 서버 경계`다.
+멘토링 피드백에 따라 운영 목표를 `Next.js 관리자 서버 + Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM 유지`로 갱신했다. 상세 경계와 구축 순서는 [목표 인프라 구조](target-infrastructure.md)를 기준으로 한다.
+
+현재 `api/` Node.js 서버와 Vite 관리자 웹은 이 목표 구조의 production 구현이 아니다. Oracle/Supabase/Firebase Admin 연결과 API 계약을 확인한 전환용 프로토타입으로 유지하고, Spring Core API와 Next.js 관리자 서버가 같은 검증 기준을 충족한 뒤 종료한다.
+
+중복 서버 경로는 만들지 않는다.
+
+- 관리자 브라우저 → Vercel Next.js 관리자 서버 → Supabase PostgreSQL
+- 환자·보호자·매니저 웹/Android → OCI Spring Core API → Supabase PostgreSQL
+- Next.js 관리자 서버 → Node API → Spring API → PostgreSQL 같은 연쇄 호출은 금지한다.
+
+## 기존 전환 검증 결론
+
+기존 1차 검증 기준은 `Firebase 인프라 유지 + Supabase PostgreSQL 운영 DB 전환 + Node bodeul-api 서버 경계`였다. 아래 완료 기록은 이 전환 검증 결과이며 새 운영 목표의 완료 상태를 뜻하지 않는다.
 
 | 영역 | 전환 결정 |
 | --- | --- |
@@ -21,7 +33,7 @@
 | Hosting | Firebase Hosting preview workflow는 유지한다. 관리자 웹 production 배포 기준은 #134에서 확정한다. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했고, Vercel/Firebase preview URL 팀 공유 검증은 후속 작업으로 분리한다. |
 | Functions | FCM, Kakao/Naver custom token, Firebase 인프라 보조 작업은 유지한다. |
 | 운영 트랜잭션 DB | Supabase PostgreSQL을 1차 운영 DB 후보로 둔다. |
-| API 서버 | `bodeul-api`를 PostgreSQL 접근, Firebase token 검증, 관리자/민감 작업 검증 경계로 둔다. |
+| API 서버 | 현재 Node `bodeul-api`는 전환 검증용이다. 운영 목표는 사용자용 Spring Core API와 Next.js 관리자 서버로 분리한다. |
 | Firestore | 도메인별 전환 전까지 source of truth로 유지한다. 전환된 도메인에서는 읽기 호환 또는 shadow 저장소로 낮춘다. |
 
 ## 현재 진행 상태

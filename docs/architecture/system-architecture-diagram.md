@@ -1,63 +1,122 @@
 # 시스템 아키텍처 다이어그램
 
-기준일: 2026-06-25
+기준일: 2026-07-12
 
-아래 다이어그램은 Android 앱, 관리자 웹, Firebase Auth, Firestore, Storage, Functions, FCM, Kakao API가 현재 어떤 흐름으로 연결되는지 한 장으로 정리한 것이다.
+현재 구현과 운영 목표를 구분해서 표시한다. 목표 다이어그램은 배포 완료 상태가 아니다.
+
+## 현재 구현
 
 ```mermaid
 flowchart LR
   subgraph Client["클라이언트"]
-    Android["Android 앱\n환자/보호자/매니저"]
-    AdminWeb["관리자 웹\nReact + Vite"]
+    Android["Android 앱\n환자·보호자·매니저"]
+    AdminVite["관리자 웹\nReact + Vite"]
   end
 
-  subgraph Firebase["Firebase 프로젝트"]
+  subgraph Preview["전환 검증"]
+    NodeApi["Node bodeul-api\nOracle preview"]
+    Postgres["Supabase PostgreSQL"]
+  end
+
+  subgraph Firebase["Firebase"]
     Auth["Firebase Auth"]
-    Firestore["Cloud Firestore\nusers, appointmentRequests,\ncompanionSessions, reports, inquiries"]
-    Storage["Firebase Storage\nmanager-documents,\ncompanion-chat-attachments"]
-    Functions["Cloud Functions v2\nasia-northeast3"]
+    Firestore["Cloud Firestore"]
+    Storage["Firebase Storage"]
+    Functions["Cloud Functions"]
     FCM["Firebase Cloud Messaging"]
   end
 
   subgraph External["외부 연동"]
-    KakaoLogin["Kakao Login API\nkapi.kakao.com"]
-    KakaoLocal["Kakao Local REST API\ndapi.kakao.com"]
-    KakaoAlimtalk["알림톡/관리자 푸시 대행사\n환경 변수로 연결"]
+    KakaoLogin["Kakao Login API"]
+    KakaoLocal["Kakao Local REST API"]
+    Alimtalk["알림톡 provider"]
   end
 
-  subgraph Ops["운영/검증"]
-    Tools["tools/firebase\ncheck, seed, backup, restore,\nreport, preflight"]
-    GitHub["GitHub Actions\npreflight"]
-  end
+  Android --> Auth
+  AdminVite --> Auth
+  Android --> Firestore
+  AdminVite --> Firestore
+  Android --> Storage
+  AdminVite --> Storage
 
-  Android -->|"이메일/Google/Kakao 로그인"| Auth
-  AdminWeb -->|"관리자 로그인"| Auth
-  Android -->|"예약, 세션, 채팅, 리포트, 문의"| Firestore
-  AdminWeb -->|"매니저 심사, 운영 대시보드"| Firestore
-  Android -->|"매니저 서류, 채팅 첨부"| Storage
-  AdminWeb -->|"서류 미리보기"| Storage
+  AdminVite -. "병원 가이드 API 모드" .-> NodeApi
+  NodeApi -->|"Firebase ID token 검증"| Auth
+  NodeApi --> Postgres
 
-  Android -->|"카카오 access token 전달"| Functions
-  Functions -->|"사용자 정보 조회"| KakaoLogin
-  Functions -->|"custom token 발급"| Auth
-
-  Android -->|"병원/약국 키워드 좌표 조회\n6시간 메모리 캐시"| KakaoLocal
-
-  Firestore -->|"문서 변경 트리거"| Functions
-  Functions -->|"안심 채팅, 위치 알림,\n문의 답변 알림"| FCM
-  FCM --> Android
-  Functions -->|"예약 리마인더,\n관리자 후속 알림"| KakaoAlimtalk
-
-  Tools -->|"상태 점검/백업/복원/리포트"| Firestore
-  Tools -->|"Storage 정합성 점검"| Storage
-  GitHub -->|"CI preflight"| Tools
+  Android -->|"Kakao access token"| Functions
+  Functions --> KakaoLogin
+  Functions --> Auth
+  Android -->|"현재 직접 호출"| KakaoLocal
+  Firestore --> Functions
+  Functions --> FCM
+  Functions -. "연동값 준비 시" .-> Alimtalk
 ```
 
-## 흐름 요약
+현재 상태의 핵심:
 
-- Android 앱은 Firebase 설정이 있으면 Firebase 구현을 사용하고, 설정이 없으면 Mock Repository로 전환한다.
-- 관리자 웹은 Firebase Auth로 로그인한 뒤 `users/{uid}.role == ADMIN`인 계정만 운영 화면에 진입시킨다.
-- Firestore Rules와 Storage Rules도 같은 `users/{uid}.role` 문서 값을 기준으로 역할 권한을 판단한다.
-- Kakao 로그인은 앱이 Kakao access token을 Functions에 넘기고, Functions가 Kakao 사용자 정보를 확인한 뒤 Firebase custom token을 발급한다.
-- 병원/약국 실좌표 검색은 현재 Android 앱이 Kakao Local REST API를 직접 호출하며, 같은 질의는 6시간 메모리 캐시로 중복 호출을 줄인다.
-- 문의 답변, 안심 채팅, 위치 도착, 예약 리마인더, 관리자 후속 알림은 Firestore 문서 변경 또는 스케줄러를 통해 Functions가 처리한다.
+- 관리자 웹 대부분과 Android 앱은 Firestore를 직접 사용한다.
+- Node `bodeul-api`는 병원 가이드 read API와 인증·DB 경계를 검증한 preview 자산이다.
+- Kakao Local REST는 Android에서 직접 호출하지만 현재 작업 환경에는 REST key가 설정되어 있지 않다.
+- 알림톡 전송 코드는 있으나 배포된 운영 발송 함수는 확인되지 않았다.
+
+## 목표 인프라
+
+```mermaid
+flowchart LR
+  subgraph Clients["클라이언트"]
+    AdminBrowser["관리자 브라우저"]
+    UserWeb["환자·보호자·매니저 웹"]
+    Android["Android 앱"]
+  end
+
+  subgraph Vercel["Vercel"]
+    AdminNext["Next.js 관리자 웹/서버"]
+  end
+
+  subgraph OCI["Oracle Cloud"]
+    Spring["Spring Core API"]
+  end
+
+  subgraph Shared["공용 데이터"]
+    Postgres["Supabase PostgreSQL"]
+    Storage["Firebase Storage"]
+  end
+
+  subgraph Firebase["Firebase 유지"]
+    Auth["Firebase Auth"]
+    Functions["Firebase 결합 Functions"]
+    FCM["FCM"]
+  end
+
+  subgraph External["외부 연동"]
+    Kakao["Kakao REST / 알림톡"]
+  end
+
+  AdminBrowser --> AdminNext
+  UserWeb --> Spring
+  Android --> Spring
+
+  AdminBrowser --> Auth
+  UserWeb --> Auth
+  Android --> Auth
+  AdminNext -->|"token 검증"| Auth
+  Spring -->|"token 검증"| Auth
+
+  AdminNext -->|"admin DB role"| Postgres
+  Spring -->|"core DB role"| Postgres
+  Spring --> Kakao
+  AdminNext --> Storage
+  Spring --> Storage
+  Functions --> FCM
+  FCM --> Android
+```
+
+목표 상태의 핵심:
+
+- Vercel Next.js 관리자 서버와 OCI Spring Core API는 서로를 경유하지 않는다.
+- 두 서버는 같은 PostgreSQL을 사용하되 별도 runtime role과 공용 migration을 사용한다.
+- Firebase Auth와 FCM은 유지한다.
+- Kakao REST와 알림톡은 Spring Core API 뒤로 옮기고, 클라이언트 SDK가 필요한 로그인과 지도만 Android에 남긴다.
+- Android의 WebView 전환은 별도 제품 결정이며 인프라 선행 조건이 아니다.
+
+상세 기준은 [목표 인프라 구조](target-infrastructure.md)와 [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)을 따른다.

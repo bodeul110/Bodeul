@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-07-10
+기준일: 2026-07-12
 
 이 문서는 현재 `BoDeul` 프로젝트가 어떤 실행 구성으로 동작하는지 빠르게 파악하기 위한 인프라 기준 문서다. 화면 설계나 기능 범위는 기능설명서와 구현 상태 문서를 따르고, 이 문서는 런타임 구성과 운영 경계를 설명한다.
 
@@ -52,9 +52,11 @@ Supabase PostgreSQL
   └─ GitHub Actions(.github/workflows/)
 ```
 
-현재 핵심 구조는 `Firebase 중심 BaaS + Supabase PostgreSQL 전환 경로 + bodeul-api 서버 경계`다.
+현재 핵심 구조는 `Firebase 중심 BaaS + Supabase PostgreSQL 전환 경로 + Node bodeul-api prototype`이다.
 
 Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다. PostgreSQL은 운영 DB 전환 대상으로 준비됐고, `bodeul-api`는 클라이언트가 PostgreSQL에 직접 접근하지 않도록 인증과 권한을 통제하는 얇은 서버 경계로 시작했다.
+
+운영 목표는 관리자 웹을 Next.js 서버 애플리케이션으로 Vercel에 배포하고, 사용자 서비스는 Spring Core API를 OCI에 배포하는 것이다. 두 서버는 서로를 경유하지 않고 같은 Supabase PostgreSQL을 사용한다. 자세한 구조는 [목표 인프라 구조](target-infrastructure.md), 구축 절차는 [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)을 따른다.
 
 ## 2. 클라이언트 구성
 
@@ -85,7 +87,7 @@ Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다
 
 ## 3. 서버/API 구성
 
-### 3-1. bodeul-api
+### 3-1. 기존 bodeul-api prototype
 
 - 위치: `api/`
 - 기술 스택: `Node 22 + TypeScript`
@@ -98,9 +100,18 @@ Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다
   - `HEAD /admin/api-contract`
   - `GET /admin/hospital-guides`
 
-`bodeul-api`는 Firebase 전체 대체 서버가 아니다. 현재 목적은 PostgreSQL 접근, Firebase ID token 검증, 관리자 권한 검증, 낮은 위험 read API 전환을 위한 서버 경계다.
+`bodeul-api`는 Firebase 전체 대체 서버가 아니다. 현재 목적은 PostgreSQL 접근, Firebase ID token 검증, 관리자 권한 검증, 낮은 위험 read API 전환을 검증하는 것이다. Spring Core API와 Next.js 관리자 서버가 같은 계약을 구현하면 운영 후보에서 제외한다.
 
-### 3-2. 인증과 권한
+### 3-2. 목표 서버 구성
+
+| 서버 | 배포 | 책임 |
+| --- | --- | --- |
+| Next.js 관리자 서버 | Vercel | 관리자 인증·인가, 관리자 조회와 운영 처리, 관리자 DB role 사용 |
+| Spring Core API | OCI | 예약·매칭·세션·리포트, 사용자 조회와 쓰기, Kakao 서버 API proxy |
+
+두 서버는 서로를 거쳐 DB에 접근하지 않는다. DB schema migration은 한 곳에서 소유하고 runtime role은 분리한다.
+
+### 3-3. 인증과 권한
 
 관리자 API는 `Authorization: Bearer <Firebase ID token>` 헤더를 사용한다.
 
@@ -120,7 +131,7 @@ API 서버 환경변수는 다음 기준으로 둔다.
 | `FIREBASE_PROJECT_ID` | ADC 사용 시 Firebase project 지정 | 서비스 계정 JSON이 없을 때 사용 가능 |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase Admin SDK 서비스 계정 JSON | GitHub Environment secret 또는 서버 비공개 설정으로만 주입 |
 
-### 3-3. PostgreSQL client
+### 3-4. PostgreSQL client
 
 현재 DB client는 `pg` pool을 직접 사용한다.
 
