@@ -11,7 +11,7 @@
 - Core API도 메인 저장소의 `master` 보호 규칙과 PR 검토 절차를 사용한다.
 - `core-api-preview`, `core-api-production` Environment는 메인 저장소에서 관리한다. production은 `bodeul110` 승인을 요구하며 secret은 아직 넣지 않았다.
 - preview 공개 변수는 OCI 홈 리전 `ap-tokyo-1`과 서비스명 `bodeul-core-api-preview`만 등록한다.
-- 초기 Spring 스캐폴드를 만들었던 `bodeul110/bodeul-core-api` 저장소는 메인 저장소 이전 후 archive한다.
+- 초기 Spring 스캐폴드를 만들었던 `bodeul110/bodeul-core-api` 저장소는 이전 안내를 남기고 archive했다.
 - 기존 `api/` Node.js 서버는 Oracle/Supabase/Firebase Admin preview 검증에 사용됐다.
 - 기존 Oracle VM을 Spring preview에 재사용할 수 있는지는 점검 전이다.
 - production 도메인과 HTTPS endpoint는 아직 없다.
