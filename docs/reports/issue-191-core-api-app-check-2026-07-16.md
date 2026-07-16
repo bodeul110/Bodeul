@@ -32,7 +32,7 @@ App Check token은 공식 JWKS를 사용해 다음 조건을 모두 확인한다
 | Firebase Java Admin SDK에서 직접 검증 | 현재 사용 버전에 App Check API가 없어 적용할 수 없다. |
 | 별도 Node 검증 proxy 추가 | Spring 앞에 서버를 하나 더 두어 목표 아키텍처와 운영 경계가 복잡해지므로 제외했다. |
 | 수동 JWT 파서 구현 | 서명, JWKS cache, 시간과 claim 검증 오류 가능성이 커 검증된 Spring Security decoder를 사용한다. |
-| 바로 enforce 적용 | 현재 최근 30일 `VALID`가 0건이고 실기기 provider 검증 전이므로 정상 요청 차단 위험이 커 제외했다. |
+| 바로 enforce 적용 | 구현 시점에는 최근 30일 `VALID`가 0건이었고 실기기 provider 검증 전이므로 정상 요청 차단 위험이 커 제외했다. 이후 Android Firestore `VALID` 1건은 확인했지만 Core API 인증 요청은 아직 없다. |
 
 ## 선택 이유
 
@@ -73,8 +73,8 @@ App Check token은 공식 JWKS를 사용해 다음 조건을 모두 확인한다
 
 ## 리스크와 남은 범위
 
-- Android debug token allowlist와 Play Integrity 실기기 `valid`는 Issue #190 범위다.
-- 정상 App Check token이 없는 현재 상태에서는 preview enforce를 실행하지 않는다.
+- Android debug token allowlist와 Firestore `valid` 1건은 확인했다. Play Integrity 실기기와 주요 사용자 흐름은 Issue #190에 남아 있다.
+- Core API에서 Firebase Auth와 PostgreSQL role이 연결된 `valid` 요청을 확인하기 전에는 preview enforce를 실행하지 않는다.
 - 누락·위조 요청의 분기와 로그 형식은 자동화 테스트로 확인했으며, Cloud Run의 실제 판정 로그는 인증된 테스트 사용자의 요청이 들어온 뒤 확인한다.
 - 실제 `valid`, enforce 전환, 즉시 observe 롤백은 Issue #190 완료 후 Issue #192에서 검증한다.
 - JWKS 조회 장애가 enforce 중 발생하면 503으로 처리하며 즉시 observe로 되돌린다.
