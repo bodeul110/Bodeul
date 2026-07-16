@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "check:state": "node check-firestore-state.js",
+    "check:app-check": "node check-app-check-readiness.js",
     "check:manager-storage": "node check-manager-document-storage.js",
     "cleanup:manager-storage:dry-run": "node check-manager-document-storage.js --delete-orphans",
     "cleanup:manager-storage:apply": "node check-manager-document-storage.js --delete-orphans --apply",

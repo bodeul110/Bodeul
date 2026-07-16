@@ -145,10 +145,11 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 
 현재 상태:
 
-- Android debug는 Debug provider, release는 Play Integrity provider를 준비한다.
-- 관리자 웹은 `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있으면 reCAPTCHA v3 App Check를 초기화한다.
-- Functions callable은 `ENABLE_APPCHECK_ENFORCEMENT=true`일 때만 `enforceAppCheck`를 켠다.
-- Firebase Console enforcement는 단계적으로 켠다.
+- `bodeul-dev`에는 Android/Web 앱이 각각 1개 있으나 debug token은 모두 0개다.
+- Android는 SHA-256과 Play Integrity 코드 경로가 있고, 관리자 웹 provider는 아직 등록되지 않았다.
+- 최근 30일 App Check 메트릭 5,580건 중 `VALID` 요청은 0건이다.
+- Firestore, Storage, Authentication은 `UNENFORCED`이고 배포 함수 10개도 enforcement가 꺼져 있다.
+- 현재 판단은 `HOLD`이며, 상세 근거는 [App Check 적용 로드맵](app-check-enforcement-roadmap.md)을 따른다.
 
 로드맵:
 
@@ -157,9 +158,13 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | 1. 개발 token 정리 | Android debug token, 관리자 웹 debug token 등록 안정화 | allowlist와 로컬 설정 절차 정리 |
 | 2. 릴리스 검증 | Play Integrity, 웹 site key가 실제 빌드와 도메인에서 정상 동작 | 실기기와 Hosting preview/live에서 token 발급 확인 |
 | 3. Functions enforcement | callable 호출 실패가 없고 debug token 회수 기준이 있음 | `ENABLE_APPCHECK_ENFORCEMENT=true` 적용 |
-| 4. Storage enforcement | 서류/첨부 업로드와 미리보기가 정상 통과 | Firebase Console Storage enforcement 적용 |
-| 5. Firestore enforcement | 앱과 관리자 웹의 모든 직접 Firestore 접근 흐름 통과 | Firebase Console Firestore enforcement 적용 |
-| 6. 운영 모니터링 | 403/App Check 실패 로그가 정상 범위 | 실패 로그와 고객 문의를 주간 점검 |
+| 4. Custom backend 검증 | Android/Core API와 Web/Next.js 사이 header 전달·검증 확인 | `X-Firebase-AppCheck` observe 후 enforce 전환 |
+| 5. Storage enforcement | 서류/첨부 업로드와 미리보기가 정상 통과 | Firebase Console Storage enforcement 적용 |
+| 6. Firestore enforcement | 앱과 관리자 웹의 모든 직접 Firestore 접근 흐름 통과 | Firebase Console Firestore enforcement 적용 |
+| 7. Authentication enforcement | 로그인/갱신/로그아웃 흐름 통과 | Firebase Console Authentication enforcement 적용 |
+| 8. 운영 모니터링 | 401/403과 App Check 실패 로그가 정상 범위 | 실패 로그와 고객 문의를 주간 점검 |
+
+읽기 전용 상태 점검은 `npm --prefix tools/firebase run check:app-check -- --project bodeul-dev`로 반복한다.
 
 후속 이슈:
 
@@ -295,6 +300,7 @@ npx --prefix tools/firebase firebase emulators:exec `
 | 명령 | 사용 시점 | 쓰기 여부 |
 | --- | --- | --- |
 | `npm --prefix tools/firebase run check:state` | 기준 Auth 계정과 주요 컬렉션 상태 확인 | 읽기 |
+| `npm --prefix tools/firebase run check:app-check -- --project ...` | App Check provider, enforcement, 검증 메트릭 확인 | 읽기 |
 | `npm --prefix tools/firebase run check:manager-storage` | 매니저 서류 Firestore 메타데이터와 Storage 객체 정합성 확인 | 읽기 |
 | `npm --prefix tools/firebase run cleanup:manager-storage:dry-run` | 고아 Storage 파일 삭제 후보 확인 | 읽기 |
 | `npm --prefix tools/firebase run cleanup:manager-storage:apply` | 고아 Storage 파일 실제 삭제 | 쓰기 |

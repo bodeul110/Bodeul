@@ -13,6 +13,7 @@
 - Firestore 백업
 - Firestore 복원
 - 역할별 화면 진입 준비도 확인
+- App Check provider, enforcement, 검증 메트릭 확인
 - 운영 리포트와 프리플라이트 자동화
 - 매니저 서류 Storage 정합성 점검과 고아 파일 정리
 
@@ -23,8 +24,9 @@
 1. 기준선 상태 확인: `npm run check:state`
 2. 역할 준비도 확인: `npm run check:readiness`
 3. 매니저 서류 Storage 점검: `npm run check:manager-storage -- --strict`
-4. 기준 백업 생성: `npm run backup:state`
-5. 전체 운영 워크플로: `npm run workflow:ops -- --file backups/...json`
+4. App Check 준비 상태 확인: `npm run check:app-check -- --project bodeul-dev`
+5. 기준 백업 생성: `npm run backup:state`
+6. 전체 운영 워크플로: `npm run workflow:ops -- --file backups/...json`
 
 주의:
 
@@ -60,6 +62,27 @@ npm run check:readiness
 - 환자/보호자/매니저/관리자 기준선 계정이 실제 화면 진입에 필요한 컬렉션을 갖췄는지 점검한다.
 - 샘플 시나리오(`예약 대기`, `진행 중 동행`, `종료 후속 처리`)가 기대한 연결 상태인지 함께 확인한다.
 - 점검 기준은 현재 Firebase 저장소 코드가 읽는 컬렉션 조합에 맞춘다.
+
+### App Check 준비 상태 점검
+
+```powershell
+cd D:\BoDeul
+$gcloud = "$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd"
+$env:GOOGLE_OAUTH_ACCESS_TOKEN = (& $gcloud auth print-access-token).Trim()
+try {
+  npm --prefix tools/firebase run check:app-check -- `
+    --project bodeul-dev `
+    --json `
+    --output reports/app-check-readiness.json
+} finally {
+  Remove-Item Env:GOOGLE_OAUTH_ACCESS_TOKEN -ErrorAction SilentlyContinue
+}
+```
+
+- [check-app-check-readiness.js](../../../tools/firebase/check-app-check-readiness.js)는 Firebase 앱/provider, debug token 개수, 서비스별 enforcement, Functions 환경 플래그, 최근 30일 검증 메트릭을 읽는다.
+- 설정을 변경하지 않는 읽기 전용 명령이며 API key, site key, debug token, 인증서 fingerprint는 출력하지 않는다.
+- access token은 현재 프로세스 환경에서만 사용하고 파일, 셸 기록, Issue/PR 본문에 남기지 않는다.
+- 결과가 `HOLD`여도 상태 조회 자체는 성공으로 종료한다. 강제 전환 판단은 `readiness.blockers`와 실기기/preview 수동 검증을 함께 본다.
 
 ### 기준선 초기화
 
