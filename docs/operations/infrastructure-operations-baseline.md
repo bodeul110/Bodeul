@@ -316,20 +316,21 @@ npx --prefix tools/firebase firebase emulators:exec `
 
 쓰기 명령은 운영 프로젝트에서 바로 실행하지 않고, dry-run 또는 격리 프로젝트 검증을 명시적으로 수행한다.
 
-## 남은 GitHub 운영 이슈
+## GitHub 운영 이슈 상태
 
 | 이슈 | 현재 판단 |
 | --- | --- |
 | [#32](https://github.com/bodeul110/Bodeul/issues/32) | App Check enforcement와 Firebase 환경 분리 계획 |
-| [#49](https://github.com/bodeul110/Bodeul/issues/49) | CodeQL 도입은 완료됐지만 이슈 정리 여부 확인 필요 |
-| [#63](https://github.com/bodeul110/Bodeul/issues/63) | Rules emulator workflow는 있으나 이슈 open 상태 확인 필요 |
+| [#49](https://github.com/bodeul110/Bodeul/issues/49) | 완료: CodeQL 도입, `master` 분석 성공, 열린 code scanning alert 0건 확인 |
+| [#63](https://github.com/bodeul110/Bodeul/issues/63) | 완료: Firestore/Storage Rules emulator 로컬 7/7 및 GitHub Actions 검증 |
 | [#64](https://github.com/bodeul110/Bodeul/issues/64) | 완료: 격리 Emulator 복원 apply와 diff 0 검증 |
 | [#65](https://github.com/bodeul110/Bodeul/issues/65) | 완료: 개발 budget, 사용량 기준선, 점검 주기 설정 |
 | [#66](https://github.com/bodeul110/Bodeul/issues/66) | Core API proxy와 Secret Manager 전환 검증 진행 중 |
-| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 실제 배포 API 응답 비교 `passed` 반영 후 종료/후속 분리 판단 필요 |
+| [#123](https://github.com/bodeul110/Bodeul/issues/123) | 완료: 실제 배포 API 응답 비교 `passed` 반영 |
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
-| [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비 |
-| [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Supabase/Firebase Admin/로컬 API 모드 검증 반영, Vercel preview 후속 분리 필요 |
+| [#135](https://github.com/bodeul110/Bodeul/issues/135) | 분리 저장소 bootstrap 완료, Next.js 이관 후 source-of-truth 전환 대기 |
+| [#140](https://github.com/bodeul110/Bodeul/issues/140) | 완료: Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 실연동 검증 |
+| [#144](https://github.com/bodeul110/Bodeul/issues/144) | 완료: Vercel preview URL 팀 공유 및 HTTP 200 확인 |
 | [#156](https://github.com/bodeul110/Bodeul/issues/156) | 완료: OCI 대신 Cloud Run에 Spring Core API preview 배포 및 rollback 검증 |
 | [#157](https://github.com/bodeul110/Bodeul/issues/157) | 완료: Cloud Run에서 실제 Firebase token과 PostgreSQL role 인가 검증 |
 

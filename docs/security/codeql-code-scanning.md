@@ -67,9 +67,11 @@
 - CodeQL 설정 YAML 파싱 확인: `yq e '.' .github/codeql/codeql-config.yml`
 - Android 수동 분석 빌드 경로 확인: `.\gradlew.bat assembleDebug --console=plain`
 - 관리자 웹 빌드 경로 확인: `npm --prefix admin-web run build`
-- 실제 code scanning 결과 표시는 PR 생성 후 GitHub Actions의 `CodeQL` workflow와 Security 탭에서 확인한다.
+- PR과 `master` push에서 `CodeQL` workflow가 반복해서 통과했다.
+- 2026-07-16 기준 최신 `master` 실행([run 29488654755](https://github.com/bodeul110/Bodeul/actions/runs/29488654755))이 성공했다.
+- 같은 시점의 GitHub Security code scanning 열린 alert는 0건이다.
 
-## 남은 범위
+## 운영 후속
 
-- PR에서 `CodeQL` workflow 실행 결과를 확인해야 한다.
-- PR 병합 후 `master` push 결과가 GitHub Security 탭의 code scanning에 표시되는지 확인해야 한다.
+- PR, `master` push, 주간 schedule 결과를 계속 확인한다.
+- 새 alert가 생기면 실제 취약점과 false positive를 구분하고, 민감한 세부정보는 private vulnerability reporting 경로에서 다룬다.
