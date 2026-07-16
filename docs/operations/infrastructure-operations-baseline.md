@@ -13,8 +13,8 @@
 | Android 앱 데이터 | Firestore/Storage 직접 접근 유지 |
 | 관리자 웹 데이터 | Firestore/Storage 직접 접근 유지, API 전환 후보 준비 |
 | 운영 DB 전환 | Supabase PostgreSQL 개발 DB seed 검증 완료 |
-| API 경계 | `bodeul-api` 구현 시작 완료. 관리자 웹 병원 가이드 read API 1차 연결 완료, #140/#123 댓글 기준 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드와 실제 API 응답 비교 통과 |
-| Spring Core API | Firebase token과 PostgreSQL role 연결 및 개발 DB migration 검증 완료. OCI 배포 계획은 폐기하고 Cloud Run preview 구축 중 |
+| API 경계 | 사용자 서비스는 Spring Core API로 전환 중이다. `bodeul-api`는 관리자 병원 가이드 계약이 Next.js로 옮겨질 때까지만 동결된 프로토타입으로 보존한다. |
+| Spring Core API | Cloud Run preview, Firebase token/PostgreSQL role, DB migration, rollback 검증 완료. Kakao Local proxy 구현을 병합했고 secret 주입과 실호출 검증이 남았다. |
 | Firebase Functions | FCM, Kakao/Naver custom token, 운영 보조 작업 유지 |
 | App Check | 초기화 경로는 있으나 enforcement는 단계 적용 |
 | Code scanning | 2026-07-02 확인 기준 open alert 0건 |
@@ -46,9 +46,9 @@
 
 Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. Vercel preview를 후속 검증에 사용할 때도 Firebase Web config와 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`은 preview 전용 환경값으로 분리한다.
 
-## bodeul-api 운영 기준
+## bodeul-api 동결과 종료 기준
 
-현재 `bodeul-api`는 운영 DB 전환을 위한 얇은 API 경계다.
+현재 `bodeul-api`는 운영 서버 후보가 아니라 전환 과정에서 만든 계약 검증용 프로토타입이다.
 
 구현 상태:
 
@@ -62,18 +62,16 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 - PostgreSQL `pg` pool
 - PostgreSQL `app_users.role == 'ADMIN'` 인가
 
-운영 배포 전 필요한 항목:
+현재 처리 기준:
 
 | 항목 | 상태 | 설명 |
 | --- | --- | --- |
-| API 실행 환경 | preview 1차 검증 완료 | #140/#123 댓글 기준 Oracle Free Tier 환경에서 `/healthz`, 인증, Supabase 조회, 병원 가이드 API, 로컬 관리자 웹 API 모드, 응답 비교가 통과 |
-| Spring Core API 실행 환경 | 구축 중 | `bodeul-dev` Tokyo Cloud Run, 최소 0/최대 1, 1 vCPU/1 GiB 기준 |
-| `core-api-preview` GitHub Environment | 생성 완료 | WIF와 Cloud Run 식별용 Variables 사용. DB 값은 Secret Manager로 이전 |
-| `core-api-production` GitHub Environment | 자리만 준비 | 운영 project, 비용, 도메인과 rollback 리허설 전에는 배포하지 않음 |
-| `DATABASE_URL` | 필요 | 서버 secret으로만 주입 |
-| `FIREBASE_PROJECT_ID` | 필요 | Firebase token 검증 project 지정 |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | 필요할 수 있음 | ADC가 아닌 서비스 계정 JSON 경로를 택할 때만 사용 |
-| API 로그 정책 | 필요 | token 원문, DB URL, 서비스 계정 내용을 남기지 않는다. |
+| Oracle 실행 환경 | 운영 후보 제외 | #140/#123의 과거 preview 검증 기록만 보존한다. |
+| Oracle GitHub secret | 제거 완료 | workflow 참조가 없는 `OCI_CLI_*` 저장소 secret 6개를 2026-07-16 삭제했다. |
+| Node 신규 기능 | 동결 | 보안 수정과 기존 계약 회귀 수정 외에는 추가하지 않는다. |
+| Node CI | 유지 | `api/`가 남아 있는 동안 typecheck, build, test를 계속 실행한다. |
+| 관리자 병원 가이드 | 미이관 | Next.js 관리자 서버가 대체하기 전에는 `api/`를 삭제하지 않는다. |
+| Spring Core API | preview 검증 완료 | `bodeul-dev` Tokyo Cloud Run, 최소 0/최대 1, 1 vCPU/1 GiB 기준이다. |
 
 관리자 웹 API 모드 rollback 기준:
 
@@ -81,6 +79,8 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 - `api` 전환은 화면 단위로 진행한다.
 - API 장애나 응답 불일치가 있으면 Firebase 직접 접근 경로로 되돌린다.
 - #140에서 배포된 API 응답 JSON을 확보했고, #123 댓글 기준 병원 가이드 Firestore/API 응답 비교가 `passed`로 기록됐다.
+
+세부 근거와 실제 삭제 조건은 [Issue 159 Node API 종료 판단 기록](../reports/issue-159-node-api-retirement-audit-2026-07-16.md)을 따른다.
 
 ## GitHub 기준 현재 상태
 
