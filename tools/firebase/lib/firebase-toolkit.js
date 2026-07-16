@@ -5,7 +5,8 @@ const path = require("path");
 const {DEFAULT_PASSWORD, LIST_PAGE_SIZE} = require("./baseline-config");
 const DEFAULT_FIREBASE_OAUTH_CLIENT_ID =
   "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
-const FIRESTORE_API_ORIGIN = "https://firestore.googleapis.com";
+const DEFAULT_FIRESTORE_API_ORIGIN = "https://firestore.googleapis.com";
+const FIRESTORE_EMULATOR_ACCESS_TOKEN = "owner";
 const IDENTITY_TOOLKIT_API_ORIGIN = "https://identitytoolkit.googleapis.com";
 const STORAGE_API_ORIGIN = "https://storage.googleapis.com";
 const PROJECT_ID_PATTERN = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
@@ -20,7 +21,10 @@ async function createCliContext() {
 
   const storageBucket = resolveStorageBucket(projectId);
   assertStorageBucket(storageBucket);
-  const accessToken = await resolveFirebaseAccessToken();
+  const firestoreConnection = resolveFirestoreConnection();
+  const accessToken = firestoreConnection.useEmulator ?
+    FIRESTORE_EMULATOR_ACCESS_TOKEN :
+    await resolveFirebaseAccessToken();
   if (!accessToken) {
     throw new Error("firebase login 토큰을 찾지 못했습니다. `firebase login`으로 다시 로그인한 뒤 실행해 주세요.");
   }
@@ -29,6 +33,49 @@ async function createCliContext() {
     projectId,
     storageBucket,
     accessToken,
+    firestoreApiOrigin: firestoreConnection.apiOrigin,
+    useFirestoreEmulator: firestoreConnection.useEmulator,
+  };
+}
+
+function resolveFirestoreConnection(env = process.env) {
+  const emulatorHost = sanitizeText(env.FIRESTORE_EMULATOR_HOST);
+  if (!emulatorHost) {
+    return {
+      apiOrigin: DEFAULT_FIRESTORE_API_ORIGIN,
+      useEmulator: false,
+    };
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(emulatorHost)) {
+    throw new Error("FIRESTORE_EMULATOR_HOST에는 protocol 없이 localhost와 port만 지정해 주세요.");
+  }
+
+  let emulatorUrl;
+  try {
+    emulatorUrl = new URL(`http://${emulatorHost}`);
+  } catch (error) {
+    throw new Error("FIRESTORE_EMULATOR_HOST 형식이 올바르지 않습니다.");
+  }
+
+  const hostname = emulatorUrl.hostname.toLowerCase().replace(/^\[(.*)]$/, "$1");
+  const isLoopback = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const hasUnexpectedParts = Boolean(
+      emulatorUrl.username ||
+      emulatorUrl.password ||
+      emulatorUrl.pathname !== "/" ||
+      emulatorUrl.search ||
+      emulatorUrl.hash,
+  );
+  if (!isLoopback || !emulatorUrl.port || hasUnexpectedParts) {
+    throw new Error(
+        "Firestore Emulator는 localhost, 127.0.0.1 또는 ::1의 명시적 port만 허용합니다.",
+    );
+  }
+
+  return {
+    apiOrigin: emulatorUrl.origin,
+    useEmulator: true,
   };
 }
 
@@ -250,7 +297,7 @@ function buildIdentityToolkitUrl(context, endpoint) {
 
 function buildFirestoreDocumentUrl(context, relativePath, queryParams) {
   return buildApiUrl(
-      FIRESTORE_API_ORIGIN,
+      context.firestoreApiOrigin || DEFAULT_FIRESTORE_API_ORIGIN,
       `/v1/projects/${encodeURIComponent(assertProjectId(context.projectId))}` +
       `/databases/(default)/documents/${encodeApiPath(relativePath, "Firestore 문서 경로")}`,
       queryParams,
@@ -356,6 +403,7 @@ async function resolveBaselineUsers(context, baselineUsers, createMissingUsers) 
 }
 
 async function lookupAuthUserByEmail(context, email) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Auth");
   const response = await postJson(
       buildIdentityToolkitUrl(context, "accounts:lookup"),
       context.accessToken,
@@ -368,6 +416,7 @@ async function lookupAuthUserByEmail(context, email) {
 }
 
 async function createAuthUser(context, baselineUser) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Auth");
   return postJson(
       buildIdentityToolkitUrl(context, "accounts"),
       context.accessToken,
@@ -472,6 +521,7 @@ async function deleteDocument(context, documentName) {
 }
 
 async function getStorageObject(context, objectName) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Storage");
   const response = await fetch(
       buildStorageObjectUrl(context, objectName),
       {
@@ -493,6 +543,7 @@ async function getStorageObject(context, objectName) {
 }
 
 async function listStorageObjects(context, prefix) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Storage");
   const objects = [];
   let pageToken = "";
 
@@ -530,6 +581,7 @@ async function listStorageObjects(context, prefix) {
 }
 
 async function deleteStorageObject(context, objectName) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Storage");
   const response = await fetch(
       buildStorageObjectUrl(context, objectName),
       {
@@ -552,6 +604,7 @@ async function deleteStorageObject(context, objectName) {
 }
 
 async function uploadStorageObject(context, objectName, contentType, body) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Storage");
   const query = new URLSearchParams();
   query.set("uploadType", "media");
   query.set("name", assertStorageObjectName(objectName));
@@ -627,6 +680,14 @@ function toFirestoreMap(value) {
     fields[key] = toFirestoreValue(entry);
   }
   return fields;
+}
+
+function assertNoProductionServiceInFirestoreEmulator(context, serviceName) {
+  if (context.useFirestoreEmulator) {
+    throw new Error(
+        `Firestore Emulator context에서는 production ${serviceName} endpoint를 호출하지 않습니다.`,
+    );
+  }
 }
 
 function toFirestoreValue(value) {
@@ -757,6 +818,7 @@ module.exports = {
   patchDocumentFields,
   resolveFirebaseCiToken,
   resolveFirebaseOAuthClientSecret,
+  resolveFirestoreConnection,
   resolveBaselineUsers,
   resolveProjectId,
   resolveStorageBucket,

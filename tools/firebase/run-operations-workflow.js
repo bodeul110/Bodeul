@@ -26,7 +26,9 @@ async function main(args = process.argv.slice(2), env = process.env) {
   }
 
   const context = await createCliContext();
-  const snapshot = await loadOperationsSnapshot(context);
+  const snapshot = await loadOperationsSnapshot(context, {
+    firestoreOnly: options.firestoreOnly,
+  });
   const readiness = buildRoleReadiness(snapshot);
   const reportsRoot = path.resolve(process.cwd(), "reports");
 
@@ -45,7 +47,9 @@ async function main(args = process.argv.slice(2), env = process.env) {
     }
   }
 
-  const appEvidencePath = resolveAppNavigationEvidencePath(reportsRoot, options.appEvidencePath);
+  const appEvidencePath = options.noAppEvidence ?
+    "" :
+    resolveAppNavigationEvidencePath(reportsRoot, options.appEvidencePath);
   if (appEvidencePath) {
     appEvidence = loadAppNavigationEvidence(appEvidencePath);
   }
@@ -94,7 +98,9 @@ function parseOptions(args, env = process.env) {
       args[fileIndex + 1] :
       sanitizeEnvOption(process.env.BODEUL_WORKFLOW_FILE_PATH),
     help: args.includes("--help") || args.includes("-h"),
+    firestoreOnly: args.includes("--firestore-only"),
     json: args.includes("--json"),
+    noAppEvidence: args.includes("--no-app-evidence"),
     outputPath: outputIndex >= 0 ? args[outputIndex + 1] : "",
     strict: args.includes("--strict"),
     summaryPath: summaryIndex >= 0 ? args[summaryIndex + 1] : "",
@@ -115,6 +121,7 @@ function printHelp() {
   console.log("  node run-operations-workflow.js");
   console.log("  node run-operations-workflow.js --file backups/firestore-backup.json");
   console.log("  node run-operations-workflow.js --file backups/firestore-backup.json --strict");
+  console.log("  node run-operations-workflow.js --file backups/firestore-backup.json --strict --firestore-only");
   console.log("  node run-operations-workflow.js --app-evidence reports/app-navigation-evidence-latest.json");
   console.log("  node run-operations-workflow.js --output reports/custom-report.html --summary reports/custom-summary.json");
   console.log("");
@@ -122,6 +129,8 @@ function printHelp() {
   console.log("- 현재 Firebase 상태를 읽어 역할별 화면 진입 점검을 수행합니다.");
   console.log("- HTML 운영 리포트와 JSON 요약 파일을 함께 생성합니다.");
   console.log("- --file을 주면 백업 검증과 현재 상태 diff를 함께 수행합니다.");
+  console.log("- --firestore-only를 주면 Auth를 조회하지 않고 users 문서와 Firestore 관계만 검증합니다.");
+  console.log("- --no-app-evidence를 주면 기존 앱 화면 증적을 자동으로 연결하지 않습니다.");
   console.log("- --app-evidence를 주거나 기본 증적 파일이 있으면 앱 화면 증적도 함께 반영합니다.");
 }
 
@@ -158,6 +167,7 @@ function buildWorkflowSummary({
   return {
     generatedAt: new Date().toISOString(),
     projectId: snapshot.projectId,
+    verificationScope: snapshot.verificationScope,
     overallStatus: allReady && allScenariosPass && !hasBackupErrors ? "ready" : "needs_attention",
     reportPath,
     summaryPath,
@@ -201,6 +211,7 @@ function writeSummaryFile(summaryPath, summary) {
 function printSummary(summary) {
   console.log("보들 Firebase 운영 워크플로");
   console.log(`- 프로젝트: ${summary.projectId}`);
+  console.log(`- 검증 범위: ${summary.verificationScope === "firestore_only" ? "Firestore 전용" : "Firebase Auth + Firestore"}`);
   console.log(`- 상태: ${summary.overallStatus === "ready" ? "준비됨" : "확인 필요"}`);
   console.log(`- 역할 준비도: ${summary.readiness.readyRoleCount}/${summary.readiness.totalRoles}`);
   console.log(
