@@ -3172,12 +3172,17 @@
 
 ### 검증
 
-- `core-api/gradlew.bat check --console=plain`
+- `core-api/gradlew.bat check --console=plain`, 53개 테스트 실패 0
 - `yq e '.' .github/workflows/core-api-preview-deploy.yml`
-- Android 빌드와 Cloud Run preview 배포 결과는 Issue #191 보고서에 이어 기록한다.
+- Android `assembleDebug`, `testDebugUnitTest`, 43개 테스트 실패 0
+- PR #193의 Android preflight, Core API CI, Android CodeQL 성공
+- [Core API Preview Deploy #29518038972](https://github.com/bodeul110/Bodeul/actions/runs/29518038972) 성공
+- Cloud Run `asia-northeast1` 리비전 `bodeul-core-api-preview-00007-8hk`, 트래픽 100%, observe 설정 확인
+- health 200과 무인증 auth/place search 401 smoke test 통과
 
 ### 남은 범위
 
 - Issue #190 Android debug/Play Integrity 실기기 `valid` 확인
 - Issue #192 custom backend enforce 전환과 즉시 observe 롤백
 - 관리자 Next.js 서버의 reCAPTCHA Enterprise와 App Check 검증은 관리자 웹 Issue #16에서 별도 진행
+- 인증된 요청이 들어온 뒤 Cloud Logging에서 `valid`, `missing`, `invalid` 실제 판정 로그 확인

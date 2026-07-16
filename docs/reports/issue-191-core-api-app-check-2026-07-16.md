@@ -1,6 +1,6 @@
 # Issue 191 Spring Core API App Check 적용 기록
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
 ## 작업 목적
 
@@ -57,12 +57,29 @@ App Check token은 공식 JWKS를 사용해 다음 조건을 모두 확인한다
 | Workflow | `yq e '.' .github/workflows/core-api-preview-deploy.yml` 성공 |
 | Android | `gradlew.bat assembleDebug`, `testDebugUnitTest` 성공, 43개 테스트 실패 0 |
 
+## Cloud Run preview 배포 검증
+
+| 항목 | 확인 결과 |
+| --- | --- |
+| 반영 PR | [#193 Core API App Check 관찰 경계 추가](https://github.com/bodeul110/Bodeul/pull/193) |
+| 배포 실행 | [Core API Preview Deploy #29518038972](https://github.com/bodeul110/Bodeul/actions/runs/29518038972), 전체 단계 성공 |
+| 배포 commit | `000afc350fa3654cb97c9d23a539e45322322e95` |
+| 리전과 리비전 | `asia-northeast1`, `bodeul-core-api-preview-00007-8hk` |
+| 트래픽 | 최신 리비전 100% |
+| 실행 설정 | `FIREBASE_PROJECT_ID=bodeul-dev`, `FIREBASE_PROJECT_NUMBER=533563500316`, `BODEUL_APP_CHECK_MODE=observe` |
+| smoke test | `/health` 200, 무인증 `/api/auth/me`와 `/api/places/search` 401 및 `missing_authorization` 확인 |
+
+배포 후 Cloud Logging에서 `app_check_verdict`를 조회했지만 기록은 0건이었다. App Check filter는 Firebase ID token과 PostgreSQL role 확인이 끝난 인증 요청만 관찰하므로, 무인증 smoke test는 판정 로그를 만들지 않는다. 이번 검증을 위해 migration 계정을 사용하는 범용 SQL 실행 경로를 새로 만들지는 않았다. 실제 `valid` 관측은 등록된 테스트 사용자가 Android debug/Play Integrity token으로 요청하는 Issue #190에서 수행한다.
+
 ## 리스크와 남은 범위
 
 - Android debug token allowlist와 Play Integrity 실기기 `valid`는 Issue #190 범위다.
 - 정상 App Check token이 없는 현재 상태에서는 preview enforce를 실행하지 않는다.
+- 누락·위조 요청의 분기와 로그 형식은 자동화 테스트로 확인했으며, Cloud Run의 실제 판정 로그는 인증된 테스트 사용자의 요청이 들어온 뒤 확인한다.
 - 실제 `valid`, enforce 전환, 즉시 observe 롤백은 Issue #190 완료 후 Issue #192에서 검증한다.
 - JWKS 조회 장애가 enforce 중 발생하면 503으로 처리하며 즉시 observe로 되돌린다.
+
+Issue #191은 Android header 전달, Spring 검증 경계, observe 배포까지를 완료 범위로 본다. 실기기 provider와 정상 token 증적은 #190, 실제 차단과 롤백은 #192에서 추적한다.
 
 ## 공식 근거
 

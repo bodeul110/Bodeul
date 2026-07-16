@@ -149,7 +149,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 - Android는 SHA-256과 Play Integrity 코드 경로가 있고, 관리자 웹 provider는 아직 등록되지 않았다.
 - 최근 30일 App Check 메트릭 5,580건 중 `VALID` 요청은 0건이다.
 - Firestore, Storage, Authentication은 `UNENFORCED`이고 배포 함수 10개도 enforcement가 꺼져 있다.
-- Android Core API client의 header 전달과 Spring `off/observe/enforce` 검증은 구현했다. Cloud Run preview는 `observe`로만 배포한다.
+- Android Core API client의 header 전달과 Spring `off/observe/enforce` 검증은 구현했다. Cloud Run preview 리비전 `00007-8hk`는 `observe`로 트래픽 100%를 처리한다.
 - 현재 판단은 `HOLD`이며, 상세 근거는 [App Check 적용 로드맵](app-check-enforcement-roadmap.md)을 따른다.
 
 로드맵:
@@ -171,7 +171,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 
 - [#32 App Check 강제 적용과 Firebase 환경 분리 계획](https://github.com/bodeul110/Bodeul/issues/32)
 - [#190 Android App Check debug/Play Integrity 실기기 검증](https://github.com/bodeul110/Bodeul/issues/190)
-- [#191 Spring Core API App Check observe/enforce 적용](https://github.com/bodeul110/Bodeul/issues/191)
+- [#191 Spring Core API App Check 관찰 경계 구현](https://github.com/bodeul110/Bodeul/issues/191)
 - [#192 App Check 단계별 enforcement와 롤백 검증](https://github.com/bodeul110/Bodeul/issues/192)
 
 ## Firestore 인덱스와 쿼리
@@ -236,7 +236,7 @@ npx --prefix tools/firebase firebase emulators:exec `
 - Kakao 로그인은 Android 앱이 받은 Kakao access token을 Functions에 전달하고, Functions가 Kakao user API를 호출한다.
 - 병원/약국 실좌표 검색은 Android가 Firebase ID token과 함께 Spring Core API `GET /api/places/search`를 호출한다.
 - Core API의 Kakao Local REST API key는 Google Secret Manager에서 Cloud Run에 주입한다.
-- preview는 숫자 Secret 버전 `1`을 사용하며, Cloud Run 리비전 `bodeul-core-api-preview-00006-hdk`에서 인증된 장소 검색 200과 결과 15건을 확인했다.
+- preview는 숫자 Secret 버전 `1`을 사용한다. 인증된 장소 검색 200과 결과 15건은 리비전 `bodeul-core-api-preview-00006-hdk`에서 확인했고, 최신 `00007-8hk`는 같은 Secret 버전을 유지한 채 App Check observe와 배포 smoke test를 통과했다.
 - 같은 범주와 질의 결과는 Core API 메모리에서 6시간·최대 1,000건 캐시한다.
 - preview는 Cloud Run 최대 인스턴스 1개를 유지하며 사용자별 분당 60회로 제한한다.
 - Android의 `kakaoRestApiKey` 리소스와 Kakao Local 직접 호출은 제거했다.
