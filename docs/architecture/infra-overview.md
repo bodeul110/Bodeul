@@ -1,6 +1,6 @@
 # 현재 인프라 구성도
 
-기준일: 2026-07-12
+기준일: 2026-07-16
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -11,7 +11,7 @@
 
 현재 구현은 `Firebase 중심 경로 + Supabase PostgreSQL 전환 검증 + Node bodeul-api prototype`이다.
 
-운영 목표는 `Vercel Next.js 관리자 서버 + OCI Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM 유지`다. 현재 구성과 목표 구성을 혼동하지 않으며, 상세 전환 기준은 [목표 인프라 구조](target-infrastructure.md)를 따른다.
+운영 목표는 `Vercel Next.js 관리자 서버 + Cloud Run Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM 유지`다. 현재 구성과 목표 구성을 혼동하지 않으며, 상세 전환 기준은 [목표 인프라 구조](target-infrastructure.md)를 따른다.
 
 - Android 앱과 관리자 웹의 기존 운영 화면은 아직 Firebase Auth, Firestore, Storage를 직접 사용한다.
 - Supabase PostgreSQL 개발 DB는 seed 적용과 row count/FK 점검이 끝난 상태다.
@@ -25,7 +25,7 @@
 
 - Node `bodeul-api`는 production 목표 서버가 아니라 인증·인가·PostgreSQL 계약을 검증한 prototype이다.
 - 관리자 웹은 Vite에서 Next.js로 단계 이전하고, Vercel 서버 코드가 관리자 DB role로 PostgreSQL에 접근한다.
-- 환자·보호자·매니저 웹과 Android 앱은 OCI의 Spring Core API를 사용한다.
+- 환자·보호자·매니저 웹과 Android 앱은 Cloud Run의 Spring Core API를 사용한다.
 - 관리자 서버와 Spring Core API는 서로를 호출하지 않고 같은 PostgreSQL에 각각 접근한다.
 - Kakao Local REST와 알림톡은 Spring Core API 뒤로 이동한다.
 

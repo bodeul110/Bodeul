@@ -1,6 +1,6 @@
 # BoDeul Core API
 
-환자, 보호자, 매니저 웹과 Android 앱이 공통으로 사용하는 BoDeul Core API다. Java와 Spring Boot로 구현하고 Oracle Cloud에 배포하며, Supabase PostgreSQL을 운영 데이터 저장소로 사용한다.
+환자, 보호자, 매니저 웹과 Android 앱이 공통으로 사용하는 BoDeul Core API다. Java와 Spring Boot로 구현하고 Google Cloud Run에 배포하며, Supabase PostgreSQL을 운영 데이터 저장소로 사용한다.
 
 ## 현재 범위
 
@@ -15,7 +15,7 @@
 
 기존 `api/`의 Node `bodeul-api`는 인증, 인가, PostgreSQL 계약을 검증한 prototype이다. `core-api/`는 해당 계약을 Spring으로 옮기되 Node API를 중간 서버로 호출하지 않는다.
 
-Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검토하기 위해 메인 저장소 안에서 관리한다. 배포는 저장소 구조와 별개로 OCI의 독립 systemd 서비스와 GitHub Environment를 사용한다.
+Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검토하기 위해 메인 저장소 안에서 관리한다. 배포는 저장소 구조와 별개로 Cloud Run 서비스와 `core-api-preview` GitHub Environment를 사용한다.
 
 ## 로컬 검증
 
@@ -30,6 +30,13 @@ Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검
 curl.exe http://127.0.0.1:8080/healthz
 ```
 
+컨테이너는 Java 21 build stage와 비루트 distroless runtime으로 구성한다.
+
+```powershell
+docker build --tag bodeul-core-api:local .
+docker run --rm --publish 8080:8080 bodeul-core-api:local
+```
+
 ## DB profile
 
 `preview`와 `production`은 `database` profile을 포함한다.
@@ -42,7 +49,7 @@ $env:CORE_DB_PASSWORD = "<runtime-password>"
 .\gradlew.bat bootRun --console=plain
 ```
 
-실제 값은 로컬 비공개 설정, OCI 서버 환경 파일 또는 GitHub Environment secret으로만 주입한다. `.env`와 접속 문자열을 커밋하지 않는다.
+실제 값은 로컬 비공개 설정 또는 Google Secret Manager로만 주입한다. `.env`와 접속 문자열을 커밋하지 않는다.
 
 ## 인증과 인가
 
@@ -59,14 +66,13 @@ $env:CORE_DB_PASSWORD = "<runtime-password>"
 | Firebase 또는 DB 설정 누락 | 503 | `auth_not_configured`, `authorization_not_configured` |
 | PostgreSQL 역할 조회 장애 | 503 | `role_lookup_failed` |
 
-OCI처럼 Google 외부에서 실행할 때는 서비스 계정 JSON 원문을 애플리케이션 환경변수로 읽지 않는다. 제한된 권한의 파일을 서버에 만들고 `GOOGLE_APPLICATION_CREDENTIALS`로 경로를 전달하며, `FIREBASE_PROJECT_ID`를 명시해 다른 project token을 거부한다.
+Cloud Run에서는 전용 runtime 서비스 계정의 Application Default Credentials를 사용한다. 서비스 계정 JSON과 `GOOGLE_APPLICATION_CREDENTIALS` 파일을 만들지 않으며, `FIREBASE_PROJECT_ID`를 명시해 다른 project token을 거부한다.
 
 첫 범위는 Firebase Admin SDK의 기본 `verifyIdToken`을 사용하므로 token 폐기 여부를 추가 조회하지 않는다. ID token 만료 전 즉시 차단이 필요하면 PostgreSQL 역할을 제거하고, 계정 폐기 확인을 매 요청에 적용할지는 네트워크 비용과 캐시 전략을 정한 뒤 별도 반영한다.
 
 ## 연결 원칙
 
-- OCI처럼 장기 실행되는 서버는 direct connection을 우선 사용한다.
-- OCI가 IPv4-only이면 Supabase Supavisor session mode의 5432 포트를 사용한다.
+- Cloud Run은 IPv4가 가능한 Supabase Supavisor session mode의 5432 포트를 우선 사용한다.
 - Vercel 관리자 서버는 Supavisor transaction mode의 6543 포트를 사용한다.
 - migration 계정과 runtime 계정을 분리한다.
 - application pool은 최대 5개 연결로 시작한다.
@@ -100,8 +106,8 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. OCI preview systemd 배포
-2. preview 서비스 계정 파일 주입과 실제 Firebase token 검증
+1. Cloud Run preview 배포
+2. runtime 서비스 계정 ADC와 실제 Firebase token 검증
 3. Kakao Local REST proxy
 
 ## 보안

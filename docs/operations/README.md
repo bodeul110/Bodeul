@@ -21,7 +21,9 @@
 - [관리자 웹 API 환경변수와 CORS 기준](admin-api-environments.md)
   - `bodeul-api` 호출을 위한 관리자 웹 환경변수, API CORS allow-list, rollback 기준
 - [PostgreSQL 운영 전환 런북](postgres-operational-transition-runbook.md)
-  - Supabase, Oracle Cloud, GitHub Environment, API 서버 전환 준비 절차
+  - Supabase, Cloud Run, GitHub Environment, API 서버 전환 준비 절차
+- [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)
+  - Core API 컨테이너, WIF, Secret Manager, 배포와 rollback 절차
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
 - [위치 이력 보관 및 노출 정책](location-history-retention-policy.md)

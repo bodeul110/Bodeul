@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 런북
 
-기준일: 2026-07-12
+기준일: 2026-07-16
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -34,28 +34,23 @@ Firebase 인프라는 유지하면서 운영 DB를 Supabase PostgreSQL로 옮기
 
 2026-06-29 기준 `bodeul-dev-rdb`는 생성됐고 schema 적용, seed 적용, row count/FK/주요 필드 spot check까지 완료됐다.
 
-### Oracle Cloud
+### Core API 실행 환경
 
-Oracle Cloud VM은 #140의 preview 실연동 검증 범위에서 개발용으로 준비할 수 있다. #140/#123 댓글 기준으로 이 환경에서 `/healthz`, Supabase 조회, Firebase Admin 인증, 인증된 병원 가이드 API 호출, 로컬 관리자 웹 API 모드, 실제 API 응답 비교가 통과했다. 이 VM은 production cutover나 운영 서버 확정이 아니다.
+Oracle Free Tier VM은 #140의 Node API 계약 검증에 사용한 과거 preview 자산이다. `/healthz`, Supabase 조회, Firebase Admin 인증과 병원 가이드 응답 비교 결과는 보존하지만 Spring production 목표로 확장하지 않는다.
 
-| 항목 | 값 |
+현재 Spring Core API 개발 실행 환경은 Google Cloud Run이다.
+
+| 항목 | 개발 기준 |
 | --- | --- |
-| 개발 VM 후보 | `bodeul-dev-api-01` |
-| 운영 VM 후보 | `bodeul-prod-api-01` |
-| 권장 리전 | 한국 사용자가 주 대상이면 Seoul 리전을 우선 검토 |
-| 권장 shape | `VM.Standard.A1.Flex` |
-| 개발 VM 초기 크기 | 1 OCPU / 6 GB RAM |
-| 운영 VM 초기 크기 | 1 OCPU / 6 GB RAM |
-| OS | Ubuntu LTS |
-| 서버 프로세스 | `bodeul-api` |
+| Google Cloud project | `bodeul-dev` |
+| Cloud Run 서비스 | `bodeul-core-api-preview` |
+| 리전 | `asia-northeast1` |
+| 컨테이너 | Java 21, 비루트 distroless runtime |
+| DB 연결 | Supavisor session mode, pool max 5 |
+| 배포 인증 | GitHub OIDC + WIF |
+| runtime secret | Google Secret Manager |
 
-preview 생성 조건:
-
-- `api/` 서버 골격과 `GET /healthz`가 로컬에서 검증됐다.
-- Supabase 개발 DB `DATABASE_URL`, Firebase Admin 인증 설정, 관리자 role 매핑을 서버 환경값으로 주입할 수 있다.
-- Vercel preview 또는 Firebase Hosting preview 관리자 웹 origin을 `BODEUL_API_ALLOWED_ORIGINS`에 등록할 수 있다. #140에서는 Vercel preview를 직접 완료 범위에서 제외했으므로, 이 검증은 후속 작업에서 별도 진행한다.
-- 장애 시 `VITE_BODEUL_DATA_BACKEND=firebase`로 되돌리는 rollback 기준이 문서화됐다.
-- secret 원문, Firebase ID token, DB connection string을 공개 Issue/PR/문서에 남기지 않는다.
+상세 생성, 배포, rollback 절차는 [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)을 따른다.
 
 ## GitHub 설정 이름
 
@@ -63,36 +58,41 @@ preview 생성 조건:
 
 | Environment | 용도 | 생성 시점 |
 | --- | --- | --- |
-| `api-preview` | 개발 API 서버 배포/검증 | GitHub Actions 기반 API 배포 자동화가 필요할 때 |
-| `api-production` | 운영 API 서버 배포 | 운영 API 배포 전 |
+| `core-api-preview` | Cloud Run 개발 Core API 배포/검증 | 생성 완료 |
+| `core-api-production` | 운영 Core API 배포 | 운영 project와 비용·도메인 결정 후 |
 
-DB schema와 import dry-run만 진행하는 동안에는 GitHub Environment secret을 만들지 않는다. #140의 수동 preview 검증은 Oracle 서버 환경값과 Supabase/Firebase 비공개 설정으로 진행됐다. Vercel preview 또는 GitHub Actions 기반 API 배포가 필요해질 때 `api-preview`를 만든다. DB connection string은 로컬 비공개 설정, 서버 비공개 환경값, 또는 담당자가 직접 입력하는 GitHub secret으로만 다룬다.
+DB schema migration은 `core-api-migration-preview` Environment로 분리한다. Runtime DB 값은 Google Secret Manager에 두고 `core-api-preview`에는 WIF와 서비스 식별용 Variables만 둔다.
 
-### `api-preview` variables 후보
+### `core-api-preview` Variables
 
 | 이름 | 값 기준 |
 | --- | --- |
-| `API_BASE_URL` | 개발 API URL. 예: `https://api-dev.<도메인>` |
+| `GCP_PROJECT_ID` | `bodeul-dev` |
+| `GCP_REGION` | `asia-northeast1` |
+| `CLOUD_RUN_SERVICE` | `bodeul-core-api-preview` |
+| `CLOUD_RUN_ARTIFACT_REPOSITORY` | `bodeul-core-api` |
+| `CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER` | `github-actions/bodeul-core-api-preview` provider resource name |
+| `CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT` | preview deployer 서비스 계정 email |
+| `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT` | preview runtime 서비스 계정 email |
+| `CORE_DB_JDBC_URL_SECRET_VERSION` | JDBC URL secret의 배포 대상 숫자 version |
+| `CORE_DB_USERNAME_SECRET_VERSION` | DB username secret의 배포 대상 숫자 version |
+| `CORE_DB_PASSWORD_SECRET_VERSION` | DB password secret의 배포 대상 숫자 version |
 | `FIREBASE_PROJECT_ID` | `bodeul-dev` |
-| `SUPABASE_PROJECT_NAME` | `bodeul-dev-rdb` |
-| `NODE_ENV` | `preview` |
 
-### `api-preview` secrets 후보
+### Secret Manager
 
 | 이름 | 값 기준 |
 | --- | --- |
-| `DATABASE_URL` | Supabase 개발 DB connection string |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | API 서버가 Firebase ID token을 검증할 서비스 계정 JSON |
-| `KAKAO_REST_API_KEY` | 서버 프록시로 옮길 경우 사용할 Kakao REST API key |
-| `API_DEPLOY_SSH_HOST` | Oracle 개발 VM host |
-| `API_DEPLOY_SSH_USER` | 배포 사용자 |
-| `API_DEPLOY_SSH_KEY` | 배포용 SSH private key |
+| `bodeul-core-api-preview-db-jdbc-url` | Supabase 개발 DB JDBC connection string |
+| `bodeul-core-api-preview-db-username` | Core runtime 로그인 role |
+| `bodeul-core-api-preview-db-password` | Core runtime 비밀번호 |
 
 주의:
 
 - secret 값은 문서, Issue, PR 본문에 적지 않는다.
-- `DATABASE_URL`은 서버 전용이다. Android 앱이나 관리자 웹에 노출하지 않는다.
+- DB 연결값은 서버 전용이다. Android 앱이나 관리자 웹에 노출하지 않는다.
 - Supabase service role key는 기본값으로 만들지 않는다. 필요할 때 별도 근거를 남기고 추가한다.
+- Firebase Admin은 Cloud Run runtime 서비스 계정 ADC를 사용하며 JSON key를 만들지 않는다.
 
 ## 기존 Node API 검증 기준
 
@@ -223,8 +223,8 @@ Rollback 방식:
 1. 완료: Supabase 계정을 만들고 `bodeul-dev-rdb` 프로젝트를 생성한다.
 2. 완료: 프로젝트 이름과 리전만 팀에 공유한다.
 3. 유지: DB connection string 원문은 채팅, Issue, PR에 적지 않는다.
-4. 유지: GitHub에는 자동 배포가 필요해지기 전까지 DB secret을 넣지 않는다. #140 수동 preview 검증은 Oracle/Supabase/Firebase 각 플랫폼의 비공개 환경값으로 진행됐다.
-5. 유지: Oracle 개발 VM 명칭 후보는 `bodeul-dev-api-01`로 둔다. production VM은 #134 이후 별도 결정한다.
+4. 진행: Core API DB 접속 정보는 Google Secret Manager에 등록하고 GitHub Actions에는 OIDC/WIF용 공개 식별자만 둔다. 기존 GitHub Environment의 중복 DB secret은 첫 Cloud Run 배포 확인 뒤 제거한다.
+5. 진행: 개발 Spring 서비스는 `bodeul-dev`의 Cloud Run `bodeul-core-api-preview`로 고정한다. production 서비스는 production GCP project와 전환 조건을 확정한 뒤 별도로 만든다.
 
 인프라 담당자가 공유해야 하는 값:
 

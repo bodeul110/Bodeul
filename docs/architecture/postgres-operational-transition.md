@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-07-12
+기준일: 2026-07-16
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -9,16 +9,16 @@
 
 멘토 피드백 이후 BoDeul 운영 저장소를 Firebase Firestore 단독 구조에서 PostgreSQL 기반 운영 DB 구조로 단계적으로 전환한다. 목표는 Firebase를 모두 제거하는 것이 아니라, Firebase가 잘 맡는 인프라 역할은 유지하고 예약, 매칭, 관리자 운영, 정산, 통계처럼 관계형 모델이 필요한 데이터를 PostgreSQL 중심으로 옮기는 것이다.
 
-## 2026-07-12 목표 갱신
+## 2026-07-16 목표 갱신
 
 멘토링 피드백에 따라 운영 목표를 `Next.js 관리자 서버 + Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM 유지`로 갱신했다. 상세 경계와 구축 순서는 [목표 인프라 구조](target-infrastructure.md)를 기준으로 한다.
 
-현재 `api/` Node.js 서버와 Vite 관리자 웹은 이 목표 구조의 production 구현이 아니다. Oracle/Supabase/Firebase Admin 연결과 API 계약을 확인한 전환용 프로토타입으로 유지하고, Spring Core API와 Next.js 관리자 서버가 같은 검증 기준을 충족한 뒤 종료한다.
+현재 `api/` Node.js 서버와 Vite 관리자 웹은 이 목표 구조의 production 구현이 아니다. Oracle/Supabase/Firebase Admin 연결과 API 계약을 확인한 전환용 프로토타입으로 유지하고, Cloud Run Spring Core API와 Next.js 관리자 서버가 같은 검증 기준을 충족한 뒤 종료한다.
 
 중복 서버 경로는 만들지 않는다.
 
 - 관리자 브라우저 → Vercel Next.js 관리자 서버 → Supabase PostgreSQL
-- 환자·보호자·매니저 웹/Android → OCI Spring Core API → Supabase PostgreSQL
+- 환자·보호자·매니저 웹/Android → Cloud Run Spring Core API → Supabase PostgreSQL
 - Next.js 관리자 서버 → Node API → Spring API → PostgreSQL 같은 연쇄 호출은 금지한다.
 
 ## 기존 전환 검증 결론
@@ -66,17 +66,17 @@
 
 | 항목 | 명칭 |
 | --- | --- |
-| API 서비스명 | `bodeul-api` |
-| API 서버 디렉터리 | `api/` |
-| 개발 API VM 후보 | `bodeul-dev-api-01` |
-| 운영 API VM 후보 | `bodeul-prod-api-01` |
+| 전환용 Node API | `bodeul-api`, `api/` |
+| Spring Core API 디렉터리 | `core-api/` |
+| 개발 Core API 실행 환경 | Cloud Run `bodeul-core-api-preview` |
+| 운영 Core API 실행 환경 | production GCP project 확정 후 별도 Cloud Run 서비스로 생성 |
 | Supabase 개발 프로젝트 | `bodeul-dev-rdb` |
 | Supabase 운영 프로젝트 후보 | `bodeul-prod-rdb` |
 | PostgreSQL 기본 스키마 | `public` |
-| API 개발 GitHub Environment 후보 | `api-preview` |
-| API 운영 GitHub Environment 후보 | `api-production` |
+| Core API 개발 GitHub Environment | `core-api-preview` |
+| Core API 운영 GitHub Environment | `core-api-production` |
 
-`bodeul-dev-api-01`은 #140 같은 preview 실연동 검증에서 Oracle API 실행 환경이 필요할 때 사용할 후보명이다. #140 댓글 기준 실제 검증은 Oracle Free Tier VM에서 수행됐다. `api-preview` GitHub Environment는 GitHub Actions 기반 API 배포 자동화가 필요해질 때 만들고, 단순 수동 preview 검증만 진행한다면 Oracle/Supabase/Firebase 각 플랫폼의 비공개 환경값으로 시작할 수 있다.
+#140 댓글 기준 Node API 검증은 Oracle Free Tier VM에서 수행됐다. 이 VM은 과거 검증 기록으로만 남기고 Spring Core API 배포에는 재사용하지 않는다. 개발 Spring 서비스는 `bodeul-dev`의 Cloud Run과 `core-api-preview` GitHub Environment를 사용하며, 장기 서비스 계정 키 대신 GitHub OIDC/WIF로 배포한다.
 
 ## 대안 비교
 
@@ -86,7 +86,7 @@
 | Supabase PostgreSQL만 추가 | PostgreSQL, 관리 콘솔, 백업, Realtime 검토가 가능하다. Firebase Auth를 유지한 채 DB 전환을 설명할 수 있다. | Firestore와 PostgreSQL 이중 운영 기간이 생긴다. Supabase Realtime/RLS 정책 학습이 필요하다. | 1차 선택이다. |
 | Supabase 전체 전환 | Auth, DB, Storage, Realtime을 한 플랫폼으로 묶을 수 있다. | Firebase Auth, FCM, Storage, Functions, Android SDK 결합을 한 번에 흔든다. 릴리스와 운영 리스크가 크다. | 현재 규모에서는 제외한다. |
 | Neon PostgreSQL | DB만 분리하기 깔끔하고 branching 장점이 있다. | 실시간 기능은 별도 서버 구현이 필요하다. 멘토의 실시간 질문에 대한 답이 약하다. | Supabase 한계가 확인되면 대안으로 검토한다. |
-| Oracle VM에 PostgreSQL 직접 운영 | 인프라 제어권과 서버 운영 경험을 얻을 수 있다. | DB 백업, 보안 패치, 장애 대응을 팀이 직접 책임져야 한다. | 초기 DB로는 제외한다. API 서버 후보로만 둔다. |
+| Oracle VM에 API와 PostgreSQL 직접 운영 | 인프라 제어권과 서버 운영 경험을 얻을 수 있다. | 계정 접근성, DB 백업, 보안 패치, 장애 대응을 팀이 직접 책임져야 한다. | 개발·운영 목표에서 제외하고 과거 Node 검증 기록만 보존한다. |
 
 ## 선택 이유
 

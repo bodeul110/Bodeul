@@ -1,0 +1,231 @@
+name: Core API Preview Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_service:
+        description: "배포 대상 확인을 위해 bodeul-core-api-preview를 입력하세요"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: core-api-preview-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-preview:
+    name: deploy-preview
+    runs-on: ubuntu-latest
+    environment: core-api-preview
+    timeout-minutes: 30
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+      CLOUD_RUN_ARTIFACT_REPOSITORY: ${{ vars.CLOUD_RUN_ARTIFACT_REPOSITORY }}
+      CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER }}
+      CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT }}
+      CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
+      CORE_DB_JDBC_URL_SECRET_VERSION: ${{ vars.CORE_DB_JDBC_URL_SECRET_VERSION }}
+      CORE_DB_USERNAME_SECRET_VERSION: ${{ vars.CORE_DB_USERNAME_SECRET_VERSION }}
+      CORE_DB_PASSWORD_SECRET_VERSION: ${{ vars.CORE_DB_PASSWORD_SECRET_VERSION }}
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: 배포 대상과 설정 확인
+        id: config
+        shell: bash
+        env:
+          CONFIRM_SERVICE: ${{ inputs.confirm_service }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF}" != "refs/heads/master" ]]; then
+            echo "Core API preview는 master 브랜치에서만 배포할 수 있습니다." >&2
+            exit 1
+          fi
+
+          required_variables=(
+            GCP_PROJECT_ID
+            GCP_REGION
+            CLOUD_RUN_SERVICE
+            CLOUD_RUN_ARTIFACT_REPOSITORY
+            CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER
+            CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT
+            CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT
+            CORE_DB_JDBC_URL_SECRET_VERSION
+            CORE_DB_USERNAME_SECRET_VERSION
+            CORE_DB_PASSWORD_SECRET_VERSION
+            FIREBASE_PROJECT_ID
+          )
+
+          for variable_name in "${required_variables[@]}"; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "${variable_name} Environment variable이 비어 있습니다." >&2
+              exit 1
+            fi
+          done
+
+          if [[ "${CLOUD_RUN_SERVICE}" != "bodeul-core-api-preview" ]]; then
+            echo "허용된 preview 서비스명이 아닙니다: ${CLOUD_RUN_SERVICE}" >&2
+            exit 1
+          fi
+
+          if [[ "${CONFIRM_SERVICE}" != "${CLOUD_RUN_SERVICE}" ]]; then
+            echo "입력한 서비스명과 실제 배포 대상이 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+          secret_versions=(
+            CORE_DB_JDBC_URL_SECRET_VERSION
+            CORE_DB_USERNAME_SECRET_VERSION
+            CORE_DB_PASSWORD_SECRET_VERSION
+          )
+
+          for variable_name in "${secret_versions[@]}"; do
+            if [[ ! "${!variable_name}" =~ ^[1-9][0-9]*$ ]]; then
+              echo "${variable_name}은 1 이상의 숫자여야 합니다." >&2
+              exit 1
+            fi
+          done
+
+          registry="${GCP_REGION}-docker.pkg.dev"
+          image="${registry}/${GCP_PROJECT_ID}/${CLOUD_RUN_ARTIFACT_REPOSITORY}/bodeul-core-api"
+
+          echo "registry=${registry}" >> "${GITHUB_OUTPUT}"
+          echo "image=${image}" >> "${GITHUB_OUTPUT}"
+
+      - name: Gradle Wrapper 검증
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Java 21 설정
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Core API 검증
+        working-directory: core-api
+        run: ./gradlew check --console=plain
+
+      - name: Google Cloud WIF 인증
+        id: gcp-auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Artifact Registry 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.config.outputs.registry }}
+          username: oauth2accesstoken
+          password: ${{ steps.gcp-auth.outputs.access_token }}
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: 컨테이너 빌드와 게시
+        uses: docker/build-push-action@v6
+        with:
+          context: ./core-api
+          file: ./core-api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.config.outputs.image }}:${{ github.sha }}
+            ${{ steps.config.outputs.image }}:preview
+          cache-from: type=gha,scope=core-api-preview
+          cache-to: type=gha,mode=max,scope=core-api-preview
+          provenance: true
+          sbom: true
+
+      - name: Cloud Run preview 배포
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          region: ${{ env.GCP_REGION }}
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          image: ${{ steps.config.outputs.image }}:${{ github.sha }}
+          env_vars: |-
+            SPRING_PROFILES_ACTIVE=preview
+            FIREBASE_PROJECT_ID=${{ env.FIREBASE_PROJECT_ID }}
+            CORE_DB_POOL_MAX=5
+          env_vars_update_strategy: overwrite
+          secrets: |-
+            CORE_DB_JDBC_URL=bodeul-core-api-preview-db-jdbc-url:${{ env.CORE_DB_JDBC_URL_SECRET_VERSION }}
+            CORE_DB_USERNAME=bodeul-core-api-preview-db-username:${{ env.CORE_DB_USERNAME_SECRET_VERSION }}
+            CORE_DB_PASSWORD=bodeul-core-api-preview-db-password:${{ env.CORE_DB_PASSWORD_SECRET_VERSION }}
+          secrets_update_strategy: overwrite
+          labels: |-
+            environment=preview
+            component=core-api
+          timeout: 30s
+          flags: >-
+            --service-account=${{ env.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
+            --cpu=1
+            --memory=1Gi
+            --min-instances=0
+            --max-instances=1
+            --concurrency=20
+            --port=8080
+            --execution-environment=gen2
+            --cpu-boost
+            --ingress=all
+          revision_traffic: LATEST=100
+
+      - name: 배포 smoke test
+        shell: bash
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${SERVICE_URL}" ]]; then
+            echo "Cloud Run 서비스 URL을 확인할 수 없습니다." >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            --retry 8 --retry-delay 3 --retry-all-errors \
+            "${SERVICE_URL}/healthz" > health.json
+          jq -e '.status == "UP"' health.json > /dev/null
+
+          auth_status="$(curl --silent --show-error \
+            --output auth.json --write-out '%{http_code}' \
+            "${SERVICE_URL}/api/auth/me")"
+
+          if [[ "${auth_status}" != "401" ]]; then
+            echo "무인증 요청이 예상한 401이 아니라 ${auth_status}을 반환했습니다." >&2
+            exit 1
+          fi
+
+          jq -e '.error == "missing_authorization"' auth.json > /dev/null
+
+      - name: 배포 결과 기록
+        shell: bash
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          {
+            echo "## Core API Preview 배포"
+            echo
+            echo "- Project: ${GCP_PROJECT_ID}"
+            echo "- Region: ${GCP_REGION}"
+            echo "- Service: ${CLOUD_RUN_SERVICE}"
+            echo "- Revision image: ${{ steps.config.outputs.image }}:${GITHUB_SHA}"
+            echo "- URL: ${SERVICE_URL}"
+            echo "- 확인: health 200, 무인증 auth 401"
+          } >> "${GITHUB_STEP_SUMMARY}"

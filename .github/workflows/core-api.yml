@@ -48,3 +48,7 @@ jobs:
 
       - name: Core API 검증
         run: ./gradlew check --console=plain
+
+      - name: Cloud Run 컨테이너 빌드 검증
+        working-directory: ${{ github.workspace }}
+        run: docker build --tag bodeul-core-api:ci ./core-api

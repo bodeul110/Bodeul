@@ -14,7 +14,7 @@
 </div>
 
 > [!IMPORTANT]
-> 현재 Android 앱과 관리자 웹의 주요 운영 데이터는 Firebase를 기본 경로로 사용합니다. Node `bodeul-api`와 Supabase 연동은 전환 검증용이며 production 전환은 아닙니다. 목표 구조는 Next.js 관리자 서버와 OCI Spring Core API가 같은 Supabase PostgreSQL을 각각 사용하는 방식입니다.
+> 현재 Android 앱과 관리자 웹의 주요 운영 데이터는 Firebase를 기본 경로로 사용합니다. Node `bodeul-api`와 Supabase 연동은 전환 검증용이며 production 전환은 아닙니다. 목표 구조는 Next.js 관리자 서버와 Cloud Run Spring Core API가 같은 Supabase PostgreSQL을 각각 사용하는 방식입니다.
 
 ## 서비스 개요
 
@@ -61,11 +61,11 @@
 | --- | --- | --- |
 | Android | Java 17, XML, Android SDK 37, Gradle 9.6.1 | 환자·보호자·매니저·관리자 앱 |
 | 관리자 웹 | 현재 React 19 + Vite 8, 목표 Next.js + Vercel | 서류 심사와 운영 백오피스, 관리자 서버 |
-| API | 현재 Node.js 22 prototype, 목표 Java + Spring Boot + OCI | 사용자 서비스와 Kakao 서버 API, PostgreSQL 접근 경계 |
+| API | 현재 Node.js 22 prototype, 목표 Java 21 + Spring Boot + Cloud Run | 사용자 서비스와 Kakao 서버 API, PostgreSQL 접근 경계 |
 | Firebase | Authentication, Firestore, Storage, Functions v2, FCM, App Check | 인증, 실시간 데이터, 파일, 푸시와 운영 보조 |
 | 관계형 데이터 | Supabase PostgreSQL | 관리자 처리 이력과 관계형 조회의 단계적 이전 대상 |
 | 외부 연동 | Kakao Login, Kakao Maps, Kakao Local REST API | 소셜 로그인, 지도와 장소 검색 |
-| 배포·자동화 | GitHub Actions, Vercel, Oracle VM preview | CI, 관리자 웹 공유 배포, API 실연동 검증 |
+| 배포·자동화 | GitHub Actions, Vercel, Google Cloud Run | CI, 관리자 웹 공유 배포, Core API 컨테이너 배포 |
 | 운영 도구 | Firebase CLI, Node.js 스크립트, GitHub Issues/Project | 규칙 검증, seed, 점검, 백업·복원, 작업 추적 |
 
 App Check는 클라이언트에 연결돼 있으나 운영 강제 기준은 아직 확정 전입니다.
@@ -129,7 +129,7 @@ flowchart LR
 
 실선은 현재 기본 경로, 점선은 PostgreSQL 전환을 검증하는 선택 경로입니다. 전체 구성과 전환 근거는 [현재 인프라 구성도](docs/architecture/infra-overview.md)와 [PostgreSQL API 경계](docs/architecture/postgres-api-boundary.md)에 정리돼 있습니다.
 
-운영 목표는 [목표 인프라 구조](docs/architecture/target-infrastructure.md)를 따릅니다. 관리자 브라우저는 Vercel Next.js 관리자 서버를 사용하고, 환자·보호자·매니저 웹과 Android 앱은 OCI Spring Core API를 사용합니다. 두 서버는 서로를 경유하지 않고 공용 Supabase PostgreSQL에 별도 role로 접근합니다.
+운영 목표는 [목표 인프라 구조](docs/architecture/target-infrastructure.md)를 따릅니다. 관리자 브라우저는 Vercel Next.js 관리자 서버를 사용하고, 환자·보호자·매니저 웹과 Android 앱은 Cloud Run Spring Core API를 사용합니다. 두 서버는 서로를 경유하지 않고 공용 Supabase PostgreSQL에 별도 role로 접근합니다.
 
 ### 현재 데이터 경계
 
@@ -226,7 +226,7 @@ npm --prefix tools/firebase run preflight:local
 | --- | --- | --- |
 | Android | GitHub Actions `Android Preflight`, 로컬 debug build | 배포 전 컴파일·테스트 검증 |
 | 관리자 웹 | [Vercel 팀 공유 배포](https://bodeul-admin-web-iota.vercel.app/) + 별도 저장소 | 화면 검증 가능. production Firebase·도메인·App Check 기준 확정 전 |
-| API | Oracle preview 환경 + Supabase 개발 DB + Firebase Admin | 병원 가이드 API 실연동 1차 검증 완료, production 전환 전 |
+| API | Cloud Run Spring preview 구축 중 + Supabase 개발 DB + Firebase Admin | 컨테이너/WIF 배포 기반 준비, 실제 Cloud Run token 검증 전 |
 | Firebase | `bodeul-dev`, Rules·Functions·FCM·Storage 운영 도구 | 개발 기준. dev/prod 분리와 App Check 강제는 후속 |
 
 관리자 웹 링크는 팀 공유와 화면 검증을 위한 배포입니다. 별도 production 환경으로 간주하지 않으며, 운영 전환 조건은 [관리자 웹 환경 기준](docs/operations/admin-api-environments.md)과 관련 GitHub Issue에서 결정합니다.
@@ -248,7 +248,7 @@ npm --prefix tools/firebase run preflight:local
 ## 로드맵
 
 - 병원 가이드에서 검증한 API 경계를 관리자 조회 도메인부터 단계적으로 확장합니다.
-- 메인 저장소의 `core-api/` Spring 프로젝트와 OCI preview 배포 기반을 먼저 구축합니다.
+- 메인 저장소의 `core-api/` Spring 프로젝트와 Cloud Run preview 배포 기반을 먼저 구축합니다.
 - 관리자 웹은 기능을 유지하면서 Next.js로 단계 이전합니다.
 - 관리자 웹 별도 저장소의 source of truth, production 환경과 배포 책임을 확정합니다.
 - Firebase dev/prod 분리, App Check 강제, 백업·복원 리허설과 비용 모니터링을 완료합니다.

@@ -1,6 +1,6 @@
 # 시스템 아키텍처 다이어그램
 
-기준일: 2026-07-12
+기준일: 2026-07-16
 
 현재 구현과 운영 목표를 구분해서 표시한다. 목표 다이어그램은 배포 완료 상태가 아니다.
 
@@ -73,7 +73,7 @@ flowchart LR
     AdminNext["Next.js 관리자 웹/서버"]
   end
 
-  subgraph OCI["Oracle Cloud"]
+  subgraph CloudRun["Google Cloud Run"]
     Spring["Spring Core API"]
   end
 
@@ -113,7 +113,7 @@ flowchart LR
 
 목표 상태의 핵심:
 
-- Vercel Next.js 관리자 서버와 OCI Spring Core API는 서로를 경유하지 않는다.
+- Vercel Next.js 관리자 서버와 Cloud Run Spring Core API는 서로를 경유하지 않는다.
 - 두 서버는 같은 PostgreSQL을 사용하되 별도 runtime role과 공용 migration을 사용한다.
 - Firebase Auth와 FCM은 유지한다.
 - Kakao REST와 알림톡은 Spring Core API 뒤로 옮기고, 클라이언트 SDK가 필요한 로그인과 지도만 Android에 남긴다.

@@ -1,185 +1,268 @@
-# Spring Core API 인프라 런북
+# Spring Core API Cloud Run 인프라 런북
 
-기준일: 2026-07-13
+기준일: 2026-07-16
 
-이 문서는 메인 저장소의 `core-api/`를 OCI에 독립 배포하고 Supabase PostgreSQL, Firebase Auth, Kakao 서버 API를 연결하기 위한 구축 순서를 정한다. 실제 secret 값은 문서와 공개 GitHub 대화에 남기지 않는다.
+이 문서는 `core-api/`를 Google Cloud Run에 배포하고 Supabase PostgreSQL, Firebase Auth, Kakao 서버 API를 연결하는 개발 환경 기준을 정한다. 실제 secret 값은 저장소와 공개 GitHub 대화에 남기지 않는다.
+
+## 결정
+
+- 관리자 브라우저는 Vercel의 Next.js 관리자 서버를 사용한다.
+- 환자·보호자·매니저 웹과 Android 앱은 Spring Core API를 사용한다.
+- 두 서버는 서로를 경유하지 않고 같은 Supabase PostgreSQL에 서로 다른 runtime role로 접근한다.
+- OCI Free Tier 계정 잠금으로 중단된 Spring preview는 Cloud Run으로 교체한다.
+- Cloudflare는 도메인이 생긴 뒤 DNS, WAF, DDoS 방어 계층으로 검토하며 Spring 실행 환경으로 사용하지 않는다.
+
+Cloud Run은 현재 Spring 애플리케이션을 컨테이너로 유지하고, 요청이 없을 때 인스턴스를 0으로 줄일 수 있다. Firebase와 같은 Google Cloud 프로젝트의 서비스 계정 ADC를 사용할 수 있어 장기 서비스 계정 JSON 파일도 필요하지 않다. 단점은 첫 요청의 cold start와 결제 계정 등록이 필요하다는 점이다.
 
 ## 현재 상태
 
-- Java 21, Spring Boot 3.5.16, Gradle Wrapper, `/healthz`, local/database profile을 메인 저장소의 `core-api/`에 반영했다.
-- `core-api/**` 변경만 검사하는 `Core API CI`와 `/core-api` Gradle Dependabot 경로를 추가했다.
-- Core API도 메인 저장소의 `master` 보호 규칙과 PR 검토 절차를 사용한다.
-- `core-api-preview`, `core-api-production` Environment는 메인 저장소에서 관리한다. preview에는 개발 DB runtime secret 3개를 등록했고 production secret은 아직 넣지 않았다.
-- preview 공개 변수는 OCI 홈 리전 `ap-tokyo-1`과 서비스명 `bodeul-core-api-preview`만 등록한다.
-- 초기 Spring 스캐폴드를 만들었던 `bodeul110/bodeul-core-api` 저장소는 이전 안내를 남기고 archive했다.
-- 기존 `api/` Node.js 서버는 Oracle/Supabase/Firebase Admin preview 검증에 사용됐다.
-- 기존 Oracle VM을 Spring preview에 재사용할 수 있는지는 점검 전이다.
-- production 도메인과 HTTPS endpoint는 아직 없다.
-- 2026-07-13 개발 Supabase에 `bodeul` 비공개 schema와 분리 role 기반을 적용하고 GitHub Actions에서 migration 실접속을 확인했다. production에는 적용하지 않았다.
-- Spring Core API에 Firebase ID token 검증, PostgreSQL `app_users` 역할 조회, 인증 오류 계약을 구현했다. `app_users` 개발 DB migration과 권한 검증은 완료했고, 실제 preview token 검증은 아직 적용 전이다.
+- Java 21, Spring Boot 3.5.16, `/healthz`, `preview` DB profile이 구현돼 있다.
+- Firebase ID token 검증과 PostgreSQL `app_users.role` 인가가 구현돼 있다.
+- 개발 DB의 migration, RLS, Core/Admin runtime 권한 검증이 완료됐다.
+- `core-api/Dockerfile`과 `Core API Preview Deploy` workflow를 배포 기준으로 사용한다.
+- 실제 Cloud Run 서비스와 실제 Firebase token smoke test는 아직 완료 전이다.
+- production 프로젝트, 서비스, secret은 만들지 않는다.
 
-## 1. 소스 경로와 런타임
+## 리소스 이름
 
-| 항목 | 기준 |
+| 항목 | 개발 기준 |
 | --- | --- |
-| 저장소 | `bodeul110/Bodeul` |
-| 소스 경로 | `core-api/` |
-| 언어 | Java |
-| Java | LTS 버전. Initializr 생성 시점의 Spring Boot 지원 범위를 공식 문서로 확인한다. |
-| 프레임워크 | Spring Boot |
-| 빌드 | Gradle Wrapper |
-| 기본 package | `com.bodeul.core` |
-| health endpoint | `GET /healthz` |
-| 운영 profile | `preview`, `production` |
+| Google Cloud/Firebase project | `bodeul-dev` |
+| 리전 | `asia-northeast1` (Tokyo) |
+| Cloud Run 서비스 | `bodeul-core-api-preview` |
+| Artifact Registry | `bodeul-core-api` |
+| 컨테이너 이미지 | `bodeul-core-api` |
+| 배포 서비스 계정 | `bodeul-core-preview-deployer` |
+| 런타임 서비스 계정 | `bodeul-core-preview-runtime` |
+| GitHub Environment | `core-api-preview` |
+| WIF pool/provider | 기존 pool `github-actions`, 전용 provider `bodeul-core-api-preview` |
 
-초기 의존성은 Web, Validation, Actuator, Security, JDBC, PostgreSQL driver, Flyway, Firebase Admin으로 제한한다. ORM은 실제 aggregate와 query 패턴이 정리된 뒤 결정한다.
+Supabase 개발 DB도 Tokyo이므로 Core API를 Tokyo에 둔다. production 리전은 실제 사용자 분포와 운영 DB 리전을 확인한 뒤 별도로 결정한다.
 
-## 2. Supabase 연결
+## 런타임 기준
 
-세 종류의 DB role을 분리한다.
-
-| role | 용도 | 권한 기준 |
+| 항목 | 값 | 이유 |
 | --- | --- | --- |
-| `bodeul_migration` / `bodeul_migrator` | Flyway와 schema 변경 | schema CREATE 가능, 앱 런타임에서 사용 금지, 연결 상한 2 |
-| `bodeul_core_runtime` / `bodeul_core_service` | 예약, 매칭, 세션, 리포트 | 필요한 테이블의 DML만 허용, DDL 금지, 연결 상한 5 |
-| `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 조회와 운영 처리 | 관리자 기능에 필요한 DML만 허용, DDL 금지, 연결 상한 5 |
+| CPU | 1 vCPU | 단일 Spring API 초기 기준 |
+| Memory | 1 GiB | Spring, Firebase Admin, JDBC의 512 MiB OOM 위험 완화 |
+| 최소 인스턴스 | 0 | 개발 환경 유휴 비용 제한 |
+| 최대 인스턴스 | 1 | 비용과 DB 연결 수 상한 고정 |
+| Concurrency | 20 | 초기 저부하 검증 기준 |
+| DB pool | 최대 5 | Admin, migration, Supabase 관리 연결 여유 확보 |
+| Request timeout | 30초 | 외부 API 지연 무제한 대기 방지 |
+| Port | Cloud Run `PORT`, 기본 8080 | 플랫폼 계약 준수 |
+| 실행 사용자 | distroless `nonroot` | 컨테이너 root 실행 방지 |
 
-연결 기준:
+컨테이너 파일 시스템은 영속 저장소로 사용하지 않는다. 파일 원본은 Firebase Storage에, 운영 데이터는 PostgreSQL에 둔다.
 
-- OCI는 장기 실행 서버이므로 direct connection을 우선한다.
-- OCI 네트워크가 IPv4-only이면 Supavisor session mode 5432 포트를 사용한다.
-- Vercel Next.js는 Supavisor transaction mode 6543 포트를 사용한다.
-- runtime과 migration connection string을 분리한다.
-- SSL을 강제하고 connection string을 로그에 출력하지 않는다.
-- migration 연결은 `SET ROLE bodeul_migration`을 실행해 Flyway가 만든 객체의 소유자를 권한 role로 통일한다.
-- 로그인용 role은 bootstrap에서 `NOLOGIN`으로 만들고, 비밀번호를 보안 경로에서 설정할 때만 활성화한다.
-- 개발 단계에서는 `bodeul_migrator`와 `bodeul_core_service`만 활성화한다. `bodeul_admin_service`는 관리자 웹이 서버형 Next.js로 전환되고 서버 전용 비밀값 경계가 확인될 때까지 `NOLOGIN`으로 유지한다.
+## Supabase 연결
 
-## 3. Firebase 인증
+Cloud Run에서 사용하는 값은 다음 세 개다.
 
-1. 클라이언트가 Firebase Auth로 로그인한다.
-2. `Authorization: Bearer <Firebase ID token>`을 Core API에 전달한다.
-3. Core API가 Firebase Admin SDK로 token을 검증한다.
-4. token의 `uid`로 PostgreSQL `app_users.firebase_uid`를 조회한다.
-5. API별 role과 resource ownership을 확인한다.
-
-Firebase custom claim은 PostgreSQL 역할을 대체하지 않는다. 서비스 역할은 `app_users.role`을 최종 기준으로 사용한다.
-
-OCI는 Google 외부 환경이므로 서비스 계정 JSON을 GitHub Environment secret에서 배포 시점에 제한된 서버 파일로 만들고, systemd의 `GOOGLE_APPLICATION_CREDENTIALS`에는 파일 경로만 전달한다. JSON 원문을 애플리케이션 환경변수로 직접 읽거나 로그에 출력하지 않는다. `FIREBASE_PROJECT_ID`를 명시해 Admin SDK의 audience와 issuer 검증 대상을 고정한다.
-
-기본 `verifyIdToken`은 token 폐기 여부를 추가 확인하지 않는다. 즉시 접근 차단은 우선 `app_users` 역할 제거로 처리하고, `verifyIdToken(token, true)` 또는 별도 폐기 캐시는 실제 요청량과 지연 시간을 확인한 뒤 결정한다.
-
-## 4. OCI preview
-
-기존 VM을 재사용하기 전에 아래를 확인한다.
-
-- VM 이름, 리전, shape, OS와 보안 업데이트 상태
-- 현재 Node API process와 열린 port
-- systemd unit, 실행 사용자, 작업 디렉터리
-- OCI Network Security Group과 Ubuntu firewall 규칙
-- Java LTS 설치 여부
-- 디스크 여유 공간과 로그 보존 설정
-- HTTPS endpoint와 인증서 발급 가능 여부
-
-Spring preview 기준:
-
-| 항목 | 값 |
-| --- | --- |
-| systemd unit | `bodeul-core-api-preview.service` |
-| 실행 사용자 | 로그인 계정과 분리한 `bodeul-api` 시스템 사용자 |
-| 내부 port | `8080` 후보. 기존 process와 충돌하면 전환 전까지 별도 port 사용 |
-| 외부 접근 | reverse proxy의 HTTPS만 허용 |
-| health check | `/healthz` |
-| 로그 | journald, secret과 token 원문 기록 금지 |
-
-raw IP의 HTTP endpoint는 production으로 사용하지 않는다. 도메인이 없으면 preview 접근만 제한적으로 허용하고 production 공개는 보류한다.
-
-## 5. GitHub Environment
-
-### `core-api-preview`
-
-Variables 후보:
-
-- `OCI_REGION`
-- `CORE_API_DEPLOY_HOST`
-- `CORE_API_DEPLOY_USER`
-- `CORE_API_SERVICE_NAME`
-- `FIREBASE_PROJECT_ID`
-
-Secrets 후보:
-
-- `OCI_DEPLOY_SSH_KEY`
 - `CORE_DB_JDBC_URL`
 - `CORE_DB_USERNAME`
 - `CORE_DB_PASSWORD`
-- `FIREBASE_SERVICE_ACCOUNT_JSON` (배포 단계에서 제한된 파일로 변환하고 애플리케이션에는 직접 전달하지 않음)
-- `KAKAO_REST_API_KEY`
-- 알림톡 provider를 확정한 뒤 필요한 provider secret
 
-### `core-api-migration-preview`
+Cloud Run의 외부 PostgreSQL 연결은 IPv4가 가능한 Supavisor session mode 5432를 우선 사용한다. `bodeul_core_service` 로그인과 `bodeul_core_runtime` 권한 경계를 유지하고, migration 계정은 런타임에 주입하지 않는다.
 
-Secrets 후보:
+DB role은 다음처럼 분리한다.
 
-- `MIGRATION_DB_JDBC_URL`
-- `MIGRATION_DB_USERNAME`
-- `MIGRATION_DB_PASSWORD`
+| role | 용도 | 연결 상한 |
+| --- | --- | ---: |
+| `bodeul_migration` / `bodeul_migrator` | Flyway와 schema 변경 | 2 |
+| `bodeul_core_runtime` / `bodeul_core_service` | 사용자 서비스 | 5 |
+| `bodeul_admin_runtime` / `bodeul_admin_service` | Next.js 관리자 서버 | 5 |
 
-`core-api-migration-preview`와 `core-api-migration-production`은 보호 브랜치만 허용하고 `bodeul110` 수동 승인을 요구한다. preview에는 `MIGRATION_DB_*` 3개를 등록했고 production secret은 등록하지 않았다.
+## Firebase 인증
 
-Repository secret과 Environment secret을 중복 생성하지 않는다. preview와 production은 별도 자격 증명과 DB를 사용한다.
-Runtime 배포에는 `MIGRATION_DB_*`를 전달하지 않고, migration job에는 `CORE_DB_*`를 전달하지 않는다.
+1. 클라이언트가 Firebase Auth로 로그인한다.
+2. Firebase ID token을 `Authorization: Bearer`로 Core API에 보낸다.
+3. Cloud Run runtime 서비스 계정의 ADC로 Firebase Admin SDK를 초기화한다.
+4. 검증된 Firebase UID를 `bodeul.app_users.firebase_uid`와 연결한다.
+5. PostgreSQL role과 resource ownership으로 최종 권한을 판정한다.
 
-## 6. CI와 배포
+Cloud Run은 Firebase project와 같은 `bodeul-dev`에서 실행한다. 서비스 계정 JSON, `GOOGLE_APPLICATION_CREDENTIALS`, Firebase Admin private key를 만들거나 배포하지 않는다. `FIREBASE_PROJECT_ID=bodeul-dev`를 명시해 다른 project token을 거부한다.
 
-PR CI:
+## Secret Manager
 
-1. Gradle Wrapper 검증
-2. compile
-3. unit test
-4. static analysis
-5. secret scan
+preview에서 다음 secret ID를 사용한다.
 
-preview 배포:
+| Secret Manager ID | Cloud Run 환경변수 |
+| --- | --- |
+| `bodeul-core-api-preview-db-jdbc-url` | `CORE_DB_JDBC_URL` |
+| `bodeul-core-api-preview-db-username` | `CORE_DB_USERNAME` |
+| `bodeul-core-api-preview-db-password` | `CORE_DB_PASSWORD` |
 
-1. `master` 또는 승인된 수동 workflow에서 artifact 생성
-2. GitHub OIDC 또는 제한된 SSH 자격 증명으로 OCI에 전달
-3. 새 artifact와 환경 파일 권한 검증
-4. systemd restart
-5. `/healthz` 확인
-6. 인증이 필요한 smoke test 실행
-7. 실패 시 직전 artifact로 rollback
+런타임 서비스 계정에 각 secret의 `roles/secretmanager.secretAccessor`만 부여한다. 배포 workflow와 애플리케이션 로그에는 secret 원문을 출력하지 않는다. Kakao proxy를 구현하기 전에는 Kakao key secret을 만들지 않는다.
 
-production 자동 배포는 preview와 rollback 리허설이 끝날 때까지 만들지 않는다.
+Cloud Run 환경변수는 `latest` 대신 숫자 version을 참조한다. 회전할 때 새 version을 등록하고 해당 GitHub Environment의 version 변수만 바꾼 뒤 재배포한다.
 
-DB migration은 `Core API DB Migration` workflow에서만 수동 실행한다. `target`과 `confirm_target`이 일치해야 하며, 선택한 migration Environment의 승인과 secret 확인을 통과한 뒤 `migrateDatabase` task를 실행한다.
+기존 GitHub Environment의 `CORE_DB_*` secret은 Secret Manager 값과 Cloud Run 배포 검증이 끝날 때까지만 보존한다. 검증 후 중복 secret을 삭제하고 Secret Manager를 runtime source of truth로 삼는다.
 
-## 7. 첫 API 범위
+## Google Cloud 최초 설정
 
-1. `GET /healthz`
-2. `GET /api/auth/me` Firebase ID token 검증과 PostgreSQL role 조회
-3. Kakao Local keyword proxy
-4. Android 병원 검색 한 화면 전환
+결제 계정 연결과 Cloud Run API 사용 가능 여부는 Google Cloud Console에서 먼저 확인한다. 이후 프로젝트 소유자 권한이 있는 로컬 `gcloud` 또는 Cloud Shell에서 아래 순서로 설정한다.
 
-관리자 Next.js 전환과 Spring Core API 첫 배포를 같은 PR이나 같은 cutover로 묶지 않는다.
+```powershell
+$ProjectId = "bodeul-dev"
+$Region = "asia-northeast1"
+$Repository = "bodeul-core-api"
+$DeployAccount = "bodeul-core-preview-deployer@$ProjectId.iam.gserviceaccount.com"
+$RuntimeAccount = "bodeul-core-preview-runtime@$ProjectId.iam.gserviceaccount.com"
 
-## 8. 검증 기록
+gcloud config set project $ProjectId
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com iamcredentials.googleapis.com sts.googleapis.com
 
-아래 결과를 메인 저장소의 `docs/reports/`에 남긴다.
+gcloud artifacts repositories create $Repository `
+  --repository-format=docker `
+  --location=$Region `
+  --description="BoDeul Core API images"
 
-- 배포 일시와 commit SHA
-- health check 결과
-- Firebase token 정상/만료/변조/다른 project token 응답
-- DB 연결과 role 인가 결과
-- Kakao proxy 정상/429/timeout/fallback 결과
-- 재시작 후 자동 기동 결과
-- rollback 소요 시간과 결과
+gcloud iam service-accounts create bodeul-core-preview-deployer `
+  --display-name="BoDeul Core API preview deployer"
+gcloud iam service-accounts create bodeul-core-preview-runtime `
+  --display-name="BoDeul Core API preview runtime"
 
-개발 DB role 적용 결과는 [Supabase DB 권한 기반 검증](../reports/supabase-database-access-foundation-2026-07-13.md)에 기록한다.
+gcloud iam workload-identity-pools providers create-oidc bodeul-core-api-preview `
+  --workload-identity-pool=github-actions `
+  --location=global `
+  --issuer-uri="https://token.actions.githubusercontent.com" `
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.ref=assertion.ref,attribute.environment=assertion.environment,attribute.actor=assertion.actor,attribute.workflow=assertion.workflow" `
+  --attribute-condition="assertion.repository == 'bodeul110/Bodeul' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-preview'"
+```
+
+이미 존재하는 리소스의 create 명령은 다시 실행하지 않는다. `describe` 또는 Google Cloud Console에서 현재 상태를 먼저 확인한다.
+
+### 배포 계정 권한
+
+```powershell
+$ProjectNumber = gcloud projects describe $ProjectId --format="value(projectNumber)"
+$WifMember = "principalSet://iam.googleapis.com/projects/$ProjectNumber/locations/global/workloadIdentityPools/github-actions/attribute.environment/core-api-preview"
+
+gcloud projects add-iam-policy-binding $ProjectId `
+  --member="serviceAccount:$DeployAccount" `
+  --role="roles/run.developer"
+
+gcloud artifacts repositories add-iam-policy-binding $Repository `
+  --location=$Region `
+  --member="serviceAccount:$DeployAccount" `
+  --role="roles/artifactregistry.writer"
+
+gcloud iam service-accounts add-iam-policy-binding $RuntimeAccount `
+  --member="serviceAccount:$DeployAccount" `
+  --role="roles/iam.serviceAccountUser"
+
+gcloud iam service-accounts add-iam-policy-binding $DeployAccount `
+  --member=$WifMember `
+  --role="roles/iam.workloadIdentityUser"
+```
+
+기존 `bodeul-repo` provider는 `admin-web-preview` 환경으로 제한되어 있으므로 조건을 넓히지 않는다. `bodeul-core-api-preview` provider를 별도로 만들고 저장소, `master` ref, `core-api-preview` environment를 모두 조건으로 고정한다. 서비스 계정 key JSON은 발급하지 않는다.
+
+### Secret 생성과 권한
+
+```powershell
+$SecretIds = @(
+  "bodeul-core-api-preview-db-jdbc-url",
+  "bodeul-core-api-preview-db-username",
+  "bodeul-core-api-preview-db-password"
+)
+
+foreach ($SecretId in $SecretIds) {
+  gcloud secrets create $SecretId --replication-policy=automatic --project=$ProjectId
+  gcloud secrets add-iam-policy-binding $SecretId `
+    --project=$ProjectId `
+    --member="serviceAccount:$RuntimeAccount" `
+    --role="roles/secretmanager.secretAccessor"
+}
+```
+
+secret 값은 콘솔에서 입력하거나 `core-api/deploy/cloud-run/set-preview-secrets.ps1`을 사용한다. 스크립트는 보안 입력을 프로세스 표준 입력으로만 전달하고 파일이나 shell history에 남기지 않는다.
+
+## GitHub Environment
+
+`core-api-preview`에는 다음 Variables만 등록한다.
+
+- `GCP_PROJECT_ID=bodeul-dev`
+- `GCP_REGION=asia-northeast1`
+- `CLOUD_RUN_SERVICE=bodeul-core-api-preview`
+- `CLOUD_RUN_ARTIFACT_REPOSITORY=bodeul-core-api`
+- `CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER=projects/533563500316/locations/global/workloadIdentityPools/github-actions/providers/bodeul-core-api-preview`
+- `CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT=bodeul-core-preview-deployer@bodeul-dev.iam.gserviceaccount.com`
+- `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT=bodeul-core-preview-runtime@bodeul-dev.iam.gserviceaccount.com`
+- `CORE_DB_JDBC_URL_SECRET_VERSION=1`
+- `CORE_DB_USERNAME_SECRET_VERSION=1`
+- `CORE_DB_PASSWORD_SECRET_VERSION=1`
+- `FIREBASE_PROJECT_ID=bodeul-dev`
+
+`OCI_REGION`, `CORE_API_SERVICE_NAME` 같은 OCI 변수는 제거한다. production Environment는 변경하지 않는다.
+
+## 최초 서비스 공개
+
+Android와 사용자 웹은 Google Cloud IAM token이 아니라 Firebase ID token을 사용한다. 따라서 Cloud Run IAM 단계에서는 서비스 호출을 공개하고 Spring Security가 `/healthz` 외 요청을 인증해야 한다.
+
+최초 image 배포 후 프로젝트 소유자가 한 번만 실행한다.
+
+```powershell
+gcloud run services add-iam-policy-binding bodeul-core-api-preview `
+  --project=bodeul-dev `
+  --region=asia-northeast1 `
+  --member=allUsers `
+  --role=roles/run.invoker
+```
+
+배포 workflow는 Cloud Run IAM policy를 변경하지 않는다. 공개 호출을 허용하더라도 `/api/auth/me` 무인증 요청은 Spring에서 401을 반환해야 한다.
+
+## 배포
+
+`Core API Preview Deploy` workflow는 다음 순서로 실행한다.
+
+1. `master`와 확인 입력값을 검사한다.
+2. Gradle test를 실행한다.
+3. GitHub OIDC와 WIF로 배포 계정에 인증한다.
+4. Java 21 비루트 컨테이너를 빌드해 Artifact Registry에 commit SHA tag로 게시한다.
+5. Secret Manager reference와 runtime 서비스 계정을 연결한다.
+6. 최신 revision에 트래픽 100%를 보낸다.
+7. `/healthz` 200과 `/api/auth/me` 무인증 401을 검사한다.
+
+production 자동 배포 workflow는 만들지 않는다. production DB, Firebase project, domain, 비용 한도와 rollback 리허설이 확정된 뒤 별도로 추가한다.
+
+## Rollback
+
+Cloud Run revision은 immutable image digest를 참조한다. 장애 시 직전 정상 revision으로 트래픽을 되돌린다.
+
+```powershell
+gcloud run revisions list `
+  --service=bodeul-core-api-preview `
+  --project=bodeul-dev `
+  --region=asia-northeast1
+
+gcloud run services update-traffic bodeul-core-api-preview `
+  --project=bodeul-dev `
+  --region=asia-northeast1 `
+  --to-revisions="<정상-revision>=100"
+```
+
+DB migration은 배포 workflow와 분리돼 있으므로 애플리케이션 rollback이 schema rollback을 자동 실행하지 않는다.
+
+## 검증 기록
+
+실제 배포 후 다음을 `docs/reports/`와 Issue #156/#157에 기록한다.
+
+- commit SHA, Cloud Run revision, 리전과 서비스 URL
+- `/healthz` 200
+- 무인증 `/api/auth/me` 401
+- 정상, 만료, 변조, 다른 Firebase project token 응답
+- DB role 조회와 secret/token 로그 비노출
+- cold start 시간과 정상 기동 여부
+- 직전 revision rollback 결과
 
 ## 중단 조건
 
-- secret이 로그, artifact, PR에 노출됨
-- OCI가 raw HTTP로만 외부 공개됨
-- migration과 runtime이 같은 DB owner 자격 증명을 사용함
-- Node API와 Spring API가 같은 요청을 연쇄 호출함
-- Firestore와 PostgreSQL 양쪽에 운영 쓰기를 하면서 source of truth가 정해지지 않음
+- Google Cloud 결제 계정이나 프로젝트 소유권이 확인되지 않음
+- WIF provider가 `bodeul110/Bodeul`로 제한되지 않음
+- 서비스 계정 JSON key를 발급하거나 저장소에 넣어야만 배포 가능함
+- DB owner 또는 migration 자격 증명을 runtime에 사용함
+- Cloud Run 최대 인스턴스와 DB pool 상한이 설정되지 않음
+- secret, Firebase token, DB 연결 문자열이 로그나 GitHub 출력에 노출됨
+- Firebase와 PostgreSQL 양쪽에 운영 쓰기를 하면서 source of truth가 정해지지 않음

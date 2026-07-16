@@ -4,7 +4,7 @@
 
 - 사용자 메시지, 오류 응답 설명, 운영 문서는 한국어로 작성한다.
 - Java 21과 현재 Spring Boot 3.5.x 기준을 사용자 승인 없이 올리지 않는다.
-- DB 접속 문자열, Firebase 서비스 계정, Kakao key, OCI key를 커밋하지 않는다.
+- DB 접속 문자열, Firebase 서비스 계정, Kakao key, Google Cloud 자격 증명을 커밋하지 않는다.
 - API 응답과 로그에 token, 비밀번호, connection string 원문을 남기지 않는다.
 
 ## 구조
@@ -23,6 +23,7 @@
 
 - 변경 후 `./gradlew check --console=plain`을 실행한다.
 - 설정 변경은 `local`과 `preview` profile의 차이를 확인한다.
+- 컨테이너나 Cloud Run 설정 변경은 `docker build --tag bodeul-core-api:ci .`로 패키징을 확인한다.
 - DB migration은 별도 개발 DB에서 적용과 rollback을 검증하기 전 production에 적용하지 않는다.
 
 ## GitHub

@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-07-12
+기준일: 2026-07-16
 
 이 문서는 현재 `BoDeul` 프로젝트가 어떤 실행 구성으로 동작하는지 빠르게 파악하기 위한 인프라 기준 문서다. 화면 설계나 기능 범위는 기능설명서와 구현 상태 문서를 따르고, 이 문서는 런타임 구성과 운영 경계를 설명한다.
 
@@ -56,7 +56,7 @@ Supabase PostgreSQL
 
 Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다. PostgreSQL은 운영 DB 전환 대상으로 준비됐고, `bodeul-api`는 클라이언트가 PostgreSQL에 직접 접근하지 않도록 인증과 권한을 통제하는 얇은 서버 경계로 시작했다.
 
-운영 목표는 관리자 웹을 Next.js 서버 애플리케이션으로 Vercel에 배포하고, 사용자 서비스는 Spring Core API를 OCI에 배포하는 것이다. 두 서버는 서로를 경유하지 않고 같은 Supabase PostgreSQL을 사용한다. 자세한 구조는 [목표 인프라 구조](target-infrastructure.md), 구축 절차는 [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)을 따른다.
+운영 목표는 관리자 웹을 Next.js 서버 애플리케이션으로 Vercel에 배포하고, 사용자 서비스는 Spring Core API를 Cloud Run에 배포하는 것이다. 두 서버는 서로를 경유하지 않고 같은 Supabase PostgreSQL을 사용한다. 자세한 구조는 [목표 인프라 구조](target-infrastructure.md), 구축 절차는 [Spring Core API Cloud Run 인프라 런북](../operations/core-api-infrastructure-runbook.md)을 따른다.
 
 ## 2. 클라이언트 구성
 
@@ -107,7 +107,7 @@ Android 앱과 관리자 웹은 아직 대부분 Firebase를 직접 사용한다
 | 서버 | 배포 | 책임 |
 | --- | --- | --- |
 | Next.js 관리자 서버 | Vercel | 관리자 인증·인가, 관리자 조회와 운영 처리, 관리자 DB role 사용 |
-| Spring Core API | OCI | 예약·매칭·세션·리포트, 사용자 조회와 쓰기, Kakao 서버 API proxy |
+| Spring Core API | Google Cloud Run | 예약·매칭·세션·리포트, 사용자 조회와 쓰기, Kakao 서버 API proxy |
 
 두 서버는 서로를 거쳐 DB에 접근하지 않는다. DB schema migration은 한 곳에서 소유하고 runtime role은 분리한다.
 

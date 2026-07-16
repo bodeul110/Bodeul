@@ -48,6 +48,20 @@ updates:
     commit-message:
       prefix: "chore"
 
+  - package-ecosystem: docker
+    directory: /core-api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:25"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - infrastructure
+    commit-message:
+      prefix: "chore"
+
   - package-ecosystem: npm
     directory: /admin-web
     schedule:
