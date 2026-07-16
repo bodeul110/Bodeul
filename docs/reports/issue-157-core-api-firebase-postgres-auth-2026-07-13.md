@@ -11,7 +11,7 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 ## 선택한 방식
 
 - Firebase Admin Java SDK `9.10.0`의 `verifyIdToken`을 사용한다.
-- `FIREBASE_PROJECT_ID`를 명시하고 자격 증명은 ADC 표준 경로인 `GOOGLE_APPLICATION_CREDENTIALS`로 읽는다.
+- `FIREBASE_PROJECT_ID`를 명시하고 Cloud Run에서는 전용 runtime 서비스 계정의 ADC를 사용한다. 로컬 검증에서만 ADC 표준 경로를 사용한다.
 - 검증된 UID만 `bodeul.app_users.firebase_uid` 조회에 사용한다.
 - Spring Security authority는 PostgreSQL의 `PATIENT`, `GUARDIAN`, `MANAGER`, `ADMIN` 역할에서 만든다.
 - 원본 token은 SecurityContext credentials, 응답, 로그에 보관하지 않는다.
@@ -24,7 +24,7 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 | Firebase custom claim을 최종 역할로 사용 | token이 갱신되기 전까지 역할 변경이 반영되지 않고 PostgreSQL 운영 권한과 기준이 갈라진다. |
 | Android 앱이 Supabase를 직접 조회 | DB 자격 증명과 인가 정책이 클라이언트까지 확장되어 서버 경계가 약해진다. |
 | 기존 Node API를 Spring이 다시 호출 | 서버에서 서버를 거치는 중복 경로가 생기고 목표 구조와 맞지 않는다. |
-| 서비스 계정 JSON 원문을 애플리케이션 환경변수로 파싱 | process 환경과 오류 처리에서 원문 노출 범위가 넓어진다. 배포 단계에서 제한된 파일로 만드는 편이 낫다. |
+| 서비스 계정 JSON 원문을 애플리케이션 환경변수나 파일로 배포 | 회전과 원문 노출 범위가 넓어진다. Cloud Run runtime 서비스 계정 ADC를 사용한다. |
 
 ## 선택 이유
 
@@ -53,7 +53,7 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 | DB 장애 | 503 `role_lookup_failed` 확인 |
 | 서비스 계정 초기화 오류 | 고정 로그와 503만 사용하고 자격 증명 원문 미포함 확인 |
 | 개발 DB migration | [preview 실행](https://github.com/bodeul110/Bodeul/actions/runs/29226479527) 성공 |
-| 실제 Firebase token | OCI preview 자격 증명과 endpoint 준비 후 확인 필요 |
+| 실제 Firebase token | Cloud Run endpoint 준비 완료. 개발용 실제 token 시나리오 확인 필요 |
 
 만료, 변조, 다른 project token 테스트는 Firebase Admin adapter가 검증 실패를 반환한 이후의 API 응답 계약을 확인한 것이다. 실제 서로 다른 token을 사용한 검증으로 과장하지 않는다.
 
@@ -71,7 +71,7 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 
 - 기본 `verifyIdToken`은 token 폐기 여부를 추가 조회하지 않는다. 즉시 차단은 PostgreSQL 역할 제거를 우선 사용하고, 폐기 확인 옵션은 지연 시간과 요청량을 측정한 뒤 결정한다.
 - 첫 migration은 인증에 필요한 최소 필드만 만든다. 이름, 연락처, 매니저 심사 정보는 해당 도메인을 이관할 때 별도 migration으로 추가한다.
-- 실제 Firebase token 검증은 서비스 계정 파일과 OCI preview endpoint가 준비돼야 완료할 수 있다.
+- Cloud Run preview와 Firebase ADC는 준비됐다. 정상, 만료, 변조, 다른 project의 실제 ID token을 안전하게 준비해 endpoint에서 확인해야 한다.
 - production DB와 production secret에는 이 작업을 적용하지 않는다.
 
 ## 참고

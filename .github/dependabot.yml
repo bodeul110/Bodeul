@@ -59,6 +59,10 @@ updates:
     labels:
       - dependencies
       - infrastructure
+    ignore:
+      - dependency-name: eclipse-temurin
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: "chore"
 
