@@ -14,7 +14,7 @@
 | 관리자 웹 데이터 | Firestore/Storage 직접 접근 유지, API 전환 후보 준비 |
 | 운영 DB 전환 | Supabase PostgreSQL 개발 DB seed 검증 완료 |
 | API 경계 | 사용자 서비스는 Spring Core API로 전환 중이다. `bodeul-api`는 관리자 병원 가이드 계약이 Next.js로 옮겨질 때까지만 동결된 프로토타입으로 보존한다. |
-| Spring Core API | Cloud Run preview, Firebase token/PostgreSQL role, DB migration, rollback 검증 완료. Kakao Local proxy 구현을 병합했고 secret 주입과 실호출 검증이 남았다. |
+| Spring Core API | Cloud Run preview, Firebase token/PostgreSQL role, DB migration, rollback 검증 완료. Kakao Local proxy의 Secret Manager 주입과 인증된 실호출도 완료했다. |
 | Firebase Functions | FCM, Kakao/Naver custom token, 운영 보조 작업 유지 |
 | App Check | 초기화 경로는 있으나 enforcement는 단계 적용 |
 | Code scanning | 2026-07-02 확인 기준 open alert 0건 |
@@ -216,6 +216,7 @@ npm run workflow:ops -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json --s
 - Kakao 로그인은 Android 앱이 받은 Kakao access token을 Functions에 전달하고, Functions가 Kakao user API를 호출한다.
 - 병원/약국 실좌표 검색은 Android가 Firebase ID token과 함께 Spring Core API `GET /api/places/search`를 호출한다.
 - Core API의 Kakao Local REST API key는 Google Secret Manager에서 Cloud Run에 주입한다.
+- preview는 숫자 Secret 버전 `1`을 사용하며, Cloud Run 리비전 `bodeul-core-api-preview-00006-hdk`에서 인증된 장소 검색 200과 결과 15건을 확인했다.
 - 같은 범주와 질의 결과는 Core API 메모리에서 6시간·최대 1,000건 캐시한다.
 - preview는 Cloud Run 최대 인스턴스 1개를 유지하며 사용자별 분당 60회로 제한한다.
 - Android의 `kakaoRestApiKey` 리소스와 Kakao Local 직접 호출은 제거했다.
@@ -226,6 +227,7 @@ npm run workflow:ops -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json --s
 - REST API key, Admin key, client secret, 알림톡 API key 같은 서버 자격 증명은 앱에 넣지 않는다.
 - Kakao 429는 `kakao_local_quota_exceeded`, 서버 자체 제한은 `place_search_rate_limit_exceeded`로 구분한다.
 - API 응답과 로그에는 Kakao key, Firebase token, Kakao 원본 오류 본문을 남기지 않는다.
+- Kakao Developers 콘솔의 REST 키 호출 허용 IP는 현재 비워 둔다. 개발 Cloud Run은 고정 outbound IP가 없으므로 production에서 IP 제한을 켜기 전에 Serverless VPC Access와 Cloud NAT를 구성한다.
 
 확장 조건:
 
