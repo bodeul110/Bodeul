@@ -1,0 +1,11 @@
+.gradle
+build
+.env
+.env.*
+!.env.example
+!.env.migration.example
+.idea
+deploy
+README.md
+AGENTS.md
+*.iml

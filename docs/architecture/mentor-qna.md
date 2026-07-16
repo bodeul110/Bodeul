@@ -1,6 +1,6 @@
 # 멘토 Q&A 준비
 
-기준일: 2026-06-25
+기준일: 2026-07-16
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -37,11 +37,11 @@ PostgreSQL을 쓰면서도 Realtime 기능을 검토할 수 있기 때문이다.
 
 지금 규모에서는 Firebase가 맡는 Auth, FCM, Storage, Hosting까지 한 번에 옮기는 비용이 DB 전환 이익보다 크다. 대신 Firestore가 약해질 수 있는 관계형 조회, 정산, 통계, 운영 감사 데이터는 PostgreSQL로 옮긴다. 중요한 기준은 “두 플랫폼을 막 섞는다”가 아니라 “인증과 푸시는 Firebase, 운영 DB는 PostgreSQL”처럼 역할을 고정하는 것이다.
 
-### Oracle Cloud는 언제 쓰나?
+### Oracle Cloud 대신 무엇을 쓰나?
 
-지금 당장 필수는 아니다. Firestore 백업 import, PostgreSQL schema 검증, 비교 리포트가 먼저다. 관리자 웹이나 Android 앱이 PostgreSQL 쓰기 API를 실제로 호출해야 할 때 `bodeul-api`를 올릴 실행 환경으로 Oracle Cloud VM을 검토한다. Oracle VM에 PostgreSQL까지 직접 운영하면 백업, 보안 패치, 장애 대응을 모두 팀이 책임져야 하므로 초기 DB로는 관리형 Supabase를 쓴다.
+Oracle Free Tier 계정 잠금 이후 Spring Core API의 개발 실행 환경은 Google Cloud Run으로 변경했다. 현재 API는 상태를 로컬 디스크에 저장하지 않고 Supabase PostgreSQL을 사용하므로 24시간 VM보다 요청 기반 컨테이너가 현재 규모에 맞다. Cloud Run은 Java 21 컨테이너, 기본 HTTPS, revision rollback과 Firebase 서비스 계정 ADC를 제공한다.
 
-현재는 Oracle VM을 만들지 않는다. `api/` 서버 골격, `GET /healthz`, secret 주입 방식, 배포/롤백 기준이 PR로 준비된 뒤 `bodeul-dev-api-01`을 만든다.
+개발 환경은 Tokyo의 `bodeul-core-api-preview`를 최소 인스턴스 0, 최대 인스턴스 1로 운영한다. Cloudflare는 도메인이 생긴 뒤 DNS와 WAF 계층으로 검토하며 Spring을 Workers로 다시 작성하지 않는다.
 
 ## 앱 구조
 

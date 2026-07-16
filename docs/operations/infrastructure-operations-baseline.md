@@ -1,8 +1,8 @@
 # 인프라 운영 기준
 
-기준일: 2026-07-10
+기준일: 2026-07-16
 
-이 문서는 현재 인프라 기준으로 운영자가 봐야 하는 배포, 보안, 비용, 백업, API 전환 항목을 한 곳에 정리한다. 실제 코드 기준은 `app/`, `admin-web/`, `api/`, `functions/`, `firestore.rules`, `storage.rules`, `tools/firebase/`, `.github/workflows/`를 확인해 반영했다.
+이 문서는 현재 인프라 기준으로 운영자가 봐야 하는 배포, 보안, 비용, 백업, API 전환 항목을 한 곳에 정리한다. 실제 코드 기준은 `app/`, `api/`, `core-api/`, `functions/`, 별도 `bodeul-admin-web` 저장소, Firebase Rules, `tools/firebase/`, `.github/workflows/`를 확인해 반영했다.
 
 ## 현재 운영 판단 요약
 
@@ -14,6 +14,7 @@
 | 관리자 웹 데이터 | Firestore/Storage 직접 접근 유지, API 전환 후보 준비 |
 | 운영 DB 전환 | Supabase PostgreSQL 개발 DB seed 검증 완료 |
 | API 경계 | `bodeul-api` 구현 시작 완료. 관리자 웹 병원 가이드 read API 1차 연결 완료, #140/#123 댓글 기준 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드와 실제 API 응답 비교 통과 |
+| Spring Core API | Firebase token과 PostgreSQL role 연결 및 개발 DB migration 검증 완료. OCI 배포 계획은 폐기하고 Cloud Run preview 구축 중 |
 | Firebase Functions | FCM, Kakao/Naver custom token, 운영 보조 작업 유지 |
 | App Check | 초기화 경로는 있으나 enforcement는 단계 적용 |
 | Code scanning | 2026-07-02 확인 기준 open alert 0건 |
@@ -66,8 +67,9 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | 항목 | 상태 | 설명 |
 | --- | --- | --- |
 | API 실행 환경 | preview 1차 검증 완료 | #140/#123 댓글 기준 Oracle Free Tier 환경에서 `/healthz`, 인증, Supabase 조회, 병원 가이드 API, 로컬 관리자 웹 API 모드, 응답 비교가 통과 |
-| `api-preview` GitHub Environment | 후보 | GitHub Actions 기반 API 배포가 필요해질 때 생성. #140의 직접 Oracle/Vercel 검증은 서버/플랫폼 환경값으로 진행 가능 |
-| `api-production` GitHub Environment | 후보 | 운영 배포 리허설 후 생성 |
+| Spring Core API 실행 환경 | 구축 중 | `bodeul-dev` Tokyo Cloud Run, 최소 0/최대 1, 1 vCPU/1 GiB 기준 |
+| `core-api-preview` GitHub Environment | 생성 완료 | WIF와 Cloud Run 식별용 Variables 사용. DB 값은 Secret Manager로 이전 |
+| `core-api-production` GitHub Environment | 자리만 준비 | 운영 project, 비용, 도메인과 rollback 리허설 전에는 배포하지 않음 |
 | `DATABASE_URL` | 필요 | 서버 secret으로만 주입 |
 | `FIREBASE_PROJECT_ID` | 필요 | Firebase token 검증 project 지정 |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | 필요할 수 있음 | ADC가 아닌 서비스 계정 JSON 경로를 택할 때만 사용 |
@@ -82,7 +84,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 
 ## GitHub 기준 현재 상태
 
-2026-07-10 확인 기준:
+2026-07-16 확인 기준:
 
 - 최근 병합된 인프라 PR:
   - #101 Supabase 개발 DB seed 검증 기준 추가
@@ -97,7 +99,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
   - #137 병원 가이드 Firestore/API 로컬 비교 기록 추가
   - #138 병원 가이드 비교 도구 추가
 - 2026-07-08 이슈 댓글 기준으로 #140에는 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 검증 결과가, #123에는 실제 배포 API 응답 비교 `passed` 결과가 기록됐다.
-- 최근 열린 관리자 웹/인프라 관련 이슈는 #123, #134, #135, #140이다.
+- 최근 열린 핵심 인프라 이슈는 #134, #156, #157이다.
 
 정합성 주의:
 
@@ -122,7 +124,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | Cloud Functions | FCM, 리마인더, 관리자 액션 전달 job이 호출량을 만든다. | 배치 크기, 재시도 횟수, timeout을 관리한다. |
 | Firebase Hosting | 관리자 웹 자체 비용은 낮지만 정적 asset과 트래픽은 증가할 수 있다. | 정적 SPA만 Hosting에 두고 파일 원본은 Storage에 둔다. |
 | Supabase PostgreSQL | 관리자 API 전환 후 query/connection 사용량과 DB 저장량이 비용 요인이 된다. | pool max, query limit, row count 모니터링을 둔다. |
-| API 서버 | Oracle VM 또는 동등 실행 환경 비용과 로그 저장 비용이 생긴다. | #140 preview 검증은 최소 범위로 진행됐다. production 상시 운영은 #134 이후 별도 판단한다. |
+| Cloud Run Core API | 요청, CPU/RAM, Artifact Registry와 외부 DB egress 비용이 생길 수 있다. | 개발은 최소 0/최대 1, 1 vCPU/1 GiB, pool max 5로 제한하고 Billing 예산 알림을 설정한다. |
 | Kakao Local REST API | Android 직접 호출 구조라 쿼터 소진과 429 가능성이 있다. | 6시간 메모리 캐시, Kakao Console quota 확인, Functions proxy 전환 조건을 둔다. |
 
 후속 이슈:
@@ -311,6 +313,8 @@ Functions proxy 전환 조건:
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
 | [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비 |
 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Supabase/Firebase Admin/로컬 API 모드 검증 반영, Vercel preview 후속 분리 필요 |
+| [#156](https://github.com/bodeul110/Bodeul/issues/156) | OCI 대신 Cloud Run에 Spring Core API preview 배포 및 rollback 검증 |
+| [#157](https://github.com/bodeul110/Bodeul/issues/157) | Cloud Run에서 실제 Firebase token과 PostgreSQL role 인가 검증 |
 
 ## 참고 문서
 
