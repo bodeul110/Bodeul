@@ -55,7 +55,9 @@ npm --prefix tools/firebase run test:rules
 Rules emulator 테스트 통과: 7/7
 ```
 
-## 남은 범위
+GitHub Actions에서도 `Firebase Rules` workflow가 반복해서 통과했다. 2026-07-16 기준 최신 실행은 [run 29487655626](https://github.com/bodeul110/Bodeul/actions/runs/29487655626)이다.
 
-- PR 생성 후 GitHub Actions의 `Firebase Rules` workflow 통과 여부를 확인해야 한다.
-- Firebase CLI 15.22.3의 transitive dev dependency에서 moderate audit 경고가 남아 있다. `npm audit fix --force`는 큰 버전 변경을 유도하므로 적용하지 않았다.
+## 운영 후속
+
+- Rules 또는 테스트 코드가 바뀌는 PR에서는 `Firebase Rules` workflow 통과 여부를 계속 확인한다.
+- 2026-07-16 `npm audit` 기준 Firebase CLI 15.22.3의 OpenTelemetry/PubSub 전이 의존성 경로에 moderate 3건이 남아 있다. 제안된 자동 수정은 Firebase CLI 14.23.0으로의 major downgrade이므로 적용하지 않았다.
