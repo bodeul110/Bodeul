@@ -2,6 +2,12 @@
 
 `bodeul-api`는 Supabase PostgreSQL 접근, Firebase ID token 검증, 관리자/민감 쓰기 검증을 담당할 얇은 API 서버다. Firebase Auth, FCM, Storage, Hosting을 대체하지 않는다.
 
+## 유지 상태
+
+이 서버는 현재 production 후보가 아니라 **동결된 전환 검증용 프로토타입**이다. 사용자 기능은 Spring Core API로 이관하고, 관리자 기능은 목표 Next.js 관리자 서버가 직접 PostgreSQL을 사용하도록 옮긴다. 신규 운영 도메인이나 Oracle 배포 기능은 추가하지 않으며, 보안 수정과 기존 계약 회귀 수정만 반영한다.
+
+관리자 웹의 `GET /admin/hospital-guides` 참조가 아직 남아 있으므로 소스와 CI는 보존한다. 실제 삭제 조건은 [Issue 159 Node API 종료 판단 기록](../docs/reports/issue-159-node-api-retirement-audit-2026-07-16.md)을 따른다.
+
 ## 현재 범위
 
 Issue #88 1차 범위는 서버 골격, 헬스체크, Firebase ID token 검증 경계, `DATABASE_URL` 설정 검증, 관리자 웹 초기 계약 확인 API를 포함한다.
@@ -195,12 +201,15 @@ PostgreSQL 설정은 다음 기준을 따른다.
 
 환경별 관리자 웹 API 전환값과 CORS allow-list 기준은 [관리자 웹 API 환경변수와 CORS 기준](../docs/operations/admin-api-environments.md)을 따른다.
 
-## 보류 범위
+## 종료 전 미이관 범위
 
 - 매니저 서류 심사, 문의 조회 등 추가 read API 확장
 - 병원 가이드 외 화면의 Firestore 응답과 PostgreSQL/API 응답 비교 검증
 - Android 연동
-- production Oracle VM 배포와 live 운영 전환
+- Next.js 관리자 서버의 병원 가이드 계약 대체
+- 관리자 웹의 Node API 환경변수와 client 참조 제거
+
+Oracle VM production 배포와 Node live 운영 전환은 목표에서 제외한다.
 
 ## preview 실연동 검증
 
