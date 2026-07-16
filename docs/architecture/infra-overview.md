@@ -180,7 +180,7 @@ GitHub Actions 기준으로 최근 인프라 관련 PR의 `API Build`, `Admin We
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준을 확정한다. |
 | [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비를 추적한다. |
 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 검증은 기록됐다. Vercel preview 기반 팀 공유 화면 검증은 후속 분리 대상이다. |
-| [#157](https://github.com/bodeul110/Bodeul/issues/157) | Cloud Run에서 정상, 만료, 변조, 다른 Firebase project의 실제 ID token과 PostgreSQL role 연결을 확인한다. |
+| [#157](https://github.com/bodeul110/Bodeul/issues/157) | 실제 정상·변조 ID token과 PostgreSQL role 연결을 Cloud Run에서 확인했다. 만료·다른 project 오류 계약은 자동 테스트로 유지한다. |
 | [#32](https://github.com/bodeul110/Bodeul/issues/32) | App Check 강제 적용과 Firebase 환경 분리 계획 확정 |
 | [#64](https://github.com/bodeul110/Bodeul/issues/64) | 격리 환경에서 `restore:state:apply`까지 포함한 백업/복원 리허설 |
 | [#65](https://github.com/bodeul110/Bodeul/issues/65) | Firebase 비용 모니터링과 예산 알림 설정 |
