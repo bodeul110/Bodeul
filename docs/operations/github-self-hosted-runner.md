@@ -76,7 +76,7 @@ Windows 서비스 등록은 [install-bodeul-runner-service.ps1](../../tools/gith
   - `28031156324`: 최초 self-hosted 프리플라이트 통과
   - `28032579258`: self-hosted 전용 Gradle Actions cache 비활성화 후 프리플라이트 통과
 - 검증 결과: `workflow_dispatch`에서 `runner_profile=self-hosted-bodeul`로 실행한 프리플라이트가 통과했다.
-- 잔여 경고: `actions/checkout@v4`의 Node.js 20 deprecation annotation이 남아 있다. runner 구성 실패는 아니며, 액션 버전 업데이트 대상이다.
+- 당시 `actions/checkout@v4`에서 발생한 Node.js 20 deprecation annotation은 2026-07-16의 Node 24 기반 Action 전환으로 해소됐다. 현재 workflow는 `actions/checkout@v7`을 사용한다.
 
 ## Windows 서비스 전환 기록
 
