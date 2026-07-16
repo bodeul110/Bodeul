@@ -1,6 +1,7 @@
 ﻿[CmdletBinding()]
 param(
-    [string]$ProjectId = "bodeul-dev"
+    [string]$ProjectId = "bodeul-dev",
+    [string[]]$SecretIds = @()
 )
 
 Set-StrictMode -Version Latest
@@ -8,11 +9,21 @@ $ErrorActionPreference = "Stop"
 $Host.UI.RawUI.WindowTitle = "BoDeul Cloud Run Secrets"
 
 $gcloud = Get-Command gcloud -ErrorAction Stop
-$secretIds = @(
+$knownSecretIds = @(
     "bodeul-core-api-preview-db-jdbc-url",
     "bodeul-core-api-preview-db-username",
-    "bodeul-core-api-preview-db-password"
+    "bodeul-core-api-preview-db-password",
+    "bodeul-core-api-preview-kakao-local-rest-api-key"
 )
+
+if ($SecretIds.Count -eq 0) {
+    $SecretIds = $knownSecretIds
+}
+
+$unknownSecretIds = @($SecretIds | Where-Object { $_ -notin $knownSecretIds })
+if ($unknownSecretIds.Count -gt 0) {
+    throw "허용되지 않은 secret ID가 있습니다: $($unknownSecretIds -join ', ')"
+}
 
 function Add-SecretVersion {
     param(
@@ -82,7 +93,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($activeAccount)) {
     throw "활성화된 gcloud 계정을 확인하지 못했습니다."
 }
 
-foreach ($secretId in $secretIds) {
+foreach ($secretId in $SecretIds) {
     gcloud secrets describe $secretId --project=$ProjectId --quiet | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "$secretId Secret Manager 리소스가 없습니다. 런북의 최초 설정을 먼저 실행하세요."
@@ -91,4 +102,4 @@ foreach ($secretId in $secretIds) {
     Add-SecretVersion -SecretId $secretId
 }
 
-Write-Host "Core API preview DB secret 3개의 version 등록을 완료했습니다. 이 창은 닫아도 됩니다."
+Write-Host "Core API preview secret $($SecretIds.Count)개의 version 등록을 완료했습니다. 이 창은 닫아도 됩니다."
