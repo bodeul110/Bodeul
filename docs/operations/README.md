@@ -26,6 +26,8 @@
   - Core API 컨테이너, WIF, Secret Manager, 배포와 rollback 절차
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
+- [비용과 쿼터 모니터링](cost-monitoring.md)
+  - Google Cloud budget, Firebase/Cloud Run metric, Kakao Local 쿼터와 알림 대응
 - [위치 이력 보관 및 노출 정책](location-history-retention-policy.md)
   - 실시간 위치 공유 좌표, 최근 이력, 화면 노출, 장기 보관 기준
 
