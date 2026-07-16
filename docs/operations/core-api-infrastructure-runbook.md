@@ -95,8 +95,9 @@ preview에서 다음 secret ID를 사용한다.
 | `bodeul-core-api-preview-db-jdbc-url` | `CORE_DB_JDBC_URL` |
 | `bodeul-core-api-preview-db-username` | `CORE_DB_USERNAME` |
 | `bodeul-core-api-preview-db-password` | `CORE_DB_PASSWORD` |
+| `bodeul-core-api-preview-kakao-local-rest-api-key` | `KAKAO_LOCAL_REST_API_KEY` |
 
-런타임 서비스 계정에 각 secret의 `roles/secretmanager.secretAccessor`만 부여한다. 배포 workflow와 애플리케이션 로그에는 secret 원문을 출력하지 않는다. Kakao proxy를 구현하기 전에는 Kakao key secret을 만들지 않는다.
+런타임 서비스 계정에 각 secret의 `roles/secretmanager.secretAccessor`만 부여한다. 배포 workflow와 애플리케이션 로그에는 secret 원문을 출력하지 않는다.
 
 Cloud Run 환경변수는 `latest` 대신 숫자 version을 참조한다. 회전할 때 새 version을 등록하고 해당 GitHub Environment의 version 변수만 바꾼 뒤 재배포한다.
 
@@ -168,7 +169,8 @@ gcloud iam service-accounts add-iam-policy-binding $DeployAccount `
 $SecretIds = @(
   "bodeul-core-api-preview-db-jdbc-url",
   "bodeul-core-api-preview-db-username",
-  "bodeul-core-api-preview-db-password"
+  "bodeul-core-api-preview-db-password",
+  "bodeul-core-api-preview-kakao-local-rest-api-key"
 )
 
 foreach ($SecretId in $SecretIds) {
@@ -181,6 +183,13 @@ foreach ($SecretId in $SecretIds) {
 ```
 
 secret 값은 콘솔에서 입력하거나 `core-api/deploy/cloud-run/set-preview-secrets.ps1`을 사용한다. 스크립트는 보안 입력을 프로세스 표준 입력으로만 전달하고 파일이나 shell history에 남기지 않는다.
+
+Kakao 키만 회전할 때는 DB 자격 증명을 다시 입력하지 않고 대상 secret을 지정한다.
+
+```powershell
+.\core-api\deploy\cloud-run\set-preview-secrets.ps1 `
+  -SecretIds "bodeul-core-api-preview-kakao-local-rest-api-key"
+```
 
 ## GitHub Environment
 
@@ -196,6 +205,7 @@ secret 값은 콘솔에서 입력하거나 `core-api/deploy/cloud-run/set-previe
 - `CORE_DB_JDBC_URL_SECRET_VERSION=1`
 - `CORE_DB_USERNAME_SECRET_VERSION=1`
 - `CORE_DB_PASSWORD_SECRET_VERSION=1`
+- `KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION=<활성 숫자 version>`
 - `FIREBASE_PROJECT_ID=bodeul-dev`
 
 `OCI_REGION`, `CORE_API_SERVICE_NAME` 같은 OCI 변수는 제거한다. production Environment는 변경하지 않는다.
