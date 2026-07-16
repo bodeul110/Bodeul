@@ -68,3 +68,5 @@ App Check는 abuse 방어를 위한 후속 단계다. 현재는 앱과 관리자
 - 실시간 리스너는 필요한 화면에만 둔다.
 - Storage 원본 파일 크기와 업로드 제한을 유지한다.
 - Firebase 예산 알림과 월별 운영 리포트를 연결한다.
+
+2026-07-16 기준 `bodeul-dev`에는 월 10,000 KRW budget과 현재 지출 50%, 80%, 100% 알림이 설정됐다. 실제 metric과 대응 주기는 [비용과 쿼터 모니터링](../operations/cost-monitoring.md)을 따른다.

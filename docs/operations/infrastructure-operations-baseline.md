@@ -19,6 +19,7 @@
 | App Check | 초기화 경로는 있으나 enforcement는 단계 적용 |
 | Code scanning | 2026-07-02 확인 기준 open alert 0건 |
 | Dependabot/취약점 | `uuid` 전이 취약점은 PR #136 병합 후 #103 종료 |
+| 비용 모니터링 | `bodeul-dev` 월 10,000 KRW budget과 50/80/100% 알림 설정 완료 |
 
 ## 관리자 웹 배포 방식
 
@@ -127,9 +128,17 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | Cloud Run Core API | 요청, CPU/RAM, Artifact Registry와 외부 DB egress 비용이 생길 수 있다. | 개발은 최소 0/최대 1, 1 vCPU/1 GiB, pool max 5로 제한하고 Billing 예산 알림을 설정한다. |
 | Kakao Local REST API | Core API proxy도 Kakao 쿼터 소진과 429 가능성이 있다. | 6시간 서버 캐시, 사용자별 분당 60회 제한, Kakao Console quota 확인을 적용한다. |
 
+현재 설정과 점검 기준:
+
+- `BoDeul dev monthly budget`: `bodeul-dev`만 포함, 월 10,000 KRW
+- 현재 지출 50%, 80%, 100%에서 결제 계정 기본 IAM 수신자에게 알림
+- 2026-07-16 최근 30일 기준 Firestore read 8,980, write 262, Cloud Run 요청 838, Functions 실행 780
+- 매주 추세 확인, 배포·부하 검증 직후 쿼터 확인, 매월 첫 영업일 30일 기준선 기록
+- 상세 절차는 [비용과 쿼터 모니터링](cost-monitoring.md)을 따른다.
+
 후속 이슈:
 
-- [#65 Firebase 비용 모니터링과 예산 알림 설정](https://github.com/bodeul110/Bodeul/issues/65)
+- [#65 Firebase 비용 모니터링과 예산 알림 설정](https://github.com/bodeul110/Bodeul/issues/65): 2026-07-16 개발 budget과 점검 주기 설정 완료
 - [#66 Kakao Local REST API Key 운영 리스크 점검](https://github.com/bodeul110/Bodeul/issues/66)
 
 ## App Check 적용 로드맵
@@ -314,8 +323,8 @@ npx --prefix tools/firebase firebase emulators:exec `
 | [#32](https://github.com/bodeul110/Bodeul/issues/32) | App Check enforcement와 Firebase 환경 분리 계획 |
 | [#49](https://github.com/bodeul110/Bodeul/issues/49) | CodeQL 도입은 완료됐지만 이슈 정리 여부 확인 필요 |
 | [#63](https://github.com/bodeul110/Bodeul/issues/63) | Rules emulator workflow는 있으나 이슈 open 상태 확인 필요 |
-| [#64](https://github.com/bodeul110/Bodeul/issues/64) | 격리 프로젝트 복원 apply 리허설 필요 |
-| [#65](https://github.com/bodeul110/Bodeul/issues/65) | 비용 모니터링과 예산 알림 설정 필요 |
+| [#64](https://github.com/bodeul110/Bodeul/issues/64) | 완료: 격리 Emulator 복원 apply와 diff 0 검증 |
+| [#65](https://github.com/bodeul110/Bodeul/issues/65) | 완료: 개발 budget, 사용량 기준선, 점검 주기 설정 |
 | [#66](https://github.com/bodeul110/Bodeul/issues/66) | Core API proxy와 Secret Manager 전환 검증 진행 중 |
 | [#123](https://github.com/bodeul110/Bodeul/issues/123) | 실제 배포 API 응답 비교 `passed` 반영 후 종료/후속 분리 판단 필요 |
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
