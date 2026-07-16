@@ -149,6 +149,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 - Android는 SHA-256과 Play Integrity 코드 경로가 있고, 관리자 웹 provider는 아직 등록되지 않았다.
 - 최근 30일 App Check 메트릭 5,580건 중 `VALID` 요청은 0건이다.
 - Firestore, Storage, Authentication은 `UNENFORCED`이고 배포 함수 10개도 enforcement가 꺼져 있다.
+- Android Core API client의 header 전달과 Spring `off/observe/enforce` 검증은 구현했다. Cloud Run preview는 `observe`로만 배포한다.
 - 현재 판단은 `HOLD`이며, 상세 근거는 [App Check 적용 로드맵](app-check-enforcement-roadmap.md)을 따른다.
 
 로드맵:
@@ -169,6 +170,9 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 후속 이슈:
 
 - [#32 App Check 강제 적용과 Firebase 환경 분리 계획](https://github.com/bodeul110/Bodeul/issues/32)
+- [#190 Android App Check debug/Play Integrity 실기기 검증](https://github.com/bodeul110/Bodeul/issues/190)
+- [#191 Spring Core API App Check observe/enforce 적용](https://github.com/bodeul110/Bodeul/issues/191)
+- [#192 App Check 단계별 enforcement와 롤백 검증](https://github.com/bodeul110/Bodeul/issues/192)
 
 ## Firestore 인덱스와 쿼리
 

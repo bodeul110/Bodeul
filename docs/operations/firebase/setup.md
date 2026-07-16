@@ -493,6 +493,8 @@ npm run seed:manager-docs:apply
   - [app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java](../../../app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java)
   - Play Integrity provider 사용
 - Firebase Console에서 Android 앱을 App Check 대상으로 등록한 뒤, 디버그 실행 시 logcat에 출력되는 debug token을 allowlist에 등록해야 한다.
+- Core API 요청 전 `FirebaseAppCheck.getAppCheckToken(false)`를 호출하고, 발급된 token은 URL이 아니라 `X-Firebase-AppCheck` 헤더로 보낸다.
+- token 발급 실패 시 observe 단계에서는 헤더를 생략해 기존 fallback을 유지한다. 서버 enforce는 실기기 `valid` 관측 후에만 전환한다.
 
 ### 관리자 웹
 
@@ -511,6 +513,14 @@ npm run seed:manager-docs:apply
 - 즉 지금 배포해도 기본값은 기존과 동일하고, 클라이언트 준비가 끝나면 환경 변수만으로 enforcement 전환이 가능하다.
 - 이 값은 변경 뒤 Functions 재배포가 필요하다. 환경 파일에는 다른 비밀값이 섞일 수 있으므로 Git에 커밋하지 않는다.
 
+### Spring Core API
+
+- `BODEUL_APP_CHECK_MODE=off|observe|enforce`로 custom backend 검증 단계를 전환한다. 기본값은 `off`, Cloud Run preview는 `observe`다.
+- Java Admin SDK 9.10.0에는 App Check token 검증 API가 없어 Spring Security JWT decoder로 공식 JWKS, RS256, `typ=JWT`, issuer, 만료, audience, app ID를 검증한다.
+- `FIREBASE_PROJECT_NUMBER`는 issuer와 audience 고정에 사용하며 비밀값이 아니다.
+- observe 로그에는 `app_check_verdict`, 검증된 `app_id`, 요청 경로만 남기고 token 원문은 남기지 않는다.
+- Firebase ID token과 PostgreSQL role 인가는 App Check와 별도로 계속 적용한다.
+
 ### 2026-06-19 관리자 문의 화면 메모
 
 - 관리자 화면은 `supportInquiries`와 `clientSupportRequests`를 함께 읽어 최신 문의 현황을 한 번에 보여준다.
@@ -524,7 +534,7 @@ npm run seed:manager-docs:apply
 bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 ```
 
-- Android는 Firebase ID token으로 `GET /api/places/search`를 호출하고, Core API가 Kakao Local REST API key를 사용한다.
+- Android는 Firebase ID token과 발급된 App Check token으로 `GET /api/places/search`를 호출하고, Core API가 Kakao Local REST API key를 사용한다.
 - REST API key는 Google Secret Manager에만 저장하고 저장소, APK, 로그에 넣지 않는다.
 - 조회 결과는 Core API에서 6시간 캐시하며 앱도 예약 진행 화면의 좌표 결과를 6시간 재사용한다.
 - Core API 주소가 없거나 검색에 실패하면 `hospitalGuides`와 직접 입력 fallback을 사용한다.
