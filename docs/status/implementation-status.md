@@ -3204,9 +3204,12 @@
 - 존재하지 않는 Firestore 문서 읽기 probe는 Rules에서 403, 데이터 쓰기 없음
 - Cloud Monitoring에서 Android 앱 ID, `firestore.googleapis.com`, `ALLOW`, `VALID` 1건 확인
 - Android provider와 debug allowlist 준비 게이트 통과
+- Firebase 등록 SHA-256 1개가 local debug keystore와 일치하고 별도 release 후보가 0개임을 지문 원문 출력 없이 확인
+- `app/build.gradle.kts`에 release signing 설정이 없음을 확인
 
 ### 남은 범위
 
+- 팀 소유 release keystore와 Gradle signing 설정, Firebase release SHA-256 등록
 - ARM 실기기에서 release Play Integrity token 발급 확인
 - 로그인, 예약, 세션, 채팅 첨부, Core API 장소 검색 흐름 검증
 - Core API Cloud Logging의 `app_check_verdict=valid` 확인
