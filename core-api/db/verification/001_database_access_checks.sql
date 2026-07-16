@@ -87,14 +87,15 @@ select
 from information_schema.tables
 join pg_class class on class.oid = format('%I.%I', table_schema, table_name)::regclass
 where table_schema = 'bodeul'
-  and table_name = 'app_users';
+  and table_name in ('app_users', 'hospital_guides')
+order by table_name;
 
 select
     grantee,
     privilege_type
 from information_schema.role_table_grants
 where table_schema = 'bodeul'
-  and table_name = 'app_users'
+  and table_name in ('app_users', 'hospital_guides')
 order by grantee, privilege_type;
 
 select
@@ -105,5 +106,5 @@ select
     with_check
 from pg_policies
 where schemaname = 'bodeul'
-  and tablename = 'app_users'
-order by policyname;
+  and tablename in ('app_users', 'hospital_guides')
+order by tablename, policyname;
