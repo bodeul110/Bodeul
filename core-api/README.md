@@ -119,7 +119,7 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. Android의 첫 Core API 호출 화면을 실기기에서 검증하고 직접 호출 rollback 코드를 제거
+1. Android의 Core API 장소 검색과 로컬 병원 목록 fallback을 실기기에서 검증
 2. Firestore 직접 접근 도메인의 단계별 PostgreSQL 이관
 
 ## 보안

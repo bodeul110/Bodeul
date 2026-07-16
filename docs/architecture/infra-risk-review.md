@@ -19,7 +19,7 @@
 | App Check | 코드 경로는 있으나 enforcement는 보류 상태다. | debug token, site key, release provider를 확인한 뒤 Functions, Storage, Firestore 순서로 강제 전환한다. |
 | 백업/복원 | `bodeul-dev` 기준 읽기 전용 리허설은 완료했지만, 실제 write 복원은 격리 대상이 필요하다. | 별도 dev 프로젝트 또는 emulator에서 `restore:state:apply` 리허설을 기록한다. |
 | 비용 | Firestore read/write, Storage, Functions, Kakao API 호출량 추정이 필요하다. | 비용 리스크 표와 예산 알림 설정을 유지한다. |
-| Kakao REST API Key | Spring Core API proxy를 구현했고 Android 직접 호출은 검증 전 rollback 경로로만 남았다. | Secret Manager 주입, 429 관측, 실기기 검증 후 APK 직접 호출 제거를 완료한다. |
+| Kakao REST API Key | Spring Core API proxy를 구현했고 Android 직접 호출과 REST 키 리소스를 제거했다. | Secret Manager 주입, 429 관측과 실기기 fallback 검증을 완료한다. |
 | Hosting 배포 | preview/live 수동 배포는 검증했다. | GitHub Actions 자동화를 검토한다. |
 
 ## Firestore/Storage Rules

@@ -23,7 +23,6 @@ fun localOrGradleProperty(name: String): String {
 }
 
 val kakaoNativeAppKey = localOrGradleProperty("kakaoNativeAppKey")
-val kakaoRestApiKey = localOrGradleProperty("kakaoRestApiKey")
 val bodeulCoreApiBaseUrl = localOrGradleProperty("bodeulCoreApiBaseUrl")
 val naverClientId = localOrGradleProperty("naverClientId")
 val naverClientName = localOrGradleProperty("naverClientName")
@@ -41,7 +40,6 @@ android {
         versionName = "1.0"
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
-        resValue("string", "kakao_rest_api_key", kakaoRestApiKey)
         resValue("string", "bodeul_core_api_base_url", bodeulCoreApiBaseUrl)
         resValue("string", "naver_client_id", naverClientId)
         resValue("string", "naver_client_name", naverClientName)

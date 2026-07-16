@@ -528,7 +528,7 @@ bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 - REST API key는 Google Secret Manager에만 저장하고 저장소, APK, 로그에 넣지 않는다.
 - 조회 결과는 Core API에서 6시간 캐시하며 앱도 예약 진행 화면의 좌표 결과를 6시간 재사용한다.
 - Core API 주소가 없거나 검색에 실패하면 `hospitalGuides`와 직접 입력 fallback을 사용한다.
-- 기존 `kakaoRestApiKey` 직접 호출은 첫 실기기 전환 검증 전 rollback 경로로만 유지하고 검증 후 제거한다.
+- Android에는 `kakaoRestApiKey`를 두지 않는다. Core API 실패 시 로컬 병원 목록 또는 기본 지도 안내를 사용한다.
 
 ## 안심 채팅 첨부 제한
 - 허용 형식: `application/pdf`, `image/*`

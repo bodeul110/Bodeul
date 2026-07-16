@@ -218,7 +218,7 @@ npm run workflow:ops -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json --s
 - Core API의 Kakao Local REST API key는 Google Secret Manager에서 Cloud Run에 주입한다.
 - 같은 범주와 질의 결과는 Core API 메모리에서 6시간·최대 1,000건 캐시한다.
 - preview는 Cloud Run 최대 인스턴스 1개를 유지하며 사용자별 분당 60회로 제한한다.
-- Android의 `kakaoRestApiKey` 직접 호출은 첫 실기기 검증 전 rollback 용도로만 유지하며 현재 로컬 값은 설정돼 있지 않다.
+- Android의 `kakaoRestApiKey` 리소스와 Kakao Local 직접 호출은 제거했다.
 
 현재 결정:
 
@@ -231,7 +231,7 @@ npm run workflow:ops -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json --s
 
 - Cloud Run을 2개 이상으로 늘릴 때는 인스턴스별 메모리 제한을 Redis, API Gateway 또는 Cloud Armor 기반 공용 제한으로 교체할지 검토한다.
 - Kakao 호출 허용 IP를 적용하려면 Cloud Run 고정 outbound IP를 위한 Serverless VPC Access와 Cloud NAT가 필요하다.
-- Core API 실기기 검증 후 Android의 직접 호출과 `kakaoRestApiKey` 리소스를 제거한다.
+- Core API 검색과 로컬 병원 목록·기본 지도 안내 fallback을 실기기에서 검증한다.
 
 후속 이슈:
 

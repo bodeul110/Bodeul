@@ -52,7 +52,6 @@ flowchart LR
   Android -->|"Kakao access token"| Functions
   Functions --> KakaoLogin
   Functions --> Auth
-  Android -. "실기기 검증 전 rollback" .-> KakaoLocal
   Firestore --> Functions
   Functions --> FCM
   Functions -. "연동값 준비 시" .-> Alimtalk
@@ -63,7 +62,7 @@ flowchart LR
 - 관리자 웹 대부분과 Android 앱은 Firestore를 직접 사용한다.
 - Node `bodeul-api`는 병원 가이드 read API와 인증·DB 경계를 검증한 preview 자산이다.
 - Spring Core API preview는 Firebase ID token과 PostgreSQL 역할을 검증하고 Kakao Local 장소 검색을 대행한다.
-- Android는 Core API를 우선 사용하며 기존 Kakao Local 직접 호출은 첫 실기기 검증 전 rollback 경로로만 남긴다.
+- Android는 Kakao Local REST를 직접 호출하지 않는다. Core API 검색 실패 시 로컬 병원 목록 또는 기본 지도 안내를 사용한다.
 - 알림톡 전송 코드는 있으나 배포된 운영 발송 함수는 확인되지 않았다.
 
 ## 목표 인프라

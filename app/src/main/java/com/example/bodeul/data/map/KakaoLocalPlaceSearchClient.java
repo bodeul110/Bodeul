@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Core API를 우선 사용하고 전환 검증 전에는 기존 Kakao Local 직접 호출을 rollback 경로로 유지한다.
+ * Firebase 인증 토큰으로 Core API의 병원·약국 검색을 호출한다.
  */
 public final class KakaoLocalPlaceSearchClient {
     public interface Callback {
@@ -45,12 +45,8 @@ public final class KakaoLocalPlaceSearchClient {
         void onError(String message);
     }
 
-    private static final String KEYWORD_SEARCH_ENDPOINT =
-            "https://dapi.kakao.com/v2/local/search/keyword.json";
     private static final String CORE_CATEGORY_HOSPITAL = "HOSPITAL";
     private static final String CORE_CATEGORY_PHARMACY = "PHARMACY";
-    private static final String CATEGORY_HOSPITAL = "HP8";
-    private static final String CATEGORY_PHARMACY = "PM9";
     private static final long CACHE_TTL_MILLIS = 6L * 60L * 60L * 1000L;
     private static final int MAX_RESPONSE_BYTES = 1024 * 1024;
 
@@ -60,17 +56,15 @@ public final class KakaoLocalPlaceSearchClient {
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final String coreApiBaseUrl;
-    private final String restApiKey;
 
     public KakaoLocalPlaceSearchClient(Context context) {
         this.context = context.getApplicationContext();
         this.coreApiBaseUrl = normalizeBaseUrl(
                 context.getString(R.string.bodeul_core_api_base_url));
-        this.restApiKey = context.getString(R.string.kakao_rest_api_key).trim();
     }
 
     public boolean isConfigured() {
-        return !TextUtils.isEmpty(coreApiBaseUrl) || !TextUtils.isEmpty(restApiKey);
+        return !TextUtils.isEmpty(coreApiBaseUrl);
     }
 
     public void searchHospitalAndPharmacy(HospitalMapCoordinateQuery query, Callback callback) {
@@ -90,9 +84,8 @@ public final class KakaoLocalPlaceSearchClient {
             return;
         }
 
-        executePreferredSearch(
+        executeCoreSearch(
                 idToken -> searchHospitalAndPharmacyFromCore(query, idToken),
-                () -> searchHospitalAndPharmacyDirect(query),
                 new SearchResultHandler<HospitalMapCoordinateResult>() {
                     @Override
                     public void onSuccess(HospitalMapCoordinateResult result) {
@@ -118,9 +111,8 @@ public final class KakaoLocalPlaceSearchClient {
             return;
         }
 
-        executePreferredSearch(
+        executeCoreSearch(
                 idToken -> searchAllFromCore(query, CORE_CATEGORY_HOSPITAL, idToken),
-                () -> searchAllDirect(query, CATEGORY_HOSPITAL),
                 new SearchResultHandler<List<KakaoPlaceCoordinate>>() {
                     @Override
                     public void onSuccess(List<KakaoPlaceCoordinate> result) {
@@ -155,83 +147,33 @@ public final class KakaoLocalPlaceSearchClient {
         return new HospitalMapCoordinateResult(hospitalCoordinate, pharmacyCoordinate);
     }
 
-    private HospitalMapCoordinateResult searchHospitalAndPharmacyDirect(
-            HospitalMapCoordinateQuery query) throws Exception {
-        KakaoPlaceCoordinate hospitalCoordinate = searchWithFallback(
-                query.buildPrimaryHospitalQuery(),
-                query.buildFallbackHospitalQuery(),
-                CATEGORY_HOSPITAL,
-                this::searchAllDirect
-        );
-        KakaoPlaceCoordinate pharmacyCoordinate = searchWithFallback(
-                query.buildPrimaryPharmacyQuery(),
-                query.buildFallbackPharmacyQuery(),
-                CATEGORY_PHARMACY,
-                this::searchAllDirect
-        );
-        return new HospitalMapCoordinateResult(hospitalCoordinate, pharmacyCoordinate);
-    }
-
-    private <T> void executePreferredSearch(
+    private <T> void executeCoreSearch(
             CoreSearchOperation<T> coreOperation,
-            DirectSearchOperation<T> directOperation,
             SearchResultHandler<T> resultHandler) {
-        if (!TextUtils.isEmpty(coreApiBaseUrl)) {
-            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-            if (currentUser != null) {
-                currentUser.getIdToken(false).addOnCompleteListener(task -> {
-                    String idToken = task.isSuccessful() && task.getResult() != null
-                            ? task.getResult().getToken()
-                            : "";
-                    if (!TextUtils.isEmpty(idToken)) {
-                        EXECUTOR.execute(() -> executeCoreThenFallback(
-                                idToken,
-                                coreOperation,
-                                directOperation,
-                                resultHandler));
-                    } else {
-                        executeDirectOrError(directOperation, resultHandler);
-                    }
-                });
-                return;
-            }
-        }
-        executeDirectOrError(directOperation, resultHandler);
-    }
-
-    private <T> void executeCoreThenFallback(
-            String idToken,
-            CoreSearchOperation<T> coreOperation,
-            DirectSearchOperation<T> directOperation,
-            SearchResultHandler<T> resultHandler) {
-        try {
-            resultHandler.onSuccess(coreOperation.run(idToken));
-        } catch (Exception coreException) {
-            if (TextUtils.isEmpty(restApiKey)) {
-                resultHandler.onError();
-                return;
-            }
-            try {
-                resultHandler.onSuccess(directOperation.run());
-            } catch (Exception directException) {
-                resultHandler.onError();
-            }
-        }
-    }
-
-    private <T> void executeDirectOrError(
-            DirectSearchOperation<T> directOperation,
-            SearchResultHandler<T> resultHandler) {
-        if (TextUtils.isEmpty(restApiKey)) {
+        if (TextUtils.isEmpty(coreApiBaseUrl)) {
             resultHandler.onError();
             return;
         }
-        EXECUTOR.execute(() -> {
-            try {
-                resultHandler.onSuccess(directOperation.run());
-            } catch (Exception exception) {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            resultHandler.onError();
+            return;
+        }
+        currentUser.getIdToken(false).addOnCompleteListener(task -> {
+            String idToken = task.isSuccessful() && task.getResult() != null
+                    ? task.getResult().getToken()
+                    : "";
+            if (TextUtils.isEmpty(idToken)) {
                 resultHandler.onError();
+                return;
             }
+            EXECUTOR.execute(() -> {
+                try {
+                    resultHandler.onSuccess(coreOperation.run(idToken));
+                } catch (Exception exception) {
+                    resultHandler.onError();
+                }
+            });
         });
     }
 
@@ -330,53 +272,6 @@ public final class KakaoLocalPlaceSearchClient {
         }
     }
 
-    private List<KakaoPlaceCoordinate> searchAllDirect(
-            String query,
-            String categoryGroupCode) throws Exception {
-        if (TextUtils.isEmpty(query)) {
-            return Collections.emptyList();
-        }
-
-        HttpURLConnection connection = null;
-        try {
-            connection = (HttpURLConnection) new java.net.URL(
-                    buildKakaoKeywordSearchUrl(query, categoryGroupCode)).openConnection();
-            connection.setRequestMethod("GET");
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
-            connection.setRequestProperty("Authorization", "KakaoAK " + restApiKey);
-            connection.setRequestProperty("Accept", "application/json");
-
-            if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300) {
-                throw new IOException("Kakao Local place search failed");
-            }
-            JSONObject root = new JSONObject(readAll(connection.getInputStream()));
-            JSONArray documents = root.optJSONArray("documents");
-            if (documents == null || documents.length() == 0) {
-                return Collections.emptyList();
-            }
-
-            List<KakaoPlaceCoordinate> results = new ArrayList<>();
-            for (int i = 0; i < documents.length(); i++) {
-                JSONObject item = documents.optJSONObject(i);
-                if (item == null) {
-                    continue;
-                }
-                String name = item.optString("place_name");
-                double latitude = parseCoordinate(item.optString("y"));
-                double longitude = parseCoordinate(item.optString("x"));
-                if (!TextUtils.isEmpty(name) && (latitude != 0d || longitude != 0d)) {
-                    results.add(new KakaoPlaceCoordinate(name, latitude, longitude));
-                }
-            }
-            return results;
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-        }
-    }
-
     private String buildCoreSearchUrl(String query, String category) throws Exception {
         return coreApiBaseUrl
                 + "/api/places/search?query="
@@ -385,34 +280,12 @@ public final class KakaoLocalPlaceSearchClient {
                 + URLEncoder.encode(category, StandardCharsets.UTF_8.name());
     }
 
-    private String buildKakaoKeywordSearchUrl(String query, String categoryGroupCode) throws Exception {
-        StringBuilder builder = new StringBuilder(KEYWORD_SEARCH_ENDPOINT)
-                .append("?size=15&query=")
-                .append(URLEncoder.encode(query, StandardCharsets.UTF_8.name()));
-        if (!TextUtils.isEmpty(categoryGroupCode)) {
-            builder.append("&category_group_code=")
-                    .append(URLEncoder.encode(categoryGroupCode, StandardCharsets.UTF_8.name()));
-        }
-        return builder.toString();
-    }
-
     private String normalizeBaseUrl(String value) {
         String normalized = value == null ? "" : value.trim();
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
-    }
-
-    private double parseCoordinate(String value) {
-        if (TextUtils.isEmpty(value)) {
-            return 0d;
-        }
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException ignored) {
-            return 0d;
-        }
     }
 
     private String readAll(InputStream inputStream) throws Exception {
@@ -448,10 +321,6 @@ public final class KakaoLocalPlaceSearchClient {
 
     private interface CoreSearchOperation<T> {
         T run(String idToken) throws Exception;
-    }
-
-    private interface DirectSearchOperation<T> {
-        T run() throws Exception;
     }
 
     private interface SearchResultHandler<T> {
