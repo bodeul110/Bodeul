@@ -70,7 +70,7 @@
 - Android 앱 코드 변경: `.\gradlew.bat assembleDebug --console=plain`
 - 관리자 웹 변경: `npm --prefix admin-web run build`
 - 관리자 웹 lint 영향 변경: `npm --prefix admin-web run lint`
-- Core API 변경: `.\core-api\gradlew.bat check --console=plain`
+- Core API 변경: `.\core-api\gradlew.bat -p core-api check --console=plain`
 - Firebase 운영 스크립트 변경: `npm --prefix tools/firebase run preflight:local` 또는 관련 스크립트
 - GitHub YAML 변경: `yq e '.' <파일>`로 파싱 확인
 - 문서 전용 변경은 빌드가 필요하지 않지만, 링크와 경로가 현재 구조와 맞는지 확인한다.

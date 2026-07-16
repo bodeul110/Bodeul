@@ -200,7 +200,7 @@ jobs:
 
           curl --fail --silent --show-error \
             --retry 8 --retry-delay 3 --retry-all-errors \
-            "${SERVICE_URL}/healthz" > health.json
+            "${SERVICE_URL}/health" > health.json
           jq -e '.status == "UP"' health.json > /dev/null
 
           auth_status="$(curl --silent --show-error \

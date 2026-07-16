@@ -23,7 +23,7 @@ management:
       exposure:
         include: health,info
       path-mapping:
-        health: healthz
+        health: health
   endpoint:
     health:
       show-details: never
