@@ -83,10 +83,10 @@ WIF provider는 `bodeul110/Bodeul`, `master`, `core-api-preview` environment 조
 
 리허설 종료 시 현재 revision이 트래픽 100%를 받고 있음을 확인했다. DB migration은 애플리케이션 배포와 분리돼 있으므로 revision rollback이 schema rollback을 실행하지 않는다.
 
-## 남은 범위
+## 후속 반영
 
-- 정상, 만료, 변조, 다른 Firebase project의 실제 ID token 검증은 Issue #157에서 진행한다.
-- 기존 GitHub Environment의 `CORE_DB_*` secret은 실제 ID token과 DB role 조회가 통과할 때까지만 보존한다. 이후 Secret Manager를 단일 runtime 기준으로 삼고 중복 secret을 삭제한다.
+- Issue #157에서 실제 정상 token의 역할 미등록 403·역할 연결 200·정리 후 403과 실제 변조 token 401을 확인했다. 만료·다른 Firebase project 오류 계약은 자동 테스트로 유지한다.
+- 기존 GitHub Environment의 `CORE_DB_*` secret을 삭제하고 [재배포](https://github.com/bodeul110/Bodeul/actions/runs/29478148040)해 Secret Manager 단일 runtime 경로를 확인했다.
 - production project, service, database, secret, domain은 만들지 않았다.
 - GitHub Actions 실행에는 일부 action의 Node.js 20 사용 중단 경고가 남았다. 배포 실패 원인은 아니며 기존 Dependabot PR을 각각 검증한 뒤 별도 갱신한다.
 

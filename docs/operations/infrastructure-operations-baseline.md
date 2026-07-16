@@ -99,7 +99,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
   - #137 병원 가이드 Firestore/API 로컬 비교 기록 추가
   - #138 병원 가이드 비교 도구 추가
 - 2026-07-08 이슈 댓글 기준으로 #140에는 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 검증 결과가, #123에는 실제 배포 API 응답 비교 `passed` 결과가 기록됐다.
-- 최근 열린 핵심 인프라 이슈는 #134, #156, #157이다.
+- 2026-07-16 기준 #156의 Cloud Run preview 구축과 #157의 실제 Firebase token/PostgreSQL role 검증을 완료했다. production 배포 결정은 #134에서 계속 추적한다.
 
 정합성 주의:
 
@@ -313,8 +313,8 @@ Functions proxy 전환 조건:
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
 | [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비 |
 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle/Supabase/Firebase Admin/로컬 API 모드 검증 반영, Vercel preview 후속 분리 필요 |
-| [#156](https://github.com/bodeul110/Bodeul/issues/156) | OCI 대신 Cloud Run에 Spring Core API preview 배포 및 rollback 검증 |
-| [#157](https://github.com/bodeul110/Bodeul/issues/157) | Cloud Run에서 실제 Firebase token과 PostgreSQL role 인가 검증 |
+| [#156](https://github.com/bodeul110/Bodeul/issues/156) | 완료: OCI 대신 Cloud Run에 Spring Core API preview 배포 및 rollback 검증 |
+| [#157](https://github.com/bodeul110/Bodeul/issues/157) | 완료: Cloud Run에서 실제 Firebase token과 PostgreSQL role 인가 검증 |
 
 ## 참고 문서
 

@@ -2,6 +2,8 @@
 
 기준일: 2026-07-13
 
+실환경 검증 갱신: 2026-07-16
+
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다. 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 ## 작업 목적
@@ -46,16 +48,30 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 | --- | --- |
 | Core API 전체 테스트 | `gradlew check` 성공, 23개 테스트 실패 0 |
 | Firebase Admin 의존성 | runtime classpath에서 `9.10.0` 확인 |
-| 정상 UID와 역할 연결 | 단위/통합 테스트 통과 |
-| 만료, 변조, 다른 project token | Firebase 검증 실패를 401로 변환하고 원문을 숨기는 시나리오 통과 |
+| 정상 UID와 역할 연결 | 단위/통합 테스트와 Cloud Run 실제 token 검증 통과 |
+| 변조 token | 자동 테스트와 Cloud Run 실제 token 검증에서 401 확인 |
+| 만료, 다른 project token | Firebase 검증 실패를 401로 변환하고 원문을 숨기는 자동 테스트 통과 |
 | 역할 없음 | 403 `role_not_found` 확인 |
 | 권한 없음 | 403 `permission_denied` 확인 |
 | DB 장애 | 503 `role_lookup_failed` 확인 |
 | 서비스 계정 초기화 오류 | 고정 로그와 503만 사용하고 자격 증명 원문 미포함 확인 |
 | 개발 DB migration | [preview 실행](https://github.com/bodeul110/Bodeul/actions/runs/29226479527) 성공 |
-| 실제 Firebase token | Cloud Run endpoint 준비 완료. 개발용 실제 token 시나리오 확인 필요 |
+| 실제 Firebase token | 개발용 일회성 사용자를 생성해 역할 미등록 403, 역할 연결 200, 정리 후 403 확인 |
+| 비밀값 저장 경로 | GitHub Environment의 중복 DB secret 3개 제거 후 Secret Manager만으로 재배포 성공 |
 
-만료, 변조, 다른 project token 테스트는 Firebase Admin adapter가 검증 실패를 반환한 이후의 API 응답 계약을 확인한 것이다. 실제 서로 다른 token을 사용한 검증으로 과장하지 않는다.
+만료와 다른 project token 테스트는 Firebase Admin adapter가 검증 실패를 반환한 이후의 API 응답 계약을 확인한 것이다. 실제 만료 token이나 다른 project의 정상 서명 token을 사용한 검증으로 과장하지 않는다. 변조 token은 2026-07-16 Cloud Run에서 실제로 추가 검증했다.
+
+### Cloud Run 실제 token 검증 결과
+
+- 대상: `bodeul-dev`, `asia-northeast1`, `bodeul-core-api-preview`
+- 검증 endpoint: `GET /api/auth/me`
+- Firebase Auth에 개발용 일회성 사용자를 만들고 API key, 비밀번호, ID token은 파일이나 출력에 남기지 않고 단일 프로세스 메모리에서만 사용했다.
+- 같은 실제 ID token으로 `app_users` 역할 행 추가 전 HTTP 403, `PATIENT` 역할 연결 후 HTTP 200과 발급된 사용자 UUID, 역할 행 삭제 후 다시 HTTP 403을 확인했다.
+- 실제 ID token의 서명을 변경한 token은 HTTP 401을 반환했다.
+- 검증 후 `app_users` 임시 행과 Firebase Auth 테스트 사용자를 삭제했다. 후속 조회에서 `app_users` 전체 0행, 테스트 UID 0행을 확인했다.
+- 최근 Cloud Run 로그 13건에서 Authorization 헤더, Bearer token, JWT 형태 문자열, 테스트 UID와 이메일 표식, Firebase API key, ID/refresh token 필드가 모두 0건임을 확인했다.
+- `bodeul` 스키마의 `PUBLIC`, `anon`, `authenticated`, `service_role` table grant는 0건이고 Supabase Security Advisor도 0건이다.
+- GitHub Environment의 `CORE_DB_JDBC_URL`, `CORE_DB_USERNAME`, `CORE_DB_PASSWORD`를 제거한 뒤 [재배포](https://github.com/bodeul110/Bodeul/actions/runs/29478148040)가 성공했다. Secret Manager 버전 변수만으로 생성된 `bodeul-core-api-preview-00003-28n` 리비전이 트래픽 100%를 처리하며 health, liveness, readiness 200과 무인증 요청 401을 반환한다.
 
 ### 개발 DB 적용 결과
 
@@ -71,7 +87,7 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 
 - 기본 `verifyIdToken`은 token 폐기 여부를 추가 조회하지 않는다. 즉시 차단은 PostgreSQL 역할 제거를 우선 사용하고, 폐기 확인 옵션은 지연 시간과 요청량을 측정한 뒤 결정한다.
 - 첫 migration은 인증에 필요한 최소 필드만 만든다. 이름, 연락처, 매니저 심사 정보는 해당 도메인을 이관할 때 별도 migration으로 추가한다.
-- Cloud Run preview와 Firebase ADC는 준비됐다. 정상, 만료, 변조, 다른 project의 실제 ID token을 안전하게 준비해 endpoint에서 확인해야 한다.
+- 실제 만료 token은 발급 후 1시간이 지나야 하며, 현재 계정에서 접근 가능한 Firebase project는 `bodeul-dev` 하나뿐이다. 따라서 만료 token과 다른 project의 정상 서명 token에 대한 실환경 재현은 즉시 수행하지 않았고 자동 테스트로 응답 계약을 유지한다. 향후 별도 비운영 Firebase project를 만들거나 장시간 인증 리허설을 운영할 때 보강한다.
 - production DB와 production secret에는 이 작업을 적용하지 않는다.
 
 ## 참고

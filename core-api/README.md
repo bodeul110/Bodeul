@@ -106,9 +106,9 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. Cloud Run preview 배포
-2. runtime 서비스 계정 ADC와 실제 Firebase token 검증
-3. Kakao Local REST proxy
+1. Kakao Local REST proxy
+2. Android의 첫 Core API 호출 화면 검증
+3. Firestore 직접 접근 도메인의 단계별 PostgreSQL 이관
 
 ## 보안
 
