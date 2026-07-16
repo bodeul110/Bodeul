@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "bodeul.app-check.mode=observe")
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
 @Import(FirebaseAuthenticationIntegrationTests.AuthTestConfiguration.class)
@@ -43,6 +43,9 @@ class FirebaseAuthenticationIntegrationTests {
     private MutableFirebaseTokenVerifier tokenVerifier;
 
     @Autowired
+    private MutableAppCheckTokenVerifier appCheckTokenVerifier;
+
+    @Autowired
     private MutableAppUserRepository appUserRepository;
 
     @Autowired
@@ -51,6 +54,7 @@ class FirebaseAuthenticationIntegrationTests {
     @BeforeEach
     void resetFakes() {
         tokenVerifier.reset();
+        appCheckTokenVerifier.reset();
         appUserRepository.reset();
         placeSearchService.reset();
     }
@@ -133,6 +137,20 @@ class FirebaseAuthenticationIntegrationTests {
 
         assertThat(tokenVerifier.lastToken).isEqualTo(rawToken);
         assertThat(appUserRepository.lastFirebaseUid).isEqualTo("firebase-user-1");
+    }
+
+    @Test
+    void verifiesAppCheckHeaderSeparatelyFromFirebaseIdToken() throws Exception {
+        String appCheckToken = "valid-app-check-token";
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer valid-firebase-token")
+                        .header("X-Firebase-AppCheck", appCheckToken))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString(appCheckToken))));
+
+        assertThat(appCheckTokenVerifier.lastToken).isEqualTo(appCheckToken);
+        assertThat(tokenVerifier.lastToken).isEqualTo("valid-firebase-token");
     }
 
     @Test
@@ -227,6 +245,12 @@ class FirebaseAuthenticationIntegrationTests {
         }
 
         @Bean
+        @Primary
+        MutableAppCheckTokenVerifier mutableAppCheckTokenVerifier() {
+            return new MutableAppCheckTokenVerifier();
+        }
+
+        @Bean
         MutableAppUserRepository mutableAppUserRepository() {
             return new MutableAppUserRepository();
         }
@@ -249,6 +273,25 @@ class FirebaseAuthenticationIntegrationTests {
                 throw failure;
             }
             return new VerifiedToken("firebase-user-1");
+        }
+
+        void reset() {
+            failure = null;
+            lastToken = null;
+        }
+    }
+
+    static class MutableAppCheckTokenVerifier implements AppCheckTokenVerifier {
+        private RuntimeException failure;
+        private String lastToken;
+
+        @Override
+        public VerifiedToken verify(String appCheckToken) {
+            lastToken = appCheckToken;
+            if (failure != null) {
+                throw failure;
+            }
+            return new VerifiedToken("1:533563500316:android:registered-app");
         }
 
         void reset() {

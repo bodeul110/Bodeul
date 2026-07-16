@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 191 Spring Core API App Check 적용 기록 (2026-07-16)](issue-191-core-api-app-check-2026-07-16.md)
 - [App Check 준비 상태 점검 (2026-07-16)](app-check-readiness-2026-07-16.md)
 - [Issue 65 비용 모니터링 설정 기록 (2026-07-16)](issue-65-cost-monitoring-2026-07-16.md)
 - [Firestore Emulator 백업/복원 apply 리허설 (2026-07-16)](firestore-backup-restore-rehearsal-2026-07-16.md)

@@ -3154,3 +3154,30 @@
 - 새 저장소 `Admin Web Preview Deploy` 수동 실행 및 URL 확인
 - production Firebase project, Hosting site, Auth domain, App Check, live WIF 조건 확정
 - preview 검증 완료 전까지 원 저장소 `admin-web/` 삭제 또는 freeze 보류
+
+## 129. 2026-07-16 Spring Core API App Check 관찰 경계 추가
+
+### 구현
+
+- Android Core API client가 발급 가능한 App Check token을 `X-Firebase-AppCheck` 헤더로 전달하도록 변경했다.
+- Spring Core API에 `off`, `observe`, `enforce` 모드와 Firebase App Check JWT/JWKS 검증기를 추가했다.
+- Cloud Run preview workflow는 `FIREBASE_PROJECT_NUMBER`를 확인하고 `BODEUL_APP_CHECK_MODE=observe`를 주입한다.
+- token 원문 없이 판정, 검증된 app ID, 요청 경로만 기록한다.
+
+### 선택 근거
+
+- Java Admin SDK 9.10.0에는 App Check 검증 API가 없으므로 별도 proxy 대신 Spring Security JWT decoder를 사용한다.
+- 현재 `VALID` 요청이 0건이므로 enforce하지 않고 observe에서 정상 token을 먼저 확인한다.
+- Firebase ID token과 PostgreSQL role 인가는 App Check와 독립적으로 유지한다.
+
+### 검증
+
+- `core-api/gradlew.bat check --console=plain`
+- `yq e '.' .github/workflows/core-api-preview-deploy.yml`
+- Android 빌드와 Cloud Run preview 배포 결과는 Issue #191 보고서에 이어 기록한다.
+
+### 남은 범위
+
+- Issue #190 Android debug/Play Integrity 실기기 `valid` 확인
+- Issue #192 custom backend enforce 전환과 즉시 observe 롤백
+- 관리자 Next.js 서버의 reCAPTCHA Enterprise와 App Check 검증은 관리자 웹 Issue #16에서 별도 진행

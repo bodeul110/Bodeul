@@ -1,6 +1,7 @@
 package com.bodeul.core.config;
 
 import com.bodeul.core.auth.ApiErrorWriter;
+import com.bodeul.core.auth.FirebaseAppCheckFilter;
 import com.bodeul.core.auth.FirebaseAuthenticationFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -20,6 +21,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             FirebaseAuthenticationFilter firebaseAuthenticationFilter,
+            FirebaseAppCheckFilter firebaseAppCheckFilter,
             ApiErrorWriter errorWriter) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -42,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/me", "/api/places/**").authenticated()
                         .anyRequest().denyAll())
                 .addFilterBefore(firebaseAuthenticationFilter, AnonymousAuthenticationFilter.class)
+                .addFilterAfter(firebaseAppCheckFilter, FirebaseAuthenticationFilter.class)
                 .cors(Customizer.withDefaults())
                 .build();
     }

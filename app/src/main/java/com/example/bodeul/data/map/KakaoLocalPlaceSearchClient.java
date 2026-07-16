@@ -10,6 +10,8 @@ import androidx.annotation.Nullable;
 import com.example.bodeul.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.appcheck.AppCheckToken;
+import com.google.firebase.appcheck.FirebaseAppCheck;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -85,7 +87,10 @@ public final class KakaoLocalPlaceSearchClient {
         }
 
         executeCoreSearch(
-                idToken -> searchHospitalAndPharmacyFromCore(query, idToken),
+                (idToken, appCheckToken) -> searchHospitalAndPharmacyFromCore(
+                        query,
+                        idToken,
+                        appCheckToken),
                 new SearchResultHandler<HospitalMapCoordinateResult>() {
                     @Override
                     public void onSuccess(HospitalMapCoordinateResult result) {
@@ -112,7 +117,11 @@ public final class KakaoLocalPlaceSearchClient {
         }
 
         executeCoreSearch(
-                idToken -> searchAllFromCore(query, CORE_CATEGORY_HOSPITAL, idToken),
+                (idToken, appCheckToken) -> searchAllFromCore(
+                        query,
+                        CORE_CATEGORY_HOSPITAL,
+                        idToken,
+                        appCheckToken),
                 new SearchResultHandler<List<KakaoPlaceCoordinate>>() {
                     @Override
                     public void onSuccess(List<KakaoPlaceCoordinate> result) {
@@ -131,18 +140,27 @@ public final class KakaoLocalPlaceSearchClient {
 
     private HospitalMapCoordinateResult searchHospitalAndPharmacyFromCore(
             HospitalMapCoordinateQuery query,
-            String idToken) throws Exception {
+            String idToken,
+            @Nullable String appCheckToken) throws Exception {
         KakaoPlaceCoordinate hospitalCoordinate = searchWithFallback(
                 query.buildPrimaryHospitalQuery(),
                 query.buildFallbackHospitalQuery(),
                 CORE_CATEGORY_HOSPITAL,
-                (searchQuery, category) -> searchAllFromCore(searchQuery, category, idToken)
+                (searchQuery, category) -> searchAllFromCore(
+                        searchQuery,
+                        category,
+                        idToken,
+                        appCheckToken)
         );
         KakaoPlaceCoordinate pharmacyCoordinate = searchWithFallback(
                 query.buildPrimaryPharmacyQuery(),
                 query.buildFallbackPharmacyQuery(),
                 CORE_CATEGORY_PHARMACY,
-                (searchQuery, category) -> searchAllFromCore(searchQuery, category, idToken)
+                (searchQuery, category) -> searchAllFromCore(
+                        searchQuery,
+                        category,
+                        idToken,
+                        appCheckToken)
         );
         return new HospitalMapCoordinateResult(hospitalCoordinate, pharmacyCoordinate);
     }
@@ -167,12 +185,19 @@ public final class KakaoLocalPlaceSearchClient {
                 resultHandler.onError();
                 return;
             }
-            EXECUTOR.execute(() -> {
-                try {
-                    resultHandler.onSuccess(coreOperation.run(idToken));
-                } catch (Exception exception) {
-                    resultHandler.onError();
-                }
+            FirebaseAppCheck.getInstance().getAppCheckToken(false).addOnCompleteListener(appCheckTask -> {
+                AppCheckToken tokenResult = appCheckTask.isSuccessful()
+                        ? appCheckTask.getResult()
+                        : null;
+                String appCheckToken = tokenResult == null ? "" : tokenResult.getToken();
+
+                EXECUTOR.execute(() -> {
+                    try {
+                        resultHandler.onSuccess(coreOperation.run(idToken, appCheckToken));
+                    } catch (Exception exception) {
+                        resultHandler.onError();
+                    }
+                });
             });
         });
     }
@@ -227,7 +252,8 @@ public final class KakaoLocalPlaceSearchClient {
     private List<KakaoPlaceCoordinate> searchAllFromCore(
             String query,
             String category,
-            String idToken) throws Exception {
+            String idToken,
+            @Nullable String appCheckToken) throws Exception {
         if (TextUtils.isEmpty(query)) {
             return Collections.emptyList();
         }
@@ -240,6 +266,9 @@ public final class KakaoLocalPlaceSearchClient {
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(5000);
             connection.setRequestProperty("Authorization", "Bearer " + idToken);
+            if (!TextUtils.isEmpty(appCheckToken)) {
+                connection.setRequestProperty("X-Firebase-AppCheck", appCheckToken);
+            }
             connection.setRequestProperty("Accept", "application/json");
 
             if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300) {
@@ -320,7 +349,7 @@ public final class KakaoLocalPlaceSearchClient {
     }
 
     private interface CoreSearchOperation<T> {
-        T run(String idToken) throws Exception;
+        T run(String idToken, @Nullable String appCheckToken) throws Exception;
     }
 
     private interface SearchResultHandler<T> {
