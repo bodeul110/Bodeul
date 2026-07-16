@@ -16,6 +16,8 @@
   - 멘토 피드백 이후 Firebase 인프라는 유지하고 Supabase PostgreSQL로 운영 DB를 옮기는 결정
 - [목표 인프라 구조](target-infrastructure.md)
   - Next.js 관리자 서버, Spring Core API, 공용 Supabase PostgreSQL, Firebase 유지 범위와 전환 순서
+- [Kakao Local Core API 경계](kakao-local-core-api.md)
+  - 병원·약국 검색 API 계약, 서버 캐시와 호출 제한, Android rollback 제거 조건
 - [PostgreSQL API 경계 기준](postgres-api-boundary.md)
   - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)

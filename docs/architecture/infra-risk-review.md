@@ -19,7 +19,7 @@
 | App Check | 코드 경로는 있으나 enforcement는 보류 상태다. | debug token, site key, release provider를 확인한 뒤 Functions, Storage, Firestore 순서로 강제 전환한다. |
 | 백업/복원 | `bodeul-dev` 기준 읽기 전용 리허설은 완료했지만, 실제 write 복원은 격리 대상이 필요하다. | 별도 dev 프로젝트 또는 emulator에서 `restore:state:apply` 리허설을 기록한다. |
 | 비용 | Firestore read/write, Storage, Functions, Kakao API 호출량 추정이 필요하다. | 비용 리스크 표와 예산 알림 설정을 유지한다. |
-| Kakao REST API Key | Android 앱 직접 호출 경로가 있다. | 쿼터/보안 리스크가 커지면 Functions 프록시로 이동한다. |
+| Kakao REST API Key | Spring Core API proxy를 구현했고 Android 직접 호출은 검증 전 rollback 경로로만 남았다. | Secret Manager 주입, 429 관측, 실기기 검증 후 APK 직접 호출 제거를 완료한다. |
 | Hosting 배포 | preview/live 수동 배포는 검증했다. | GitHub Actions 자동화를 검토한다. |
 
 ## Firestore/Storage Rules
@@ -55,8 +55,8 @@ App Check는 abuse 방어를 위한 후속 단계다. 현재는 앱과 관리자
 ## API Key 운영
 
 - Firebase Web API Key는 일반적으로 프로젝트 식별자 성격이 강하지만, Auth/Rules/App Check와 함께 통제해야 한다.
-- Kakao Local REST API Key는 호출량과 도메인/앱 제한을 확인해야 한다.
-- 서버에서 숨겨야 하는 키는 앱이나 Git에 넣지 않고 Functions 환경 변수로 둔다.
+- Kakao Local REST API Key는 Core API의 Google Secret Manager에 저장하고 호출량과 429를 확인한다.
+- 서버에서 숨겨야 하는 키는 앱이나 Git에 넣지 않고 Functions secret 또는 Core API Secret Manager처럼 소유 서버의 비밀값 저장소에 둔다.
 
 ## 비용 리스크
 

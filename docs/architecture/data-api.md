@@ -662,9 +662,9 @@
 
 ### 2026-06-24 병원 지도/검색 고도화 및 Fallback 메모
 
-- 예약 시 병원 검색은 카카오 로컬 REST API를 우선 사용하며, 병원 검색 범주는 `HP8`, 약국 검색 범주는 `PM9`를 사용한다.
+- 예약 시 병원 검색은 Firebase ID token으로 인증한 Spring Core API `GET /api/places/search`를 우선 사용한다. Core API는 병원 검색을 Kakao `HP8`, 약국 검색을 `PM9`로 제한한다.
 - 선택 시 실좌표는 `appointmentRequests.hospitalLatitude`, `appointmentRequests.hospitalLongitude`에 저장한다.
-- 카카오 REST API 키가 없거나 통신/검색에 실패하면 앱 크래시 없이 `hospitalGuides`에 등록된 병원명 기반 검색 결과로 대체한다.
+- Core API 설정이 없거나 통신/검색에 실패하면 앱 크래시 없이 `hospitalGuides`에 등록된 병원명 기반 검색 결과로 대체한다. Android의 Kakao 직접 호출은 첫 실기기 검증 전 rollback 경로로만 유지한다.
 - 카카오 병원 결과가 관리자 가이드의 병원명과 정확히 일치하면 해당 `hospitalName`과 `departmentName` 목록을 연결한다.
 - 카카오 병원 결과가 있지만 일치하는 진료과가 없거나 검색 결과가 없으면 병원명/진료과 직접 입력을 허용한다.
 - 좌표가 없는 직접 입력 또는 로컬 가이드 fallback 선택은 `hospitalLatitude=0.0`, `hospitalLongitude=0.0`으로 저장한다.

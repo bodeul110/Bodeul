@@ -1,8 +1,12 @@
 package com.bodeul.core.auth;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
+import com.bodeul.core.place.PlaceSearchCategory;
+import com.bodeul.core.place.PlaceSearchResult;
+import com.bodeul.core.place.PlaceSearchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,15 +45,28 @@ class FirebaseAuthenticationIntegrationTests {
     @Autowired
     private MutableAppUserRepository appUserRepository;
 
+    @Autowired
+    private MutablePlaceSearchService placeSearchService;
+
     @BeforeEach
     void resetFakes() {
         tokenVerifier.reset();
         appUserRepository.reset();
+        placeSearchService.reset();
     }
 
     @Test
     void missingAuthorizationReturns401() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("missing_authorization"));
+    }
+
+    @Test
+    void missingAuthorizationForPlaceSearchReturns401() throws Exception {
+        mockMvc.perform(get("/api/places/search")
+                        .queryParam("query", "서울대병원")
+                        .queryParam("category", "HOSPITAL"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("missing_authorization"));
     }
@@ -119,6 +136,44 @@ class FirebaseAuthenticationIntegrationTests {
     }
 
     @Test
+    void authenticatedUserCanSearchHospitalThroughCoreApi() throws Exception {
+        placeSearchService.results = List.of(
+                new PlaceSearchResult("서울대학교병원", 37.5796d, 126.9990d));
+
+        mockMvc.perform(get("/api/places/search")
+                        .queryParam("query", "서울대병원")
+                        .queryParam("category", "HOSPITAL")
+                        .header("Authorization", "Bearer valid-firebase-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].name").value("서울대학교병원"))
+                .andExpect(jsonPath("$.places[0].latitude").value(37.5796d))
+                .andExpect(jsonPath("$.places[0].longitude").value(126.9990d));
+
+        assertThat(placeSearchService.lastUserId).isEqualTo(APP_USER_ID);
+        assertThat(placeSearchService.lastQuery).isEqualTo("서울대병원");
+        assertThat(placeSearchService.lastCategory).isEqualTo(PlaceSearchCategory.HOSPITAL);
+    }
+
+    @Test
+    void invalidPlaceCategoryReturns400() throws Exception {
+        mockMvc.perform(get("/api/places/search")
+                        .queryParam("query", "서울대병원")
+                        .queryParam("category", "CAFE")
+                        .header("Authorization", "Bearer valid-firebase-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("invalid_place_search_request"));
+    }
+
+    @Test
+    void missingPlaceSearchParameterReturns400() throws Exception {
+        mockMvc.perform(get("/api/places/search")
+                        .queryParam("category", "HOSPITAL")
+                        .header("Authorization", "Bearer valid-firebase-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("invalid_place_search_request"));
+    }
+
+    @Test
     void missingPostgresRoleReturns403() throws Exception {
         appUserRepository.result = Optional.empty();
 
@@ -175,6 +230,12 @@ class FirebaseAuthenticationIntegrationTests {
         MutableAppUserRepository mutableAppUserRepository() {
             return new MutableAppUserRepository();
         }
+
+        @Bean
+        @Primary
+        MutablePlaceSearchService mutablePlaceSearchService() {
+            return new MutablePlaceSearchService();
+        }
     }
 
     static class MutableFirebaseTokenVerifier implements FirebaseTokenVerifier {
@@ -217,6 +278,31 @@ class FirebaseAuthenticationIntegrationTests {
                     AppUserRole.PATIENT));
             failure = null;
             lastFirebaseUid = null;
+        }
+    }
+
+    static class MutablePlaceSearchService implements PlaceSearchService {
+        private List<PlaceSearchResult> results;
+        private UUID lastUserId;
+        private String lastQuery;
+        private PlaceSearchCategory lastCategory;
+
+        @Override
+        public List<PlaceSearchResult> search(
+                UUID userId,
+                String query,
+                PlaceSearchCategory category) {
+            lastUserId = userId;
+            lastQuery = query;
+            lastCategory = category;
+            return results;
+        }
+
+        void reset() {
+            results = List.of();
+            lastUserId = null;
+            lastQuery = null;
+            lastCategory = null;
         }
     }
 }

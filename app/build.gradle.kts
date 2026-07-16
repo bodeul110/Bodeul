@@ -8,7 +8,7 @@ if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
 }
 
-// 저장소에 남기지 않을 로그인 키는 local.properties를 우선으로 읽는다.
+// 저장소에 남기지 않을 로컬 설정은 local.properties를 우선 읽는다.
 val localProperties = Properties().apply {
     val localPropertiesFile = rootProject.file("local.properties")
     if (localPropertiesFile.exists()) {
@@ -24,6 +24,7 @@ fun localOrGradleProperty(name: String): String {
 
 val kakaoNativeAppKey = localOrGradleProperty("kakaoNativeAppKey")
 val kakaoRestApiKey = localOrGradleProperty("kakaoRestApiKey")
+val bodeulCoreApiBaseUrl = localOrGradleProperty("bodeulCoreApiBaseUrl")
 val naverClientId = localOrGradleProperty("naverClientId")
 val naverClientName = localOrGradleProperty("naverClientName")
     .ifEmpty { "보들" }
@@ -41,9 +42,10 @@ android {
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
         resValue("string", "kakao_rest_api_key", kakaoRestApiKey)
+        resValue("string", "bodeul_core_api_base_url", bodeulCoreApiBaseUrl)
         resValue("string", "naver_client_id", naverClientId)
         resValue("string", "naver_client_name", naverClientName)
-        // 네이버 클라이언트 시크릿은 앱에 포함하지 않고, 서버 중계 플로우가 준비될 때까지 로그인을 비활성화한다.
+        // 네이버 클라이언트 시크릿은 앱에 포함하지 않고 서버 중계가 준비될 때까지 로그인을 비활성화한다.
         resValue("bool", "naver_login_enabled", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -60,12 +62,12 @@ android {
     }
 
     buildFeatures {
-        // 기본값으로 꺼져 있어 defaultConfig의 resValue를 사용하려면 명시적으로 켜야 한다.
+        // defaultConfig의 resValue를 사용하므로 명시적으로 활성화한다.
         resValues = true
     }
 
     compileOptions {
-        // 현재 빌드 JDK와 정합성을 맞춰 Java 컴파일 경고를 제거한다.
+        // 현재 빌드 JDK와 맞춰 Java 컴파일 경고를 줄인다.
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }

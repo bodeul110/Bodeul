@@ -29,3 +29,15 @@ management:
       show-details: never
       probes:
         enabled: true
+
+bodeul:
+  kakao-local:
+    rest-api-key: ${KAKAO_LOCAL_REST_API_KEY:}
+    base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+    connect-timeout: ${KAKAO_LOCAL_CONNECT_TIMEOUT:3s}
+    read-timeout: ${KAKAO_LOCAL_READ_TIMEOUT:5s}
+    cache-ttl: ${KAKAO_LOCAL_CACHE_TTL:6h}
+    cache-max-entries: ${KAKAO_LOCAL_CACHE_MAX_ENTRIES:1000}
+    rate-limit-window: ${KAKAO_LOCAL_RATE_LIMIT_WINDOW:1m}
+    rate-limit-requests: ${KAKAO_LOCAL_RATE_LIMIT_REQUESTS:60}
+    rate-limit-max-users: ${KAKAO_LOCAL_RATE_LIMIT_MAX_USERS:10000}

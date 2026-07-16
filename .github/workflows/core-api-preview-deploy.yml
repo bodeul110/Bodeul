@@ -33,6 +33,7 @@ jobs:
       CORE_DB_JDBC_URL_SECRET_VERSION: ${{ vars.CORE_DB_JDBC_URL_SECRET_VERSION }}
       CORE_DB_USERNAME_SECRET_VERSION: ${{ vars.CORE_DB_USERNAME_SECRET_VERSION }}
       CORE_DB_PASSWORD_SECRET_VERSION: ${{ vars.CORE_DB_PASSWORD_SECRET_VERSION }}
+      KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION: ${{ vars.KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION }}
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
 
     steps:
@@ -63,6 +64,7 @@ jobs:
             CORE_DB_JDBC_URL_SECRET_VERSION
             CORE_DB_USERNAME_SECRET_VERSION
             CORE_DB_PASSWORD_SECRET_VERSION
+            KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION
             FIREBASE_PROJECT_ID
           )
 
@@ -87,6 +89,7 @@ jobs:
             CORE_DB_JDBC_URL_SECRET_VERSION
             CORE_DB_USERNAME_SECRET_VERSION
             CORE_DB_PASSWORD_SECRET_VERSION
+            KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION
           )
 
           for variable_name in "${secret_versions[@]}"; do
@@ -170,6 +173,7 @@ jobs:
             CORE_DB_JDBC_URL=bodeul-core-api-preview-db-jdbc-url:${{ env.CORE_DB_JDBC_URL_SECRET_VERSION }}
             CORE_DB_USERNAME=bodeul-core-api-preview-db-username:${{ env.CORE_DB_USERNAME_SECRET_VERSION }}
             CORE_DB_PASSWORD=bodeul-core-api-preview-db-password:${{ env.CORE_DB_PASSWORD_SECRET_VERSION }}
+            KAKAO_LOCAL_REST_API_KEY=bodeul-core-api-preview-kakao-local-rest-api-key:${{ env.KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION }}
           secrets_update_strategy: overwrite
           labels: |-
             environment=preview
@@ -216,6 +220,19 @@ jobs:
 
           jq -e '.error == "missing_authorization"' auth.json > /dev/null
 
+          place_auth_status="$(curl --silent --show-error \
+            --output place-auth.json --write-out '%{http_code}' \
+            --get --data-urlencode 'query=서울대병원' \
+            --data-urlencode 'category=HOSPITAL' \
+            "${SERVICE_URL}/api/places/search")"
+
+          if [[ "${place_auth_status}" != "401" ]]; then
+            echo "장소 검색 무인증 요청은 401이어야 하지만 ${place_auth_status}를 반환했습니다." >&2
+            exit 1
+          fi
+
+          jq -e '.error == "missing_authorization"' place-auth.json > /dev/null
+
       - name: 배포 결과 기록
         shell: bash
         env:
@@ -229,5 +246,5 @@ jobs:
             echo "- Service: ${CLOUD_RUN_SERVICE}"
             echo "- Revision image: ${{ steps.config.outputs.image }}:${GITHUB_SHA}"
             echo "- URL: ${SERVICE_URL}"
-            echo "- 확인: health 200, 무인증 auth 401"
+            echo "- 확인: health 200, 무인증 auth/place search 401"
           } >> "${GITHUB_STEP_SUMMARY}"

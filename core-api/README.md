@@ -9,6 +9,7 @@
 - Gradle Wrapper
 - 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
+- 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
 - 명시적으로 허용하지 않은 경로는 기본 차단
 - `local` profile에서는 DB 없이 기동
 - `preview`, `production` profile에서는 PostgreSQL 설정 필수
@@ -70,6 +71,18 @@ Cloud Run에서는 전용 runtime 서비스 계정의 Application Default Creden
 
 첫 범위는 Firebase Admin SDK의 기본 `verifyIdToken`을 사용하므로 token 폐기 여부를 추가 조회하지 않는다. ID token 만료 전 즉시 차단이 필요하면 PostgreSQL 역할을 제거하고, 계정 폐기 확인을 매 요청에 적용할지는 네트워크 비용과 캐시 전략을 정한 뒤 별도 반영한다.
 
+## Kakao Local 장소 검색
+
+`GET /api/places/search`는 `query`와 `category=HOSPITAL|PHARMACY`를 받고 Kakao Local 결과 중 이름과 좌표만 반환한다. Firebase 인증과 PostgreSQL 역할 확인을 통과해야 하며, 사용자별 분당 60회 제한과 6시간·최대 1,000건 서버 캐시를 적용한다.
+
+로컬 또는 배포 환경에는 다음 값을 비공개 경로로 주입한다.
+
+```powershell
+$env:KAKAO_LOCAL_REST_API_KEY = "<Kakao REST API key>"
+```
+
+Cloud Run에서는 `bodeul-core-api-preview-kakao-local-rest-api-key` Secret Manager secret을 사용한다. 키 값과 Kakao 원본 오류 본문은 응답이나 로그에 남기지 않는다. 자세한 계약과 확장 조건은 [Kakao Local Core API 경계](../docs/architecture/kakao-local-core-api.md)를 따른다.
+
 ## 연결 원칙
 
 - Cloud Run은 IPv4가 가능한 Supabase Supavisor session mode의 5432 포트를 우선 사용한다.
@@ -106,9 +119,8 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. Kakao Local REST proxy
-2. Android의 첫 Core API 호출 화면 검증
-3. Firestore 직접 접근 도메인의 단계별 PostgreSQL 이관
+1. Android의 첫 Core API 호출 화면을 실기기에서 검증하고 직접 호출 rollback 코드를 제거
+2. Firestore 직접 접근 도메인의 단계별 PostgreSQL 이관
 
 ## 보안
 

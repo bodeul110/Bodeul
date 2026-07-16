@@ -21,12 +21,12 @@
 naverClientId=발급받은_클라이언트_ID
 naverClientName=보들
 kakaoNativeAppKey=발급받은_네이티브_앱_키
-kakaoRestApiKey=발급받은_카카오_로컬_REST_API_키
+bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 ```
 
 - 네이버 클라이언트 시크릿은 Android 앱에 포함하지 않는다.
 - 현재 앱의 네이버 로그인 버튼은 `naver_login_enabled=false`로 숨겨져 있으며, 서버 중계형 OAuth 흐름이 확정될 때 다시 연다.
-- 카카오 로컬 REST API 키는 병원/약국 실좌표 조회가 필요한 환경에서만 설정한다.
+- 카카오 로컬 REST API 키는 Android에 넣지 않고 Core API의 Google Secret Manager에 저장한다.
 
 ## 콘솔에서 먼저 할 일
 
@@ -518,15 +518,17 @@ npm run seed:manager-docs:apply
 
 ## 카카오 병원/약국 실좌표 검색 메모
 - 카카오 모빌리티 기본 SDK만으로는 병원/약국 키워드의 실좌표 검색을 안정적으로 처리하기 어렵다.
-- 좌표 검색이 필요한 환경에서는 `local.properties`에 아래 값을 추가해 카카오 로컬 REST API를 사용한다.
+- 좌표 검색이 필요한 개발 환경에서는 `local.properties`에 Core API 주소를 설정한다.
 
 ```properties
-kakaoRestApiKey=발급받은_카카오_로컬_REST_API_키
+bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 ```
 
-- 이 키는 저장소에 올리지 않는다.
-- 조회 결과는 앱 안에서 6시간 메모리 캐시로 재사용해 중복 REST 호출을 줄인다.
-- 키가 없으면 병원/약국 실좌표 조회는 건너뛰고, 안내 미니맵과 외부 지도 fallback만 사용한다.
+- Android는 Firebase ID token으로 `GET /api/places/search`를 호출하고, Core API가 Kakao Local REST API key를 사용한다.
+- REST API key는 Google Secret Manager에만 저장하고 저장소, APK, 로그에 넣지 않는다.
+- 조회 결과는 Core API에서 6시간 캐시하며 앱도 예약 진행 화면의 좌표 결과를 6시간 재사용한다.
+- Core API 주소가 없거나 검색에 실패하면 `hospitalGuides`와 직접 입력 fallback을 사용한다.
+- 기존 `kakaoRestApiKey` 직접 호출은 첫 실기기 전환 검증 전 rollback 경로로만 유지하고 검증 후 제거한다.
 
 ## 안심 채팅 첨부 제한
 - 허용 형식: `application/pdf`, `image/*`
