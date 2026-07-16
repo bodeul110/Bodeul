@@ -15,6 +15,7 @@ flowchart LR
 
   subgraph Preview["전환 검증"]
     NodeApi["Node bodeul-api\nOracle preview"]
+    SpringApi["Spring Core API\nCloud Run preview"]
     Postgres["Supabase PostgreSQL"]
   end
 
@@ -43,10 +44,14 @@ flowchart LR
   NodeApi -->|"Firebase ID token 검증"| Auth
   NodeApi --> Postgres
 
+  Android -->|"Firebase ID token\n장소 검색"| SpringApi
+  SpringApi -->|"Firebase ID token 검증"| Auth
+  SpringApi -->|"core DB role"| Postgres
+  SpringApi --> KakaoLocal
+
   Android -->|"Kakao access token"| Functions
   Functions --> KakaoLogin
   Functions --> Auth
-  Android -->|"현재 직접 호출"| KakaoLocal
   Firestore --> Functions
   Functions --> FCM
   Functions -. "연동값 준비 시" .-> Alimtalk
@@ -56,7 +61,8 @@ flowchart LR
 
 - 관리자 웹 대부분과 Android 앱은 Firestore를 직접 사용한다.
 - Node `bodeul-api`는 병원 가이드 read API와 인증·DB 경계를 검증한 preview 자산이다.
-- Kakao Local REST는 Android에서 직접 호출하지만 현재 작업 환경에는 REST key가 설정되어 있지 않다.
+- Spring Core API preview는 Firebase ID token과 PostgreSQL 역할을 검증하고 Kakao Local 장소 검색을 대행한다.
+- Android는 Kakao Local REST를 직접 호출하지 않는다. Core API 검색 실패 시 로컬 병원 목록 또는 기본 지도 안내를 사용한다.
 - 알림톡 전송 코드는 있으나 배포된 운영 발송 함수는 확인되지 않았다.
 
 ## 목표 인프라

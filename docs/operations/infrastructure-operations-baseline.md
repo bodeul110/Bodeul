@@ -125,7 +125,7 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | Firebase Hosting | 관리자 웹 자체 비용은 낮지만 정적 asset과 트래픽은 증가할 수 있다. | 정적 SPA만 Hosting에 두고 파일 원본은 Storage에 둔다. |
 | Supabase PostgreSQL | 관리자 API 전환 후 query/connection 사용량과 DB 저장량이 비용 요인이 된다. | pool max, query limit, row count 모니터링을 둔다. |
 | Cloud Run Core API | 요청, CPU/RAM, Artifact Registry와 외부 DB egress 비용이 생길 수 있다. | 개발은 최소 0/최대 1, 1 vCPU/1 GiB, pool max 5로 제한하고 Billing 예산 알림을 설정한다. |
-| Kakao Local REST API | Android 직접 호출 구조라 쿼터 소진과 429 가능성이 있다. | 6시간 메모리 캐시, Kakao Console quota 확인, Functions proxy 전환 조건을 둔다. |
+| Kakao Local REST API | Core API proxy도 Kakao 쿼터 소진과 429 가능성이 있다. | 6시간 서버 캐시, 사용자별 분당 60회 제한, Kakao Console quota 확인을 적용한다. |
 
 후속 이슈:
 
@@ -214,26 +214,30 @@ npm run workflow:ops -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json --s
 현재 구조:
 
 - Kakao 로그인은 Android 앱이 받은 Kakao access token을 Functions에 전달하고, Functions가 Kakao user API를 호출한다.
-- 병원/약국 실좌표 검색은 Android 앱이 Kakao Local REST API를 직접 호출한다.
-- Android 앱의 Kakao Local REST API key는 `local.properties`의 `kakaoRestApiKey`에서 빌드 값으로 주입하며 저장소에 커밋하지 않는다.
-- 같은 질의 결과는 앱 메모리에서 6시간 캐시한다.
+- 병원/약국 실좌표 검색은 Android가 Firebase ID token과 함께 Spring Core API `GET /api/places/search`를 호출한다.
+- Core API의 Kakao Local REST API key는 Google Secret Manager에서 Cloud Run에 주입한다.
+- 같은 범주와 질의 결과는 Core API 메모리에서 6시간·최대 1,000건 캐시한다.
+- preview는 Cloud Run 최대 인스턴스 1개를 유지하며 사용자별 분당 60회로 제한한다.
+- Android의 `kakaoRestApiKey` 리소스와 Kakao Local 직접 호출은 제거했다.
 
 현재 결정:
 
-- MVP에서는 Kakao Local REST API를 Android 직접 호출로 유지한다.
-- Admin key, client secret, 알림톡 API key 같은 서버 비밀값은 앱에 넣지 않는다.
-- Kakao Local REST API key는 공개 클라이언트에 포함될 수 있는 값으로 보고, Kakao Developers Console의 플랫폼 제한, 쿼터 확인, 429 관측을 운영 기준으로 둔다.
+- Kakao 로그인과 지도 SDK는 Android에 유지하고, REST 기반 장소 검색만 Core API 뒤로 옮긴다.
+- REST API key, Admin key, client secret, 알림톡 API key 같은 서버 자격 증명은 앱에 넣지 않는다.
+- Kakao 429는 `kakao_local_quota_exceeded`, 서버 자체 제한은 `place_search_rate_limit_exceeded`로 구분한다.
+- API 응답과 로그에는 Kakao key, Firebase token, Kakao 원본 오류 본문을 남기지 않는다.
 
-Functions proxy 전환 조건:
+확장 조건:
 
-- Kakao Console 쿼터가 반복적으로 임계치에 접근한다.
-- REST API key 노출이 운영 리스크로 판단된다.
-- 검색 결과를 서버 캐시하거나 호출량을 사용자/세션별로 제한해야 한다.
-- Kakao Local API 응답을 운영 감사 로그나 비용 리포트에 연결해야 한다.
+- Cloud Run을 2개 이상으로 늘릴 때는 인스턴스별 메모리 제한을 Redis, API Gateway 또는 Cloud Armor 기반 공용 제한으로 교체할지 검토한다.
+- Kakao 호출 허용 IP를 적용하려면 Cloud Run 고정 outbound IP를 위한 Serverless VPC Access와 Cloud NAT가 필요하다.
+- Core API 검색과 로컬 병원 목록·기본 지도 안내 fallback을 실기기에서 검증한다.
 
 후속 이슈:
 
 - [#66 Kakao Local REST API Key 운영 리스크 점검](https://github.com/bodeul110/Bodeul/issues/66)
+- [#158 Kakao Local REST 호출을 Core API 뒤로 이동](https://github.com/bodeul110/Bodeul/issues/158)
+- [Kakao Local Core API 경계](../architecture/kakao-local-core-api.md)
 
 ## Mock 모드와 Firebase 모드
 
@@ -308,7 +312,7 @@ Functions proxy 전환 조건:
 | [#63](https://github.com/bodeul110/Bodeul/issues/63) | Rules emulator workflow는 있으나 이슈 open 상태 확인 필요 |
 | [#64](https://github.com/bodeul110/Bodeul/issues/64) | 격리 프로젝트 복원 apply 리허설 필요 |
 | [#65](https://github.com/bodeul110/Bodeul/issues/65) | 비용 모니터링과 예산 알림 설정 필요 |
-| [#66](https://github.com/bodeul110/Bodeul/issues/66) | Kakao Local REST API 운영 리스크 점검 필요 |
+| [#66](https://github.com/bodeul110/Bodeul/issues/66) | Core API proxy와 Secret Manager 전환 검증 진행 중 |
 | [#123](https://github.com/bodeul110/Bodeul/issues/123) | 실제 배포 API 응답 비교 `passed` 반영 후 종료/후속 분리 판단 필요 |
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
 | [#135](https://github.com/bodeul110/Bodeul/issues/135) | `bodeul-admin-web` 저장소 분리 실행 준비 |
