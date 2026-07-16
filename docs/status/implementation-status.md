@@ -3167,7 +3167,7 @@
 ### 선택 근거
 
 - Java Admin SDK 9.10.0에는 App Check 검증 API가 없으므로 별도 proxy 대신 Spring Security JWT decoder를 사용한다.
-- 현재 `VALID` 요청이 0건이므로 enforce하지 않고 observe에서 정상 token을 먼저 확인한다.
+- 구현 시점에는 `VALID` 요청이 0건이었으므로 enforce하지 않고 observe에서 정상 token을 먼저 확인하기로 했다.
 - Firebase ID token과 PostgreSQL role 인가는 App Check와 독립적으로 유지한다.
 
 ### 검증
@@ -3186,3 +3186,28 @@
 - Issue #192 custom backend enforce 전환과 즉시 observe 롤백
 - 관리자 Next.js 서버의 reCAPTCHA Enterprise와 App Check 검증은 관리자 웹 Issue #16에서 별도 진행
 - 인증된 요청이 들어온 뒤 Cloud Logging에서 `valid`, `missing`, `invalid` 실제 판정 로그 확인
+
+## 130. 2026-07-17 Android App Check debug 실검증
+
+### 구현과 운영 설정
+
+- API 34 x86_64 에뮬레이터에서 Kakao Map ARM 네이티브 라이브러리 부재로 앱이 시작 전에 종료되는 원인을 확인했다.
+- PR #195에서 debuggable 빌드만 지도 SDK 초기화를 건너뛰고, release 빌드는 오류를 유지하도록 보완했다.
+- Android debug provider가 발급한 token을 Firebase App Check allowlist에 비공개 등록했다.
+- token 원문은 출력하거나 저장소에 기록하지 않았고 등록 후 로컬 임시 파일을 삭제했다.
+
+### 검증
+
+- `gradlew.bat assembleDebug testDebugUnitTest --console=plain --no-daemon --max-workers=1` 성공
+- 에뮬레이터 앱 프로세스 생존, AndroidRuntime fatal 예외 없음, debug 지도 SDK 건너뛰기 경고 확인
+- debug token 교환 성공, App Check token TTL 3,600초 확인
+- 존재하지 않는 Firestore 문서 읽기 probe는 Rules에서 403, 데이터 쓰기 없음
+- Cloud Monitoring에서 Android 앱 ID, `firestore.googleapis.com`, `ALLOW`, `VALID` 1건 확인
+- Android provider와 debug allowlist 준비 게이트 통과
+
+### 남은 범위
+
+- ARM 실기기에서 release Play Integrity token 발급 확인
+- 로그인, 예약, 세션, 채팅 첨부, Core API 장소 검색 흐름 검증
+- Core API Cloud Logging의 `app_check_verdict=valid` 확인
+- Next.js 관리자 웹 provider와 debug token, preview `VALID` 요청 준비

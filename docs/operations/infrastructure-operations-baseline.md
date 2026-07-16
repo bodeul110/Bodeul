@@ -145,9 +145,9 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 
 현재 상태:
 
-- `bodeul-dev`에는 Android/Web 앱이 각각 1개 있으나 debug token은 모두 0개다.
+- `bodeul-dev`에는 Android/Web 앱이 각각 1개다. Android debug token은 1개, Web debug token은 0개다.
 - Android는 SHA-256과 Play Integrity 코드 경로가 있고, 관리자 웹 provider는 아직 등록되지 않았다.
-- 최근 30일 App Check 메트릭 5,580건 중 `VALID` 요청은 0건이다.
+- 최근 30일 App Check 메트릭 5,581건 중 Android Firestore `VALID` 요청은 1건이다.
 - Firestore, Storage, Authentication은 `UNENFORCED`이고 배포 함수 10개도 enforcement가 꺼져 있다.
 - Android Core API client의 header 전달과 Spring `off/observe/enforce` 검증은 구현했다. Cloud Run preview 리비전 `00007-8hk`는 `observe`로 트래픽 100%를 처리한다.
 - 현재 판단은 `HOLD`이며, 상세 근거는 [App Check 적용 로드맵](app-check-enforcement-roadmap.md)을 따른다.
