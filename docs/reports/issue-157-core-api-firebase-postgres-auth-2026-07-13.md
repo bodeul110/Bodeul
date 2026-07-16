@@ -71,7 +71,7 @@ Firebase Auth를 유지하면서 사용자 서비스 요청의 인증과 역할 
 - 검증 후 `app_users` 임시 행과 Firebase Auth 테스트 사용자를 삭제했다. 후속 조회에서 `app_users` 전체 0행, 테스트 UID 0행을 확인했다.
 - 최근 Cloud Run 로그 13건에서 Authorization 헤더, Bearer token, JWT 형태 문자열, 테스트 UID와 이메일 표식, Firebase API key, ID/refresh token 필드가 모두 0건임을 확인했다.
 - `bodeul` 스키마의 `PUBLIC`, `anon`, `authenticated`, `service_role` table grant는 0건이고 Supabase Security Advisor도 0건이다.
-- GitHub Environment의 `CORE_DB_JDBC_URL`, `CORE_DB_USERNAME`, `CORE_DB_PASSWORD`를 제거한 뒤 [재배포](https://github.com/bodeul110/Bodeul/actions/runs/29478148040)가 성공했다. Secret Manager 버전 변수만으로 생성된 `bodeul-core-api-preview-00003-28n` 리비전이 트래픽 100%를 처리하며 health, liveness, readiness 200과 무인증 요청 401을 반환한다.
+- GitHub Environment의 `CORE_DB_JDBC_URL`, `CORE_DB_USERNAME`, `CORE_DB_PASSWORD`를 제거하고 Secret Manager 버전 변수만 남겼다. Action 런타임 갱신까지 반영한 [최종 재배포](https://github.com/bodeul110/Bodeul/actions/runs/29479781864)가 성공했으며, `bodeul-core-api-preview-00005-2fg` 리비전이 트래픽 100%를 처리하면서 health, liveness, readiness 200과 무인증 요청 401을 반환한다.
 
 ### 개발 DB 적용 결과
 

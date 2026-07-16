@@ -88,10 +88,14 @@ WIF provider는 `bodeul110/Bodeul`, `master`, `core-api-preview` environment 조
 - Issue #157에서 실제 정상 token의 역할 미등록 403·역할 연결 200·정리 후 403과 실제 변조 token 401을 확인했다. 만료·다른 Firebase project 오류 계약은 자동 테스트로 유지한다.
 - 기존 GitHub Environment의 `CORE_DB_*` secret을 삭제하고 [재배포](https://github.com/bodeul110/Bodeul/actions/runs/29478148040)해 Secret Manager 단일 runtime 경로를 확인했다.
 - production project, service, database, secret, domain은 만들지 않았다.
-- GitHub Actions 실행에는 일부 action의 Node.js 20 사용 중단 경고가 남았다. 배포 실패 원인은 아니며 기존 Dependabot PR을 각각 검증한 뒤 별도 갱신한다.
+- GitHub Actions의 Node.js 20 사용 중단 경고는 [PR #161](https://github.com/bodeul110/Bodeul/pull/161), [PR #172](https://github.com/bodeul110/Bodeul/pull/172), [PR #179](https://github.com/bodeul110/Bodeul/pull/179), [PR #180](https://github.com/bodeul110/Bodeul/pull/180)에서 Node 24 기반 Action으로 전환해 해소했다. Gradle Actions v6은 별도 서비스 약관이 적용되는 enhanced cache 대신 저장소에 필요한 MIT 기반 `basic` cache provider를 명시했다.
+- [최종 재배포](https://github.com/bodeul110/Bodeul/actions/runs/29479781864)에서 모든 단계와 smoke test가 성공했고 annotation 0건을 확인했다. 최신 `bodeul-core-api-preview-00005-2fg` 리비전이 트래픽 100%를 처리하며 health 200과 무인증 요청 401을 반환한다.
 
 ## 관련 변경
 
 - [PR #170 Core API preview Cloud Run 전환](https://github.com/bodeul110/Bodeul/pull/170)
 - [PR #175 Core API DB secret 일회 이전](https://github.com/bodeul110/Bodeul/pull/175)
 - [PR #176 Cloud Run 헬스 체크 경로 충돌 해소](https://github.com/bodeul110/Bodeul/pull/176)
+- [PR #178 인증 경계 실검증 및 인프라 문서 최신화](https://github.com/bodeul110/Bodeul/pull/178)
+- [PR #179 Gradle Action Node 24 전환](https://github.com/bodeul110/Bodeul/pull/179)
+- [PR #180 Docker Action Node 24 전환](https://github.com/bodeul110/Bodeul/pull/180)
