@@ -185,29 +185,31 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 
 - `tools/firebase`에는 `backup:state`, `validate:backup`, `diff:state`, `restore:state:dry-run`, `restore:state:apply`가 있다.
 - 2026-06-25 기준 `bodeul-dev`에서 `backup -> validate -> restore dry-run -> diff` 순서의 읽기 위주 리허설을 수행했다.
-- 격리 Firebase 프로젝트에서 `restore:state:apply`까지 수행한 복원 리허설은 아직 없다.
+- 2026-07-16 기준 전용 Firestore Emulator에서 `restore:state:apply`와 상태 변조 복구, diff 0, Firestore 역할 관계 4/4, 샘플 시나리오 3/3을 확인했다.
+- 상세 결과는 [Firestore Emulator 백업/복원 apply 리허설](../reports/firestore-backup-restore-rehearsal-2026-07-16.md)에 기록했다.
 
 운영 기준:
 
 - 운영 프로젝트에서 바로 `restore:state:apply`를 실행하지 않는다.
-- 월 1회 또는 데이터 계약 변경 전 격리 프로젝트에서 `backup -> validate -> restore dry-run -> restore apply -> diff -> readiness/report` 순서로 리허설한다.
+- 월 1회 또는 데이터 계약 변경 전 격리 Emulator에서 `backup -> validate -> restore dry-run -> restore apply -> diff -> readiness/report` 순서로 리허설한다.
+- production 전에는 비어 있는 별도 Firebase 프로젝트에서 원격 IAM과 복구 시간까지 추가 검증한다.
 - 결과는 `docs/reports/`에 날짜별로 저장한다.
 
 권장 리허설 명령:
 
 ```powershell
-cd D:\BoDeul\tools\firebase
-npm run backup:state
-npm run validate:backup -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
-npm run restore:state:dry-run -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
-npm run restore:state:apply -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
-npm run diff:state -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
-npm run workflow:ops -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json --strict
+cd D:\BoDeul
+$env:FIREBASE_PROJECT_ID='bodeul-restore-rehearsal'
+npx --prefix tools/firebase firebase emulators:exec `
+  --only firestore `
+  --project bodeul-restore-rehearsal `
+  --config firebase.restore-rehearsal.json `
+  "npm --prefix tools/firebase run rehearse:restore:emulator -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json"
 ```
 
 후속 이슈:
 
-- [#64 Firestore 백업/복원 리허설 실행](https://github.com/bodeul110/Bodeul/issues/64)
+- [#64 Firestore 백업/복원 리허설 실행](https://github.com/bodeul110/Bodeul/issues/64): 2026-07-16 격리 Emulator apply 검증 완료
 
 ## Kakao REST API Key 운영 방침
 

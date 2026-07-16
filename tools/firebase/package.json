@@ -21,6 +21,8 @@
     "preflight:ci": "node run-ci-preflight.js",
     "preflight:local": "node run-local-preflight.js",
     "test:rules": "node rules-emulator-tests/run-rules-tests.js",
+    "test:toolkit": "node --test test/*.test.js",
+    "rehearse:restore:emulator": "node run-firestore-restore-rehearsal.js",
     "reset:baseline:dry-run": "node reset-firestore-baseline.js --dry-run",
     "reset:baseline:apply": "node reset-firestore-baseline.js --apply",
     "seed:sample:dry-run": "node seed-sample-service-data.js --dry-run",

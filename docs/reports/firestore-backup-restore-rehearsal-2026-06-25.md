@@ -2,6 +2,8 @@
 
 기준일: 2026-06-25
 
+후속 `restore:state:apply` 검증은 [2026-07-16 Firestore Emulator 백업/복원 apply 리허설](firestore-backup-restore-rehearsal-2026-07-16.md)에서 완료했다.
+
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 

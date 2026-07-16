@@ -14,14 +14,14 @@ const SAMPLE_REQUEST_REQUESTED_ID = "request-seed-requested";
 const SAMPLE_REQUEST_PROGRESS_ID = "request-seed-progress";
 const SAMPLE_REQUEST_COMPLETED_ID = "request-seed-completed";
 
-async function loadOperationsSnapshot(context) {
-  const [baselineStatuses, collectionEntries] = await Promise.all([
-    loadBaselineStatuses(context),
-    Promise.all(MANAGED_COLLECTIONS.map(async (collectionName) => {
-      const documents = await listCollectionDocuments(context, collectionName);
-      return [collectionName, documents];
-    })),
-  ]);
+async function loadOperationsSnapshot(context, options = {}) {
+  const baselineStatusesPromise = options.firestoreOnly ? null : loadBaselineStatuses(context);
+  const collectionEntries = await Promise.all(
+      MANAGED_COLLECTIONS.map(async (collectionName) => {
+        const documents = await listCollectionDocuments(context, collectionName);
+        return [collectionName, documents];
+      }),
+  );
 
   const collections = {};
   const collectionCounts = {};
@@ -29,15 +29,21 @@ async function loadOperationsSnapshot(context) {
     const normalizedDocuments = documents.map((document) => ({
       id: document.name.split("/").pop(),
       path: extractRelativeDocumentPath(document.name, context.projectId),
+      fields: document.fields || {},
       data: fromFirestoreFields(document.fields || {}),
     }));
     collections[collectionName] = normalizedDocuments;
     collectionCounts[collectionName] = normalizedDocuments.length;
   }
 
+  const baselineStatuses = options.firestoreOnly ?
+    buildFirestoreBaselineStatuses(collections.users) :
+    await baselineStatusesPromise;
+
   return {
     projectId: context.projectId,
     generatedAt: new Date().toISOString(),
+    verificationScope: options.firestoreOnly ? "firestore_only" : "firebase",
     baselineStatuses,
     collectionCounts,
     collections,
@@ -120,6 +126,13 @@ function buildRoleReadiness(snapshot) {
   const guardian = requireBaselineRole(baselineStatusByRole, "GUARDIAN");
   const manager = requireBaselineRole(baselineStatusByRole, "MANAGER");
   const admin = requireBaselineRole(baselineStatusByRole, "ADMIN");
+  const verificationScope = snapshot.verificationScope || "firebase";
+  const accountCheckLabel = verificationScope === "firestore_only" ?
+    "프로필 문서" :
+    "로그인과 프로필 문서";
+  const missingAccountDetail = verificationScope === "firestore_only" ?
+    "users 문서가 비어 있습니다." :
+    "Auth 또는 users 문서가 비어 있습니다.";
 
   const patientRequests = requests.filter((request) => request.patientUserId === patient.uid);
   const guardianRequests = requests.filter((request) => request.guardianUserId === guardian.uid);
@@ -169,11 +182,12 @@ function buildRoleReadiness(snapshot) {
     createRoleReadiness("PATIENT", "환자", [
       createCheck(
           "account",
-          "로그인과 프로필 문서",
-          isBaselineStatusReady(patient) && usersById.get(patient.uid)?.role === "PATIENT",
-          isBaselineStatusReady(patient) ?
-            `${patient.email} / users 문서 준비됨` :
-            "Auth 또는 users 문서가 비어 있습니다.",
+          accountCheckLabel,
+          isBaselineStatusReady(patient, verificationScope) &&
+            usersById.get(patient.uid)?.role === "PATIENT",
+          isBaselineStatusReady(patient, verificationScope) ?
+            buildAccountReadyDetail(patient, verificationScope) :
+            missingAccountDetail,
       ),
       createCheck(
           "booking",
@@ -207,11 +221,12 @@ function buildRoleReadiness(snapshot) {
     createRoleReadiness("GUARDIAN", "보호자", [
       createCheck(
           "account",
-          "로그인과 프로필 문서",
-          isBaselineStatusReady(guardian) && usersById.get(guardian.uid)?.role === "GUARDIAN",
-          isBaselineStatusReady(guardian) ?
-            `${guardian.email} / users 문서 준비됨` :
-            "Auth 또는 users 문서가 비어 있습니다.",
+          accountCheckLabel,
+          isBaselineStatusReady(guardian, verificationScope) &&
+            usersById.get(guardian.uid)?.role === "GUARDIAN",
+          isBaselineStatusReady(guardian, verificationScope) ?
+            buildAccountReadyDetail(guardian, verificationScope) :
+            missingAccountDetail,
       ),
       createCheck(
           "dashboard",
@@ -241,13 +256,17 @@ function buildRoleReadiness(snapshot) {
     createRoleReadiness("MANAGER", "매니저", [
       createCheck(
           "account",
-          "로그인과 서류 프로필",
-          isBaselineStatusReady(manager) &&
+          verificationScope === "firestore_only" ? "서류 프로필" : "로그인과 서류 프로필",
+          isBaselineStatusReady(manager, verificationScope) &&
             usersById.get(manager.uid)?.role === "MANAGER" &&
             Boolean(usersById.get(manager.uid)?.managerDocumentStatus),
-          isBaselineStatusReady(manager) ?
-            `managerDocumentStatus=${usersById.get(manager.uid)?.managerDocumentStatus || "없음"}` :
-            "Auth 또는 users 문서가 비어 있습니다.",
+          isBaselineStatusReady(manager, verificationScope) ?
+            buildAccountReadyDetail(
+                manager,
+                verificationScope,
+                `managerDocumentStatus=${usersById.get(manager.uid)?.managerDocumentStatus || "없음"}`,
+            ) :
+            missingAccountDetail,
       ),
       createCheck(
           "dashboard",
@@ -277,11 +296,12 @@ function buildRoleReadiness(snapshot) {
     createRoleReadiness("ADMIN", "관리자", [
       createCheck(
           "account",
-          "로그인과 프로필 문서",
-          isBaselineStatusReady(admin) && usersById.get(admin.uid)?.role === "ADMIN",
-          isBaselineStatusReady(admin) ?
-            `${admin.email} / users 문서 준비됨` :
-            "Auth 또는 users 문서가 비어 있습니다.",
+          accountCheckLabel,
+          isBaselineStatusReady(admin, verificationScope) &&
+            usersById.get(admin.uid)?.role === "ADMIN",
+          isBaselineStatusReady(admin, verificationScope) ?
+            buildAccountReadyDetail(admin, verificationScope) :
+            missingAccountDetail,
       ),
       createCheck(
           "dashboard",
@@ -478,7 +498,7 @@ function renderOperationsReportHtml(snapshot, readiness, diffSummary, options = 
     <tr>
       <td>${escapeHtml(status.role)}</td>
       <td>${escapeHtml(status.email)}</td>
-      <td>${escapeHtml(status.authStatus)}</td>
+      <td>${escapeHtml(renderAuthStatus(status.authStatus))}</td>
       <td>${escapeHtml(status.userDocumentStatus)}</td>
       <td>${escapeHtml(status.uid || "")}</td>
     </tr>
@@ -690,7 +710,7 @@ function renderOperationsReportHtml(snapshot, readiness, diffSummary, options = 
   <div class="layout">
     <section class="hero">
       <h1>보들 Firebase 운영 리포트</h1>
-      <p>프로젝트 ${escapeHtml(snapshot.projectId)} / 생성 시각 ${escapeHtml(snapshot.generatedAt)}</p>
+      <p>프로젝트 ${escapeHtml(snapshot.projectId)} / 생성 시각 ${escapeHtml(snapshot.generatedAt)} / 검증 범위 ${escapeHtml(renderVerificationScope(snapshot.verificationScope))}</p>
     </section>
     <section class="grid">
       <div class="stat">
@@ -904,8 +924,45 @@ function requireBaselineRole(statusesByRole, role) {
   return status;
 }
 
-function isBaselineStatusReady(status) {
-  return status.authStatus === "present" && status.userDocumentStatus === "present" && Boolean(status.uid);
+function isBaselineStatusReady(status, verificationScope = "firebase") {
+  const authReady = verificationScope === "firestore_only" ?
+    status.authStatus === "not_checked" :
+    status.authStatus === "present";
+  return authReady && status.userDocumentStatus === "present" && Boolean(status.uid);
+}
+
+function buildAccountReadyDetail(status, verificationScope, detail = "") {
+  const documentDetail = detail || `${status.email} / users 문서 준비됨`;
+  return verificationScope === "firestore_only" ?
+    `Auth 미검증 / ${documentDetail}` :
+    documentDetail;
+}
+
+function buildFirestoreBaselineStatuses(userDocuments = []) {
+  return BASELINE_USERS.map((baselineUser) => {
+    const userDocument = userDocuments.find((document) =>
+      document.data?.email === baselineUser.email && document.data?.role === baselineUser.role,
+    );
+    return {
+      role: baselineUser.role,
+      email: baselineUser.email,
+      uid: userDocument?.id || "",
+      authStatus: "not_checked",
+      userDocumentStatus: userDocument ? "present" : "missing",
+      userDocument: userDocument?.data || null,
+    };
+  });
+}
+
+function renderAuthStatus(status) {
+  if (status === "not_checked") {
+    return "미검증 (Firestore 전용)";
+  }
+  return status;
+}
+
+function renderVerificationScope(scope) {
+  return scope === "firestore_only" ? "Firestore 전용" : "Firebase Auth + Firestore";
 }
 
 async function loadBaselineStatuses(context) {
@@ -1088,6 +1145,7 @@ function escapeHtml(value) {
 
 module.exports = {
   buildDiffSummary,
+  buildFirestoreBaselineStatuses,
   buildRoleReadiness,
   loadBackupSnapshot,
   loadOperationsSnapshot,

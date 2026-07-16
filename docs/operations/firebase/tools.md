@@ -1,6 +1,6 @@
 # Firebase 운영 도구
 
-기준일: 2026-05-05
+기준일: 2026-07-16
 
 `tools/firebase`는 앱 런타임 코드와 분리된 Firebase 운영용 로컬 스크립트를 모아두는 디렉터리다.
 
@@ -105,6 +105,24 @@ npm run restore:state:apply -- --file backups/firestore-backup-20260424-020000.j
 - Firestore 문서만 복원
 - Auth 계정은 별도 유지
 
+### 격리 Emulator 복원 리허설
+
+```powershell
+cd D:\BoDeul
+$env:FIREBASE_PROJECT_ID='bodeul-restore-rehearsal'
+npx --prefix tools/firebase firebase emulators:exec `
+  --only firestore `
+  --project bodeul-restore-rehearsal `
+  --config firebase.restore-rehearsal.json `
+  "npm --prefix tools/firebase run rehearse:restore:emulator -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json"
+```
+
+- `firebase.restore-rehearsal.json`은 Firestore Emulator를 `127.0.0.1:8180`에 띄운다.
+- 리허설 명령은 project id가 `bodeul-restore-rehearsal`이고 Emulator host가 loopback일 때만 실행된다.
+- 재백업, 구조 검증, 임시 상태 변조, dry-run, apply, diff, Firestore 전용 workflow strict를 순서대로 실행한다.
+- 생성되는 round-trip 백업과 HTML/JSON 결과는 `tools/firebase/backups`, `tools/firebase/reports`의 gitignore 경로에 둔다.
+- 실제 결과는 [2026-07-16 복원 리허설 보고서](../../reports/firestore-backup-restore-rehearsal-2026-07-16.md)를 본다.
+
 ### 현재 상태 diff
 
 ```powershell
@@ -136,6 +154,8 @@ npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json
 - 현재 상태 점검, 역할별 화면 진입 점검, 백업 검증, diff, HTML 리포트 생성, JSON 요약 저장을 한 번에 수행한다.
 - 기본 산출물은 `tools/firebase/reports/` 아래에 HTML 리포트와 JSON 요약으로 함께 저장된다.
 - `--strict`를 붙이면 역할 준비도 미달, 샘플 시나리오 실패, 백업 검증 오류가 있을 때 종료 코드를 `1`로 반환한다.
+- `--firestore-only`를 붙이면 Auth endpoint를 조회하지 않고 users 문서와 Firestore 관계만 검증하며, Auth 상태는 `미검증`으로 기록한다.
+- `--no-app-evidence`를 붙이면 기존 앱 화면 증적을 자동으로 연결하지 않는다.
 - `--json`을 붙이면 콘솔에도 최종 요약 JSON을 그대로 출력한다.
 
 ### 로컬 프리플라이트
