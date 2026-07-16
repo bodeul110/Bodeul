@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 158 Kakao Local Core API preview 실검증 (2026-07-16)](issue-158-kakao-local-core-api-2026-07-16.md)
 - [Issue 159 Node API 종료 판단 기록 (2026-07-16)](issue-159-node-api-retirement-audit-2026-07-16.md)
 - [Issue 156 Spring Core API Cloud Run preview 검증 (2026-07-16)](issue-156-core-api-cloud-run-preview-2026-07-16.md)
 - [Issue 157 Spring Firebase/PostgreSQL 인가 이관 기록 (2026-07-13)](issue-157-core-api-firebase-postgres-auth-2026-07-13.md)
