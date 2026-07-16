@@ -41,7 +41,7 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return "/healthz".equals(path) || path.startsWith("/healthz/");
+        return "/health".equals(path) || path.startsWith("/health/");
     }
 
     @Override

@@ -25,7 +25,7 @@ class BodeulCoreApiApplicationTests {
 
     @Test
     void healthEndpointIsPublic() throws Exception {
-        mockMvc.perform(get("/healthz"))
+        mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
     }

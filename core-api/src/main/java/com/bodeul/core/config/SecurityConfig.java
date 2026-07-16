@@ -38,7 +38,7 @@ public class SecurityConfig {
                                 "permission_denied",
                                 "요청한 기능을 사용할 권한이 없습니다.")))
                 .authorizeHttpRequests(requests -> requests
-                        .requestMatchers("/healthz", "/healthz/**").permitAll()
+                        .requestMatchers("/health", "/health/**").permitAll()
                         .requestMatchers("/api/auth/me").authenticated()
                         .anyRequest().denyAll())
                 .addFilterBefore(firebaseAuthenticationFilter, AnonymousAuthenticationFilter.class)

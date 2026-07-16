@@ -7,7 +7,7 @@
 - Spring Boot 3.5.16
 - Java 21 LTS
 - Gradle Wrapper
-- 공개 `GET /healthz`
+- 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
 - 명시적으로 허용하지 않은 경로는 기본 차단
 - `local` profile에서는 DB 없이 기동
@@ -27,7 +27,7 @@ Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검
 기본 profile은 `local`이며 DB를 초기화하지 않는다.
 
 ```powershell
-curl.exe http://127.0.0.1:8080/healthz
+curl.exe http://127.0.0.1:8080/health
 ```
 
 컨테이너는 Java 21 build stage와 비루트 distroless runtime으로 구성한다.

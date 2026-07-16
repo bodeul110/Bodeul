@@ -75,7 +75,7 @@ Spring Core API의 첫 인증 계약은 다음과 같다.
 
 | Method | Path | 인증 | 용도 |
 | --- | --- | --- | --- |
-| `GET` | `/healthz` | 없음 | Spring 배포와 모니터링 상태 확인 |
+| `GET` | `/health` | 없음 | Spring Cloud Run 배포와 모니터링 상태 확인 |
 | `GET` | `/api/auth/me` | Firebase ID token + 등록된 PostgreSQL role | 검증된 Firebase UID와 서버 역할 연결 확인 |
 
 Spring은 Firebase custom claim을 서비스 역할로 채택하지 않는다. Admin SDK가 검증한 UID를 `bodeul.app_users.firebase_uid`와 연결하고, endpoint 권한은 PostgreSQL 역할에서 만든 Spring Security authority로 판정한다.
