@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [App Check 준비 상태 점검 (2026-07-16)](app-check-readiness-2026-07-16.md)
 - [Issue 65 비용 모니터링 설정 기록 (2026-07-16)](issue-65-cost-monitoring-2026-07-16.md)
 - [Firestore Emulator 백업/복원 apply 리허설 (2026-07-16)](firestore-backup-restore-rehearsal-2026-07-16.md)
 - [Issue 158 Kakao Local Core API preview 실검증 (2026-07-16)](issue-158-kakao-local-core-api-2026-07-16.md)
