@@ -11,8 +11,6 @@
 ## 프로젝트 구조
 
 - `app/`: Android 앱. Java 기반이며 화면 흐름, Firebase 데이터 접근, 인증/예약/위치/리포트 기능을 포함한다.
-- `admin-web/`: Vite + React 관리자 웹.
-- `api/`: Node 22 기반 전환 검증용 API. Spring 계약 이관 전까지 유지한다.
 - `core-api/`: Java 21 + Spring Boot 기반 사용자 서비스 API. Google Cloud Run에 독립 배포한다.
 - `functions/`: Firebase Functions. Node 22 기준으로 운영한다.
 - `tools/firebase/`: Firebase 점검, 백업, seed, preflight, 운영 리포트용 Node 스크립트.
@@ -28,13 +26,6 @@
 - `google-services.json`이 없는 CI/Dependabot 환경에서도 컴파일이 깨지지 않도록 fallback을 고려한다.
 - 사용자가 볼 수 없는 내부 로그도 한국어 맥락을 유지하되, 민감정보는 남기지 않는다.
 
-## 관리자 웹 작업
-
-- `admin-web/` 변경 후에는 변경 범위에 따라 `npm --prefix admin-web run build`를 우선 실행한다.
-- 린트 영향이 있는 변경이면 `npm --prefix admin-web run lint`도 실행한다.
-- 운영 도구 성격의 화면은 장식보다 반복 사용, 스캔, 비교가 쉬운 구성을 우선한다.
-- Firebase 설정값과 운영 환경값은 코드에 직접 박지 말고 환경 설정 경로를 사용한다.
-
 ## Firebase와 운영 스크립트
 
 - `functions/` 변경은 Node 22 기준을 유지한다.
@@ -46,7 +37,7 @@
 ## Core API 작업
 
 - `core-api/`는 메인 저장소에서 관리하되 Cloud Run의 독립 서비스로 배포한다.
-- 기존 Node `api/`를 중간 proxy로 호출하지 않고 필요한 계약을 Spring으로 직접 이관한다.
+- 사용자·매니저 앱 계약은 Spring에 직접 구현하고 다른 API 서버를 중간 proxy로 두지 않는다.
 - Java 21과 현재 Spring Boot 3.5.x 기준을 사용자 승인 없이 올리지 않는다.
 - Firebase ID token 검증, PostgreSQL role 인가, 외부 API key 처리는 서버 경계에 둔다.
 - 변경 후 `core-api` Gradle Wrapper로 검증한다.
@@ -68,8 +59,6 @@
 ## 검증 기준
 
 - Android 앱 코드 변경: `.\gradlew.bat assembleDebug --console=plain`
-- 관리자 웹 변경: `npm --prefix admin-web run build`
-- 관리자 웹 lint 영향 변경: `npm --prefix admin-web run lint`
 - Core API 변경: `.\core-api\gradlew.bat -p core-api check --console=plain`
 - Firebase 운영 스크립트 변경: `npm --prefix tools/firebase run preflight:local` 또는 관련 스크립트
 - GitHub YAML 변경: `yq e '.' <파일>`로 파싱 확인

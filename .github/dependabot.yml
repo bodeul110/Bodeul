@@ -67,20 +67,6 @@ updates:
       prefix: "chore"
 
   - package-ecosystem: npm
-    directory: /admin-web
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:30"
-      timezone: Asia/Seoul
-    open-pull-requests-limit: 3
-    labels:
-      - dependencies
-      - admin-web
-    commit-message:
-      prefix: "chore"
-
-  - package-ecosystem: npm
     directory: /functions
     schedule:
       interval: weekly

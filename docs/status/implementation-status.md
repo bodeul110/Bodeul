@@ -1,8 +1,8 @@
 # 구현 상태
 
-기준: 2026-06-26
+기준: 2026-07-17
 
-이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다.
+이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
 ## 1. 현재 동작하는 기능
 
@@ -3245,3 +3245,27 @@
 - ARM release 후보의 Play Integrity token 검증
 - #192 Core API enforce 전환과 observe 롤백 재현
 - Next.js 관리자 웹 reCAPTCHA Enterprise와 App Check custom backend 검증
+
+## 132. 2026-07-17 관리자 서버 전환과 Node API 종료
+
+### 구현과 운영 설정
+
+- 관리자 웹 source of truth를 별도 `bodeul-admin-web` 저장소의 Next.js로 확정했다.
+- Vercel Preview 전용 `bodeul_admin_service`를 활성화하고 SELECT 권한과 connection limit 5를 적용했다.
+- Supabase Root CA를 명시해 TLS 인증서 검증을 유지했다.
+- 메인 저장소의 `api/`, `admin-web/`, 관리자 전용 workflow와 Firebase Hosting 설정을 제거했다.
+- Dependabot, CodeQL, Android Preflight와 인프라 문서를 현재 저장소 경계에 맞췄다.
+
+### 검증
+
+- 관리자 Preview 무인증 401, 비관리자 403, 관리자 200과 병원 가이드 조회 확인
+- 임시 Firebase 사용자와 PostgreSQL row 삭제 후 잔여 0건 확인
+- 별도 관리자 저장소의 test, lint, Next.js build, Vite rollback build, CodeQL과 Vercel checks 통과
+- production Vercel environment에 관리자 DB 자격 증명이 없음을 확인
+
+### 남은 범위
+
+- production Firebase·Supabase·Vercel·Cloud Run 프로젝트와 자격 증명 분리
+- 관리자 웹 reCAPTCHA Enterprise와 App Check custom backend 검증
+- 도메인별 PostgreSQL 쓰기 source of truth 전환
+- production backup/restore와 rollback 리허설

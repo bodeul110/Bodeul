@@ -60,7 +60,7 @@ GitHub Actions 첫 실접속에서 생성된 Flyway history table은 로그인 r
 | Core/Admin runtime의 `bodeul` schema CREATE | false |
 | migration role의 `bodeul` schema CREATE | true |
 | `anon`, `authenticated`, `service_role`의 `bodeul` schema USAGE | false |
-| 접속 role 상태 | `bodeul_migrator`, `bodeul_core_service`는 `LOGIN`, `bodeul_admin_service`는 `NOLOGIN` |
+| 접속 role 상태 | `bodeul_migrator`, `bodeul_core_service`는 `LOGIN`; `bodeul_admin_service`는 2026-07-17 Preview 전용 `LOGIN`으로 전환 |
 | 연결 상한 합계 | 12개, 개발 DB `max_connections`의 20% |
 | `public` 신규 객체 자동 grant | `postgres` 전용으로 축소 |
 | migration role 신규 함수 기본 실행 권한 | 소유자만 허용 |
@@ -72,12 +72,12 @@ GitHub Actions 첫 실접속에서 생성된 Flyway history table은 로그인 r
 
 검증 SQL은 `core-api/db/verification/001_database_access_checks.sql`에 둔다.
 
-## 남은 범위
+## 2026-07-17 후속 상태
 
-1. OCI preview 배포에서는 `core-api-preview`의 runtime 자격 증명만 주입하고 migration 자격 증명이 전달되지 않는지 확인한다.
-2. 현재 Vite 관리자 웹은 서버 비밀값을 보관할 수 없으므로 `bodeul_admin_service`는 `NOLOGIN`으로 유지한다. Next.js 서버 전환과 서버 전용 환경변수 경계가 확인된 뒤 별도 비밀번호로 활성화한다.
-3. 첫 업무 테이블 migration에서 Core/Admin DML grant와 필요한 RLS 정책을 명시한다.
-4. production 적용은 개발 DB 접속·권한·rollback 검증 이후 별도 승인으로 진행한다.
+- Core API는 Cloud Run preview에서 runtime 자격 증명만 사용하고 migration 자격 증명을 전달하지 않는 구성을 검증했다.
+- `bodeul_admin_service`는 Next.js Vercel Preview 전용으로 활성화했다. connection limit 5와 필요한 SELECT만 허용하며 production에는 자격 증명을 등록하지 않았다.
+- 관리자 Preview에서 무인증 401, 비관리자 403, 관리자 200과 병원 가이드 조회를 실제 확인했다.
+- production 적용은 개발과 분리된 프로젝트·role·자격 증명, backup/restore 검증 후 진행한다.
 
 ## 참고
 

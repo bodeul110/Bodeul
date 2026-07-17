@@ -69,8 +69,6 @@ jobs:
 
           changed_file="$(mktemp)"
           android=false
-          admin_web=false
-          api=false
           functions=false
           firebase_tools=false
           docs_only=true
@@ -84,7 +82,6 @@ jobs:
           else
             printf '%s\n' "__workflow_dispatch__" > "$changed_file"
             android=true
-            admin_web=true
             functions=true
             firebase_tools=true
             docs_only=false
@@ -98,14 +95,6 @@ jobs:
                   android=true
                   docs_only=false
                   ;;
-                admin-web/*)
-                  admin_web=true
-                  docs_only=false
-                  ;;
-                api/*)
-                  api=true
-                  docs_only=false
-                  ;;
                 functions/*)
                   functions=true
                   docs_only=false
@@ -116,7 +105,6 @@ jobs:
                   ;;
                 .github/workflows/*)
                   android=true
-                  admin_web=true
                   functions=true
                   firebase_tools=true
                   docs_only=false
@@ -129,7 +117,6 @@ jobs:
                   ;;
                 *)
                   android=true
-                  admin_web=true
                   functions=true
                   firebase_tools=true
                   docs_only=false
@@ -141,8 +128,6 @@ jobs:
 
           {
             echo "android=$android"
-            echo "admin_web=$admin_web"
-            echo "api=$api"
             echo "functions=$functions"
             echo "firebase_tools=$firebase_tools"
             echo "docs_only=$docs_only"
@@ -153,8 +138,6 @@ jobs:
           sed 's/^/- /' "$changed_file"
           echo "검증 범위"
           echo "- Android: $android"
-          echo "- admin-web: $admin_web"
-          echo "- API: $api"
           echo "- functions: $functions"
           echo "- Firebase tools: $firebase_tools"
           echo "- 문서 전용: $docs_only"
@@ -269,8 +252,6 @@ jobs:
             echo ""
             echo "- 실행기: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_profile || 'github-hosted' }}"
             echo "- Android: ${{ steps.scope.outputs.android }}"
-            echo "- admin-web: ${{ steps.scope.outputs.admin_web }}"
-            echo "- API: ${{ steps.scope.outputs.api }}"
             echo "- functions: ${{ steps.scope.outputs.functions }}"
             echo "- Firebase tools: ${{ steps.scope.outputs.firebase_tools }}"
             echo "- 문서 전용: ${{ steps.scope.outputs.docs_only }}"
