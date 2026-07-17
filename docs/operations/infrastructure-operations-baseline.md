@@ -42,7 +42,7 @@
 
 ## 종료된 자산
 
-Oracle Node preview, 메인 `api/`, 메인 `admin-web/`과 관리자 Firebase Hosting workflow는 과거 전환 검증 자산이다. 현재 배포나 운영 후보로 사용하지 않는다. Git 이력과 보고서만 보존한다.
+Oracle Node preview, 메인 `api/`, 메인 `admin-web/`과 관리자 Firebase Hosting workflow는 과거 전환 검증 자산이다. 현재 배포나 운영 후보로 사용하지 않는다. Git 이력과 보고서만 보존한다. Firebase Hosting site와 관리자 배포 전용 WIF·서비스 계정·GitHub Environment도 2026-07-17에 제거했다.
 
 ## 남은 운영 게이트
 

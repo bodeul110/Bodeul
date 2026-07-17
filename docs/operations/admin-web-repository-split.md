@@ -21,6 +21,9 @@ production 전환은 저장소 분리와 별개다. 별도 저장소 master와 V
 - Supabase Root CA를 명시해 TLS 인증서 검증을 유지했다.
 - 메인 저장소 Node API의 관리자 계약이 Next.js로 대체됐음을 확인했다.
 - 임시 Firebase 사용자와 DB 검증 row를 삭제하고 잔여 0건을 확인했다.
+- 메인·관리자 저장소의 기존 `admin-web-preview`·`admin-web-production` GitHub Environment를 삭제하고 Vercel이 관리하는 `Preview`·`Production` deployment environment만 유지했다.
+- Firebase Hosting site를 비활성화해 기존 `bodeul-dev.web.app` 응답이 404인지 확인했다.
+- 관리자 Hosting 전용 WIF provider, 배포 서비스 계정과 남은 Hosting IAM binding을 삭제했다.
 
 ## 소유권
 
