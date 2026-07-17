@@ -87,7 +87,7 @@ select
 from information_schema.tables
 join pg_class class on class.oid = format('%I.%I', table_schema, table_name)::regclass
 where table_schema = 'bodeul'
-  and table_name in ('app_users', 'hospital_guides')
+  and table_name in ('app_users', 'hospital_guides', 'appointment_requests')
 order by table_name;
 
 select
@@ -95,7 +95,7 @@ select
     privilege_type
 from information_schema.role_table_grants
 where table_schema = 'bodeul'
-  and table_name in ('app_users', 'hospital_guides')
+  and table_name in ('app_users', 'hospital_guides', 'appointment_requests')
 order by grantee, privilege_type;
 
 select
@@ -106,5 +106,13 @@ select
     with_check
 from pg_policies
 where schemaname = 'bodeul'
-  and tablename in ('app_users', 'hospital_guides')
+  and tablename in ('app_users', 'hospital_guides', 'appointment_requests')
 order by tablename, policyname;
+
+select
+    count(*) as appointment_request_count,
+    count(*) filter (where patient_user_id is not null) as patient_reference_count,
+    count(*) filter (where guardian_user_id is not null) as guardian_reference_count,
+    count(*) filter (where manager_user_id is not null) as manager_reference_count,
+    count(*) filter (where updated_at is null) as missing_source_updated_at_count
+from bodeul.appointment_requests;
