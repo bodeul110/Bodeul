@@ -6,13 +6,8 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function currentUserExists() {
-      return signedIn()
-          && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
-    }
-
     function currentRole() {
-      return currentUserExists()
+      return signedIn()
           ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
           : null;
     }
@@ -29,44 +24,17 @@ service firebase.storage {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function appointmentExists(appointmentRequestId) {
-      return firestore.exists(
-          /databases/(default)/documents/appointmentRequests/$(appointmentRequestId)
-      );
-    }
-
-    function appointmentDoc(appointmentRequestId) {
-      return firestore.get(
-          /databases/(default)/documents/appointmentRequests/$(appointmentRequestId)
-      );
-    }
-
-    function isAppointmentParticipant(appointmentRequestId) {
-      return signedIn()
-          && appointmentExists(appointmentRequestId)
-          && (
-            isAdmin()
-            || appointmentDoc(appointmentRequestId).data.patientUserId == request.auth.uid
-            || appointmentDoc(appointmentRequestId).data.guardianUserId == request.auth.uid
-            || appointmentDoc(appointmentRequestId).data.managerUserId == request.auth.uid
-          );
-    }
-
-    function sessionExists(sessionId) {
-      return firestore.exists(/databases/(default)/documents/companionSessions/$(sessionId));
-    }
-
     function sessionDoc(sessionId) {
       return firestore.get(/databases/(default)/documents/companionSessions/$(sessionId));
     }
 
     function isSessionParticipant(sessionId) {
       return signedIn()
-          && sessionExists(sessionId)
           && (
             isAdmin()
             || sessionDoc(sessionId).data.managerUserId == request.auth.uid
-            || isAppointmentParticipant(sessionDoc(sessionId).data.appointmentRequestId)
+            || sessionDoc(sessionId).data.patientUserId == request.auth.uid
+            || sessionDoc(sessionId).data.guardianUserId == request.auth.uid
           );
     }
 

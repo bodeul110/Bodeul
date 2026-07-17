@@ -55,6 +55,12 @@ service cloud.firestore {
       );
     }
 
+    function appointmentDocAfter(appointmentRequestId) {
+      return getAfter(
+          /databases/$(database)/documents/appointmentRequests/$(appointmentRequestId)
+      );
+    }
+
     function isAppointmentParticipant(appointmentRequestId) {
       return signedIn()
           && appointmentExists(appointmentRequestId)
@@ -80,7 +86,8 @@ service cloud.firestore {
           && (
             isAdmin()
             || sessionDoc(sessionId).data.managerUserId == request.auth.uid
-            || isAppointmentParticipant(sessionDoc(sessionId).data.appointmentRequestId)
+            || sessionDoc(sessionId).data.patientUserId == request.auth.uid
+            || sessionDoc(sessionId).data.guardianUserId == request.auth.uid
           );
     }
 
@@ -104,7 +111,8 @@ service cloud.firestore {
           && (
             isAdmin()
             || resource.data.managerUserId == request.auth.uid
-            || isAppointmentParticipant(resource.data.appointmentRequestId)
+            || resource.data.patientUserId == request.auth.uid
+            || resource.data.guardianUserId == request.auth.uid
           );
     }
 
@@ -129,6 +137,15 @@ service cloud.firestore {
 
     function affectedAny(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
+
+    function managerDocumentStatusUpdateIsSafe() {
+      return !affectedAny(['managerDocumentStatus'])
+          || (
+            request.resource.data.keys().hasAll(['managerDocumentStatus'])
+            && request.resource.data.managerDocumentStatus != 'APPROVED'
+            && request.resource.data.managerDocumentStatus != 'REJECTED'
+          );
     }
 
     function isClientRole() {
@@ -235,6 +252,8 @@ service cloud.firestore {
     function companionSessionCreateFields() {
       return [
         'appointmentRequestId',
+        'patientUserId',
+        'guardianUserId',
         'managerUserId',
         'currentStepOrder',
         'currentStatus',
@@ -279,14 +298,33 @@ service cloud.firestore {
       ];
     }
 
-    function canManagerCreateCompanionSession() {
-      return isManager()
+    function canCreateCompanionSession() {
+      return signedIn()
           && createdOnly(companionSessionCreateFields())
-          && request.resource.data.managerUserId == request.auth.uid
+          && request.resource.data.keys().hasAll([
+            'appointmentRequestId',
+            'patientUserId',
+            'guardianUserId',
+            'managerUserId',
+            'currentStatus',
+            'liveLocationSharingActive'
+          ])
           && request.resource.data.currentStatus == 'READY'
           && request.resource.data.liveLocationSharingActive == false
           && appointmentExists(request.resource.data.appointmentRequestId)
-          && appointmentDoc(request.resource.data.appointmentRequestId).data.managerUserId == request.auth.uid;
+          && request.resource.data.patientUserId
+              == appointmentDocAfter(request.resource.data.appointmentRequestId).data.patientUserId
+          && request.resource.data.guardianUserId
+              == appointmentDocAfter(request.resource.data.appointmentRequestId).data.guardianUserId
+          && request.resource.data.managerUserId
+              == appointmentDocAfter(request.resource.data.appointmentRequestId).data.managerUserId
+          && (
+            isAdmin()
+            || (
+              isManager()
+              && request.resource.data.managerUserId == request.auth.uid
+            )
+          );
     }
 
     function canManagerUpdateCompanionSession() {
@@ -301,7 +339,10 @@ service cloud.firestore {
 
     function canClientCancelCompanionSession() {
       return isClientRole()
-          && isAppointmentParticipant(resource.data.appointmentRequestId)
+          && (
+            resource.data.patientUserId == request.auth.uid
+            || resource.data.guardianUserId == request.auth.uid
+          )
           && request.resource.data.currentStatus == 'CANCELED'
           && request.resource.data.liveLocationSharingActive == false
           && affectedOnly([
@@ -314,13 +355,13 @@ service cloud.firestore {
 
     function canPatientUpdateCompanionChat() {
       return isPatient()
-          && isAppointmentParticipant(resource.data.appointmentRequestId)
+          && resource.data.patientUserId == request.auth.uid
           && affectedOnly(['chatMessages', 'patientChatReadAt', 'updatedAt']);
     }
 
     function canGuardianUpdateCompanionChat() {
       return isGuardian()
-          && isAppointmentParticipant(resource.data.appointmentRequestId)
+          && resource.data.guardianUserId == request.auth.uid
           && affectedOnly(['chatMessages', 'guardianChatReadAt', 'updatedAt']);
     }
 
@@ -397,13 +438,7 @@ service cloud.firestore {
           || (
             isSelf(userId)
             && request.resource.data.role == resource.data.role
-            && (
-              request.resource.data.managerDocumentStatus == resource.data.managerDocumentStatus
-              || (
-                request.resource.data.managerDocumentStatus != 'APPROVED'
-                && request.resource.data.managerDocumentStatus != 'REJECTED'
-              )
-            )
+            && managerDocumentStatusUpdateIsSafe()
           );
       allow delete: if isAdmin();
     }
@@ -429,8 +464,7 @@ service cloud.firestore {
       allow read: if canReadCompanionSession();
 
       // 세션 생성과 수정은 배정된 매니저 또는 관리자가 수행한다.
-      allow create: if isAdmin()
-          || canManagerCreateCompanionSession();
+      allow create: if canCreateCompanionSession();
       allow update: if isAdmin()
           || canManagerUpdateCompanionSession()
           || canClientCancelCompanionSession()

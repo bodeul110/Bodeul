@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 190 ARM 실기기 검증 기록 (2026-07-17)](issue-190-arm-device-validation-2026-07-17.md)
 - [관리자 병원 가이드 PostgreSQL read model 준비 (2026-07-17)](issue-154-admin-hospital-guides-schema-2026-07-17.md)
 - [Issue 191 Spring Core API App Check 적용 기록 (2026-07-16)](issue-191-core-api-app-check-2026-07-16.md)
 - [App Check 준비 상태 점검 (2026-07-16)](app-check-readiness-2026-07-16.md)

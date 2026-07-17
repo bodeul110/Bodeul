@@ -26,6 +26,7 @@ bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 
 - 네이버 클라이언트 시크릿은 Android 앱에 포함하지 않는다.
 - 현재 앱의 네이버 로그인 버튼은 `naver_login_enabled=false`로 숨겨져 있으며, 서버 중계형 OAuth 흐름이 확정될 때 다시 연다.
+- `kakaoNativeAppKey`에는 Kakao Developers에서 `com.example.bodeul` 패키지명과 현재 서명 키 해시를 연결한 Android 플랫폼 전용 네이티브 앱 키를 사용한다. 추적되는 `gradle.properties`에는 실제 키를 넣지 않는다.
 - 카카오 로컬 REST API 키는 Android에 넣지 않고 Core API의 Google Secret Manager에 저장한다.
 
 ## 콘솔에서 먼저 할 일

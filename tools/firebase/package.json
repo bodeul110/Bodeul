@@ -28,6 +28,8 @@
     "reset:baseline:apply": "node reset-firestore-baseline.js --apply",
     "seed:sample:dry-run": "node seed-sample-service-data.js --dry-run",
     "seed:sample:apply": "node seed-sample-service-data.js --apply",
+    "backfill:session-participants:dry-run": "node backfill-companion-session-participants.js",
+    "backfill:session-participants:apply": "node backfill-companion-session-participants.js --apply",
     "seed:manager-docs:dry-run": "node seed-manager-document-storage-sample.js",
     "seed:manager-docs:apply": "node seed-manager-document-storage-sample.js --apply",
     "restore:state:dry-run": "node restore-firestore-state.js",

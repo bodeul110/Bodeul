@@ -78,6 +78,14 @@ final class FirebaseAdminRequestStore {
                 .document("session-" + requestId);
         Map<String, Object> sessionDocument = new HashMap<>();
         sessionDocument.put("appointmentRequestId", requestId);
+        sessionDocument.put(
+                "patientUserId",
+                targetOverview.getAppointmentRequest().getPatientUserId()
+        );
+        sessionDocument.put(
+                "guardianUserId",
+                targetOverview.getAppointmentRequest().getGuardianUserId()
+        );
         sessionDocument.put("managerUserId", managerUserId);
         sessionDocument.put("currentStepOrder", 1);
         sessionDocument.put("currentStatus", SessionStatus.READY.name());

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -35,6 +36,8 @@ import java.util.concurrent.Executors;
  * Firebase 인증 토큰으로 Core API의 병원·약국 검색을 호출한다.
  */
 public final class KakaoLocalPlaceSearchClient {
+    private static final String TAG = "BodeulPlaceSearch";
+
     public interface Callback {
         void onSuccess(HospitalMapCoordinateResult result);
 
@@ -50,6 +53,8 @@ public final class KakaoLocalPlaceSearchClient {
     private static final String CORE_CATEGORY_HOSPITAL = "HOSPITAL";
     private static final String CORE_CATEGORY_PHARMACY = "PHARMACY";
     private static final long CACHE_TTL_MILLIS = 6L * 60L * 60L * 1000L;
+    private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
+    private static final int READ_TIMEOUT_MILLIS = 20_000;
     private static final int MAX_RESPONSE_BYTES = 1024 * 1024;
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -174,6 +179,7 @@ public final class KakaoLocalPlaceSearchClient {
         }
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
+            Log.w(TAG, "로그인 사용자가 없어 Core API 장소 검색을 건너뜁니다.");
             resultHandler.onError();
             return;
         }
@@ -182,6 +188,7 @@ public final class KakaoLocalPlaceSearchClient {
                     ? task.getResult().getToken()
                     : "";
             if (TextUtils.isEmpty(idToken)) {
+                Log.w(TAG, "Firebase ID 토큰을 가져오지 못해 Core API 장소 검색을 중단합니다.");
                 resultHandler.onError();
                 return;
             }
@@ -190,11 +197,15 @@ public final class KakaoLocalPlaceSearchClient {
                         ? appCheckTask.getResult()
                         : null;
                 String appCheckToken = tokenResult == null ? "" : tokenResult.getToken();
+                if (TextUtils.isEmpty(appCheckToken)) {
+                    Log.w(TAG, "App Check 토큰 없이 Core API 장소 검색을 시도합니다.");
+                }
 
                 EXECUTOR.execute(() -> {
                     try {
                         resultHandler.onSuccess(coreOperation.run(idToken, appCheckToken));
                     } catch (Exception exception) {
+                        Log.w(TAG, "Core API 장소 검색 실패: " + exception.getClass().getSimpleName());
                         resultHandler.onError();
                     }
                 });
@@ -263,15 +274,17 @@ public final class KakaoLocalPlaceSearchClient {
             connection = (HttpURLConnection) new java.net.URL(
                     buildCoreSearchUrl(query, category)).openConnection();
             connection.setRequestMethod("GET");
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
+            connection.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
+            connection.setReadTimeout(READ_TIMEOUT_MILLIS);
             connection.setRequestProperty("Authorization", "Bearer " + idToken);
             if (!TextUtils.isEmpty(appCheckToken)) {
                 connection.setRequestProperty("X-Firebase-AppCheck", appCheckToken);
             }
             connection.setRequestProperty("Accept", "application/json");
 
-            if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300) {
+            int responseCode = connection.getResponseCode();
+            if (responseCode < 200 || responseCode >= 300) {
+                Log.w(TAG, "Core API 장소 검색 실패: HTTP " + responseCode);
                 throw new IOException("Core API place search failed");
             }
             JSONObject root = new JSONObject(readAll(connection.getInputStream()));

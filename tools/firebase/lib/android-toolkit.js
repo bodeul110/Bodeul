@@ -135,7 +135,18 @@ function launchAutomationRoute(adbPath, serial, applicationId, route) {
   if (route.forceSignIn) {
     args.push("--ez", "forceSignIn", "true");
   }
+  if (route.chatMessage) {
+    args.push("--es", "chatMessage", quoteAndroidShellArgument(route.chatMessage));
+  }
+  if (route.chatAttachment) {
+    args.push("--ez", "chatAttachment", "true");
+  }
   return runAdbText(adbPath, serial, args);
+}
+
+function quoteAndroidShellArgument(value) {
+  const normalizedValue = String(value == null ? "" : value);
+  return `'${normalizedValue.replace(/'/g, `'\\''`)}'`;
 }
 
 function readDeviceMetadata(adbPath, serial) {
@@ -216,6 +227,7 @@ module.exports = {
   launchAutomationRoute,
   launchMainActivity,
   listConnectedDevices,
+  quoteAndroidShellArgument,
   readDeviceMetadata,
   resolveAdbPath,
   resolveAndroidSdkPath,

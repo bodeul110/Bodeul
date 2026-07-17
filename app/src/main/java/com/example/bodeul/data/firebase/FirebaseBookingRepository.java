@@ -54,7 +54,7 @@ import java.util.TreeSet;
 import java.util.TimeZone;
 
 /**
- * Firestore??蹂묒썝 ?숉뻾 ?좎껌????ν븯怨??섏옄/蹂댄샇??怨꾩젙 ?곌껐???쒕룄?섎뒗 ??μ냼??
+ * Firestore에 병원 동행 신청을 저장하고 환자/보호자 계정 연결을 시도하는 저장소다.
  */
 public class FirebaseBookingRepository implements BookingRepository {
     private static final String FUNCTIONS_REGION = "asia-northeast3";
@@ -81,21 +81,21 @@ public class FirebaseBookingRepository implements BookingRepository {
                     callback.onSuccess(toHospitalOptions(guides));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("蹂묒썝 ?좏깮 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("병원 선택 목록을 불러오지 못했습니다."));
     }
 
     @Override
     public void getMyAppointmentRequests(User currentUser, RepositoryCallback<List<AppointmentRequest>> callback) {
         Query query = buildUserQuery(currentUser);
         if (query == null) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 접근해 주세요.");
             return;
         }
 
         query.get()
                 .addOnSuccessListener(querySnapshot -> callback.onSuccess(toSortedRequests(querySnapshot)))
                 .addOnFailureListener(exception ->
-                        callback.onError("?붿껌 紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("요청 목록을 불러오지 못했습니다."));
     }
 
     @Override
@@ -105,7 +105,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return;
         }
 
@@ -115,13 +115,13 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                     if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("?붿껌 ?곸꽭 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+                        callback.onError("요청 상세 정보를 확인하지 못했습니다.");
                         return;
                     }
-                    loadAppointmentRequestDetail(request, callback);
+                    loadAppointmentRequestDetail(currentUser, request, callback);
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?붿껌 ?곸꽭 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??"));
+                        callback.onError("요청 상세 정보를 확인하지 못했습니다."));
     }
 
     @Override
@@ -131,7 +131,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해주세요.");
             return () -> {};
         }
 
@@ -139,27 +139,29 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .document(requestId)
                 .addSnapshotListener((documentSnapshot, error) -> {
                     if (error != null) {
-                        callback.onError("?붿껌 ?곸꽭 ?뺣낫瑜?媛먯??섏? 紐삵뻽?듬땲??");
+                        callback.onError("요청 상세 정보를 감지하지 못했습니다.");
                         return;
                     }
                     if (documentSnapshot != null) {
                         AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                         if (request == null || !isRequestOwner(currentUser, request)) {
-                            callback.onError("?붿껌 ?곸꽭 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+                            callback.onError("요청 상세 정보를 확인하지 못했습니다.");
                             return;
                         }
-                        loadAppointmentRequestDetail(request, callback);
+                        loadAppointmentRequestDetail(currentUser, request, callback);
                     }
                 });
 
-        com.google.firebase.firestore.ListenerRegistration sessionListener = firestore.collection("companionSessions")
-                .whereEqualTo("appointmentRequestId", requestId)
+        com.google.firebase.firestore.ListenerRegistration sessionListener = buildSessionQuery(
+                currentUser,
+                requestId
+        )
                 .limit(1)
                 .addSnapshotListener((querySnapshot, error) -> {
                     if (error != null) {
                         return;
                     }
-                    // Trigger a reload of the request details to get the latest session data
+                    // 최신 세션 데이터를 반영하도록 요청 상세를 다시 불러온다.
                     getAppointmentRequestDetail(currentUser, requestId, callback);
                 });
 
@@ -176,7 +178,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 접근해 주세요.");
             return;
         }
 
@@ -207,15 +209,15 @@ public class FirebaseBookingRepository implements BookingRepository {
                                                 .addOnSuccessListener(documentSnapshot -> {
                                                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                                                     if (request == null) {
-                                                        callback.onError("?붿껌 ?뺣낫瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+                                                        callback.onError("요청 정보를 다시 불러오지 못했습니다.");
                                                         return;
                                                     }
                                                     callback.onSuccess(request);
                                                 })
                                                 .addOnFailureListener(exception ->
-                                                        callback.onError("?붿껌 ?뺣낫瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??")))
+                                                        callback.onError("요청 정보를 다시 불러오지 못했습니다.")))
                                 .addOnFailureListener(exception ->
-                                        callback.onError("?숉뻾 ?붿껌????ν븯吏 紐삵뻽?듬땲??"));
+                                        callback.onError("동행 요청을 저장하지 못했습니다."));
                     }
 
                     @Override
@@ -234,7 +236,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 접근해 주세요.");
             return;
         }
 
@@ -244,7 +246,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest existingRequest = toAppointmentRequest(documentSnapshot);
                     if (!canMutateRequest(currentUser, existingRequest)) {
-                        callback.onError("?묒닔 ?湲??곹깭 ?붿껌留??섏젙?????덉뒿?덈떎.");
+                        callback.onError("접수 대기 상태 요청만 수정할 수 있습니다.");
                         return;
                     }
 
@@ -274,7 +276,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                                             .addOnSuccessListener(unused ->
                                                     reloadAppointmentRequest(documentSnapshot.getReference(), callback))
                                             .addOnFailureListener(exception ->
-                                                    callback.onError("?숉뻾 ?붿껌???섏젙?섏? 紐삵뻽?듬땲??"));
+                                                    callback.onError("동행 요청을 수정하지 못했습니다."));
                                 }
 
                                 @Override
@@ -285,7 +287,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                     );
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?붿껌 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??"));
+                        callback.onError("요청 정보를 확인하지 못했습니다."));
     }
 
     @Override
@@ -295,7 +297,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequest> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 ?묎렐??二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 접근해 주세요.");
             return;
         }
 
@@ -305,12 +307,11 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest existingRequest = toAppointmentRequest(documentSnapshot);
                     if (!canCancelRequest(currentUser, existingRequest)) {
-                        callback.onError("?묒닔 ?湲??먮뒗 留ㅻ땲? 諛곗젙 ?꾨즺 ?곹깭 ?붿껌留?痍⑥냼?????덉뒿?덈떎.");
+                        callback.onError("접수 대기 또는 매니저 배정 완료 상태 요청만 취소할 수 있습니다.");
                         return;
                     }
 
-                    firestore.collection("companionSessions")
-                            .whereEqualTo("appointmentRequestId", requestId)
+                    buildSessionQuery(currentUser, requestId)
                             .get()
                             .addOnSuccessListener(sessionSnapshot -> {
                                 WriteBatch batch = firestore.batch();
@@ -339,13 +340,13 @@ public class FirebaseBookingRepository implements BookingRepository {
                                         .addOnSuccessListener(unused ->
                                                 reloadAppointmentRequest(documentSnapshot.getReference(), callback))
                                         .addOnFailureListener(exception ->
-                                                callback.onError("?숉뻾 ?붿껌??痍⑥냼?섏? 紐삵뻽?듬땲??"));
+                                                callback.onError("동행 요청을 취소하지 못했습니다."));
                             })
                             .addOnFailureListener(exception ->
-                                    callback.onError("?곌껐???숉뻾 ?몄뀡???뺤씤?섏? 紐삵뻽?듬땲??"));
+                                    callback.onError("연결된 동행 세션을 확인하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?붿껌 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??"));
+                        callback.onError("요청 정보를 확인하지 못했습니다."));
     }
 
     @Override
@@ -355,7 +356,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
             return;
         }
 
@@ -365,7 +366,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                     if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("?꾩냽 ?뺣낫 議고쉶 沅뚰븳???놁뒿?덈떎.");
+                        callback.onError("후속 정보 조회 권한이 없습니다.");
                         return;
                     }
 
@@ -375,10 +376,10 @@ public class FirebaseBookingRepository implements BookingRepository {
                             .addOnSuccessListener(followUpSnapshot ->
                                     callback.onSuccess(toAppointmentFollowUpRecord(followUpSnapshot, requestId)))
                             .addOnFailureListener(exception ->
-                                    callback.onError("?꾩냽 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                                    callback.onError("후속 정보를 불러오지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?꾩냽 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("후속 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -389,7 +390,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?섏옄 ?먮뒗 蹂댄샇??怨꾩젙?쇰줈 濡쒓렇?명빐 二쇱꽭??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
             return;
         }
 
@@ -399,11 +400,11 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                     if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("?꾧린 ???沅뚰븳???놁뒿?덈떎.");
+                        callback.onError("후기 저장 권한이 없습니다.");
                         return;
                     }
                     if (request.getStatus() != AppointmentStatus.COMPLETED) {
-                        callback.onError("?꾨즺???덉빟?먯꽌留??꾧린瑜???ν븷 ???덉뒿?덈떎.");
+                        callback.onError("완료된 예약에서만 후기를 저장할 수 있습니다.");
                         return;
                     }
 
@@ -426,12 +427,12 @@ public class FirebaseBookingRepository implements BookingRepository {
                                                             toAppointmentFollowUpRecord(followUpSnapshot, requestId)
                                                     ))
                                             .addOnFailureListener(exception ->
-                                                    callback.onError("?꾧린 ???寃곌낵瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??")))
+                                                    callback.onError("후기 저장 결과를 다시 불러오지 못했습니다.")))
                             .addOnFailureListener(exception ->
-                                    callback.onError("?꾧린 ?댁슜????ν븯吏 紐삵뻽?듬땲??"));
+                                    callback.onError("후기 내용을 저장하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?꾧린 ?????곸쓣 ?뺤씤?섏? 紐삵뻽?듬땲??"));
+                        callback.onError("후기 저장 대상을 확인하지 못했습니다."));
     }
 
     @Override
@@ -443,7 +444,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("??륁쁽 ?癒?뮉 癰귣똾????④쑴???곗쨮 嚥≪뮄??紐낅퉸 雅뚯눘苑??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
             return;
         }
 
@@ -453,11 +454,11 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                     if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("?類ㅺ텦 ?袁⑸꺗 ????亦낅슦釉????곷뮸??덈뼄.");
+                        callback.onError("정산 후속 저장 권한이 없습니다.");
                         return;
                     }
                     if (request.getStatus() != AppointmentStatus.COMPLETED) {
-                        callback.onError("?袁⑥┷????됰튋?癒?퐣筌?筌띾뜆媛??袁⑸꺗 ?類ㅼ뵥?????館釉?????됰뮸??덈뼄.");
+                        callback.onError("완료된 예약에서만 마감 후속 확인을 저장할 수 있습니다.");
                         return;
                     }
 
@@ -481,12 +482,12 @@ public class FirebaseBookingRepository implements BookingRepository {
                                                             toAppointmentFollowUpRecord(followUpSnapshot, requestId)
                                                     ))
                                             .addOnFailureListener(exception ->
-                                                    callback.onError("?類ㅺ텦 ?袁⑸꺗 野껉퀗?든몴???쇰뻻 ?븍뜄???? 筌륁궢六??щ빍??")))
+                                                    callback.onError("정산 후속 결과를 다시 불러오지 못했습니다.")))
                             .addOnFailureListener(exception ->
-                                    callback.onError("?類ㅺ텦 ?袁⑸꺗 ?怨밴묶?????館釉?쭪? 筌륁궢六??щ빍??"));
+                                    callback.onError("정산 후속 상태를 저장하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?類ㅺ텦 ?袁⑸꺗 ???????怨몄뱽 ?類ㅼ뵥??? 筌륁궢六??щ빍??"));
+                        callback.onError("정산 후속 저장 대상을 확인하지 못했습니다."));
     }
 
     @Override
@@ -497,7 +498,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("??륁쁽 ?癒?뮉 癰귣똾????④쑴???곗쨮 嚥≪뮄??紐낅퉸 雅뚯눘苑??");
+            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
             return;
         }
 
@@ -507,11 +508,11 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                     if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("SOS ?袁⑸꺗 ????亦낅슦釉????곷뮸??덈뼄.");
+                        callback.onError("SOS 후속 저장 권한이 없습니다.");
                         return;
                     }
                     if (request.getStatus() != AppointmentStatus.COMPLETED) {
-                        callback.onError("?袁⑥┷????됰튋?癒?퐣筌?SOS ?袁⑸꺗 疫꿸퀡以?????館釉?????됰뮸??덈뼄.");
+                        callback.onError("완료된 예약에서만 SOS 후속 기록을 저장할 수 있습니다.");
                         return;
                     }
 
@@ -534,12 +535,12 @@ public class FirebaseBookingRepository implements BookingRepository {
                                                             toAppointmentFollowUpRecord(followUpSnapshot, requestId)
                                                     ))
                                             .addOnFailureListener(exception ->
-                                                    callback.onError("SOS ?袁⑸꺗 野껉퀗?든몴???쇰뻻 ?븍뜄???? 筌륁궢六??щ빍??")))
+                                                    callback.onError("SOS 후속 결과를 다시 불러오지 못했습니다.")))
                             .addOnFailureListener(exception ->
-                                    callback.onError("SOS ?袁⑸꺗 疫꿸퀡以?????館釉?쭪? 筌륁궢六??щ빍??"));
+                                    callback.onError("SOS 후속 기록을 저장하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("SOS ?袁⑸꺗 ???????怨몄뱽 ?類ㅼ뵥??? 筌륁궢六??щ빍??"));
+                        callback.onError("SOS 후속 저장 대상을 확인하지 못했습니다."));
     }
 
     @Override
@@ -551,7 +552,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
         if (!supportsRole(currentUser.getRole())) {
-            callback.onError("?꾩옱 怨꾩젙? ?숉뻾 梨꾪똿???ъ슜?????놁뒿?덈떎.");
+            callback.onError("현재 계정은 동행 채팅을 사용할 수 없습니다.");
             return;
         }
 
@@ -567,17 +568,16 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(documentSnapshot);
                     if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("?숉뻾 ?붿껌 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+                        callback.onError("동행 요청 정보를 확인하지 못했습니다.");
                         return;
                     }
 
-                    firestore.collection("companionSessions")
-                            .whereEqualTo("appointmentRequestId", requestId)
+                    buildSessionQuery(currentUser, requestId)
                             .get()
                             .addOnSuccessListener(querySnapshot -> {
                                 DocumentSnapshot activeSessionSnapshot = findActiveSessionDocument(querySnapshot);
                                 if (activeSessionSnapshot == null) {
-                                    callback.onError("吏꾪뻾 以묒씤 ?숉뻾 ?몄뀡???놁뒿?덈떎.");
+                                    callback.onError("진행 중인 동행 세션이 없습니다.");
                                     return;
                                 }
 
@@ -591,15 +591,15 @@ public class FirebaseBookingRepository implements BookingRepository {
                                 activeSessionSnapshot.getReference()
                                         .update(updates)
                                         .addOnSuccessListener(unused ->
-                                                loadAppointmentRequestDetail(request, callback))
+                                                loadAppointmentRequestDetail(currentUser, request, callback))
                                         .addOnFailureListener(exception ->
-                                                callback.onError("硫붿떆吏瑜??꾩넚?섏? 紐삵뻽?듬땲??"));
+                                                callback.onError("메시지를 전송하지 못했습니다."));
                             })
                             .addOnFailureListener(exception ->
-                                    callback.onError("吏꾪뻾 以묒씤 ?숉뻾 ?몄뀡???뺤씤?섏? 紐삵뻽?듬땲??"));
+                                    callback.onError("진행 중인 동행 세션을 확인하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?숉뻾 ?붿껌 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??"));
+                        callback.onError("동행 요청 정보를 확인하지 못했습니다."));
     }
 
     @Override
@@ -608,8 +608,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             return;
         }
 
-        firestore.collection("companionSessions")
-                .whereEqualTo("appointmentRequestId", requestId)
+        buildSessionQuery(currentUser, requestId)
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     DocumentSnapshot activeSessionSnapshot = findActiveSessionDocument(querySnapshot);
@@ -641,6 +640,15 @@ public class FirebaseBookingRepository implements BookingRepository {
         return null;
     }
 
+    private Query buildSessionQuery(User currentUser, String requestId) {
+        String participantField = currentUser.getRole() == UserRole.PATIENT
+                ? "patientUserId"
+                : "guardianUserId";
+        return firestore.collection("companionSessions")
+                .whereEqualTo("appointmentRequestId", requestId)
+                .whereEqualTo(participantField, currentUser.getId());
+    }
+
     private boolean canMutateRequest(User currentUser, @Nullable AppointmentRequest request) {
         if (request == null || request.getStatus() != AppointmentStatus.REQUESTED) {
             return false;
@@ -670,6 +678,7 @@ public class FirebaseBookingRepository implements BookingRepository {
     }
 
     private void loadAppointmentRequestDetail(
+            User currentUser,
             AppointmentRequest request,
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
@@ -688,8 +697,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                 request.getGuardianPhone()
         );
         Task<User> managerTask = loadAssignedManagerProfile(request.getId());
-        Task<QuerySnapshot> sessionTask = firestore.collection("companionSessions")
-                .whereEqualTo("appointmentRequestId", request.getId())
+        Task<QuerySnapshot> sessionTask = buildSessionQuery(currentUser, request.getId())
                 .limit(1)
                 .get();
         Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")
@@ -736,12 +744,12 @@ public class FirebaseBookingRepository implements BookingRepository {
                                     )
                             ))
                             .addOnFailureListener(exception ->
-                                    callback.onError("吏꾪뻾 由ы룷?몃? 遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                                    callback.onError("진행 리포트를 불러오지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
                         callback.onError(resolveAssignedManagerProfileMessage(
                                 exception,
-                                "?붿껌 ?곸꽭 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"
+                                "요청 상세 정보를 불러오지 못했습니다."
                         )));
     }
 
@@ -753,13 +761,13 @@ public class FirebaseBookingRepository implements BookingRepository {
                 .addOnSuccessListener(updatedSnapshot -> {
                     AppointmentRequest request = toAppointmentRequest(updatedSnapshot);
                     if (request == null) {
-                        callback.onError("?붿껌 ?뺣낫瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+                        callback.onError("요청 정보를 다시 불러오지 못했습니다.");
                         return;
                     }
                     callback.onSuccess(request);
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?붿껌 ?뺣낫瑜??ㅼ떆 遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("요청 정보를 다시 불러오지 못했습니다."));
     }
 
     private Map<String, Object> buildRequestDocument(
@@ -916,7 +924,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                 }
             }
         }
-        return "?곌껐??怨꾩젙 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??";
+        return "연결할 계정 정보를 확인하지 못했습니다.";
     }
 
     private Task<User> loadAssignedManagerProfile(String requestId) {
@@ -930,7 +938,7 @@ public class FirebaseBookingRepository implements BookingRepository {
                         if (exception != null) {
                             throw exception;
                         }
-                        throw new IllegalStateException("留ㅻ땲? ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+                        throw new IllegalStateException("매니저 정보를 불러오지 못했습니다.");
                     }
                     return toAssignedManagerUser(task.getResult().getData());
                 });
@@ -1486,7 +1494,7 @@ public class FirebaseBookingRepository implements BookingRepository {
             return null;
         }
 
-        // ?덉빟 ?뚮┝ ?ㅼ?以꾨윭媛 媛숈? 湲곗??쇰줈 怨꾩궛?????덈룄濡??낅젰媛믪쓣 ?쒖슱 ?쒓컙 湲곗??쇰줈 ?뚯떛?쒕떎.
+        // 예약 알림 스케줄러가 같은 기준으로 계산할 수 있도록 입력값을 서울 시간 기준으로 파싱한다.
         SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
         parser.setLenient(false);
         parser.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
@@ -1543,6 +1551,3 @@ public class FirebaseBookingRepository implements BookingRepository {
         }
     }
 }
-
-
-

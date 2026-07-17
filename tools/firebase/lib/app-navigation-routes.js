@@ -46,6 +46,14 @@ const ROUTE_PRESETS = {
     automationScreen: "GUARDIAN_REPORT",
     expectedActivity: `${APPLICATION_ID}/com.example.bodeul.ui.report.GuardianReportActivity`,
   },
+  "guardian-chat": {
+    screenId: "guardian-chat",
+    title: "보호자 안심 채팅",
+    role: "GUARDIAN",
+    automationScreen: "COMPANION_CHAT",
+    expectedActivity: `${APPLICATION_ID}/com.example.bodeul.ui.chat.CompanionChatActivity`,
+    defaultRequestId: "request-seed-progress",
+  },
   "manager-home": {
     screenId: "manager-home",
     title: "매니저 홈",
@@ -66,6 +74,13 @@ const ROUTE_PRESETS = {
     role: "MANAGER",
     automationScreen: "MANAGER_GUIDE",
     expectedActivity: `${APPLICATION_ID}/com.example.bodeul.ui.manager.ManagerGuideActivity`,
+  },
+  "manager-chat": {
+    screenId: "manager-chat",
+    title: "매니저 안심 채팅",
+    role: "MANAGER",
+    automationScreen: "COMPANION_CHAT",
+    expectedActivity: `${APPLICATION_ID}/com.example.bodeul.ui.chat.CompanionChatActivity`,
   },
   "manager-support": {
     screenId: "manager-support",
