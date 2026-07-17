@@ -7,7 +7,7 @@
 - [설계 판단 기록 규칙](decision-log.md)
   - 작업 목적, 선택 방식, 대안, 선택 이유, 리스크를 남기는 팀 운영 기준
 - [현재 인프라 구성도](infra-overview.md)
-  - 다음 회의에서 한 장으로 설명할 Android, 관리자 웹, Firebase, Supabase PostgreSQL, `bodeul-api`, 운영 도구 흐름
+  - Android, Next.js 관리자 서버, Spring Core API, Firebase와 Supabase PostgreSQL의 현재 흐름
 - [Firebase 선택 근거](why-firebase.md)
   - Firebase 중심 BaaS 구조를 유지하는 이유와 대안, 전환 조건
 - [Firestore 선택 근거](why-firestore.md)
@@ -29,13 +29,13 @@
 - [관리자 웹 데이터 계약](admin-web-data-contract.md)
   - 레포 분리 전 고정해야 하는 Auth, Firestore, Storage, Functions 계약
 - [관리자 API 초기 응답 계약](admin-api-contract.md)
-  - `bodeul-api`로 관리자 웹을 전환하기 전 고정한 초기 인증과 응답 계약
+  - 종료된 Node prototype에서 Next.js로 이관한 초기 인증과 응답 계약 기록
 - [인프라 리스크와 보완 계획](infra-risk-review.md)
   - Rules, App Check, 백업/복원, API Key, 비용, Hosting 리스크
 - [멘토 Q&A 준비](mentor-qna.md)
   - Firebase, Firestore, 앱 구조, 관리자 웹, 보안/운영 예상 질문 답변
 - [인프라 개요](infrastructure.md)
-  - Android 앱, 관리자 웹, `bodeul-api`, Firebase, Supabase PostgreSQL, 운영 도구, CI 구성
+  - Android 앱, Next.js 관리자 서버, Spring Core API, Firebase, Supabase PostgreSQL과 CI 구성
 - [시스템 아키텍처 다이어그램](system-architecture-diagram.md)
   - 현재 구현과 목표 인프라의 Android, 관리자 웹, Firebase, PostgreSQL, Kakao API 흐름
 - [DB 선택 근거](database-selection.md)

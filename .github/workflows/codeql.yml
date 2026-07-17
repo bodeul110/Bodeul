@@ -74,7 +74,7 @@ jobs:
                   ;;
               esac
               case "$file" in
-                admin-web/*|functions/*|tools/firebase/*|.github/workflows/codeql.yml|.github/codeql/*)
+                functions/*|tools/firebase/*|.github/workflows/codeql.yml|.github/codeql/*)
                   javascript=true
                   ;;
               esac

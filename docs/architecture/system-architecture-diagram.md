@@ -1,128 +1,68 @@
 # 시스템 아키텍처 다이어그램
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
-현재 구현과 운영 목표를 구분해서 표시한다. 목표 다이어그램은 배포 완료 상태가 아니다.
-
-## 현재 구현
+개발 환경에서 실제 검증한 서버 경계와 아직 전환 중인 데이터 경계를 함께 표시한다.
 
 ```mermaid
 flowchart LR
   subgraph Client["클라이언트"]
-    Android["Android 앱\n환자·보호자·매니저"]
-    AdminVite["관리자 웹\nReact + Vite"]
-  end
-
-  subgraph Preview["전환 검증"]
-    NodeApi["Node bodeul-api\nOracle preview"]
-    SpringApi["Spring Core API\nCloud Run preview"]
-    Postgres["Supabase PostgreSQL"]
-  end
-
-  subgraph Firebase["Firebase"]
-    Auth["Firebase Auth"]
-    Firestore["Cloud Firestore"]
-    Storage["Firebase Storage"]
-    Functions["Cloud Functions"]
-    FCM["Firebase Cloud Messaging"]
-  end
-
-  subgraph External["외부 연동"]
-    KakaoLogin["Kakao Login API"]
-    KakaoLocal["Kakao Local REST API"]
-    Alimtalk["알림톡 provider"]
-  end
-
-  Android --> Auth
-  AdminVite --> Auth
-  Android --> Firestore
-  AdminVite --> Firestore
-  Android --> Storage
-  AdminVite --> Storage
-
-  AdminVite -. "병원 가이드 API 모드" .-> NodeApi
-  NodeApi -->|"Firebase ID token 검증"| Auth
-  NodeApi --> Postgres
-
-  Android -->|"Firebase ID token\n장소 검색"| SpringApi
-  SpringApi -->|"Firebase ID token 검증"| Auth
-  SpringApi -->|"core DB role"| Postgres
-  SpringApi --> KakaoLocal
-
-  Android -->|"Kakao access token"| Functions
-  Functions --> KakaoLogin
-  Functions --> Auth
-  Firestore --> Functions
-  Functions --> FCM
-  Functions -. "연동값 준비 시" .-> Alimtalk
-```
-
-현재 상태의 핵심:
-
-- 관리자 웹 대부분과 Android 앱은 Firestore를 직접 사용한다.
-- Node `bodeul-api`는 병원 가이드 read API와 인증·DB 경계를 검증한 preview 자산이다.
-- Spring Core API preview는 Firebase ID token과 PostgreSQL 역할을 검증하고 Kakao Local 장소 검색을 대행한다.
-- Android는 Kakao Local REST를 직접 호출하지 않는다. Core API 검색 실패 시 로컬 병원 목록 또는 기본 지도 안내를 사용한다.
-- 알림톡 전송 코드는 있으나 배포된 운영 발송 함수는 확인되지 않았다.
-
-## 목표 인프라
-
-```mermaid
-flowchart LR
-  subgraph Clients["클라이언트"]
-    AdminBrowser["관리자 브라우저"]
-    UserWeb["환자·보호자·매니저 웹"]
+    Admin["관리자 브라우저"]
     Android["Android 앱"]
+    UserWeb["사용자·매니저 웹\n후속 범위"]
   end
 
-  subgraph Vercel["Vercel"]
-    AdminNext["Next.js 관리자 웹/서버"]
-  end
-
-  subgraph CloudRun["Google Cloud Run"]
-    Spring["Spring Core API"]
-  end
-
-  subgraph Shared["공용 데이터"]
-    Postgres["Supabase PostgreSQL"]
-    Storage["Firebase Storage"]
+  subgraph Runtime["독립 런타임"]
+    Next["Vercel\nNext.js 관리자 서버"]
+    Spring["Cloud Run Tokyo\nSpring Core API"]
   end
 
   subgraph Firebase["Firebase 유지"]
-    Auth["Firebase Auth"]
-    Functions["Firebase 결합 Functions"]
+    Auth["Authentication"]
+    Firestore["Firestore\n전환 전 source of truth"]
+    Storage["Storage"]
+    Functions["Functions"]
     FCM["FCM"]
   end
 
-  subgraph External["외부 연동"]
-    Kakao["Kakao REST / 알림톡"]
+  subgraph Database["Supabase PostgreSQL"]
+    Schema["bodeul schema"]
+    AdminRole["admin read role"]
+    CoreRole["core runtime role"]
+    Migration["migration role"]
   end
 
-  AdminBrowser --> AdminNext
-  UserWeb --> Spring
+  Kakao["Kakao Local REST"]
+
+  Admin --> Next
   Android --> Spring
-
-  AdminBrowser --> Auth
-  UserWeb --> Auth
+  UserWeb --> Spring
+  Admin --> Auth
   Android --> Auth
-  AdminNext -->|"token 검증"| Auth
-  Spring -->|"token 검증"| Auth
-
-  AdminNext -->|"admin DB role"| Postgres
-  Spring -->|"core DB role"| Postgres
+  UserWeb --> Auth
+  Next -->|"ID token 검증"| Auth
+  Spring -->|"ID token 검증"| Auth
+  Next --> AdminRole
+  Spring --> CoreRole
+  AdminRole --> Schema
+  CoreRole --> Schema
+  Migration --> Schema
   Spring --> Kakao
-  AdminNext --> Storage
-  Spring --> Storage
+  Android --> Firestore
+  Next --> Storage
+  Android --> Storage
+  Firestore --> Functions
   Functions --> FCM
   FCM --> Android
 ```
 
-목표 상태의 핵심:
+## 해석
 
-- Vercel Next.js 관리자 서버와 Cloud Run Spring Core API는 서로를 경유하지 않는다.
-- 두 서버는 같은 PostgreSQL을 사용하되 별도 runtime role과 공용 migration을 사용한다.
-- Firebase Auth와 FCM은 유지한다.
-- Kakao REST와 알림톡은 Spring Core API 뒤로 옮기고, 클라이언트 SDK가 필요한 로그인과 지도만 Android에 남긴다.
-- Android의 WebView 전환은 별도 제품 결정이며 인프라 선행 조건이 아니다.
+- 관리자 서버와 Core API는 서로를 호출하지 않고 같은 DB에 별도 role로 접근한다.
+- DB migration은 메인 저장소의 Spring 모듈만 소유한다.
+- Firebase Auth, FCM, Storage는 유지한다.
+- Firestore는 도메인별 전환이 끝날 때까지 남으며, PostgreSQL read model이 있다고 바로 source of truth가 바뀌는 것은 아니다.
+- Android의 Kakao 로그인·지도 SDK는 클라이언트에 남지만 Kakao Local REST는 Core API 뒤에 둔다.
+- production 프로젝트 분리는 아직 남아 있으므로 이 다이어그램은 개발 인프라 검증 완료와 운영 전환 목표를 함께 나타낸다.
 
-상세 기준은 [목표 인프라 구조](target-infrastructure.md)와 [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)을 따른다.
+상세 판단은 [현재 인프라 구성도](infra-overview.md)와 [목표 인프라 구조](target-infrastructure.md)를 따른다.

@@ -1,191 +1,78 @@
 # 목표 인프라 구조
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
-## 결정 상태
+## 결정
 
-이 문서는 멘토링에서 합의한 운영 목표와 현재 도달 지점을 기록한다. Spring Core API의 개발 실행 환경과 관리자 Next.js 첫 서버 경계는 반영됐다. 관리자 DB 접속, 인증된 200/403, 전체 클라이언트 연결과 production 환경은 아직 완료되지 않았다.
+관리자와 사용자 서버를 분리하고 공용 PostgreSQL만 공유한다.
 
-- 현재 관리자 웹의 기본 배포 코드는 별도 저장소의 React + Next.js이며 Vite는 rollback 경로다.
-- 병원 가이드 Route Handler와 Vercel Preview의 루트 200·인증 없는 API 401을 확인했다. 관리자 DB 접속은 아직 비활성화 상태다.
-- 현재 `api/`는 Node.js + TypeScript로 만든 전환 검증용 API다.
-- Oracle에서 Node API, Supabase, Firebase Admin을 연결한 과거 preview 검증은 통과했지만 production 전환은 하지 않았다.
-- Oracle Free Tier 계정 잠금 이후 Spring Core API의 개발 실행 환경은 Google Cloud Run으로 변경했고, preview 배포와 rollback을 검증했다.
-- 목표는 관리자 경로와 사용자 경로가 서로의 서버를 거치지 않고 공용 PostgreSQL에 각각 접근하게 만드는 것이다.
+- 관리자 브라우저 → Vercel Next.js 관리자 서버 → Supabase PostgreSQL
+- 환자·보호자·매니저 웹/앱 → Cloud Run Spring Core API → Supabase PostgreSQL
+- Firebase Auth, FCM, Storage와 Firebase 결합 Functions는 유지한다.
+- 두 서버는 서로를 proxy로 호출하지 않는다.
+- Kakao Local REST와 서버 비밀값이 필요한 외부 연동은 Spring Core API가 소유한다.
 
-## 목표 구조
+## 선택 이유
 
-```mermaid
-flowchart LR
-  subgraph Clients["클라이언트"]
-    AdminBrowser["관리자 브라우저"]
-    UserWeb["환자·보호자·매니저 웹"]
-    Android["Android 앱"]
-  end
+관리자 화면은 운영 권한과 배포 주기가 사용자 서비스와 다르다. Next.js 서버가 관리자 전용 DB role을 직접 사용하면 불필요한 서버 간 hop과 CORS 경계를 만들지 않으면서 권한을 분리할 수 있다. 사용자 서비스는 Java/Spring으로 도메인 계약과 외부 API를 한 곳에 모으고 Cloud Run에서 독립 배포한다.
 
-  subgraph Vercel["Vercel"]
-    AdminNext["관리자 웹 + 관리자 서버\nNext.js"]
-  end
+현재 MVP 규모에서는 인증·푸시·파일까지 한 번에 교체하는 비용이 크므로 Firebase를 유지한다. 관계형 무결성, 감사 이력, 정산·통계에 유리한 데이터부터 PostgreSQL로 옮긴다.
 
-  subgraph CloudRun["Google Cloud Run"]
-    CoreApi["Bodeul Core API\nSpring Boot"]
-  end
+## 서버와 DB 경계
 
-  subgraph Data["공용 데이터"]
-    Postgres["Supabase PostgreSQL"]
-    Storage["Firebase Storage"]
-  end
+| 범위 | 관리자 서버 | Core API |
+| --- | --- | --- |
+| 런타임 | Vercel Next.js | Google Cloud Run Spring Boot |
+| 인증 | Firebase ID token | Firebase ID token |
+| 인가 | PostgreSQL `ADMIN` role | 사용자·보호자·매니저 role |
+| DB 접속 | `bodeul_admin_service` | `bodeul_core_service` |
+| 연결 상한 | 5 | 5 |
+| 외부 API | 관리자 전용 후속 연동 | Kakao Local 등 사용자 서비스 연동 |
 
-  subgraph Firebase["Firebase 유지 영역"]
-    Auth["Firebase Auth"]
-    FCM["Firebase Cloud Messaging"]
-    Functions["Firebase 결합 보조 Functions"]
-  end
+DDL은 메인 저장소 `core-api/`의 Flyway migration만 소유한다. 런타임 계정에는 필요한 DML만 부여하고 migration 자격 증명을 전달하지 않는다. 브라우저와 APK에는 PostgreSQL 접속 문자열을 넣지 않는다.
 
-  subgraph External["외부 서비스"]
-    Kakao["Kakao REST / 알림톡"]
-  end
+## 현재 도달 상태
 
-  AdminBrowser --> AdminNext
-  UserWeb --> CoreApi
-  Android --> CoreApi
+- Spring Core API Cloud Run preview, WIF 배포, Secret Manager, DB 연결과 rollback을 검증했다.
+- 관리자 Next.js Preview에서 Firebase token과 PostgreSQL 관리자 role을 사용한 401·403·200을 검증했다.
+- 관리자 DB role은 읽기 전용이고 Preview 환경에만 자격 증명을 두었다.
+- Node API 프로토타입과 메인 저장소 관리자 웹 중복본은 제거했다.
+- Android의 Kakao Local REST 직접 호출과 REST 키를 제거했다.
+- 예약 요청은 PostgreSQL read model 백필까지 진행했지만 쓰기 source of truth는 아직 Firestore다.
 
-  AdminBrowser --> Auth
-  UserWeb --> Auth
-  Android --> Auth
-  AdminNext -->|"ID token 검증"| Auth
-  CoreApi -->|"ID token 검증"| Auth
+## 대안과 판단
 
-  AdminNext -->|"관리자 전용 DB role"| Postgres
-  CoreApi -->|"코어 서비스 DB role"| Postgres
-  CoreApi --> Kakao
-  Functions --> FCM
-  FCM --> Android
-  AdminNext --> Storage
-  CoreApi --> Storage
-```
+| 대안 | 장점 | 현재 판단 |
+| --- | --- | --- |
+| 하나의 Spring 서버가 관리자와 사용자를 모두 처리 | 서버 수가 적다. | 권한·배포 경계가 다시 결합되므로 채택하지 않는다. |
+| Next.js가 Spring을 거쳐 DB 접근 | DB 진입점이 하나다. | 관리자 요청에 불필요한 hop과 장애 지점이 생겨 채택하지 않는다. |
+| 클라이언트가 Supabase Data API 직접 사용 | 구현이 빠르다. | 서버 비밀값과 복합 인가를 통제하기 어려워 채택하지 않는다. |
+| Firebase 전체 즉시 제거 | 기술 스택이 단순해진다. | Auth·FCM·Storage·실시간 기능 전환 비용이 현재 규모에 비해 커서 채택하지 않는다. |
 
-## 서버 경계
+## production 전환 조건
 
-### 관리자 웹
+1. 개발과 분리된 Firebase, Supabase, Vercel, Cloud Run 자원을 만든다.
+2. production migration과 runtime 자격 증명을 별도 Environment/Secret Manager에 둔다.
+3. custom domain, Firebase Auth authorized domain, App Check enforcement를 검증한다.
+4. backup/restore와 직전 revision rollback을 production 유사 환경에서 리허설한다.
+5. 도메인별 source of truth, 이중 쓰기 금지와 rollback 기준을 문서화한다.
+6. 비용 알림, 로그 보존, 관리자 감사 이력과 장애 대응 담당을 확정한다.
 
-- 저장소와 배포 단위는 `bodeul-admin-web`으로 유지한다.
-- 런타임은 Vercel에 배포하는 Next.js로 전환했다.
-- 관리자 브라우저는 Firebase Auth로 로그인하고 ID token을 관리자 서버에 전달한다.
-- Next.js 서버가 Firebase ID token과 PostgreSQL의 관리자 role을 확인한다.
-- Next.js 서버가 Supabase PostgreSQL에 직접 연결한다.
-- 관리자 서버가 Spring Core API를 다시 호출한 뒤 DB로 가는 연쇄 구조는 만들지 않는다.
+## 리스크
 
-여기서 직접 연결은 브라우저의 DB 접속이 아니라 Vercel 서버 코드의 PostgreSQL 접속을 뜻한다. DB 접속 문자열과 privileged key는 `NEXT_PUBLIC_` 환경변수에 넣지 않는다.
+- Firestore와 PostgreSQL 병행 기간에는 데이터 불일치가 생길 수 있다.
+- 두 서버가 같은 테이블을 다르게 해석하면 계약이 분기될 수 있다.
+- Vercel과 Cloud Run의 연결 수가 DB 한도를 잠식할 수 있다.
+- Firebase role과 PostgreSQL role 동기화가 늦으면 접근 판단이 달라질 수 있다.
 
-### 사용자 서비스
-
-- 환자, 보호자, 매니저 웹과 Android 앱은 Spring Core API를 사용한다.
-- Core API는 Java + Spring Boot로 구현하고 Google Cloud Run에 독립 배포한다.
-- 예약, 매칭, 동행 세션, 리포트, 사용자용 조회와 쓰기를 담당한다.
-- 외부 REST API와 서버 비밀값이 필요한 연동은 Core API가 소유한다.
-- Android를 WebView로 바꾸는 작업은 인프라 전환과 분리한다. 현재 네이티브 앱은 Core API client로 전환한다.
-
-### 공용 DB
-
-- 관리자 서버와 Core API는 같은 Supabase PostgreSQL을 사용한다.
-- DDL과 migration은 한 곳에서만 관리한다. 초기 migration 소유자는 메인 저장소의 `core-api/`로 둔다.
-- 서버 전용 테이블은 Data API에 노출하지 않는 `bodeul` schema에 둔다.
-- 권한 role은 `bodeul_migration`, `bodeul_core_runtime`, `bodeul_admin_runtime`으로 분리한다.
-- 접속 role은 `bodeul_migrator`, `bodeul_core_service`, `bodeul_admin_service`로 분리하고 비밀번호는 migration 파일 밖에서 설정한다.
-- 관리자 서버와 Core API가 같은 테이블을 임의로 다르게 해석하지 않도록 공용 데이터 계약을 문서화한다.
-- Firebase UID는 `app_users.firebase_uid`로 연결하고, 권한은 PostgreSQL role을 최종 기준으로 검증한다.
-
-Supabase Data API를 클라이언트에서 사용하지 않는 테이블은 공개 API 노출 대상에서 제외한다. `public`의 신규 객체 자동 grant는 차단하고, 서버 전용 테이블은 `bodeul` schema에서 명시적 DML grant만 사용한다.
-
-## 연결 방식
-
-| 실행 환경 | PostgreSQL 연결 기준 |
-| --- | --- |
-| Vercel Next.js | 짧은 수명의 서버리스 연결이므로 Supavisor transaction mode 6543 포트를 사용한다. prepared statement 비활성화 여부를 DB client 기준으로 확인한다. |
-| Cloud Run Spring Core API | 외부 PostgreSQL 연결은 IPv4가 가능한 Supavisor session mode 5432를 우선 사용한다. 최소 인스턴스 0, 최대 인스턴스 1, pool max 5로 개발 비용과 DB 연결 수를 제한한다. |
-| migration, backup, restore | 가능하면 direct connection을 사용하고 런타임 role과 분리한 migration role을 사용한다. |
-
-개발 DB의 `max_connections` 60을 기준으로 Core 5, Admin 5, Migration 2의 상한으로 시작한다. 합계 12개는 전체의 20%이며 Auth, Storage 등 Supabase 관리 서비스의 연결 여유를 남긴다. 연결 문자열은 Vercel과 Google Secret Manager의 비공개 환경 설정에만 둔다.
-
-## Firebase 유지 범위
-
-| 기능 | 결정 |
-| --- | --- |
-| Auth | 유지. 관리자 서버와 Core API가 ID token을 검증한다. |
-| FCM | 유지. 앱 푸시 전환은 DB 전환과 분리한다. |
-| Storage | 유지 후보. 파일 원본은 Storage, 심사 상태와 메타데이터는 PostgreSQL에 둔다. |
-| Functions | FCM 트리거, 소셜 로그인 custom token처럼 Firebase에 강하게 결합된 작업만 유지한다. |
-| Firestore | 도메인별 전환이 끝날 때까지 기존 source of truth로 유지하고, 전환 완료 후 read-only 또는 종료 여부를 결정한다. |
-| Hosting | 관리자 production은 Vercel을 사용한다. Firebase Hosting은 기존 검증 기록과 rollback 범위로만 관리한다. |
-
-## Kakao 경계
-
-- Kakao 로그인과 지도 SDK처럼 클라이언트 SDK가 필요한 기능은 Android에 남긴다.
-- Native App Key는 APK에 포함되는 값이므로 Kakao 플랫폼의 패키지명과 키 해시 제한을 적용한다.
-- Kakao Local REST, 알림톡, 관리자 키처럼 서버 자격 증명이 필요한 호출은 Spring Core API 뒤로 옮긴다.
-- Android와 관리자 웹에 REST API key, 알림톡 provider key, Admin key를 넣지 않는다.
-- Android의 Kakao Local 직접 호출과 REST 키 리소스는 제거했다. 검색 실패 시 로컬 병원 목록 또는 기본 지도 안내를 사용한다.
-
-## 현재 자산의 처리
-
-| 현재 자산 | 처리 방향 |
-| --- | --- |
-| `api/` Node.js 서버 | 운영 후보에서 제외하고 동결된 계약 검증용 프로토타입으로 보존한다. 관리자 Next.js의 실제 200/403과 결과 비교 뒤 소스와 CI를 함께 제거한다. |
-| React + Vite 관리자 웹 | Next.js에 UI를 연결했고 Vite는 실제 비교와 rollback 판단이 끝날 때까지만 유지한다. |
-| Android Firebase Repository | 화면별로 Core API Repository를 추가하고 feature flag로 전환한다. |
-| Firestore 데이터 | 도메인별 backup, import, row 비교 후 PostgreSQL source of truth로 바꾼다. |
-| Oracle preview VM | 과거 Node API 검증 기록만 보존한다. Cloud Run 전환 후 Spring 배포나 production 의존성을 두지 않는다. |
-
-## 구축 순서
-
-1. 메인 저장소의 `core-api/`에 Java LTS, Spring Boot 기준과 독립 CI를 만든다.
-2. Supabase runtime/migration role과 연결 방식을 확정하고 secret 위치를 나눈다.
-3. Firebase ID token 검증과 PostgreSQL role 인가를 Spring에 이식하고 첫 migration을 개발 DB에서 검증한다.
-4. Cloud Run Spring preview의 HTTPS, revision, 로그, 헬스체크, rollback과 실제 Firebase token/PostgreSQL role 연결 검증을 완료했다.
-5. Kakao Local REST proxy와 Android Core API client 구현을 완료했고, Cloud Run Secret Manager 주입과 인증된 실호출을 검증했다.
-6. 관리자 웹의 Next.js 서버 경계와 Vercel Preview를 만들었다. 관리자 DB 접속을 활성화한 뒤 실제 ADMIN 200과 비관리자 403을 확인한다.
-7. 병원 가이드 결과 비교가 통과하면 Node `api/`와 Vite rollback 종료 시점을 확정하고, 기존 Firestore 직접 접근을 도메인별로 종료한다.
-8. backup/restore와 rollback 리허설 후 production 환경을 만든다.
-
-## 배포 이름
-
-| 항목 | 이름 |
-| --- | --- |
-| 관리자 저장소 | `bodeul-admin-web` |
-| Core API 소스 경로 | `Bodeul/core-api/` |
-| 개발 Cloud Run 서비스 | `bodeul-core-api-preview` |
-| 운영 Cloud Run 서비스 후보 | `bodeul-core-api-production` |
-| 개발 Supabase 프로젝트 | `bodeul-dev-rdb` |
-| 운영 Supabase 프로젝트 | `bodeul-prod-rdb` |
-| 개발 GitHub Environment | `core-api-preview` |
-| 운영 GitHub Environment | `core-api-production` |
-| 개발 migration Environment | `core-api-migration-preview` |
-| 운영 migration Environment | `core-api-migration-production` |
-| 관리자 preview Environment | `admin-web-preview` |
-| 관리자 production Environment | `admin-web-production` |
-
-도메인을 확보하기 전에는 Vercel 기본 도메인과 제한된 preview endpoint만 사용한다. production API는 도메인과 HTTPS가 준비되기 전에는 공개하지 않는다.
-
-## 완료 조건
-
-- 관리자 요청이 Spring 또는 기존 Node API를 거쳐 다시 DB로 가는 중복 경로 없이 Next.js 서버에서 PostgreSQL로 전달된다.
-- 사용자 앱과 웹은 Spring Core API만 호출한다.
-- Firebase ID token 검증, PostgreSQL role 인가, audit log가 두 서버에서 검증된다.
-- 서버 비밀값이 브라우저나 APK에 포함되지 않는다.
-- Spring Core API가 Cloud Run에서 HTTPS, 전용 runtime 서비스 계정, health check, revision rollback 기준과 함께 동작한다.
-- Firestore와 PostgreSQL의 source of truth가 도메인별로 한 곳만 지정된다.
-- Node `api/` 종료 조건과 실제 종료 결과가 기록된다.
-
-Node 종료 판단과 현재 차단 조건은 [Issue 159 Node API 종료 판단 기록](../reports/issue-159-node-api-retirement-audit-2026-07-16.md)에 정리한다.
+이를 줄이기 위해 도메인별 한 개의 source of truth, 공용 migration, 서버별 최소 권한 role, 연결 상한과 결과 비교를 유지한다.
 
 ## 관련 문서
 
+- [현재 인프라 구성도](infra-overview.md)
 - [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
-- [PostgreSQL 운영 전환 런북](../operations/postgres-operational-transition-runbook.md)
-- [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)
-- [관리자 웹 역할 설명](admin-web-architecture.md)
-- [시스템 아키텍처 다이어그램](system-architecture-diagram.md)
+- [Issue 159 Node API 종료 기록](../reports/issue-159-node-api-retirement-audit-2026-07-16.md)
+- [관리자 웹 환경 기준](../operations/admin-web-environments.md)

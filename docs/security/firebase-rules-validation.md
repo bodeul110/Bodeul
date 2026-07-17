@@ -1,6 +1,6 @@
 # Firestore/Storage Rules 검증 정리
 
-기준일: 2026-06-25
+기준일: 2026-07-17
 
 이 문서는 현재 `firestore.rules`, `storage.rules` 기준으로 환자, 보호자, 매니저, 관리자 권한 경계를 정리한다. 결론부터 말하면 현재 운영 권한은 Firebase Auth 로그인과 `users/{uid}.role` 문서 필드로 판정하며, custom claims 기반 관리자 권한은 아직 사용하지 않는다.
 
@@ -9,7 +9,7 @@
 - 인증 기준: Firebase Authentication 로그인 사용자
 - 역할 기준: `users/{uid}.role`
 - 관리자 값: `ADMIN`
-- 관리자 웹 진입: `admin-web/src/adminSession.ts`에서 로그인한 사용자의 `users/{uid}` 문서를 읽고 `role == "ADMIN"`인지 확인한다.
+- 관리자 웹 진입: 별도 `bodeul-admin-web` 저장소가 로그인 사용자의 `users/{uid}` 문서를 읽고 `role == "ADMIN"`인지 확인한다. 서버 API는 PostgreSQL role도 추가 확인한다.
 - Firestore Rules: `currentRole()`이 `users/{request.auth.uid}.role`을 읽고 `isAdmin()`, `isManager()`, `isPatient()`, `isGuardian()`을 계산한다.
 - Storage Rules: Firestore와 동일하게 `users/{uid}.role`을 읽어 관리자와 매니저 본인 여부를 판정한다.
 - Functions 수동 실행 callable: `dispatchAppointmentReminderJobs`, `dispatchAdminActionDeliveryJobs`는 호출자의 `users/{uid}.role == ADMIN`을 별도로 확인한다.

@@ -19,9 +19,6 @@ app/google-services.json
 .env
 .env.*
 !/.env.example
-admin-web/.env
-admin-web/.env.*
-!admin-web/.env.example
 functions/.env
 functions/.env.*
 !functions/.env.example
@@ -39,11 +36,11 @@ temp.txt
 .idea/easycode.ignore
 .idea/easycode/
 /functions/node_modules
+/admin-web/node_modules
+/admin-web/dist
 /api/node_modules
 /api/dist
-api/.env
-api/.env.*
-!api/.env.example
+/api/.tmp
 /tools/firebase/node_modules
 /tools/firebase/backups/*.json
 !/tools/firebase/backups/.gitkeep

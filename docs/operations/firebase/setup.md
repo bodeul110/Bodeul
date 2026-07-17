@@ -1,6 +1,6 @@
 # Firebase 설정
 
-기준일: 2026-06-23
+기준일: 2026-07-17
 
 ## 현재 프로젝트 상태
 
@@ -11,7 +11,7 @@
 - Functions: `functions/index.js` 집계 파일과 `functions/src/` 기능별 모듈
 - Firebase 설정이 없으면 앱은 자동으로 목업 모드로 동작한다.
 - 최신 기능설명서 기준으로 예약 후속, 문의, 관리자 후속 알림/전달 기록 컬렉션까지 확장 중이다.
-- 관리자 웹 운영 배포는 Firebase Hosting을 기준으로 하며, 루트 `firebase.json`의 `hosting` 블록이 `admin-web/dist`를 배포 대상으로 지정한다.
+- 관리자 웹은 별도 저장소의 Next.js/Vercel이 소유한다. 루트 `firebase.json`은 Functions, Firestore, Storage와 emulator 설정만 관리한다.
 
 ## 소셜 로그인 로컬 설정
 
@@ -38,37 +38,11 @@ bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 5. Authentication의 `Email/Password` 활성화
 6. Firestore 생성
 7. `firestore.rules`, `firestore.indexes.json` 배포
-8. 관리자 웹 운영 배포가 필요하면 Firebase Hosting 사이트와 도메인 설정 확인
+8. 관리자 웹 Firebase Web app과 Auth domain은 별도 저장소의 환경 기준으로 관리
 
-## 관리자 웹 Firebase Hosting
+## 관리자 웹 연결
 
-관리자 웹은 Vite 빌드 산출물인 `admin-web/dist`를 Firebase Hosting에 배포한다. 이 설정은 루트 [firebase.json](../../../firebase.json)의 `hosting` 블록에 둔다.
-
-배포 전 검증:
-
-```powershell
-cd D:\BoDeul
-npm --prefix admin-web run build
-```
-
-미리보기 채널:
-
-```powershell
-firebase hosting:channel:deploy admin-web-preview --project <firebase-project-id> --expires 7d
-```
-
-운영 배포:
-
-```powershell
-firebase deploy --only hosting --project <firebase-project-id>
-```
-
-운영 주의:
-
-- `admin-web/dist`는 빌드 산출물이므로 Git에 커밋하지 않는다.
-- `/assets/**`는 Vite 해시 파일 기준 장기 캐시한다.
-- HTML과 SPA fallback 경로는 새 배포가 바로 반영되도록 no-cache로 둔다.
-- 관리자 웹 진입은 Firebase Auth 로그인과 `users/{uid}.role == ADMIN` 검증을 모두 통과해야 한다.
+관리자 웹 build와 배포는 [bodeul-admin-web](https://github.com/bodeul110/bodeul-admin-web) 저장소에서 수행한다. 메인 저장소는 관리자 Hosting을 배포하지 않는다. Firebase Web config, Auth domain, App Check와 관리자 DB 접속 기준은 [관리자 웹 환경 기준](../admin-web-environments.md)을 따른다.
 
 ## 현재 쓰는 컬렉션
 
@@ -499,13 +473,9 @@ npm run seed:manager-docs:apply
 
 ### 관리자 웹
 
-- [admin-web/src/appCheck.ts](../../../admin-web/src/appCheck.ts)가 관리자 웹 App Check 초기화를 담당한다.
-- 필요한 환경 변수:
-  - `VITE_FIREBASE_APPCHECK_SITE_KEY`
-  - 선택: `VITE_FIREBASE_APPCHECK_DEBUG_TOKEN`
-- `localhost`, `127.0.0.1` 개발 환경에서는 디버그 토큰이 없으면 `FIREBASE_APPCHECK_DEBUG_TOKEN=true`로 토큰을 발급받는다.
-- 실제 reCAPTCHA 사이트 키가 없으면 관리자 웹은 App Check 초기화를 건너뛴다.
-- 현재 구현은 reCAPTCHA v3 provider 기준이다. 운영 enforcement 전에는 reCAPTCHA Enterprise 전환 여부를 별도로 판단한다.
+- 관리자 App Check 코드는 별도 `bodeul-admin-web` 저장소가 소유한다.
+- production 전에는 reCAPTCHA Enterprise provider, Preview의 `VALID` 요청과 custom backend 검증을 확인한다.
+- 개발 debug token과 provider 설정을 production으로 복사하지 않는다.
 
 ### Functions callable
 

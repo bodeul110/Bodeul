@@ -1,196 +1,92 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
-## 작업 목적
+## 결정
 
-멘토 피드백 이후 BoDeul 운영 저장소를 Firebase Firestore 단독 구조에서 PostgreSQL 기반 운영 DB 구조로 단계적으로 전환한다. 목표는 Firebase를 모두 제거하는 것이 아니라, Firebase가 잘 맡는 인프라 역할은 유지하고 예약, 매칭, 관리자 운영, 정산, 통계처럼 관계형 모델이 필요한 데이터를 PostgreSQL 중심으로 옮기는 것이다.
+Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도메인부터 Supabase PostgreSQL로 옮긴다.
 
-## 2026-07-16 목표 갱신
+- Firebase Auth, FCM, Storage와 Firebase 결합 Functions는 유지한다.
+- 사용자·매니저 API는 Cloud Run의 Spring Core API가 담당한다.
+- 관리자 API는 Vercel의 Next.js 관리자 서버가 담당한다.
+- 두 서버는 공용 PostgreSQL을 사용하되 서로를 경유하지 않는다.
+- Firestore는 전환 전 도메인의 source of truth로 유지한다.
 
-멘토링 피드백에 따라 운영 목표를 `Next.js 관리자 서버 + Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM 유지`로 갱신했다. 상세 경계와 구축 순서는 [목표 인프라 구조](target-infrastructure.md)를 기준으로 한다.
+## 현재 상태
 
-현재 `api/` Node.js 서버와 Vite 관리자 웹은 이 목표 구조의 production 구현이 아니다. Oracle/Supabase/Firebase Admin 연결과 API 계약을 확인한 전환용 프로토타입으로 유지하고, Cloud Run Spring Core API와 Next.js 관리자 서버가 같은 검증 기준을 충족한 뒤 종료한다.
-
-중복 서버 경로는 만들지 않는다.
-
-- 관리자 브라우저 → Vercel Next.js 관리자 서버 → Supabase PostgreSQL
-- 환자·보호자·매니저 웹/Android → Cloud Run Spring Core API → Supabase PostgreSQL
-- Next.js 관리자 서버 → Node API → Spring API → PostgreSQL 같은 연쇄 호출은 금지한다.
-
-## 기존 전환 검증 결론
-
-기존 1차 검증 기준은 `Firebase 인프라 유지 + Supabase PostgreSQL 운영 DB 전환 + Node bodeul-api 서버 경계`였다. 아래 완료 기록은 이 전환 검증 결과이며 새 운영 목표의 완료 상태를 뜻하지 않는다.
-
-| 영역 | 전환 결정 |
+| 단계 | 상태 |
 | --- | --- |
-| Auth | Firebase Auth 유지. API 서버와 마이그레이션 도구는 Firebase ID token 또는 Firebase UID를 기준으로 사용자를 연결한다. |
-| FCM | 유지. 푸시 전송은 DB 전환과 분리한다. |
-| Storage | 유지. 매니저 서류와 채팅 첨부 원본은 Storage에 두고, 메타데이터와 심사 이력만 PostgreSQL 전환 후보로 둔다. |
-| Hosting | Firebase Hosting preview workflow는 유지한다. 관리자 웹 production 배포 기준은 #134에서 확정한다. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했고, Vercel/Firebase preview URL 팀 공유 검증은 후속 작업으로 분리한다. |
-| Functions | FCM, Kakao/Naver custom token, Firebase 인프라 보조 작업은 유지한다. |
-| 운영 트랜잭션 DB | Supabase PostgreSQL을 1차 운영 DB 후보로 둔다. |
-| API 서버 | 현재 Node `bodeul-api`는 전환 검증용이다. 운영 목표는 사용자용 Spring Core API와 Next.js 관리자 서버로 분리한다. |
-| Firestore | 도메인별 전환 전까지 source of truth로 유지한다. 전환된 도메인에서는 읽기 호환 또는 shadow 저장소로 낮춘다. |
-
-## 현재 진행 상태
-
-| 단계 | 상태 | GitHub 근거 | 문서/코드 근거 |
-| --- | --- | --- | --- |
-| PostgreSQL 전환 기준 결정 | 완료 | [#89](https://github.com/bodeul110/Bodeul/pull/89), [#90](https://github.com/bodeul110/Bodeul/pull/90) | 이 문서, [PostgreSQL API 경계 기준](postgres-api-boundary.md) |
-| Supabase 개발 DB 준비 | 완료 | [#87](https://github.com/bodeul110/Bodeul/issues/87), [#101](https://github.com/bodeul110/Bodeul/pull/101) | [PostgreSQL seed dry-run 기준 기록](../reports/postgres-seed-dry-run-plan-2026-06-29.md) |
-| API 서버 골격 | 완료, 이슈 #88 종료 | [#109](https://github.com/bodeul110/Bodeul/pull/109), [#88](https://github.com/bodeul110/Bodeul/issues/88) | `api/`, [Issue 88 보고서](../reports/issue-88-api-skeleton-2026-06-30.md) |
-| Firebase Admin SDK 인증 | 완료 | [#114](https://github.com/bodeul110/Bodeul/pull/114), [#110](https://github.com/bodeul110/Bodeul/issues/110) | `api/src/firebase-admin.ts` |
-| PostgreSQL client | 완료 | [#115](https://github.com/bodeul110/Bodeul/pull/115), [#111](https://github.com/bodeul110/Bodeul/issues/111) | `api/src/database.ts` |
-| 관리자 role 인가 | 완료 | [#116](https://github.com/bodeul110/Bodeul/pull/116), [#112](https://github.com/bodeul110/Bodeul/issues/112) | `api/src/authorization.ts` |
-| 첫 read API | API 서버와 관리자 웹 병원 가이드 1차 연결 완료, 이슈 #113 종료 | [#117](https://github.com/bodeul110/Bodeul/pull/117), [#121](https://github.com/bodeul110/Bodeul/pull/121), [#113](https://github.com/bodeul110/Bodeul/issues/113) | `api/src/hospital-guides.ts`, `admin-web/src/components/HospitalGuideApiPanel.tsx`, [관리자 API 계약](admin-api-contract.md) |
-| API 환경 설정 | 완료 | [#122](https://github.com/bodeul110/Bodeul/issues/122), [#128](https://github.com/bodeul110/Bodeul/pull/128) | `BODEUL_API_ALLOWED_ORIGINS`, `VITE_BODEUL_API_BASE_URL`, `VITE_BODEUL_DATA_BACKEND` 기준 문서화 |
-| API 응답 비교 | 로컬 비교와 실제 배포 API 응답 비교 통과 | [#123](https://github.com/bodeul110/Bodeul/issues/123), [#137](https://github.com/bodeul110/Bodeul/pull/137), [#138](https://github.com/bodeul110/Bodeul/pull/138) | [병원 가이드 Firestore/API 응답 비교 기록](../reports/hospital-guide-firestore-api-comparison-2026-07-06.md), [실제 배포 API 응답 비교 기록](../reports/issue-123-live-api-comparison-2026-07-08.md), `compare:hospital-guides` |
-| API preview 실연동 인프라 | Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 1차 검증 완료, Vercel preview 후속 분리 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | Oracle API 실행 환경, Supabase 개발 DB, Firebase Admin 인증, 로컬 관리자 웹 API 모드 검증 |
-| production 배포 기준 | 미확정 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | production Firebase project, domain/Auth domain, App Check, WIF live deploy 조건 결정 필요 |
+| Supabase 개발 DB와 private `bodeul` schema | 완료 |
+| migration/core/admin role 분리 | 완료 |
+| Spring Core API Cloud Run 배포와 인증·DB 검증 | 완료 |
+| Kakao Local REST의 Core API 이전 | 완료 |
+| Next.js 관리자 서버의 인증·인가·병원 가이드 조회 | 완료 |
+| Node API와 메인 관리자 웹 중복본 종료 | 완료 |
+| 예약 요청 PostgreSQL read model 백필 | 완료, source of truth는 Firestore |
+| 도메인별 쓰기 전환 | 진행 전/부분 준비 |
+| production 프로젝트 분리 | 미완료 |
 
 ## 선택한 방식
 
-1. 같은 도메인의 source of truth는 하나만 둔다.
-2. Firebase Auth와 Supabase Auth를 동시에 운영하지 않는다. 인증 기준은 Firebase Auth로 고정한다.
-3. Android 앱과 관리자 웹은 PostgreSQL에 직접 접속하지 않는다.
-4. API 서버는 Firebase 대체 서버가 아니라 DB 접근, Firebase token 검증, 관리자/민감 쓰기 검증 경계로 시작한다.
-5. FCM, Storage, Hosting은 전환 전후에도 유지 후보로 본다.
-6. Supabase Realtime은 관리자 알림처럼 빈도가 예측 가능한 구독부터 검토한다.
-7. 실시간 위치 공유처럼 쓰기 빈도가 높은 기능은 마지막에 부하 테스트 후 Firestore 유지, Supabase Realtime, 서버 WebSocket/SSE 중 하나를 결정한다.
+1. 같은 도메인의 쓰기 source of truth는 한 곳만 둔다.
+2. Firebase Auth를 인증 기준으로 유지하고 Supabase Auth를 병행하지 않는다.
+3. 클라이언트는 PostgreSQL에 직접 접속하지 않는다.
+4. DDL과 migration은 메인 저장소 `core-api/`의 Flyway만 소유한다.
+5. runtime 계정은 migration 권한을 갖지 않는다.
+6. 백필과 read model 생성만으로 source of truth를 바꾸지 않는다.
+7. 실시간 위치처럼 쓰기 빈도가 높은 기능은 부하와 운영 비용을 확인한 뒤 마지막에 판단한다.
 
-## 명칭 기준
+## 도메인 전환 순서
 
-| 항목 | 명칭 |
+### 1. 낮은 위험 read model
+
+병원 가이드와 예약 요청처럼 비교 가능한 조회 모델을 PostgreSQL에 만든다. row 수, 필수 필드, 관계와 API 응답을 기존 Firebase 데이터와 비교한다.
+
+### 2. 관리자 쓰기
+
+병원 가이드 수정, 문의 처리, 매니저 심사 메타데이터를 관리자 서버 API로 옮긴다. 쓰기 전에는 감사 로그, 세분화한 DB 권한과 rollback을 준비한다.
+
+### 3. 예약·매칭·리포트
+
+Spring Core API 계약, migration, backfill, read 비교와 Android feature flag를 함께 준비한다. cutover 시 Firestore 쓰기는 중단하거나 종료 조건이 있는 shadow write로 제한한다.
+
+### 4. 실시간 기능
+
+위치, 채팅, 상태 스트림은 Firestore 유지, Supabase Realtime, 서버 WebSocket/SSE를 부하 테스트한 뒤 선택한다. PostgreSQL 전환 자체를 이유로 즉시 옮기지 않는다.
+
+## 대안
+
+| 대안 | 판단 |
 | --- | --- |
-| 전환용 Node API | `bodeul-api`, `api/` |
-| Spring Core API 디렉터리 | `core-api/` |
-| 개발 Core API 실행 환경 | Cloud Run `bodeul-core-api-preview` |
-| 운영 Core API 실행 환경 | production GCP project 확정 후 별도 Cloud Run 서비스로 생성 |
-| Supabase 개발 프로젝트 | `bodeul-dev-rdb` |
-| Supabase 운영 프로젝트 후보 | `bodeul-prod-rdb` |
-| PostgreSQL 기본 스키마 | Data API에 노출하지 않는 private `bodeul` schema |
-| Core API 개발 GitHub Environment | `core-api-preview` |
-| Core API 운영 GitHub Environment | `core-api-production` |
+| Firebase 전체 유지 | 구현 부담은 작지만 관계형 무결성·감사·통계 확장에 한계가 있다. |
+| Supabase 전체 전환 | Auth·Storage·푸시까지 동시에 흔들어 현재 규모의 위험이 크다. |
+| PostgreSQL 직접 운영 | 패치·백업·장애 대응 부담이 커 관리형 Supabase보다 우선하지 않는다. |
+| Neon | DB 분리는 가능하지만 현재 팀이 검증한 Supabase 운영 경로를 바꿀 근거가 없다. |
 
-#140 댓글 기준 Node API 검증은 Oracle Free Tier VM에서 수행됐다. 이 VM은 과거 검증 기록으로만 남기고 Spring Core API 배포에는 재사용하지 않는다. 개발 Spring 서비스는 `bodeul-dev`의 Cloud Run과 `core-api-preview` GitHub Environment를 사용하며, 장기 서비스 계정 키 대신 GitHub OIDC/WIF로 배포한다.
-
-## 대안 비교
-
-| 대안 | 장점 | 단점 | 판단 |
-| --- | --- | --- | --- |
-| Firebase 전체 유지 | 구현 변경이 가장 적고 실시간 기능, Auth, FCM, Storage가 이미 연결되어 있다. | 멘토가 요구한 RDBMS 운영 기준, 정산/통계/검색 확장, 마이그레이션 기준을 보여주기 어렵다. | 인프라는 유지하되 운영 DB는 전환한다. |
-| Supabase PostgreSQL만 추가 | PostgreSQL, 관리 콘솔, 백업, Realtime 검토가 가능하다. Firebase Auth를 유지한 채 DB 전환을 설명할 수 있다. | Firestore와 PostgreSQL 이중 운영 기간이 생긴다. Supabase Realtime/RLS 정책 학습이 필요하다. | 1차 선택이다. |
-| Supabase 전체 전환 | Auth, DB, Storage, Realtime을 한 플랫폼으로 묶을 수 있다. | Firebase Auth, FCM, Storage, Functions, Android SDK 결합을 한 번에 흔든다. 릴리스와 운영 리스크가 크다. | 현재 규모에서는 제외한다. |
-| Neon PostgreSQL | DB만 분리하기 깔끔하고 branching 장점이 있다. | 실시간 기능은 별도 서버 구현이 필요하다. 멘토의 실시간 질문에 대한 답이 약하다. | Supabase 한계가 확인되면 대안으로 검토한다. |
-| Oracle VM에 API와 PostgreSQL 직접 운영 | 인프라 제어권과 서버 운영 경험을 얻을 수 있다. | 계정 접근성, DB 백업, 보안 패치, 장애 대응을 팀이 직접 책임져야 한다. | 개발·운영 목표에서 제외하고 과거 Node 검증 기록만 보존한다. |
-
-## 선택 이유
-
-- 멘토 피드백은 Firebase 인프라 전체 폐기가 아니라 DB와 서버 경계를 언제 RDBMS/API로 가져갈지에 대한 질문에 가깝다.
-- 현재 프로젝트는 Firebase Auth, FCM, Storage, Hosting, Functions가 이미 앱과 운영 도구에 연결되어 있어 한 번에 제거하면 리스크와 QA 범위가 과도하게 커진다.
-- 관리자 운영, 정산, 문의, 알림 전달 이력은 관계형 조회와 감사 요구가 커질 가능성이 높다.
-- Supabase는 PostgreSQL 기반이고 Realtime Postgres Changes를 제공하므로 실시간 기능도 완전히 포기하지 않고 RDBMS 전환을 설명할 수 있다.
-- Firebase ID token은 서버에서 검증할 수 있으므로 Firebase Auth를 유지하면서 PostgreSQL/API 경계를 둘 수 있다.
-
-## 전환 순서
-
-### 0단계: DB 전환 기준 고정
-
-완료 상태다.
-
-- Supabase 개발 프로젝트 `bodeul-dev-rdb` 생성
-- PostgreSQL schema 초안 검증
-- Firestore 백업 기반 seed 입력 JSON과 upsert SQL 생성
-- Supabase 개발 DB seed 적용
-- row count, FK, 주요 필드 spot check 통과
-
-### 1단계: API 서버 경계 도입
-
-완료 상태다.
-
-- `api/` 디렉터리 추가
-- Node 22 + TypeScript API 서버 골격
-- `GET /healthz`
-- Firebase Admin SDK ID token 검증
-- PostgreSQL client 초기화
-- PostgreSQL `app_users.role` 기반 관리자 인가
-- `GET /admin/api-contract`
-- `GET /admin/hospital-guides`
-
-### 2단계: 관리자 웹 read API 전환
-
-1차 완료 상태다.
-
-대상:
-
-- 병원 가이드 목록: `api` 모드 검증 화면 연결 완료
-- 매니저 서류 심사 메타데이터: 후속 후보
-- 문의/후속 처리 조회: 후속 후보
-
-원칙:
-
-- 관리자 웹에 `VITE_BODEUL_DATA_BACKEND=firebase|api` 전환 경로를 둔다.
-- 병원 가이드 검증 화면은 `VITE_BODEUL_DATA_BACKEND=api`와 `VITE_BODEUL_API_BASE_URL`이 있을 때만 API를 호출한다.
-- API 장애 시 기본값 `firebase`로 되돌린다.
-- Firestore 응답과 PostgreSQL/API 응답 비교는 #123에서 기록한다.
-
-### 3단계: 관리자 write API 전환
-
-후속 상태다.
-
-대상:
-
-- 병원 가이드 생성/수정
-- 관리자 문의/후속 처리 상태 변경
-- 매니저 서류 심사 메타데이터 변경
-
-원칙:
-
-- 특정 도메인을 PostgreSQL source of truth로 전환하면 해당 도메인의 Firestore 쓰기는 중단하거나 shadow write로 낮춘다.
-- 관리자 작업 감사 로그는 PostgreSQL에 남긴다.
-- rollback은 feature flag와 import 비교 기준으로 수행한다.
-
-### 4단계: 예약/세션/리포트 전환
-
-후속 상태다.
-
-Android 앱 영향이 크므로 관리자 웹 전환보다 늦게 진행한다.
-
-### 5단계: 실시간/알림 재설계
-
-후속 상태다.
-
-실시간 위치, 보호자 상태 업데이트, 관리자 알림 피드, FCM 발송 큐는 Firestore 유지, Supabase Realtime, 서버 WebSocket/SSE 중 부하 테스트 후 결정한다.
-
-## 현재 리스크
+## 리스크
 
 | 리스크 | 대응 |
 | --- | --- |
-| Firestore와 PostgreSQL 이중 운영 기간에 데이터 불일치가 생길 수 있다. | 도메인별 source of truth를 명확히 하고 비교 리포트를 만든다. |
-| 관리자 웹 API 환경값이 어긋나면 브라우저 preflight에서 막힌다. | #122/#128에서 정리한 `BODEUL_API_ALLOWED_ORIGINS`, `VITE_BODEUL_API_BASE_URL`, rollback 기준을 환경별로 적용한다. |
-| Firestore와 PostgreSQL 병원 가이드 데이터가 어긋날 수 있다. | #123에서 count와 주요 필드 spot check를 기록한다. |
-| Vercel/Firebase preview URL 기반 팀 공유 화면 검증이 아직 없다. | #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했다. 후속 작업에서 production 전환 없이 preview URL 기준 화면 검증만 분리한다. |
-| production 배포 기준이 아직 없다. | #134에서 production Firebase project, domain/Auth domain, App Check, WIF live deploy 조건을 확정한다. |
-| API secret이 공개 GitHub 문맥에 노출될 수 있다. | `DATABASE_URL`, service account JSON, service role key는 GitHub Environment secret 또는 서버 비공개 설정에만 둔다. |
-| 전이 의존성 취약점이 다시 열릴 수 있다. | #103/#136에서 적용한 좁은 override 원칙처럼 영향 범위를 나눠 Dependabot/수동 업데이트를 판단한다. |
+| Firestore/PostgreSQL 불일치 | 도메인별 source of truth와 비교 리포트 유지 |
+| 서버별 schema 해석 차이 | 공용 Flyway와 계약 문서 사용 |
+| DB 연결 고갈 | 서버별 role과 connection limit, 작은 pool 유지 |
+| role 동기화 지연 | UID 연결과 권한 변경 절차·감사 로그 추가 |
+| rollback 중 데이터 손실 | cutover 전 backup/restore와 역방향 보정 절차 리허설 |
 
-## 멘토에게 설명할 답변
+## 전환 완료 조건
 
-Firebase를 모두 제거하지 않는다. Auth, FCM, Storage, Hosting처럼 현재 앱과 운영 도구에 안정적으로 연결된 인프라는 유지한다. 대신 운영 데이터 중 관계형 조회, 관리자 처리 이력, 정산, 통계처럼 RDBMS가 더 설명하기 쉬운 영역은 Supabase PostgreSQL로 옮긴다. 클라이언트는 DB에 직접 붙지 않고 `bodeul-api`를 통해 접근한다. 이 API는 Firebase 대체 서버가 아니라 PostgreSQL 접근, Firebase token 검증, 관리자 권한 검증을 담당하는 얇은 경계다.
+- production 프로젝트와 자격 증명이 개발과 분리된다.
+- 각 전환 도메인의 쓰기 주체가 하나로 정해진다.
+- migration, backfill, 결과 비교, rollback과 restore가 반복 가능하다.
+- 역할별 실제 401·403·정상 응답과 감사 로그를 확인한다.
+- 비용·연결 수·오류율을 관측하고 장애 담당을 정한다.
 
-## 관련 문서와 이슈
+## 관련 문서
 
-- [PostgreSQL API 경계 기준](postgres-api-boundary.md)
-- [관리자 API 초기 응답 계약](admin-api-contract.md)
-- [PostgreSQL seed dry-run 기준 기록](../reports/postgres-seed-dry-run-plan-2026-06-29.md)
-- [Issue #87 Supabase 개발 DB 준비 및 API 경계 검토](https://github.com/bodeul110/Bodeul/issues/87)
-- [Issue #88 bodeul-api 서버 골격 추가](https://github.com/bodeul110/Bodeul/issues/88)
-- [Issue #113 bodeul-api 1차 read API 실제 데이터 조회 연결](https://github.com/bodeul110/Bodeul/issues/113)
-- [Issue #122 관리자 웹 API 환경변수와 CORS origin 설정 확정](https://github.com/bodeul110/Bodeul/issues/122)
-- [Issue #123 병원 가이드 Firestore/API 응답 비교 기록](https://github.com/bodeul110/Bodeul/issues/123)
-- [Issue #134 관리자 웹 production 배포 기준 확정](https://github.com/bodeul110/Bodeul/issues/134)
-- [Issue #140 Oracle/Vercel 기반 관리자 웹 API 모드 실연동 검증 환경 구축](https://github.com/bodeul110/Bodeul/issues/140)
+- [목표 인프라 구조](target-infrastructure.md)
+- [PostgreSQL API 경계](postgres-api-boundary.md)
+- [PostgreSQL 운영 전환 런북](../operations/postgres-operational-transition-runbook.md)
+- [예약 요청 read model 검증](../reports/issue-202-appointment-requests-read-model-2026-07-17.md)

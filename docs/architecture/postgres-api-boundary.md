@@ -1,170 +1,75 @@
-# PostgreSQL API 경계 기준
+# PostgreSQL API 경계
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
-## 작업 목적
+## 원칙
 
-Supabase 개발 DB 준비 이후, 관리자 웹과 Android 앱이 PostgreSQL을 언제, 어떤 경로로 사용해야 하는지 1차 경계를 정한다. 2026-07-10 현재 이 경계는 `bodeul-api` 코드, 관리자 웹 API 모드, 로컬 비교 도구, Oracle preview API 실연동 기록, 병원 가이드 실제 API 응답 비교 기록까지 일부 구현됐다.
+Android, 웹 브라우저와 Firebase Functions가 PostgreSQL 접속 문자열을 소유하지 않는다. 사용자 요청은 Spring Core API, 관리자 요청은 Next.js 관리자 서버를 통해서만 PostgreSQL에 접근한다.
 
-## 결론
+```text
+관리자 브라우저 ─ Next.js 관리자 서버 ─┐
+                                      ├─ Supabase PostgreSQL
+사용자·매니저 웹/앱 ─ Spring Core API ─┘
+```
 
-클라이언트는 Supabase PostgreSQL에 직접 접속하지 않는다. PostgreSQL 접근은 `bodeul-api` 같은 얇은 API 서버를 통해 시작한다.
+두 서버는 서로를 proxy로 호출하지 않는다. 같은 DB를 사용하되 접속 계정, 권한, 연결 상한과 배포 비밀값을 분리한다.
 
-Firebase Auth, FCM, Storage, Hosting은 유지한다. PostgreSQL은 관계형 조회, 운영 감사, 정산/통계, 관리자 처리 이력처럼 Firestore보다 RDBMS가 적합한 도메인부터 맡긴다.
+## 인증과 인가
 
-## 현재 구현 상태
+1. 클라이언트가 Firebase Auth로 로그인한다.
+2. 서버가 Firebase ID token의 서명, issuer, audience와 만료를 검증한다.
+3. Firebase UID를 `bodeul.app_users.firebase_uid`에 연결한다.
+4. 서버가 요청에 필요한 PostgreSQL 역할을 확인한다.
+5. 서버 전용 DB role의 허용된 SQL만 실행한다.
 
-| 항목 | 상태 | 근거 |
+App Check는 이 흐름을 대체하지 않는다. App Check가 유효해도 ID token과 PostgreSQL role 검증을 계속 수행한다.
+
+## 역할
+
+| 역할 | 용도 | 권한 기준 |
 | --- | --- | --- |
-| API 디렉터리 | 구현 완료 | `api/` |
-| 런타임 | Node 22 + TypeScript | `api/package.json` |
-| CI | 구현 완료 | `.github/workflows/api.yml` |
-| Health check | 구현 완료 | `GET /healthz`, `HEAD /healthz` |
-| Firebase token 검증 | 구현 완료 | `api/src/firebase-admin.ts`, PR #114 |
-| PostgreSQL client | 구현 완료 | `api/src/database.ts`, PR #115 |
-| 관리자 role 인가 | 구현 완료 | `api/src/authorization.ts`, PR #116 |
-| 첫 read API | 구현 완료 | `GET /admin/hospital-guides`, PR #117 |
-| 관리자 웹 API 연결 | 1차 완료 | Issue #113에서 병원 가이드 검증 화면 연결 |
-| API 배포 환경 | preview 1차 검증 완료 | #140/#123 댓글 기준으로 Oracle API 실행 환경, Supabase 연결, Firebase Admin 인증, 로컬 관리자 웹 API 모드, 병원 가이드 API 응답 비교가 통과했다. production 실행 환경은 #134 이후 별도 확정 |
-| Spring Core API 인증 이관 | preview 실환경 검증 완료 | `core-api/src/main/java/com/bodeul/core/auth/`, Issue #157. `app_users` migration, DB 권한, 실제 Firebase token의 역할 미등록 403·역할 연결 200·변조 401을 Cloud Run에서 확인 |
+| `bodeul_migration` / `bodeul_migrator` | Flyway DDL과 소유권 | migration workflow에서만 사용 |
+| `bodeul_core_runtime` / `bodeul_core_service` | 사용자 서비스 | Core API에 필요한 DML만 허용 |
+| `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 서비스 | 현재 병원 가이드와 역할 확인 SELECT만 허용 |
 
-## 선택한 방식
+브라우저, APK, 공개 `NEXT_PUBLIC_*`/`VITE_*` 값에는 DB 접속 정보를 넣지 않는다.
 
-| 영역 | 1차 기준 |
+## 연결 방식
+
+| 실행 환경 | 연결 |
 | --- | --- |
-| 인증 | Firebase Auth 유지 |
-| 서버 인증 검증 | API 서버에서 Firebase ID token 검증 |
-| 권한 기준 | PostgreSQL `app_users.role`과 Firebase UID 매핑 |
-| DB 접근 | API 서버만 Supabase PostgreSQL connection string 사용 |
-| Android 앱 | API 또는 기존 Firebase Repository를 통해 접근. DB 직접 접속 금지 |
-| 관리자 웹 | `VITE_BODEUL_DATA_BACKEND=firebase|api` 전환 후보 관리 |
-| Firebase Functions | FCM, Storage 보조, Firebase 인프라 연결 역할 유지 |
-| Supabase Realtime | 관리자 알림처럼 빈도가 예측 가능한 읽기 구독부터 검토 |
+| Vercel Next.js | Supavisor transaction mode 6543, pool max 1, Supabase Root CA 검증 |
+| Cloud Run Spring | Supavisor session mode 5432, Hikari pool max 5 |
+| migration·복구 | runtime과 분리한 migration 접속, transaction과 검증 SQL 사용 |
 
-## 대안
+관리자 DB 계정의 PostgreSQL connection limit은 5이며 애플리케이션 pool은 1로 더 좁게 제한한다. TLS 인증서 검증을 끄지 않는다.
 
-- 관리자 웹에서 Supabase JS client로 PostgreSQL/RLS를 직접 사용한다.
-- Android 앱에서 Supabase client를 직접 붙인다.
-- Firebase Functions에서 PostgreSQL 접근 API를 모두 처리한다.
-- Oracle VM에서 API 서버와 PostgreSQL을 모두 직접 운영한다.
+## 도메인 전환 조건
 
-## 선택 이유
+특정 도메인의 source of truth를 PostgreSQL로 바꾸려면 다음을 모두 만족해야 한다.
 
-현재 MVP 규모에서는 인증, 푸시, 파일, 배포가 Firebase에 이미 연결되어 있다. 여기에 Supabase client를 앱과 웹에 직접 붙이면 Firebase Auth, Supabase Auth/RLS, 서비스 권한 정책이 동시에 얽혀 운영 기준이 흐려진다.
+- schema migration과 rollback이 재현 가능하다.
+- Firebase 백필 row 수와 필수 필드·관계 비교가 통과한다.
+- 인증·역할별 401·403·정상 응답을 실제 환경에서 확인한다.
+- 기존 경로와 API 결과 비교가 통과한다.
+- 쓰기 소유자를 하나로 정하고 무제한 이중 쓰기를 두지 않는다.
+- 장애 시 rollback 절차와 데이터 보정 책임을 기록한다.
+- backup/restore를 격리 환경에서 리허설한다.
 
-API 서버를 얇게 두면 다음 경계를 명확히 할 수 있다.
+병원 가이드 관리자 조회는 이 경계를 실제 검증했다. 예약 요청은 PostgreSQL read model 백필까지 완료했지만 Android 쓰기 source of truth는 아직 Firestore다.
 
-- DB connection string은 서버 secret으로만 둔다.
-- Firebase ID token 검증과 PostgreSQL role 확인을 한 곳에서 처리한다.
-- 관리자 쓰기 작업과 감사 로그 검증을 서버에서 통제한다.
-- 특정 도메인을 PostgreSQL source of truth로 전환할 때 클라이언트 flag로 rollback할 수 있다.
+## 금지하는 구조
 
-## 현재 API 계약
-
-| Method | Path | 인증 | 용도 |
-| --- | --- | --- | --- |
-| `GET` | `/healthz` | 없음 | 배포와 모니터링용 최소 상태 확인 |
-| `HEAD` | `/healthz` | 없음 | health check 헤더 전용 |
-| `GET` | `/admin/api-contract` | Firebase ID token + `ADMIN` role | 관리자 API 응답 계약과 DB 설정 상태 확인 |
-| `HEAD` | `/admin/api-contract` | Firebase ID token + `ADMIN` role | 계약 API 접근 가능 여부 확인 |
-| `GET` | `/admin/hospital-guides` | Firebase ID token + `ADMIN` role | PostgreSQL `hospital_guides` 목록 조회 |
-
-상세 응답은 [관리자 API 초기 응답 계약](admin-api-contract.md)을 기준으로 본다.
-
-Spring Core API의 첫 인증 계약은 다음과 같다.
-
-| Method | Path | 인증 | 용도 |
-| --- | --- | --- | --- |
-| `GET` | `/health` | 없음 | Spring Cloud Run 배포와 모니터링 상태 확인 |
-| `GET` | `/api/auth/me` | Firebase ID token + 등록된 PostgreSQL role | 검증된 Firebase UID와 서버 역할 연결 확인 |
-
-Spring은 Firebase custom claim을 서비스 역할로 채택하지 않는다. Admin SDK가 검증한 UID를 `bodeul.app_users.firebase_uid`와 연결하고, endpoint 권한은 PostgreSQL 역할에서 만든 Spring Security authority로 판정한다.
-
-## 환경 변수 경계
-
-| 이름 | 위치 | 공개 여부 | 설명 |
-| --- | --- | --- | --- |
-| `DATABASE_URL` | API 서버 secret, GitHub Environment secret 후보 | 비공개 | Supabase PostgreSQL connection string |
-| `FIREBASE_PROJECT_ID` | API 서버 env, GitHub Environment variable 후보 | 제한 공개 가능 | Firebase token 검증 project 지정 |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | API 서버 secret, GitHub Environment secret 후보 | 비공개 | Firebase Admin SDK 서비스 계정 JSON |
-| `CORE_DB_JDBC_URL` | Spring Core API Secret Manager | 비공개 | Supabase PostgreSQL JDBC 연결 문자열 |
-| `CORE_DB_USERNAME` | Spring Core API Secret Manager | 비공개 | `bodeul_core_service` 로그인 role |
-| `CORE_DB_PASSWORD` | Spring Core API Secret Manager | 비공개 | Core runtime DB 비밀번호 |
-| `BODEUL_API_ALLOWED_ORIGINS` | API 서버 env 후보 | 공개 가능 | 관리자 웹 브라우저 호출을 허용할 origin allow-list |
-| `VITE_BODEUL_API_BASE_URL` | 관리자 웹 env 후보 | 공개 가능 | 관리자 웹이 호출할 API base URL |
-
-Node prototype은 `FIREBASE_SERVICE_ACCOUNT_JSON`을 직접 읽지만 Spring Cloud Run 경로는 전용 runtime 서비스 계정의 ADC를 사용한다. 서비스 계정 JSON이나 `GOOGLE_APPLICATION_CREDENTIALS` 파일을 배포하지 않는다.
-| `VITE_BODEUL_DATA_BACKEND` | 관리자 웹 env 후보 | 공개 가능 | `firebase` 또는 `api` 전환 flag |
-
-`DATABASE_URL`, service account JSON, Supabase service role key는 문서, 공개 이슈, PR 본문에 기록하지 않는다.
-
-## 도메인별 1차 경계
-
-| 도메인 | 현재 source of truth | PostgreSQL 전환 판단 | API 필요도 |
-| --- | --- | --- | --- |
-| 병원 가이드 | Firestore와 PostgreSQL 병행 검증 후보 | 첫 read API 구현 완료 | 중간 |
-| 매니저 서류 메타데이터 | Firestore + Storage | 원본 파일은 Storage 유지, 메타데이터/심사 이력은 PostgreSQL 후보 | 높음 |
-| 문의/후속 처리 | Firestore | 관리자 운영 조회와 상태 변경을 PostgreSQL 후보로 둠 | 높음 |
-| 관리자 감사 로그 | Firestore/admin 컬렉션 | PostgreSQL에 적합. 관리자 작업 API와 함께 확정 | 높음 |
-| 예약 요청 | Firestore | Android 앱 영향이 커서 후순위 | 높음 |
-| 동행 세션/리포트 | Firestore | 예약 전환 이후 검토 | 높음 |
-| 실시간 위치 | Firestore | 마지막 전환 대상. 부하 테스트 전 유지 | 높음 |
-| FCM 발송 큐 | Firebase/Functions | DB 전환과 분리. 발송은 Firebase 인프라 유지 | 중간 |
-
-## 첫 API 후보와 현재 판단
-
-| 후보 | 이유 | 현재 상태 |
-| --- | --- | --- |
-| `GET /healthz` | 배포와 모니터링 최소 기준 | 구현 완료 |
-| `GET /admin/hospital-guides` | row 수가 작고 개인정보 노출 위험이 낮아 비교 검증이 쉽다. | 구현 완료 |
-| `GET /admin/manager-document-reviews` | 관리자 운영 가치가 크고 PostgreSQL seed 검증 범위와 연결된다. | 후속 후보 |
-| `GET /admin/support-requests` | 문의 통합 테이블 검증과 연결된다. | 후속 후보 |
-
-write API는 read API의 인증, 권한, row 비교가 통과한 뒤 진행한다.
-
-## API 배포 환경 생성 조건
-
-#140의 Node preview는 Oracle Free Tier에서 병원 가이드 API 응답 비교와 관리자 웹 API 모드를 검증한 과거 기록이다. Spring Core API의 현재 개발 실행 환경은 Issue #156에서 Cloud Run `bodeul-core-api-preview`로 구축한다.
-
-- `api/` 서버 골격과 `GET /healthz`가 PR로 준비됐다.
-- `CORE_DB_*` Secret Manager, Firebase ADC, GitHub WIF 위치가 문서화됐다.
-- 관리자 웹 또는 Android 앱이 API를 실제로 호출하는 PR이 준비됐다.
-- 장애 시 `VITE_BODEUL_DATA_BACKEND=firebase`로 되돌리는 rollback 기준이 있다.
-- API 로그에 secret, ID token 원문, DB connection string을 남기지 않는 기준이 있다.
-
-2026-07-08 GitHub 이슈 댓글 기준으로 Oracle Free Tier VM의 `bodeul-api`, Supabase PostgreSQL, Firebase Admin 인증, 인증된 `GET /admin/hospital-guides?limit=50`, 로컬 관리자 웹 `api` 모드 표시, `compare:hospital-guides` 결과가 통과했다. 병원 가이드 read API의 현재 1건 데이터 기준으로 Firestore 기준 데이터와 PostgreSQL/API 응답이 일치한다.
-
-남은 검증은 Vercel 또는 Firebase Hosting preview URL에서 팀원이 공유 가능한 관리자 웹 API 모드 화면을 확인하는 것이다. #140에서는 Vercel CLI 초기 프로젝트 생성 흐름이 production target을 만드는 문제가 있어 Vercel preview 검증을 직접 완료 범위에서 제외했다.
-
-production API 실행 환경은 #140이나 개발 Cloud Run preview로 확정하지 않는다. 운영 Firebase project, Core API project/region, live 관리자 웹 도메인, Auth domain, App Check enforcement, WIF live deploy 조건은 별도 production 결정에서 확정한다.
-
-## source of truth 전환 조건
-
-특정 도메인을 PostgreSQL source of truth로 바꾸려면 아래 조건을 모두 만족해야 한다.
-
-- Firestore 백업과 PostgreSQL seed/import row count가 일치한다.
-- 주요 필드 spot check가 통과한다.
-- FK 누락이 0건이다.
-- read API 응답이 기존 관리자 웹 또는 Android 화면 모델과 비교 가능하다.
-- write 전환 대상이면 Firestore 쓰기 중단 또는 shadow write 정책이 문서화되어 있다.
-- rollback flag와 복구 절차가 있다.
-- 운영 로그와 감사 로그에서 사용자 개인정보와 secret을 노출하지 않는다.
-
-## GitHub 기준 주의점
-
-- [Issue #88](https://github.com/bodeul110/Bodeul/issues/88)은 API 골격과 초기 경계 구축 기준으로 완료 처리했다.
-- [Issue #113](https://github.com/bodeul110/Bodeul/issues/113)은 PR #121 병합 후 관리자 웹 1차 read API 연결 기준으로 완료 처리했다.
-- [Issue #122](https://github.com/bodeul110/Bodeul/issues/122)는 관리자 웹 API 환경변수와 CORS origin 설정 기준을 확정하고 종료됐다.
-- [Issue #123](https://github.com/bodeul110/Bodeul/issues/123)는 병원 가이드 Firestore/API 응답 비교 기록을 추적한다. 2026-07-08 댓글 기준 실제 배포 API 응답 비교는 `passed`로 기록됐다.
-- [Issue #134](https://github.com/bodeul110/Bodeul/issues/134)는 관리자 웹 production 배포 기준을 확정한다.
-- [Issue #140](https://github.com/bodeul110/Bodeul/issues/140)은 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 1차 검증을 기록했다. Vercel preview 기반 팀 공유 화면 검증은 후속 분리 대상이다.
-- 2026-07-02 기준 code scanning open alert는 0건이다.
-- `uuid` 전이 취약점 검토는 [Issue #103](https://github.com/bodeul110/Bodeul/issues/103)에서 처리됐고, PR #136 병합 후 종료됐다.
+- 브라우저나 Android에서 PostgreSQL 직접 접속
+- Next.js → Spring → PostgreSQL 관리자 요청
+- Spring → Next.js → PostgreSQL 사용자 요청
+- runtime 서비스에 migration 자격 증명 전달
+- 같은 도메인의 Firestore와 PostgreSQL을 종료 조건 없이 동시에 쓰기
+- 인증서 검증을 끈 외부 DB 접속
 
 ## 관련 문서
 
+- [목표 인프라 구조](target-infrastructure.md)
 - [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
-- [관리자 API 초기 응답 계약](admin-api-contract.md)
-- [PostgreSQL 운영 전환 런북](../operations/postgres-operational-transition-runbook.md)
-- [PostgreSQL seed dry-run 기준 기록](../reports/postgres-seed-dry-run-plan-2026-06-29.md)
-- [PostgreSQL schema 초안](postgres-schema-draft.sql)
+- [Supabase DB 권한 검증](../reports/supabase-database-access-foundation-2026-07-13.md)
+- [Issue 159 Node API 종료 기록](../reports/issue-159-node-api-retirement-audit-2026-07-16.md)

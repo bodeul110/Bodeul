@@ -1,55 +1,67 @@
-# Issue 159 Node API 종료 판단 기록
+# Issue 159 Node API 종료 기록
 
 기준일: 2026-07-17
 
 ## 작업 목적
 
-기존 `api/` Node 서버를 바로 삭제해도 되는지, Spring Core API와 별도 관리자 웹 저장소가 필요한 계약을 모두 대체했는지 현재 코드와 GitHub 설정으로 확인한다.
+기존 `api/` Node 프로토타입이 담당하던 계약을 Spring Core API와 Next.js 관리자 서버가 실제로 대체했는지 확인하고, 대체 완료 시 소스·CI·배포 설정을 함께 제거한다.
 
-## 확인 결과
+## 판단 기준과 결과
 
-| 항목 | 현재 상태 | 판단 |
-| --- | --- | --- |
-| 공개 상태 확인 | Node는 `/healthz`, Spring은 `/health`를 제공 | Spring 사용자 서비스의 배포 확인 계약은 대체 완료 |
-| Firebase ID token 검증 | 두 서버에 구현 | Spring은 Cloud Run에서 실제 token 시나리오까지 검증 완료 |
-| PostgreSQL 역할 인가 | Node는 `ADMIN`, Spring은 사용자 역할을 검증 | 공통 원칙은 같지만 소유 역할이 다르므로 서버별 유지 |
-| Kakao Local REST | Spring `GET /api/places/search`로 이관 | Android 직접 호출 제거 완료 |
-| 관리자 병원 가이드 조회 | Next.js `GET /admin/hospital-guides` 구현, Preview 401 확인 | 실제 ADMIN 200·비관리자 403과 결과 비교는 남아 있음 |
-| 관리자 웹 참조 | Next.js 기본값은 same-origin API, Vite rollback은 `VITE_BODEUL_API_BASE_URL`과 `src/bodeulApi.ts` 유지 | rollback 종료 전 `api/` 삭제 불가 |
-| Oracle 배포 | 과거 preview 검증 기록만 있고 현재 배포 workflow 없음 | 신규 배포 대상에서 제외 |
-| Oracle GitHub secret | workflow 참조가 없는 `OCI_CLI_*` 저장소 secret 6개가 남아 있었음 | 2026-07-16 삭제 완료 |
+| 계약 | 대체 구현 | 실제 확인 | 결과 |
+| --- | --- | --- | --- |
+| 배포 상태 확인 | Spring `/health` | Cloud Run 200, revision rollback | 대체 완료 |
+| Firebase ID token | Spring과 Next.js | 정상·변조·무인증 경계 | 대체 완료 |
+| 사용자 PostgreSQL role | Spring Core API | 실제 token과 DB role 연결 | 대체 완료 |
+| Kakao Local REST | Spring `/api/places/search` | 인증된 실호출, Android 직접 키 제거 | 대체 완료 |
+| 관리자 `ADMIN` role | Next.js Route Handler | 비관리자 403, 관리자 200 | 대체 완료 |
+| 병원 가이드 조회 | Next.js `/admin/hospital-guides` | 개발 DB 결과 1건과 응답 계약 확인 | 대체 완료 |
+| 관리자 rollback | 별도 저장소 Vite build | CI에서 별도 build 유지 | Node API와 독립 |
 
-## 선택한 방식
+## 관리자 Preview 실검증
 
-- `api/`는 전환 과정의 계약과 회귀 비교를 위한 동결된 프로토타입으로 보존한다.
-- 신규 운영 도메인과 production 배포 기능은 Node에 추가하지 않는다.
-- 보안 수정, 의존성 취약점 조치와 기존 계약 회귀 수정만 허용한다.
-- `.github/workflows/api.yml`은 소스가 남아 있는 동안 typecheck, build, test 검증용으로 유지한다.
-- 사용자 기능은 Spring Core API로, 관리자 기능은 목표 Next.js 관리자 서버로 각각 이관하며 두 서버를 서로의 proxy로 연결하지 않는다.
+- 무인증 요청: 401 `missing_authorization`
+- 임시 비관리자: 403 `admin_role_required`
+- 임시 관리자: 200, 병원 가이드 목록 반환
+- 임시 Firebase 사용자와 `app_users` row: 검증 후 삭제, 잔여 0건
+- DB 접속: Preview 전용 `bodeul_admin_service`, SELECT 전용, connection limit 5
+- TLS: 공식 Supabase Root CA를 명시하고 인증서 검증 유지
+- production Vercel environment: `ADMIN_DATABASE_URL` 미등록
 
-## 검토한 대안
+비밀값, token 원문과 테스트 계정 정보는 공개 문서나 PR에 기록하지 않았다.
 
-| 대안 | 장점 | 제외 이유 |
-| --- | --- | --- |
-| 지금 `api/` 삭제 | 유지 대상이 줄어듦 | 관리자 웹의 병원 가이드 API 검증 경로가 즉시 깨짐 |
-| 관리자 기능도 Spring으로 이관 | 서버가 하나로 줄어듦 | 관리자 서버와 사용자 서버를 분리해 같은 DB를 보게 한다는 목표 경계와 다름 |
-| Node를 production 서버로 계속 확장 | 기존 코드를 재사용함 | Spring과 Next.js 목표 경계가 다시 중복되고 Oracle 의존성도 되살아남 |
+## 제거 범위
 
-## 실제 종료 조건
+- 메인 저장소 `api/` 전체
+- `.github/workflows/api.yml`
+- 메인 저장소 `admin-web/` 중복본
+- 메인 저장소 관리자 build·Firebase Hosting preview workflow
+- 루트 `firebase.json`의 관리자 Hosting 설정
+- 메인 Dependabot, CodeQL, preflight의 삭제 경로 분류
+- Node/API·중복 관리자 웹을 현재 구조로 설명하던 README와 인프라 문서
 
-1. `bodeul-admin-web`의 Next.js 서버가 Firebase ID token과 PostgreSQL `ADMIN` 역할을 검증한다. 코드와 401 경계는 완료했고 실제 token 검증은 남아 있다.
-2. Next.js 서버가 관리자 전용 DB role로 병원 가이드 조회를 직접 제공한다. Route Handler는 완료했고 DB 접속 role 활성화는 남아 있다.
-3. 관리자 웹에서 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`, `src/bodeulApi.ts` 참조가 제거된다.
-4. Vercel preview에서 인증된 병원 가이드 조회와 Firebase/기존 결과 비교가 통과한다.
-5. Node 전용 배포 환경변수와 secret이 없고, 과거 검증 기록과 마지막 commit을 rollback 근거로 남긴다.
-6. 위 결과를 확인한 PR에서 `api/`와 `.github/workflows/api.yml`을 함께 제거한다.
+별도 `bodeul-admin-web` 저장소의 Next.js 구현, Vite rollback과 Vercel CI는 유지한다. 과거 Node 검증 보고서는 당시 의사결정 이력으로 보존한다.
 
-## 리스크
+## 선택 이유
 
-- 동결 상태를 명시하지 않으면 신규 기능이 Node와 목표 서버에 중복 구현될 수 있다.
-- 관리자 웹의 실제 200/403과 결과 비교 전에 Node를 삭제하면 검증 기준과 rollback 경로를 잃는다.
-- 소스를 보존하는 동안 의존성 취약점은 계속 점검해야 한다.
+대체 구현의 실제 401·403·200과 DB 결과를 확인한 뒤 삭제했으므로 계약 공백이 없다. 프로토타입을 더 유지하면 Dependabot·CodeQL·workflow 비용이 늘고, 관리자 API의 source of truth가 Node인지 Next.js인지 다시 모호해진다.
+
+## 리스크와 대응
+
+| 리스크 | 대응 |
+| --- | --- |
+| 과거 Node 응답과의 회귀 비교가 어려움 | Git 이력과 기존 계약·검증 보고서 보존 |
+| 관리자 장애 시 rollback 경로 상실 | 별도 저장소 Vite build 유지 |
+| production 준비로 오해 | Preview 전용 DB 자격 증명만 유지하고 production 미설정 명시 |
+| 두 저장소 계약 불일치 | 공용 schema는 메인 Flyway만 소유하고 이슈를 상호 링크 |
 
 ## 결론
 
-현재 정답은 즉시 삭제가 아니라 **운영 후보 제외와 기능 동결 유지**다. Next.js 코드와 Preview 401 경계는 대체했지만 관리자 DB 접속, 실제 200/403, 결과 비교와 Vite rollback 종료 판단이 남아 있다. #159는 계속 열어 두고 이 조건을 확인한 뒤 Node 소스와 CI를 함께 제거한다.
+Node API 종료 조건은 충족됐다. 메인 저장소에서 프로토타입과 중복 관리자 웹을 제거하고, 운영 후보를 Spring Core API와 Next.js 관리자 서버로 단일화한다. 남은 작업은 Node 종료가 아니라 production 환경 분리와 도메인별 PostgreSQL source of truth 전환이다.
+
+## 관련
+
+- [Issue #159](https://github.com/bodeul110/Bodeul/issues/159)
+- [Issue #135](https://github.com/bodeul110/Bodeul/issues/135)
+- [목표 인프라 구조](../architecture/target-infrastructure.md)
+- [관리자 웹 구조](../architecture/admin-web-architecture.md)

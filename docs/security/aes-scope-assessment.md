@@ -45,8 +45,7 @@
 - Android 앱:
   - Firebase Auth SDK가 로그인 세션을 자체 보관한다.
 - 관리자 웹:
-  - [firebase.ts](../../admin-web/firebase.ts)
-  - [App.tsx](../../admin-web/src/App.tsx)
+  - 별도 [bodeul-admin-web 저장소](https://github.com/bodeul110/bodeul-admin-web)의 Firebase Auth 세션 사용
   - 별도 `localStorage` 인증 상태는 제거했고, Firebase Auth 세션을 사용한다.
 
 판단:

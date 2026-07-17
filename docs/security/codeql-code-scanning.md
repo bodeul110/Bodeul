@@ -1,13 +1,13 @@
 # CodeQL/code scanning 운영 기준
 
-기준일: 2026-06-26
+기준일: 2026-07-17
 관련 이슈: #49
 
 ## 구현한 내용
 
 - `.github/workflows/codeql.yml`을 추가해 CodeQL code scanning을 별도 GitHub Actions workflow로 구성했다.
 - Android 앱은 `java-kotlin` 분석 대상으로 두고, `assembleDebug` 수동 빌드 후 분석한다.
-- 관리자 웹, Firebase Functions, Firebase 운영 도구는 `javascript-typescript` 분석 대상으로 둔다.
+- Firebase Functions와 Firebase 운영 도구는 `javascript-typescript` 분석 대상으로 둔다. 관리자 웹은 별도 저장소의 CodeQL이 담당한다.
 - `.github/codeql/codeql-config.yml`에 생성물과 로컬 운영 산출물 제외 경로를 명시했다.
 
 ## 변경된 범위
@@ -33,7 +33,6 @@
 | 구분 | CodeQL 언어 | 대상 | 빌드 방식 |
 | --- | --- | --- | --- |
 | Android 앱 | `java-kotlin` | `app/`, Gradle 설정 | `./gradlew assembleDebug --console=plain` 수동 빌드 |
-| 관리자 웹 | `javascript-typescript` | `admin-web/` | CodeQL 정적 분석. lint/build는 기존 관리자 웹 workflow가 담당 |
 | Firebase Functions | `javascript-typescript` | `functions/` | CodeQL 정적 분석. 배포 검증은 별도 운영 절차가 담당 |
 | Firebase 운영 도구 | `javascript-typescript` | `tools/firebase/` | CodeQL 정적 분석. 스크립트 문법/프리플라이트는 기존 workflow가 담당 |
 
@@ -41,7 +40,6 @@
 
 | 경로 | 제외 이유 |
 | --- | --- |
-| `admin-web/dist/**` | Vite 빌드 산출물 |
 | `app/build/**`, `build/**` | Gradle 빌드 산출물 |
 | `functions/node_modules/**` | 설치 의존성 |
 | `tools/firebase/backups/**` | 운영 백업 파일 |
@@ -50,7 +48,7 @@
 ## preflight와의 관계
 
 - `android-preflight.yml`은 빌드, 테스트, Firebase 운영 도구 검증을 담당한다.
-- `admin-web.yml`은 관리자 웹 lint/build를 담당한다.
+- 관리자 웹 lint/build와 CodeQL은 `bodeul-admin-web` 저장소가 담당한다.
 - `codeql.yml`은 보안 정적 분석과 GitHub Security 탭 업로드를 담당한다.
 - CodeQL workflow는 기존 preflight를 대체하지 않는다. PR에서는 preflight와 CodeQL이 모두 통과해야 병합 근거가 된다.
 
@@ -66,7 +64,7 @@
 - GitHub Actions YAML 파싱 확인: `yq e '.' .github/workflows/codeql.yml`
 - CodeQL 설정 YAML 파싱 확인: `yq e '.' .github/codeql/codeql-config.yml`
 - Android 수동 분석 빌드 경로 확인: `.\gradlew.bat assembleDebug --console=plain`
-- 관리자 웹 빌드 경로 확인: `npm --prefix admin-web run build`
+- 관리자 웹 검증은 별도 저장소의 test/lint/Next.js build/Vite build workflow에서 수행한다.
 - PR과 `master` push에서 `CodeQL` workflow가 반복해서 통과했다.
 - 2026-07-16 기준 최신 `master` 실행([run 29488654755](https://github.com/bodeul110/Bodeul/actions/runs/29488654755))이 성공했다.
 - 같은 시점의 GitHub Security code scanning 열린 alert는 0건이다.
