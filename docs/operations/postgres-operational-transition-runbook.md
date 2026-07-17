@@ -54,12 +54,13 @@ Oracle Free Tier VM은 #140의 Node API 계약 검증에 사용한 과거 previe
 
 ## GitHub 설정 이름
 
-### Environment 후보
+### Environment
 
 | Environment | 용도 | 생성 시점 |
 | --- | --- | --- |
 | `core-api-preview` | Cloud Run 개발 Core API 배포/검증 | 생성 완료 |
-| `core-api-production` | 운영 Core API 배포 | 운영 project와 비용·도메인 결정 후 |
+| `core-api-production` | 운영 Core API 수동 배포 | 보호 규칙 생성 완료, 운영 리소스 준비 후 값 등록 |
+| `core-api-migration-production` | 운영 DB migration | 보호 규칙 생성 완료, 운영 DB 준비 후 secret 등록 |
 
 DB schema migration은 `core-api-migration-preview` Environment로 분리한다. Runtime DB 값은 Google Secret Manager에 두고 `core-api-preview`에는 WIF와 서비스 식별용 Variables만 둔다.
 
@@ -224,7 +225,7 @@ Rollback 방식:
 2. 완료: 프로젝트 이름과 리전만 팀에 공유한다.
 3. 유지: DB connection string 원문은 채팅, Issue, PR에 적지 않는다.
 4. 진행: Core API DB 접속 정보는 Google Secret Manager에 등록하고 GitHub Actions에는 OIDC/WIF용 공개 식별자만 둔다. 기존 GitHub Environment의 중복 DB secret은 첫 Cloud Run 배포 확인 뒤 제거한다.
-5. 진행: 개발 Spring 서비스는 `bodeul-dev`의 Cloud Run `bodeul-core-api-preview`로 고정한다. production 서비스는 production GCP project와 전환 조건을 확정한 뒤 별도로 만든다.
+5. 진행: 개발 Spring 서비스는 `bodeul-dev`의 Cloud Run `bodeul-core-api-preview`로 고정한다. production 서비스는 별도 Google Cloud 프로젝트의 Tokyo `bodeul-core-api`로 만들며, 이름과 전환 조건은 [Production 인프라 기본값](production-infrastructure-defaults.md)을 따른다.
 
 인프라 담당자가 공유해야 하는 값:
 

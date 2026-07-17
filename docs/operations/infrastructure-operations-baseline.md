@@ -11,7 +11,7 @@
 | 공용 DB | Supabase Tokyo 개발 프로젝트, migration/core/admin role 분리 |
 | Firebase | `bodeul-dev`, Auth·Firestore·Storage·Functions·FCM 유지 |
 | Kakao | Local REST 키는 Secret Manager, 호출은 Core API 뒤에서 수행 |
-| production | 별도 프로젝트와 자격 증명 미구축 |
+| production | 이름·리전·배포·백업 기본값 확정, 유료 리소스와 자격 증명 미구축 |
 
 ## 배포 원칙
 
@@ -46,10 +46,11 @@ Oracle Node preview, 메인 `api/`, 메인 `admin-web/`과 관리자 Firebase Ho
 
 ## 남은 운영 게이트
 
-- production 프로젝트·도메인·자격 증명 분리
+- 결제 책임자와 월 예산, 기준 도메인, 실명 운영자 2명과 출시 일정 확정
+- production Google Cloud/Firebase·Supabase 프로젝트와 자격 증명 생성
 - production backup/restore와 rollback 리허설
 - 관리자 웹 App Check와 MFA
 - 도메인별 PostgreSQL 쓰기 전환
-- 비용·오류율·연결 수 알림과 운영 담당 확정
+- 비용·오류율·연결 수 알림 구성
 
-상세 구조는 [현재 인프라 구성도](../architecture/infra-overview.md)를 따른다.
+상세 구조는 [현재 인프라 구성도](../architecture/infra-overview.md)와 [Production 인프라 기본값](production-infrastructure-defaults.md)을 따른다.
