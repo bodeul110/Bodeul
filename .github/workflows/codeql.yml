@@ -132,7 +132,7 @@ jobs:
           queries: +security-extended
 
       - name: Android 분석 빌드
-        run: ./gradlew assembleDebug --console=plain
+        run: ./gradlew clean assembleDebug --no-build-cache --no-configuration-cache --console=plain
 
       - name: CodeQL 분석
         uses: github/codeql-action/analyze@v4

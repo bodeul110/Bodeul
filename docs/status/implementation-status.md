@@ -3269,9 +3269,37 @@
 - Supabase runtime role의 세 도메인 테이블 SELECT 전용, 공개 role 권한 0건과 Security Advisor 경고 0건 확인
 - 신규 예약 조회·Flyway 내부 인덱스의 미사용 Performance INFO 2건은 실제 쿼리 통계가 쌓일 때까지 유지
 
-### 남은 범위
+### 당시 남은 범위
 
-- production Firebase·Supabase·Vercel·Cloud Run 프로젝트와 자격 증명 분리
+- production Firebase·Supabase·Cloud Run 기반과 DB 자격 증명 분리는 아래 133번에서 완료
+- Vercel Production 관리자 DB 자격 증명과 실제 운영 도메인은 미연결
 - 관리자 웹 reCAPTCHA Enterprise와 App Check custom backend 검증
 - 도메인별 PostgreSQL 쓰기 source of truth 전환
 - production backup/restore와 rollback 리허설
+
+## 133. 2026-07-17 production 인프라 최초 구축
+
+### 구현과 운영 설정
+
+- Google Cloud/Firebase `bodeul-prod-110`과 월 30,000 KRW budget을 만들고 50%·80%·100% 알림을 설정했다.
+- Tokyo Firestore, 기본 Storage bucket, Email/Password Auth, Android·Web 앱과 저장소 Rules release를 준비했다.
+- Cloud Run production Artifact Registry, WIF provider, deploy/runtime 서비스 계정과 DB Secret Manager version을 만들었다.
+- Tokyo Supabase `bodeul-prod`에 서버 전용 role·schema bootstrap과 Flyway V1~V3를 적용했다.
+- GitHub production 배포·migration Environment를 실제 식별자와 분리된 secret으로 연결했다.
+- Windows에서 `gcloud.ps1`이 실행 파일로 선택되던 secret 입력 스크립트를 `gcloud.cmd` 우선으로 수정했다.
+
+### 검증
+
+- Firestore Native mode와 삭제 방지, Storage Tokyo bucket, Firebase Rules release 2개 확인
+- WIF가 저장소, `master`, `core-api-production` Environment로 제한되고 사용자 관리 서비스 계정 key가 없는지 확인
+- 보호된 migration run `29570950189`에서 Core API 검사와 Flyway V1~V3 성공
+- 업무 테이블 owner `bodeul_migration`, RLS 3개, 정책 6개, 공개 role table grant 0건 확인
+- production 업무 데이터 row 0건과 Supabase Security Advisor lint 0건 확인
+- pre-migration dump를 공개 접근 차단·28일 retention GCS bucket에 저장하고 SHA-256 기록
+
+### 남은 범위
+
+- Kakao production key와 첫 Cloud Run revision 배포·rollback
+- Vercel Production Firebase·SELECT-only 관리자 DB 연결
+- release Google 로그인, App Check provider/enforcement와 custom domain
+- production DB restore 리허설, 유료 backup 정책과 운영자·출시 일정 확정

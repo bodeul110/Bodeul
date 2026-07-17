@@ -9,7 +9,7 @@
 | 로컬 | 개발과 단위 검증 | 개발자가 로컬 비공개 파일로 주입 | 저장소에 커밋하지 않음 |
 | Vercel Preview | PR·개발 DB 실연동 | `ADMIN_DATABASE_URL` 있음 | 401·403·200 검증 완료 |
 | Vercel Production target | 기본 도메인 공유 화면 | `ADMIN_DATABASE_URL` 없음 | 운영으로 간주하지 않음 |
-| 실제 production | 기존 Vercel 프로젝트의 Production | 별도 운영 Firebase·DB 자격 증명 필요 | 외부 리소스 미구축 |
+| 실제 production | 기존 Vercel 프로젝트의 Production | production Firebase 앱 생성, 관리자 DB role은 `NOLOGIN`, Vercel 자격 증명 미등록 | 출시 전 차단 |
 
 ## 환경변수 경계
 
@@ -31,15 +31,17 @@ DB URL, 비밀번호, Firebase Admin 자격 증명을 `NEXT_PUBLIC_*` 또는 `VI
 - PR마다 test, lint, Next.js build, Vite rollback build와 CodeQL을 통과시킨다.
 - Vercel Functions는 Supabase 개발 DB와 같은 Tokyo `hnd1`에서 실행한다.
 
-## production 생성 조건
+## production 출시 조건
 
-1. 개발과 분리된 Firebase와 Supabase 프로젝트를 만든다.
+1. 개발과 분리된 Firebase와 Supabase 프로젝트를 만든다. 완료.
 2. 기존 Vercel `bodeul-admin-web` 프로젝트의 Production 환경에만 운영값을 등록한다.
 3. 기준 도메인을 구매한 뒤 `admin.<기준-도메인>`과 Firebase Auth authorized domain을 연결한다.
-4. production 전용 관리자 DB role과 비밀번호를 만들고 SELECT-only 최소 권한을 재검증한다.
+4. production 전용 관리자 DB role과 비밀번호를 만들고 SELECT-only 최소 권한을 재검증한다. role은 현재 `NOLOGIN`이며 Vercel 값 등록과 같은 작업 단위로 활성화한다.
 5. App Check, 관리자 MFA, 감사 로그와 긴급 권한 회수를 검증한다.
 6. backup/restore와 이전 Vercel deployment rollback을 리허설한다.
 7. 실명 운영자 2명, live 배포와 장애 대응 담당을 정한다.
+
+현재 1번만 완료했다. production 관리자 role과 schema는 준비했지만 Vercel 연결 전까지 `NOLOGIN`을 유지하므로 4번 완료로 보지 않는다.
 
 개발 Preview의 비밀번호나 프로젝트를 production에 복사하지 않는다. 운영값이 없을 때 production API가 500 설정 오류를 내는 것은 의도한 fail-closed 상태다.
 

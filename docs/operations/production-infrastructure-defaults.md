@@ -2,7 +2,7 @@
 
 기준일: 2026-07-17
 
-이 문서는 BoDeul production 리소스를 만들기 전에 기술적으로 확정할 수 있는 이름, 리전, 배포 경계와 운영 기준을 고정한다. 비용 결제, 도메인 구매와 실명 담당자 지정은 별도 승인 전까지 실행하지 않는다.
+이 문서는 BoDeul production 리소스의 실제 식별자, 리전, 배포 경계와 운영 기준을 고정한다. 2026-07-17에 Google Cloud/Firebase와 Supabase production 기반을 생성했으며, 도메인 구매와 실명 담당자 지정은 별도 운영 결정으로 남긴다.
 
 ## 결정 요약
 
@@ -19,7 +19,7 @@
 | 범위 | 확정값 | 비고 |
 | --- | --- | --- |
 | Google Cloud/Firebase 표시 이름 | `BoDeul Production` | 하나의 Google Cloud 프로젝트에서 Firebase를 활성화한다. |
-| Google Cloud project ID 후보 | `bodeul-prod-110` | 전역 ID이므로 생성 직전에 사용 가능 여부를 다시 확인한다. |
+| Google Cloud project ID / number | `bodeul-prod-110` / `649312328770` | 결제 연결과 Firebase 활성화 완료 |
 | Google Cloud/Cloud Run 리전 | `asia-northeast1` | Tokyo |
 | Cloud Run 서비스 | `bodeul-core-api` | preview 접미사를 사용하지 않는다. |
 | Artifact Registry/이미지 | `bodeul-core-api` | 개발 프로젝트와 이름은 같아도 프로젝트 경계로 분리된다. |
@@ -28,7 +28,7 @@
 | WIF pool/provider | `github-actions` / `bodeul-core-api-production` | 저장소, `master`, GitHub Environment 조건을 모두 제한한다. |
 | 배포 Environment | `core-api-production` | 수동 production 배포와 승인 보호 |
 | migration Environment | `core-api-migration-production` | 앱 배포와 DB 변경을 분리한다. |
-| Supabase 표시 이름 | `bodeul-prod` | 개발 프로젝트와 별도 생성 |
+| Supabase 표시 이름 / ref | `bodeul-prod` / `aoijbzgozbopsxzrasbb` | 개발 프로젝트와 별도 생성 |
 | Supabase 리전 | `ap-northeast-1` | Tokyo |
 | Vercel 프로젝트 | `bodeul-admin-web` | 기존 프로젝트를 유지한다. |
 | Vercel production branch | `master` | 보호된 PR 병합만 허용한다. |
@@ -41,7 +41,7 @@
 | 환경 | Google Cloud/Firebase | Supabase | Vercel | 용도 |
 | --- | --- | --- | --- | --- |
 | 개발 | `bodeul-dev` | 현재 Tokyo 개발 프로젝트 | Preview | PR, 실연동, 실기기 검증 |
-| production | `bodeul-prod-110` 후보 | `bodeul-prod` | Production | 실제 운영 |
+| production | `bodeul-prod-110` | `bodeul-prod` | Production | 출시 전 격리 운영 |
 
 Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Production에는 production 값만 두며, 값이 없을 때 서버 API가 설정 오류로 종료되는 fail-closed 상태를 유지한다. Firebase authorized domain에는 실제 관리자 도메인과 출시 전 검증에 필요한 Vercel 도메인만 정확한 호스트명으로 등록하고 wildcard를 사용하지 않는다.
 
@@ -115,26 +115,29 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 
 ## 생성과 출시 순서
 
-1. 결제 책임자와 월 예산, 기준 도메인, 운영자 2명, 출시 일정을 확정한다.
-2. production Google Cloud 프로젝트를 만들고 Firebase를 활성화한다.
-3. production Supabase 프로젝트와 DB role을 만들고 Flyway migration을 실행한다.
-4. WIF, 서비스 계정, Artifact Registry, Secret Manager와 Cloud Run을 만든다.
+1. 결제 책임자와 월 예산을 확인한다. 기준 도메인, 운영자 2명, 출시 일정은 출시 전에 확정한다.
+2. production Google Cloud 프로젝트를 만들고 Firebase를 활성화한다. 완료.
+3. production Supabase 프로젝트와 DB role을 만들고 Flyway migration을 실행한다. 완료.
+4. WIF, 서비스 계정, Artifact Registry와 Secret Manager를 만든다. 완료. Cloud Run 서비스 생성은 첫 승인 배포에서 수행한다.
 5. Vercel Production 환경변수와 도메인을 연결한다.
 6. Firebase authorized domain, App Check, 관리자 MFA와 최소 권한을 검증한다.
 7. backup/restore, Cloud Run revision과 Vercel deployment rollback을 리허설한다.
 8. smoke test와 운영 담당자 확인 뒤 트래픽을 전환한다.
 
-## 현재 준비 완료
+## 현재 준비 상태
 
 - `.github/workflows/core-api-production-deploy.yml`에 보호된 수동 배포, 대상 재확인과 smoke 실패 rollback을 준비했다.
 - `.github/workflows/core-api-migration.yml`의 production 경로에 `master` SHA, 백업 증적과 사전 Core API 검사를 적용했다.
 - `core-api/deploy/cloud-run/set-production-secrets.ps1`에 production 전용 secret version 입력 경계를 준비했다.
-- `core-api-production`과 `core-api-migration-production` Environment는 required reviewer와 protected branch 정책만 있고 변수·secret은 비어 있어 실행할 수 없다.
+- `core-api-production`에는 production GCP/Firebase 식별자와 DB Secret Manager version을 등록했다. Kakao production secret version은 비어 있어 첫 배포는 계속 fail-closed다.
+- `core-api-migration-production`에는 production migration 자격 증명을 등록했고, run `29570950189`에서 보호 승인 뒤 Flyway V1~V3 적용을 완료했다.
+- production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
+- production Supabase는 빈 데이터 상태로 `bodeul` schema, 최소 권한 role, RLS 3개 테이블과 정책 6개를 갖는다. 공개 role table grant는 0건이다.
+- pre-migration schema dump는 비공개 GCS bucket에 28일 보존으로 저장했다. 실제 restore 리허설은 출시 게이트로 남아 있다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
 
 ## 사람 결정이 필요한 항목
 
-- production 결제 계정 소유자와 월 예산 금액
 - 구매할 기준 도메인
 - 실명 운영자 2명, 장애 대응 책임자와 rollback 승인자
 - 출시일, 점검 시간과 사용자 공지 방식
