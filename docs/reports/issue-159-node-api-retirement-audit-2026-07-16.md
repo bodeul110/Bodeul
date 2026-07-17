@@ -1,6 +1,6 @@
 # Issue 159 Node API 종료 판단 기록
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
 ## 작업 목적
 
@@ -14,8 +14,8 @@
 | Firebase ID token 검증 | 두 서버에 구현 | Spring은 Cloud Run에서 실제 token 시나리오까지 검증 완료 |
 | PostgreSQL 역할 인가 | Node는 `ADMIN`, Spring은 사용자 역할을 검증 | 공통 원칙은 같지만 소유 역할이 다르므로 서버별 유지 |
 | Kakao Local REST | Spring `GET /api/places/search`로 이관 | Android 직접 호출 제거 완료 |
-| 관리자 병원 가이드 조회 | Node `GET /admin/hospital-guides`만 구현 | Next.js 관리자 서버가 아직 대체하지 않음 |
-| 관리자 웹 참조 | `bodeul-admin-web`의 `VITE_BODEUL_API_BASE_URL`, `src/bodeulApi.ts`가 Node 계약을 참조 | 현재 `api/` 삭제 불가 |
+| 관리자 병원 가이드 조회 | Next.js `GET /admin/hospital-guides` 구현, Preview 401 확인 | 실제 ADMIN 200·비관리자 403과 결과 비교는 남아 있음 |
+| 관리자 웹 참조 | Next.js 기본값은 same-origin API, Vite rollback은 `VITE_BODEUL_API_BASE_URL`과 `src/bodeulApi.ts` 유지 | rollback 종료 전 `api/` 삭제 불가 |
 | Oracle 배포 | 과거 preview 검증 기록만 있고 현재 배포 workflow 없음 | 신규 배포 대상에서 제외 |
 | Oracle GitHub secret | workflow 참조가 없는 `OCI_CLI_*` 저장소 secret 6개가 남아 있었음 | 2026-07-16 삭제 완료 |
 
@@ -37,8 +37,8 @@
 
 ## 실제 종료 조건
 
-1. `bodeul-admin-web`의 Next.js 서버가 Firebase ID token과 PostgreSQL `ADMIN` 역할을 검증한다.
-2. Next.js 서버가 관리자 전용 DB role로 병원 가이드 조회를 직접 제공한다.
+1. `bodeul-admin-web`의 Next.js 서버가 Firebase ID token과 PostgreSQL `ADMIN` 역할을 검증한다. 코드와 401 경계는 완료했고 실제 token 검증은 남아 있다.
+2. Next.js 서버가 관리자 전용 DB role로 병원 가이드 조회를 직접 제공한다. Route Handler는 완료했고 DB 접속 role 활성화는 남아 있다.
 3. 관리자 웹에서 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`, `src/bodeulApi.ts` 참조가 제거된다.
 4. Vercel preview에서 인증된 병원 가이드 조회와 Firebase/기존 결과 비교가 통과한다.
 5. Node 전용 배포 환경변수와 secret이 없고, 과거 검증 기록과 마지막 commit을 rollback 근거로 남긴다.
@@ -47,9 +47,9 @@
 ## 리스크
 
 - 동결 상태를 명시하지 않으면 신규 기능이 Node와 목표 서버에 중복 구현될 수 있다.
-- 관리자 웹 Next.js 전환 전에 Node를 삭제하면 현재 유일한 PostgreSQL 관리자 read 계약을 잃는다.
+- 관리자 웹의 실제 200/403과 결과 비교 전에 Node를 삭제하면 검증 기준과 rollback 경로를 잃는다.
 - 소스를 보존하는 동안 의존성 취약점은 계속 점검해야 한다.
 
 ## 결론
 
-현재 정답은 즉시 삭제가 아니라 **운영 후보 제외와 기능 동결**이다. Oracle 자격 증명은 제거했지만 관리자 병원 가이드 계약이 아직 대체되지 않았으므로 #159는 열린 상태로 유지하고, 관리자 Next.js 서버 전환 뒤 실제 삭제를 진행한다.
+현재 정답은 즉시 삭제가 아니라 **운영 후보 제외와 기능 동결 유지**다. Next.js 코드와 Preview 401 경계는 대체했지만 관리자 DB 접속, 실제 200/403, 결과 비교와 Vite rollback 종료 판단이 남아 있다. #159는 계속 열어 두고 이 조건을 확인한 뒤 Node 소스와 CI를 함께 제거한다.

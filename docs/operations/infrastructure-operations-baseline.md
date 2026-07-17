@@ -1,6 +1,6 @@
 # 인프라 운영 기준
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
 이 문서는 현재 인프라 기준으로 운영자가 봐야 하는 배포, 보안, 비용, 백업, API 전환 항목을 한 곳에 정리한다. 실제 코드 기준은 `app/`, `api/`, `core-api/`, `functions/`, 별도 `bodeul-admin-web` 저장소, Firebase Rules, `tools/firebase/`, `.github/workflows/`를 확인해 반영했다.
 
@@ -8,12 +8,12 @@
 
 | 영역 | 현재 판단 |
 | --- | --- |
-| 관리자 웹 배포 | production 기준은 #134에서 확정. 현재 저장소에는 Firebase Hosting preview workflow가 있고, Vercel/Firebase preview API 모드 팀 공유 검증은 후속 작업으로 분리 |
-| 관리자 웹 preview | Firebase Hosting WIF preview workflow 유지. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 검증이 통과했고, Vercel preview는 제외됨 |
+| 관리자 웹 배포 | 별도 저장소의 Next.js Vercel Preview가 기본 검증 경로다. production 기준은 #134에서 확정하고 Vite/Firebase Hosting은 rollback으로 유지한다. |
+| 관리자 웹 preview | Git 연동 Preview에서 루트 200, 인증 없는 병원 가이드 API 401, 런타임 오류 0건을 확인했다. 인증된 200/403은 남아 있다. |
 | Android 앱 데이터 | Firestore/Storage 직접 접근 유지 |
-| 관리자 웹 데이터 | Firestore/Storage 직접 접근 유지, API 전환 후보 준비 |
-| 운영 DB 전환 | Supabase PostgreSQL 개발 DB seed 검증 완료 |
-| API 경계 | 사용자 서비스는 Spring Core API로 전환 중이다. `bodeul-api`는 관리자 병원 가이드 계약이 Next.js로 옮겨질 때까지만 동결된 프로토타입으로 보존한다. |
+| 관리자 웹 데이터 | 기존 화면은 Firestore/Storage를 유지하고 병원 가이드는 Next.js same-origin API로 첫 전환 경계를 구현했다. |
+| 운영 DB 전환 | Supabase PostgreSQL 개발 DB에 병원 가이드 read model과 개발 seed를 적용했다. 관리자 접속 role은 `NOLOGIN`이다. |
+| API 경계 | 사용자 서비스는 Spring Core API를 사용한다. 관리자 병원 가이드 코드는 Next.js로 옮겼지만 실제 200/403 비교 전까지 `bodeul-api`를 동결 보존한다. |
 | Spring Core API | Cloud Run preview, Firebase token/PostgreSQL role, DB migration, rollback 검증 완료. Kakao Local proxy의 Secret Manager 주입과 인증된 실호출도 완료했다. |
 | Firebase Functions | FCM, Kakao/Naver custom token, 운영 보조 작업 유지 |
 | App Check | 초기화 경로는 있으나 enforcement는 단계 적용 |
@@ -23,29 +23,30 @@
 
 ## 관리자 웹 배포 방식
 
-현재 저장소에서 검증된 관리자 웹 배포 경로는 Firebase Hosting preview다. production live 배포 기준은 #134에서 확정한다. #140에서는 Oracle API와 로컬 관리자 웹 API 모드 실연동이 통과했지만, Vercel preview는 production target 생성 문제로 제외됐다. Vercel/Firebase preview URL에서 팀원이 공유 가능한 API 모드 화면 검증은 후속 작업으로 분리한다.
+현재 관리자 웹의 기본 preview 경로는 별도 `bodeul-admin-web` 저장소와 연결된 Vercel Next.js 배포다. production live 배포 기준은 #134에서 확정한다. Firebase Hosting workflow는 Vite rollback 산출물 검증용으로 유지한다.
 
 선택 이유:
 
-- 관리자 웹은 Firebase Auth, Firestore, Storage를 직접 사용하므로 같은 Firebase 프로젝트 안에서 호스팅하는 편이 운영 경계가 단순하다.
-- Firebase Hosting은 정적 Vite 빌드 산출물 배포에 맞고, 커스텀 도메인과 SSL을 Firebase 콘솔에서 함께 관리할 수 있다.
-- Vercel preview는 API 모드 팀 공유 검증 후보지만, production 기준은 도메인, Auth domain, App Check, live workflow, 권한 분리를 #134에서 별도로 결정해야 한다.
+- Next.js Route Handler가 Firebase ID token과 PostgreSQL role을 서버에서 확인하므로 DB 접속 문자열을 브라우저에 노출하지 않는다.
+- 관리자 서버가 PostgreSQL을 직접 읽어 별도 Node API나 Spring Core API를 경유하는 중복 경로를 만들지 않는다.
+- Vite/Firebase Hosting 빌드를 유지해 첫 서버 경계에 문제가 생기면 기존 Firebase 화면으로 돌아갈 수 있다.
+- production 기준은 도메인, Auth authorized domain, App Check, 배포 승인과 환경 분리를 #134에서 별도로 결정해야 한다.
 - 로컬 실행은 개발/시연용이지 운영 배포 방식으로 보지 않는다.
 
 현재 상태:
 
-- `firebase.json`의 Hosting public은 `admin-web/dist`다.
-- `/assets/**`는 Vite hash asset 기준 장기 캐시를 사용한다.
-- HTML과 SPA fallback 경로는 no-cache다.
-- 모든 경로는 `/index.html`로 rewrite한다.
-- Firebase Hosting dev live URL 기준은 `https://bodeul-dev.web.app`이다. production live URL은 #134에서 별도 확정한다.
+- Vercel project framework는 Next.js, Node runtime은 22.x로 고정했다.
+- PR #18 Git 연동 Preview에서 루트 200과 인증 없는 `/admin/hospital-guides` 401을 확인했다.
+- `bodeul_admin_service`와 Vercel `ADMIN_DATABASE_URL`은 아직 활성화하지 않았다.
+- Firebase Hosting preview workflow는 Vite rollback build만 배포한다.
+- production URL과 도메인은 #134에서 별도 확정한다.
 
 관련 workflow:
 
-- `.github/workflows/admin-web.yml`
-- `.github/workflows/admin-web-preview-deploy.yml`
+- `bodeul-admin-web/.github/workflows/admin-web.yml`
+- `bodeul-admin-web/.github/workflows/admin-web-preview-deploy.yml`
 
-Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Google Cloud Workload Identity Federation을 사용한다. Firebase refresh token fallback은 제거된 상태다. Vercel preview를 후속 검증에 사용할 때도 Firebase Web config와 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`은 preview 전용 환경값으로 분리한다.
+Next.js 브라우저 설정은 `NEXT_PUBLIC_*`, Firebase server project ID와 DB connection string은 서버 전용 환경변수로 분리한다. Vite rollback만 기존 `VITE_*`를 사용한다. DB 자격 증명과 Firebase 서비스 계정 키는 브라우저 번들, 저장소, 공개 이슈에 남기지 않는다.
 
 ## bodeul-api 동결과 종료 기준
 
@@ -71,14 +72,14 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 | Oracle GitHub secret | 제거 완료 | workflow 참조가 없는 `OCI_CLI_*` 저장소 secret 6개를 2026-07-16 삭제했다. |
 | Node 신규 기능 | 동결 | 보안 수정과 기존 계약 회귀 수정 외에는 추가하지 않는다. |
 | Node CI | 유지 | `api/`가 남아 있는 동안 typecheck, build, test를 계속 실행한다. |
-| 관리자 병원 가이드 | 미이관 | Next.js 관리자 서버가 대체하기 전에는 `api/`를 삭제하지 않는다. |
+| 관리자 병원 가이드 | 코드 이관, 실검증 대기 | Next.js 401 경계는 통과했다. 실제 ADMIN 200·비관리자 403과 결과 비교 전에는 `api/`를 삭제하지 않는다. |
 | Spring Core API | preview 검증 완료 | `bodeul-dev` Tokyo Cloud Run, 최소 0/최대 1, 1 vCPU/1 GiB 기준이다. |
 
 관리자 웹 API 모드 rollback 기준:
 
-- `VITE_BODEUL_DATA_BACKEND=firebase`를 기본값으로 둔다.
-- `api` 전환은 화면 단위로 진행한다.
-- API 장애나 응답 불일치가 있으면 Firebase 직접 접근 경로로 되돌린다.
+- Next.js 기본값은 same-origin `api` 경로로 둔다.
+- Vite rollback은 `VITE_BODEUL_DATA_BACKEND=firebase`를 사용한다.
+- 관리자 DB 연결, 인증 또는 응답 비교에 문제가 있으면 Vite/Firebase 경로로 되돌린다.
 - #140에서 배포된 API 응답 JSON을 확보했고, #123 댓글 기준 병원 가이드 Firestore/API 응답 비교가 `passed`로 기록됐다.
 
 세부 근거와 실제 삭제 조건은 [Issue 159 Node API 종료 판단 기록](../reports/issue-159-node-api-retirement-audit-2026-07-16.md)을 따른다.
@@ -109,8 +110,8 @@ Firebase Hosting preview 배포는 `admin-web-preview` GitHub Environment와 Goo
 - #122는 API 환경변수와 CORS origin 기준 확정으로 종료됐다.
 - #123은 병원 가이드 Firestore/API 응답 비교 기록을 계속 추적한다. 로컬 비교와 비교 도구는 #137, #138로 반영됐고, 실제 배포 API 응답 비교는 2026-07-08 댓글 기준 `passed`로 기록됐다.
 - #134는 production 관리자 웹 배포 기준을 확정한다.
-- #135는 `bodeul-admin-web` 저장소 분리 실행 준비를 추적한다.
-- #140은 Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 1차 검증을 기록했다. Vercel preview 검증은 후속 분리 대상이다.
+- #135는 분리 저장소 bootstrap 이후 메인 저장소 중복 코드 정리와 source of truth 전환 완료 조건을 추적한다.
+- #140은 과거 Oracle/Node API 검증 기록이다. 현재 Vercel Next.js 검증은 `bodeul-admin-web` #10과 PR #18에서 추적한다.
 
 ## 비용 리스크
 
@@ -338,7 +339,7 @@ npx --prefix tools/firebase firebase emulators:exec `
 | [#66](https://github.com/bodeul110/Bodeul/issues/66) | Core API proxy와 Secret Manager 전환 검증 진행 중 |
 | [#123](https://github.com/bodeul110/Bodeul/issues/123) | 완료: 실제 배포 API 응답 비교 `passed` 반영 |
 | [#134](https://github.com/bodeul110/Bodeul/issues/134) | 관리자 웹 production 배포 기준 확정 필요 |
-| [#135](https://github.com/bodeul110/Bodeul/issues/135) | 분리 저장소 bootstrap 완료, Next.js 이관 후 source-of-truth 전환 대기 |
+| [#135](https://github.com/bodeul110/Bodeul/issues/135) | 분리 저장소가 Next.js 기본 배포 코드를 소유한다. 메인 저장소 중복 코드 정리와 production 기준은 남아 있음 |
 | [#140](https://github.com/bodeul110/Bodeul/issues/140) | 완료: Oracle/Supabase/Firebase Admin/로컬 관리자 웹 API 모드 실연동 검증 |
 | [#144](https://github.com/bodeul110/Bodeul/issues/144) | 완료: Vercel preview URL 팀 공유 및 HTTP 200 확인 |
 | [#156](https://github.com/bodeul110/Bodeul/issues/156) | 완료: OCI 대신 Cloud Run에 Spring Core API preview 배포 및 rollback 검증 |

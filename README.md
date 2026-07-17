@@ -14,7 +14,7 @@
 </div>
 
 > [!IMPORTANT]
-> 현재 Android 앱과 관리자 웹의 주요 운영 데이터는 Firebase를 기본 경로로 사용합니다. Node `bodeul-api`와 Supabase 연동은 전환 검증용이며 production 전환은 아닙니다. 목표 구조는 Next.js 관리자 서버와 Cloud Run Spring Core API가 같은 Supabase PostgreSQL을 각각 사용하는 방식입니다.
+> 현재 Android 앱과 관리자 웹의 대부분 운영 데이터는 Firebase를 유지합니다. 관리자 웹은 별도 `bodeul-admin-web` 저장소에서 Next.js/Vercel 서버 경계로 전환했고, 병원 가이드는 Supabase read model과 same-origin Route Handler까지 구현했습니다. 개발 DB 관리자 접속과 인증된 200/403 검증 전이므로 production 전환은 아닙니다. Node `bodeul-api`는 종료 검증을 위한 동결된 프로토타입으로만 유지합니다.
 
 ## 서비스 개요
 
@@ -60,8 +60,8 @@
 | 영역 | 기술 | 역할 |
 | --- | --- | --- |
 | Android | Java 17, XML, Android SDK 37, Gradle 9.6.1 | 환자·보호자·매니저·관리자 앱 |
-| 관리자 웹 | 현재 React 19 + Vite 8, 목표 Next.js + Vercel | 서류 심사와 운영 백오피스, 관리자 서버 |
-| API | 현재 Node.js 22 prototype, 목표 Java 21 + Spring Boot + Cloud Run | 사용자 서비스와 Kakao 서버 API, PostgreSQL 접근 경계 |
+| 관리자 웹 | React 19 + Next.js 16 + Vercel, Vite 8 rollback | 서류 심사와 운영 백오피스, 관리자 서버 |
+| API | Java 21 + Spring Boot + Cloud Run, Node.js 22 prototype 동결 | 사용자 서비스와 Kakao 서버 API, PostgreSQL 접근 경계 |
 | Firebase | Authentication, Firestore, Storage, Functions v2, FCM, App Check | 인증, 실시간 데이터, 파일, 푸시와 운영 보조 |
 | 관계형 데이터 | Supabase PostgreSQL | 관리자 처리 이력과 관계형 조회의 단계적 이전 대상 |
 | 외부 연동 | Kakao Login, Kakao Maps, Kakao Local REST API | 소셜 로그인, 지도와 장소 검색 |
@@ -215,7 +215,7 @@ npm --prefix tools/firebase run preflight:local
 | --- | --- | --- |
 | Android | `local.properties`, `google-services.json` | 로컬에서만 관리하고 커밋하지 않음 |
 | API | `DATABASE_URL`, Firebase Admin 설정, CORS allow-list | 서버 또는 GitHub Environment secret으로만 주입 |
-| 관리자 웹 | `admin-web/.env.example` 기준 Vite 환경변수 | 실제 환경값을 소스에 직접 작성하지 않음 |
+| 관리자 웹 | 별도 저장소 `.env.example` 기준 공개 `NEXT_PUBLIC_*`와 서버 전용 `ADMIN_DATABASE_URL` 분리 | 실제 환경값과 DB 자격 증명을 소스나 브라우저 번들에 작성하지 않음 |
 | Firebase | 서비스 계정 키, CLI token, App Check debug token | 공개 Issue·PR·로그에 남기지 않음 |
 
 테스트 계정과 seed 데이터는 공개 README에 비밀번호를 적지 않고 [내부 테스트 가이드](docs/operations/internal-test-guide.md)에서 환경별로 관리합니다.
@@ -225,8 +225,8 @@ npm --prefix tools/firebase run preflight:local
 | 대상 | 현재 방식 | 상태 |
 | --- | --- | --- |
 | Android | GitHub Actions `Android Preflight`, 로컬 debug build | 배포 전 컴파일·테스트 검증 |
-| 관리자 웹 | [Vercel 팀 공유 배포](https://bodeul-admin-web-iota.vercel.app/) + 별도 저장소 | 화면 검증 가능. production Firebase·도메인·App Check 기준 확정 전 |
-| API | Cloud Run Spring preview 구축 중 + Supabase 개발 DB + Firebase Admin | 컨테이너/WIF 배포 기반 준비, 실제 Cloud Run token 검증 전 |
+| 관리자 웹 | 별도 저장소의 Next.js Vercel Preview + Vite rollback | 루트 200·인증 없는 API 401 확인. 관리자 DB 접속과 200/403 검증 전 |
+| API | Cloud Run Spring preview + Supabase 개발 DB + Firebase 인증 | 실제 token/role, migration, rollback, Kakao proxy 검증 완료 |
 | Firebase | `bodeul-dev`, Rules·Functions·FCM·Storage 운영 도구 | 개발 기준. dev/prod 분리와 App Check 강제는 후속 |
 
 관리자 웹 링크는 팀 공유와 화면 검증을 위한 배포입니다. 별도 production 환경으로 간주하지 않으며, 운영 전환 조건은 [관리자 웹 환경 기준](docs/operations/admin-api-environments.md)과 관련 GitHub Issue에서 결정합니다.
@@ -249,7 +249,7 @@ npm --prefix tools/firebase run preflight:local
 
 - 병원 가이드에서 검증한 API 경계를 관리자 조회 도메인부터 단계적으로 확장합니다.
 - 메인 저장소의 `core-api/` Spring 프로젝트와 Cloud Run preview 배포 기반을 먼저 구축합니다.
-- 관리자 웹은 기능을 유지하면서 Next.js로 단계 이전합니다.
+- 관리자 웹은 Next.js 첫 서버 경계를 반영했으며, 관리자 DB 접속과 200/403 검증 뒤 도메인별 전환과 Vite rollback 종료를 판단합니다.
 - 관리자 웹 별도 저장소의 source of truth, production 환경과 배포 책임을 확정합니다.
 - Firebase dev/prod 분리, App Check 강제, 백업·복원 리허설과 비용 모니터링을 완료합니다.
 - 전환 도메인마다 Firestore·PostgreSQL 응답 비교, rollback 기준과 write 소유권을 문서화합니다.
