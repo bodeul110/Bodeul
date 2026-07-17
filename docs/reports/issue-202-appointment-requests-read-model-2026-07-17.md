@@ -1,4 +1,4 @@
-# 예약 요청 PostgreSQL read model 및 백필 준비
+# 예약 요청 PostgreSQL read model 및 preview 백필 검증
 
 기준일: 2026-07-17
 
@@ -16,6 +16,8 @@ Firestore `appointmentRequests`를 바로 대체하지 않고, 개발용 Supabas
 - 백필 전 사용자 참조, 필수 시각, 앱 enum, 위도·경도, 가격 계산식과 JSON 배열 형식을 검사한다.
 - Core/Admin runtime에는 SELECT만 허용하고 migration role만 백필 SQL을 실행한다.
 - apply SQL은 `firestore_id` 기준 upsert로 만들고, rollback SQL은 같은 백업에 포함된 문서 ID만 삭제한다.
+- 실제 백필은 GitHub에 SQL을 저장하지 않고 기존 자체 호스팅 Windows 실행기가 로컬 ignored SQL을 읽도록 했다.
+- `master`, 고정 파일 경로, SHA-256, GitHub Environment 승인 조건을 모두 통과한 한 번의 preview 실행만 허용했다.
 
 ## 대안
 
@@ -53,18 +55,39 @@ Firestore `appointmentRequests`를 바로 대체하지 않고, 개발용 Supabas
 | Core API Gradle `check` | 통과 |
 | `git diff --check` | 통과 |
 | 개발 DB Flyway V3 | migration run `29557164927` 통과 |
-| `appointment_requests` | 0건, owner `bodeul_migration`, RLS 활성화 |
+| 백필 전 `appointment_requests` | 0건, owner `bodeul_migration`, RLS 활성화 |
 | runtime/public 권한 | Core/Admin SELECT만 허용, 공개 role 조회·쓰기 없음 |
 | Supabase Security Advisor | 경고 0건 |
 
 백업에는 ISO-8601 timestamp와 13자리 epoch millis로 저장된 seed 문서가 함께 있었다. 변환기는 두 형식과 Firestore seconds/nanos 형식을 UTC ISO 시각으로 정규화한다.
 
+## preview 백필 검증 결과
+
+개인정보 값과 SQL 본문은 로그나 GitHub 저장소에 출력하지 않고 집계와 권한만 다시 확인했다.
+
+| 항목 | 결과 |
+| --- | --- |
+| GitHub Actions | [run `29560331212`](https://github.com/bodeul110/Bodeul/actions/runs/29560331212) 성공 |
+| 실행 위치 | `DESKTOP-1B62HQD-bodeul-preflight-service` 자체 호스팅 Windows 실행기 |
+| seed 전달 | 로컬 ignored SQL 직접 읽기, GitHub secret·artifact 업로드 없음 |
+| 입력 고정 | SHA-256 `c0db619b43adcf3f7741911e97d640da97a9e4efdb798ada091a3c5d830fda2b` 일치 |
+| `appointment_requests` | 4건 |
+| `id` / `firestore_id` 고유 건수 | 4건 / 4건 |
+| 상태별 건수 | `REQUESTED` 2건, `IN_PROGRESS` 1건, `COMPLETED` 1건 |
+| patient / guardian / manager / requester FK orphan | 모두 0건 |
+| owner / RLS / policy | `bodeul_migration` / 활성화 / 2개 |
+| Core/Admin runtime | SELECT 가능, INSERT·UPDATE·DELETE 불가 |
+| `anon` / `authenticated` / `service_role` | 조회·쓰기 권한 없음 |
+| Supabase Security Advisor | 경고 0건 |
+| Supabase Performance Advisor | [새 인덱스 미사용 INFO](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)만 존재 |
+
+run의 예약 seed 적용과 Gradle build는 성공했다. 종료 후 Gradle 캐시 저장에서 Windows `tar` 경로 경고가 1건 발생했지만 job 결론과 DB 트랜잭션에는 영향을 주지 않았다. 아직 예약 read 쿼리 트래픽이 없으므로 미사용 인덱스 INFO만으로 인덱스를 제거하지 않는다.
+
 ## 남은 범위
 
-- 커밋 제외된 apply SQL로 예약 요청 4건 백필
-- 백필 후 Firestore/PostgreSQL row 수와 사용자 FK 확인
 - Spring 예약 read API와 Firestore/PostgreSQL 응답 비교는 후속 작업으로 분리
+- 운영 전환 시 증분 동기화, write 소유권, 최종 대조와 rollback 조건 확정
 
-Flyway V3, RLS, 권한과 Security Advisor 확인은 완료했다. 백필은 Supabase 관리 연결이 INSERT와 `SET ROLE bodeul_migration` 권한을 갖지 않아 0건 상태로 중단했다. 관리 연결 권한을 넓히지 않고 migration 전용 실행 경로를 사용할지 별도 승인 후 결정한다.
+Flyway V3, 예약 요청 4건 백필, FK, RLS, ACL과 Security Advisor 검증은 완료했다. Supabase 관리 연결 권한은 넓히지 않았고, 고정 로컬 경로가 포함된 일회성 workflow는 실행 후 제거한다. 이번 결과는 read model 검증 완료를 뜻하며 Android 쓰기 경로와 운영 source of truth는 아직 Firestore다.
 
 관련 이슈: [#202](https://github.com/bodeul110/Bodeul/issues/202), [#154](https://github.com/bodeul110/Bodeul/issues/154)
