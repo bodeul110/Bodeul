@@ -7,7 +7,7 @@
 
 ## 한 줄 결론
 
-개발 인프라는 `Vercel Next.js 관리자 서버 + Cloud Run Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM/Storage`로 분리했다. Firestore 데이터는 도메인별로 PostgreSQL에 이전 중이며 production 프로젝트와 자격 증명은 아직 만들지 않았다.
+개발과 production 인프라는 `Vercel Next.js 관리자 서버 + Cloud Run Spring Core API + 공용 Supabase PostgreSQL + Firebase Auth/FCM/Storage` 경계로 분리했다. production 프로젝트와 DB migration 기반은 생성했지만 사용자 트래픽, 관리자 DB 연결, Kakao key, App Check와 도메인은 아직 전환하지 않았다.
 
 ## 구성도
 
@@ -63,8 +63,8 @@ flowchart LR
 | 관리자 DB 접속 | `bodeul_admin_service`, transaction pooler, 최대 연결 5 | Preview 전용 자격 증명과 Supabase Root CA 검증, 쓰기 권한 없음 확인 |
 | 사용자 Core API | `core-api/`, Java 21, Spring Boot, Cloud Run Tokyo | `/health` 200, Firebase token, PostgreSQL role, App Check observe, rollback 확인 |
 | Kakao Local | Core API의 `/api/places/search` 뒤에 배치 | Android 직접 REST 키 제거, 인증된 실제 호출 확인 |
-| 공용 DB | Supabase PostgreSQL 개발 프로젝트 | migration role과 core/admin runtime role 분리, Security Advisor 경고 0건 |
-| Firebase | Auth, Firestore, Storage, Functions, FCM 유지 | Rules, App Check 단계 적용, 운영 도구와 CI 유지 |
+| 공용 DB | 개발·production Supabase PostgreSQL을 Tokyo에 분리 | production Flyway V1~V3, role·RLS·공개 grant 0건, Security Advisor 경고 0건 |
+| Firebase | 개발·production Auth, Firestore, Storage를 분리 | production Rules 배포, Firestore 삭제 방지, App Check는 미강제 |
 
 ## 저장소 소유권
 
@@ -89,10 +89,10 @@ flowchart LR
 
 ## 남은 운영 전환
 
-- production Firebase·Supabase·Vercel·Cloud Run 프로젝트와 자격 증명을 개발 환경과 분리한다.
+- Vercel Production에 production Firebase와 SELECT-only 관리자 DB 값을 등록하고 Cloud Run 첫 승인을 배포한다.
 - 관리자 웹 custom domain, Auth authorized domain, App Check enforcement와 live 승인 조건을 확정한다.
 - 예약, 매칭, 동행 세션 등 도메인별 PostgreSQL source of truth 전환을 리허설한다.
-- production backup/restore와 장애 rollback을 실제 격리 환경에서 검증한다.
+- 비공개 pre-migration dump를 이용해 production restore와 장애 rollback을 실제 격리 환경에서 검증한다.
 
 이 항목은 구현 미완료와 운영 의사결정을 구분한다. 현재 개발 경계의 인증·인가·DB 연결은 검증됐지만 production 준비 완료를 뜻하지 않는다.
 

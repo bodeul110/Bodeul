@@ -8,7 +8,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $Host.UI.RawUI.WindowTitle = "BoDeul Cloud Run Secrets"
 
-$gcloud = Get-Command gcloud -ErrorAction Stop
+$gcloud = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if ($null -eq $gcloud) {
+    $gcloud = Get-Command gcloud -ErrorAction Stop
+}
 $knownSecretIds = @(
     "bodeul-core-api-preview-db-jdbc-url",
     "bodeul-core-api-preview-db-username",
