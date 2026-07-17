@@ -18,7 +18,10 @@ if ($confirmedProjectId -ne $ProjectId) {
     throw "입력한 production project ID가 일치하지 않습니다."
 }
 
-$gcloud = Get-Command gcloud -ErrorAction Stop
+$gcloud = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if ($null -eq $gcloud) {
+    $gcloud = Get-Command gcloud -ErrorAction Stop
+}
 $knownSecretIds = @(
     "bodeul-core-api-production-db-jdbc-url",
     "bodeul-core-api-production-db-username",

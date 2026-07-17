@@ -1,29 +1,28 @@
 # 비용과 쿼터 모니터링
 
-기준일: 2026-07-16
+기준일: 2026-07-17
 
-이 문서는 개발 인프라의 Google Cloud/Firebase 비용과 Kakao Local 쿼터를 정기 점검하는 기준이다. budget은 지출을 자동 차단하지 않으며, 알림을 받은 운영자가 원인을 확인하고 대응해야 한다.
+이 문서는 개발·production 인프라의 Google Cloud/Firebase 비용과 Kakao Local 쿼터를 정기 점검하는 기준이다. budget은 지출을 자동 차단하지 않으며, 알림을 받은 운영자가 원인을 확인하고 대응해야 한다.
 
 ## Google Cloud budget
 
-| 항목 | 현재 값 |
-| --- | --- |
-| 대상 프로젝트 | `bodeul-dev` |
-| budget 이름 | `BoDeul dev monthly budget` |
-| 기간 | 매월 |
-| 금액 | 10,000 KRW |
-| 알림 | 현재 지출 50%, 80%, 100% |
-| 수신자 | 결제 계정의 Billing Account Administrator, Billing Account User |
+| 환경 | 대상 프로젝트 | budget 이름 | 월 금액 | 알림 |
+| --- | --- | --- | ---: | --- |
+| 개발 | `bodeul-dev` | `BoDeul dev monthly budget` | 10,000 KRW | 현재 지출 50%, 80%, 100% |
+| production | `bodeul-prod-110` | `BoDeul production monthly budget` | 30,000 KRW | 현재 지출 50%, 80%, 100% |
 
-현재 규모에서는 낮은 개발 예산으로 오설정, 무한 호출, scheduled job 반복을 조기에 발견하는 것이 목적이다. 정상적인 preview 검증이 반복적으로 10,000 KRW를 넘기면 금액을 바로 높이지 않고 서비스별 사용량과 무료 할당량을 먼저 확인한다.
+수신자는 결제 계정의 Billing Account Administrator와 Billing Account User다.
+
+현재 규모에서는 낮은 개발·production 예산으로 오설정, 무한 호출, scheduled job 반복을 조기에 발견하는 것이 목적이다. 정상 검증이 예산을 반복해서 넘기면 금액을 바로 높이지 않고 환경별 서비스 사용량과 무료 할당량을 먼저 확인한다. budget은 지출 상한이 아니라 알림 기준이다.
 
 확인 명령은 결제 계정 ID를 로컬에서 조회한 뒤 실행한다. 실제 ID는 문서나 공개 이슈에 남기지 않는다.
 
 ```powershell
 gcloud billing projects describe bodeul-dev
+gcloud billing projects describe bodeul-prod-110
 gcloud billing budgets list `
   --billing-account=<BILLING_ACCOUNT_ID> `
-  --filter='displayName="BoDeul dev monthly budget"'
+  --filter='displayName:("BoDeul dev monthly budget" OR "BoDeul production monthly budget")'
 ```
 
 ## 점검 metric
