@@ -14,6 +14,16 @@ on:
         description: 확인을 위해 target 값을 다시 입력하세요.
         required: true
         type: string
+      confirm_commit:
+        description: production 적용 시 master commit SHA 40자를 입력하세요.
+        required: false
+        default: ""
+        type: string
+      backup_reference:
+        description: production 적용 시 복원 가능한 백업 증적 URL 또는 ID를 입력하세요.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -43,10 +53,37 @@ jobs:
 
       - name: 대상 확인
         shell: bash
+        env:
+          MIGRATION_CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+          MIGRATION_BACKUP_REFERENCE: ${{ inputs.backup_reference }}
         run: |
+          set -euo pipefail
+
           if [ "$MIGRATION_TARGET" != "$MIGRATION_CONFIRM_TARGET" ]; then
             echo "입력한 target이 일치하지 않습니다."
             exit 1
+          fi
+
+          if [ "$MIGRATION_TARGET" = "production" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+              echo "production migration은 master 브랜치에서만 실행할 수 있습니다." >&2
+              exit 1
+            fi
+
+            if [ "$MIGRATION_CONFIRM_COMMIT" != "$GITHUB_SHA" ]; then
+              echo "입력한 commit SHA와 workflow 실행 commit이 일치하지 않습니다." >&2
+              exit 1
+            fi
+
+            if [ -z "$MIGRATION_BACKUP_REFERENCE" ]; then
+              echo "production migration에는 복원 가능한 백업 증적이 필요합니다." >&2
+              exit 1
+            fi
+
+            if [[ ! "$MIGRATION_BACKUP_REFERENCE" =~ ^[A-Za-z0-9._:/#-]+$ ]]; then
+              echo "백업 증적에는 URL 또는 안전한 식별자만 입력할 수 있습니다." >&2
+              exit 1
+            fi
           fi
 
       - name: migration secret 확인
@@ -72,9 +109,30 @@ jobs:
         with:
           cache-provider: basic
 
+      - name: Gradle Wrapper 검증
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Core API 검증
+        run: ./gradlew check --console=plain
+
       - name: Flyway migration 실행
         env:
           MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
           MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
         run: ./gradlew migrateDatabase --console=plain
+
+      - name: migration 결과 기록
+        shell: bash
+        env:
+          MIGRATION_BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+        run: |
+          {
+            echo "## Core API DB Migration"
+            echo
+            echo "- Target: ${MIGRATION_TARGET}"
+            echo "- Commit: ${GITHUB_SHA}"
+            if [ "$MIGRATION_TARGET" = "production" ]; then
+              echo "- Backup: ${MIGRATION_BACKUP_REFERENCE}"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

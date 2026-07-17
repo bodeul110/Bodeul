@@ -118,6 +118,17 @@ Cloud Run 환경변수는 `latest` 대신 숫자 version을 참조한다. 회전
 
 같은 날 Kakao Local REST 키를 `bodeul-core-api-preview-kakao-local-rest-api-key` 버전 `1`로 등록하고 런타임 서비스 계정에 accessor 권한만 부여했다. Cloud Run 리비전 `bodeul-core-api-preview-00006-hdk`가 이 버전을 참조한다.
 
+production에서는 개발 secret을 복사하지 않고 다음 ID를 새로 만든다.
+
+| Secret Manager ID | Cloud Run 환경변수 |
+| --- | --- |
+| `bodeul-core-api-production-db-jdbc-url` | `CORE_DB_JDBC_URL` |
+| `bodeul-core-api-production-db-username` | `CORE_DB_USERNAME` |
+| `bodeul-core-api-production-db-password` | `CORE_DB_PASSWORD` |
+| `bodeul-core-api-production-kakao-local-rest-api-key` | `KAKAO_LOCAL_REST_API_KEY` |
+
+리소스를 만든 뒤 `core-api/deploy/cloud-run/set-production-secrets.ps1 -ProjectId <production-project-id>`로 version을 입력한다. 이 스크립트는 `bodeul-dev`와 허용 목록 밖 secret을 거부하고 project ID 재입력을 요구한다.
+
 ## Google Cloud 최초 설정
 
 결제 계정 연결과 Cloud Run API 사용 가능 여부는 Google Cloud Console에서 먼저 확인한다. 이후 프로젝트 소유자 권한이 있는 로컬 `gcloud` 또는 Cloud Shell에서 아래 순서로 설정한다.
@@ -228,6 +239,27 @@ Kakao 키만 회전할 때는 DB 자격 증명을 다시 입력하지 않고 대
 
 `OCI_REGION`, `CORE_API_SERVICE_NAME` 같은 OCI 변수는 제거한다. `core-api-production`과 `core-api-migration-production` Environment는 production 리소스 생성 전까지 보호 규칙만 유지하고 secret이나 실제 배포값을 넣지 않는다.
 
+### `core-api-production` Variables
+
+production 리소스 생성 후 다음 값만 등록한다. DB URL과 비밀번호 원문은 GitHub에 두지 않는다.
+
+- `GCP_PROJECT_ID=<production-project-id>`
+- `GCP_REGION=asia-northeast1`
+- `CLOUD_RUN_SERVICE=bodeul-core-api`
+- `CLOUD_RUN_ARTIFACT_REPOSITORY=bodeul-core-api`
+- `CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER=<bodeul-core-api-production provider resource name>`
+- `CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT=bodeul-core-deployer@<production-project-id>.iam.gserviceaccount.com`
+- `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT=bodeul-core-runtime@<production-project-id>.iam.gserviceaccount.com`
+- `CORE_DB_JDBC_URL_SECRET_VERSION=<숫자 version>`
+- `CORE_DB_USERNAME_SECRET_VERSION=<숫자 version>`
+- `CORE_DB_PASSWORD_SECRET_VERSION=<숫자 version>`
+- `KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION=<숫자 version>`
+- `FIREBASE_PROJECT_ID=<production-project-id>`
+- `FIREBASE_PROJECT_NUMBER=<production project number>`
+- `BODEUL_APP_CHECK_MODE=observe`
+
+첫 release 요청이 정상 App Check 판정을 받고 rollback을 재현한 뒤 `BODEUL_APP_CHECK_MODE=enforce`로 변경한다. 현재 Environment에는 이 Variables와 secret이 없으므로 production workflow는 fail-closed 상태다.
+
 ## 최초 서비스 공개
 
 Android와 사용자 웹은 Google Cloud IAM token이 아니라 Firebase ID token을 사용한다. 따라서 Cloud Run IAM 단계에서는 서비스 호출을 공개하고 Spring Security가 `/health` 외 요청을 인증해야 한다.
@@ -244,6 +276,18 @@ gcloud run services add-iam-policy-binding bodeul-core-api-preview `
   --role=roles/run.invoker
 ```
 
+production 서비스도 같은 인증 경계를 사용하므로 서비스가 처음 생성된 뒤 프로젝트 소유자가 한 번만 실행한다.
+
+```powershell
+gcloud run services add-iam-policy-binding bodeul-core-api `
+  --project=<production-project-id> `
+  --region=asia-northeast1 `
+  --member=allUsers `
+  --role=roles/run.invoker
+```
+
+배포 서비스 계정에는 IAM policy 변경 권한을 주지 않는다. 최초 workflow가 서비스를 만든 뒤 공개 binding 전 smoke test에서 403으로 실패할 수 있으며, 이 경우 위 binding을 적용한 뒤 같은 `master` commit으로 다시 실행한다. custom domain이나 사용자 트래픽을 연결하기 전 단계이므로 이 최초 실패를 production 검증 완료로 기록하지 않는다.
+
 배포 workflow는 Cloud Run IAM policy를 변경하지 않는다. 공개 호출을 허용하더라도 `/api/auth/me` 무인증 요청은 Spring에서 401을 반환해야 한다.
 
 ## 배포
@@ -258,7 +302,11 @@ gcloud run services add-iam-policy-binding bodeul-core-api-preview `
 6. 최신 revision에 트래픽 100%를 보낸다.
 7. `/health` 200과 `/api/auth/me` 무인증 401을 검사한다.
 
-production은 자동 배포하지 않는다. production 리소스 생성 뒤에도 GitHub Environment 승인을 거친 수동 `workflow_dispatch`를 사용하고, DB migration과 앱 배포를 분리한다. 실제 workflow와 secret은 production 프로젝트, DB, 비용 한도와 rollback 리허설이 준비된 뒤 활성화한다.
+production은 자동 배포하지 않는다. `.github/workflows/core-api-production-deploy.yml`은 GitHub Environment 승인을 거친 수동 `workflow_dispatch`만 허용하고 DB migration과 앱 배포를 분리한다. `master`, 40자 commit SHA, 서비스명, production project·리전·계정·WIF·secret version 형식을 모두 확인한 뒤에만 인증을 시작한다.
+
+DB migration은 `.github/workflows/core-api-migration.yml`의 `production` target을 사용한다. `master`의 실제 commit SHA와 복원 가능한 백업 증적 URL 또는 ID가 모두 있어야 `core-api-migration-production` Environment 승인으로 넘어간다. workflow는 Core API 검사를 통과한 뒤 Flyway를 실행하고 target, commit, 백업 참조를 job summary에 남긴다.
+
+초기 production은 1 vCPU, 1 GiB, 최소 인스턴스 0, 최대 인스턴스 2, concurrency 20과 인스턴스당 DB pool 2를 사용한다. 배포 뒤 `/health` 200과 무인증 auth/place search 401을 확인한다. smoke test가 실패하고 직전 정상 revision이 있으면 workflow가 트래픽을 직전 revision 100%로 자동 복구한다. 최초 배포처럼 직전 revision이 없으면 실패 상태를 유지하고 운영자가 원인을 확인한다.
 
 ## Rollback
 
