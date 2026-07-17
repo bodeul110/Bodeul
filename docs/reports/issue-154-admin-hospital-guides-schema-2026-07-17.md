@@ -60,8 +60,8 @@
 | 병원 가이드 seed | 최신 개발 백업 기준 1건 적용 |
 | 사용자 role seed | 6건: ADMIN 1, GUARDIAN 1, MANAGER 3, PATIENT 1 |
 | 관리자 접속 role | `bodeul_admin_service`는 `NOLOGIN`, connection limit 5 유지 |
-| production | 미적용 |
+| production | Supabase production과 DB 자격 증명은 미적용. Vercel `master` 자동 target만 Next.js build로 갱신 |
 
 Supabase Security Advisor는 경고가 없었다. `bodeul.flyway_schema_history`는 private schema의 migration metadata라 RLS를 켜지 않았고 공개 role의 schema 접근은 차단돼 있다. 애플리케이션 데이터 테이블인 `app_users`와 `hospital_guides`의 RLS 경계와 구분해 관리한다.
 
-관리자 웹은 별도 저장소 PR #18에서 Next.js Route Handler까지 반영했고 Preview의 루트 200과 인증 없는 API 401을 확인했다. 실제 ADMIN 200과 비관리자 403은 관리자 접속 role과 Vercel 서버 환경변수를 활성화한 뒤 검증한다.
+관리자 웹은 별도 저장소 PR #18에서 Next.js Route Handler까지 반영했고 Preview와 `master` 자동 target의 루트 200, 인증 없는 API 401을 확인했다. Vercel project는 `live=false`이고 custom domain과 `ADMIN_DATABASE_URL`은 없다. 실제 ADMIN 200과 비관리자 403은 관리자 접속 role과 Vercel 서버 환경변수를 활성화한 뒤 검증한다.

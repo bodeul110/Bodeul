@@ -8,7 +8,7 @@
 
 | 영역 | 현재 판단 |
 | --- | --- |
-| 관리자 웹 배포 | 별도 저장소의 Next.js Vercel Preview가 기본 검증 경로다. production 기준은 #134에서 확정하고 Vite/Firebase Hosting은 rollback으로 유지한다. |
+| 관리자 웹 배포 | 별도 저장소의 Next.js Vercel 배포가 기본 검증 경로다. `master`는 자동 production target이지만 운영 production 승인을 뜻하지 않는다. 기준은 #134에서 확정하고 Vite/Firebase Hosting은 rollback으로 유지한다. |
 | 관리자 웹 preview | Git 연동 Preview에서 루트 200, 인증 없는 병원 가이드 API 401, 런타임 오류 0건을 확인했다. 인증된 200/403은 남아 있다. |
 | Android 앱 데이터 | Firestore/Storage 직접 접근 유지 |
 | 관리자 웹 데이터 | 기존 화면은 Firestore/Storage를 유지하고 병원 가이드는 Next.js same-origin API로 첫 전환 경계를 구현했다. |
@@ -23,7 +23,7 @@
 
 ## 관리자 웹 배포 방식
 
-현재 관리자 웹의 기본 preview 경로는 별도 `bodeul-admin-web` 저장소와 연결된 Vercel Next.js 배포다. production live 배포 기준은 #134에서 확정한다. Firebase Hosting workflow는 Vite rollback 산출물 검증용으로 유지한다.
+현재 관리자 웹의 기본 검증 경로는 별도 `bodeul-admin-web` 저장소와 연결된 Vercel Next.js 배포다. PR은 Preview, `master`는 Vercel의 자동 production target으로 배포된다. 현재 project는 `live=false`이고 커스텀 도메인, 관리자 DB 자격 증명과 운영 승인 기준이 없으므로 자동 target을 운영 production 전환으로 보지 않는다. 해당 기준은 #134에서 확정한다. Firebase Hosting workflow는 Vite rollback 산출물 검증용으로 유지한다.
 
 선택 이유:
 
@@ -37,9 +37,11 @@
 
 - Vercel project framework는 Next.js, Node runtime은 22.x로 고정했다.
 - PR #18 Git 연동 Preview에서 루트 200과 인증 없는 `/admin/hospital-guides` 401을 확인했다.
+- PR #18 병합 뒤 `master` 자동 production target과 세 기본 `vercel.app` alias에서도 루트 200과 인증 없는 API 401을 확인했다.
+- Vercel project의 `live` 값은 false이며 custom domain은 없다.
 - `bodeul_admin_service`와 Vercel `ADMIN_DATABASE_URL`은 아직 활성화하지 않았다.
 - Firebase Hosting preview workflow는 Vite rollback build만 배포한다.
-- production URL과 도메인은 #134에서 별도 확정한다.
+- 운영 production URL, 도메인과 자동 배포 승인 정책은 #134에서 별도 확정한다.
 
 관련 workflow:
 

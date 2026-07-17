@@ -225,11 +225,11 @@ npm --prefix tools/firebase run preflight:local
 | 대상 | 현재 방식 | 상태 |
 | --- | --- | --- |
 | Android | GitHub Actions `Android Preflight`, 로컬 debug build | 배포 전 컴파일·테스트 검증 |
-| 관리자 웹 | 별도 저장소의 Next.js Vercel Preview + Vite rollback | 루트 200·인증 없는 API 401 확인. 관리자 DB 접속과 200/403 검증 전 |
+| 관리자 웹 | 별도 저장소의 Next.js Vercel 배포 + Vite rollback | Preview와 master 자동 target에서 루트 200·인증 없는 API 401 확인. 관리자 DB 접속과 200/403 검증 전 |
 | API | Cloud Run Spring preview + Supabase 개발 DB + Firebase 인증 | 실제 token/role, migration, rollback, Kakao proxy 검증 완료 |
 | Firebase | `bodeul-dev`, Rules·Functions·FCM·Storage 운영 도구 | 개발 기준. dev/prod 분리와 App Check 강제는 후속 |
 
-관리자 웹 링크는 팀 공유와 화면 검증을 위한 배포입니다. 별도 production 환경으로 간주하지 않으며, 운영 전환 조건은 [관리자 웹 환경 기준](docs/operations/admin-api-environments.md)과 관련 GitHub Issue에서 결정합니다.
+Vercel은 `master` 병합을 기술적으로 production target에 자동 배포하고 기본 `vercel.app` alias를 갱신합니다. 현재 project는 `live=false`이고 커스텀 도메인과 `ADMIN_DATABASE_URL`이 없으므로 팀 공유·화면 검증용으로만 봅니다. 운영 production 전환 조건은 [관리자 웹 환경 기준](docs/operations/admin-api-environments.md)과 관련 GitHub Issue에서 결정합니다.
 
 ## 주요 문서
 
