@@ -52,15 +52,19 @@ Firestore `appointmentRequests`를 바로 대체하지 않고, 개발용 Supabas
 | Firebase 도구 테스트 | 25건 통과 |
 | Core API Gradle `check` | 통과 |
 | `git diff --check` | 통과 |
+| 개발 DB Flyway V3 | migration run `29557164927` 통과 |
+| `appointment_requests` | 0건, owner `bodeul_migration`, RLS 활성화 |
+| runtime/public 권한 | Core/Admin SELECT만 허용, 공개 role 조회·쓰기 없음 |
+| Supabase Security Advisor | 경고 0건 |
 
 백업에는 ISO-8601 timestamp와 13자리 epoch millis로 저장된 seed 문서가 함께 있었다. 변환기는 두 형식과 Firestore seconds/nanos 형식을 UTC ISO 시각으로 정규화한다.
 
 ## 남은 범위
 
-- `Core API DB Migration` workflow로 개발 DB에 Flyway V3 적용
 - 커밋 제외된 apply SQL로 예약 요청 4건 백필
-- row 수, FK, RLS, runtime 권한과 Flyway history 확인
-- Supabase Security Advisor 재확인
+- 백필 후 Firestore/PostgreSQL row 수와 사용자 FK 확인
 - Spring 예약 read API와 Firestore/PostgreSQL 응답 비교는 후속 작업으로 분리
+
+Flyway V3, RLS, 권한과 Security Advisor 확인은 완료했다. 백필은 Supabase 관리 연결이 INSERT와 `SET ROLE bodeul_migration` 권한을 갖지 않아 0건 상태로 중단했다. 관리 연결 권한을 넓히지 않고 migration 전용 실행 경로를 사용할지 별도 승인 후 결정한다.
 
 관련 이슈: [#202](https://github.com/bodeul110/Bodeul/issues/202), [#154](https://github.com/bodeul110/Bodeul/issues/154)
