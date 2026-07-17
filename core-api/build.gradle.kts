@@ -43,3 +43,10 @@ tasks.register<JavaExec>("migrateDatabase") {
 	classpath = sourceSets["main"].runtimeClasspath
 	mainClass.set("com.bodeul.core.DatabaseMigrationApplication")
 }
+
+tasks.register<JavaExec>("applyAppointmentRequestsSeed") {
+	group = "application"
+	description = "검증된 예약 요청 seed를 migration role로 적용합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.AppointmentRequestsSeedApplication")
+}

@@ -5,12 +5,14 @@ on:
     paths:
       - "core-api/**"
       - ".github/workflows/core-api.yml"
+      - ".github/workflows/core-api-appointment-seed-preview.yml"
   push:
     branches:
       - master
     paths:
       - "core-api/**"
       - ".github/workflows/core-api.yml"
+      - ".github/workflows/core-api-appointment-seed-preview.yml"
   workflow_dispatch:
 
 permissions:
