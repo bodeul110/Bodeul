@@ -72,7 +72,7 @@
 | 운영 Core API 실행 환경 | production GCP project 확정 후 별도 Cloud Run 서비스로 생성 |
 | Supabase 개발 프로젝트 | `bodeul-dev-rdb` |
 | Supabase 운영 프로젝트 후보 | `bodeul-prod-rdb` |
-| PostgreSQL 기본 스키마 | `public` |
+| PostgreSQL 기본 스키마 | Data API에 노출하지 않는 private `bodeul` schema |
 | Core API 개발 GitHub Environment | `core-api-preview` |
 | Core API 운영 GitHub Environment | `core-api-production` |
 
