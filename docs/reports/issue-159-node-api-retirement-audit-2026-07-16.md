@@ -27,6 +27,10 @@
 - DB 접속: Preview 전용 `bodeul_admin_service`, SELECT 전용, connection limit 5
 - TLS: 공식 Supabase Root CA를 명시하고 인증서 검증 유지
 - production Vercel environment: `ADMIN_DATABASE_URL` 미등록
+- 최신 master deployment: Ready, 기본 alias 루트 200, 무인증 관리자 API 401
+- Vercel project: GitHub `master` 연결, `live=false`, custom domain 0개
+- Supabase Security Advisor: 경고 0건
+- Supabase Performance Advisor: 신규 예약 조회 인덱스와 Flyway 내부 인덱스의 미사용 INFO 2건
 
 비밀값, token 원문과 테스트 계정 정보는 공개 문서나 PR에 기록하지 않았다.
 
@@ -39,12 +43,18 @@
 - 루트 `firebase.json`의 관리자 Hosting 설정
 - 메인 Dependabot, CodeQL, preflight의 삭제 경로 분류
 - Node/API·중복 관리자 웹을 현재 구조로 설명하던 README와 인프라 문서
+- 메인·관리자 저장소의 기존 관리자 Hosting용 GitHub Environment
+- Firebase Hosting site와 관리자 배포 전용 WIF provider·서비스 계정·IAM binding
 
 별도 `bodeul-admin-web` 저장소의 Next.js 구현, Vite rollback과 Vercel CI는 유지한다. 과거 Node 검증 보고서는 당시 의사결정 이력으로 보존한다.
 
 ## 선택 이유
 
 대체 구현의 실제 401·403·200과 DB 결과를 확인한 뒤 삭제했으므로 계약 공백이 없다. 프로토타입을 더 유지하면 Dependabot·CodeQL·workflow 비용이 늘고, 관리자 API의 source of truth가 Node인지 Next.js인지 다시 모호해진다.
+
+외부 자원은 2026-07-17에 추가로 정리했다. Firebase Hosting 비활성화 후 기존 URL의 404 응답을 확인했고, 관리자 Hosting 배포에만 쓰던 WIF와 서비스 계정도 제거했다. Core API Preview용 WIF와 Vercel deployment environment는 현재 배포 경계이므로 유지한다.
+
+Performance Advisor의 두 항목은 개발 트래픽이 아직 없는 신규 예약 조회 인덱스와 Flyway가 관리하는 내부 인덱스다. 조회 계약과 migration 도구의 관리 범위를 훼손할 수 있어 현재는 삭제하지 않고 실제 쿼리 통계가 쌓인 뒤 재평가한다.
 
 ## 리스크와 대응
 

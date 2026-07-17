@@ -3255,6 +3255,7 @@
 - Supabase Root CA를 명시해 TLS 인증서 검증을 유지했다.
 - 메인 저장소의 `api/`, `admin-web/`, 관리자 전용 workflow와 Firebase Hosting 설정을 제거했다.
 - Dependabot, CodeQL, Android Preflight와 인프라 문서를 현재 저장소 경계에 맞췄다.
+- 기존 관리자 Hosting용 GitHub Environment, Firebase Hosting site, WIF provider, 배포 서비스 계정과 IAM binding을 제거했다.
 
 ### 검증
 
@@ -3262,6 +3263,11 @@
 - 임시 Firebase 사용자와 PostgreSQL row 삭제 후 잔여 0건 확인
 - 별도 관리자 저장소의 test, lint, Next.js build, Vite rollback build, CodeQL과 Vercel checks 통과
 - production Vercel environment에 관리자 DB 자격 증명이 없음을 확인
+- Firebase Hosting 비활성화 후 기존 `bodeul-dev.web.app` 응답이 404인지 확인
+- Core API Preview용 WIF provider만 남고 관리자 Hosting용 provider와 서비스 계정이 삭제됐는지 확인
+- Vercel 최신 master deployment의 Ready, 기본 alias 루트 200, 무인증 관리자 API 401, `live=false`, custom domain 0개 확인
+- Supabase runtime role의 세 도메인 테이블 SELECT 전용, 공개 role 권한 0건과 Security Advisor 경고 0건 확인
+- 신규 예약 조회·Flyway 내부 인덱스의 미사용 Performance INFO 2건은 실제 쿼리 통계가 쌓일 때까지 유지
 
 ### 남은 범위
 

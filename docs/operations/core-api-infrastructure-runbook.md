@@ -176,7 +176,7 @@ gcloud iam service-accounts add-iam-policy-binding $DeployAccount `
   --role="roles/iam.workloadIdentityUser"
 ```
 
-기존 `bodeul-repo` provider는 `admin-web-preview` 환경으로 제한되어 있으므로 조건을 넓히지 않는다. `bodeul-core-api-preview` provider를 별도로 만들고 저장소, `master` ref, `core-api-preview` environment를 모두 조건으로 고정한다. 서비스 계정 key JSON은 발급하지 않는다.
+관리자 Firebase Hosting 종료에 따라 기존 `bodeul-repo` provider와 관리자 배포 서비스 계정은 2026-07-17에 삭제했다. 현재 GitHub Actions용 provider는 `bodeul-core-api-preview`만 유지하며 저장소, `master` ref, `core-api-preview` environment를 모두 조건으로 고정한다. 서비스 계정 key JSON은 발급하지 않는다.
 
 ### Secret 생성과 권한
 
