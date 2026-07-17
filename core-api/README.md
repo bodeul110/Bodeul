@@ -16,7 +16,7 @@
 
 기존 `api/`의 Node `bodeul-api`는 인증, 인가, PostgreSQL 계약을 검증한 prototype이다. `core-api/`는 해당 계약을 Spring으로 옮기되 Node API를 중간 서버로 호출하지 않는다.
 
-Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검토하기 위해 메인 저장소 안에서 관리한다. 배포는 저장소 구조와 별개로 Cloud Run 서비스와 `core-api-preview` GitHub Environment를 사용한다.
+Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검토하기 위해 메인 저장소 안에서 관리한다. 배포는 저장소 구조와 별개로 Cloud Run 서비스와 `core-api-preview` 또는 `core-api-production` GitHub Environment를 사용한다.
 
 ## 로컬 검증
 
@@ -81,7 +81,7 @@ Cloud Run에서는 전용 runtime 서비스 계정의 Application Default Creden
 $env:KAKAO_LOCAL_REST_API_KEY = "<Kakao REST API key>"
 ```
 
-Cloud Run에서는 `bodeul-core-api-preview-kakao-local-rest-api-key` Secret Manager secret을 사용한다. 키 값과 Kakao 원본 오류 본문은 응답이나 로그에 남기지 않는다. 자세한 계약과 확장 조건은 [Kakao Local Core API 경계](../docs/architecture/kakao-local-core-api.md)를 따른다.
+Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, production에서는 `bodeul-core-api-production-kakao-local-rest-api-key` Secret Manager secret을 사용한다. 키 값과 Kakao 원본 오류 본문은 응답이나 로그에 남기지 않는다. 자세한 계약과 확장 조건은 [Kakao Local Core API 경계](../docs/architecture/kakao-local-core-api.md)를 따른다.
 
 ## 연결 원칙
 

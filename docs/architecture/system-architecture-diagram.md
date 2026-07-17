@@ -63,6 +63,6 @@ flowchart LR
 - Firebase Auth, FCM, Storage는 유지한다.
 - Firestore는 도메인별 전환이 끝날 때까지 남으며, PostgreSQL read model이 있다고 바로 source of truth가 바뀌는 것은 아니다.
 - Android의 Kakao 로그인·지도 SDK는 클라이언트에 남지만 Kakao Local REST는 Core API 뒤에 둔다.
-- production 프로젝트 분리는 아직 남아 있으므로 이 다이어그램은 개발 인프라 검증 완료와 운영 전환 목표를 함께 나타낸다.
+- production 프로젝트와 DB schema 분리는 완료했지만 아직 사용자 트래픽을 연결하지 않았다. 이 다이어그램은 검증된 개발 경계와 출시 전 production 목표를 함께 나타낸다.
 
 상세 판단은 [현재 인프라 구성도](infra-overview.md)와 [목표 인프라 구조](target-infrastructure.md)를 따른다.

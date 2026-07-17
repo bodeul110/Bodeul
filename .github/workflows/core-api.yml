@@ -5,12 +5,18 @@ on:
     paths:
       - "core-api/**"
       - ".github/workflows/core-api.yml"
+      - ".github/workflows/core-api-preview-deploy.yml"
+      - ".github/workflows/core-api-production-deploy.yml"
+      - ".github/workflows/core-api-migration.yml"
   push:
     branches:
       - master
     paths:
       - "core-api/**"
       - ".github/workflows/core-api.yml"
+      - ".github/workflows/core-api-preview-deploy.yml"
+      - ".github/workflows/core-api-production-deploy.yml"
+      - ".github/workflows/core-api-migration.yml"
   workflow_dispatch:
 
 permissions:
