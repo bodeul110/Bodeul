@@ -48,7 +48,7 @@ jobs:
   apply-seed:
     name: 예약 요청 preview 백필
     needs: validate-request
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64, bodeul, preflight]
     timeout-minutes: 15
     environment: core-api-migration-preview
 
@@ -73,44 +73,39 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: 예약 요청 seed 복원 및 해시 확인
-        shell: bash
+      - name: 로컬 예약 요청 seed 확인
+        shell: powershell
         env:
-          ENCODED_SEED: ${{ secrets.APPOINTMENT_REQUESTS_SEED_SQL_GZIP_BASE64 }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
         run: |
-          set -euo pipefail
-          if [ -z "$ENCODED_SEED" ]; then
-            echo "예약 요청 preview seed secret이 준비되지 않았습니다."
-            exit 1
-          fi
-          seed_path="$RUNNER_TEMP/appointment-requests-seed.sql"
-          umask 077
-          printf '%s' "$ENCODED_SEED" | base64 --decode | gzip -dc > "$seed_path"
-          chmod 600 "$seed_path"
-          actual_sha256="$(sha256sum "$seed_path" | awk '{print $1}')"
-          if [ "$actual_sha256" != "$EXPECTED_SHA256" ]; then
-            echo "예약 요청 seed SHA-256이 일치하지 않습니다."
-            exit 1
-          fi
-          echo "APPOINTMENT_REQUESTS_SEED_SQL_FILE=$seed_path" >> "$GITHUB_ENV"
+          $ErrorActionPreference = "Stop"
+          $expectedPath = "D:\BoDeul\tools\firebase\reports\appointment-requests-postgres-apply-20260717.sql"
+          $resolvedPath = (Resolve-Path -LiteralPath $expectedPath).Path
+          if (-not [string]::Equals($resolvedPath, $expectedPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "예약 요청 seed 경로가 일치하지 않습니다."
+          }
+          $seedFile = Get-Item -Force -LiteralPath $resolvedPath
+          if ($seedFile.PSIsContainer -or ($seedFile.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            throw "예약 요청 seed가 일반 파일이 아닙니다."
+          }
+          if ($seedFile.Length -le 0 -or $seedFile.Length -gt 1MB) {
+            throw "예약 요청 seed 파일 크기가 허용 범위를 벗어났습니다."
+          }
+          $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedPath).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $env:EXPECTED_SHA256) {
+            throw "예약 요청 seed SHA-256이 일치하지 않습니다."
+          }
+          $utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
+          [System.IO.File]::AppendAllText(
+            $env:GITHUB_ENV,
+            "APPOINTMENT_REQUESTS_SEED_SQL_FILE=$resolvedPath`n",
+            $utf8NoBom
+          )
 
       - name: 예약 요청 seed 적용
+        shell: powershell
         env:
           MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
           MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
-        run: ./gradlew applyAppointmentRequestsSeed --console=plain
-
-      - name: 임시 seed 파일 삭제
-        if: always()
-        shell: bash
-        run: |
-          seed_path="$RUNNER_TEMP/appointment-requests-seed.sql"
-          if [ -f "$seed_path" ]; then
-            if command -v shred >/dev/null 2>&1; then
-              shred -u "$seed_path"
-            else
-              rm -f "$seed_path"
-            fi
-          fi
+        run: .\gradlew.bat applyAppointmentRequestsSeed --console=plain
