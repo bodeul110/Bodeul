@@ -3214,3 +3214,34 @@
 - 로그인, 예약, 세션, 채팅 첨부, Core API 장소 검색 흐름 검증
 - Core API Cloud Logging의 `app_check_verdict=valid` 확인
 - Next.js 관리자 웹 provider와 debug token, preview `VALID` 요청 준비
+
+## 131. 2026-07-17 ARM 실기기 주요 흐름 및 Core API App Check 검증
+
+### 구현과 운영 설정
+
+- Storage Rules의 Firestore 문서 접근 한도를 넘던 채팅 첨부 참여자 판정을 세션 직접 참여자 ID 기준으로 변경했다.
+- 관리자 세션 생성은 `getAfter()` 예약 요청과 참여자 ID 일치를 검증하고, 생성 후 참여자 ID 변경을 금지했다.
+- 기존 개발 세션 2건을 백업 후 backfill하고 Firestore/Storage Rules를 `bodeul-dev`에 배포했다.
+- Firestore 세션 쿼리에 환자 또는 보호자 UID 조건을 추가해 Rules가 쿼리 전체의 참여자 범위를 증명할 수 있게 했다.
+- Kakao Android 플랫폼 전용 Native App Key를 Git 제외 로컬 설정으로 이동하고 추적 파일의 실제 키를 제거했다.
+- ARM 실기기 App Check debug token을 공식 REST API로 비공개 등록했다.
+
+### 검증
+
+- Samsung SM-S921N, Android 16 ARM64 debug APK 설치 성공
+- 역할별 주요 화면과 채팅 첨부 결과 15건 통과, 경고 0건, 실패 0건
+- 보호자 채팅 이미지 첨부의 Storage 업로드, Firestore 메시지 저장, 첨부 열기 확인
+- Kakao Map 인증 HTTP 200, `onRenderViewSuccess`, 지도 타일과 위치 마커 렌더링 확인
+- Core API 장소 검색 3건 모두 `app_check_verdict=valid`, HTTP 200 확인
+- `npm --prefix tools/firebase run test:toolkit` 21건 통과
+- `npm --prefix tools/firebase run test:rules` 7건 통과
+- `gradlew.bat testDebugUnitTest assembleDebug --console=plain` 성공
+- SM-S921N에서 `connectedDebugAndroidTest` 1건 통과
+- 상세 결과는 [Issue 190 ARM 실기기 검증 기록](../reports/issue-190-arm-device-validation-2026-07-17.md)에 정리했다.
+
+### 남은 범위
+
+- 팀 소유 release keystore, Gradle signing, Firebase와 Kakao의 release SHA-256 등록
+- ARM release 후보의 Play Integrity token 검증
+- #192 Core API enforce 전환과 observe 롤백 재현
+- Next.js 관리자 웹 reCAPTCHA Enterprise와 App Check custom backend 검증

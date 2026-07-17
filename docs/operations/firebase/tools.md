@@ -209,6 +209,18 @@ npm run seed:sample:apply
   `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`,
   `adminActionDeliveries`, `adminActionDeliveryJobs`, `appointmentReminderJobs`다.
 
+### 동행 세션 참가자 정보 보완
+
+```powershell
+cd D:\BoDeul\tools\firebase
+npm run backfill:session-participants:dry-run
+npm run backfill:session-participants:apply
+```
+
+- `companionSessions`의 환자·보호자 식별자를 연결된 `appointmentRequests` 기준으로 보완한다.
+- 기본 동작은 dry-run이며, 연결된 예약이나 참가자 정보가 없으면 변경 전에 중단한다.
+- Storage Rules가 사용자 문서와 세션 문서만 조회하도록 유지하기 위한 데이터 마이그레이션이다.
+
 ## 관리 원칙
 
 - 배포 코드인 `functions/`에는 운영 스크립트를 두지 않는다.
@@ -225,11 +237,13 @@ npm run capture:app -- --screen-id login --title "로그인 화면"
 - 연결된 에뮬레이터 또는 USB 디바이스의 현재 화면을 캡처해 `tools/firebase/reports/screenshots/` 아래에 저장한다.
 - 캡처 결과는 기본적으로 `tools/firebase/reports/app-navigation-evidence-latest.json`에 누적한다.
 - 원하는 화면까지 직접 이동한 뒤 실행하는 방식을 기본으로 하고, `--launch-main`을 주면 런처 진입 화면을 먼저 띄운다.
-- `--preset`을 주면 debug 자동 진입 액티비티가 기준선 계정 로그인과 화면 이동을 먼저 수행한 뒤 포커스를 확인하고 캡처한다.
+- `--preset`을 주면 debug 자동 진입 액티비티가 기준선 계정 로그인과 화면 이동을 먼저 수행한 뒤 포커스를 확인하고, 화면 데이터가 자리 잡도록 기본 3초를 기다린 다음 캡처한다.
 - 프리셋 자동 진입은 앱을 강제 재시작한 뒤 수행하므로 이전 로그인 세션이나 남아 있던 화면 상태 영향을 줄인다.
-- 현재 지원 프리셋은 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `manager-home`, `manager-history`, `manager-guide`, `manager-support`, `manager-profile`, `admin-dashboard`다.
+- 현재 지원 프리셋은 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `guardian-chat`, `manager-home`, `manager-history`, `manager-guide`, `manager-chat`, `manager-support`, `manager-profile`, `admin-dashboard`다.
 - `--role`, `--status`, `--note`, `--activity`, `--serial`, `--manifest`, `--image` 옵션으로 증적 메타데이터를 함께 기록할 수 있다.
 - `--request-id`, `--force-sign-in`, `--route-wait-ms`로 예약 상세/후속 처리 대상과 자동 진입 대기 시간을 조정할 수 있다.
+- 서버 데이터가 늦게 표시되는 화면은 `--capture-settle-ms`로 포커스 확인 이후 캡처까지의 대기 시간을 조정한다. 액티비티 진입 여부와 화면 내용 검증은 별개이므로, 데이터 의존 화면은 스크린샷 내용도 함께 확인한다.
+- `guardian-chat` 또는 `manager-chat`에 `--chat-attachment`를 붙이면 debug 자동화가 작은 PNG를 Firebase Storage에 올리고 첨부 메타데이터가 포함된 메시지를 저장한다. `--chat-message`로 증적용 메시지를 구분한다.
 - 생성된 증적 파일은 `npm run report:ops -- --app-evidence ...`, `npm run workflow:ops -- --app-evidence ...`, `npm run preflight:local -- --app-evidence ...`로 운영 리포트와 프리플라이트에 연결한다.
 
 ```powershell

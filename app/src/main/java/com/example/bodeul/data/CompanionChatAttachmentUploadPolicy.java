@@ -5,6 +5,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.text.TextUtils;
+import android.webkit.MimeTypeMap;
 
 import androidx.annotation.Nullable;
 
@@ -72,7 +73,13 @@ public final class CompanionChatAttachmentUploadPolicy {
     }
 
     public static String resolveContentType(ContentResolver resolver, Uri fileUri) {
-        return normalizeText(resolver.getType(fileUri));
+        String resolverContentType = normalizeText(resolver.getType(fileUri));
+        if (!resolverContentType.isEmpty()) {
+            return resolverContentType;
+        }
+
+        String extension = MimeTypeMap.getFileExtensionFromUrl(fileUri.toString());
+        return normalizeText(MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
     }
 
     private static boolean isAllowedContentType(String contentType) {

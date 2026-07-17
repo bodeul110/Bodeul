@@ -255,6 +255,8 @@ function buildSampleState(baselineUsers) {
       path: "companionSessions/session-seed-progress",
       data: {
         appointmentRequestId: "request-seed-progress",
+        patientUserId: patient.uid,
+        guardianUserId: guardian.uid,
         managerUserId: manager.uid,
         currentStepOrder: 3,
         currentStatus: "WAITING",
@@ -271,6 +273,8 @@ function buildSampleState(baselineUsers) {
       path: "companionSessions/session-seed-completed",
       data: {
         appointmentRequestId: "request-seed-completed",
+        patientUserId: patient.uid,
+        guardianUserId: guardian.uid,
         managerUserId: manager.uid,
         currentStepOrder: 7,
         currentStatus: "COMPLETED",

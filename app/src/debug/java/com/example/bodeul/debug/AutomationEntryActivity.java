@@ -16,6 +16,7 @@ import com.example.bodeul.data.AdminRepository;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.ClientSupportRepository;
+import com.example.bodeul.data.CompanionChatAttachmentUploader;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
@@ -62,6 +63,7 @@ import java.util.Locale;
  * 디버그 빌드에서만 adb 자동 진입을 받아 기준선 계정 로그인과 화면 라우팅을 수행한다.
  */
 public class AutomationEntryActivity extends AppCompatActivity {
+    private static final long AUTH_STATE_SETTLE_DELAY_MILLIS = 750L;
     private static final byte[] SAMPLE_PNG_BYTES = new byte[]{
             (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
             0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -81,6 +83,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
     public static final String EXTRA_UPLOAD_DOCUMENT_TYPE = "uploadDocumentType";
     public static final String EXTRA_UPLOAD_DOCUMENT_PATH = "uploadDocumentPath";
     public static final String EXTRA_CHAT_MESSAGE = "chatMessage";
+    public static final String EXTRA_CHAT_ATTACHMENT = "chatAttachment";
     public static final String EXTRA_CLIENT_SUPPORT_CATEGORY = "clientSupportCategory";
     public static final String EXTRA_CLIENT_SUPPORT_TITLE = "clientSupportTitle";
     public static final String EXTRA_CLIENT_SUPPORT_BODY = "clientSupportBody";
@@ -125,6 +128,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
     private AdminRepository adminRepository;
     private BookingRepository bookingRepository;
     private ClientSupportRepository clientSupportRepository;
+    private CompanionChatAttachmentUploader companionChatAttachmentUploader;
     private ManagerRepository managerRepository;
     private ManagerDocumentStorageUploader managerDocumentStorageUploader;
     private TextView textPrimary;
@@ -136,6 +140,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
     private ManagerDocumentFileType requestedUploadDocumentType;
     private String requestedUploadDocumentPath;
     private String requestedChatMessage;
+    private boolean requestedChatAttachment;
     private ClientSupportCategory requestedClientSupportCategory;
     private String requestedClientSupportTitle;
     private String requestedClientSupportBody;
@@ -168,6 +173,8 @@ public class AutomationEntryActivity extends AppCompatActivity {
         adminRepository = ServiceLocator.provideAdminRepository(this);
         bookingRepository = ServiceLocator.provideBookingRepository(this);
         clientSupportRepository = ServiceLocator.provideClientSupportRepository(this);
+        companionChatAttachmentUploader =
+                ServiceLocator.provideCompanionChatAttachmentUploader(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
         managerDocumentStorageUploader = ServiceLocator.provideManagerDocumentStorageUploader(this);
 
@@ -180,6 +187,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         );
         requestedUploadDocumentPath = getIntent().getStringExtra(EXTRA_UPLOAD_DOCUMENT_PATH);
         requestedChatMessage = normalizeText(getIntent().getStringExtra(EXTRA_CHAT_MESSAGE));
+        requestedChatAttachment = getIntent().getBooleanExtra(EXTRA_CHAT_ATTACHMENT, false);
         requestedClientSupportCategory = ClientSupportCategory.fromValue(
                 getIntent().getStringExtra(EXTRA_CLIENT_SUPPORT_CATEGORY)
         );
@@ -269,7 +277,11 @@ public class AutomationEntryActivity extends AppCompatActivity {
                     return;
                 }
                 authRepository.signOut();
-                signInBaseline();
+                // 로그아웃 직후 재로그인하면 Firestore가 이전 인증 상태로 첫 조회를 처리할 수 있다.
+                textPrimary.postDelayed(
+                        AutomationEntryActivity.this::signInBaseline,
+                        AUTH_STATE_SETTLE_DELAY_MILLIS
+                );
             }
 
             @Override
@@ -414,7 +426,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
     }
 
     private boolean shouldSendChatMessage() {
-        return !TextUtils.isEmpty(requestedChatMessage);
+        return !TextUtils.isEmpty(requestedChatMessage) || requestedChatAttachment;
     }
 
     private boolean shouldSubmitClientSupport() {
@@ -525,12 +537,120 @@ public class AutomationEntryActivity extends AppCompatActivity {
             message = DEFAULT_CHAT_MESSAGE;
         }
 
+        if (requestedChatAttachment) {
+            prepareChatAttachment(user, message, completionAction);
+            return;
+        }
+        sendChatMessageWithAttachments(
+                user,
+                message,
+                Collections.<CompanionChatAttachment>emptyList(),
+                completionAction
+        );
+    }
+
+    private void prepareChatAttachment(User user, String message, Runnable completionAction) {
+        updateStatus("채팅 첨부 세션 확인 중", user.getRole().name());
+        if (user.getRole() == UserRole.MANAGER) {
+            managerRepository.getManagerDashboard(user.getId(), new RepositoryCallback<ManagerDashboard>() {
+                @Override
+                public void onSuccess(ManagerDashboard result) {
+                    uploadChatAttachmentAndSend(
+                            user,
+                            result.getSession() == null ? "" : result.getSession().getId(),
+                            message,
+                            completionAction
+                    );
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    showError("채팅 첨부 세션을 찾지 못했습니다.", errorMessage);
+                }
+            });
+            return;
+        }
+
+        if (user.getRole() != UserRole.PATIENT && user.getRole() != UserRole.GUARDIAN) {
+            showError("채팅 자동화는 환자, 보호자, 매니저만 지원합니다.", user.getRole().name());
+            return;
+        }
+        bookingRepository.getAppointmentRequestDetail(
+                user,
+                resolveChatRequestId(),
+                new RepositoryCallback<AppointmentRequestDetail>() {
+                    @Override
+                    public void onSuccess(AppointmentRequestDetail result) {
+                        uploadChatAttachmentAndSend(
+                                user,
+                                result.getSession() == null ? "" : result.getSession().getId(),
+                                message,
+                                completionAction
+                        );
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        showError("채팅 첨부 세션을 찾지 못했습니다.", errorMessage);
+                    }
+                }
+        );
+    }
+
+    private void uploadChatAttachmentAndSend(
+            User user,
+            String sessionId,
+            String message,
+            Runnable completionAction
+    ) {
+        if (TextUtils.isEmpty(sessionId)) {
+            showError("채팅 첨부 세션 정보가 없습니다.", resolveChatRequestId());
+            return;
+        }
+
+        File sampleFile = createSamplePngFile("automation-companion-chat.png");
+        if (sampleFile == null) {
+            showError("채팅 첨부 샘플을 만들지 못했습니다.", sessionId);
+            return;
+        }
+
+        updateStatus("채팅 첨부 업로드 중", sampleFile.getName());
+        companionChatAttachmentUploader.uploadAttachment(
+                sessionId,
+                Uri.fromFile(sampleFile),
+                new RepositoryCallback<CompanionChatAttachment>() {
+                    @Override
+                    public void onSuccess(CompanionChatAttachment result) {
+                        deleteSampleFile(sampleFile);
+                        sendChatMessageWithAttachments(
+                                user,
+                                message,
+                                Collections.singletonList(result),
+                                completionAction
+                        );
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        deleteSampleFile(sampleFile);
+                        showError("채팅 첨부 업로드에 실패했습니다.", errorMessage);
+                    }
+                }
+        );
+    }
+
+    private void sendChatMessageWithAttachments(
+            User user,
+            String message,
+            java.util.List<CompanionChatAttachment> attachments,
+            Runnable completionAction
+    ) {
         updateStatus("채팅 메시지 저장 중", message);
         if (user.getRole() == UserRole.MANAGER) {
             managerRepository.sendCompanionChatMessage(
                     user.getId(),
                     message,
-                    Collections.<CompanionChatAttachment>emptyList(),
+                    attachments,
                     new RepositoryCallback<ManagerDashboard>() {
                         @Override
                         public void onSuccess(ManagerDashboard result) {
@@ -555,7 +675,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 user,
                 resolveChatRequestId(),
                 message,
-                Collections.<CompanionChatAttachment>emptyList(),
+                attachments,
                 new RepositoryCallback<AppointmentRequestDetail>() {
                     @Override
                     public void onSuccess(AppointmentRequestDetail result) {
@@ -897,10 +1017,14 @@ public class AutomationEntryActivity extends AppCompatActivity {
         if (requestedUploadDocumentType == null) {
             return null;
         }
-        File outputFile = new File(
-                getCacheDir(),
+        return createSamplePngFile(
                 "automation-" + requestedUploadDocumentType.getStorageKey() + ".png"
         );
+    }
+
+    @Nullable
+    private File createSamplePngFile(String fileName) {
+        File outputFile = new File(getCacheDir(), fileName);
         FileOutputStream outputStream = null;
         try {
             outputStream = new FileOutputStream(outputFile, false);
@@ -918,6 +1042,12 @@ public class AutomationEntryActivity extends AppCompatActivity {
                     // 닫기 실패는 업로드 경로 판단에 영향이 없다.
                 }
             }
+        }
+    }
+
+    private void deleteSampleFile(File file) {
+        if (file.exists() && !file.delete()) {
+            Log.w(TAG, "자동화 샘플 파일을 삭제하지 못했습니다: " + file.getName());
         }
     }
 

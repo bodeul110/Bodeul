@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -48,6 +49,7 @@ import com.kakao.vectormap.label.LabelManager;
 import com.kakao.vectormap.label.LabelLayer;
 
 public class ManagerGuideActivity extends AppCompatActivity {
+    private static final String TAG = "ManagerGuideActivity";
     private static final int REQUEST_FINE_LOCATION = 1001;
     private static final int LOCATION_ACTION_NONE = 0;
     private static final int LOCATION_ACTION_SHARE_ONCE = 1;
@@ -210,6 +212,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
             @Override
             public void onMapError(Exception e) {
+                Log.w(TAG, "카카오 지도 초기화 실패: " + e.getClass().getSimpleName());
             }
         }, new KakaoMapReadyCallback() {
             @Override
@@ -298,10 +301,13 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void updateMapMarker() {
-        if (kakaoMap == null || currentDashboard == null) return;
+        if (currentDashboard == null) return;
 
-        updateSharedLocationMarker();
+        // 장소 검색은 지도 SDK 인증 상태와 독립적으로 Core API까지 검증한다.
         updateHospitalAndPharmacyMarkers();
+        if (kakaoMap != null) {
+            updateSharedLocationMarker();
+        }
     }
 
     private void updateSharedLocationMarker() {
@@ -337,7 +343,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void updateHospitalAndPharmacyMarkers() {
-        if (kakaoMap == null || currentDashboard == null) {
+        if (currentDashboard == null) {
             return;
         }
         HospitalMapCoordinateQuery query = new HospitalMapCoordinateQuery(

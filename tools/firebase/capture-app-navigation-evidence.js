@@ -25,6 +25,8 @@ const {
   waitForFocusedActivity,
 } = require("./lib/android-toolkit");
 
+const DEFAULT_CAPTURE_SETTLE_MILLIS = 3000;
+
 async function main() {
   const options = parseOptions(process.argv.slice(2));
   if (options.help) {
@@ -56,6 +58,8 @@ async function main() {
   if (preset) {
     launchAutomationRoute(adbPath, device.serial, APPLICATION_ID, {
       automationScreen: preset.automationScreen,
+      chatAttachment: options.chatAttachment,
+      chatMessage: options.chatMessage,
       forceSignIn: options.forceSignIn,
       requestId: options.requestId || preset.defaultRequestId || "",
       role: preset.role,
@@ -67,9 +71,10 @@ async function main() {
         options.routeWaitMillis,
         300,
     );
+    await delay(options.captureSettleMillis);
   } else if (options.launchMain) {
     launchMainActivity(adbPath, device.serial, APPLICATION_ID);
-    await delay(1500);
+    await delay(options.captureSettleMillis);
   }
 
   const token = buildTimestampToken(new Date());
@@ -116,6 +121,13 @@ async function main() {
 function parseOptions(args) {
   return {
     activity: readOption(args, "--activity"),
+    chatAttachment: args.includes("--chat-attachment"),
+    chatMessage: readOption(args, "--chat-message"),
+    captureSettleMillis: resolveDurationOption(
+        readOption(args, "--capture-settle-ms"),
+        DEFAULT_CAPTURE_SETTLE_MILLIS,
+        "--capture-settle-ms",
+    ),
     forceSignIn: args.includes("--force-sign-in"),
     help: args.includes("--help") || args.includes("-h"),
     imagePath: readOption(args, "--image"),
@@ -125,12 +137,24 @@ function parseOptions(args) {
     preset: readOption(args, "--preset"),
     requestId: readOption(args, "--request-id"),
     role: readOption(args, "--role"),
-    routeWaitMillis: Number(readOption(args, "--route-wait-ms") || DEFAULT_ROUTE_WAIT_MILLIS),
+    routeWaitMillis: resolveDurationOption(
+        readOption(args, "--route-wait-ms"),
+        DEFAULT_ROUTE_WAIT_MILLIS,
+        "--route-wait-ms",
+    ),
     screenId: readOption(args, "--screen-id"),
     serial: readOption(args, "--serial"),
     status: readOption(args, "--status"),
     title: readOption(args, "--title"),
   };
+}
+
+function resolveDurationOption(value, defaultValue, optionName) {
+  const resolvedValue = value === "" || value === undefined ? defaultValue : Number(value);
+  if (!Number.isFinite(resolvedValue) || resolvedValue < 0) {
+    throw new Error(`${optionName}에는 0 이상의 숫자를 입력해 주세요.`);
+  }
+  return resolvedValue;
 }
 
 function readOption(args, optionName) {
@@ -155,13 +179,10 @@ function mergeScreens(existingScreens, nextScreens) {
 }
 
 function resolveStatus(statusOption, preset, focusedActivity) {
-  if (statusOption) {
-    return statusOption;
+  if (preset) {
+    return matchesActivity(focusedActivity, preset.expectedActivity) ? "passed" : "failed";
   }
-  if (!preset) {
-    return "passed";
-  }
-  return matchesActivity(focusedActivity, preset.expectedActivity) ? "passed" : "failed";
+  return statusOption || "passed";
 }
 
 function buildNote(note, preset, focusedActivity) {
@@ -233,6 +254,7 @@ function printHelp() {
   console.log("  node capture-app-navigation-evidence.js --screen-id login --title \"로그인 화면\"");
   console.log("  node capture-app-navigation-evidence.js --preset manager-home");
   console.log("  node capture-app-navigation-evidence.js --preset guardian-booking-status --request-id request-seed-progress");
+  console.log("  node capture-app-navigation-evidence.js --preset guardian-chat --chat-attachment --chat-message \"실기기 첨부 점검\"");
   console.log("  node capture-app-navigation-evidence.js --screen-id splash --title \"스플래시\" --launch-main");
   console.log("");
   console.log("프리셋 목록");
@@ -243,6 +265,7 @@ function printHelp() {
   console.log("설명");
   console.log("- 연결된 에뮬레이터/디바이스의 현재 화면을 캡처해 reports/screenshots 아래에 저장합니다.");
   console.log("- `--preset`을 주면 debug 자동 진입 액티비티를 통해 기준선 계정 로그인과 대상 화면 이동을 먼저 수행합니다.");
+  console.log("- 대상 액티비티 확인 뒤 기본 3초 동안 화면 데이터가 자리 잡기를 기다립니다. `--capture-settle-ms`로 조정할 수 있습니다.");
   console.log("- 캡처 결과는 reports/app-navigation-evidence-latest.json에 누적 기록됩니다.");
 }
 
@@ -264,8 +287,17 @@ function printSummary(evidence, manifestPath, screenshotPath, preset, focusedAct
   }
 }
 
-main().catch((error) => {
-  console.error("앱 화면 증적 캡처 중 오류가 발생했습니다.");
-  console.error(error.message || error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error("앱 화면 증적 캡처 중 오류가 발생했습니다.");
+    console.error(error.message || error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  DEFAULT_CAPTURE_SETTLE_MILLIS,
+  matchesActivity,
+  resolveDurationOption,
+  resolveStatus,
+};

@@ -13,9 +13,12 @@ const {
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   setLogLevel,
   updateDoc,
+  where,
+  writeBatch,
 } = require("firebase/firestore");
 const {
   getBytes,
@@ -163,6 +166,8 @@ function clientCreateAppointmentDocument() {
 function companionSessionDocument(overrides = {}) {
   return {
     appointmentRequestId: "request-main",
+    patientUserId: users.patient,
+    guardianUserId: users.guardian,
     managerUserId: users.manager,
     currentStepOrder: 1,
     currentStatus: "READY",
@@ -276,6 +281,37 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, "new-admin-user"), "users", "new-admin-user"),
             userDocument("ADMIN", "new-admin"),
         ));
+        await assertSucceeds(setDoc(
+            doc(firestoreFor(testEnv, users.guardian), "users", users.guardian),
+            {
+              notificationTokens: ["guardian-device-token"],
+              notificationTokenUpdatedAt: 2,
+              notificationTokenPlatform: "android",
+            },
+            { merge: true },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, users.guardian), "users", users.guardian),
+            {
+              "notificationTokenEntries.guardian-device-token": {
+                token: "guardian-device-token",
+                platform: "android",
+                updatedAtMillis: 2,
+              },
+            },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.patient), "users", users.patient),
+            { role: "ADMIN" },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            { managerDocumentStatus: "APPROVED" },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            { managerDocumentStatus: "PENDING" },
+        ));
       },
     },
     {
@@ -313,6 +349,20 @@ function testCases(testEnv) {
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main")));
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "companionSessions", "session-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.outsider), "companionSessions", "session-main")));
+        await assertFails(getDocs(query(
+            collection(firestoreFor(testEnv, users.patient), "companionSessions"),
+            where("appointmentRequestId", "==", "request-main"),
+        )));
+        await assertSucceeds(getDocs(query(
+            collection(firestoreFor(testEnv, users.patient), "companionSessions"),
+            where("appointmentRequestId", "==", "request-main"),
+            where("patientUserId", "==", users.patient),
+        )));
+        await assertSucceeds(getDocs(query(
+            collection(firestoreFor(testEnv, users.guardian), "companionSessions"),
+            where("appointmentRequestId", "==", "request-main"),
+            where("guardianUserId", "==", users.guardian),
+        )));
         await assertSucceeds(setDoc(
             doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-created-by-manager"),
             companionSessionCreateDocument(),
@@ -321,9 +371,37 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.otherManager), "companionSessions", "session-created-by-other-manager"),
             companionSessionCreateDocument({ managerUserId: users.otherManager }),
         ));
+        await assertFails(setDoc(
+            doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-created-with-wrong-patient"),
+            companionSessionCreateDocument({ patientUserId: users.outsider }),
+        ));
+
+        const adminDb = firestoreFor(testEnv, users.admin);
+        const batchRequestReference = doc(adminDb, "appointmentRequests", "request-created-in-batch");
+        const batchSessionReference = doc(adminDb, "companionSessions", "session-created-in-batch");
+        await assertSucceeds(setDoc(
+            batchRequestReference,
+            appointmentRequestDocument({ status: "REQUESTED", managerUserId: null }),
+        ));
+        const assignmentBatch = writeBatch(adminDb);
+        assignmentBatch.update(batchRequestReference, {
+          status: "MATCHED",
+          managerUserId: users.manager,
+          updatedAt: 2,
+        });
+        assignmentBatch.set(
+            batchSessionReference,
+            companionSessionCreateDocument({ appointmentRequestId: "request-created-in-batch" }),
+        );
+        await assertSucceeds(assignmentBatch.commit());
+
         await assertSucceeds(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main"),
             { currentStatus: "IN_PROGRESS", updatedAt: 2 },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main"),
+            { patientUserId: users.outsider, updatedAt: 3 },
         ));
         await assertSucceeds(updateDoc(
             doc(firestoreFor(testEnv, users.patient), "companionSessions", "session-main"),
