@@ -46,11 +46,22 @@
 
 일반 관리 연결에서 DDL이 거부된 결과는 schema 변경이 migration 전용 계정에 제한됐다는 증거다. 실제 적용은 `core-api-migration-preview` Environment의 `bodeul_migrator` 자격 증명으로만 실행한다.
 
-## 적용 후 검증 기준
+## 적용 결과
 
-- Flyway history에 version 2가 성공으로 기록된다.
-- `bodeul.hospital_guides` owner는 `bodeul_migration`이다.
-- RLS가 활성화되고 Core/Admin SELECT 정책이 각각 존재한다.
-- runtime role에는 SELECT만 있고 INSERT, UPDATE, DELETE, TRUNCATE 권한이 없다.
-- `anon`, `authenticated`, `service_role`은 schema/table에 접근할 수 없다.
-- Firestore 백업에서 변환한 병원 가이드 row 수와 PostgreSQL row 수가 일치한다.
+[Core API DB Migration run 29524104305](https://github.com/bodeul110/Bodeul/actions/runs/29524104305)에서 Flyway version 2를 개발 DB에 적용했다.
+
+| 항목 | 결과 |
+| --- | --- |
+| Flyway | version 1, 2 성공 기록 |
+| table owner | `bodeul_migration` |
+| RLS | 활성화, Core/Admin SELECT 정책 각각 존재 |
+| runtime 권한 | Core/Admin SELECT만 허용, INSERT/UPDATE/DELETE/TRUNCATE 없음 |
+| 공개 role | `public`, `anon`, `authenticated`, `service_role`의 schema/table CRUD 없음 |
+| 병원 가이드 seed | 최신 개발 백업 기준 1건 적용 |
+| 사용자 role seed | 6건: ADMIN 1, GUARDIAN 1, MANAGER 3, PATIENT 1 |
+| 관리자 접속 role | `bodeul_admin_service`는 `NOLOGIN`, connection limit 5 유지 |
+| production | 미적용 |
+
+Supabase Security Advisor는 경고가 없었다. `bodeul.flyway_schema_history`는 private schema의 migration metadata라 RLS를 켜지 않았고 공개 role의 schema 접근은 차단돼 있다. 애플리케이션 데이터 테이블인 `app_users`와 `hospital_guides`의 RLS 경계와 구분해 관리한다.
+
+관리자 웹은 별도 저장소 PR #18에서 Next.js Route Handler까지 반영했고 Preview의 루트 200과 인증 없는 API 401을 확인했다. 실제 ADMIN 200과 비관리자 403은 관리자 접속 role과 Vercel 서버 환경변수를 활성화한 뒤 검증한다.
