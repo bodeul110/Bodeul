@@ -3269,9 +3269,10 @@
 - Supabase runtime role의 세 도메인 테이블 SELECT 전용, 공개 role 권한 0건과 Security Advisor 경고 0건 확인
 - 신규 예약 조회·Flyway 내부 인덱스의 미사용 Performance INFO 2건은 실제 쿼리 통계가 쌓일 때까지 유지
 
-### 남은 범위
+### 당시 남은 범위
 
-- production Firebase·Supabase·Vercel·Cloud Run 프로젝트와 자격 증명 분리
+- production Firebase·Supabase·Cloud Run 기반과 DB 자격 증명 분리는 아래 133번에서 완료
+- Vercel Production 관리자 DB 자격 증명과 실제 운영 도메인은 미연결
 - 관리자 웹 reCAPTCHA Enterprise와 App Check custom backend 검증
 - 도메인별 PostgreSQL 쓰기 source of truth 전환
 - production backup/restore와 rollback 리허설
