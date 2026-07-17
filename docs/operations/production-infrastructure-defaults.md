@@ -61,10 +61,23 @@ Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Produ
 
 - production 배포와 migration은 `workflow_dispatch`로만 실행한다.
 - `core-api-production`과 `core-api-migration-production` GitHub Environment의 승인 보호를 유지한다.
+- 배포 workflow는 `master`의 실제 40자 commit SHA와 `bodeul-core-api` 서비스명을 다시 입력해야 진행한다.
+- production DB migration도 `master`의 실제 40자 commit SHA와 복원 가능한 백업 증적을 요구한다.
 - DB migration을 먼저 실행하고 호환성 검증 뒤 애플리케이션을 배포한다.
 - Cloud Run은 commit SHA image를 사용하고 `/health` 200, 무인증 API 401을 확인한다.
-- 직전 정상 revision으로 트래픽을 돌리는 rollback을 출시 전에 리허설한다.
+- smoke test 실패 시 직전 정상 revision이 있으면 트래픽을 자동 복구하고, 수동 rollback도 출시 전에 리허설한다.
 - production 리소스와 secret version이 준비되기 전에는 production workflow를 실행하지 않는다.
+
+초기 production 런타임은 1 vCPU, 1 GiB, 최소 인스턴스 0, 최대 인스턴스 2, 인스턴스당 DB pool 2로 시작한다. 최대 DB 연결을 4개로 제한하면서 초기 트래픽에 두 인스턴스까지 대응하는 현재 MVP 기준이다. 실제 지연·연결 수와 비용을 확인한 뒤 조정한다.
+
+production Secret Manager ID는 다음으로 고정한다.
+
+- `bodeul-core-api-production-db-jdbc-url`
+- `bodeul-core-api-production-db-username`
+- `bodeul-core-api-production-db-password`
+- `bodeul-core-api-production-kakao-local-rest-api-key`
+
+`core-api/deploy/cloud-run/set-production-secrets.ps1`은 production project ID 재입력과 허용된 secret ID 검사를 통과한 경우에만 기존 secret에 version을 추가한다.
 
 ## PostgreSQL 권한
 
@@ -110,6 +123,14 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 6. Firebase authorized domain, App Check, 관리자 MFA와 최소 권한을 검증한다.
 7. backup/restore, Cloud Run revision과 Vercel deployment rollback을 리허설한다.
 8. smoke test와 운영 담당자 확인 뒤 트래픽을 전환한다.
+
+## 현재 준비 완료
+
+- `.github/workflows/core-api-production-deploy.yml`에 보호된 수동 배포, 대상 재확인과 smoke 실패 rollback을 준비했다.
+- `.github/workflows/core-api-migration.yml`의 production 경로에 `master` SHA, 백업 증적과 사전 Core API 검사를 적용했다.
+- `core-api/deploy/cloud-run/set-production-secrets.ps1`에 production 전용 secret version 입력 경계를 준비했다.
+- `core-api-production`과 `core-api-migration-production` Environment는 required reviewer와 protected branch 정책만 있고 변수·secret은 비어 있어 실행할 수 없다.
+- production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
 
 ## 사람 결정이 필요한 항목
 
