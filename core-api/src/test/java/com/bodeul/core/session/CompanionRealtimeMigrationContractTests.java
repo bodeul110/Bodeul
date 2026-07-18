@@ -89,14 +89,40 @@ class CompanionRealtimeMigrationContractTests {
                 .contains("drop table if exists bodeul.companion_chat_messages");
     }
 
+    @Test
+    void followUpMigrationCoversTheCompositeReadReceiptForeignKey() throws IOException {
+        String migration = classpathSql(
+                "db/migration/V9__cover_companion_chat_read_receipt_fk.sql"
+        );
+        String rollback = fileSql(
+                "V9__restore_chat_read_receipt_message_index.sql"
+        );
+
+        assertThat(migration)
+                .contains("drop index if exists bodeul.ix_chat_read_receipts_message")
+                .contains("create index ix_chat_read_receipts_session_message")
+                .contains("companion_session_id")
+                .contains("last_read_message_id");
+        assertThat(rollback)
+                .contains("drop index if exists bodeul.ix_chat_read_receipts_session_message")
+                .contains("create index ix_chat_read_receipts_message")
+                .contains("on bodeul.companion_chat_read_receipts (last_read_message_id)");
+    }
+
     private String migrationSql() throws IOException {
-        return new ClassPathResource(
-                "db/migration/V8__create_companion_realtime_schema.sql"
-        ).getContentAsString(StandardCharsets.UTF_8);
+        return classpathSql("db/migration/V8__create_companion_realtime_schema.sql");
     }
 
     private String rollbackSql() throws IOException {
-        Path rollbackPath = Path.of("db", "rollback", "V8__drop_companion_realtime_schema.sql");
+        return fileSql("V8__drop_companion_realtime_schema.sql");
+    }
+
+    private String classpathSql(String path) throws IOException {
+        return new ClassPathResource(path).getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    private String fileSql(String fileName) throws IOException {
+        Path rollbackPath = Path.of("db", "rollback", fileName);
         if (Files.notExists(rollbackPath)) {
             rollbackPath = Path.of("core-api").resolve(rollbackPath);
         }
