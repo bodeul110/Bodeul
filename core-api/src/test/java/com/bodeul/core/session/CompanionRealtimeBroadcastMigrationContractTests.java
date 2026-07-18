@@ -50,6 +50,19 @@ class CompanionRealtimeBroadcastMigrationContractTests {
                 .contains("drop function if exists bodeul.broadcast_companion_realtime_change()");
     }
 
+    @Test
+    void privilegedBootstrapGrantsOnlyRealtimeSchemaUsageWhenAvailable() throws IOException {
+        String bootstrap = readPath("db/bootstrap/001_database_access.sql");
+        String rollback = readPath("db/bootstrap/rollback/001_database_access_rollback.sql");
+
+        assertThat(bootstrap)
+                .contains("to_regprocedure('realtime.send(jsonb,text,text,boolean)')")
+                .contains("grant usage on schema realtime to bodeul_migration")
+                .doesNotContain("grant insert on table realtime.messages to bodeul_migration");
+        assertThat(rollback)
+                .contains("revoke usage on schema realtime from bodeul_migration");
+    }
+
     private String read(String path) throws IOException {
         try (var stream = getClass().getClassLoader().getResourceAsStream(path)) {
             if (stream == null) {
@@ -62,6 +75,12 @@ class CompanionRealtimeBroadcastMigrationContractTests {
     private String readRollback(String fileName) throws IOException {
         return java.nio.file.Files.readString(
                 java.nio.file.Path.of("db", "rollback", fileName),
+                StandardCharsets.UTF_8);
+    }
+
+    private String readPath(String path) throws IOException {
+        return java.nio.file.Files.readString(
+                java.nio.file.Path.of(path),
                 StandardCharsets.UTF_8);
     }
 }

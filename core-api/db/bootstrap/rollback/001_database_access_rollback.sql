@@ -26,6 +26,14 @@ reset role;
 
 drop schema if exists bodeul;
 
+do $$
+begin
+    if exists (select 1 from pg_namespace where nspname = 'realtime') then
+        execute 'revoke usage on schema realtime from bodeul_migration';
+    end if;
+end
+$$;
+
 revoke bodeul_migration from bodeul_migrator;
 revoke bodeul_core_runtime from bodeul_core_service;
 revoke bodeul_admin_runtime from bodeul_admin_service;
