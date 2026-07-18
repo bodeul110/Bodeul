@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 세션 진행과 리포트는 Core API를 사용하고 채팅·위치·매니저 운영 정보는 Firebase에 유지한다.
+ * 예약과 동행 운영 데이터는 Core API를 사용하고, 매니저 서류 등 아직 이전하지 않은 기능만 Firebase에 유지한다.
  */
 public final class CoreApiManagerRepository implements ManagerRepository {
     private final FirebaseManagerRepository firebaseRepository;
@@ -86,21 +86,68 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             List<CompanionChatAttachment> attachments,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        firebaseRepository.sendCompanionChatMessage(
-                managerUserId,
-                message,
-                attachments,
-                overlayCallback(managerUserId, callback));
+        withDashboard(managerUserId, callback, dashboard ->
+                sessionClient.sendRealtimeMessage(
+                        dashboard.getSession().getId(),
+                        message,
+                        attachments,
+                        new RepositoryCallback<CoreApiCompanionSessionClient.RealtimeSnapshot>() {
+                            @Override
+                            public void onSuccess(
+                                    CoreApiCompanionSessionClient.RealtimeSnapshot result
+                            ) {
+                                getManagerDashboard(managerUserId, callback);
+                            }
+
+                            @Override
+                            public void onError(String errorMessage) {
+                                callback.onError(errorMessage);
+                            }
+                        }));
     }
 
     @Override
     public void markCompanionChatRead(String managerUserId) {
-        firebaseRepository.markCompanionChatRead(managerUserId);
+        getManagerDashboard(managerUserId, new RepositoryCallback<ManagerDashboard>() {
+            @Override
+            public void onSuccess(ManagerDashboard result) {
+                sessionClient.markRealtimeRead(result.getSession().getId());
+            }
+
+            @Override
+            public void onError(String message) {
+                // 읽음 표시는 화면 오류로 확장하지 않는다.
+            }
+        });
     }
 
     @Override
     public void saveCompanionLocationAlert(String managerUserId, CompanionLocationAlertStage stage) {
-        firebaseRepository.saveCompanionLocationAlert(managerUserId, stage);
+        getManagerDashboard(managerUserId, new RepositoryCallback<ManagerDashboard>() {
+            @Override
+            public void onSuccess(ManagerDashboard result) {
+                sessionClient.updateText(
+                        result.getSession().getId(),
+                        "locationAlertStage",
+                        stage == null ? CompanionLocationAlertStage.NONE.getValue() : stage.getValue(),
+                        new RepositoryCallback<CoreApiCompanionSessionClient.SessionSnapshot>() {
+                            @Override
+                            public void onSuccess(CoreApiCompanionSessionClient.SessionSnapshot ignored) {
+                                // 자동 알림 발송 상태는 다음 대시보드 조회에서 동기화한다.
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                // 알림 자체의 성공 흐름을 저장 실패로 되돌리지는 않는다.
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String message) {
+                // 활성 세션이 없으면 저장할 자동 알림 상태도 없다.
+            }
+        });
     }
 
     @Override
@@ -111,26 +158,37 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             String locationSummary,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        firebaseRepository.shareCurrentLocation(
-                managerUserId,
-                latitude,
-                longitude,
+        withDashboard(managerUserId, callback, dashboard -> sessionClient.updateText(
+                dashboard.getSession().getId(),
+                "locationSummary",
                 locationSummary,
-                new RepositoryCallback<ManagerDashboard>() {
+                new RepositoryCallback<CoreApiCompanionSessionClient.SessionSnapshot>() {
                     @Override
-                    public void onSuccess(ManagerDashboard result) {
-                        sessionClient.updateText(
-                                result.getSession().getId(),
-                                "locationSummary",
-                                locationSummary,
-                                refreshCallback(managerUserId, callback));
+                    public void onSuccess(CoreApiCompanionSessionClient.SessionSnapshot result) {
+                        sessionClient.shareRealtimeLocation(
+                                result.getCoreId(),
+                                latitude,
+                                longitude,
+                                new RepositoryCallback<CoreApiCompanionSessionClient.RealtimeSnapshot>() {
+                                    @Override
+                                    public void onSuccess(
+                                            CoreApiCompanionSessionClient.RealtimeSnapshot ignored
+                                    ) {
+                                        getManagerDashboard(managerUserId, callback);
+                                    }
+
+                                    @Override
+                                    public void onError(String message) {
+                                        callback.onError(message);
+                                    }
+                                });
                     }
 
                     @Override
                     public void onError(String message) {
                         callback.onError(message);
                     }
-                });
+                }));
     }
 
     @Override
@@ -139,10 +197,11 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             boolean active,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        firebaseRepository.updateLiveLocationSharingState(
+        updateSessionBoolean(
                 managerUserId,
+                "liveLocationSharingActive",
                 active,
-                overlayCallback(managerUserId, callback));
+                callback);
     }
 
     @Override
@@ -464,26 +523,40 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest appointment) {
-                        callback.onSuccess(new ManagerDashboard(
-                                toManager(appointment),
-                                toParticipant(
-                                        appointment.getPatientUserId(),
-                                        UserRole.PATIENT,
-                                        appointment.getPatientName(),
-                                        appointment.getPatientEmail(),
-                                        appointment.getPatientPhone()),
-                                toParticipant(
-                                        appointment.getGuardianUserId(),
-                                        UserRole.GUARDIAN,
-                                        appointment.getGuardianName(),
-                                        appointment.getGuardianEmail(),
-                                        appointment.getGuardianPhone()),
-                                appointment,
-                                sessionSnapshot.merge(null, appointment.getId()),
-                                HospitalGuideFallbackFactory.create(
-                                        appointment.getHospitalName(),
-                                        appointment.getDepartmentName()),
-                                null));
+                        CompanionSession session = sessionSnapshot.merge(null, appointment.getId());
+                        sessionClient.enrichWithRealtime(
+                                sessionSnapshot,
+                                session,
+                                new RepositoryCallback<CompanionSession>() {
+                                    @Override
+                                    public void onSuccess(CompanionSession realtimeSession) {
+                                        callback.onSuccess(new ManagerDashboard(
+                                                toManager(appointment),
+                                                toParticipant(
+                                                        appointment.getPatientUserId(),
+                                                        UserRole.PATIENT,
+                                                        appointment.getPatientName(),
+                                                        appointment.getPatientEmail(),
+                                                        appointment.getPatientPhone()),
+                                                toParticipant(
+                                                        appointment.getGuardianUserId(),
+                                                        UserRole.GUARDIAN,
+                                                        appointment.getGuardianName(),
+                                                        appointment.getGuardianEmail(),
+                                                        appointment.getGuardianPhone()),
+                                                appointment,
+                                                realtimeSession,
+                                                HospitalGuideFallbackFactory.create(
+                                                        appointment.getHospitalName(),
+                                                        appointment.getDepartmentName()),
+                                                null));
+                                    }
+
+                                    @Override
+                                    public void onError(String message) {
+                                        callback.onError(message);
+                                    }
+                                });
                     }
 
                     @Override

@@ -1,13 +1,14 @@
 # Firebase 설정
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 ## 현재 프로젝트 상태
 
 - Android 패키지명: `com.example.bodeul`
 - Firebase 설정 파일 위치: `app/google-services.json`
 - 인증: Firebase Authentication
-- 데이터 저장소: Cloud Firestore
+- 업무 데이터 저장소: Supabase PostgreSQL
+- Firebase 데이터 범위: 인증·FCM 토큰, Storage, 전환 기간 legacy 읽기 자료
 - Functions: `functions/index.js` 집계 파일과 `functions/src/` 기능별 모듈
 - Firebase 설정이 없으면 앱은 자동으로 목업 모드로 동작한다.
 - 최신 기능설명서 기준으로 예약 후속, 문의, 관리자 후속 알림/전달 기록 컬렉션까지 확장 중이다.
@@ -22,12 +23,15 @@ naverClientId=발급받은_클라이언트_ID
 naverClientName=보들
 kakaoNativeAppKey=발급받은_네이티브_앱_키
 bodeulCoreApiBaseUrl=https://개발_Core_API_주소
+bodeulSupabaseUrl=https://개발_Supabase_프로젝트.supabase.co
+bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 ```
 
 - 네이버 클라이언트 시크릿은 Android 앱에 포함하지 않는다.
 - 현재 앱의 네이버 로그인 버튼은 `naver_login_enabled=false`로 숨겨져 있으며, 서버 중계형 OAuth 흐름이 확정될 때 다시 연다.
 - `kakaoNativeAppKey`에는 Kakao Developers에서 `com.example.bodeul` 패키지명과 현재 서명 키 해시를 연결한 Android 플랫폼 전용 네이티브 앱 키를 사용한다. 추적되는 `gradle.properties`에는 실제 키를 넣지 않는다.
 - 카카오 로컬 REST API 키는 Android에 넣지 않고 Core API의 Google Secret Manager에 저장한다.
+- Supabase publishable key는 private Realtime 연결 식별용 공개 키이며 DB 접속 비밀값이 아니다. Android는 Firebase ID token으로 private 채널 인가를 받고 Supabase Data API 쓰기는 사용하지 않는다.
 
 ## 콘솔에서 먼저 할 일
 
@@ -515,4 +519,6 @@ bodeulCoreApiBaseUrl=https://개발_Core_API_주소
 - 허용 형식: `application/pdf`, `image/*`
 - 최대 크기: `10MB`
 - Storage 경로: `companion-chat-attachments/{sessionId}/{timestamp-fileName}`
-- 세션 참조 위치: `companionSessions` 문서 안심 채팅 메시지의 `attachments` 배열
+- 첨부 메타데이터 원본: PostgreSQL `bodeul.companion_chat_attachments`
+- 기존 세션의 Storage 권한 판정: legacy `companionSessions/{sessionId}` 참여자 문서
+- Firestore 보조 문서가 없는 Core-only 세션은 현재 Firebase Storage 첨부 업로드를 지원하지 않는다. 운영 전 서버 중계 업로드 또는 짧은 수명의 서명 URL로 권한 경계를 옮겨야 한다.

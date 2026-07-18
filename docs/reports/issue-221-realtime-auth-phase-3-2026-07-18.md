@@ -49,9 +49,8 @@ Supabase Auth로 사용자를 이중 관리하는 대신 기존 Firebase Auth를
 
 ## 남은 범위
 
-- Android 채팅·위치 쓰기를 Core API로 전환하고 Firebase token으로 private channel을 구독한다.
-- 재연결과 token 갱신 때 snapshot을 다시 조회하고 FCM 백그라운드 fallback을 실기기에서 검증한다.
-- Android 전환 뒤 Firestore 채팅·위치·읽음 쓰기를 차단한다.
+- Android 채팅·위치 Core API 쓰기, Firebase token private channel 구독과 Firestore client 쓰기 차단 코드는 4단계에서 완료했다.
+- 재연결과 token 갱신 시 snapshot 재조회, Core API FCM fallback과 Firestore Rules를 개발 환경에 적용하고 실기기에서 검증한다.
 - production에는 Android 통합 검증 뒤 production Firebase Third-Party Auth와 production RLS를 별도로 적용한다.
 - #222에서 만료 행과 Firebase Storage 첨부를 정리하는 일일 파기 job을 구현한다.
 

@@ -138,41 +138,6 @@ service cloud.firestore {
           );
     }
 
-    function companionSessionRealtimeWritableFields() {
-      return [
-        'locationSummary',
-        'sharedLatitude',
-        'sharedLongitude',
-        'sharedLocationUpdatedAt',
-        'sharedLocationHistory',
-        'liveLocationSharingActive',
-        'liveLocationSharingStartedAt',
-        'chatMessages',
-        'managerChatReadAt',
-        'locationAlertStage',
-        'locationAlertSentAt',
-        'updatedAt'
-      ];
-    }
-
-    function canManagerUpdateCompanionRealtime() {
-      return isManager()
-          && resource.data.managerUserId == request.auth.uid
-          && affectedOnly(companionSessionRealtimeWritableFields());
-    }
-
-    function canPatientUpdateCompanionChat() {
-      return isPatient()
-          && resource.data.patientUserId == request.auth.uid
-          && affectedOnly(['chatMessages', 'patientChatReadAt', 'updatedAt']);
-    }
-
-    function canGuardianUpdateCompanionChat() {
-      return isGuardian()
-          && resource.data.guardianUserId == request.auth.uid
-          && affectedOnly(['chatMessages', 'guardianChatReadAt', 'updatedAt']);
-    }
-
     match /users/{userId} {
       // 사용자 문서는 본인과 관리자만 직접 읽고, 교차 프로필 참조는 Functions 중계를 사용한다.
       allow get: if canGetUser(userId);
@@ -202,11 +167,9 @@ service cloud.firestore {
       // 세션 조회는 쿼리 기반으로 이루어져 개발 중에는 로그인 사용자 읽기를 허용한다.
       allow read: if canReadCompanionSession();
 
-      // 세션 원본은 PostgreSQL이며 기존 문서에서는 채팅·위치·읽음 필드만 갱신한다.
+      // 세션과 채팅·위치·읽음 원본은 PostgreSQL이며 기존 문서는 전환 비교용 읽기만 허용한다.
       allow create: if false;
-      allow update: if canManagerUpdateCompanionRealtime()
-          || canPatientUpdateCompanionChat()
-          || canGuardianUpdateCompanionChat();
+      allow update: if false;
       allow delete: if false;
     }
 

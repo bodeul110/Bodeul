@@ -100,7 +100,9 @@ class CompanionSessionController {
             String pharmacySummary,
             Boolean prescriptionCollected,
             Boolean pharmacyCompleted,
-            Boolean medicationGuidanceCompleted) {
+            Boolean medicationGuidanceCompleted,
+            Boolean liveLocationSharingActive,
+            String locationAlertStage) {
 
         CompanionSessionService.UpdateSessionCommand toCommand() {
             return new CompanionSessionService.UpdateSessionCommand(
@@ -112,7 +114,9 @@ class CompanionSessionController {
                     pharmacySummary,
                     prescriptionCollected,
                     pharmacyCompleted,
-                    medicationGuidanceCompleted);
+                    medicationGuidanceCompleted,
+                    liveLocationSharingActive,
+                    locationAlertStage);
         }
     }
 

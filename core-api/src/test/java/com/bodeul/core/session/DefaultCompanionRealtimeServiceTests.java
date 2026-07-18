@@ -1,6 +1,7 @@
 package com.bodeul.core.session;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,13 +26,18 @@ class DefaultCompanionRealtimeServiceTests {
     private FakeSessionRepository sessionRepository;
     private FakeRealtimeRepository realtimeRepository;
     private DefaultCompanionRealtimeService service;
+    private List<Object> events;
 
     @BeforeEach
     void setUp() {
         sessionRepository = new FakeSessionRepository();
         realtimeRepository = new FakeRealtimeRepository();
+        events = new ArrayList<>();
         sessionRepository.session = Optional.of(session("IN_TREATMENT"));
-        service = new DefaultCompanionRealtimeService(sessionRepository, realtimeRepository);
+        service = new DefaultCompanionRealtimeService(
+                sessionRepository,
+                realtimeRepository,
+                events::add);
     }
 
     @Test
@@ -86,6 +92,12 @@ class DefaultCompanionRealtimeServiceTests {
                 .singleElement()
                 .extracting("contentType")
                 .isEqualTo("image/jpeg");
+        assertThat(events)
+                .singleElement()
+                .isInstanceOfSatisfying(CompanionChatMessageCreatedEvent.class, event -> {
+                    assertThat(event.sessionId()).isEqualTo(SESSION_ID);
+                    assertThat(event.recipientUserIds()).containsExactly(GUARDIAN_ID, MANAGER_ID);
+                });
     }
 
     @Test
@@ -186,6 +198,10 @@ class DefaultCompanionRealtimeServiceTests {
                 false,
                 false,
                 false,
+                false,
+                null,
+                "none",
+                null,
                 3,
                 Instant.parse("2026-07-18T00:00:00Z"),
                 status.equals("COMPLETED") ? Instant.parse("2026-07-18T01:00:00Z") : null,

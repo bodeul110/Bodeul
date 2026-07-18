@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 예약·세션·리포트·후속 처리는 Core API에서 읽고, 아직 이전하지 않은 채팅·위치 데이터만 Firestore에서 합성한다.
+ * 예약·세션·채팅·위치·리포트는 Core API에서 읽고, 병원 가이드 등 아직 남은 보조 자료만 Firebase에서 합성한다.
  */
 public final class CoreApiBookingRepository implements BookingRepository {
     private static final long CORE_REFRESH_INTERVAL_MILLIS = 10_000L;
@@ -286,54 +286,26 @@ public final class CoreApiBookingRepository implements BookingRepository {
             List<CompanionChatAttachment> attachments,
             RepositoryCallback<AppointmentRequestDetail> callback
     ) {
-        withLegacyId(requestId, callback, legacyId ->
-                firebaseRepository.sendCompanionChatMessage(
-                        currentUser,
-                        legacyId,
-                        message,
-                        attachments,
-                        new RepositoryCallback<AppointmentRequestDetail>() {
-                            @Override
-                            public void onSuccess(AppointmentRequestDetail legacyDetail) {
-                                appointmentClient.getAppointment(
-                                        requestId,
-                                        new RepositoryCallback<AppointmentRequest>() {
-                                            @Override
-                                            public void onSuccess(AppointmentRequest request) {
-                                                enrichWithCoreSession(request, legacyDetail, callback);
-                                            }
+        sessionClient.sendRealtimeMessage(
+                resolveKnownSessionId(requestId),
+                message,
+                attachments,
+                new RepositoryCallback<CoreApiCompanionSessionClient.RealtimeSnapshot>() {
+                    @Override
+                    public void onSuccess(CoreApiCompanionSessionClient.RealtimeSnapshot result) {
+                        getAppointmentRequestDetail(currentUser, requestId, callback);
+                    }
 
-                                            @Override
-                                            public void onError(String errorMessage) {
-                                                callback.onError(errorMessage);
-                                            }
-                                        });
-                            }
-
-                            @Override
-                            public void onError(String errorMessage) {
-                                callback.onError(errorMessage);
-                            }
-                        }));
+                    @Override
+                    public void onError(String errorMessage) {
+                        callback.onError(errorMessage);
+                    }
+                });
     }
 
     @Override
     public void markCompanionChatRead(User currentUser, String requestId) {
-        appointmentClient.resolveLegacyFirestoreId(
-                requestId,
-                new RepositoryCallback<String>() {
-                    @Override
-                    public void onSuccess(String legacyId) {
-                        if (!legacyId.isEmpty()) {
-                            firebaseRepository.markCompanionChatRead(currentUser, legacyId);
-                        }
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        // 읽음 표시는 보조 동작이므로 화면 오류로 확장하지 않는다.
-                    }
-                });
+        sessionClient.markRealtimeRead(resolveKnownSessionId(requestId));
     }
 
     @Override
@@ -392,22 +364,39 @@ public final class CoreApiBookingRepository implements BookingRepository {
                         CompanionSession session = sessionSnapshot.merge(
                                 legacySession,
                                 request.getId());
-                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
-                            callback.onSuccess(copyDetail(request, legacyDetail, session, null));
-                            return;
-                        }
-                        sessionClient.getReport(
+                        sessionClient.enrichWithRealtime(
                                 sessionSnapshot,
-                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
+                                session,
+                                new RepositoryCallback<CompanionSession>() {
                                     @Override
-                                    public void onSuccess(
-                                            CoreApiCompanionSessionClient.ReportSnapshot report
-                                    ) {
-                                        callback.onSuccess(copyDetail(
-                                                request,
-                                                legacyDetail,
-                                                session,
-                                                report.toModel(session.getId())));
+                                    public void onSuccess(CompanionSession realtimeSession) {
+                                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
+                                            callback.onSuccess(copyDetail(
+                                                    request,
+                                                    legacyDetail,
+                                                    realtimeSession,
+                                                    null));
+                                            return;
+                                        }
+                                        sessionClient.getReport(
+                                                sessionSnapshot,
+                                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
+                                                    @Override
+                                                    public void onSuccess(
+                                                            CoreApiCompanionSessionClient.ReportSnapshot report
+                                                    ) {
+                                                        callback.onSuccess(copyDetail(
+                                                                request,
+                                                                legacyDetail,
+                                                                realtimeSession,
+                                                                report.toModel(realtimeSession.getId())));
+                                                    }
+
+                                                    @Override
+                                                    public void onError(String message) {
+                                                        callback.onError(message);
+                                                    }
+                                                });
                                     }
 
                                     @Override
@@ -422,6 +411,14 @@ public final class CoreApiBookingRepository implements BookingRepository {
                         callback.onError(message);
                     }
                 });
+    }
+
+    private String resolveKnownSessionId(String requestId) {
+        String coreAppointmentId = appointmentClient.getKnownCoreId(requestId);
+        CoreApiCompanionSessionClient.SessionSnapshot session = sessionClient.findKnown(
+                null,
+                coreAppointmentId);
+        return session == null ? requestId : session.getCoreId();
     }
 
     private AppointmentRequestDetail copyDetail(

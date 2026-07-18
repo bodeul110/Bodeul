@@ -330,7 +330,7 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "companionSessions는 참여자만 읽고 채팅·위치 필드만 수정한다",
+      name: "companionSessions는 참여자만 읽고 모든 클라이언트 쓰기를 차단한다",
       run: async () => {
         await seedFirestore(testEnv);
 
@@ -368,7 +368,7 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-main"),
             { currentStatus: "IN_PROGRESS", updatedAt: 2 },
         ));
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main"),
             {
               locationSummary: "병원 이동 중",
@@ -379,7 +379,7 @@ function testCases(testEnv) {
               updatedAt: 2,
             },
         ));
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.patient), "companionSessions", "session-main"),
             {
               chatMessages: [{ senderRole: "PATIENT", message: "확인했습니다." }],

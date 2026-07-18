@@ -24,6 +24,8 @@ fun localOrGradleProperty(name: String): String {
 
 val kakaoNativeAppKey = localOrGradleProperty("kakaoNativeAppKey")
 val bodeulCoreApiBaseUrl = localOrGradleProperty("bodeulCoreApiBaseUrl")
+val bodeulSupabaseUrl = localOrGradleProperty("bodeulSupabaseUrl")
+val bodeulSupabasePublishableKey = localOrGradleProperty("bodeulSupabasePublishableKey")
 val naverClientId = localOrGradleProperty("naverClientId")
 val naverClientName = localOrGradleProperty("naverClientName")
     .ifEmpty { "보들" }
@@ -41,6 +43,8 @@ android {
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
         resValue("string", "bodeul_core_api_base_url", bodeulCoreApiBaseUrl)
+        resValue("string", "bodeul_supabase_url", bodeulSupabaseUrl)
+        resValue("string", "bodeul_supabase_publishable_key", bodeulSupabasePublishableKey)
         resValue("string", "naver_client_id", naverClientId)
         resValue("string", "naver_client_name", naverClientName)
         // 네이버 클라이언트 시크릿은 앱에 포함하지 않고 서버 중계가 준비될 때까지 로그인을 비활성화한다.
@@ -88,6 +92,7 @@ dependencies {
     implementation(libs.kakao.user)
     implementation(libs.kakao.map)
     implementation(libs.naver.oauth)
+    implementation(libs.okhttp)
     debugImplementation(libs.firebase.appcheck.debug)
     testImplementation(libs.junit4)
     androidTestImplementation(libs.androidx.junit)

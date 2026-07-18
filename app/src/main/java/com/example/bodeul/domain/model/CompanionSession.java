@@ -16,6 +16,7 @@ public class CompanionSession {
     private final String id;
     private final String appointmentRequestId;
     private final String managerUserId;
+    private String realtimeSessionId;
 
     // 현장 진행 상황과 공유 메모는 동행 중 계속 갱신된다.
     private int currentStepOrder;
@@ -214,6 +215,7 @@ public class CompanionSession {
         this.id = id;
         this.appointmentRequestId = appointmentRequestId;
         this.managerUserId = managerUserId;
+        this.realtimeSessionId = id;
         this.currentStepOrder = currentStepOrder;
         this.status = status;
         this.guardianUpdate = guardianUpdate;
@@ -241,6 +243,16 @@ public class CompanionSession {
 
     public String getManagerUserId() {
         return managerUserId;
+    }
+
+    public String getRealtimeSessionId() {
+        return realtimeSessionId;
+    }
+
+    public void setRealtimeSessionId(String realtimeSessionId) {
+        this.realtimeSessionId = realtimeSessionId == null || realtimeSessionId.trim().isEmpty()
+                ? id
+                : realtimeSessionId.trim();
     }
 
     public int getCurrentStepOrder() {
@@ -343,6 +355,25 @@ public class CompanionSession {
         }
     }
 
+    public void replaceSharedLocationHistory(List<CompanionLocationHistoryEntry> locations) {
+        sharedLocationHistory.clear();
+        if (locations != null) {
+            sharedLocationHistory.addAll(locations);
+        }
+        while (sharedLocationHistory.size() > MAX_SHARED_LOCATION_HISTORY) {
+            sharedLocationHistory.remove(sharedLocationHistory.size() - 1);
+        }
+        if (sharedLocationHistory.isEmpty()) {
+            updateSharedLocation(null, null, 0L);
+            return;
+        }
+        CompanionLocationHistoryEntry latest = sharedLocationHistory.get(0);
+        updateSharedLocation(
+                latest.getLatitude(),
+                latest.getLongitude(),
+                latest.getCapturedAtMillis());
+    }
+
     public String getFieldPhotoNote() {
         return fieldPhotoNote;
     }
@@ -403,6 +434,19 @@ public class CompanionSession {
 
     public void addChatMessage(CompanionChatMessage chatMessage) {
         this.chatMessages.add(chatMessage);
+    }
+
+    public void replaceChatMessages(List<CompanionChatMessage> messages) {
+        chatMessages.clear();
+        if (messages != null) {
+            chatMessages.addAll(messages);
+        }
+    }
+
+    public void clearChatReadState() {
+        patientChatReadAtMillis = 0L;
+        guardianChatReadAtMillis = 0L;
+        managerChatReadAtMillis = 0L;
     }
 
     public CompanionLocationAlertStage getLocationAlertStage() {

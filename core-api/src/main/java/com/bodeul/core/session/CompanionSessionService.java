@@ -37,7 +37,9 @@ public interface CompanionSessionService {
             String pharmacySummary,
             Boolean prescriptionCollected,
             Boolean pharmacyCompleted,
-            Boolean medicationGuidanceCompleted) {
+            Boolean medicationGuidanceCompleted,
+            Boolean liveLocationSharingActive,
+            String locationAlertStage) {
     }
 
     record SubmitReportCommand(
@@ -69,6 +71,10 @@ public interface CompanionSessionService {
             boolean prescriptionCollected,
             boolean pharmacyCompleted,
             boolean medicationGuidanceCompleted,
+            boolean liveLocationSharingActive,
+            String liveLocationSharingStartedAt,
+            String locationAlertStage,
+            String locationAlertSentAt,
             long version,
             String startedAt,
             String completedAt,

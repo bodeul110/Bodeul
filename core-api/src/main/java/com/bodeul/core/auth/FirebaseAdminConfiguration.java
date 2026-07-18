@@ -8,6 +8,7 @@ import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +21,13 @@ class FirebaseAdminConfiguration {
 
     private static final String APP_NAME = "bodeul-core-api";
     private static final Logger LOGGER = LoggerFactory.getLogger(FirebaseAdminConfiguration.class);
+
+    @Bean
+    @ConditionalOnProperty(name = "FIREBASE_PROJECT_ID")
+    FirebaseApp firebaseAdminApp(
+            @Value("${FIREBASE_PROJECT_ID:}") String projectId) throws Exception {
+        return getOrInitializeApp(projectId.trim());
+    }
 
     @Bean
     @ConditionalOnMissingBean(FirebaseTokenVerifier.class)
@@ -59,6 +67,12 @@ class FirebaseAdminConfiguration {
     }
 
     private TokenDecoder createDecoder(String projectId) throws Exception {
+        FirebaseApp app = getOrInitializeApp(projectId);
+        FirebaseAuth auth = FirebaseAuth.getInstance(app);
+        return idToken -> auth.verifyIdToken(idToken).getUid();
+    }
+
+    private static synchronized FirebaseApp getOrInitializeApp(String projectId) throws Exception {
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.getApplicationDefault())
                 .setProjectId(projectId)
@@ -73,9 +87,7 @@ class FirebaseAdminConfiguration {
         if (!Objects.equals(projectId, configuredProjectId)) {
             throw new IllegalStateException("Firebase project 설정이 일치하지 않습니다.");
         }
-
-        FirebaseAuth auth = FirebaseAuth.getInstance(app);
-        return idToken -> auth.verifyIdToken(idToken).getUid();
+        return app;
     }
 
     @FunctionalInterface

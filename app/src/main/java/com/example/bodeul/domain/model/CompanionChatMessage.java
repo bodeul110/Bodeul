@@ -10,13 +10,14 @@ import java.util.List;
  * 동행 세션 참여자가 주고받는 안심 채팅 한 건을 표현한다.
  */
 public final class CompanionChatMessage {
+    private final String id;
     private final UserRole senderRole;
     private final String body;
     private final long sentAtMillis;
     private final List<CompanionChatAttachment> attachments;
 
     public CompanionChatMessage(UserRole senderRole, String body, long sentAtMillis) {
-        this(senderRole, body, sentAtMillis, Collections.emptyList());
+        this("", senderRole, body, sentAtMillis, Collections.emptyList());
     }
 
     public CompanionChatMessage(
@@ -26,6 +27,7 @@ public final class CompanionChatMessage {
             @Nullable CompanionChatAttachment attachment
     ) {
         this(
+                "",
                 senderRole,
                 body,
                 sentAtMillis,
@@ -41,12 +43,27 @@ public final class CompanionChatMessage {
             long sentAtMillis,
             List<CompanionChatAttachment> attachments
     ) {
+        this("", senderRole, body, sentAtMillis, attachments);
+    }
+
+    public CompanionChatMessage(
+            String id,
+            UserRole senderRole,
+            String body,
+            long sentAtMillis,
+            List<CompanionChatAttachment> attachments
+    ) {
+        this.id = id == null ? "" : id;
         this.senderRole = senderRole;
         this.body = body == null ? "" : body;
         this.sentAtMillis = sentAtMillis;
         this.attachments = attachments == null
                 ? new ArrayList<>()
                 : new ArrayList<>(attachments);
+    }
+
+    public String getId() {
+        return id;
     }
 
     public UserRole getSenderRole() {

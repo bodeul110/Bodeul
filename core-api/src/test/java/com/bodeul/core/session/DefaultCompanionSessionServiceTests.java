@@ -1,6 +1,7 @@
 package com.bodeul.core.session;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,12 +24,14 @@ class DefaultCompanionSessionServiceTests {
 
     private FakeCompanionSessionRepository repository;
     private DefaultCompanionSessionService service;
+    private List<Object> events;
 
     @BeforeEach
     void setUp() {
         repository = new FakeCompanionSessionRepository();
+        events = new ArrayList<>();
         repository.session = Optional.of(session("IN_TREATMENT", 2, 5, 3));
-        service = new DefaultCompanionSessionService(repository);
+        service = new DefaultCompanionSessionService(repository, events::add);
     }
 
     @Test
@@ -52,7 +55,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void patientCannotUpdateManagerFields() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                3, "대기 중입니다.", null, null, null, null, null, null, null);
+                3, "대기 중입니다.", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateSession(
                 user(PATIENT_ID, AppUserRole.PATIENT), SESSION_ID, command))
@@ -64,7 +67,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void assignedManagerUpdatesOnlyProvidedFields() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                3, "진료실 입장", null, null, null, null, true, null, null);
+                3, "진료실 입장", null, null, null, null, true, null, null, null, null);
 
         var result = service.updateSession(manager(), SESSION_ID, command);
 
@@ -76,7 +79,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void staleVersionIsRejectedBeforeWrite() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                2, "변경", null, null, null, null, null, null, null);
+                2, "변경", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
                 .isInstanceOf(CompanionSessionException.class)
@@ -127,12 +130,38 @@ class DefaultCompanionSessionServiceTests {
     void terminalSessionRejectsFurtherWrites() {
         repository.session = Optional.of(session("COMPLETED", 5, 5, 4));
         var command = new CompanionSessionService.UpdateSessionCommand(
-                4, "변경", null, null, null, null, null, null, null);
+                4, "변경", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
                 .isInstanceOf(CompanionSessionException.class)
                 .extracting(exception -> ((CompanionSessionException) exception).error())
                 .isEqualTo("companion_session_state_conflict");
+    }
+
+    @Test
+    void invalidLocationAlertStageIsRejected() {
+        var command = new CompanionSessionService.UpdateSessionCommand(
+                3, null, null, null, null, null, null, null, null, null, "unexpected");
+
+        assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("invalid_companion_session_request");
+    }
+
+    @Test
+    void changedLocationAlertPublishesParticipantNotificationAfterWrite() {
+        var command = new CompanionSessionService.UpdateSessionCommand(
+                3, null, null, null, null, null, null, null, null, null, "hospital_near");
+
+        service.updateSession(manager(), SESSION_ID, command);
+
+        assertThat(events)
+                .singleElement()
+                .isInstanceOfSatisfying(CompanionLocationAlertChangedEvent.class, event -> {
+                    assertThat(event.alertStage()).isEqualTo("hospital_near");
+                    assertThat(event.recipientUserIds()).containsExactly(PATIENT_ID, GUARDIAN_ID);
+                });
     }
 
     private AppUserRepository.AppUser manager() {
@@ -166,6 +195,10 @@ class DefaultCompanionSessionServiceTests {
                 false,
                 false,
                 false,
+                false,
+                null,
+                "none",
+                null,
                 version,
                 Instant.parse("2026-07-18T00:00:00Z"),
                 null,
@@ -209,6 +242,9 @@ class DefaultCompanionSessionServiceTests {
                     current.currentStatus(),
                     patch.guardianUpdate() == null ? current.guardianUpdate() : patch.guardianUpdate(),
                     Boolean.TRUE.equals(patch.prescriptionCollected()) || current.prescriptionCollected(),
+                    patch.locationAlertStage() == null
+                            ? current.locationAlertStage()
+                            : patch.locationAlertStage(),
                     current.version() + 1));
             return session;
         }
@@ -227,6 +263,7 @@ class DefaultCompanionSessionServiceTests {
                     "IN_TREATMENT",
                     current.guardianUpdate(),
                     current.prescriptionCollected(),
+                    current.locationAlertStage(),
                     current.version() + 1));
             return session;
         }
@@ -246,6 +283,7 @@ class DefaultCompanionSessionServiceTests {
                     "COMPLETED",
                     current.guardianUpdate(),
                     current.prescriptionCollected(),
+                    current.locationAlertStage(),
                     current.version() + 1));
             report = new ReportRecord(
                     UUID.randomUUID(),
@@ -271,6 +309,7 @@ class DefaultCompanionSessionServiceTests {
                 String status,
                 String guardianUpdate,
                 boolean prescriptionCollected,
+                String locationAlertStage,
                 long version) {
             return new SessionRecord(
                     current.id(),
@@ -290,6 +329,10 @@ class DefaultCompanionSessionServiceTests {
                     prescriptionCollected,
                     current.pharmacyCompleted(),
                     current.medicationGuidanceCompleted(),
+                    current.liveLocationSharingActive(),
+                    current.liveLocationSharingStartedAt(),
+                    locationAlertStage,
+                    current.locationAlertSentAt(),
                     version,
                     current.startedAt(),
                     current.completedAt(),
