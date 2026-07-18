@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 221 채팅·위치 PostgreSQL 스키마 1단계 (2026-07-18)](issue-221-realtime-schema-phase-1-2026-07-18.md)
 - [Issue 220 Firestore 업무 쓰기 경계 전환 (2026-07-18)](issue-220-firestore-write-boundary-2026-07-18.md)
 - [Issue 220 매칭·동행·리포트 스키마 1단계 (2026-07-18)](issue-220-session-schema-phase-1-2026-07-18.md)
 - [예약 PostgreSQL source of truth 전환 1단계 검증 (2026-07-18)](issue-219-appointment-core-api-phase-1-2026-07-18.md)

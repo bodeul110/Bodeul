@@ -1,6 +1,8 @@
 -- 개발 DB에서 bootstrap 직후 되돌릴 때만 사용한다.
 -- public schema의 자동 권한 차단은 보안 기준이므로 복원하지 않는다.
 
+begin;
+
 do $$
 begin
     if exists (
@@ -35,3 +37,5 @@ drop role if exists bodeul_admin_service;
 drop role if exists bodeul_migration;
 drop role if exists bodeul_core_runtime;
 drop role if exists bodeul_admin_runtime;
+
+commit;

@@ -3508,3 +3508,29 @@
 ### 남은 범위
 
 - 검증 완료 후 세션·리포트·후속 처리 Firestore 클라이언트 쓰기 제한
+
+## 142. 2026-07-18 채팅·위치 PostgreSQL 스키마 1단계
+
+### 구현과 운영 설정
+
+- Flyway V8에 채팅 메시지, 첨부 메타데이터, 세션별 읽음 위치와 위치 이력 테이블을 추가했다.
+- 채팅은 클라이언트 메시지 UUID로 중복을 막고 위치는 배정 매니저와 진행 상태를 확인하는 서버 전용 함수로만 기록한다.
+- 위치 이력은 세션별 최근 10건만 유지하고, 세션 종료 시 채팅 180일·첨부 30일·위치 24시간 만료 시각을 예약한다.
+- 관리자 runtime은 조회만 허용하고 Core runtime에는 endpoint 구현에 필요한 지정 컬럼 쓰기와 위치 함수 실행만 허용했다.
+- bootstrap과 rollback 파일을 명시적 트랜잭션으로 감싸 `SET LOCAL ROLE`이 실행 도구와 무관하게 같은 트랜잭션에서 적용되도록 했다.
+
+### 검증
+
+- V8 migration과 rollback 계약 테스트 통과
+- PostgreSQL 17 `postgres:17` 임시 인스턴스에서 bootstrap과 V1~V8 연속 적용 성공
+- Core 채팅·읽음·위치 쓰기 허용, `authenticated` 읽기와 관리자 채팅 쓰기 거부 확인
+- 위치 11건 입력 후 최근 10건 유지, 같은 클라이언트 UUID 재전송 시 중복 없음 확인
+- 세션 완료 후 채팅 180일·위치 24시간 만료 예약 확인
+- V8 rollback 후 실시간 테이블 4개 잔여 0건 확인
+
+### 남은 범위
+
+- 개발 DB V8 migration과 ACL·RLS·보관 trigger 확인
+- Core API 채팅·위치 endpoint와 PostgreSQL 커밋 후 private Broadcast 발행
+- Firebase JWT private 채널 인가, Android 재연결·API 재조회 전환
+- #222 일일 파기 job과 Storage 첨부 삭제 구현

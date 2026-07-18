@@ -2,6 +2,8 @@
 -- 비밀번호는 이 파일에서 설정하지 않는다. *_service, *_migrator role은
 -- 별도 보안 절차로 비밀번호를 설정하기 전까지 로그인할 수 없다.
 
+begin;
+
 do $$
 begin
     if not exists (select 1 from pg_roles where rolname = 'bodeul_migration') then
@@ -84,3 +86,5 @@ alter role bodeul_admin_service set search_path = bodeul, public;
 comment on role bodeul_migration is 'BoDeul schema와 Flyway migration 소유 권한';
 comment on role bodeul_core_runtime is 'Spring Core API 최소 runtime 권한';
 comment on role bodeul_admin_runtime is 'Next.js 관리자 서버 최소 runtime 권한';
+
+commit;

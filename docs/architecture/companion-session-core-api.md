@@ -40,10 +40,23 @@
 | `session_reports` | `sessionReports` | 세션 1:1 | 종료 리포트와 복약 비교 |
 | `appointment_follow_ups` | `appointmentFollowUps` | 예약 1:1 | 후기, 정산 확인, 긴급 지원 |
 | `companion_session_assignment_audits` | 기존 복원 불가 | 예약·세션 N:1 | 전환 이후 관리자 배정 감사 |
+| `companion_chat_messages` | `companionSessions.chatMessages` | 세션 N:1 | 본문, 발신자와 재시도 중복 제거 |
+| `companion_chat_attachments` | 채팅 첨부 배열 | 메시지 N:1 | Firebase Storage 경로와 만료 상태 |
+| `companion_chat_read_receipts` | 역할별 읽음 시각 | 세션·사용자 1:1 | 마지막 읽은 메시지와 시각 |
+| `companion_session_locations` | 최신 좌표·위치 이력 | 세션 N:1 | 진행 중 최신·최근 10건 위치 |
 
 `nextVisitAt`에는 날짜와 자유 텍스트가 혼재한다. PostgreSQL에서는 정규화 가능한 시각을 `next_visit_at`에, 원문을 `next_visit_note`에 보관해 기존 데이터를 잃지 않는다.
 
-Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각은 이번 테이블에 넣지 않는다. 해당 값은 #221 전환 전까지 Firestore legacy 경로에 남는다.
+V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각을 받을 PostgreSQL 계약을 추가한다. 앱의 기존 값은 자동 백필하지 않으며, Core API와 Realtime 경로가 검증되기 전까지 Firestore legacy 경로에 남는다. 전환 뒤 새 쓰기는 PostgreSQL만 사용하고 Realtime 이벤트는 커밋 결과 알림으로만 사용한다.
+
+## 채팅·위치 저장 계약
+
+- 채팅 본문은 세션별 행으로 저장하고 `client_message_id`로 네트워크 재시도의 중복 저장을 막는다.
+- 첨부 원본은 Firebase Storage에 두되 경로, MIME, 크기와 파기 상태는 PostgreSQL에서 인가한다. 허용 형식은 JPEG, PNG, PDF이고 파일당 최대 10 MiB다.
+- 읽음 위치는 `(companion_session_id, user_id)` 한 행으로 관리하고 같은 세션 메시지만 참조할 수 있다.
+- 위치는 배정된 매니저와 진행 가능한 세션을 확인하는 `record_companion_location` 함수만 기록한다. 15분보다 오래됐거나 5분보다 미래인 좌표는 거부하고 세션별 최근 10건만 유지한다.
+- 세션 완료·취소 전이는 채팅 180일, 첨부 30일, 정밀 위치 24시간 뒤로 `expires_at`을 예약한다. 실제 삭제와 Storage 정리는 #222 일일 job이 수행한다.
+- 브라우저와 Android의 `anon`, `authenticated`, `service_role`에는 업무 table 권한을 부여하지 않는다. 관리자 runtime은 조회만 가능하고 쓰기는 Core runtime만 수행한다.
 
 ## 상태 전이
 
@@ -74,21 +87,21 @@ Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각은
 
 ## 권한 경계
 
-| role | V5~V7 권한 |
+| role | V5~V8 권한 |
 | --- | --- |
-| `bodeul_core_runtime` | 세션·리포트·후속 처리 SELECT, 세션 진행 컬럼 UPDATE, 리포트와 후속 처리 지정 컬럼 INSERT·UPDATE |
-| `bodeul_admin_runtime` | 세션·리포트·후속 처리·배정 감사 SELECT, 배정 함수 EXECUTE |
-| `anon`, `authenticated`, `service_role`, `public` | 테이블과 배정 함수 권한 없음 |
+| `bodeul_core_runtime` | 세션·리포트·후속 처리·채팅·첨부·읽음·위치 SELECT, 지정 컬럼 DML, 위치 기록 함수 EXECUTE |
+| `bodeul_admin_runtime` | 세션·리포트·후속 처리·배정 감사·채팅·첨부·읽음·위치 SELECT, 배정 함수 EXECUTE |
+| `anon`, `authenticated`, `service_role`, `public` | 업무 테이블과 서버 전용 함수 권한 없음 |
 | `bodeul_migration` | Flyway DDL과 Firestore 백필 |
 
-V6와 V7은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사용하는 컬럼 권한과 RLS 쓰기 정책만 추가한다. V7 기준 후속 처리 권한은 INSERT 14개 열, UPDATE 13개 열로 제한되며 DELETE 권한과 관리자 runtime의 광범위한 쓰기 권한은 부여하지 않는다.
+V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사용하는 컬럼 권한과 RLS 쓰기 정책만 추가한다. V8은 위치 table 직접 INSERT를 허용하지 않고 검증 함수 실행만 허용한다. DELETE 권한과 관리자 runtime의 광범위한 쓰기 권한은 부여하지 않는다.
 
 ## Android 전환 경계
 
 - 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
-- 채팅, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 공유 상태는 #221까지 Firestore에 남기고 화면에서 합성한다.
+- 채팅, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 공유 상태는 #221의 Core API·Realtime·Android 전환 전까지 Firestore에 남기고 화면에서 합성한다. V8 schema 준비만으로 앱 경로가 바뀐 것으로 간주하지 않는다.
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리 쓰기를 거부한다. 기존 `companionSessions` 문서에서는 배정 매니저의 채팅·위치·읽음과 환자·보호자의 채팅·읽음만 갱신할 수 있다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
