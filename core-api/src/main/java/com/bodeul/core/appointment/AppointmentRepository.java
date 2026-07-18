@@ -28,6 +28,12 @@ interface AppointmentRepository {
 
     boolean cancelActiveSession(UUID appointmentId);
 
+    Optional<AppointmentFollowUpRecord> findFollowUpByAppointmentId(UUID appointmentId);
+
+    Optional<AppointmentFollowUpRecord> insertFollowUp(AppointmentFollowUpMutation mutation);
+
+    Optional<AppointmentFollowUpRecord> updateFollowUp(AppointmentFollowUpMutation mutation);
+
     record AppointmentMutation(
             UUID clientRequestId,
             UUID patientUserId,
@@ -97,5 +103,27 @@ interface AppointmentRepository {
     }
 
     record ParticipantSnapshot(String name, String phone, String email) {
+    }
+
+    record AppointmentFollowUpMutation(
+            UUID appointmentId,
+            UUID actorUserId,
+            long expectedVersion,
+            String reviewRatingCode,
+            String settlementStatus,
+            String settlementNote,
+            String supportEscalationStatus) {
+    }
+
+    record AppointmentFollowUpRecord(
+            UUID appointmentId,
+            String reviewRatingCode,
+            Instant reviewSavedAt,
+            String settlementStatus,
+            String settlementNote,
+            Instant settlementSavedAt,
+            String supportEscalationStatus,
+            Instant supportEscalatedAt,
+            long version) {
     }
 }

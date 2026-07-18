@@ -10,6 +10,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -79,11 +80,28 @@ class AppointmentController {
         return noStore(appointmentService.cancelAppointment(appUser, appointmentId, version));
     }
 
-    private ResponseEntity<AppointmentService.AppointmentView> noStore(
-            AppointmentService.AppointmentView appointment) {
+    @GetMapping("/{appointmentId}/follow-up")
+    ResponseEntity<AppointmentService.AppointmentFollowUpView> getAppointmentFollowUp(
+            @AuthenticationPrincipal AppUserRepository.AppUser appUser,
+            @PathVariable UUID appointmentId) {
+        return noStore(appointmentService.getAppointmentFollowUp(appUser, appointmentId));
+    }
+
+    @PatchMapping("/{appointmentId}/follow-up")
+    ResponseEntity<AppointmentService.AppointmentFollowUpView> updateAppointmentFollowUp(
+            @AuthenticationPrincipal AppUserRepository.AppUser appUser,
+            @PathVariable UUID appointmentId,
+            @RequestBody UpdateAppointmentFollowUpRequest request) {
+        return noStore(appointmentService.updateAppointmentFollowUp(
+                appUser,
+                appointmentId,
+                request == null ? null : request.toCommand()));
+    }
+
+    private <T> ResponseEntity<T> noStore(T body) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(appointment);
+                .body(body);
     }
 
     record AppointmentsResponse(List<AppointmentService.AppointmentView> appointments) {
@@ -173,6 +191,23 @@ class AppointmentController {
                     managerGenderPreferenceCode,
                     paymentMethodCode,
                     couponCode);
+        }
+    }
+
+    record UpdateAppointmentFollowUpRequest(
+            Long version,
+            String reviewRatingCode,
+            String settlementFollowUpStatus,
+            String settlementFollowUpNote,
+            String supportEscalationStatus) {
+
+        AppointmentService.UpdateAppointmentFollowUpCommand toCommand() {
+            return new AppointmentService.UpdateAppointmentFollowUpCommand(
+                    version == null ? -1 : version,
+                    reviewRatingCode,
+                    settlementFollowUpStatus,
+                    settlementFollowUpNote,
+                    supportEscalationStatus);
         }
     }
 }

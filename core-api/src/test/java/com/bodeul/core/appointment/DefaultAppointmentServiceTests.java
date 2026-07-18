@@ -13,6 +13,8 @@ import java.util.UUID;
 import com.bodeul.core.appointment.AppUserProfileRepository.AppUserProfile;
 import com.bodeul.core.appointment.AppointmentRepository.AppointmentMutation;
 import com.bodeul.core.appointment.AppointmentRepository.AppointmentRecord;
+import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpMutation;
+import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpRecord;
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -241,6 +243,76 @@ class DefaultAppointmentServiceTests {
                 .isEqualTo("invalid_appointment_request");
     }
 
+    @Test
+    void participantReadsEmptyFollowUpBeforeFirstSave() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+
+        var followUp = service.getAppointmentFollowUp(patient(), APPOINTMENT_ID);
+
+        assertThat(followUp.appointmentRequestId()).isEqualTo(APPOINTMENT_ID);
+        assertThat(followUp.reviewRatingCode()).isEmpty();
+        assertThat(followUp.version()).isZero();
+    }
+
+    @Test
+    void participantSavesFollowUpActionsWithOptimisticVersion() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+
+        var review = service.updateAppointmentFollowUp(
+                patient(),
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        0, "excellent", null, null, null));
+        var settlement = service.updateAppointmentFollowUp(
+                patient(),
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        review.version(), null, "NEEDS_HELP", "결제 내역 확인 요청", null));
+
+        assertThat(settlement.reviewRatingCode()).isEqualTo("excellent");
+        assertThat(settlement.settlementFollowUpStatus()).isEqualTo("NEEDS_HELP");
+        assertThat(settlement.settlementFollowUpNote()).isEqualTo("결제 내역 확인 요청");
+        assertThat(settlement.version()).isEqualTo(2);
+    }
+
+    @Test
+    void followUpWriteRequiresCompletedAppointment() {
+        appointmentRepository.current = Optional.of(existingAppointment("IN_PROGRESS", 3));
+
+        assertThatThrownBy(() -> service.updateAppointmentFollowUp(
+                patient(),
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        0, "good", null, null, null)))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("appointment_state_conflict");
+    }
+
+    @Test
+    void staleFollowUpVersionIsRejected() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+        appointmentRepository.followUp = Optional.of(new AppointmentFollowUpRecord(
+                APPOINTMENT_ID,
+                "good",
+                NOW,
+                "",
+                "",
+                null,
+                "",
+                null,
+                2));
+
+        assertThatThrownBy(() -> service.updateAppointmentFollowUp(
+                patient(),
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        1, null, null, null, "GUIDE_VIEWED")))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("appointment_version_conflict");
+    }
+
     private AppUserRepository.AppUser patient() {
         return new AppUserRepository.AppUser(PATIENT_ID, "patient-firebase-uid", AppUserRole.PATIENT);
     }
@@ -307,6 +379,7 @@ class DefaultAppointmentServiceTests {
 
     private final class FakeAppointmentRepository implements AppointmentRepository {
         private Optional<AppointmentRecord> current = Optional.empty();
+        private Optional<AppointmentFollowUpRecord> followUp = Optional.empty();
         private final Map<String, AppointmentRecord> byClientRequest = new HashMap<>();
         private int insertCount;
         private boolean sessionCanceled;
@@ -399,6 +472,62 @@ class DefaultAppointmentServiceTests {
         public boolean cancelActiveSession(UUID appointmentId) {
             sessionCanceled = true;
             return true;
+        }
+
+        @Override
+        public Optional<AppointmentFollowUpRecord> findFollowUpByAppointmentId(UUID appointmentId) {
+            return followUp.filter(value -> value.appointmentId().equals(appointmentId));
+        }
+
+        @Override
+        public Optional<AppointmentFollowUpRecord> insertFollowUp(AppointmentFollowUpMutation mutation) {
+            if (followUp.isPresent() || mutation.expectedVersion() != 0) {
+                return Optional.empty();
+            }
+            followUp = Optional.of(new AppointmentFollowUpRecord(
+                    mutation.appointmentId(),
+                    valueOrEmpty(mutation.reviewRatingCode()),
+                    mutation.reviewRatingCode() == null ? null : NOW,
+                    valueOrEmpty(mutation.settlementStatus()),
+                    valueOrEmpty(mutation.settlementNote()),
+                    mutation.settlementStatus() == null ? null : NOW,
+                    valueOrEmpty(mutation.supportEscalationStatus()),
+                    mutation.supportEscalationStatus() == null ? null : NOW,
+                    1));
+            return followUp;
+        }
+
+        @Override
+        public Optional<AppointmentFollowUpRecord> updateFollowUp(AppointmentFollowUpMutation mutation) {
+            if (followUp.isEmpty() || followUp.get().version() != mutation.expectedVersion()) {
+                return Optional.empty();
+            }
+            AppointmentFollowUpRecord currentFollowUp = followUp.get();
+            followUp = Optional.of(new AppointmentFollowUpRecord(
+                    mutation.appointmentId(),
+                    mutation.reviewRatingCode() == null
+                            ? currentFollowUp.reviewRatingCode()
+                            : mutation.reviewRatingCode(),
+                    mutation.reviewRatingCode() == null ? currentFollowUp.reviewSavedAt() : NOW,
+                    mutation.settlementStatus() == null
+                            ? currentFollowUp.settlementStatus()
+                            : mutation.settlementStatus(),
+                    mutation.settlementStatus() == null
+                            ? currentFollowUp.settlementNote()
+                            : valueOrEmpty(mutation.settlementNote()),
+                    mutation.settlementStatus() == null ? currentFollowUp.settlementSavedAt() : NOW,
+                    mutation.supportEscalationStatus() == null
+                            ? currentFollowUp.supportEscalationStatus()
+                            : mutation.supportEscalationStatus(),
+                    mutation.supportEscalationStatus() == null
+                            ? currentFollowUp.supportEscalatedAt()
+                            : NOW,
+                    currentFollowUp.version() + 1));
+            return followUp;
+        }
+
+        private String valueOrEmpty(String value) {
+            return value == null ? "" : value;
         }
 
         private AppointmentRecord fromMutation(

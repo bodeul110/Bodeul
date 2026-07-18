@@ -227,6 +227,23 @@ final class CoreApiAppointmentClient {
         });
     }
 
+    void resolveCoreId(
+            String requestId,
+            RepositoryCallback<String> callback
+    ) {
+        resolveReference(requestId, new RepositoryCallback<AppointmentReference>() {
+            @Override
+            public void onSuccess(AppointmentReference reference) {
+                callback.onSuccess(reference.coreId);
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
     String getKnownLegacyFirestoreId(String requestId) {
         AppointmentReference reference = references.get(normalizeText(requestId));
         return reference == null ? "" : reference.legacyFirestoreId;

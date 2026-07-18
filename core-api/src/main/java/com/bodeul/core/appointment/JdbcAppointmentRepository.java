@@ -67,6 +67,19 @@ class JdbcAppointmentRepository implements AppointmentRepository {
 
     private static final RowMapper<AppointmentRecord> ROW_MAPPER =
             (resultSet, rowNumber) -> mapAppointment(resultSet);
+    private static final String FOLLOW_UP_COLUMNS = """
+            appointment_request_id,
+            review_rating_code,
+            review_saved_at,
+            settlement_follow_up_status,
+            settlement_follow_up_note,
+            settlement_follow_up_saved_at,
+            support_escalation_status,
+            support_escalated_at,
+            version
+            """;
+    private static final RowMapper<AppointmentFollowUpRecord> FOLLOW_UP_ROW_MAPPER =
+            (resultSet, rowNumber) -> mapFollowUp(resultSet);
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -291,8 +304,116 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 new MapSqlParameterSource("appointmentId", appointmentId)) == 1;
     }
 
+    @Override
+    public Optional<AppointmentFollowUpRecord> findFollowUpByAppointmentId(UUID appointmentId) {
+        String sql = "select " + FOLLOW_UP_COLUMNS
+                + " from bodeul.appointment_follow_ups "
+                + "where appointment_request_id = :appointmentId limit 1";
+        return queryFollowUp(
+                sql,
+                new MapSqlParameterSource("appointmentId", appointmentId));
+    }
+
+    @Override
+    public Optional<AppointmentFollowUpRecord> insertFollowUp(
+            AppointmentFollowUpMutation mutation) {
+        String sql = """
+                insert into bodeul.appointment_follow_ups (
+                    appointment_request_id,
+                    review_rating_code,
+                    review_saved_by_user_id,
+                    review_saved_at,
+                    settlement_follow_up_status,
+                    settlement_follow_up_note,
+                    settlement_follow_up_saved_by_user_id,
+                    settlement_follow_up_saved_at,
+                    support_escalation_status,
+                    support_escalated_by_user_id,
+                    support_escalated_at,
+                    version,
+                    updated_at
+                ) values (
+                    :appointmentId,
+                    coalesce(:reviewRatingCode, ''),
+                    case when :reviewProvided then :actorUserId else null end,
+                    case when :reviewProvided then now() else null end,
+                    coalesce(:settlementStatus, ''),
+                    coalesce(:settlementNote, ''),
+                    case when :settlementProvided then :actorUserId else null end,
+                    case when :settlementProvided then now() else null end,
+                    coalesce(:supportEscalationStatus, ''),
+                    case when :supportProvided then :actorUserId else null end,
+                    case when :supportProvided then now() else null end,
+                    1,
+                    now()
+                )
+                on conflict (appointment_request_id) do nothing
+                returning
+                """ + FOLLOW_UP_COLUMNS;
+        return queryFollowUp(sql, followUpParameters(mutation));
+    }
+
+    @Override
+    public Optional<AppointmentFollowUpRecord> updateFollowUp(
+            AppointmentFollowUpMutation mutation) {
+        String sql = """
+                update bodeul.appointment_follow_ups
+                set review_rating_code = coalesce(:reviewRatingCode, review_rating_code),
+                    review_saved_by_user_id = case
+                        when not :reviewProvided then review_saved_by_user_id
+                        else :actorUserId
+                    end,
+                    review_saved_at = case
+                        when not :reviewProvided then review_saved_at
+                        else now()
+                    end,
+                    settlement_follow_up_status = coalesce(
+                        :settlementStatus,
+                        settlement_follow_up_status
+                    ),
+                    settlement_follow_up_note = case
+                        when not :settlementProvided then settlement_follow_up_note
+                        else :settlementNote
+                    end,
+                    settlement_follow_up_saved_by_user_id = case
+                        when not :settlementProvided then settlement_follow_up_saved_by_user_id
+                        else :actorUserId
+                    end,
+                    settlement_follow_up_saved_at = case
+                        when not :settlementProvided then settlement_follow_up_saved_at
+                        else now()
+                    end,
+                    support_escalation_status = coalesce(
+                        :supportEscalationStatus,
+                        support_escalation_status
+                    ),
+                    support_escalated_by_user_id = case
+                        when not :supportProvided then support_escalated_by_user_id
+                        else :actorUserId
+                    end,
+                    support_escalated_at = case
+                        when not :supportProvided then support_escalated_at
+                        else now()
+                    end,
+                    version = version + 1,
+                    updated_at = now()
+                where appointment_request_id = :appointmentId
+                  and version = :expectedVersion
+                returning
+                """ + FOLLOW_UP_COLUMNS;
+        return queryFollowUp(sql, followUpParameters(mutation));
+    }
+
     private Optional<AppointmentRecord> queryOne(String sql, MapSqlParameterSource parameters) {
         return jdbcTemplate.query(sql, parameters, ROW_MAPPER)
+                .stream()
+                .findFirst();
+    }
+
+    private Optional<AppointmentFollowUpRecord> queryFollowUp(
+            String sql,
+            MapSqlParameterSource parameters) {
+        return jdbcTemplate.query(sql, parameters, FOLLOW_UP_ROW_MAPPER)
                 .stream()
                 .findFirst();
     }
@@ -335,6 +456,20 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 .addValue("paymentStatusCode", mutation.paymentStatusCode());
     }
 
+    private MapSqlParameterSource followUpParameters(AppointmentFollowUpMutation mutation) {
+        return new MapSqlParameterSource()
+                .addValue("appointmentId", mutation.appointmentId())
+                .addValue("actorUserId", mutation.actorUserId())
+                .addValue("expectedVersion", mutation.expectedVersion())
+                .addValue("reviewRatingCode", mutation.reviewRatingCode())
+                .addValue("reviewProvided", mutation.reviewRatingCode() != null)
+                .addValue("settlementStatus", mutation.settlementStatus())
+                .addValue("settlementNote", mutation.settlementNote())
+                .addValue("settlementProvided", mutation.settlementStatus() != null)
+                .addValue("supportEscalationStatus", mutation.supportEscalationStatus())
+                .addValue("supportProvided", mutation.supportEscalationStatus() != null);
+    }
+
     private static AppointmentRecord mapAppointment(ResultSet resultSet) throws SQLException {
         return new AppointmentRecord(
                 resultSet.getObject("id", UUID.class),
@@ -375,6 +510,19 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 resultSet.getString("payment_approval_code"),
                 nullableInstant(resultSet, "payment_approved_at"),
                 resultSet.getString("payment_provider_label"),
+                resultSet.getLong("version"));
+    }
+
+    private static AppointmentFollowUpRecord mapFollowUp(ResultSet resultSet) throws SQLException {
+        return new AppointmentFollowUpRecord(
+                resultSet.getObject("appointment_request_id", UUID.class),
+                resultSet.getString("review_rating_code"),
+                nullableInstant(resultSet, "review_saved_at"),
+                resultSet.getString("settlement_follow_up_status"),
+                resultSet.getString("settlement_follow_up_note"),
+                nullableInstant(resultSet, "settlement_follow_up_saved_at"),
+                resultSet.getString("support_escalation_status"),
+                nullableInstant(resultSet, "support_escalated_at"),
                 resultSet.getLong("version"));
     }
 

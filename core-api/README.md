@@ -89,7 +89,9 @@ Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, p
 
 `/api/appointments`는 PostgreSQL UUID로 예약을 식별한다. 환자·보호자는 생성·수정·취소를 사용할 수 있고, 배정 매니저는 본인 예약만 조회할 수 있다. 생성은 `clientRequestId`로 중복을 막고 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
 
-V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용한다. 채팅과 고빈도 위치는 아직 Firestore에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
+`GET /api/appointments/{id}/follow-up`은 연결된 환자·보호자·배정 매니저에게 후기·정산·긴급 지원 기록을 제공한다. `PATCH /api/appointments/{id}/follow-up`은 완료 예약의 환자·보호자만 사용할 수 있고 최신 후속 기록의 `version`과 변경할 필드만 받는다.
+
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. 채팅과 고빈도 위치는 아직 Firestore에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
 
 ## 동행 세션 API
 
