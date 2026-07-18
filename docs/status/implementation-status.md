@@ -1329,7 +1329,7 @@
 ### 구현
 
 - `admin-web` 브랜치의 관리자 웹이 `localStorage` 플래그만으로 로그인 상태를 유지하고 실제 Firebase 세션을 종료하지 않던 문제를 정리했다.
-- [admin-web/firebase.ts](../../admin-web/firebase.ts)에서 `auth` 인스턴스를 함께 내보내고, [admin-web/src/App.tsx](../../admin-web/src/App.tsx)는 `onAuthStateChanged`로 실제 관리자 세션을 검증하도록 바꿨다.
+- [admin-web/firebase.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/firebase.ts)에서 `auth` 인스턴스를 함께 내보내고, [admin-web/src/App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx)는 `onAuthStateChanged`로 실제 관리자 세션을 검증하도록 바꿨다.
 - 로그인 후에는 `users/{uid}.role == ADMIN`을 다시 확인하고, 관리자가 아니면 즉시 `signOut()` 처리하도록 보강했다.
 - 로그아웃도 `localStorage` 대신 실제 Firebase Auth `signOut()`을 호출하도록 수정했다.
 - 매니저 승인/반려 저장은 기존 앱 계약에 맞춰 `managerDocumentStatus`, `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentHistory`를 함께 저장하도록 맞췄다.
@@ -1348,7 +1348,7 @@
 ## 63. 2026-05-04 관리자 웹 서류 Storage 미리보기 연동
 ### 구현
 
-- [admin-web/firebase.ts](../../admin-web/firebase.ts)에 `storage` 인스턴스를 추가하고, [admin-web/src/App.tsx](../../admin-web/src/App.tsx)는 매니저 심사 모달에서 `Storage` 원본을 직접 읽어 미리보기 하도록 확장했다.
+- [admin-web/firebase.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/firebase.ts)에 `storage` 인스턴스를 추가하고, [admin-web/src/App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx)는 매니저 심사 모달에서 `Storage` 원본을 직접 읽어 미리보기 하도록 확장했다.
 - 관리자 웹은 `users/{uid}.managerDocumentFiles` 메타데이터가 있으면 해당 `fullPath`를 우선 사용하고, 없으면 `manager-documents/{managerUserId}/{documentKey}/파일명` 폴더 규약을 기준으로 최신 파일을 탐색한다.
 - 이미지 파일은 인라인 미리보기, PDF는 `iframe` 미리보기, 그 외 형식은 `원본 열기` 링크로 정리해 운영자가 서류 원본을 바로 검토할 수 있게 맞췄다.
 - `ManagerApproval`은 더 이상 별도 Firestore 리스너를 만들지 않고, 상위 `App`이 구독한 매니저 목록과 파일 메타데이터를 그대로 받아 사용하도록 정리했다.
@@ -1496,11 +1496,11 @@
 ## 69. 2026-05-04 관리자 웹 승인/미리보기 안정화
 ### 구현
 
-- [App.tsx](../../admin-web/src/App.tsx)에서 Storage 메타데이터 경로가 끊긴 경우 폴더의 다른 파일로 자동 대체하지 않고 오류 상태로 멈추도록 수정했다.
+- [App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx)에서 Storage 메타데이터 경로가 끊긴 경우 폴더의 다른 파일로 자동 대체하지 않고 오류 상태로 멈추도록 수정했다.
 - 문서 미리보기 로딩을 `Promise.allSettled` 기반으로 바꿔 일부 문서 미리보기 실패가 전체 모달 무한 로딩으로 이어지지 않도록 보강했다.
 - 반려 버튼의 가짜 2단계 동작을 제거하고 즉시 반려 저장 로직만 타도록 정리했다.
 - 매니저 Firestore 구독에 에러 콜백과 상단 오류 배너를 추가해 권한/네트워크 실패를 화면에서 바로 확인할 수 있게 했다.
-- Firebase Console Storage 링크가 프로젝트/버킷 하드코딩 문자열에 의존하지 않도록 [firebase.ts](../../admin-web/firebase.ts) 설정값을 사용하게 바꿨다.
+- Firebase Console Storage 링크가 프로젝트/버킷 하드코딩 문자열에 의존하지 않도록 [firebase.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/firebase.ts) 설정값을 사용하게 바꿨다.
 
 ### 변경 범위
 
@@ -1521,7 +1521,7 @@
 ## 70. 2026-05-04 관리자 웹 번들 청크 분리
 ### 구현
 
-- [vite.config.ts](../../admin-web/vite.config.ts)에 `manualChunks`를 추가해 `firebase`와 `react` 계열 의존성을 별도 vendor 청크로 분리했다.
+- [vite.config.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/vite.config.ts)에 `manualChunks`를 추가해 `firebase`와 `react` 계열 의존성을 별도 vendor 청크로 분리했다.
 - 관리자 웹 메인 청크를 줄여 초기 로드 파일을 가볍게 하고, 빌드 시 `500kB` 초과 경고가 다시 뜨지 않도록 정리했다.
 
 ### 변경 범위
@@ -1714,7 +1714,7 @@
   - [PermissionGuidePreferences.java](../../app/src/main/java/com/example/bodeul/ui/auth/PermissionGuidePreferences.java): 권한 안내 완료 여부만 저장
   - [ServiceLocator.java](../../app/src/main/java/com/example/bodeul/data/ServiceLocator.java): Firestore 디스크 캐시 비활성화
   - [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java): 원본 서류를 로컬 복사 없이 바로 Storage 업로드
-  - [admin-web/firebase.ts](../../admin-web/firebase.ts), [App.tsx](../../admin-web/src/App.tsx): 관리자 웹은 Firebase Auth 세션만 사용
+  - [admin-web/firebase.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/firebase.ts), [App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx): 관리자 웹은 Firebase Auth 세션만 사용
 - 결론은 `지금 릴리스 경로에는 앱이 직접 영속 저장하는 민감 비즈니스 데이터가 거의 없으므로, 전면 AES 도입보다 로컬 저장 금지 원칙과 App Check가 우선`이라는 점으로 정리했다.
 - [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 AES 적용 범위 판단 링크를 추가했다.
 
@@ -1741,9 +1741,9 @@
   - `release` 변형은 [app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java](../../app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java)에서 Play Integrity provider를 사용한다.
 - [app/build.gradle.kts](../../app/build.gradle.kts), [libs.versions.toml](../../gradle/libs.versions.toml)에 App Check 의존성을 추가했다.
 - 관리자 웹에 선택적 App Check 초기화 경로를 추가했다.
-  - [admin-web/src/appCheck.ts](../../admin-web/src/appCheck.ts)
-  - [admin-web/src/main.tsx](../../admin-web/src/main.tsx)
-  - [admin-web/firebase.ts](../../admin-web/firebase.ts)
+  - [admin-web/src/appCheck.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/appCheck.ts)
+  - [admin-web/src/main.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/main.tsx)
+  - [admin-web/firebase.ts](https://github.com/bodeul110/bodeul-admin-web/blob/master/firebase.ts)
   - `VITE_FIREBASE_APPCHECK_SITE_KEY`가 있을 때만 reCAPTCHA 기반 App Check를 활성화하고, 로컬 개발에서는 디버그 토큰을 허용한다.
 - [functions/index.js](../../functions/index.js)에 callable 공통 옵션 `CALLABLE_FUNCTIONS_OPTIONS`를 추가하고, `ENABLE_APPCHECK_ENFORCEMENT=true`일 때만 `enforceAppCheck`를 켜게 정리했다.
 - [../operations/firebase/setup.md](../operations/firebase/setup.md), [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 App Check 1단계 메모를 반영했다.
@@ -1892,7 +1892,7 @@
 ## 85. 2026-05-05 관리자 웹 민감정보 마스킹과 유휴 세션 종료
 ### 구현
 
-- [admin-web/src/App.tsx](../../admin-web/src/App.tsx)에서 매니저 승인 목록의 이메일과 전화번호를 기본 마스킹 형태로 바꿨다.
+- [admin-web/src/App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx)에서 매니저 승인 목록의 이메일과 전화번호를 기본 마스킹 형태로 바꿨다.
 - 상세 심사 모달에서는 기존처럼 원문을 유지해 실제 검토 업무는 그대로 가능하게 두고, 목록 화면의 기본 노출 범위만 줄였다.
 - 관리자 웹은 15분 동안 입력이나 스크롤 등 활동이 없으면 자동으로 로그아웃되도록 세션 타이머를 추가했다.
 - [../security/review-2026-04-29.md](../security/review-2026-04-29.md)에 관리자 웹 세션/마스킹 최신 상태를 반영했다.
@@ -1912,7 +1912,7 @@
 
 - [../README.md](../README.md)를 추가해 문서 우선순위, 시작 순서, 문서 분류, 현재 저장소 구성 요약을 한 곳에 모았다.
 - [README.md](../../README.md)의 문서 목록을 현재 구조에 맞게 다시 정리하고, 새로 들어온 작업자가 먼저 볼 순서를 명시했다.
-- [admin-web/README.md](../../admin-web/README.md)를 실제 관리자 웹 구조와 현재 기능 기준으로 다시 작성했다.
+- [admin-web/README.md](https://github.com/bodeul110/bodeul-admin-web/blob/master/README.md)를 실제 관리자 웹 구조와 현재 기능 기준으로 다시 작성했다.
 - [../architecture/data-api.md](../architecture/data-api.md)에서 이미 구현된 후기 저장소 흐름과 매니저 원본 서류 업로드를 아직 미래 계획처럼 적어둔 문장을 현재형으로 수정했다.
 - [../operations/firebase/tools.md](../operations/firebase/tools.md)에 현재 운영 도구 범위와 시작 흐름을 추가해 문서 역할을 더 분명하게 맞췄다.
 
@@ -2035,7 +2035,7 @@
 ## 91. 2026-05-05 관리자 웹 심사 목록과 상세 모달 위계 polish
 ### 구현
 
-- [admin-web/src/App.tsx](../../admin-web/src/App.tsx)의 매니저 서류 승인 화면 상단에 `전체 대상`, `요약 제출`, `원본 3종 완료`, `검토 메모 있음` 요약 카드를 추가했다.
+- [admin-web/src/App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx)의 매니저 서류 승인 화면 상단에 `전체 대상`, `요약 제출`, `원본 3종 완료`, `검토 메모 있음` 요약 카드를 추가했다.
 - 심사 목록 표는 `매니저 / 연락처 / 서류 요약 / 원본 파일 / 상태 / 관리` 기준으로 재배치하고, 각 행에서 원본 파일 업로드 수와 최근 보완 메모 여부가 바로 보이도록 정리했다.
 - 상세 모달은 상단 요약 띠를 추가해 현재 상태, 원본 파일 수, 체크리스트 진행, 요약 제출 상태를 먼저 보여주도록 바꿨다.
 - 문서 탭은 파일명과 상태가 같이 보이는 카드형 선택 UI로 바꾸고, 우측 검토 패널은 진행 수치와 액션 버튼을 묶어 스크롤 중에도 판단 기준이 유지되게 정리했다.
@@ -2097,7 +2097,7 @@
 ### 구현
 
 - [storage.rules](../../storage.rules)에 `healthCertificate` 키를 추가해 간호사 자격증 파일도 실제 Firebase Storage 업로드 허용 대상에 포함했습니다.
-- [admin-web/src/App.tsx](../../admin-web/src/App.tsx)에서 관리자 웹의 `자격증` 슬롯이 `license`뿐 아니라 `healthCertificate` 메타데이터와 Storage 폴더도 함께 읽도록 보정했습니다.
+- [admin-web/src/App.tsx](https://github.com/bodeul110/bodeul-admin-web/blob/master/src/App.tsx)에서 관리자 웹의 `자격증` 슬롯이 `license`뿐 아니라 `healthCertificate` 메타데이터와 Storage 폴더도 함께 읽도록 보정했습니다.
 - 관리자 웹의 Storage 콘솔 링크와 경로 안내도 실제 메타데이터 경로나 `license / healthCertificate` 대체 경로를 기준으로 보이게 맞췄습니다.
 - [../operations/firebase/setup.md](../operations/firebase/setup.md)와 [../features/manager-document-registration-2026-05-05.md](../features/manager-document-registration-2026-05-05.md)에 연동 상태를 반영했습니다.
 
@@ -3303,3 +3303,47 @@
 - Vercel Production Firebase·SELECT-only 관리자 DB 연결
 - release Google 로그인, App Check provider/enforcement와 custom domain
 - production DB restore 리허설, 유료 backup 정책과 운영자·출시 일정 확정
+
+## 134. 2026-07-18 production PostgreSQL 복원 검증
+
+### 구현과 운영 설정
+
+- production migration 자격 증명으로 custom-format dump를 생성하되 GitHub Artifact에는 올리지 않는 workflow를 구성했다.
+- 별도 PostgreSQL 17 컨테이너에 dump를 복원한 뒤 검증에 성공한 산출물만 제한된 GCS 경로에 저장하도록 했다.
+- 전용 WIF provider와 `bodeul-db-backup` 서비스 계정은 object 생성·조회만 가능하고 삭제 권한은 갖지 않는다.
+
+### 검증
+
+- run `29633892075`에서 4개 테이블 row 수, owner, ACL, RLS 정책 6개, 인덱스 14개, 제약 31개와 Flyway V3 일치 확인
+- GCS 재다운로드 SHA-256 일치 확인
+- production Supabase Security Advisor 오류 0건 확인
+
+### 남은 범위
+
+- Supabase Pro 일일 7일 백업 활성화
+- Cloud Run과 Vercel deployment rollback 리허설
+- 실제 업무 데이터가 쌓인 뒤 분기 복원 반복
+
+## 135. 2026-07-18 연말 운영 전환 기준 확정
+
+### 확정한 기준
+
+- 목표 운영 전환일을 2026-12-15 10:00 KST로 정했다.
+- 월 반복 비용 승인 한도는 150,000 KRW, 정상 목표는 100,000~130,000 KRW로 정했다.
+- 실제 사용자 데이터 투입 전 Supabase Pro, 실제 운영 전 Vercel Pro 개발자 좌석 2개를 사용한다.
+- 위치 정밀 좌표는 종료 후 24시간, 채팅 본문은 180일, 채팅 첨부와 매니저 증빙 원본은 30일을 기본 보관 기간으로 정했다.
+- 업무 데이터는 PostgreSQL을 단일 source of truth로 두고 Supabase Realtime private Broadcast는 커밋 결과 알림에만 사용한다.
+
+### 실행 순서
+
+- 8월까지 예약 API와 Android repository를 PostgreSQL 경로로 준비한다.
+- 9월 예약 단일 쓰기, 10월 매칭·동행·리포트, 11월 채팅·위치와 자동 파기를 개발 환경에서 완료한다.
+- 12월에는 release 보안, backup/restore, rollback과 Go/No-Go 검증만 수행한다.
+- 전환 뒤 30일은 Firestore를 읽기 전용 rollback 자료로 유지하고 2027-01-15부터 legacy 경로를 제거한다.
+
+### 남은 범위
+
+- 예약 도메인 PostgreSQL source of truth 전환 구현
+- 도메인별 Flyway migration과 Core/Admin 최소 권한 적용
+- 보관 기간을 집행하는 일일 정리 job과 legal hold 구현
+- 기준 도메인, 실명 운영자 2명과 사용자 공지 확정

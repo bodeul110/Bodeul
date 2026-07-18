@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 ## 런타임
 
@@ -10,6 +10,7 @@
 | 관리자 웹/서버 | 별도 저장소 React + Next.js | Vercel Preview, Production target은 운영값 미연결 |
 | 사용자 Core API | Java 21 + Spring Boot | Cloud Run Tokyo preview, production 배포 기반 준비 |
 | 공용 DB | PostgreSQL | Supabase Tokyo 개발·production 분리 |
+| 실시간 전달 | Supabase Realtime private Broadcast | 개발 검증 후 production 전환 |
 | 인증·푸시·파일 | Firebase Auth, FCM, Storage | `bodeul-dev`, `bodeul-prod-110` 분리 |
 | Firebase 결합 로직 | Functions v2 | Firebase |
 
@@ -19,6 +20,7 @@
 - 사용자·매니저 요청은 Spring Core API가 인증·인가하고 PostgreSQL에 접근한다.
 - 두 서버는 서로를 호출하지 않는다.
 - 클라이언트는 PostgreSQL에 직접 연결하지 않는다.
+- 클라이언트의 Realtime 구독은 커밋 알림용이며 조회와 명령은 서버 API를 사용한다.
 - Firebase ID token은 두 서버에서 검증하고 DB role은 서버별로 분리한다.
 
 ## 배포와 비밀값
@@ -36,9 +38,9 @@
 ## 현재 리스크
 
 - Firestore와 PostgreSQL 병행 도메인의 데이터 불일치
-- production 도메인과 운영자·출시 일정 미확정
+- production 도메인과 실명 운영자 미확정
 - 관리자 App Check 미강제
-- production pre-migration dump는 보관했지만 restore 리허설 미완료
+- production DB restore는 완료했지만 Cloud Run·Vercel rollback 리허설 미완료
 - 역할 동기화와 감사 로그의 확장 필요
 
 상세 흐름은 [현재 인프라 구성도](infra-overview.md), 목표와 전환 조건은 [목표 인프라 구조](target-infrastructure.md)를 따른다.

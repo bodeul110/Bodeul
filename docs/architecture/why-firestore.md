@@ -1,17 +1,17 @@
 # Firestore 선택 근거
 
-기준일: 2026-06-25
+기준일: 2026-07-18
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 이 문서는 Firestore 선택 이유만 따로 설명한다. 더 긴 비교는 [DB 선택 근거](database-selection.md)를 기준으로 본다.
 
-2026-06-26 이후 운영 DB는 Supabase PostgreSQL로 단계 전환하기로 결정했다. Firebase Auth, FCM, Storage, Hosting은 유지하고 Firestore는 전환 전 기준 데이터, 호환 읽기, 캐시, shadow 저장소로 낮춘다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유와 당시 전환 조건을 설명하는 기록으로 유지하고, 실제 운영 전환 계획은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+2026-06-26 이후 운영 DB는 Supabase PostgreSQL로 단계 전환하기로 결정했다. 2026-07-18에는 Firestore를 장기 캐시나 shadow 저장소로 남기지 않고, 전환 기간의 읽기 전용 rollback 자료로만 유지한 뒤 제거하기로 확정했다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유를 설명하는 과거 판단 기록이며, 현재 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
 
 ## 결론
 
-현재 BoDeul 데이터 구조는 예약 요청, 동행 세션, 리포트, 문의, 관리자 운영 상태처럼 문서 단위로 읽고 갱신하는 흐름이 중심이다. 그래서 초기 MVP에서는 Cloud Firestore가 MySQL/PostgreSQL보다 현재 규모에 맞는다.
+초기 MVP에서는 문서 단위 구현 속도와 Firebase 통합 때문에 Cloud Firestore가 적합했다. 운영 목표에서는 관계형 무결성, 서버 권한과 단일 데이터 원본을 위해 Supabase PostgreSQL을 선택한다.
 
 ## 작업 목적
 

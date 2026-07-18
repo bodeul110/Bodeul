@@ -1,6 +1,6 @@
 # 비용과 쿼터 모니터링
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 이 문서는 개발·production 인프라의 Google Cloud/Firebase 비용과 Kakao Local 쿼터를 정기 점검하는 기준이다. budget은 지출을 자동 차단하지 않으며, 알림을 받은 운영자가 원인을 확인하고 대응해야 한다.
 
@@ -14,6 +14,17 @@
 수신자는 결제 계정의 Billing Account Administrator와 Billing Account User다.
 
 현재 규모에서는 낮은 개발·production 예산으로 오설정, 무한 호출, scheduled job 반복을 조기에 발견하는 것이 목적이다. 정상 검증이 예산을 반복해서 넘기면 금액을 바로 높이지 않고 환경별 서비스 사용량과 무료 할당량을 먼저 확인한다. budget은 지출 상한이 아니라 알림 기준이다.
+
+## 전체 운영 비용 승인
+
+| 항목 | 운영 기준 | 월 예상 |
+| --- | --- | ---: |
+| Supabase | Pro, Tokyo Micro 2개, spend cap 사용 | USD 35 |
+| Vercel | Pro 개발자 좌석 2개 | USD 40 |
+| Google Cloud/Firebase | production budget 30,000 KRW | 사용량 기준 |
+| 승인 한도 | 세금·환율·소규모 초과 사용 포함 | 150,000 KRW |
+
+정상 운영 목표는 월 100,000~130,000 KRW다. 150,000 KRW는 증설 목표가 아니라 환율과 일시적 사용량을 감안한 승인 상한이다. Supabase와 Vercel은 2026-11-16까지 유료 등급으로 전환하며, 도메인은 연 50,000 KRW 이내의 별도 연간 비용으로 본다.
 
 확인 명령은 결제 계정 ID를 로컬에서 조회한 뒤 실행한다. 실제 ID는 문서나 공개 이슈에 남기지 않는다.
 
@@ -36,7 +47,7 @@ Cloud Monitoring에서 다음 metric을 기준으로 본다.
 | Firestore | `firestore.googleapis.com/document/delete_count` | 예상하지 않은 정리 작업 |
 | Firestore | `firestore.googleapis.com/storage/data_and_index_storage_bytes` | 데이터와 index 저장량 증가 |
 | Cloud Run | `run.googleapis.com/request_count` | Core API 요청 급증과 반복 호출 |
-| Cloud Run | `run.googleapis.com/container/instance_count` | 최대 인스턴스 1 기준 이탈 여부 |
+| Cloud Run | `run.googleapis.com/container/instance_count` | 개발 최대 1, production 최대 2 기준 이탈 여부 |
 | Cloud Functions | `cloudfunctions.googleapis.com/function/execution_count` | scheduled/callable/trigger 반복 실행 |
 | Cloud Storage | `storage.googleapis.com/api/request_count` | 업로드와 관리자 미리보기 반복 |
 | Cloud Storage | `storage.googleapis.com/storage/total_bytes` | 매니저 서류와 첨부 파일 누적 |
@@ -67,9 +78,11 @@ Cloud Monitoring에서 다음 metric을 기준으로 본다.
 - Firestore read 급증 시 관리자 전체 조회와 실시간 listener 해제 여부를 우선 확인한다.
 - Storage 증가 시 10MB 업로드 제한, 고아 파일, 보존 기간을 확인한다.
 - 알림 금액 변경에는 최근 2개월 사용량과 다음 테스트 계획을 함께 기록한다.
+- Supabase spend cap을 해제하거나 PITR, Log Drain, custom domain을 추가할 때는 별도 비용 판단을 남긴다.
 
 ## 관련 기록
 
 - [Issue 65 비용 모니터링 설정 기록](../reports/issue-65-cost-monitoring-2026-07-16.md)
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
 - [Kakao Local Core API 경계](../architecture/kakao-local-core-api.md)
+- [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)

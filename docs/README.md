@@ -1,6 +1,6 @@
 # 문서 홈
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 이 문서는 현재 저장소 문서의 단일 진입점이다. `docs/` 루트에는 이 색인만 두고, 실제 문서는 주제별 하위 디렉터리에 둔다.
 
@@ -24,7 +24,9 @@
 5. [Firebase 설정](operations/firebase/setup.md)
 6. [인프라 개요](architecture/infrastructure.md)
 7. [Production 인프라 기본값](operations/production-infrastructure-defaults.md)
-8. [Production 인프라 구축 기록](reports/production-infrastructure-bootstrap-2026-07-17.md)
+8. [2026년 Production 운영 전환 계획](operations/production-transition-plan-2026.md)
+9. [데이터 보관 및 파기 정책](operations/data-retention-policy.md)
+10. [Production 인프라 구축 기록](reports/production-infrastructure-bootstrap-2026-07-17.md)
 
 ## 카테고리
 
