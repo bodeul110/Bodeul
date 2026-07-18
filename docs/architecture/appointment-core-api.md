@@ -59,17 +59,20 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 
 매칭 이후 취소는 `companion_sessions`와 함께 처리해야 한다. 세션 source of truth가 아직 Firestore이므로 이번 API는 `MATCHED` 이후 취소를 409로 막고 #220에서 트랜잭션 경계를 함께 옮긴다. 채팅과 실시간 상세 갱신은 #221 범위다.
 
-Android 전환은 다음 순서를 지킨다.
+Android의 환자·보호자 예약 기본 경로는 다음 방식으로 전환했다.
 
-1. 개발 DB V4와 프로필 백필 검증
-2. Core API 정상·401·403·404·409·503 확인
-3. Firestore와 PostgreSQL 목록·상세 응답 비교
-4. Android 기본 예약 메서드만 Core API로 전환
-5. 개발 환경 Firestore 신규 예약 쓰기 0건 확인
+1. `CoreApiBookingRepository`가 목록·상세·생성·수정·취소를 Core API로 보낸다.
+2. 기존 예약은 API의 `legacyFirestoreId`를 화면 식별자로 유지해 Firestore 동행 세션·채팅·후속 기록을 합성한다.
+3. PostgreSQL에서 새로 만든 예약은 Firestore 문서를 만들지 않으며 매칭 전 기본 상세만 표시한다.
+4. Core API 오류가 나도 Firestore 예약 쓰기로 자동 대체하지 않는다.
+5. 수정·취소 직전에 API 상세를 다시 읽어 최신 `version`으로 낙관적 잠금을 수행한다.
+
+개발 환경에서는 V4 적용, preview 배포, 실제 Firebase ID token 기반 목록·상세 200, Android 생성·수정·취소와 Firestore 신규 예약 쓰기 0건을 확인했다. 다만 매니저의 예약 조회·매칭과 상태 변경은 아직 Firestore에 있으므로 신규 PostgreSQL 예약은 #220 완료 전에는 실제 매칭 대상으로 사용할 수 없다. 이번 전환은 개발 환경의 환자·보호자 예약 쓰기 경계를 먼저 검증한 상태이며 전체 예약 운영 전환 완료를 뜻하지 않는다.
 
 ## 리스크
 
 - 프로필 연락처 중복이 있으면 연결 계정을 하나로 정할 수 없어 409를 반환한다.
 - 현재 가격 규칙은 코드 상수이므로 운영자가 가격을 바꿔야 할 시점에는 별도 가격 정책 테이블이 필요하다.
 - 실제 결제 승인 서버가 없으므로 카드·간편 결제 완료를 운영 사실로 간주하면 안 된다.
+- #220 전에는 매니저 경로가 PostgreSQL 신규 예약을 조회하지 못하며, legacy 예약의 매니저 상태 변경도 PostgreSQL에 자동 반영되지 않는다.
 - source of truth 전환 뒤에는 Firestore 이중 쓰기로 rollback하지 않고 PostgreSQL 백업 또는 검증된 보정 절차를 사용한다.
