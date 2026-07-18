@@ -51,16 +51,33 @@ class CompanionRealtimeBroadcastMigrationContractTests {
     }
 
     @Test
-    void privilegedBootstrapGrantsOnlyRealtimeSchemaUsageWhenAvailable() throws IOException {
+    void privilegedBootstrapOwnsValidatedRealtimePublisher() throws IOException {
         String bootstrap = readPath("db/bootstrap/001_database_access.sql");
         String rollback = readPath("db/bootstrap/rollback/001_database_access_rollback.sql");
 
         assertThat(bootstrap)
                 .contains("to_regprocedure('realtime.send(jsonb,text,text,boolean)')")
-                .contains("grant usage on schema realtime to bodeul_migration")
-                .doesNotContain("grant insert on table realtime.messages to bodeul_migration");
+                .contains("security definer")
+                .contains("owner to postgres")
+                .contains("grant execute on function bodeul.send_companion_realtime_signal")
+                .contains("p_payload - array['sessionId', 'resource', 'recordId']")
+                .doesNotContain("grant insert on table realtime.messages to bodeul_migration")
+                .doesNotContain("grant usage on schema realtime to bodeul_migration");
         assertThat(rollback)
-                .contains("revoke usage on schema realtime from bodeul_migration");
+                .contains("drop function if exists bodeul.send_companion_realtime_signal");
+    }
+
+    @Test
+    void followUpMigrationRoutesTriggerThroughPrivilegedPublisher() throws IOException {
+        String migration = read("db/migration/V11__use_privileged_companion_realtime_publisher.sql");
+        String rollback = readRollback("V11__restore_direct_companion_realtime_send.sql");
+
+        assertThat(migration)
+                .contains("bodeul.send_companion_realtime_signal(")
+                .doesNotContain("select realtime.send($1, $2, $3, $4)");
+        assertThat(rollback)
+                .contains("select realtime.send($1, $2, $3, $4)")
+                .doesNotContain("bodeul.send_companion_realtime_signal(");
     }
 
     private String read(String path) throws IOException {
