@@ -3347,3 +3347,25 @@
 - 도메인별 Flyway migration과 Core/Admin 최소 권한 적용
 - 보관 기간을 집행하는 일일 정리 job과 legal hold 구현
 - 기준 도메인, 실명 운영자 2명과 사용자 공지 확정
+
+## 136. 2026-07-18 매칭·동행·리포트 PostgreSQL 스키마 1단계
+
+### 구현과 운영 설정
+
+- 예약과 1:1인 동행 세션, 세션 리포트, 예약 후속 처리와 관리자 배정 감사 테이블을 Flyway V5로 추가했다.
+- 관리자 runtime에는 광범위한 테이블 쓰기 대신 role·상태·version을 검증하는 배정 함수만 허용했다.
+- 최신 Firestore 백업을 검증하고 migration role로만 upsert하는 세션 전용 seed·rollback 도구를 추가했다.
+- 채팅과 고빈도 위치는 #221 범위로 분리했다.
+
+### 검증
+
+- 최신 백업 기준 동행 세션 2건, 리포트 2건, 후속 처리 1건과 FK·상태 오류 0건 확인
+- Firebase 도구 테스트 29건과 V5 계약 테스트 통과
+- PostgreSQL 17에서 V1~V5, 버전 충돌 거부, 관리자 배정, Core 권한 거부와 V5 rollback 통과
+
+### 남은 범위
+
+- 개발 DB V5 migration·백필과 owner/RLS/권한/advisor 실검증
+- Core API 매니저 세션·리포트·매칭 후 취소 트랜잭션
+- 관리자 서버 배정 API와 Android repository 전환
+- 실기기·관리자 Preview 검증 후 Firestore 해당 도메인 쓰기 중지

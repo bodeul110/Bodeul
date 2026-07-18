@@ -20,6 +20,8 @@
   - 병원·약국 검색 API 계약, 서버 캐시와 호출 제한, Android rollback 제거 조건
 - [예약 Core API 전환 계약](appointment-core-api.md)
   - 예약 운영 테이블, API·인가·가격·버전 충돌과 Android cutover 경계
+- [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)
+  - 세션·리포트·후속 처리, 관리자 배정 함수와 단계별 cutover 경계
 - [PostgreSQL API 경계 기준](postgres-api-boundary.md)
   - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)
