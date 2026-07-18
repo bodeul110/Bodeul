@@ -24,15 +24,8 @@ alter default privileges for role bodeul_migration
 
 reset role;
 
+drop function if exists bodeul.send_companion_realtime_signal(jsonb, text, text);
 drop schema if exists bodeul;
-
-do $$
-begin
-    if exists (select 1 from pg_namespace where nspname = 'realtime') then
-        execute 'revoke usage on schema realtime from bodeul_migration';
-    end if;
-end
-$$;
 
 revoke bodeul_migration from bodeul_migrator;
 revoke bodeul_core_runtime from bodeul_core_service;
