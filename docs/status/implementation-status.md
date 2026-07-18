@@ -3532,11 +3532,11 @@
 - PostgreSQL 17에서 V1~V9 적용과 V9 rollback 확인
 - 개발 DB migration run `29645575612`에서 V9 적용, 복합 인덱스 열 순서와 외래키 미인덱스 경고 해소 확인
 
-### 남은 범위
+### 후속 상태
 
-- Core API 채팅·위치 endpoint와 PostgreSQL 커밋 후 private Broadcast 발행
-- Firebase JWT private 채널 인가, Android 재연결·API 재조회 전환
-- #222 일일 파기 job과 Storage 첨부 삭제 구현
+- Core API endpoint와 private Broadcast 발행은 2단계에서 완료했다.
+- Firebase JWT private 채널 인가는 3단계에서 완료했고 Android 재연결·API 재조회 전환이 남았다.
+- #222 일일 파기 job과 Storage 첨부 삭제 구현이 남았다.
 
 ## 143. 2026-07-18 채팅·위치 Core API와 Broadcast 2단계
 
@@ -3559,7 +3559,28 @@
 
 ### 남은 범위
 
-- 개발 Supabase privileged publisher·V11 적용과 실제 private Broadcast 행 검증
-- Firebase JWT와 세션 참여 관계를 확인하는 Realtime RLS
 - Android API·private 채널·재연결·FCM 전환 뒤 Firestore 채팅·위치 쓰기 중지
+- #222 일일 파기 job과 Storage 첨부 삭제
+
+## 144. 2026-07-18 Firebase JWT와 private Realtime 인가 3단계
+
+### 구현과 운영 설정
+
+- 개발 Supabase에 privileged publisher·V11과 실제 private Broadcast 3종을 검증했다.
+- Firebase `bodeul-dev`를 Third-Party Auth로 등록하고 Realtime을 private-only로 전환했다.
+- Firebase ID token의 `role: authenticated` 신규 사용자 함수와 기존 사용자 백필 도구를 추가했다.
+- Realtime RLS는 Firebase 발급 프로젝트, private topic UUID와 환자·보호자·배정 매니저 참여 관계를 함께 확인한다.
+
+### 검증
+
+- 개발 Supabase의 역할별 허용 3건과 거부 4건 시나리오 통과, Security Advisor 0건
+- 신규 사용자 함수 배포와 기존 사용자 9명 백필 완료, 재실행 대상 0명
+- 실제 Firebase JWT로 참여 private WebSocket join 성공, 비참여 세션 join 거부 확인
+- 종단 검증용 Firebase 사용자와 PostgreSQL 데이터 잔여 0건 확인
+
+### 남은 범위
+
+- Android Core API 쓰기·private channel 구독·재연결 snapshot 복구와 FCM fallback
+- Android 전환 뒤 Firestore 채팅·위치·읽음 쓰기 중지
+- production Firebase Third-Party Auth와 production RLS 적용
 - #222 일일 파기 job과 Storage 첨부 삭제

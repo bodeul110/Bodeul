@@ -43,17 +43,19 @@ Realtime 확장이 없는 PostgreSQL이나 일시적인 전송 오류 때문에 
 7. `anon`·`authenticated` 조회, Admin 메시지 쓰기와 Core의 위치 table 직접 INSERT가 모두 거부됨을 확인했다.
 8. Supabase Realtime 확장이 없는 PostgreSQL에서도 본 쓰기가 성공했고 V10 rollback 뒤 trigger와 함수가 모두 제거됨을 확인했다.
 
+## 후속 적용
+
+- 개발 Supabase privileged publisher와 V11 적용 뒤 메시지·읽음·위치 private Broadcast 3종을 실제로 확인했다.
+- Firebase Third-Party Auth, 세션 참여 관계 RLS와 private-only 설정은 [3단계 검증 보고서](issue-221-realtime-auth-phase-3-2026-07-18.md)에 기록했다.
+
 ## 남은 범위
 
-- 개발 Supabase에 privileged publisher와 V11을 적용하고 실제 `realtime.messages` private Broadcast 행을 확인한다.
-- Firebase Third-Party Auth와 세션 참여 관계를 확인하는 private channel RLS를 적용한다.
 - Android를 새 API와 private Broadcast 구독으로 전환하고 재연결 시 snapshot 재조회, 백그라운드 FCM을 검증한다.
 - 통합 검증 뒤 Firestore 채팅·위치·읽음 쓰기를 차단한다.
 - #222에서 만료 행과 Firebase Storage 첨부를 정리하는 일일 파기 job을 구현한다.
 
 ## 리스크
 
-- V10·V11을 적용해도 private 채널 RLS를 적용하지 않으면 클라이언트 구독 경로는 아직 완성되지 않는다.
 - Broadcast 실패는 본 저장을 막지 않으므로 클라이언트의 재연결·주기적 snapshot 복구가 필수다.
 - Android 전환 전에는 기존 Firestore 경로가 실제 화면에 남아 있으므로 두 경로를 동시에 쓰지 않는다.
 - production 적용은 개발 환경의 Firebase JWT·RLS·실기기 통합 검증 뒤 별도 승인으로 진행한다.
@@ -66,4 +68,4 @@ Realtime 확장이 없는 PostgreSQL이나 일시적인 전송 오류 때문에 
 - migration 역할에 `realtime.messages` 권한이나 `BYPASSRLS`를 주지 않는다. privileged bootstrap이 `postgres` 소유의 검증 wrapper를 만들고 `bodeul_migration`에는 그 함수 실행만 허용한다.
 - wrapper는 세 가지 이벤트·리소스 조합, UUID topic과 `sessionId` 일치, `sessionId`·`resource`·`recordId` 외 payload 키 금지를 강제한다.
 - V11은 기존 trigger가 `realtime.send`를 직접 부르지 않고 wrapper를 사용하도록 교체한다.
-- wrapper와 V11 적용 뒤 실제 private Broadcast 3종과 검증 데이터 잔여 0건을 다시 확인하기 전까지 운영 검증을 완료로 표시하지 않는다.
+- wrapper와 V11 적용 뒤 실제 private Broadcast 3종과 검증 데이터 잔여 0건을 확인했다. private 채널의 실제 Firebase JWT 허용·거부 결과는 3단계 보고서에 이어서 기록했다.
