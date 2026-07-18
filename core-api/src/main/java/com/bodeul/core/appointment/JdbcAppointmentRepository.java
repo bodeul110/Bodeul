@@ -76,9 +76,12 @@ class JdbcAppointmentRepository implements AppointmentRepository {
 
     @Override
     public List<AppointmentRecord> findAllForParticipant(UUID userId, AppUserRole role) {
-        String participantColumn = role == AppUserRole.PATIENT
-                ? "patient_user_id"
-                : "guardian_user_id";
+        String participantColumn = switch (role) {
+            case PATIENT -> "patient_user_id";
+            case GUARDIAN -> "guardian_user_id";
+            case MANAGER -> "manager_user_id";
+            default -> throw new IllegalArgumentException("지원하지 않는 예약 조회 역할입니다.");
+        };
         return jdbcTemplate.query(
                 SELECT_COLUMNS
                         + "where " + participantColumn + " = :userId "
@@ -243,7 +246,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     updated_at = now(),
                     version = version + 1
                 where id = :appointmentId
-                  and status = 'REQUESTED'
+                  and status in ('REQUESTED', 'MATCHED')
                   and version = :expectedVersion
                 returning
                 """ + RETURNING_COLUMNS;
@@ -270,6 +273,22 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 new MapSqlParameterSource()
                         .addValue("appointmentId", appointmentId)
                         .addValue("expectedVersion", expectedVersion));
+    }
+
+    @Override
+    public boolean cancelActiveSession(UUID appointmentId) {
+        String sql = """
+                update bodeul.companion_sessions
+                set current_status = 'CANCELED',
+                    canceled_at = now(),
+                    updated_at = now(),
+                    version = version + 1
+                where appointment_request_id = :appointmentId
+                  and current_status not in ('COMPLETED', 'CANCELED')
+                """;
+        return jdbcTemplate.update(
+                sql,
+                new MapSqlParameterSource("appointmentId", appointmentId)) == 1;
     }
 
     private Optional<AppointmentRecord> queryOne(String sql, MapSqlParameterSource parameters) {

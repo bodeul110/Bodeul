@@ -10,7 +10,8 @@
 - 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
 - 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
-- 환자·보호자 예약 목록·상세·생성·수정·취소를 처리하는 `/api/appointments`
+- 환자·보호자 예약 생성·수정·취소와 배정 매니저 조회를 처리하는 `/api/appointments`
+- 참여자·배정 매니저의 동행 조회와 매니저 진행·리포트를 처리하는 `/api/companion-sessions`
 - 명시적으로 허용하지 않은 경로는 기본 차단
 - `local` profile에서는 DB 없이 기동
 - `preview`, `production` profile에서는 PostgreSQL 설정 필수
@@ -86,9 +87,15 @@ Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, p
 
 ## 예약 API
 
-`/api/appointments`는 환자·보호자에게만 열리며 PostgreSQL UUID로 예약을 식별한다. 생성은 `clientRequestId`로 중복을 막고 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
+`/api/appointments`는 PostgreSQL UUID로 예약을 식별한다. 환자·보호자는 생성·수정·취소를 사용할 수 있고, 배정 매니저는 본인 예약만 조회할 수 있다. 생성은 `clientRequestId`로 중복을 막고 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
 
-V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. 채팅과 고빈도 위치는 아직 Firestore에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용한다. 채팅과 고빈도 위치는 아직 Firestore에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
+
+## 동행 세션 API
+
+`/api/companion-sessions`는 환자·보호자에게 연결된 세션과 리포트를 읽기 전용으로 제공하고, 배정된 매니저에게만 현장 메모·단계·리포트 쓰기를 허용한다. 모든 쓰기는 응답의 `version`을 요구한다. 단계 수는 예약의 병원·진료과와 연결된 PostgreSQL 병원 가이드에서 계산한다.
+
+리포트 저장은 예약과 세션을 함께 `COMPLETED`로 바꾸며, 매칭된 예약 취소는 활성 세션을 함께 `CANCELED`로 바꾼다. 어느 한쪽 갱신이라도 실패하면 Spring transaction 전체를 rollback한다.
 
 ## 연결 원칙
 
@@ -128,7 +135,7 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. Core API 매니저 세션·리포트와 매칭 후 취소 트랜잭션 구현
+1. V6 개발 DB 적용과 Core API Preview 역할·충돌 검증
 2. 관리자 서버 배정 API와 Android 세션 repository 전환
 3. 채팅·위치의 PostgreSQL/Realtime 전환과 자동 파기 구현
 

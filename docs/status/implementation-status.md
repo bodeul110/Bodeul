@@ -3370,3 +3370,32 @@
 - Core API 매니저 세션·리포트·매칭 후 취소 트랜잭션
 - 관리자 서버 배정 API와 Android repository 전환
 - 실기기·관리자 Preview 검증 후 Firestore 해당 도메인 쓰기 중지
+
+## 137. 2026-07-18 동행 세션 백필과 Core API 쓰기 경계
+
+### 구현과 운영 설정
+
+- 보호된 migration workflow로 개발 DB에 세션 2건, 리포트 2건, 후속 처리 1건을 백필했다.
+- 백필 SQL은 일회성 Environment secret과 SHA-256으로 고정하고 실행 직후 secret을 삭제했다.
+- Core API에 참여자·배정 매니저 세션 조회, 매니저 현장 메모·단계 전환·리포트 endpoint를 추가했다.
+- 단계 수는 클라이언트 값이 아니라 PostgreSQL 병원 가이드에서 계산하도록 했다.
+- 매칭 후 취소, 단계 전환, 리포트 완료는 예약과 세션을 같은 Spring 트랜잭션으로 처리한다.
+- V6에서 Core runtime에 필요한 세션 UPDATE와 리포트 INSERT·UPDATE 컬럼만 허용하고 DELETE는 차단했다.
+- Supabase Advisor가 지적한 외래키 7개에 covering index를 추가했다.
+
+### 검증
+
+- migration run `29638905550` attempt 2 성공, 일회성 secret 삭제 확인
+- FK와 `imported_at` 누락 0건, 예약·세션 상태 조합 2건 일치
+- 개발 Supabase Security Advisor lint 0건
+- Core API 전체 검사 통과
+- PostgreSQL 17 V1~V6 적용에서 세션 UPDATE와 리포트 INSERT 허용, DELETE 거부, 쓰기 정책 3개 확인
+- Core runtime DML에서 완료·취소 시 예약과 세션 상태 일치, 리포트 저장과 병원 가이드 단계 조회 확인
+- V6 rollback 뒤 쓰기 권한·정책·추가 인덱스 0건 확인
+
+### 남은 범위
+
+- V6 개발 DB 적용과 실제 Core runtime DML·Performance Advisor 재검증
+- Core API Preview 실제 Firebase token 역할·충돌 검증
+- 관리자 서버 배정 API와 Android repository 전환
+- 실기기·관리자 Preview 통합 검증 후 Firestore 쓰기 종료
