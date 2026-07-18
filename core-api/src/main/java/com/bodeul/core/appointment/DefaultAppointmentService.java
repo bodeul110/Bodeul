@@ -20,6 +20,7 @@ import com.bodeul.core.appointment.AppointmentRepository.AppointmentRecord;
 import com.bodeul.core.appointment.AppointmentRepository.ParticipantSnapshot;
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ class DefaultAppointmentService implements AppointmentService {
     private final AppUserProfileRepository profileRepository;
     private final Clock clock;
 
+    @Autowired
     DefaultAppointmentService(
             AppointmentRepository appointmentRepository,
             AppUserProfileRepository profileRepository) {
