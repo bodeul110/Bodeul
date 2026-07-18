@@ -49,6 +49,17 @@ grant bodeul_admin_runtime to bodeul_admin_service with inherit true, set true;
 create schema if not exists bodeul authorization bodeul_migration;
 alter schema bodeul owner to bodeul_migration;
 
+-- Supabase Realtime이 설치된 환경에서만 DB trigger가 realtime.send를 찾을 수 있게 한다.
+-- 업무 table 권한은 추가하지 않고 managed schema 이름 해석에 필요한 USAGE만 부여한다.
+do $$
+begin
+    if exists (select 1 from pg_namespace where nspname = 'realtime')
+            and to_regprocedure('realtime.send(jsonb,text,text,boolean)') is not null then
+        execute 'grant usage on schema realtime to bodeul_migration';
+    end if;
+end
+$$;
+
 set local role bodeul_migration;
 
 revoke all on schema bodeul from public, anon, authenticated, service_role;

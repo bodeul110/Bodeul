@@ -57,3 +57,11 @@ Realtime 확장이 없는 PostgreSQL이나 일시적인 전송 오류 때문에 
 - Broadcast 실패는 본 저장을 막지 않으므로 클라이언트의 재연결·주기적 snapshot 복구가 필수다.
 - Android 전환 전에는 기존 Firestore 경로가 실제 화면에 남아 있으므로 두 경로를 동시에 쓰지 않는다.
 - production 적용은 개발 환경의 Firebase JWT·RLS·실기기 통합 검증 뒤 별도 승인으로 진행한다.
+
+## 개발 DB V10 적용 중 발견 사항
+
+- migration run `29646403916`에서 V10과 세 trigger 적용은 성공했다.
+- 첫 실전 발행에서는 본 PostgreSQL 쓰기는 유지됐지만 Broadcast 행이 0건이었다.
+- 원인은 함수 owner인 `bodeul_migration`에 `realtime.send` 실행 권한은 있으나 managed `realtime` schema의 `USAGE`가 없었던 것이다.
+- 업무 table 권한을 넓히지 않고 privileged bootstrap이 Realtime 설치 환경에서 `bodeul_migration`에 schema `USAGE`만 조건부 부여하도록 보완한다.
+- 권한 보완 뒤 실제 private Broadcast 3종과 검증 데이터 잔여 0건을 다시 확인하기 전까지 V10 운영 검증을 완료로 표시하지 않는다.
