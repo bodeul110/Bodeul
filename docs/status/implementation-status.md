@@ -1,6 +1,6 @@
 # 구현 상태
 
-기준: 2026-07-17
+기준: 2026-07-18
 
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
@@ -38,9 +38,9 @@
 - 백그라운드 위치 서비스와 카카오 지도 기반 위치 공유
 - 위치 권한 / 로그인 / 불러오기 실패 상태 패널 표시
 
-### 관리자 앱
+### 관리자 앱 (레거시 운영 화면)
 
-- 미배정 요청 조회와 수동 매칭
+- 기존 Firestore 운영 데이터 조회. 수동 매칭 쓰기는 차단됐으며 실제 배정은 별도 관리자 웹 서버 API를 사용
 - 운영 중 요청 조회, 상태/날짜 필터, 요청 상세 펼침
 - 매니저 서류 심사, 심사 이력, 파일 미리보기
 - 병원 가이드 등록 / 수정 / 삭제
@@ -70,7 +70,7 @@
 ## 2. 현재 구조 기준
 
 - Android 앱은 `Java + XML` 기반이며 `Activity -> Coordinator -> Binder -> ScreenModel/Formatter -> Repository` 경계를 유지한다.
-- 데이터 접근은 Firebase 구현과 Mock 구현을 `ServiceLocator`에서 분기한다.
+- 예약·취소·동행 상태·리포트·후속 처리는 `ServiceLocator`가 Core API 저장소를 선택하고, 인증·매니저 서류·지원 기능과 #221 전환 전 채팅·위치는 Firebase 저장소를 합성한다. Firebase 미설정 환경은 Mock 저장소를 사용한다.
 - `functions/index.js`는 `initializeApp()`과 모듈 export 집계만 맡고, 실제 함수는 `functions/src/` 아래 기능별 파일로 분리돼 있다.
 - 관리자 앱의 주요 섹션은 `SectionController`와 기능별 Firebase store로 분리돼 있다.
 - 관리자 웹은 인증 화면, 셸, 심사 목록, 심사 모달, 유휴 세션 훅, 미리보기 훅으로 분리돼 있다.
@@ -82,7 +82,7 @@
 - OCR 기반 처방전/약봉투 인식과 자동 복약 비교
 - 건강정보 별도 프로필 영속 저장
 - 실운영용 카카오 알림톡/외부 메시지 채널 연동값 확정
-- App Check 강제 적용, 운영/개발 Firebase 환경 분리, 배포 절차 고정
+- App Check 강제 적용, production PostgreSQL 업무 migration, 채팅·위치 Supabase Realtime 전환
 
 ## 4. 검증 기준
 

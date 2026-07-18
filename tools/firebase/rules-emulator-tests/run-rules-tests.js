@@ -18,7 +18,6 @@ const {
   setLogLevel,
   updateDoc,
   where,
-  writeBatch,
 } = require("firebase/firestore");
 const {
   getBytes,
@@ -150,19 +149,6 @@ function appointmentRequestDocument(overrides = {}) {
   };
 }
 
-function clientCreateAppointmentDocument() {
-  return appointmentRequestDocument({
-    guardianUserId: "",
-    guardianName: "",
-    guardianPhone: "",
-    guardianEmail: "",
-    status: "REQUESTED",
-    managerUserId: null,
-    requesterUserId: users.patient,
-    requesterRole: "PATIENT",
-  });
-}
-
 function companionSessionDocument(overrides = {}) {
   return {
     appointmentRequestId: "request-main",
@@ -188,12 +174,6 @@ function companionSessionDocument(overrides = {}) {
   };
 }
 
-function companionSessionCreateDocument(overrides = {}) {
-  const document = companionSessionDocument(overrides);
-  delete document.chatMessages;
-  return document;
-}
-
 async function seedFirestore(testEnv) {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -211,6 +191,11 @@ async function seedFirestore(testEnv) {
         sessionId: "session-main",
         summary: "진료 리포트",
         createdAt: 1,
+      }),
+      setDoc(doc(db, "appointmentFollowUps", "request-main"), {
+        requestId: "request-main",
+        reviewRatingCode: "SATISFIED",
+        updatedAt: 1,
       }),
       setDoc(doc(db, "supportInquiries", "inquiry-main"), {
         managerUserId: users.manager,
@@ -315,7 +300,7 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "appointmentRequests는 참여자/관리자만 읽고 환자 생성/취소만 허용한다",
+      name: "appointmentRequests는 참여자만 읽고 모든 클라이언트 쓰기를 거부한다",
       run: async () => {
         await seedFirestore(testEnv);
 
@@ -323,26 +308,29 @@ function testCases(testEnv) {
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.guardian), "appointmentRequests", "request-main")));
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.manager), "appointmentRequests", "request-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.outsider), "appointmentRequests", "request-main")));
-        await assertSucceeds(setDoc(
+        await assertFails(setDoc(
             doc(firestoreFor(testEnv, users.patient), "appointmentRequests", "request-created-by-patient"),
-            clientCreateAppointmentDocument(),
+            appointmentRequestDocument({ status: "REQUESTED", managerUserId: null }),
         ));
         await assertFails(setDoc(
-            doc(firestoreFor(testEnv, users.manager), "appointmentRequests", "request-created-by-manager"),
-            clientCreateAppointmentDocument(),
+            doc(firestoreFor(testEnv, users.admin), "appointmentRequests", "request-created-by-admin"),
+            appointmentRequestDocument({ status: "REQUESTED", managerUserId: null }),
         ));
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.patient), "appointmentRequests", "request-main"),
             { status: "CANCELED", updatedAt: 2 },
         ));
         await assertFails(updateDoc(
-            doc(firestoreFor(testEnv, users.outsider), "appointmentRequests", "request-main"),
-            { status: "CANCELED", updatedAt: 3 },
+            doc(firestoreFor(testEnv, users.admin), "appointmentRequests", "request-main"),
+            { managerUserId: users.otherManager, updatedAt: 3 },
+        ));
+        await assertFails(deleteDoc(
+            doc(firestoreFor(testEnv, users.admin), "appointmentRequests", "request-main"),
         ));
       },
     },
     {
-      name: "companionSessions는 참여자만 읽고 배정 매니저/참여자별 허용 필드만 수정한다",
+      name: "companionSessions는 참여자만 읽고 채팅·위치 필드만 수정한다",
       run: async () => {
         await seedFirestore(testEnv);
 
@@ -363,45 +351,33 @@ function testCases(testEnv) {
             where("appointmentRequestId", "==", "request-main"),
             where("guardianUserId", "==", users.guardian),
         )));
-        await assertSucceeds(setDoc(
+        await assertFails(setDoc(
             doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-created-by-manager"),
-            companionSessionCreateDocument(),
+            companionSessionDocument(),
         ));
         await assertFails(setDoc(
-            doc(firestoreFor(testEnv, users.otherManager), "companionSessions", "session-created-by-other-manager"),
-            companionSessionCreateDocument({ managerUserId: users.otherManager }),
-        ));
-        await assertFails(setDoc(
-            doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-created-with-wrong-patient"),
-            companionSessionCreateDocument({ patientUserId: users.outsider }),
+            doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-created-by-admin"),
+            companionSessionDocument(),
         ));
 
-        const adminDb = firestoreFor(testEnv, users.admin);
-        const batchRequestReference = doc(adminDb, "appointmentRequests", "request-created-in-batch");
-        const batchSessionReference = doc(adminDb, "companionSessions", "session-created-in-batch");
-        await assertSucceeds(setDoc(
-            batchRequestReference,
-            appointmentRequestDocument({ status: "REQUESTED", managerUserId: null }),
-        ));
-        const assignmentBatch = writeBatch(adminDb);
-        assignmentBatch.update(batchRequestReference, {
-          status: "MATCHED",
-          managerUserId: users.manager,
-          updatedAt: 2,
-        });
-        assignmentBatch.set(
-            batchSessionReference,
-            companionSessionCreateDocument({ appointmentRequestId: "request-created-in-batch" }),
-        );
-        await assertSucceeds(assignmentBatch.commit());
-
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main"),
             { currentStatus: "IN_PROGRESS", updatedAt: 2 },
         ));
         await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-main"),
+            { currentStatus: "IN_PROGRESS", updatedAt: 2 },
+        ));
+        await assertSucceeds(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main"),
-            { patientUserId: users.outsider, updatedAt: 3 },
+            {
+              locationSummary: "병원 이동 중",
+              sharedLatitude: 37.5665,
+              sharedLongitude: 126.978,
+              sharedLocationUpdatedAt: 2,
+              sharedLocationHistory: [{ latitude: 37.5665, longitude: 126.978, capturedAt: 2 }],
+              updatedAt: 2,
+            },
         ));
         await assertSucceeds(updateDoc(
             doc(firestoreFor(testEnv, users.patient), "companionSessions", "session-main"),
@@ -415,21 +391,42 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.guardian), "companionSessions", "session-main"),
             { medicationNote: "허용되지 않는 수정", updatedAt: 3 },
         ));
+        await assertFails(deleteDoc(
+            doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-main"),
+        ));
       },
     },
     {
-      name: "sessionReports와 관리자 운영 컬렉션은 역할별 쓰기 경계를 지킨다",
+      name: "리포트와 후속 처리는 읽기만 허용하고 클라이언트 쓰기를 차단한다",
       run: async () => {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "sessionReports", "report-main")));
-        await assertSucceeds(setDoc(
+        await assertFails(setDoc(
             doc(firestoreFor(testEnv, users.manager), "sessionReports", "report-created-by-manager"),
             { sessionId: "session-main", summary: "매니저 작성", createdAt: 2 },
         ));
         await assertFails(setDoc(
-            doc(firestoreFor(testEnv, users.guardian), "sessionReports", "report-created-by-guardian"),
-            { sessionId: "session-main", summary: "보호자 작성", createdAt: 2 },
+            doc(firestoreFor(testEnv, users.admin), "sessionReports", "report-created-by-admin"),
+            { sessionId: "session-main", summary: "관리자 작성", createdAt: 2 },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.admin), "sessionReports", "report-main"),
+            { summary: "관리자 수정" },
+        ));
+        await assertSucceeds(getDoc(
+            doc(firestoreFor(testEnv, users.patient), "appointmentFollowUps", "request-main"),
+        ));
+        await assertFails(getDoc(
+            doc(firestoreFor(testEnv, users.outsider), "appointmentFollowUps", "request-main"),
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.patient), "appointmentFollowUps", "request-main"),
+            { reviewRatingCode: "VERY_SATISFIED", updatedAt: 2 },
+        ));
+        await assertFails(setDoc(
+            doc(firestoreFor(testEnv, users.admin), "appointmentFollowUps", "request-created-by-admin"),
+            { requestId: "request-main", reviewRatingCode: "SATISFIED", updatedAt: 2 },
         ));
         await assertSucceeds(setDoc(
             doc(firestoreFor(testEnv, users.admin), "adminSettlementRecords", "request-main"),

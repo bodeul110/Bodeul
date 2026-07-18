@@ -1,6 +1,6 @@
 # 인프라 운영 기준선
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 ## 개발 인프라 기준선
 
@@ -9,7 +9,7 @@
 | 관리자 웹 | 별도 저장소 Next.js, Vercel Preview, 관리자 DB 실제 401·403·200 검증 완료 |
 | Core API | Cloud Run `bodeul-core-api-preview`, Spring Boot, WIF 배포와 revision rollback |
 | 공용 DB | Supabase Tokyo 개발 프로젝트, migration/core/admin role 분리 |
-| Firebase | `bodeul-dev`, Auth·Firestore·Storage·Functions·FCM 유지 |
+| Firebase | `bodeul-dev`, Auth·Storage·Functions·FCM 유지. Firestore 업무 데이터는 읽기 전용 전환, 기존 채팅·위치 필드만 임시 쓰기 허용 |
 | Kakao | Local REST 키는 Secret Manager, 호출은 Core API 뒤에서 수행 |
 | production | GCP/Firebase·Supabase·WIF·DB migration 구축, 트래픽·도메인·관리자 DB·Kakao 미연결 |
 
@@ -32,6 +32,8 @@
 | Firebase Rules | emulator 또는 rules test, Android/관리자 영향 |
 | App Check | observe 지표, 정상 실기기·웹 요청, rollback |
 | source of truth | backfill, row 비교, 쓰기 주체, 장애 복구 |
+
+예약·매칭·세션·리포트·후속 처리는 개발 환경에서 PostgreSQL 단일 쓰기로 전환했다. Firestore Rules는 해당 업무 문서의 클라이언트 쓰기를 차단하고, #221 완료 전 기존 세션의 채팅·위치·읽음 필드만 예외로 허용한다.
 
 ## 비밀값
 

@@ -19,6 +19,7 @@
 - 별도 관리자 Next.js 서버에 Firebase ADMIN 인가와 `assign_companion_session` 전용 배정 API를 연결했다.
 - V7에서 Core runtime의 `appointment_follow_ups` 지정 열 INSERT·UPDATE와 RLS 쓰기 정책을 추가했다.
 - Core API에 예약 참여자 후속 기록 조회와 완료 예약의 부분 저장 endpoint를 추가하고 Android 후속 화면을 연결했다.
+- Firestore Rules에서 예약·세션 업무 상태·리포트·후속 처리의 모든 클라이언트 쓰기를 닫고, #221 전환 전 필요한 기존 세션의 채팅·위치·읽음 필드만 허용했다.
 
 ## 변경된 범위
 
@@ -66,6 +67,7 @@
 | Core API Preview 배포 | run `29642778613` 성공, commit `e2611cfd`, 리비전 `00011-tp4` 트래픽 100% |
 | 후속 처리 실기기 | SM-S921N GET·PATCH 7건 200, App Check `valid`, 세 필드와 actor 일치, version 3 |
 | 임시 데이터 정리 | 검증 예약·후속 기록 각각 잔여 0건 |
+| Firestore 업무 쓰기 경계 | Rules emulator 7/7 통과, 업무 쓰기 거부와 기존 채팅·위치 허용 확인 |
 | `git diff --check` | 통과 |
 
 PR #228 병합 후 개발 DB migration run `29638503856`에서 Flyway V5 적용을 완료했다. V5 이력 성공, 신규 테이블 4개의 owner `bodeul_migration`, RLS 활성화, Core/Admin SELECT 정책 7개를 확인했다. 배정 함수는 `security definer`이고 Admin runtime만 실행 가능하며 Core·Supabase client role은 실행할 수 없다.
@@ -102,4 +104,5 @@ Preview deploy run `29643728174`의 리비전 `bodeul-core-api-preview-00012-tqv
 
 ## 남은 범위
 
-- 세션·리포트·후속 처리 Firestore 클라이언트 쓰기를 제한한다.
+- #221에서 채팅·위치 영속 쓰기와 Realtime을 PostgreSQL·Supabase 경로로 옮긴다.
+- production에는 V5~V7 migration과 별도 검증을 완료한 뒤 같은 쓰기 경계를 적용한다.
