@@ -34,6 +34,13 @@ final class AppointmentException extends RuntimeException {
                 "환자 또는 보호자 계정으로 접근해 주세요.");
     }
 
+    static AppointmentException readRoleNotSupported() {
+        return new AppointmentException(
+                HttpStatus.FORBIDDEN,
+                "appointment_read_role_not_supported",
+                "환자, 보호자 또는 배정된 매니저 계정으로 접근해 주세요.");
+    }
+
     static AppointmentException notFound() {
         return new AppointmentException(
                 HttpStatus.NOT_FOUND,

@@ -58,7 +58,7 @@ class DefaultAppointmentService implements AppointmentService {
     @Override
     @Transactional(readOnly = true)
     public List<AppointmentView> getMyAppointments(AppUserRepository.AppUser appUser) {
-        requireSupportedRole(appUser);
+        requireReadableRole(appUser);
         return appointmentRepository.findAllForParticipant(appUser.id(), appUser.role())
                 .stream()
                 .map(this::toView)
@@ -70,9 +70,9 @@ class DefaultAppointmentService implements AppointmentService {
     public AppointmentView getAppointment(
             AppUserRepository.AppUser appUser,
             UUID appointmentId) {
-        requireSupportedRole(appUser);
+        requireReadableRole(appUser);
         AppointmentRecord appointment = findAppointment(appointmentId);
-        requireParticipant(appUser, appointment);
+        requireReader(appUser, appointment);
         return toView(appointment);
     }
 
@@ -165,17 +165,20 @@ class DefaultAppointmentService implements AppointmentService {
 
         AppointmentRecord existing = findAppointment(appointmentId);
         requireParticipant(appUser, existing);
-        // 매칭 이후 취소는 companion_sessions가 PostgreSQL로 전환되는 #220에서 함께 처리한다.
-        if (!"REQUESTED".equals(existing.status())) {
+        if (!"REQUESTED".equals(existing.status()) && !"MATCHED".equals(existing.status())) {
             throw AppointmentException.stateConflict();
         }
         if (existing.version() != version) {
             throw AppointmentException.versionConflict();
         }
 
-        return appointmentRepository.cancel(appointmentId, version)
-                .map(this::toView)
+        AppointmentRecord canceled = appointmentRepository.cancel(appointmentId, version)
                 .orElseThrow(AppointmentException::versionConflict);
+        if ("MATCHED".equals(existing.status())
+                && !appointmentRepository.cancelActiveSession(appointmentId)) {
+            throw AppointmentException.stateConflict();
+        }
+        return toView(canceled);
     }
 
     private AppointmentRecord findAppointment(UUID appointmentId) {
@@ -191,6 +194,27 @@ class DefaultAppointmentService implements AppointmentService {
                 || (appUser.role() != AppUserRole.PATIENT && appUser.role() != AppUserRole.GUARDIAN)) {
             throw AppointmentException.roleNotSupported();
         }
+    }
+
+    private void requireReadableRole(AppUserRepository.AppUser appUser) {
+        if (appUser == null
+                || (appUser.role() != AppUserRole.PATIENT
+                && appUser.role() != AppUserRole.GUARDIAN
+                && appUser.role() != AppUserRole.MANAGER)) {
+            throw AppointmentException.readRoleNotSupported();
+        }
+    }
+
+    private void requireReader(
+            AppUserRepository.AppUser appUser,
+            AppointmentRecord appointment) {
+        if (appUser.role() == AppUserRole.MANAGER) {
+            if (!appUser.id().equals(appointment.managerUserId())) {
+                throw AppointmentException.permissionDenied();
+            }
+            return;
+        }
+        requireParticipant(appUser, appointment);
     }
 
     private void requireParticipant(

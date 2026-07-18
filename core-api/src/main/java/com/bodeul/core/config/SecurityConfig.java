@@ -41,7 +41,11 @@ public class SecurityConfig {
                                 "요청한 기능을 사용할 권한이 없습니다.")))
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers("/health", "/health/**").permitAll()
-                        .requestMatchers("/api/auth/me", "/api/places/**", "/api/appointments/**").authenticated()
+                        .requestMatchers(
+                                "/api/auth/me",
+                                "/api/places/**",
+                                "/api/appointments/**",
+                                "/api/companion-sessions/**").authenticated()
                         .anyRequest().denyAll())
                 .addFilterBefore(firebaseAuthenticationFilter, AnonymousAuthenticationFilter.class)
                 .addFilterAfter(firebaseAppCheckFilter, FirebaseAuthenticationFilter.class)

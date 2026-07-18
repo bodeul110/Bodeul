@@ -89,13 +89,25 @@ class DefaultAppointmentServiceTests {
     }
 
     @Test
-    void managerCannotUsePatientAppointmentApi() {
+    void managerCanReadAssignedAppointmentList() {
         var manager = new AppUserRepository.AppUser(
                 UUID.randomUUID(),
                 "manager-firebase-uid",
                 AppUserRole.MANAGER);
 
-        assertThatThrownBy(() -> service.getMyAppointments(manager))
+        assertThat(service.getMyAppointments(manager)).isEmpty();
+    }
+
+    @Test
+    void managerCannotUsePatientAppointmentWriteApi() {
+        var manager = new AppUserRepository.AppUser(
+                UUID.randomUUID(),
+                "manager-firebase-uid",
+                AppUserRole.MANAGER);
+
+        assertThatThrownBy(() -> service.createAppointment(
+                manager,
+                new AppointmentService.CreateAppointmentCommand(UUID.randomUUID(), draft())))
                 .isInstanceOf(AppointmentException.class)
                 .extracting(exception -> ((AppointmentException) exception).error())
                 .isEqualTo("appointment_role_not_supported");
@@ -164,13 +176,13 @@ class DefaultAppointmentServiceTests {
     }
 
     @Test
-    void matchedAppointmentCancellationWaitsForSessionMigration() {
+    void matchedAppointmentCancellationAlsoCancelsTheActiveSession() {
         appointmentRepository.current = Optional.of(existingAppointment("MATCHED", 1));
 
-        assertThatThrownBy(() -> service.cancelAppointment(patient(), APPOINTMENT_ID, 1))
-                .isInstanceOf(AppointmentException.class)
-                .extracting(exception -> ((AppointmentException) exception).error())
-                .isEqualTo("appointment_state_conflict");
+        var canceled = service.cancelAppointment(patient(), APPOINTMENT_ID, 1);
+
+        assertThat(canceled.status()).isEqualTo("CANCELED");
+        assertThat(appointmentRepository.sessionCanceled).isTrue();
     }
 
     @Test
@@ -297,6 +309,7 @@ class DefaultAppointmentServiceTests {
         private Optional<AppointmentRecord> current = Optional.empty();
         private final Map<String, AppointmentRecord> byClientRequest = new HashMap<>();
         private int insertCount;
+        private boolean sessionCanceled;
 
         @Override
         public List<AppointmentRecord> findAllForParticipant(UUID userId, AppUserRole role) {
@@ -380,6 +393,12 @@ class DefaultAppointmentServiceTests {
                     appointment.paymentProviderLabel(),
                     expectedVersion + 1));
             return current;
+        }
+
+        @Override
+        public boolean cancelActiveSession(UUID appointmentId) {
+            sessionCanceled = true;
+            return true;
         }
 
         private AppointmentRecord fromMutation(

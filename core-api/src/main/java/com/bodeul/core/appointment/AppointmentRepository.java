@@ -26,6 +26,8 @@ interface AppointmentRepository {
             UUID appointmentId,
             long expectedVersion);
 
+    boolean cancelActiveSession(UUID appointmentId);
+
     record AppointmentMutation(
             UUID clientRequestId,
             UUID patientUserId,

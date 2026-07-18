@@ -9,6 +9,10 @@
 - V5 DDL rollback을 추가했다.
 - Firestore 백업의 FK, 상태 코드와 시각을 검증하는 세션 전용 seed SQL 생성기와 rollback 경로를 추가했다.
 - `nextVisitAt`의 날짜·자유 텍스트 혼용을 확인하고 정규화 시각과 원문을 함께 보존했다.
+- 일회성 GitHub Environment secret과 SHA-256을 검증하는 보호된 백필 workflow를 추가했다.
+- Core API에 역할 기반 세션 조회, 배정 매니저의 부분 갱신·단계 전환·리포트 완료 endpoint를 구현했다.
+- 매칭 후 취소와 리포트 완료가 예약·세션을 같은 Spring 트랜잭션으로 갱신하도록 했다.
+- V6에서 Core runtime에 필요한 세션·리포트 컬럼 쓰기만 허용하고 DELETE와 관리자 광범위 쓰기는 계속 차단했다.
 
 ## 변경된 범위
 
@@ -28,16 +32,29 @@
 | 관리자 배정 함수 | 예약 `MATCHED`, version 1, 세션 `READY`, 감사 1건 확인 |
 | Core runtime의 배정 함수 실행 | 권한 거부 확인 |
 | V5 rollback | 신규 테이블 4개 제거 확인 |
+| 보호된 개발 DB 백필 | run `29638905550` attempt 2 성공, 일회성 secret 삭제 |
+| 개발 DB 백필 결과 | 세션 2, 리포트 2, 후속 처리 1 |
+| FK·`imported_at` 누락 | 모두 0건 |
+| 예약·세션 상태 정합성 | `COMPLETED/COMPLETED` 1, `IN_PROGRESS/IN_TREATMENT` 1 |
+| Supabase Security Advisor | lint 0건 |
+| V6 PostgreSQL 17 적용 | 세션 UPDATE·리포트 INSERT 허용, 두 테이블 DELETE 거부, RLS 쓰기 정책 3개 확인 |
+| Core runtime DML 리허설 | 예약·세션 `COMPLETED/COMPLETED`, `CANCELED/CANCELED`, 리포트 1건, 가이드 단계 5건 확인 |
+| V6 rollback | 쓰기 권한·정책·추가 인덱스 0건 복구 확인 |
+| Core API 전체 검사 | 통과 |
 | `git diff --check` | 통과 |
 
 PR #228 병합 후 개발 DB migration run `29638503856`에서 Flyway V5 적용을 완료했다. V5 이력 성공, 신규 테이블 4개의 owner `bodeul_migration`, RLS 활성화, Core/Admin SELECT 정책 7개를 확인했다. 배정 함수는 `security definer`이고 Admin runtime만 실행 가능하며 Core·Supabase client role은 실행할 수 없다.
 
 로컬 PostgreSQL 리허설에는 임시 데이터만 사용했고 컨테이너는 종료 후 삭제했다. 최신 Firestore 백업과 생성 SQL은 Git 제외 경로에 있으며 커밋하지 않는다.
 
+첫 백필 시도는 Windows PowerShell 파이프가 Base64를 UTF-16으로 전달해 파일 준비 단계에서 중단됐다. DB 쓰기 전 실패했고 임시 파일과 secret을 삭제했다. secret 본문을 출력하지 않는 인자 전달 방식으로 다시 등록해 attempt 2를 성공시킨 뒤 즉시 삭제했다.
+
+백필 직후 Performance Advisor의 미사용 인덱스 INFO는 표본이 5건뿐이라 삭제 근거로 사용하지 않았다. 외래키 보조 인덱스 INFO 7건은 V6에 covering index를 추가해 이후 개발 DB 적용 때 재검증한다.
+
 ## 남은 범위
 
-- 개발 DB에 세션·리포트·후속 처리 백필을 적용하고 row/FK/권한/advisor를 확인한다.
-- Core API의 매니저 세션 조회·진행·리포트와 매칭 후 취소 트랜잭션을 구현한다.
+- 개발 DB에 V6를 적용하고 Core runtime 실제 DML과 advisor를 다시 확인한다.
+- Core API Preview를 배포해 실제 Firebase token으로 역할별 200·403과 version 충돌을 확인한다.
 - 별도 관리자 서버의 배정 API를 새 함수에 연결한다.
 - Android 실기기와 관리자 Preview에서 같은 PostgreSQL 상태를 보는지 검증한다.
 - 검증 완료 후 해당 Firestore 쓰기를 중지한다.
