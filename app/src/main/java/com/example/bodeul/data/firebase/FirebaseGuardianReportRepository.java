@@ -126,6 +126,7 @@ public class FirebaseGuardianReportRepository implements GuardianReportRepositor
     ) {
         Task<QuerySnapshot> sessionTask = firestore.collection("companionSessions")
                 .whereEqualTo("appointmentRequestId", request.getId())
+                .whereEqualTo("guardianUserId", request.getGuardianUserId())
                 .limit(1)
                 .get();
         Task<QuerySnapshot> guideTask = firestore.collection("hospitalGuides")

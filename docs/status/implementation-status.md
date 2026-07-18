@@ -3398,8 +3398,36 @@
 - Core API Preview deploy run `29639915209` 성공, commit `9d08c1be` 이미지와 리비전 `bodeul-core-api-preview-00010-pd9` 트래픽 100% 확인
 - Preview `/health` 200 `UP`, `/api/companion-sessions` 무인증 401 `missing_authorization` 확인
 
-### 남은 범위
+### 당시 남은 범위
 
 - Core API Preview 실제 Firebase token 역할·충돌 검증(무인증 401 경계는 완료)
 - 관리자 서버 배정 API와 Android repository 전환
 - 실기기·관리자 Preview 통합 검증 후 Firestore 쓰기 종료
+
+## 138. 2026-07-18 Android 동행 세션 Core API 전환과 실기기 검증
+
+### 구현과 운영 설정
+
+- Firebase ID token과 App Check token을 공통으로 처리하는 Android Core API 인증 클라이언트를 분리했다.
+- 예약 상세, 매니저 홈·가이드·이력과 보호자 리포트의 세션 진행·리포트 원본을 Core API로 전환했다.
+- 매니저의 단계 전환, 현장 메모, 약국 상태와 리포트 제출은 PostgreSQL version 조건부 API를 사용한다.
+- 채팅·첨부·좌표 이력·읽음 시각·실시간 위치 상태는 #221까지 Firestore에 남긴다.
+- 예약 상세는 Firebase 보조 listener와 10초 Core API 갱신을 함께 사용한다.
+- 보호자 세션 보조 쿼리에 `guardianUserId` 조건을 추가해 Rules 거부를 수정했다.
+
+### 검증
+
+- 실제 Firebase token으로 환자·보호자·매니저 세션 목록 200과 각 2건, 관리자 403 확인
+- 환자 세션 수정 403, 매니저 잘못된 version 수정 409와 데이터 무변경 확인
+- `testDebugUnitTest`, `assembleDebug`, SM-S921N `connectedDebugAndroidTest` 1건 통과
+- 매니저 홈 활성 세션 `IN_TREATMENT`·`4/7`, 과거 이력 완료 1건 표시
+- 보호자 리포트 4건과 예약 상세 `IN_TREATMENT`·`4/7` 표시
+- 예약 상세 25초 유지 중 10초 갱신 이후에도 동일 상태, 관련 오류 로그 없음
+- 계측 테스트의 앱 데이터 제거 후 새 debug token을 비공개 재등록하고 예약 목록·상세·세션 요청 3건 `app_check_verdict=valid` 확인
+
+### 남은 범위
+
+- 별도 관리자 서버의 배정 API를 `assign_companion_session` 함수에 연결
+- 관리자 Preview와 Android의 동일 PostgreSQL 배정 상태 검증
+- 후속 처리 API와 Core API 단독 생성 예약·배정의 Firebase 보조 데이터 의존 제거
+- 통합 검증 후 세션·리포트·후속 처리 Firestore 쓰기 중지
