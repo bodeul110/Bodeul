@@ -168,6 +168,8 @@
 - `managerDocumentReviewNote`는 승인 메모 또는 보완 요청 사유를 담는다.
 - 서류 요약을 저장하면 `managerDocumentUpdatedAt`이 갱신되고, 관리자가 검토를 저장하면 `managerDocumentReviewedAt`, `managerDocumentReviewedByName`이 함께 기록된다.
 - `managerDocumentHistory` 배열에는 `eventType`, `happenedAt`, `actorName`, `summary`, `reviewNote`가 누적되어 관리자 검토 이력 다이얼로그에 바로 사용된다.
+- `managerDocumentLegalHoldUntil`은 분쟁·수사 등 예외 보존 종료 시각이며 관리자만 변경할 수 있다.
+- 심사 후 30일이 지난 원본을 자동 파기하면 파일 경로 필드를 제거하고 `managerDocumentOriginalsDeletedAt`만 기록한다. 심사 상태와 이력은 원본과 분리해 유지한다.
 ### 2026-04-22 예약 확장 메모
 
 - 건강 프로필과 결제/쿠폰 정보는 요청 시점 스냅샷으로 함께 저장해, 매칭 이후에도 같은 기준으로 확인한다.
@@ -178,6 +180,7 @@
 - `companionSessions` 문서에는 `guardianUpdate`, `medicationNote` 외에 `locationSummary`, `fieldPhotoNote`를 함께 저장한다.
 - `locationSummary`는 도착 위치와 이동 진행 상황을 짧게 공유하는 텍스트 스냅샷이다.
 - `fieldPhotoNote`는 접수표, 안내문, 현장 사진 확인 메모를 텍스트로 정리한 값이다.
+- Firestore 전환 문서의 `legalHoldUntil`은 세션 단위 예외 보존 종료 시각이다. hold가 없으면 종료 시각 기준 24시간 후 정밀 위치, 30일 후 첨부, 180일 후 채팅 본문을 자동 파기한다.
 
 ### 2026-04-23 예약 병원 선택/완료 메모
 

@@ -8,3 +8,4 @@ Object.assign(exports, require("./src/notifications"));
 Object.assign(exports, require("./src/action-delivery"));
 Object.assign(exports, require("./src/sync"));
 Object.assign(exports, require("./src/reminders"));
+Object.assign(exports, require("./src/retention"));

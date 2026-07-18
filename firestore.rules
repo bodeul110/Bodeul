@@ -134,6 +134,10 @@ service cloud.firestore {
           );
     }
 
+    function managerDocumentLegalHoldUpdateIsSafe() {
+      return !affectedAny(['managerDocumentLegalHoldUntil']);
+    }
+
     match /users/{userId} {
       // 사용자 문서는 본인과 관리자만 직접 읽고, 교차 프로필 참조는 Functions 중계를 사용한다.
       allow get: if canGetUser(userId);
@@ -145,6 +149,7 @@ service cloud.firestore {
             isSelf(userId)
             && request.resource.data.role == resource.data.role
             && managerDocumentStatusUpdateIsSafe()
+            && managerDocumentLegalHoldUpdateIsSafe()
           );
       allow delete: if isAdmin();
     }

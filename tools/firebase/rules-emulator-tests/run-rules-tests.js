@@ -297,6 +297,14 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             { managerDocumentStatus: "PENDING" },
         ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            { managerDocumentLegalHoldUntil: 4_000_000_000_000 },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, users.admin), "users", users.manager),
+            { managerDocumentLegalHoldUntil: 4_000_000_000_000 },
+        ));
       },
     },
     {
