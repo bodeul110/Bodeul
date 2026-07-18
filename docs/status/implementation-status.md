@@ -3427,7 +3427,31 @@
 
 ### 남은 범위
 
-- 별도 관리자 서버의 배정 API를 `assign_companion_session` 함수에 연결
-- 관리자 Preview와 Android의 동일 PostgreSQL 배정 상태 검증
 - 후속 처리 API와 Core API 단독 생성 예약·배정의 Firebase 보조 데이터 의존 제거
+- 관리자 Preview가 만든 Core-only 예약·배정을 Android가 Firestore 보조 문서 없이 조회하는 실기기 검증
+- 통합 검증 후 세션·리포트·후속 처리 Firestore 쓰기 중지
+
+## 139. 2026-07-18 관리자 전용 매니저 배정 API 연결과 Preview 검증
+
+### 구현과 운영 설정
+
+- 별도 `bodeul-admin-web` 저장소의 Next.js 서버에 `POST /admin/companion-assignments`를 추가했다.
+- Firebase ID token과 PostgreSQL `ADMIN` 역할을 확인하고 DB의 `assign_companion_session` 함수만 실행한다.
+- 관리자 runtime에는 테이블 쓰기 권한을 추가하지 않았고 UUID, 예약 version, 배정 사유를 서버에서 검증한다.
+- DB SQLSTATE는 공개 API의 400·403·404·409·503으로 변환하고 내부 오류 문구를 노출하지 않는다.
+
+### 검증
+
+- 관리자 웹 테스트 19건, lint, Next.js build, Vite rollback build, CodeQL 통과
+- Vercel Preview 무인증 401, 환자 403, 관리자 입력 오류 400, 취소 예약 상태 충돌 409 확인
+- 임시 `REQUESTED` 예약 성공 201, 예약 `MATCHED`·version 1, 세션 `READY`, 감사 1건 확인
+- 임시 예약·세션·감사는 검증 직후 삭제하고 잔여 0건 확인
+- 배정 함수 `security definer`, `search_path=bodeul, pg_temp`, Admin만 실행 가능, Security Advisor 경고 0건 확인
+- 관리자 웹 PR [#23](https://github.com/bodeul110/bodeul-admin-web/pull/23) squash merge 완료
+
+### 남은 범위
+
+- Core-only 예약·배정을 Android가 Firebase 보조 문서 없이 조회하도록 repository 시작점을 전환
+- PostgreSQL 후속 처리 API 연결
+- 관리자 웹 App Check Issue #16과 production V5·V6 migration 승인
 - 통합 검증 후 세션·리포트·후속 처리 Firestore 쓰기 중지

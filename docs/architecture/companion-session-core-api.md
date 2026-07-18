@@ -87,7 +87,7 @@ V6는 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사용
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 채팅, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 공유 상태는 #221까지 Firestore에 남기고 화면에서 합성한다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
-- Android가 아직 Firebase 보조 데이터를 합성하므로 관리자 배정 이후 Firestore 보조 문서 생성이 필요 없는 완전 전환은 별도 관리자 서버 연결 뒤 검증한다.
+- 관리자 서버의 PostgreSQL 배정은 검증했지만 Android가 아직 Firebase 보조 데이터를 목록 시작점으로 사용한다. 따라서 Firestore 보조 문서 없이 Core API에서 생성된 예약·배정이 앱에 나타나는지는 별도 전환이 필요하다.
 
 ## 백필과 rollback
 
@@ -110,4 +110,4 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - 채팅과 위치가 Firestore에 남는 동안 세션 화면은 두 저장소를 합성한다. 한쪽 장애 시 부분 정보가 보일 수 있다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
 - V6 Core 쓰기 권한은 개발 DB migration run `29639792606`에서 검증했다. Cloud Run Preview run `29639915209` 이후 실제 Firebase token으로 환자·보호자·매니저 목록 200, 관리자 목록 403, 환자 수정 403, 매니저 version 충돌 409를 확인했다.
-- Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 별도 관리자 서버의 배정 API와 관리자 Preview 동일 상태 검증 전에는 전체 전환으로 간주하지 않는다.
+- Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. 다만 이 임시 Core-only 예약을 Android 목록에서 조회하는 경로는 Firebase 보조 데이터 의존을 제거한 뒤 검증한다.

@@ -91,6 +91,8 @@ DB role은 다음처럼 분리한다.
 | `bodeul_core_runtime` / `bodeul_core_service` | 사용자 서비스 | 5 |
 | `bodeul_admin_runtime` / `bodeul_admin_service` | Next.js 관리자 서버 | 5 |
 
+관리자 배정은 별도 `bodeul-admin-web` 저장소의 `POST /admin/companion-assignments`에서 처리한다. Firebase ID token과 PostgreSQL `ADMIN` 역할을 확인한 뒤 `bodeul_admin_runtime`이 `assign_companion_session` 함수만 실행하며 테이블 직접 쓰기 권한은 갖지 않는다. 2026-07-18 Vercel Preview에서 거부 경계와 성공 배정, 감사 기록, 임시 데이터 정리까지 확인했다. production은 V5·V6 migration과 복원 지점 승인이 끝나기 전 이 route를 운영에 사용하지 않는다.
+
 ## Firebase 인증과 App Check
 
 1. 클라이언트가 Firebase Auth로 로그인한다.
