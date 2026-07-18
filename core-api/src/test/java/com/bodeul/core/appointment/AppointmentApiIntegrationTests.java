@@ -38,6 +38,7 @@ class AppointmentApiIntegrationTests {
 
     private static final UUID USER_ID = UUID.fromString("aab5363c-4021-4390-af5d-4f9259796c77");
     private static final UUID APPOINTMENT_ID = UUID.fromString("df1f95fd-5558-41bc-99e9-c5a3981661b9");
+    private static final UUID MANAGER_ID = UUID.fromString("3da53272-577e-4d5b-9c86-f1cf7a787e5b");
 
     @Autowired
     private MockMvc mockMvc;
@@ -66,6 +67,7 @@ class AppointmentApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.appointments[0].id").value(APPOINTMENT_ID.toString()))
+                .andExpect(jsonPath("$.appointments[0].managerName").value("매니저 사용자"))
                 .andExpect(jsonPath("$.appointments[0].version").value(2));
 
         assertThat(appointmentService.lastUser.id()).isEqualTo(USER_ID);
@@ -215,7 +217,10 @@ class AppointmentApiIntegrationTests {
                 "",
                 USER_ID,
                 null,
-                null,
+                MANAGER_ID,
+                "매니저 사용자",
+                "010-5555-7777",
+                "manager@example.com",
                 "환자 사용자",
                 "010-1234-5678",
                 "patient@example.com",

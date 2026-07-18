@@ -364,6 +364,10 @@ final class CoreApiAppointmentClient {
                 optText(item, "paymentApprovedAt"),
                 optText(item, "paymentProviderLabel")
         );
+        request.setManagerProfile(
+                optText(item, "managerName"),
+                optText(item, "managerPhone"),
+                optText(item, "managerEmail"));
         AppointmentReference reference = new AppointmentReference(
                 coreId,
                 legacyFirestoreId,

@@ -90,7 +90,8 @@ V6와 V7은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
 - 채팅, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 공유 상태는 #221까지 Firestore에 남기고 화면에서 합성한다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
-- 관리자 서버의 PostgreSQL 배정은 검증했지만 Android가 아직 Firebase 보조 데이터를 목록 시작점으로 사용한다. 따라서 Firestore 보조 문서 없이 Core API에서 생성된 예약·배정이 앱에 나타나는지는 별도 전환이 필요하다.
+- 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
+- 병원 가이드는 현재 Android 공통 fallback을 사용한다. PostgreSQL 병원 가이드 상세 응답 전환은 별도 범위이며, 세션의 서버 단계 수와 진행 제한은 계속 Core API가 판정한다.
 
 ## 백필과 rollback
 
@@ -114,4 +115,4 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
 - V6 Core 쓰기 권한은 개발 DB migration run `29639792606`에서 검증했다. Cloud Run Preview run `29639915209` 이후 실제 Firebase token으로 환자·보호자·매니저 목록 200, 관리자 목록 403, 환자 수정 403, 매니저 version 충돌 409를 확인했다.
 - V7은 PostgreSQL 17 임시 인스턴스의 V1~V7 연속 적용과 개발 DB migration run `29642658596`을 통과했다. Core runtime의 후속 처리 생성·부분 수정은 version을 증가시키고 오래된 version 수정을 차단하며 `anon`, `authenticated`, `service_role`에는 권한이 없다. Preview 리비전 `00011-tp4`에서 환자 실기기 GET·PATCH 7건 200과 App Check `valid`, actor 일치를 확인했다.
-- Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. 다만 이 임시 Core-only 예약을 Android 목록에서 조회하는 경로는 Firebase 보조 데이터 의존을 제거한 뒤 검증한다.
+- Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. Core-only 목록 시작점 전환 코드는 자동화 검증을 통과했으며, Preview 재배포 후 Firestore 문서가 없는 임시 배정으로 역할별 실기기 검증을 수행한다.

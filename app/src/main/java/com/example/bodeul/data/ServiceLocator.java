@@ -7,7 +7,6 @@ import com.example.bodeul.data.firebase.FirebaseAuthRepository;
 import com.example.bodeul.data.firebase.FirebaseCompanionChatAttachmentPreviewResolver;
 import com.example.bodeul.data.firebase.FirebaseCompanionChatAttachmentUploader;
 import com.example.bodeul.data.firebase.FirebaseBookingRepository;
-import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentStorageUploader;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentPreviewResolver;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
@@ -160,13 +159,10 @@ public final class ServiceLocator {
 
     public static synchronized GuardianReportRepository provideGuardianReportRepository(Context context) {
         if (guardianReportRepository == null) {
-            // 예약·세션·리포트 원본은 Core API로 읽고 아직 남은 보조 데이터만 Firebase에서 합성한다.
+            // 보호자 진행 현황은 Core API의 예약·세션·리포트 원본만 사용한다.
             if (FirebaseSupport.isConfigured(context)) {
-                FirebaseGuardianReportRepository firebaseGuardianReportRepository =
-                        new FirebaseGuardianReportRepository(provideFirestore());
                 guardianReportRepository = new CoreApiGuardianReportRepository(
-                        context.getApplicationContext(),
-                        firebaseGuardianReportRepository);
+                        context.getApplicationContext());
             } else {
                 guardianReportRepository = new MockGuardianReportRepository(getMockBodeulRepository());
             }

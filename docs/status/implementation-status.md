@@ -3482,3 +3482,24 @@
 
 - Core-only 예약·배정의 Firebase 보조 문서 의존 제거와 실기기 검증
 - 통합 검증 후 `appointmentFollowUps` Firestore 운영 쓰기 중지
+
+## 141. 2026-07-18 Core-only 예약·배정 화면 시작점 전환
+
+### 구현과 운영 설정
+
+- Core API 예약 응답에 PostgreSQL `app_users` 기준 배정 매니저 이름·전화번호·이메일을 추가했다.
+- Android 매니저 홈은 본인 Core API 세션 목록에서 최신 활성 세션을 선택하고 예약·참여자·매니저 정보를 Core API 응답으로 조합한다.
+- 매니저 과거 이력은 완료된 Core API 세션과 리포트만 사용하며 Firestore 세션·예약·리포트 목록을 시작점으로 사용하지 않는다.
+- 보호자 진행 현황은 본인 Core API 예약 목록과 세션 목록을 예약 UUID로 연결한다. 미배정 예약도 세션 없이 표시한다.
+- 채팅·첨부·위치 공유·매니저 서류·문의는 #221과 별도 후속 이슈까지 기존 Firebase 경계를 유지한다.
+
+### 검증
+
+- Core API 단위·통합 테스트와 전체 `check` 통과
+- 배정 매니저 프로필이 예약 API JSON에 포함되는 통합 테스트 추가
+- Android `testDebugUnitTest`, `assembleDebug`, `lintDebug` 통과
+
+### 남은 범위
+
+- Cloud Run Preview 재배포와 Firestore 문서가 없는 임시 예약·배정의 매니저·보호자·환자 실기기 검증
+- 검증 완료 후 세션·리포트·후속 처리 Firestore 클라이언트 쓰기 제한

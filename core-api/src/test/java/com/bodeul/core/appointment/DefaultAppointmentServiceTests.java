@@ -27,6 +27,7 @@ class DefaultAppointmentServiceTests {
 
     private static final UUID PATIENT_ID = UUID.fromString("db7cc9f9-4f3e-4f73-b572-cf653564e887");
     private static final UUID GUARDIAN_ID = UUID.fromString("bfbc7b03-3f42-4016-85c0-0981097bf1f2");
+    private static final UUID MANAGER_ID = UUID.fromString("04e9b7fd-9727-4f81-af7b-ab3534339fd0");
     private static final UUID OTHER_PATIENT_ID = UUID.fromString("ced5cb21-c07d-4d0e-a151-2994b6d40793");
     private static final UUID APPOINTMENT_ID = UUID.fromString("27bf3a07-6605-48ab-adbf-c7b18551a639");
     private static final Instant NOW = Instant.parse("2026-07-18T00:00:00Z");
@@ -51,6 +52,12 @@ class DefaultAppointmentServiceTests {
                 "보호자 사용자",
                 "guardian@example.com",
                 "010-9876-5432"));
+        profileRepository.add(new AppUserProfile(
+                MANAGER_ID,
+                AppUserRole.MANAGER,
+                "매니저 사용자",
+                "manager@example.com",
+                "010-5555-7777"));
         service = new DefaultAppointmentService(
                 appointmentRepository,
                 profileRepository,
@@ -98,6 +105,18 @@ class DefaultAppointmentServiceTests {
                 AppUserRole.MANAGER);
 
         assertThat(service.getMyAppointments(manager)).isEmpty();
+    }
+
+    @Test
+    void assignedManagerProfileIsIncludedInAppointmentView() {
+        appointmentRepository.current = Optional.of(existingAppointment("MATCHED", 1, MANAGER_ID));
+
+        var appointment = service.getAppointment(patient(), APPOINTMENT_ID);
+
+        assertThat(appointment.managerUserId()).isEqualTo(MANAGER_ID);
+        assertThat(appointment.managerName()).isEqualTo("매니저 사용자");
+        assertThat(appointment.managerEmail()).isEqualTo("manager@example.com");
+        assertThat(appointment.managerPhone()).isEqualTo("010-5555-7777");
     }
 
     @Test
@@ -339,12 +358,16 @@ class DefaultAppointmentServiceTests {
     }
 
     private AppointmentRecord existingAppointment(String status, long version) {
+        return existingAppointment(status, version, null);
+    }
+
+    private AppointmentRecord existingAppointment(String status, long version, UUID managerUserId) {
         return new AppointmentRecord(
                 APPOINTMENT_ID,
                 "legacy-firestore-id",
                 PATIENT_ID,
                 GUARDIAN_ID,
-                null,
+                managerUserId,
                 PATIENT_ID,
                 AppUserRole.PATIENT,
                 new AppointmentRepository.ParticipantSnapshot(
