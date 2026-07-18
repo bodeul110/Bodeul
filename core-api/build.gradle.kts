@@ -50,3 +50,10 @@ tasks.register<JavaExec>("applyAppointmentRequestsSeed") {
 	classpath = sourceSets["main"].runtimeClasspath
 	mainClass.set("com.bodeul.core.AppointmentRequestsSeedApplication")
 }
+
+tasks.register<JavaExec>("applyCompanionSessionSeed") {
+	group = "application"
+	description = "검증된 동행 세션 seed를 migration role로 적용합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.CompanionSessionSeedApplication")
+}

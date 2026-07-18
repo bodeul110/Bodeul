@@ -76,6 +76,8 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 
 적용 전 `check`, transaction rollback SQL, 적용 SQL 순서로 검증한다. 생성 SQL은 개인정보를 포함하므로 `tools/firebase/reports/`의 Git 제외 경로에만 둔다. V5 DDL rollback은 `core-api/db/rollback/V5__drop_companion_session_operational_schema.sql`을 사용한다.
 
+개발 DB 적용은 `Core API DB Migration` workflow의 `apply_companion_session_seed=true` 입력을 사용한다. 적용 SQL은 `core-api-migration-preview`의 일회성 `COMPANION_SESSION_SEED_SQL_BASE64` secret으로 전달하고, `companion_session_seed_sha256` 입력과 실제 파일 해시가 일치해야 한다. workflow 종료를 확인한 즉시 일회성 secret을 삭제한다.
+
 ## 리스크와 전환 조건
 
 - V5 적용만으로 source of truth가 바뀌지는 않는다. Core API와 관리자 서버가 PostgreSQL을 사용하고 Android의 대응 Firestore 쓰기가 중지돼야 전환 완료다.
