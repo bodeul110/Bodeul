@@ -16,12 +16,13 @@
 - Android 예약·매니저·보호자 저장소가 Core API의 세션 진행과 리포트를 화면 원본으로 사용하도록 전환했다.
 - 인증 HTTP 처리를 공통 클라이언트로 분리하고 예약 상세에 10초 Core API 갱신을 추가했다.
 - 보호자 세션 보조 조회에 보호자 UID 조건을 추가해 Firestore Rules와 쿼리 계약을 맞췄다.
+- 별도 관리자 Next.js 서버에 Firebase ADMIN 인가와 `assign_companion_session` 전용 배정 API를 연결했다.
 
 ## 변경된 범위
 
 - Android의 세션 진행·현장 메모·약국 상태·리포트 읽기와 매니저 쓰기는 Core API를 사용한다.
 - `chatMessages`, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 상태는 #221 범위로 Firestore에 유지한다.
-- 관리자 서버의 배정 API와 PostgreSQL 후속 처리 API는 아직 연결하지 않았다.
+- 관리자 서버의 배정은 PostgreSQL 함수만 사용한다. PostgreSQL 후속 처리 API는 아직 연결하지 않았다.
 
 ## 검증
 
@@ -52,6 +53,9 @@
 | Android 실기기 | 매니저 홈 `4/7`, 과거 이력 완료 1건, 보호자 리포트 4건, 예약 상세 `4/7` 표시 |
 | 예약 상세 갱신 | 25초 유지 후 Core API 10초 갱신 중 동일 상태 유지, 관련 오류 로그 없음 |
 | Android App Check | 계측 테스트 후 재발급된 debug token을 비공개 등록하고 예약 목록·상세·세션 요청 3건 `valid` 확인 |
+| 관리자 배정 API 계약 | 테스트 19건, lint, Next.js·Vite build, CodeQL 통과 |
+| 관리자 Vercel Preview | 무인증 401, 환자 403, 관리자 입력 오류 400, 취소 예약 409, 임시 요청 예약 성공 201 |
+| 관리자 배정 DB 결과 | 예약 `MATCHED`·version 1, 세션 `READY`, 감사 1건 확인 후 임시 데이터 잔여 0건 |
 | `git diff --check` | 통과 |
 
 PR #228 병합 후 개발 DB migration run `29638503856`에서 Flyway V5 적용을 완료했다. V5 이력 성공, 신규 테이블 4개의 owner `bodeul_migration`, RLS 활성화, Core/Admin SELECT 정책 7개를 확인했다. 배정 함수는 `security definer`이고 Admin runtime만 실행 가능하며 Core·Supabase client role은 실행할 수 없다.
@@ -70,9 +74,10 @@ PR #231 병합 후 Preview deploy run `29639915209`에서 commit `9d08c1be5c84c2
 
 Android debug 앱은 세션 상태와 리포트를 Core API에서 합성하도록 전환했다. SM-S921N 실기기에서 활성 세션은 서버와 화면 모두 `IN_TREATMENT`, `4/7`이었고 완료 세션은 서버 `7/7`, 매니저 이력 완료 1건으로 일치했다. 계측 테스트 뒤 앱이 제거되어 최종 APK를 재설치했으며, 예약 상세를 25초 유지해 주기 갱신 후에도 같은 상태와 무오류 로그를 확인했다. 앱 데이터 제거로 새 App Check debug token이 발급돼 token 원문을 노출하지 않고 allowlist에 다시 등록했다. 이후 예약 목록·상세·세션 요청이 모두 `app_check_verdict=valid`로 기록됐다.
 
+관리자 웹 PR [#23](https://github.com/bodeul110/bodeul-admin-web/pull/23)을 병합해 `POST /admin/companion-assignments`를 연결했다. Firebase ID token과 PostgreSQL `ADMIN` 역할을 확인한 뒤 `bodeul_admin_runtime`만 실행 가능한 배정 함수를 호출한다. Vercel Preview에서 거부 경계와 임시 `REQUESTED` 예약의 성공 배정을 확인했고, 예약·세션·감사 결과를 검증한 뒤 임시 데이터는 모두 삭제했다. 배정 함수는 `search_path=bodeul, pg_temp`로 고정돼 있고 Core·Supabase client·PUBLIC role은 실행할 수 없으며 Security Advisor 경고는 0건이었다.
+
 ## 남은 범위
 
-- 별도 관리자 서버의 배정 API를 새 함수에 연결한다.
-- 관리자 Preview와 Android 실기기가 같은 PostgreSQL 배정 상태를 보는지 검증한다.
 - 후속 처리 API를 연결하고 Core API만으로 생성된 예약·배정의 Firebase 보조 데이터 의존을 제거한다.
+- 관리자 Preview에서 생성한 Core-only 예약·배정을 Android 목록이 Firestore 보조 문서 없이 조회하도록 전환하고 실기기에서 검증한다.
 - 검증 완료 후 해당 Firestore 쓰기를 중지한다.
