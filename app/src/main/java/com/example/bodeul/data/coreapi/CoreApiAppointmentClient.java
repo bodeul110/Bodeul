@@ -1,61 +1,35 @@
 package com.example.bodeul.data.coreapi;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
-import android.text.TextUtils;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.example.bodeul.R;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingRequestDraft;
-import com.google.firebase.appcheck.AppCheckToken;
-import com.google.firebase.appcheck.FirebaseAppCheck;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Firebase 인증 토큰으로 Core API 예약 경계를 호출한다.
  */
 final class CoreApiAppointmentClient {
-    private static final String TAG = "BodeulAppointmentApi";
-    private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
-    private static final int READ_TIMEOUT_MILLIS = 20_000;
-    private static final int MAX_RESPONSE_BYTES = 1024 * 1024;
-    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
-
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final String coreApiBaseUrl;
+    private final CoreApiAuthenticatedClient authenticatedClient;
     private final Map<String, AppointmentReference> references = new ConcurrentHashMap<>();
     private final Map<String, UUID> pendingCreateRequestIds = new ConcurrentHashMap<>();
 
     CoreApiAppointmentClient(Context context) {
-        coreApiBaseUrl = normalizeBaseUrl(
-                context.getApplicationContext().getString(R.string.bodeul_core_api_base_url));
+        authenticatedClient = new CoreApiAuthenticatedClient(context);
     }
 
     void getAppointments(RepositoryCallback<List<AppointmentRequest>> callback) {
@@ -258,6 +232,11 @@ final class CoreApiAppointmentClient {
         return reference == null ? "" : reference.legacyFirestoreId;
     }
 
+    String getKnownCoreId(String requestId) {
+        AppointmentReference reference = references.get(normalizeText(requestId));
+        return reference == null ? "" : reference.coreId;
+    }
+
     private void resolveReference(
             String requestId,
             RepositoryCallback<AppointmentReference> callback
@@ -381,48 +360,11 @@ final class CoreApiAppointmentClient {
     }
 
     private <T> void executeAuthenticated(
-            AuthenticatedOperation<T> operation,
+            CoreApiAuthenticatedClient.Operation<T> operation,
             RepositoryCallback<T> callback,
             String fallbackMessage
     ) {
-        if (coreApiBaseUrl.isEmpty()) {
-            postError(callback, "Core API 주소가 설정되지 않았습니다.");
-            return;
-        }
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser == null) {
-            postError(callback, "로그인 정보가 없습니다. 다시 로그인해 주세요.");
-            return;
-        }
-
-        currentUser.getIdToken(false).addOnCompleteListener(idTokenTask -> {
-            String idToken = idTokenTask.isSuccessful() && idTokenTask.getResult() != null
-                    ? idTokenTask.getResult().getToken()
-                    : "";
-            if (TextUtils.isEmpty(idToken)) {
-                postError(callback, "인증 정보를 가져오지 못했습니다. 다시 로그인해 주세요.");
-                return;
-            }
-
-            FirebaseAppCheck.getInstance().getAppCheckToken(false).addOnCompleteListener(appCheckTask -> {
-                AppCheckToken tokenResult = appCheckTask.isSuccessful()
-                        ? appCheckTask.getResult()
-                        : null;
-                String appCheckToken = tokenResult == null ? "" : tokenResult.getToken();
-                EXECUTOR.execute(() -> {
-                    try {
-                        T result = operation.run(idToken, appCheckToken);
-                        mainHandler.post(() -> callback.onSuccess(result));
-                    } catch (ApiException exception) {
-                        Log.w(TAG, "Core API 예약 요청 실패: HTTP " + exception.statusCode);
-                        postError(callback, exception.userMessage);
-                    } catch (Exception exception) {
-                        Log.w(TAG, "Core API 예약 요청 실패: " + exception.getClass().getSimpleName());
-                        postError(callback, fallbackMessage);
-                    }
-                });
-            });
-        });
+        authenticatedClient.execute(operation, callback, fallbackMessage, "예약 API");
     }
 
     private JSONObject requestJson(
@@ -432,80 +374,12 @@ final class CoreApiAppointmentClient {
             String idToken,
             @Nullable String appCheckToken
     ) throws Exception {
-        HttpURLConnection connection = null;
-        try {
-            connection = (HttpURLConnection) new URL(coreApiBaseUrl + path).openConnection();
-            connection.setRequestMethod(method);
-            connection.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
-            connection.setReadTimeout(READ_TIMEOUT_MILLIS);
-            connection.setRequestProperty("Authorization", "Bearer " + idToken);
-            connection.setRequestProperty("Accept", "application/json");
-            if (!TextUtils.isEmpty(appCheckToken)) {
-                connection.setRequestProperty("X-Firebase-AppCheck", appCheckToken);
-            }
-            if (body != null) {
-                byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
-                connection.setDoOutput(true);
-                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                connection.setFixedLengthStreamingMode(payload.length);
-                try (OutputStream outputStream = connection.getOutputStream()) {
-                    outputStream.write(payload);
-                }
-            }
-
-            int statusCode = connection.getResponseCode();
-            InputStream responseStream = statusCode >= 200 && statusCode < 300
-                    ? connection.getInputStream()
-                    : connection.getErrorStream();
-            String responseBody = responseStream == null ? "" : readAll(responseStream);
-            if (statusCode < 200 || statusCode >= 300) {
-                throw new ApiException(statusCode, resolveErrorMessage(statusCode, responseBody));
-            }
-            return new JSONObject(responseBody);
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-        }
-    }
-
-    private String resolveErrorMessage(int statusCode, String responseBody) {
-        try {
-            String message = optText(new JSONObject(responseBody), "message");
-            if (!message.isEmpty()) {
-                return message;
-            }
-        } catch (JSONException ignored) {
-            // 서버 오류 본문이 JSON이 아니면 상태 코드 기준 안내를 사용한다.
-        }
-        if (statusCode == 401) {
-            return "로그인이 만료되었습니다. 다시 로그인해 주세요.";
-        }
-        if (statusCode == 403) {
-            return "이 예약에 접근할 권한이 없습니다.";
-        }
-        if (statusCode == 404) {
-            return "예약 정보를 찾지 못했습니다.";
-        }
-        if (statusCode == 409) {
-            return "예약 상태가 변경되었습니다. 다시 불러온 뒤 시도해 주세요.";
-        }
-        return "예약 서버에 일시적으로 연결하지 못했습니다.";
-    }
-
-    private String readAll(InputStream inputStream) throws IOException {
-        try (InputStream stream = new BufferedInputStream(inputStream);
-             ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[2048];
-            int read;
-            while ((read = stream.read(buffer)) != -1) {
-                if (outputStream.size() + read > MAX_RESPONSE_BYTES) {
-                    throw new IOException("Appointment response is too large");
-                }
-                outputStream.write(buffer, 0, read);
-            }
-            return outputStream.toString(StandardCharsets.UTF_8.name());
-        }
+        return authenticatedClient.requestJson(
+                method,
+                path,
+                body,
+                idToken,
+                appCheckToken);
     }
 
     private String requireText(JSONObject object, String key) throws JSONException {
@@ -523,14 +397,6 @@ final class CoreApiAppointmentClient {
         return normalizeText(object.optString(key, ""));
     }
 
-    private String normalizeBaseUrl(String value) {
-        String normalized = normalizeText(value);
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized;
-    }
-
     private String normalizeText(String value) {
         return value == null ? "" : value.trim();
     }
@@ -545,11 +411,7 @@ final class CoreApiAppointmentClient {
     }
 
     private <T> void postError(RepositoryCallback<T> callback, String message) {
-        mainHandler.post(() -> callback.onError(message));
-    }
-
-    private interface AuthenticatedOperation<T> {
-        T run(String idToken, @Nullable String appCheckToken) throws Exception;
+        authenticatedClient.postError(callback, message);
     }
 
     private static final class AppointmentReference {
@@ -574,14 +436,4 @@ final class CoreApiAppointmentClient {
         }
     }
 
-    private static final class ApiException extends Exception {
-        private final int statusCode;
-        private final String userMessage;
-
-        private ApiException(int statusCode, String userMessage) {
-            super("Core API request failed: " + statusCode);
-            this.statusCode = statusCode;
-            this.userMessage = userMessage;
-        }
-    }
 }

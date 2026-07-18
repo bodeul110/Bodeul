@@ -1,6 +1,8 @@
 package com.example.bodeul.data.coreapi;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
@@ -17,6 +19,9 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
+import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.SessionReport;
+import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 
@@ -28,10 +33,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * 예약 원본은 Core API에서 읽고, 아직 이전하지 않은 세션·채팅·후속 데이터만 Firestore에서 합성한다.
  */
 public final class CoreApiBookingRepository implements BookingRepository {
+    private static final long CORE_REFRESH_INTERVAL_MILLIS = 10_000L;
     private static final String LEGACY_REQUIRED_MESSAGE =
             "이 예약의 동행 세션 기능은 PostgreSQL 전환 후 사용할 수 있습니다.";
 
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final CoreApiAppointmentClient appointmentClient;
+    private final CoreApiCompanionSessionClient sessionClient;
     private final FirebaseBookingRepository firebaseRepository;
 
     public CoreApiBookingRepository(
@@ -39,6 +47,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
             FirebaseBookingRepository firebaseRepository
     ) {
         this.appointmentClient = new CoreApiAppointmentClient(context);
+        this.sessionClient = new CoreApiCompanionSessionClient(context);
         this.firebaseRepository = firebaseRepository;
     }
 
@@ -82,6 +91,8 @@ public final class CoreApiBookingRepository implements BookingRepository {
     ) {
         AtomicBoolean stopped = new AtomicBoolean(false);
         AtomicReference<Runnable> detachListener = new AtomicReference<>(() -> {});
+        AtomicReference<Runnable> pollTask = new AtomicReference<>(() -> {});
+        AtomicReference<AppointmentRequestDetail> latestLegacyDetail = new AtomicReference<>();
         appointmentClient.getAppointment(requestId, new RepositoryCallback<AppointmentRequest>() {
             @Override
             public void onSuccess(AppointmentRequest request) {
@@ -90,7 +101,15 @@ public final class CoreApiBookingRepository implements BookingRepository {
                 }
                 String legacyId = appointmentClient.getKnownLegacyFirestoreId(request.getId());
                 if (legacyId.isEmpty()) {
-                    callback.onSuccess(toCoreOnlyDetail(request));
+                    AppointmentRequestDetail coreOnlyDetail = toCoreOnlyDetail(request);
+                    latestLegacyDetail.set(coreOnlyDetail);
+                    enrichWithCoreSession(request, coreOnlyDetail, callback);
+                    scheduleCoreRefresh(
+                            requestId,
+                            stopped,
+                            latestLegacyDetail,
+                            pollTask,
+                            callback);
                     return;
                 }
 
@@ -103,15 +122,33 @@ public final class CoreApiBookingRepository implements BookingRepository {
                                 if (stopped.get()) {
                                     return;
                                 }
+                                latestLegacyDetail.set(legacyDetail);
                                 appointmentClient.getAppointment(
                                         request.getId(),
                                         new RepositoryCallback<AppointmentRequest>() {
                                             @Override
                                             public void onSuccess(AppointmentRequest currentRequest) {
                                                 if (!stopped.get()) {
-                                                    callback.onSuccess(replaceRequest(
+                                                    enrichWithCoreSession(
                                                             currentRequest,
-                                                            legacyDetail));
+                                                            legacyDetail,
+                                                            new RepositoryCallback<AppointmentRequestDetail>() {
+                                                                @Override
+                                                                public void onSuccess(
+                                                                        AppointmentRequestDetail result
+                                                                ) {
+                                                                    if (!stopped.get()) {
+                                                                        callback.onSuccess(result);
+                                                                    }
+                                                                }
+
+                                                                @Override
+                                                                public void onError(String message) {
+                                                                    if (!stopped.get()) {
+                                                                        callback.onError(message);
+                                                                    }
+                                                                }
+                                                            });
                                                 }
                                             }
 
@@ -132,6 +169,12 @@ public final class CoreApiBookingRepository implements BookingRepository {
                             }
                         });
                 detachListener.set(detach);
+                scheduleCoreRefresh(
+                        requestId,
+                        stopped,
+                        latestLegacyDetail,
+                        pollTask,
+                        callback);
                 if (stopped.get()) {
                     detach.run();
                 }
@@ -148,6 +191,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
         return () -> {
             stopped.set(true);
             detachListener.get().run();
+            mainHandler.removeCallbacks(pollTask.get());
         };
     }
 
@@ -258,9 +302,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
                                         new RepositoryCallback<AppointmentRequest>() {
                                             @Override
                                             public void onSuccess(AppointmentRequest request) {
-                                                callback.onSuccess(replaceRequest(
-                                                        request,
-                                                        legacyDetail));
+                                                enrichWithCoreSession(request, legacyDetail, callback);
                                             }
 
                                             @Override
@@ -308,7 +350,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
     ) {
         String legacyId = appointmentClient.getKnownLegacyFirestoreId(request.getId());
         if (legacyId.isEmpty()) {
-            callback.onSuccess(toCoreOnlyDetail(request));
+            enrichWithCoreSession(request, toCoreOnlyDetail(request), callback);
             return;
         }
         firebaseRepository.getAppointmentRequestDetail(
@@ -317,7 +359,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
                 new RepositoryCallback<AppointmentRequestDetail>() {
                     @Override
                     public void onSuccess(AppointmentRequestDetail legacyDetail) {
-                        callback.onSuccess(replaceRequest(request, legacyDetail));
+                        enrichWithCoreSession(request, legacyDetail, callback);
                     }
 
                     @Override
@@ -327,19 +369,146 @@ public final class CoreApiBookingRepository implements BookingRepository {
                 });
     }
 
-    private AppointmentRequestDetail replaceRequest(
+    private void enrichWithCoreSession(
             AppointmentRequest request,
-            AppointmentRequestDetail legacyDetail
+            AppointmentRequestDetail legacyDetail,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        CompanionSession legacySession = legacyDetail.getSession();
+        sessionClient.findSession(
+                legacySession == null ? null : legacySession.getId(),
+                appointmentClient.getKnownCoreId(request.getId()),
+                new RepositoryCallback<CoreApiCompanionSessionClient.SessionSnapshot>() {
+                    @Override
+                    public void onSuccess(
+                            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
+                    ) {
+                        if (sessionSnapshot == null) {
+                            if (legacySession != null) {
+                                callback.onError("PostgreSQL 동행 세션 정보를 찾지 못했습니다.");
+                                return;
+                            }
+                            callback.onSuccess(copyDetail(request, legacyDetail, null, null));
+                            return;
+                        }
+                        CompanionSession session = sessionSnapshot.merge(
+                                legacySession,
+                                request.getId());
+                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
+                            callback.onSuccess(copyDetail(request, legacyDetail, session, null));
+                            return;
+                        }
+                        sessionClient.getReport(
+                                sessionSnapshot,
+                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
+                                    @Override
+                                    public void onSuccess(
+                                            CoreApiCompanionSessionClient.ReportSnapshot report
+                                    ) {
+                                        callback.onSuccess(copyDetail(
+                                                request,
+                                                legacyDetail,
+                                                session,
+                                                report.toModel(session.getId())));
+                                    }
+
+                                    @Override
+                                    public void onError(String message) {
+                                        callback.onError(message);
+                                    }
+                                });
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                });
+    }
+
+    private AppointmentRequestDetail copyDetail(
+            AppointmentRequest request,
+            AppointmentRequestDetail legacyDetail,
+            @Nullable CompanionSession session,
+            @Nullable SessionReport report
     ) {
         return new AppointmentRequestDetail(
                 request,
                 legacyDetail.getPatient(),
                 legacyDetail.getGuardian(),
                 legacyDetail.getManager(),
-                legacyDetail.getSession(),
-                legacyDetail.getSessionReport(),
+                session,
+                report,
                 legacyDetail.getHospitalGuide(),
                 legacyDetail.getFollowUpRecord());
+    }
+
+    private void scheduleCoreRefresh(
+            String requestId,
+            AtomicBoolean stopped,
+            AtomicReference<AppointmentRequestDetail> latestLegacyDetail,
+            AtomicReference<Runnable> pollTask,
+            RepositoryCallback<AppointmentRequestDetail> callback
+    ) {
+        Runnable refresh = new Runnable() {
+            @Override
+            public void run() {
+                if (stopped.get()) {
+                    return;
+                }
+                AppointmentRequestDetail legacyDetail = latestLegacyDetail.get();
+                if (legacyDetail == null) {
+                    mainHandler.postDelayed(this, CORE_REFRESH_INTERVAL_MILLIS);
+                    return;
+                }
+                appointmentClient.getAppointment(
+                        requestId,
+                        new RepositoryCallback<AppointmentRequest>() {
+                            @Override
+                            public void onSuccess(AppointmentRequest request) {
+                                if (stopped.get()) {
+                                    return;
+                                }
+                                enrichWithCoreSession(
+                                        request,
+                                        legacyDetail,
+                                        new RepositoryCallback<AppointmentRequestDetail>() {
+                                            @Override
+                                            public void onSuccess(AppointmentRequestDetail result) {
+                                                if (!stopped.get()) {
+                                                    callback.onSuccess(result);
+                                                    mainHandler.postDelayed(
+                                                            pollTask.get(),
+                                                            CORE_REFRESH_INTERVAL_MILLIS);
+                                                }
+                                            }
+
+                                            @Override
+                                            public void onError(String message) {
+                                                if (!stopped.get()) {
+                                                    callback.onError(message);
+                                                    mainHandler.postDelayed(
+                                                            pollTask.get(),
+                                                            CORE_REFRESH_INTERVAL_MILLIS);
+                                                }
+                                            }
+                                        });
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                if (!stopped.get()) {
+                                    callback.onError(message);
+                                    mainHandler.postDelayed(
+                                            pollTask.get(),
+                                            CORE_REFRESH_INTERVAL_MILLIS);
+                                }
+                            }
+                        });
+            }
+        };
+        pollTask.set(refresh);
+        mainHandler.postDelayed(refresh, CORE_REFRESH_INTERVAL_MILLIS);
     }
 
     private AppointmentRequestDetail toCoreOnlyDetail(AppointmentRequest request) {

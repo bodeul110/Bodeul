@@ -14,6 +14,8 @@ import com.example.bodeul.data.firebase.FirebaseManagerRepository;
 import com.example.bodeul.data.firebase.FirebaseNotificationTokenRegistrar;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.coreapi.CoreApiBookingRepository;
+import com.example.bodeul.data.coreapi.CoreApiGuardianReportRepository;
+import com.example.bodeul.data.coreapi.CoreApiManagerRepository;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
 import com.example.bodeul.data.mock.MockCompanionChatAttachmentPreviewResolver;
@@ -72,7 +74,11 @@ public final class ServiceLocator {
         if (managerRepository == null) {
             // 매니저 기능은 같은 기준으로 Firebase 또는 목업 구현을 선택한다.
             if (FirebaseSupport.isConfigured(context)) {
-                managerRepository = new FirebaseManagerRepository(provideFirestore());
+                FirebaseManagerRepository firebaseManagerRepository =
+                        new FirebaseManagerRepository(provideFirestore());
+                managerRepository = new CoreApiManagerRepository(
+                        context.getApplicationContext(),
+                        firebaseManagerRepository);
             } else {
                 managerRepository = new MockManagerRepository(getMockBodeulRepository());
             }
@@ -154,9 +160,13 @@ public final class ServiceLocator {
 
     public static synchronized GuardianReportRepository provideGuardianReportRepository(Context context) {
         if (guardianReportRepository == null) {
-            // 보호자 진행 현황 화면은 같은 기준으로 Firebase 또는 목업 구현을 고른다.
+            // 예약·세션·리포트 원본은 Core API로 읽고 아직 남은 보조 데이터만 Firebase에서 합성한다.
             if (FirebaseSupport.isConfigured(context)) {
-                guardianReportRepository = new FirebaseGuardianReportRepository(provideFirestore());
+                FirebaseGuardianReportRepository firebaseGuardianReportRepository =
+                        new FirebaseGuardianReportRepository(provideFirestore());
+                guardianReportRepository = new CoreApiGuardianReportRepository(
+                        context.getApplicationContext(),
+                        firebaseGuardianReportRepository);
             } else {
                 guardianReportRepository = new MockGuardianReportRepository(getMockBodeulRepository());
             }
