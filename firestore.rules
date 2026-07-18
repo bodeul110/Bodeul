@@ -121,10 +121,6 @@ service cloud.firestore {
           );
     }
 
-    function affectedOnly(allowedKeys) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys);
-    }
-
     function affectedAny(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }

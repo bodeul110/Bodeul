@@ -1,8 +1,8 @@
 # 데이터 / API 초안
 
-기준: 2026-04-15
+기준: 2026-07-19 (2026-04-15 초안 이력 포함)
 
-이 문서는 현재 구현과 다음 서버 작업을 맞추기 위한 초안이다.
+이 문서는 초기 데이터·API 초안과 날짜별 전환 이력을 함께 보관한다. 현재 예약·세션·채팅·위치 계약은 [예약 Core API 전환 계약](appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)을 우선한다.
 
 ## 엔티티
 
@@ -463,7 +463,7 @@
   - `version`과 함께 `reviewRatingCode`, `settlementFollowUpStatus`·`settlementFollowUpNote`, `supportEscalationStatus` 중 저장할 필드만 보낸다.
   - 다른 요청이 먼저 저장해 version이 달라지면 `409 appointment_version_conflict`를 반환한다.
 - Core API는 Firebase ID token, App Check, PostgreSQL 사용자 role과 예약 참여 관계를 검증한 뒤 지정 열만 갱신한다.
-- 채팅·첨부·위치 공유는 이 계약에 포함하지 않으며 #221 전환 전까지 Firestore에 남는다.
+- 이 후속 처리 계약은 채팅·첨부·위치 공유를 포함하지 않는다. 해당 경로는 #221에서 Core API·PostgreSQL로 전환했고 세부 계약은 [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)을 따른다.
 
 ### 2026-04-23 관리자 운영 필터/우선순위 메모
 

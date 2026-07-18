@@ -1,12 +1,12 @@
 # DB 선택 근거
 
-기준일: 2026-07-18
+기준일: 2026-07-19
 
-BoDeul의 초기 MVP는 Cloud Firestore를 주 저장소로 사용했다. 현재 운영 목표는 `Spring Core API + Next.js 관리자 서버 + 공용 Supabase PostgreSQL`이며 Firebase는 Auth, FCM, App Check와 Storage만 유지한다.
+BoDeul의 초기 MVP는 Cloud Firestore를 주 저장소로 사용했다. 현재 운영 목표는 `Spring Core API + Next.js 관리자 서버 + 공용 Supabase PostgreSQL`이며 Firebase는 Auth, FCM, App Check, Storage, 결합 Functions와 인증 프로필·지원·서류 데이터만 유지한다.
 
-2026-07-18 기준 production PostgreSQL과 복원 기반은 준비됐고, Android 업무 쓰기는 아직 Firestore에 남아 있다. 이 문서의 Firestore 비교는 초기 선택 기록이며, 운영 전환 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+2026-07-19 기준 개발 Android의 예약·매칭·동행·리포트·후속 처리·채팅·읽음·위치 쓰기는 Core API와 PostgreSQL로 전환했다. production PostgreSQL과 복원 기반은 준비했지만 사용자 트래픽 전환은 연말 승인 전까지 보류한다. 이 문서의 Firestore 비교는 초기 선택 기록이며, 운영 전환 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
 
-## 판단 기준
+## 초기 판단 기준
 
 - Android 앱과 관리자 웹이 같은 사용자, 예약, 동행, 리포트, 문의 데이터를 읽고 써야 한다.
 - 환자, 보호자, 매니저, 관리자 역할별 접근 경계가 Firestore Rules와 Storage Rules로 표현 가능해야 한다.
@@ -31,7 +31,7 @@ BoDeul의 초기 MVP는 Cloud Firestore를 주 저장소로 사용했다. 현재
 - 관리자 웹도 Firebase Auth 로그인 뒤 Firestore와 Storage를 직접 읽는 구조라 별도 관리자 API 서버가 필요하지 않다.
 - 운영 도구는 `tools/firebase`에서 REST 기반으로 상태 점검, 백업, 복원, 리포트를 수행하므로 같은 데이터 계약을 재사용할 수 있다.
 
-## 보완 기준
+## 초기 보완 기준
 
 - 서버 검증이 필요한 작업은 Cloud Functions callable 또는 Firestore trigger로 이동한다.
 - 역할 권한은 현재 `users/{uid}.role` 문서 필드와 Rules 함수로 검증한다. Custom claims는 현재 사용하지 않으며, 관리자 수가 늘거나 Rules role read 비용과 전파 정책을 더 엄격히 관리해야 할 때 전환 후보로 둔다.
