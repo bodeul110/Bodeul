@@ -1,8 +1,8 @@
 # 시스템 아키텍처 다이어그램
 
-기준일: 2026-07-17
+기준일: 2026-07-19
 
-개발 환경에서 실제 검증한 서버 경계와 아직 전환 중인 데이터 경계를 함께 표시한다.
+개발 환경에서 실제 검증한 서버·데이터 경계와 production 전환 전 상태를 함께 표시한다.
 
 ```mermaid
 flowchart LR
@@ -19,7 +19,7 @@ flowchart LR
 
   subgraph Firebase["Firebase 유지"]
     Auth["Authentication"]
-    Firestore["Firestore\n전환 전 source of truth"]
+    Firestore["Firestore\n인증 프로필·지원·서류\nrollback 비교"]
     Storage["Storage"]
     Functions["Functions"]
     FCM["FCM"]
@@ -31,6 +31,8 @@ flowchart LR
     CoreRole["core runtime role"]
     Migration["migration role"]
   end
+
+  Realtime["Supabase Realtime\nprivate Broadcast"]
 
   Kakao["Kakao Local REST"]
 
@@ -48,11 +50,15 @@ flowchart LR
   CoreRole --> Schema
   Migration --> Schema
   Spring --> Kakao
-  Android --> Firestore
+  Schema --> Realtime
+  Realtime --> Android
+  Android -->|"비이전 Firebase 기능"| Firestore
+  Spring -->|"기기 token read"| Firestore
   Next --> Storage
   Android --> Storage
   Firestore --> Functions
   Functions --> FCM
+  Spring --> FCM
   FCM --> Android
 ```
 
@@ -60,8 +66,9 @@ flowchart LR
 
 - 관리자 서버와 Core API는 서로를 호출하지 않고 같은 DB에 별도 role로 접근한다.
 - DB migration은 메인 저장소의 Spring 모듈만 소유한다.
-- Firebase Auth, FCM, Storage는 유지한다.
-- Firestore는 도메인별 전환이 끝날 때까지 남으며, PostgreSQL read model이 있다고 바로 source of truth가 바뀌는 것은 아니다.
+- Firebase Auth, FCM, Storage와 결합 Functions는 유지한다.
+- 개발 업무 원본은 PostgreSQL이며 Firestore 업무 쓰기는 차단했다. Firestore는 인증 프로필·지원·서류와 rollback 비교 자료에만 남는다.
+- 채팅·위치는 PostgreSQL에 영속 저장하고 private Broadcast는 변경 신호만 보낸다. 재연결 뒤 Core API snapshot을 다시 읽는다.
 - Android의 Kakao 로그인·지도 SDK는 클라이언트에 남지만 Kakao Local REST는 Core API 뒤에 둔다.
 - production 프로젝트와 DB schema 분리는 완료했지만 아직 사용자 트래픽을 연결하지 않았다. 이 다이어그램은 검증된 개발 경계와 출시 전 production 목표를 함께 나타낸다.
 

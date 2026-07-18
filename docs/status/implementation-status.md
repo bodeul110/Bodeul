@@ -1,6 +1,6 @@
 # 구현 상태
 
-기준: 2026-07-18
+기준: 2026-07-19
 
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
@@ -70,7 +70,7 @@
 ## 2. 현재 구조 기준
 
 - Android 앱은 `Java + XML` 기반이며 `Activity -> Coordinator -> Binder -> ScreenModel/Formatter -> Repository` 경계를 유지한다.
-- 예약·취소·동행 상태·리포트·후속 처리는 `ServiceLocator`가 Core API 저장소를 선택하고, 인증·매니저 서류·지원 기능과 #221 전환 전 채팅·위치는 Firebase 저장소를 합성한다. Firebase 미설정 환경은 Mock 저장소를 사용한다.
+- 예약·취소·동행 상태·리포트·후속 처리와 채팅·읽음·위치는 `ServiceLocator`가 Core API 저장소를 선택한다. 인증·매니저 서류·지원 기능은 Firebase 저장소를 사용하고, Firebase 미설정 환경은 Mock 저장소를 사용한다.
 - `functions/index.js`는 `initializeApp()`과 모듈 export 집계만 맡고, 실제 함수는 `functions/src/` 아래 기능별 파일로 분리돼 있다.
 - 관리자 앱의 주요 섹션은 `SectionController`와 기능별 Firebase store로 분리돼 있다.
 - 관리자 웹은 인증 화면, 셸, 심사 목록, 심사 모달, 유휴 세션 훅, 미리보기 훅으로 분리돼 있다.
@@ -82,13 +82,13 @@
 - OCR 기반 처방전/약봉투 인식과 자동 복약 비교
 - 건강정보 별도 프로필 영속 저장
 - 실운영용 카카오 알림톡/외부 메시지 채널 연동값 확정
-- App Check 강제 적용, production PostgreSQL 업무 migration, 채팅·위치 Supabase Realtime 전환
+- App Check 강제 적용, production PostgreSQL 업무 migration, Core-only 세션 첨부 권한 이전과 보관 자료 일일 파기
 
 ## 4. 검증 기준
 
 - 새 기능 또는 동작 변경 후 기본 검증은 `.\gradlew.bat assembleDebug`로 한다.
 - 영향 범위가 테스트에 걸리면 `.\gradlew.bat testDebugUnitTest`를 함께 실행한다.
-- 관리자 웹 변경은 `npm --prefix admin-web run lint`와 `npm --prefix admin-web run build`를 함께 본다.
+- 관리자 웹 변경은 별도 `bodeul-admin-web` 저장소의 현재 package script와 CI 기준을 따른다.
 - 문서 전용 변경은 Markdown 링크와 프로젝트 기준 문서 정합성을 우선 확인한다.
 
 ## 5. 최근 세부 기록 위치
@@ -3592,20 +3592,23 @@
 - Android 채팅·읽음·위치와 실시간 공유 상태 쓰기를 Core API로 전환했다.
 - Firebase ID token private WebSocket 구독, 25초 heartbeat, 45분 token 재연결, 최대 30초 지수 backoff와 snapshot 재조회를 추가했다.
 - Flyway V12에 실시간 위치 공유와 자동 위치 알림 운영 상태를 추가하고 Core runtime의 지정 컬럼 쓰기만 허용했다.
-- Core API는 PostgreSQL commit 이후 민감 본문·좌표가 없는 FCM 보조 알림을 비동기로 전송한다.
+- Core API는 PostgreSQL `AFTER_COMMIT` 이후 같은 요청 안에서 민감 본문·좌표가 없는 FCM 보조 알림을 전송한다.
 - Firestore `companionSessions`는 참여자 읽기만 유지하고 client 쓰기를 모두 거부하도록 Rules와 emulator 검증을 바꿨다.
 
-### 로컬 검증
+### 검증
 
 - Core API 전체 `check` 통과
 - Android `assembleDebug` 통과
 - Firestore·Storage Rules emulator 7개 시나리오 통과
 - 개발 Supabase transaction 안에서 V12 적용·rollback과 잔여 컬럼 0개 확인
+- 개발 DB migration run `29650223504`와 Cloud Run Preview deploy run `29651623086` 통과
+- 최신 리비전 `bodeul-core-api-preview-00014-wnr`에서 health 200, 무인증 auth/place 401 확인
+- 실제 세션 채팅·읽음·위치·재연결 통과, FCM 1/1 성공과 SM-S921N 알림 생성 확인
+- private Realtime 10/10 join, Core API 메시지 200·436ms, Broadcast 10/10 수신 확인
+- Supabase Security Advisor 0건, 운영 목표 Pro 포함량 안의 개발 부하임을 확인
 
 ### 남은 범위
 
-- 개발 DB V12, Cloud Run preview와 Firestore Rules 실제 적용
-- Cloud Run runtime Firestore read-only·FCM 발송 IAM 적용
-- 실기기 채팅·위치·재연결·FCM 종단 검증과 Realtime 사용량 확인
-- Firestore 보조 문서가 없는 Core-only 세션 첨부의 서버 중계 또는 서명 URL 구현
+- #251 Firestore 보조 문서가 없는 Core-only 세션 첨부의 서버 중계 또는 서명 URL 구현
+- FCM 재시도·실패율 관측, release App Check enforce 검증
 - production 적용과 #222 일일 파기

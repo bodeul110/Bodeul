@@ -1,6 +1,6 @@
 # 매칭·동행·리포트 PostgreSQL 전환 계약
 
-기준일: 2026-07-18
+기준일: 2026-07-19
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -47,7 +47,7 @@
 
 `nextVisitAt`에는 날짜와 자유 텍스트가 혼재한다. PostgreSQL에서는 정규화 가능한 시각을 `next_visit_at`에, 원문을 `next_visit_note`에 보관해 기존 데이터를 잃지 않는다.
 
-V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각을 받을 PostgreSQL 계약을 추가한다. V10은 Core API 쓰기 결과 trigger를 추가하고 V11은 managed Realtime table 권한을 migration role에 주지 않는 privileged publisher로 발행 경계를 좁힌다. 개발 환경의 Firebase Third-Party Auth, private channel RLS와 private-only 설정은 검증을 마쳤다. 앱의 기존 값은 자동 백필하지 않으며 Android 경로가 전환되기 전까지 Firestore legacy 경로에 남는다. 전환 뒤 새 쓰기는 PostgreSQL만 사용하고 Realtime 이벤트는 커밋 결과 알림으로만 사용한다.
+V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각을 받을 PostgreSQL 계약을 추가한다. V10은 Core API 쓰기 결과 trigger를 추가하고 V11은 managed Realtime table 권한을 migration role에 주지 않는 privileged publisher로 발행 경계를 좁힌다. V12는 실시간 위치 공유와 자동 알림 운영 상태를 추가한다. 개발 환경의 Firebase Third-Party Auth, private channel RLS와 private-only 설정을 검증했고 Android 새 쓰기는 PostgreSQL만 사용한다. 기존 Firestore 값은 자동 백필하지 않으며 rollback 비교 자료로만 남긴다. Realtime 이벤트는 커밋 결과 알림으로만 사용한다.
 
 ## 채팅·위치 저장 계약
 
@@ -105,8 +105,8 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
-- 채팅, 첨부, 위치 좌표·이력·읽음 시각은 Core API 계약, V10·V11 Broadcast publisher와 개발 private channel 인가까지 구현했다. Android 전환 전까지 실제 화면은 Firestore에 남기며 서버 구현만으로 앱 경로가 바뀐 것으로 간주하지 않는다.
-- Firestore Rules는 예약·세션 진행·리포트·후속 처리 쓰기를 거부한다. Android 전환 전까지 기존 `companionSessions` 문서의 채팅·위치·읽음 쓰기는 임시로 유지하며 전환 PR에서 함께 차단한다.
+- 채팅, 첨부 metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 화면은 private Broadcast를 변경 신호로 받고 진입·재연결·이벤트 수신 때 Core API snapshot으로 복구한다.
+- Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 읽는다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
 - 병원 가이드는 현재 Android 공통 fallback을 사용한다. PostgreSQL 병원 가이드 상세 응답 전환은 별도 범위이며, 세션의 서버 단계 수와 진행 제한은 계속 Core API가 판정한다.
@@ -127,11 +127,12 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 
 ## 리스크와 전환 조건
 
-- V5 적용만으로 source of truth가 바뀌지는 않는다. Core API와 관리자 서버가 PostgreSQL을 사용하고 Android의 대응 Firestore 쓰기가 중지돼야 전환 완료다.
+- 개발 환경은 Core API와 관리자 서버가 PostgreSQL을 사용하고 Android의 대응 Firestore 쓰기를 중지해 전환 조건을 충족했다. production은 같은 migration과 역할별 종단 검증을 통과해야 전환 완료로 본다.
 - 기존 배정의 관리자 actor는 Firestore에 없으므로 감사 기록을 추정해 만들지 않는다. 전환 이후 배정부터 기록한다.
-- 채팅과 위치가 Firestore에 남는 동안 세션 화면은 두 저장소를 합성한다. 한쪽 장애 시 부분 정보가 보일 수 있다.
+- 기존 Firestore 세션 문서는 rollback 비교 자료로 남아 있으므로 운영 화면이 이를 업무 원본으로 다시 사용하지 않는지 회귀 검증한다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
 - V6 Core 쓰기 권한은 개발 DB migration run `29639792606`에서 검증했다. Cloud Run Preview run `29639915209` 이후 실제 Firebase token으로 환자·보호자·매니저 목록 200, 관리자 목록 403, 환자 수정 403, 매니저 version 충돌 409를 확인했다.
 - V7은 PostgreSQL 17 임시 인스턴스의 V1~V7 연속 적용과 개발 DB migration run `29642658596`을 통과했다. Core runtime의 후속 처리 생성·부분 수정은 version을 증가시키고 오래된 version 수정을 차단하며 `anon`, `authenticated`, `service_role`에는 권한이 없다. Preview 리비전 `00011-tp4`에서 환자 실기기 GET·PATCH 7건 200과 App Check `valid`, actor 일치를 확인했다.
 - Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. Preview 리비전 `00012-tqv`에서는 Firestore 예약·세션 문서가 0건인 임시 Core-only 배정을 매니저 홈, 보호자 리포트, 환자 예약 상세에서 모두 확인했다. 관련 API 요청은 모두 200이고 App Check 판정은 `valid`였다.
-- 개발 Rules emulator에서 예약·세션·리포트·후속 처리의 클라이언트 업무 쓰기 거부와 기존 세션 채팅·위치 허용을 7개 시나리오로 검증했다. Android 관리자 앱의 Firestore 직접 배정은 더 이상 운영 경로가 아니며 별도 관리자 웹 서버 API를 사용한다.
+- 개발 Rules emulator에서 예약·세션·리포트·후속 처리와 기존 세션 채팅·위치의 클라이언트 업무 쓰기 거부를 7개 시나리오로 검증했다. Android 관리자 앱의 Firestore 직접 배정은 더 이상 운영 경로가 아니며 별도 관리자 웹 서버 API를 사용한다.
+- 개발 DB V12 migration run `29650223504`, Cloud Run Preview deploy run `29651623086`과 개발 Firestore Rules 배포를 완료했다. 실제 세션의 채팅·읽음·위치·재연결, FCM 실기기 알림과 private Realtime 10개 동시 연결·10/10 Broadcast 수신을 확인했다.

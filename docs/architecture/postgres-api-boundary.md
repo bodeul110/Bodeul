@@ -58,7 +58,7 @@ App Check는 이 흐름을 대체하지 않는다. App Check가 유효해도 ID 
 
 병원 가이드 관리자 조회와 매니저 배정, Android 예약·동행·리포트·후속 처리 쓰기는 이 경계를 실제 검증했다. 개발 환경에서 해당 도메인은 PostgreSQL이 source of truth이고 Firestore Rules는 업무 쓰기를 거부한다. 채팅·읽음·위치 쓰기와 실시간 위치 운영 상태도 Core API와 PostgreSQL로 옮겼으며, Supabase private Broadcast는 커밋 신호만 전달하고 Android가 Core API snapshot을 다시 조회한다.
 
-FCM 기기 토큰은 Firebase 인증·메시징 보조 데이터로 Firestore `users` 문서에 유지한다. Core API는 PostgreSQL 커밋 이후 토큰을 읽어 고정 안내만 발송하며 채팅 본문과 좌표는 FCM이나 운영 로그에 넣지 않는다. 기존 Firebase Storage 채팅 첨부는 Storage Rules가 legacy Firestore 세션 ID로 참여자를 확인하므로, 기존 세션만 이 경로를 유지한다. Firestore 보조 문서가 없는 Core-only 세션 첨부는 서버 중계 또는 서명 URL 경계를 구현하기 전까지 지원하지 않는다.
+FCM 기기 토큰은 Firebase 인증·메시징 보조 데이터로 Firestore `users` 문서에 유지한다. Core API는 PostgreSQL 커밋 이후 토큰을 읽어 고정 안내만 발송하며 채팅 본문과 좌표는 FCM이나 운영 로그에 넣지 않는다. 기존 Firebase Storage 채팅 첨부는 Storage Rules가 legacy Firestore 세션 ID로 참여자를 확인하므로, 기존 세션만 이 경로를 유지한다. Firestore 보조 문서가 없는 Core-only 세션 첨부는 #251의 서버 중계 또는 서명 URL 경계를 구현하기 전까지 지원하지 않는다.
 
 ## 금지하는 구조
 
