@@ -8,8 +8,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
@@ -18,6 +20,7 @@ import com.bodeul.core.session.CompanionSessionRepository.ReportRecord;
 import com.bodeul.core.session.CompanionSessionRepository.SessionPatch;
 import com.bodeul.core.session.CompanionSessionRepository.SessionRecord;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,11 +34,17 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     private static final Set<String> TERMINAL_STATUSES = Set.of("COMPLETED", "CANCELED");
     private static final Set<String> MEDICATION_DECISIONS = Set.of(
             "", "MATCHED", "CHANGED", "RECHECK_REQUIRED");
+    private static final Set<String> LOCATION_ALERT_STAGES = Set.of(
+            "none", "hospital_near", "pharmacy_near");
 
     private final CompanionSessionRepository sessionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    DefaultCompanionSessionService(CompanionSessionRepository sessionRepository) {
+    DefaultCompanionSessionService(
+            CompanionSessionRepository sessionRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.sessionRepository = sessionRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -83,11 +92,25 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 normalizeOptional(command.pharmacySummary(), 2_000, "약국 처리 요약"),
                 command.prescriptionCollected(),
                 command.pharmacyCompleted(),
-                command.medicationGuidanceCompleted());
+                command.medicationGuidanceCompleted(),
+                command.liveLocationSharingActive(),
+                normalizeLocationAlertStage(command.locationAlertStage()));
 
-        return sessionRepository.updateDetails(sessionId, appUser.id(), command.version(), patch)
-                .map(this::toView)
+        SessionRecord updated = sessionRepository
+                .updateDetails(sessionId, appUser.id(), command.version(), patch)
                 .orElseThrow(CompanionSessionException::versionConflict);
+        if (patch.locationAlertStage() != null
+                && !Objects.equals(existing.locationAlertStage(), updated.locationAlertStage())) {
+            eventPublisher.publishEvent(new CompanionLocationAlertChangedEvent(
+                    updated.id(),
+                    updated.appointmentRequestId(),
+                    updated.locationAlertStage(),
+                    Stream.of(updated.patientUserId(), updated.guardianUserId())
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .toList()));
+        }
+        return toView(updated);
     }
 
     @Override
@@ -228,7 +251,20 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 && command.pharmacySummary() == null
                 && command.prescriptionCollected() == null
                 && command.pharmacyCompleted() == null
-                && command.medicationGuidanceCompleted() == null;
+                && command.medicationGuidanceCompleted() == null
+                && command.liveLocationSharingActive() == null
+                && command.locationAlertStage() == null;
+    }
+
+    private String normalizeLocationAlertStage(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (!LOCATION_ALERT_STAGES.contains(normalized)) {
+            throw CompanionSessionException.invalidRequest("위치 알림 단계를 확인해 주세요.");
+        }
+        return normalized;
     }
 
     private String normalizeOptional(String value, int maxLength, String label) {
@@ -298,6 +334,10 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 session.prescriptionCollected(),
                 session.pharmacyCompleted(),
                 session.medicationGuidanceCompleted(),
+                session.liveLocationSharingActive(),
+                format(session.liveLocationSharingStartedAt()),
+                session.locationAlertStage(),
+                format(session.locationAlertSentAt()),
                 session.version(),
                 format(session.startedAt()),
                 format(session.completedAt()),

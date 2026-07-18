@@ -5,8 +5,10 @@ import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
@@ -19,6 +21,7 @@ import com.bodeul.core.session.CompanionRealtimeRepository.MessageMutation;
 import com.bodeul.core.session.CompanionRealtimeRepository.ReadReceiptRecord;
 import com.bodeul.core.session.CompanionSessionRepository.SessionRecord;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,12 +39,15 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
 
     private final CompanionSessionRepository sessionRepository;
     private final CompanionRealtimeRepository realtimeRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     DefaultCompanionRealtimeService(
             CompanionSessionRepository sessionRepository,
-            CompanionRealtimeRepository realtimeRepository) {
+            CompanionRealtimeRepository realtimeRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.sessionRepository = sessionRepository;
         this.realtimeRepository = realtimeRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -64,7 +70,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                         .toList(),
                 realtimeRepository.findReadReceipts(sessionId)
                         .stream()
-                        .map(this::toView)
+                        .map(receipt -> toView(receipt, participantRole(receipt.userId(), session)))
                         .toList(),
                 locations);
     }
@@ -77,10 +83,18 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             PostMessageCommand command) {
         SessionRecord session = requireReadableSession(appUser, sessionId);
         requireActive(session);
-        MessageMutation mutation = normalizeMessage(appUser, sessionId, command);
+        MessageMutation mutation = normalizeMessage(appUser, session, command);
         CompanionRealtimeRepository.MessageSaveResult saved = realtimeRepository.saveMessage(mutation);
         if (!messageMatches(saved.message(), mutation)) {
             throw CompanionSessionException.idempotencyConflict();
+        }
+        if (saved.created()) {
+            eventPublisher.publishEvent(new CompanionChatMessageCreatedEvent(
+                    session.id(),
+                    session.appointmentRequestId(),
+                    saved.message().senderRole(),
+                    saved.message().sentAt(),
+                    recipientUserIds(session, saved.message().senderUserId())));
         }
         return toView(saved.message());
     }
@@ -96,7 +110,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             throw CompanionSessionException.invalidRequest("마지막으로 읽은 메시지 ID가 필요합니다.");
         }
         return realtimeRepository.upsertReadReceipt(sessionId, appUser.id(), lastReadMessageId)
-                .map(this::toView)
+                .map(receipt -> toView(receipt, appUser.role().name()))
                 .orElseThrow(CompanionSessionException::chatMessageNotFound);
     }
 
@@ -118,7 +132,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
 
     private MessageMutation normalizeMessage(
             AppUserRepository.AppUser appUser,
-            UUID sessionId,
+            SessionRecord session,
             PostMessageCommand command) {
         if (command == null || command.clientMessageId() == null) {
             throw CompanionSessionException.invalidRequest("메시지 재시도 식별자가 필요합니다.");
@@ -131,7 +145,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             throw CompanionSessionException.invalidRequest("첨부 파일은 메시지당 3개까지 등록할 수 있습니다.");
         }
         List<AttachmentMutation> attachments = commands.stream()
-                .map(commandItem -> normalizeAttachment(sessionId, commandItem))
+                .map(commandItem -> normalizeAttachment(session, commandItem))
                 .toList();
         if (body.isBlank() && attachments.isEmpty()) {
             throw CompanionSessionException.invalidRequest("메시지 또는 첨부 파일이 필요합니다.");
@@ -141,7 +155,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             throw CompanionSessionException.invalidRequest("같은 첨부 파일 경로를 중복 등록할 수 없습니다.");
         }
         return new MessageMutation(
-                sessionId,
+                session.id(),
                 command.clientMessageId(),
                 appUser.id(),
                 appUser.role().name(),
@@ -149,13 +163,20 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                 attachments);
     }
 
-    private AttachmentMutation normalizeAttachment(UUID sessionId, AttachmentCommand command) {
+    private AttachmentMutation normalizeAttachment(SessionRecord session, AttachmentCommand command) {
         if (command == null) {
             throw CompanionSessionException.invalidRequest("첨부 파일 정보를 확인해 주세요.");
         }
         String storagePath = normalizeRequired(command.storagePath(), 1_024, "첨부 파일 경로");
-        String prefix = "companion-chat-attachments/" + sessionId + "/";
-        String suffix = storagePath.startsWith(prefix) ? storagePath.substring(prefix.length()) : "";
+        String corePrefix = "companion-chat-attachments/" + session.id() + "/";
+        String legacyPrefix = session.firestoreId() == null || session.firestoreId().isBlank()
+                ? ""
+                : "companion-chat-attachments/" + session.firestoreId() + "/";
+        String suffix = storagePath.startsWith(corePrefix)
+                ? storagePath.substring(corePrefix.length())
+                : (!legacyPrefix.isEmpty() && storagePath.startsWith(legacyPrefix)
+                        ? storagePath.substring(legacyPrefix.length())
+                        : "");
         boolean invalidSegment = suffix.isBlank()
                 || storagePath.indexOf('\\') >= 0
                 || storagePath.contains("//")
@@ -334,11 +355,36 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                 attachment.sizeBytes());
     }
 
-    private ReadReceiptView toView(ReadReceiptRecord receipt) {
+    private ReadReceiptView toView(ReadReceiptRecord receipt, String userRole) {
         return new ReadReceiptView(
                 receipt.userId(),
+                userRole,
                 receipt.lastReadMessageId(),
                 format(receipt.lastReadAt()));
+    }
+
+    private String participantRole(UUID userId, SessionRecord session) {
+        if (userId.equals(session.patientUserId())) {
+            return AppUserRole.PATIENT.name();
+        }
+        if (userId.equals(session.guardianUserId())) {
+            return AppUserRole.GUARDIAN.name();
+        }
+        if (userId.equals(session.managerUserId())) {
+            return AppUserRole.MANAGER.name();
+        }
+        throw CompanionSessionException.permissionDenied();
+    }
+
+    private List<UUID> recipientUserIds(SessionRecord session, UUID senderUserId) {
+        return Stream.of(
+                        session.patientUserId(),
+                        session.guardianUserId(),
+                        session.managerUserId())
+                .filter(Objects::nonNull)
+                .filter(userId -> !userId.equals(senderUserId))
+                .distinct()
+                .toList();
     }
 
     private LocationView toView(LocationRecord location) {

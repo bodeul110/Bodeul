@@ -82,6 +82,14 @@ public final class CompanionChatAttachmentUploadPolicy {
         return normalizeText(MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
     }
 
+    public static long resolveFileSize(ContentResolver resolver, Uri fileUri) {
+        UploadFileSizePolicy.Result result = UploadFileSizePolicy.validate(
+                resolver,
+                fileUri,
+                MAX_FILE_SIZE_BYTES);
+        return result.isUnknown() || result.isTooLarge() ? 0L : result.getFileSizeBytes();
+    }
+
     private static boolean isAllowedContentType(String contentType) {
         if (TextUtils.isEmpty(contentType)) {
             return false;

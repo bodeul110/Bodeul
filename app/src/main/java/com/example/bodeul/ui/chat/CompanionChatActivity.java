@@ -30,6 +30,7 @@ import com.example.bodeul.data.CompanionChatAttachmentUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.firebase.CompanionChatPushContract;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
@@ -105,7 +106,8 @@ public class CompanionChatActivity extends AppCompatActivity {
                 bookingRepository,
                 managerRepository,
                 attachmentUploader,
-                coordinator
+                coordinator,
+                new SupabaseCompanionRealtimeSubscriber(this)
         );
         viewModel = new ViewModelProvider(this, factory).get(CompanionChatViewModel.class);
 

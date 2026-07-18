@@ -53,6 +53,9 @@ public final class MockCompanionChatAttachmentUploader implements CompanionChatA
                 fileName,
                 contentType,
                 uploadedAtMillis,
+                CompanionChatAttachmentUploadPolicy.resolveFileSize(
+                        appContext.getContentResolver(),
+                        fileUri),
                 fileUri.toString()
         ));
     }

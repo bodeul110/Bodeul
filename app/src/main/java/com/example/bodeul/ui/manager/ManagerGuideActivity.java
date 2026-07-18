@@ -22,6 +22,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.data.map.HospitalMapCoordinateQuery;
 import com.example.bodeul.data.map.HospitalMapCoordinateResult;
 import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
@@ -104,7 +105,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         ManagerGuideViewModel.Factory factory = new ManagerGuideViewModel.Factory(
-                authRepository, managerRepository, coordinator
+                authRepository,
+                managerRepository,
+                coordinator,
+                new SupabaseCompanionRealtimeSubscriber(this)
         );
         viewModel = new ViewModelProvider(this, factory).get(ManagerGuideViewModel.class);
 

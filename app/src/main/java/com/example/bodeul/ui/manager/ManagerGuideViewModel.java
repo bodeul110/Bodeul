@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.User;
@@ -74,15 +75,23 @@ public class ManagerGuideViewModel extends ViewModel {
     private final AuthRepository authRepository;
     private final ManagerRepository managerRepository;
     private final ManagerGuideCoordinator coordinator;
+    private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
 
     private User currentUser;
     private boolean liveLocationShareInFlight = false;
     private PendingLocationUpdate pendingLiveLocationUpdate;
+    private String subscribedSessionId = "";
 
-    public ManagerGuideViewModel(AuthRepository authRepository, ManagerRepository managerRepository, ManagerGuideCoordinator coordinator) {
+    public ManagerGuideViewModel(
+            AuthRepository authRepository,
+            ManagerRepository managerRepository,
+            ManagerGuideCoordinator coordinator,
+            SupabaseCompanionRealtimeSubscriber realtimeSubscriber
+    ) {
         this.authRepository = authRepository;
         this.managerRepository = managerRepository;
         this.coordinator = coordinator;
+        this.realtimeSubscriber = realtimeSubscriber;
     }
 
     public void reload() {
@@ -119,6 +128,7 @@ public class ManagerGuideViewModel extends ViewModel {
         managerRepository.getManagerDashboard(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                ensureRealtimeSubscription(result);
                 bindDashboard(result);
             }
 
@@ -142,6 +152,23 @@ public class ManagerGuideViewModel extends ViewModel {
                 dashboard,
                 managerRepository.isFirebaseBacked()
         )));
+    }
+
+    private void ensureRealtimeSubscription(ManagerDashboard dashboard) {
+        String sessionId = dashboard == null || dashboard.getSession() == null
+                ? ""
+                : dashboard.getSession().getRealtimeSessionId();
+        if (sessionId.isEmpty() || sessionId.equals(subscribedSessionId)) {
+            return;
+        }
+        subscribedSessionId = sessionId;
+        realtimeSubscriber.subscribe(sessionId, this::loadDashboard);
+    }
+
+    @Override
+    protected void onCleared() {
+        realtimeSubscriber.stop();
+        super.onCleared();
     }
 
     public void advanceStep() {
@@ -532,11 +559,18 @@ public class ManagerGuideViewModel extends ViewModel {
         private final AuthRepository authRepository;
         private final ManagerRepository managerRepository;
         private final ManagerGuideCoordinator coordinator;
+        private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
 
-        public Factory(AuthRepository authRepository, ManagerRepository managerRepository, ManagerGuideCoordinator coordinator) {
+        public Factory(
+                AuthRepository authRepository,
+                ManagerRepository managerRepository,
+                ManagerGuideCoordinator coordinator,
+                SupabaseCompanionRealtimeSubscriber realtimeSubscriber
+        ) {
             this.authRepository = authRepository;
             this.managerRepository = managerRepository;
             this.coordinator = coordinator;
+            this.realtimeSubscriber = realtimeSubscriber;
         }
 
         @androidx.annotation.NonNull
@@ -544,7 +578,11 @@ public class ManagerGuideViewModel extends ViewModel {
         @SuppressWarnings("unchecked")
         public <T extends ViewModel> T create(@androidx.annotation.NonNull Class<T> modelClass) {
             if (modelClass.isAssignableFrom(ManagerGuideViewModel.class)) {
-                return (T) new ManagerGuideViewModel(authRepository, managerRepository, coordinator);
+                return (T) new ManagerGuideViewModel(
+                        authRepository,
+                        managerRepository,
+                        coordinator,
+                        realtimeSubscriber);
             }
             throw new IllegalArgumentException("Unknown ViewModel class");
         }

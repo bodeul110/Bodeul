@@ -4,6 +4,8 @@
 
 ## 최신 점검
 
+- [Issue 221 Android Realtime 전환 4단계 (2026-07-18)](issue-221-android-realtime-phase-4-2026-07-18.md)
+- [Issue 221 Firebase JWT와 private Realtime 인가 3단계 (2026-07-18)](issue-221-realtime-auth-phase-3-2026-07-18.md)
 - [Issue 221 채팅·위치 Core API와 Broadcast 2단계 (2026-07-18)](issue-221-realtime-api-phase-2-2026-07-18.md)
 - [Issue 221 채팅·위치 PostgreSQL 스키마 1단계 (2026-07-18)](issue-221-realtime-schema-phase-1-2026-07-18.md)
 - [Issue 220 Firestore 업무 쓰기 경계 전환 (2026-07-18)](issue-220-firestore-write-boundary-2026-07-18.md)

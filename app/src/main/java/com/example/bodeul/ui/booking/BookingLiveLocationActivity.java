@@ -23,6 +23,7 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.data.map.HospitalMapCoordinateQuery;
 import com.example.bodeul.data.map.HospitalMapCoordinateResult;
 import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
@@ -79,8 +80,11 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private String requestId;
     private AppointmentRequestDetail currentDetail;
+    private User currentUser;
     private Runnable detailObserverRegistration;
     private KakaoLocalPlaceSearchClient placeSearchClient;
+    private SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
+    private String subscribedSessionId = "";
 
     private MapView mapView;
     private KakaoMap kakaoMap;
@@ -109,6 +113,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
         bookingRepository = ServiceLocator.provideBookingRepository(this);
         coordinator = new BookingLiveLocationCoordinator(this, new BookingPresentationFormatter(this));
         placeSearchClient = new KakaoLocalPlaceSearchClient(this);
+        realtimeSubscriber = new SupabaseCompanionRealtimeSubscriber(this);
 
         statePanel = findViewById(R.id.bookingLiveLocationStatePanel);
         contentContainer = findViewById(R.id.bookingLiveLocationContentContainer);
@@ -204,6 +209,8 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
             detailObserverRegistration.run();
             detailObserverRegistration = null;
         }
+        realtimeSubscriber.stop();
+        subscribedSessionId = "";
     }
 
     private boolean hasLocationPermission() {
@@ -273,6 +280,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                     showPermissionState();
                     return;
                 }
+                currentUser = result;
 
                 stopObserving();
                 detailObserverRegistration = bookingRepository.observeAppointmentRequestDetail(
@@ -281,14 +289,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                         new RepositoryCallback<AppointmentRequestDetail>() {
                             @Override
                             public void onSuccess(AppointmentRequestDetail detail) {
-                                currentDetail = detail;
-                                binder.bindScreen(coordinator.createScreenModel(
-                                        result,
-                                        detail,
-                                        bookingRepository.isFirebaseBacked()
-                                ));
-                                updateMapMarker();
-                                contentContainer.setVisibility(View.VISIBLE);
+                                renderDetail(result, detail);
                                 hideBlockingState();
                                 setLoading(false);
                             }
@@ -309,6 +310,47 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 showAuthState();
             }
         });
+    }
+
+    private void renderDetail(User user, AppointmentRequestDetail detail) {
+        currentDetail = detail;
+        binder.bindScreen(coordinator.createScreenModel(
+                user,
+                detail,
+                bookingRepository.isFirebaseBacked()
+        ));
+        updateMapMarker();
+        contentContainer.setVisibility(View.VISIBLE);
+        if (detail.getSession() == null) {
+            return;
+        }
+        String sessionId = detail.getSession().getRealtimeSessionId();
+        if (sessionId.equals(subscribedSessionId)) {
+            return;
+        }
+        subscribedSessionId = sessionId;
+        realtimeSubscriber.subscribe(sessionId, this::refreshFromRealtime);
+    }
+
+    private void refreshFromRealtime() {
+        User user = currentUser;
+        if (user == null || TextUtils.isEmpty(requestId)) {
+            return;
+        }
+        bookingRepository.getAppointmentRequestDetail(
+                user,
+                requestId,
+                new RepositoryCallback<AppointmentRequestDetail>() {
+                    @Override
+                    public void onSuccess(AppointmentRequestDetail detail) {
+                        renderDetail(user, detail);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        // FCM과 주기 동기화가 다음 복구 경로를 제공한다.
+                    }
+                });
     }
 
     private void openMapFallback(BookingLiveLocationMapActionModel model) {

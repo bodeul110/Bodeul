@@ -71,7 +71,9 @@ public final class FirebaseCompanionChatAttachmentUploader implements CompanionC
                             uploadedMetadata == null
                                     ? contentType
                                     : normalizeText(uploadedMetadata.getContentType()),
-                            uploadedAtMillis
+                            uploadedAtMillis,
+                            taskSnapshot.getTotalByteCount(),
+                            ""
                     ));
                 })
                 .addOnFailureListener(exception ->

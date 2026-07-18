@@ -73,6 +73,7 @@ interface CompanionRealtimeService {
 
     record ReadReceiptView(
             UUID userId,
+            String userRole,
             UUID lastReadMessageId,
             String lastReadAt) {
     }

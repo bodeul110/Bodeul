@@ -10,6 +10,7 @@ public final class CompanionChatAttachment {
     private final String fileName;
     private final String contentType;
     private final long uploadedAtMillis;
+    private final long sizeBytes;
     private final String previewUri;
 
     public CompanionChatAttachment(
@@ -18,7 +19,7 @@ public final class CompanionChatAttachment {
             String contentType,
             long uploadedAtMillis
     ) {
-        this(fullPath, fileName, contentType, uploadedAtMillis, "");
+        this(fullPath, fileName, contentType, uploadedAtMillis, 0L, "");
     }
 
     public CompanionChatAttachment(
@@ -28,10 +29,22 @@ public final class CompanionChatAttachment {
             long uploadedAtMillis,
             @Nullable String previewUri
     ) {
+        this(fullPath, fileName, contentType, uploadedAtMillis, 0L, previewUri);
+    }
+
+    public CompanionChatAttachment(
+            String fullPath,
+            String fileName,
+            String contentType,
+            long uploadedAtMillis,
+            long sizeBytes,
+            @Nullable String previewUri
+    ) {
         this.fullPath = fullPath == null ? "" : fullPath;
         this.fileName = fileName == null ? "" : fileName;
         this.contentType = contentType == null ? "" : contentType;
         this.uploadedAtMillis = Math.max(uploadedAtMillis, 0L);
+        this.sizeBytes = Math.max(sizeBytes, 0L);
         this.previewUri = previewUri == null ? "" : previewUri;
     }
 
@@ -49,6 +62,10 @@ public final class CompanionChatAttachment {
 
     public long getUploadedAtMillis() {
         return uploadedAtMillis;
+    }
+
+    public long getSizeBytes() {
+        return sizeBytes;
     }
 
     public String getPreviewUri() {

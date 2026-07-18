@@ -3580,7 +3580,32 @@
 
 ### 남은 범위
 
-- Android Core API 쓰기·private channel 구독·재연결 snapshot 복구와 FCM fallback
-- Android 전환 뒤 Firestore 채팅·위치·읽음 쓰기 중지
+- Android Core API 쓰기·private channel 구독·재연결 snapshot 복구와 Firestore 쓰기 차단 코드는 4단계에서 완료
+- 개발 DB·Cloud Run·Firestore Rules 적용과 실기기 FCM 종단 검증
 - production Firebase Third-Party Auth와 production RLS 적용
 - #222 일일 파기 job과 Storage 첨부 삭제
+
+## 145. 2026-07-18 Android Realtime 전환 4단계
+
+### 구현과 운영 설정
+
+- Android 채팅·읽음·위치와 실시간 공유 상태 쓰기를 Core API로 전환했다.
+- Firebase ID token private WebSocket 구독, 25초 heartbeat, 45분 token 재연결, 최대 30초 지수 backoff와 snapshot 재조회를 추가했다.
+- Flyway V12에 실시간 위치 공유와 자동 위치 알림 운영 상태를 추가하고 Core runtime의 지정 컬럼 쓰기만 허용했다.
+- Core API는 PostgreSQL commit 이후 민감 본문·좌표가 없는 FCM 보조 알림을 비동기로 전송한다.
+- Firestore `companionSessions`는 참여자 읽기만 유지하고 client 쓰기를 모두 거부하도록 Rules와 emulator 검증을 바꿨다.
+
+### 로컬 검증
+
+- Core API 전체 `check` 통과
+- Android `assembleDebug` 통과
+- Firestore·Storage Rules emulator 7개 시나리오 통과
+- 개발 Supabase transaction 안에서 V12 적용·rollback과 잔여 컬럼 0개 확인
+
+### 남은 범위
+
+- 개발 DB V12, Cloud Run preview와 Firestore Rules 실제 적용
+- Cloud Run runtime Firestore read-only·FCM 발송 IAM 적용
+- 실기기 채팅·위치·재연결·FCM 종단 검증과 Realtime 사용량 확인
+- Firestore 보조 문서가 없는 Core-only 세션 첨부의 서버 중계 또는 서명 URL 구현
+- production 적용과 #222 일일 파기

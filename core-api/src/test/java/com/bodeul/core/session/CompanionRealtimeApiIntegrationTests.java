@@ -191,7 +191,11 @@ class CompanionRealtimeApiIntegrationTests {
                 UUID sessionId,
                 UUID lastReadMessageId) {
             failIfNeeded();
-            return new ReadReceiptView(appUser.id(), lastReadMessageId, "2026-07-18T00:00:00Z");
+            return new ReadReceiptView(
+                    appUser.id(),
+                    appUser.role().name(),
+                    lastReadMessageId,
+                    "2026-07-18T00:00:00Z");
         }
 
         @Override

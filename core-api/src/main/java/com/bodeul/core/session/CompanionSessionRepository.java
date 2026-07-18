@@ -42,7 +42,9 @@ interface CompanionSessionRepository {
             String pharmacySummary,
             Boolean prescriptionCollected,
             Boolean pharmacyCompleted,
-            Boolean medicationGuidanceCompleted) {
+            Boolean medicationGuidanceCompleted,
+            Boolean liveLocationSharingActive,
+            String locationAlertStage) {
     }
 
     record ReportMutation(
@@ -76,6 +78,10 @@ interface CompanionSessionRepository {
             boolean prescriptionCollected,
             boolean pharmacyCompleted,
             boolean medicationGuidanceCompleted,
+            boolean liveLocationSharingActive,
+            Instant liveLocationSharingStartedAt,
+            String locationAlertStage,
+            Instant locationAlertSentAt,
             long version,
             Instant startedAt,
             Instant completedAt,

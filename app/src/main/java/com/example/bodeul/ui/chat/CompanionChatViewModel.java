@@ -12,6 +12,7 @@ import com.example.bodeul.data.BookingRepository;
 import com.example.bodeul.data.CompanionChatAttachmentUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -82,25 +83,29 @@ public class CompanionChatViewModel extends ViewModel {
     private final ManagerRepository managerRepository;
     private final CompanionChatAttachmentUploader attachmentUploader;
     private final CompanionChatCoordinator coordinator;
+    private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
 
     @Nullable
     private User currentUser;
     @Nullable
     private String requestId;
     private String currentSessionId = "";
+    private String subscribedSessionId = "";
 
     public CompanionChatViewModel(
             AuthRepository authRepository,
             BookingRepository bookingRepository,
             ManagerRepository managerRepository,
             CompanionChatAttachmentUploader attachmentUploader,
-            CompanionChatCoordinator coordinator
+            CompanionChatCoordinator coordinator,
+            SupabaseCompanionRealtimeSubscriber realtimeSubscriber
     ) {
         this.authRepository = authRepository;
         this.bookingRepository = bookingRepository;
         this.managerRepository = managerRepository;
         this.attachmentUploader = attachmentUploader;
         this.coordinator = coordinator;
+        this.realtimeSubscriber = realtimeSubscriber;
     }
 
     public LiveData<UiState> getUiState() {
@@ -192,6 +197,9 @@ public class CompanionChatViewModel extends ViewModel {
             @Override
             public void onSuccess(AppointmentRequestDetail result) {
                 currentSessionId = result.getSession() == null ? "" : result.getSession().getId();
+                ensureRealtimeSubscription(result.getSession() == null
+                        ? ""
+                        : result.getSession().getRealtimeSessionId());
                 uiState.setValue(UiState.screen(coordinator.createForBooking(
                         user,
                         result,
@@ -213,6 +221,9 @@ public class CompanionChatViewModel extends ViewModel {
             @Override
             public void onSuccess(ManagerDashboard result) {
                 currentSessionId = result.getSession() == null ? "" : result.getSession().getId();
+                ensureRealtimeSubscription(result.getSession() == null
+                        ? ""
+                        : result.getSession().getRealtimeSessionId());
                 uiState.setValue(UiState.screen(coordinator.createForManager(
                         user,
                         result,
@@ -374,25 +385,54 @@ public class CompanionChatViewModel extends ViewModel {
         ));
     }
 
+    private void ensureRealtimeSubscription(String realtimeSessionId) {
+        if (TextUtils.isEmpty(realtimeSessionId) || realtimeSessionId.equals(subscribedSessionId)) {
+            return;
+        }
+        subscribedSessionId = realtimeSessionId;
+        realtimeSubscriber.subscribe(realtimeSessionId, this::refreshFromRealtime);
+    }
+
+    private void refreshFromRealtime() {
+        User user = currentUser;
+        if (user == null) {
+            return;
+        }
+        if (user.getRole() == UserRole.MANAGER) {
+            loadManagerDashboard(user);
+        } else if (!TextUtils.isEmpty(requestId)) {
+            loadBookingDetail(user);
+        }
+    }
+
+    @Override
+    protected void onCleared() {
+        realtimeSubscriber.stop();
+        super.onCleared();
+    }
+
     public static class Factory implements androidx.lifecycle.ViewModelProvider.Factory {
         private final AuthRepository authRepository;
         private final BookingRepository bookingRepository;
         private final ManagerRepository managerRepository;
         private final CompanionChatAttachmentUploader attachmentUploader;
         private final CompanionChatCoordinator coordinator;
+        private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
 
         public Factory(
                 AuthRepository authRepository,
                 BookingRepository bookingRepository,
                 ManagerRepository managerRepository,
                 CompanionChatAttachmentUploader attachmentUploader,
-                CompanionChatCoordinator coordinator
+                CompanionChatCoordinator coordinator,
+                SupabaseCompanionRealtimeSubscriber realtimeSubscriber
         ) {
             this.authRepository = authRepository;
             this.bookingRepository = bookingRepository;
             this.managerRepository = managerRepository;
             this.attachmentUploader = attachmentUploader;
             this.coordinator = coordinator;
+            this.realtimeSubscriber = realtimeSubscriber;
         }
 
         @androidx.annotation.NonNull
@@ -405,7 +445,8 @@ public class CompanionChatViewModel extends ViewModel {
                         bookingRepository,
                         managerRepository,
                         attachmentUploader,
-                        coordinator
+                        coordinator,
+                        realtimeSubscriber
                 );
             }
             throw new IllegalArgumentException("Unknown ViewModel class");

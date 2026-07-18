@@ -39,6 +39,10 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 session.prescription_collected,
                 session.pharmacy_completed,
                 session.medication_guidance_completed,
+                session.live_location_sharing_active,
+                session.live_location_sharing_started_at,
+                session.location_alert_stage,
+                session.location_alert_sent_at,
                 session.version,
                 session.started_at,
                 session.completed_at,
@@ -130,6 +134,23 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                         :medicationGuidanceCompleted,
                         medication_guidance_completed
                     ),
+                    live_location_sharing_active = coalesce(
+                        :liveLocationSharingActive,
+                        live_location_sharing_active
+                    ),
+                    live_location_sharing_started_at = case
+                        when :liveLocationSharingActive = true
+                            then coalesce(live_location_sharing_started_at, now())
+                        when :liveLocationSharingActive = false then null
+                        else live_location_sharing_started_at
+                    end,
+                    location_alert_stage = coalesce(:locationAlertStage, location_alert_stage),
+                    location_alert_sent_at = case
+                        when :locationAlertStage = 'none' then null
+                        when :locationAlertStage is not null
+                             and :locationAlertStage <> location_alert_stage then now()
+                        else location_alert_sent_at
+                    end,
                     updated_at = now(),
                     version = version + 1
                 where id = :sessionId
@@ -151,7 +172,12 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 .addValue(
                         "medicationGuidanceCompleted",
                         patch.medicationGuidanceCompleted(),
-                        Types.BOOLEAN));
+                        Types.BOOLEAN)
+                .addValue(
+                        "liveLocationSharingActive",
+                        patch.liveLocationSharingActive(),
+                        Types.BOOLEAN)
+                .addValue("locationAlertStage", patch.locationAlertStage(), Types.VARCHAR));
         return updated == 1 ? findById(sessionId) : Optional.empty();
     }
 
@@ -350,6 +376,10 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 resultSet.getBoolean("prescription_collected"),
                 resultSet.getBoolean("pharmacy_completed"),
                 resultSet.getBoolean("medication_guidance_completed"),
+                resultSet.getBoolean("live_location_sharing_active"),
+                instant(resultSet, "live_location_sharing_started_at"),
+                resultSet.getString("location_alert_stage"),
+                instant(resultSet, "location_alert_sent_at"),
                 resultSet.getLong("version"),
                 instant(resultSet, "started_at"),
                 instant(resultSet, "completed_at"),

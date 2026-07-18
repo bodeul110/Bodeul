@@ -1,6 +1,7 @@
 package com.bodeul.core.auth;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataRetrievalFailureException;
@@ -17,6 +18,12 @@ class JdbcAppUserRepository implements AppUserRepository {
             where firebase_uid = ?
             limit 1
             """;
+    private static final String FIND_BY_ID = """
+            select id, firebase_uid, role
+            from bodeul.app_users
+            where id = ?
+            limit 1
+            """;
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -26,13 +33,22 @@ class JdbcAppUserRepository implements AppUserRepository {
 
     @Override
     public Optional<AppUser> findByFirebaseUid(String firebaseUid) {
+        return find(FIND_BY_FIREBASE_UID, firebaseUid);
+    }
+
+    @Override
+    public Optional<AppUser> findById(UUID id) {
+        return find(FIND_BY_ID, id);
+    }
+
+    private Optional<AppUser> find(String sql, Object argument) {
         return jdbcTemplate.query(
-                        FIND_BY_FIREBASE_UID,
+                        sql,
                         (resultSet, rowNumber) -> new AppUser(
-                                resultSet.getObject("id", java.util.UUID.class),
+                                resultSet.getObject("id", UUID.class),
                                 resultSet.getString("firebase_uid"),
                                 readRole(resultSet.getString("role"))),
-                        firebaseUid)
+                        argument)
                 .stream()
                 .findFirst();
     }

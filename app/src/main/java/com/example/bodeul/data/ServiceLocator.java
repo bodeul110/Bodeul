@@ -143,7 +143,7 @@ public final class ServiceLocator {
 
     public static synchronized BookingRepository provideBookingRepository(Context context) {
         if (bookingRepository == null) {
-            // 실제 예약 원본은 Core API로 쓰고, 아직 남은 실시간 데이터만 Firebase에서 합성한다.
+            // 예약과 실시간 운영 원본은 Core API로 쓰고, 아직 남은 보조 자료만 Firebase에서 합성한다.
             if (FirebaseSupport.isConfigured(context)) {
                 FirebaseBookingRepository firebaseBookingRepository =
                         new FirebaseBookingRepository(provideFirestore());
