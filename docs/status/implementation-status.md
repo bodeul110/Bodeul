@@ -3395,9 +3395,11 @@
 - V6 rollback 뒤 쓰기 권한·정책·추가 인덱스 0건 확인
 - 개발 DB에서 Core 쓰기 허용·DELETE 차단, Admin·Supabase client 쓰기 차단, RLS 정책 3개와 covering index 7개 확인
 - 외래키 미인덱스 INFO는 해소됐고 트래픽 전 미사용 인덱스 INFO만 유지
+- Core API Preview deploy run `29639915209` 성공, commit `9d08c1be` 이미지와 리비전 `bodeul-core-api-preview-00010-pd9` 트래픽 100% 확인
+- Preview `/health` 200 `UP`, `/api/companion-sessions` 무인증 401 `missing_authorization` 확인
 
 ### 남은 범위
 
-- Core API Preview 실제 Firebase token 역할·충돌 검증
+- Core API Preview 실제 Firebase token 역할·충돌 검증(무인증 401 경계는 완료)
 - 관리자 서버 배정 API와 Android repository 전환
 - 실기기·관리자 Preview 통합 검증 후 Firestore 쓰기 종료
