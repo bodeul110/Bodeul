@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.firebase.FirebaseApp;
@@ -26,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -43,6 +43,7 @@ class FirebaseCompanionNotificationListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(
             FirebaseCompanionNotificationListener.class);
     private static final int MAX_MULTICAST_TOKENS = 500;
+    private static final int FIREBASE_OPERATION_TIMEOUT_SECONDS = 12;
     private static final AndroidConfig HIGH_PRIORITY = AndroidConfig.builder()
             .setPriority(AndroidConfig.Priority.HIGH)
             .build();
@@ -59,7 +60,6 @@ class FirebaseCompanionNotificationListener {
         this.firebaseProjectId = firebaseProjectId.trim();
     }
 
-    @Async("companionNotificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void onChatMessage(CompanionChatMessageCreatedEvent event) {
         String title = switch (event.senderRole().toUpperCase(Locale.ROOT)) {
@@ -80,7 +80,6 @@ class FirebaseCompanionNotificationListener {
         deliver(event.sessionId(), event.recipientUserIds(), message, "채팅");
     }
 
-    @Async("companionNotificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void onLocationAlert(CompanionLocationAlertChangedEvent event) {
         if ("none".equals(event.alertStage())) {
@@ -116,8 +115,9 @@ class FirebaseCompanionNotificationListener {
         }
         try {
             ensureFirebaseServices();
-            BatchResponse response = messaging.sendEachForMulticast(
-                    message.addAllTokens(tokens).build());
+            BatchResponse response = messaging.sendEachForMulticastAsync(
+                            message.addAllTokens(tokens).build())
+                    .get(FIREBASE_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             LOGGER.info(
                     "동행 {} 전송을 마쳤습니다. sessionId={}, recipientCount={}, tokenCount={}, successCount={}, failureCount={}",
                     notificationType,
@@ -128,50 +128,59 @@ class FirebaseCompanionNotificationListener {
                     response.getFailureCount());
         } catch (Exception exception) {
             LOGGER.warn(
-                    "동행 {} 전송을 완료하지 못했습니다. sessionId={}, recipientCount={}, tokenCount={}",
+                    "동행 {} 전송을 완료하지 못했습니다. sessionId={}, recipientCount={}, tokenCount={}, errorType={}",
                     notificationType,
                     sessionId,
                     recipientUserIds.size(),
-                    tokens.size());
+                    tokens.size(),
+                    rootCauseType(exception));
         }
     }
 
     private List<String> resolveTokens(List<UUID> recipientUserIds) {
-        Set<String> tokens = new LinkedHashSet<>();
+        Set<String> firebaseUids = new LinkedHashSet<>();
         for (UUID userId : recipientUserIds) {
-            if (tokens.size() >= MAX_MULTICAST_TOKENS) {
+            if (firebaseUids.size() >= MAX_MULTICAST_TOKENS) {
                 break;
             }
             appUserRepository.findById(userId)
                     .map(AppUserRepository.AppUser::firebaseUid)
                     .filter(uid -> !uid.isBlank())
-                    .ifPresent(uid -> addTokens(tokens, uid));
+                    .ifPresent(uid -> firebaseUids.add(uid.trim()));
         }
-        return new ArrayList<>(tokens).subList(0, Math.min(tokens.size(), MAX_MULTICAST_TOKENS));
-    }
+        if (firebaseUids.isEmpty()) {
+            return List.of();
+        }
 
-    private void addTokens(Set<String> tokens, String firebaseUid) {
+        Set<String> tokens = new LinkedHashSet<>();
         try {
             ensureFirebaseServices();
-            DocumentSnapshot snapshot = firestore.collection("users")
-                    .document(firebaseUid)
-                    .get()
-                    .get(5, TimeUnit.SECONDS);
-            Object rawTokens = snapshot.get("notificationTokens");
-            if (!(rawTokens instanceof Collection<?> values)) {
-                return;
-            }
-            for (Object value : values) {
-                if (tokens.size() >= MAX_MULTICAST_TOKENS) {
-                    return;
+            DocumentReference[] references = firebaseUids.stream()
+                    .map(uid -> firestore.collection("users").document(uid))
+                    .toArray(DocumentReference[]::new);
+            List<DocumentSnapshot> snapshots = firestore.getAll(references)
+                    .get(FIREBASE_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            for (DocumentSnapshot snapshot : snapshots) {
+                Object rawTokens = snapshot.get("notificationTokens");
+                if (!(rawTokens instanceof Collection<?> values)) {
+                    continue;
                 }
-                if (value instanceof String token && !token.isBlank()) {
-                    tokens.add(token.trim());
+                for (Object value : values) {
+                    if (tokens.size() >= MAX_MULTICAST_TOKENS) {
+                        return new ArrayList<>(tokens);
+                    }
+                    if (value instanceof String token && !token.isBlank()) {
+                        tokens.add(token.trim());
+                    }
                 }
             }
         } catch (Exception exception) {
-            LOGGER.warn("동행 알림 대상 기기 토큰을 읽지 못했습니다.");
+            LOGGER.warn(
+                    "동행 알림 대상 기기 토큰을 읽지 못했습니다. recipientCount={}, errorType={}",
+                    recipientUserIds.size(),
+                    rootCauseType(exception));
         }
+        return new ArrayList<>(tokens);
     }
 
     private void ensureFirebaseServices() throws Exception {
@@ -202,5 +211,13 @@ class FirebaseCompanionNotificationListener {
         } catch (Exception exception) {
             throw new IllegalStateException("Firebase Admin SDK를 초기화하지 못했습니다.", exception);
         }
+    }
+
+    private static String rootCauseType(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current.getClass().getSimpleName();
     }
 }
