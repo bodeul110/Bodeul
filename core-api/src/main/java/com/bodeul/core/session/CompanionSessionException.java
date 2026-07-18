@@ -62,6 +62,20 @@ final class CompanionSessionException extends RuntimeException {
                 "현재 동행 상태에서는 요청한 변경을 적용할 수 없습니다.");
     }
 
+    static CompanionSessionException idempotencyConflict() {
+        return new CompanionSessionException(
+                HttpStatus.CONFLICT,
+                "companion_message_idempotency_conflict",
+                "같은 재시도 식별자에 다른 메시지 내용이 이미 저장되어 있습니다.");
+    }
+
+    static CompanionSessionException chatMessageNotFound() {
+        return new CompanionSessionException(
+                HttpStatus.NOT_FOUND,
+                "companion_chat_message_not_found",
+                "동행 채팅 메시지를 찾을 수 없습니다.");
+    }
+
     static CompanionSessionException versionConflict() {
         return new CompanionSessionException(
                 HttpStatus.CONFLICT,

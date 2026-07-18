@@ -3537,3 +3537,28 @@
 - Core API 채팅·위치 endpoint와 PostgreSQL 커밋 후 private Broadcast 발행
 - Firebase JWT private 채널 인가, Android 재연결·API 재조회 전환
 - #222 일일 파기 job과 Storage 첨부 삭제 구현
+
+## 143. 2026-07-18 채팅·위치 Core API와 Broadcast 2단계
+
+### 구현과 운영 설정
+
+- 참여자용 Realtime snapshot과 메시지·읽음·위치 Core API를 추가했다.
+- 메시지·위치는 클라이언트 UUID로 중복을 막고, 읽음 위치는 같은 세션에서 앞으로만 이동한다.
+- 첨부는 기존 Firebase Storage 세션 prefix, JPEG·PNG·PDF, 파일당 10 MiB와 메시지당 3개를 서버에서 검증한다.
+- 완료·취소 세션은 새 메시지·위치를 거부하고 snapshot에서 정밀 위치를 반환하지 않는다.
+- V10 DB trigger는 채팅·읽음·위치 커밋 신호를 private 주제로 발행하며 본문·좌표·Storage 경로를 payload에 넣지 않는다.
+
+### 검증
+
+- Core API 서비스 단위 테스트, HTTP 통합 테스트, V10 migration 계약 테스트와 전체 `check` 통과
+- PostgreSQL 17 임시 인스턴스에서 bootstrap과 V1~V10 연속 적용 성공
+- 메시지 재시도 중복 0건, 읽음 위치 역행 갱신 0건, 위치 12건 기록 뒤 최근 10건 유지 확인
+- `anon`·`authenticated` 조회, Admin 채팅 쓰기, Core 위치 table 직접 쓰기 거부 확인
+- Realtime 확장 부재 시 본 쓰기 유지와 V10 rollback 뒤 함수·trigger 제거 확인
+
+### 남은 범위
+
+- 개발 Supabase V10 적용과 실제 private Broadcast 행 검증
+- Firebase JWT와 세션 참여 관계를 확인하는 Realtime RLS
+- Android API·private 채널·재연결·FCM 전환 뒤 Firestore 채팅·위치 쓰기 중지
+- #222 일일 파기 job과 Storage 첨부 삭제

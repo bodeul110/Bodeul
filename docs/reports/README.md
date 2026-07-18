@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 221 채팅·위치 Core API와 Broadcast 2단계 (2026-07-18)](issue-221-realtime-api-phase-2-2026-07-18.md)
 - [Issue 221 채팅·위치 PostgreSQL 스키마 1단계 (2026-07-18)](issue-221-realtime-schema-phase-1-2026-07-18.md)
 - [Issue 220 Firestore 업무 쓰기 경계 전환 (2026-07-18)](issue-220-firestore-write-boundary-2026-07-18.md)
 - [Issue 220 매칭·동행·리포트 스키마 1단계 (2026-07-18)](issue-220-session-schema-phase-1-2026-07-18.md)
