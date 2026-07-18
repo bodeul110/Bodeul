@@ -116,3 +116,21 @@ select
     count(*) filter (where manager_user_id is not null) as manager_reference_count,
     count(*) filter (where updated_at is null) as missing_source_updated_at_count
 from bodeul.appointment_requests;
+
+select
+    count(*) as app_user_count,
+    count(*) filter (
+        where btrim(name) = ''
+           or (btrim(email) = '' and btrim(phone) = '')
+    ) as appointment_profile_not_ready_count
+from bodeul.app_users
+where role in ('PATIENT', 'GUARDIAN');
+
+select
+    grantee,
+    privilege_type
+from information_schema.role_table_grants
+where table_schema = 'bodeul'
+  and table_name = 'appointment_requests'
+  and privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+order by grantee, privilege_type;

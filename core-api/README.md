@@ -10,6 +10,7 @@
 - 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
 - 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
+- 환자·보호자 예약 목록·상세·생성·수정·취소를 처리하는 `/api/appointments`
 - 명시적으로 허용하지 않은 경로는 기본 차단
 - `local` profile에서는 DB 없이 기동
 - `preview`, `production` profile에서는 PostgreSQL 설정 필수
@@ -83,6 +84,12 @@ $env:KAKAO_LOCAL_REST_API_KEY = "<Kakao REST API key>"
 
 Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, production에서는 `bodeul-core-api-production-kakao-local-rest-api-key` Secret Manager secret을 사용한다. 키 값과 Kakao 원본 오류 본문은 응답이나 로그에 남기지 않는다. 자세한 계약과 확장 조건은 [Kakao Local Core API 경계](../docs/architecture/kakao-local-core-api.md)를 따른다.
 
+## 예약 API
+
+`/api/appointments`는 환자·보호자에게만 열리며 PostgreSQL UUID로 예약을 식별한다. 생성은 `clientRequestId`로 중복을 막고 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
+
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. 개발 DB의 전체 환자·보호자 프로필 백필이 끝나기 전에는 Android 쓰기 경로를 전환하지 않는다. 매칭 이후 취소, 세션, 채팅과 실시간 갱신은 이번 범위에 포함하지 않는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)을 따른다.
+
 ## 연결 원칙
 
 - Cloud Run은 IPv4가 가능한 Supabase Supavisor session mode의 5432 포트를 우선 사용한다.
@@ -119,8 +126,9 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. Android의 Core API 장소 검색과 로컬 병원 목록 fallback을 실기기에서 검증
-2. Firestore 직접 접근 도메인의 단계별 PostgreSQL 이관
+1. 개발 DB V4 적용과 전체 환자·보호자 프로필 백필 검증
+2. Android 예약 기본 메서드의 Core API 전환과 Firestore 쓰기 0건 확인
+3. 매칭·동행·리포트와 채팅·위치의 단계별 PostgreSQL 이관
 
 ## 보안
 
