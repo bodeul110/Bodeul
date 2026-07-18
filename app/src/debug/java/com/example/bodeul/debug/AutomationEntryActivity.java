@@ -27,7 +27,15 @@ import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
+import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
+import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.BookingCouponType;
+import com.example.bodeul.domain.model.BookingManagerGenderPreference;
+import com.example.bodeul.domain.model.BookingMobilitySupport;
+import com.example.bodeul.domain.model.BookingPaymentMethod;
+import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.BookingTripType;
 import com.example.bodeul.domain.model.ClientSupportCategory;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
@@ -56,8 +64,11 @@ import com.example.bodeul.ui.support.ClientSupportActivity;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /**
  * 디버그 빌드에서만 adb 자동 진입을 받아 기준선 계정 로그인과 화면 라우팅을 수행한다.
@@ -321,7 +332,134 @@ public class AutomationEntryActivity extends AppCompatActivity {
     }
 
     private void runRequestedAction(User user) {
+        if (requestedScreen == AutomationScreen.BOOKING_API_SMOKE) {
+            runBookingApiSmoke(user);
+            return;
+        }
         runRequestedAction(user, () -> openRequestedScreen(user));
+    }
+
+    private void runBookingApiSmoke(User user) {
+        if (user.getRole() != UserRole.PATIENT) {
+            showError("예약 API 점검은 환자 기준선 계정으로 실행해 주세요.", user.getRole().name());
+            return;
+        }
+
+        BookingRequestDraft createDraft = BookingRequestDraft.builder()
+                .linkedParticipantName("김하나")
+                .linkedParticipantPhone("010-0000-0002")
+                .linkedParticipantEmail("guardian@bodeul.app")
+                .patientConditionSummary("Core API 실기기 전환 검증")
+                .medicationSummary("없음")
+                .hospitalName("서울대학교병원")
+                .departmentName("내과")
+                .hospitalLatitude(37.579617)
+                .hospitalLongitude(126.999016)
+                .appointmentAt(createFutureAppointmentAt())
+                .meetingPlace("본관 1층 안내 데스크")
+                .specialNotes("생성 단계")
+                .mobilitySupport(BookingMobilitySupport.INDEPENDENT)
+                .tripType(BookingTripType.ONE_WAY)
+                .managerGenderPreference(BookingManagerGenderPreference.ANY)
+                .paymentMethod(BookingPaymentMethod.ON_SITE)
+                .couponType(BookingCouponType.NONE)
+                .build();
+
+        updateStatus("예약 API 생성 검증 중", "PostgreSQL 신규 예약을 생성합니다.");
+        bookingRepository.createAppointmentRequest(
+                user,
+                createDraft,
+                new RepositoryCallback<AppointmentRequest>() {
+                    @Override
+                    public void onSuccess(AppointmentRequest created) {
+                        if (created.getStatus() != AppointmentStatus.REQUESTED) {
+                            showError("예약 API 생성 상태가 올바르지 않습니다.", created.getStatus().name());
+                            return;
+                        }
+                        if (created.getBasePrice() != 69_000
+                                || created.getFinalPrice() != 69_000
+                                || !"DEFERRED".equals(created.getPaymentStatusCode())) {
+                            showError(
+                                    "예약 API 서버 계산 결과가 올바르지 않습니다.",
+                                    created.getFinalPrice() + " / " + created.getPaymentStatusCode());
+                            return;
+                        }
+                        updateBookingApiSmoke(user, created, createDraft);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("예약 API 생성 검증에 실패했습니다.", message);
+                    }
+                });
+    }
+
+    private String createFutureAppointmentAt() {
+        TimeZone seoul = TimeZone.getTimeZone("Asia/Seoul");
+        Calendar calendar = Calendar.getInstance(seoul, Locale.KOREA);
+        calendar.add(Calendar.DAY_OF_YEAR, 30);
+        calendar.set(Calendar.HOUR_OF_DAY, 10);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
+        formatter.setTimeZone(seoul);
+        return formatter.format(calendar.getTime());
+    }
+
+    private void updateBookingApiSmoke(
+            User user,
+            AppointmentRequest created,
+            BookingRequestDraft createDraft
+    ) {
+        BookingRequestDraft updateDraft = createDraft.toBuilder()
+                .meetingPlace("암병원 1층 안내 데스크")
+                .specialNotes("수정 단계")
+                .build();
+        updateStatus("예약 API 수정 검증 중", "생성한 예약의 장소와 메모를 수정합니다.");
+        bookingRepository.updateAppointmentRequest(
+                user,
+                created.getId(),
+                updateDraft,
+                new RepositoryCallback<AppointmentRequest>() {
+                    @Override
+                    public void onSuccess(AppointmentRequest updated) {
+                        if (!"암병원 1층 안내 데스크".equals(updated.getMeetingPlace())) {
+                            showError("예약 API 수정 결과가 올바르지 않습니다.", updated.getMeetingPlace());
+                            return;
+                        }
+                        cancelBookingApiSmoke(user, updated);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("예약 API 수정 검증에 실패했습니다.", message);
+                    }
+                });
+    }
+
+    private void cancelBookingApiSmoke(User user, AppointmentRequest updated) {
+        updateStatus("예약 API 취소 검증 중", "생성한 검증 예약을 취소 상태로 마감합니다.");
+        bookingRepository.cancelAppointmentRequest(
+                user,
+                updated.getId(),
+                new RepositoryCallback<AppointmentRequest>() {
+                    @Override
+                    public void onSuccess(AppointmentRequest canceled) {
+                        if (canceled.getStatus() != AppointmentStatus.CANCELED) {
+                            showError("예약 API 취소 상태가 올바르지 않습니다.", canceled.getStatus().name());
+                            return;
+                        }
+                        updateStatus(
+                                "예약 API 생명주기 검증 완료",
+                                "생성, 수정, 취소와 서버 가격 계산을 확인했습니다.");
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("예약 API 취소 검증에 실패했습니다.", message);
+                    }
+                });
     }
 
     private void runRequestedAction(User user, Runnable completionAction) {
@@ -1254,6 +1392,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         HOME,
         CLIENT_HOME,
         BOOKING,
+        BOOKING_API_SMOKE,
         BOOKING_STATUS,
         BOOKING_FOLLOW_UP,
         COMPANION_CHAT,

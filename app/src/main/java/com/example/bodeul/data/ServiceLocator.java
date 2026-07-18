@@ -13,6 +13,7 @@ import com.example.bodeul.data.firebase.FirebaseManagerDocumentPreviewResolver;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
 import com.example.bodeul.data.firebase.FirebaseNotificationTokenRegistrar;
 import com.example.bodeul.data.firebase.FirebaseSupport;
+import com.example.bodeul.data.coreapi.CoreApiBookingRepository;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
 import com.example.bodeul.data.mock.MockCompanionChatAttachmentPreviewResolver;
@@ -137,9 +138,13 @@ public final class ServiceLocator {
 
     public static synchronized BookingRepository provideBookingRepository(Context context) {
         if (bookingRepository == null) {
-            // 예약 화면은 같은 기준으로 Firebase 또는 목업 구현을 선택한다.
+            // 실제 예약 원본은 Core API로 쓰고, 아직 남은 실시간 데이터만 Firebase에서 합성한다.
             if (FirebaseSupport.isConfigured(context)) {
-                bookingRepository = new FirebaseBookingRepository(provideFirestore());
+                FirebaseBookingRepository firebaseBookingRepository =
+                        new FirebaseBookingRepository(provideFirestore());
+                bookingRepository = new CoreApiBookingRepository(
+                        context.getApplicationContext(),
+                        firebaseBookingRepository);
             } else {
                 bookingRepository = new MockBookingRepository(getMockBodeulRepository());
             }
