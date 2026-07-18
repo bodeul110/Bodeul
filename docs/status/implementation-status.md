@@ -3527,10 +3527,13 @@
 - 위치 11건 입력 후 최근 10건 유지, 같은 클라이언트 UUID 재전송 시 중복 없음 확인
 - 세션 완료 후 채팅 180일·위치 24시간 만료 예약 확인
 - V8 rollback 후 실시간 테이블 4개 잔여 0건 확인
+- 개발 DB migration run `29645323232`에서 V8 적용, owner·RLS·정책·함수·trigger와 신규 행 0건 확인
+- Security Advisor 0건 확인, Performance Advisor의 읽음 복합 외래키 미인덱스 1건을 V9으로 보완
+- PostgreSQL 17에서 V1~V9 적용과 V9 rollback 확인
+- 개발 DB migration run `29645575612`에서 V9 적용, 복합 인덱스 열 순서와 외래키 미인덱스 경고 해소 확인
 
 ### 남은 범위
 
-- 개발 DB V8 migration과 ACL·RLS·보관 trigger 확인
 - Core API 채팅·위치 endpoint와 PostgreSQL 커밋 후 private Broadcast 발행
 - Firebase JWT private 채널 인가, Android 재연결·API 재조회 전환
 - #222 일일 파기 job과 Storage 첨부 삭제 구현
