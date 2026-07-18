@@ -36,6 +36,8 @@
     "seed:sample:apply": "node seed-sample-service-data.js --apply",
     "backfill:session-participants:dry-run": "node backfill-companion-session-participants.js",
     "backfill:session-participants:apply": "node backfill-companion-session-participants.js --apply",
+    "backfill:supabase-auth-claims:dry-run": "node backfill-supabase-auth-claims.js",
+    "backfill:supabase-auth-claims:apply": "node backfill-supabase-auth-claims.js --apply",
     "seed:manager-docs:dry-run": "node seed-manager-document-storage-sample.js",
     "seed:manager-docs:apply": "node seed-manager-document-storage-sample.js --apply",
     "restore:state:dry-run": "node restore-firestore-state.js",
