@@ -88,7 +88,7 @@ Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, p
 
 `/api/appointments`는 환자·보호자에게만 열리며 PostgreSQL UUID로 예약을 식별한다. 생성은 `clientRequestId`로 중복을 막고 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
 
-V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. 개발 DB의 전체 환자·보호자 프로필 백필이 끝나기 전에는 Android 쓰기 경로를 전환하지 않는다. 매칭 이후 취소, 세션, 채팅과 실시간 갱신은 이번 범위에 포함하지 않는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)을 따른다.
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. 채팅과 고빈도 위치는 아직 Firestore에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
 
 ## 연결 원칙
 
@@ -124,11 +124,13 @@ $env:MIGRATION_DB_PASSWORD = "<migration-password>"
 runtime 서버에는 `MIGRATION_DB_*` 값을 주입하지 않는다.
 GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 Environment의 승인을 거친다.
 
+개발 DB의 동행 세션 백필은 `applyCompanionSessionSeed` task를 사용한다. 이 실행기는 `companion_sessions`, `session_reports`, `appointment_follow_ups`의 순서가 맞는 제한된 upsert만 허용하며 DDL, DELETE, 다른 schema 참조를 거부한다. GitHub workflow에서는 생성 SQL을 일회성 Environment secret으로 전달하고 입력 SHA-256이 일치할 때만 실행한 뒤 임시 파일과 secret을 삭제한다.
+
 ## 다음 작업
 
-1. 개발 DB V4 적용과 전체 환자·보호자 프로필 백필 검증
-2. Android 예약 기본 메서드의 Core API 전환과 Firestore 쓰기 0건 확인
-3. 매칭·동행·리포트와 채팅·위치의 단계별 PostgreSQL 이관
+1. Core API 매니저 세션·리포트와 매칭 후 취소 트랜잭션 구현
+2. 관리자 서버 배정 API와 Android 세션 repository 전환
+3. 채팅·위치의 PostgreSQL/Realtime 전환과 자동 파기 구현
 
 ## 보안
 

@@ -3362,10 +3362,11 @@
 - 최신 백업 기준 동행 세션 2건, 리포트 2건, 후속 처리 1건과 FK·상태 오류 0건 확인
 - Firebase 도구 테스트 29건과 V5 계약 테스트 통과
 - PostgreSQL 17에서 V1~V5, 버전 충돌 거부, 관리자 배정, Core 권한 거부와 V5 rollback 통과
+- 개발 DB migration run `29638503856`에서 V5 적용, owner·RLS·정책·함수 ACL 확인
 
 ### 남은 범위
 
-- 개발 DB V5 migration·백필과 owner/RLS/권한/advisor 실검증
+- 개발 DB 세션·리포트·후속 처리 백필과 FK·advisor 실검증
 - Core API 매니저 세션·리포트·매칭 후 취소 트랜잭션
 - 관리자 서버 배정 API와 Android repository 전환
 - 실기기·관리자 Preview 검증 후 Firestore 해당 도메인 쓰기 중지

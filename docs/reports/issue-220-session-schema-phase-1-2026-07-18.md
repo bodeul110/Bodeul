@@ -30,11 +30,12 @@
 | V5 rollback | 신규 테이블 4개 제거 확인 |
 | `git diff --check` | 통과 |
 
+PR #228 병합 후 개발 DB migration run `29638503856`에서 Flyway V5 적용을 완료했다. V5 이력 성공, 신규 테이블 4개의 owner `bodeul_migration`, RLS 활성화, Core/Admin SELECT 정책 7개를 확인했다. 배정 함수는 `security definer`이고 Admin runtime만 실행 가능하며 Core·Supabase client role은 실행할 수 없다.
+
 로컬 PostgreSQL 리허설에는 임시 데이터만 사용했고 컨테이너는 종료 후 삭제했다. 최신 Firestore 백업과 생성 SQL은 Git 제외 경로에 있으며 커밋하지 않는다.
 
 ## 남은 범위
 
-- 승인된 개발 DB migration workflow로 V5를 적용한다.
 - 개발 DB에 세션·리포트·후속 처리 백필을 적용하고 row/FK/권한/advisor를 확인한다.
 - Core API의 매니저 세션 조회·진행·리포트와 매칭 후 취소 트랜잭션을 구현한다.
 - 별도 관리자 서버의 배정 API를 새 함수에 연결한다.
