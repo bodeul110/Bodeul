@@ -113,5 +113,5 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - 채팅과 위치가 Firestore에 남는 동안 세션 화면은 두 저장소를 합성한다. 한쪽 장애 시 부분 정보가 보일 수 있다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
 - V6 Core 쓰기 권한은 개발 DB migration run `29639792606`에서 검증했다. Cloud Run Preview run `29639915209` 이후 실제 Firebase token으로 환자·보호자·매니저 목록 200, 관리자 목록 403, 환자 수정 403, 매니저 version 충돌 409를 확인했다.
-- V7은 PostgreSQL 17 임시 인스턴스에서 V1부터 연속 migration을 적용했다. Core runtime의 후속 처리 생성·부분 수정은 각각 version 1·2를 반환했고 오래된 version 수정은 0건이었으며, `anon`, `authenticated`, `service_role`에는 후속 처리 권한이 없음을 확인했다.
+- V7은 PostgreSQL 17 임시 인스턴스의 V1~V7 연속 적용과 개발 DB migration run `29642658596`을 통과했다. Core runtime의 후속 처리 생성·부분 수정은 version을 증가시키고 오래된 version 수정을 차단하며 `anon`, `authenticated`, `service_role`에는 권한이 없다. Preview 리비전 `00011-tp4`에서 환자 실기기 GET·PATCH 7건 200과 App Check `valid`, actor 일치를 확인했다.
 - Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. 다만 이 임시 Core-only 예약을 Android 목록에서 조회하는 경로는 Firebase 보조 데이터 의존을 제거한 뒤 검증한다.

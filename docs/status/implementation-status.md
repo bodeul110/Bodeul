@@ -3473,9 +3473,12 @@
 - Core runtime의 후속 처리 생성 version 1, 정산 부분 수정 version 2, 기존 후기 유지 확인
 - 오래된 version 수정 0건, `anon`·`authenticated`·`service_role` 권한 0건 확인
 - 임시 DB 트랜잭션 rollback과 컨테이너 삭제 완료
+- 개발 DB migration run `29642658596` 성공, V7 이력과 기존 후속 1건 보존 확인
+- Cloud Run Preview run `29642778613`, 리비전 `00011-tp4`, 트래픽 100%와 무인증 401 확인
+- SM-S921N 환자 계정의 GET·PATCH 7건 200, App Check `valid`, 후기·정산·긴급 지원과 actor 일치 확인
+- 실기기 검증용 임시 예약·후속 기록 삭제 후 잔여 0건 확인
 
 ### 남은 범위
 
-- 병합 후 개발 DB V7 migration과 Cloud Run Preview 실제 역할·App Check 검증
 - Core-only 예약·배정의 Firebase 보조 문서 의존 제거와 실기기 검증
 - 통합 검증 후 `appointmentFollowUps` Firestore 운영 쓰기 중지
