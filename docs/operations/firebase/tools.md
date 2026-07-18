@@ -1,6 +1,6 @@
 # Firebase 운영 도구
 
-기준일: 2026-07-16
+기준일: 2026-07-18
 
 `tools/firebase`는 앱 런타임 코드와 분리된 Firebase 운영용 로컬 스크립트를 모아두는 디렉터리다.
 
@@ -220,6 +220,20 @@ npm run backfill:session-participants:apply
 - `companionSessions`의 환자·보호자 식별자를 연결된 `appointmentRequests` 기준으로 보완한다.
 - 기본 동작은 dry-run이며, 연결된 예약이나 참가자 정보가 없으면 변경 전에 중단한다.
 - Storage Rules가 사용자 문서와 세션 문서만 조회하도록 유지하기 위한 데이터 마이그레이션이다.
+
+### 동행 세션 PostgreSQL 백필 SQL
+
+```powershell
+cd D:\BoDeul
+npm --prefix tools/firebase run postgres:sessions:check -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
+npm --prefix tools/firebase run postgres:sessions:rollback -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
+npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/firestore-backup-YYYYMMDD-HHMMSS.json
+```
+
+- `check`는 `companionSessions`, `sessionReports`, `appointmentFollowUps`의 예약·사용자·세션 FK와 상태 코드를 검증하며 DB에 쓰지 않는다.
+- rollback SQL과 적용 SQL은 `tools/firebase/reports/`의 Git 제외 경로에 생성된다.
+- 생성 SQL은 개인정보를 포함하므로 커밋, Issue 첨부, GitHub Artifact 업로드를 하지 않는다.
+- 적용은 V5 migration 이후 승인된 개발 DB migration/seed workflow에서만 수행한다.
 
 ## 관리 원칙
 
