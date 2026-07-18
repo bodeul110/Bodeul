@@ -3386,16 +3386,18 @@
 ### 검증
 
 - migration run `29638905550` attempt 2 성공, 일회성 secret 삭제 확인
+- V6 migration run `29639792606` 성공, 기존 백필 2/2/1건 보존 확인
 - FK와 `imported_at` 누락 0건, 예약·세션 상태 조합 2건 일치
 - 개발 Supabase Security Advisor lint 0건
 - Core API 전체 검사 통과
 - PostgreSQL 17 V1~V6 적용에서 세션 UPDATE와 리포트 INSERT 허용, DELETE 거부, 쓰기 정책 3개 확인
 - Core runtime DML에서 완료·취소 시 예약과 세션 상태 일치, 리포트 저장과 병원 가이드 단계 조회 확인
 - V6 rollback 뒤 쓰기 권한·정책·추가 인덱스 0건 확인
+- 개발 DB에서 Core 쓰기 허용·DELETE 차단, Admin·Supabase client 쓰기 차단, RLS 정책 3개와 covering index 7개 확인
+- 외래키 미인덱스 INFO는 해소됐고 트래픽 전 미사용 인덱스 INFO만 유지
 
 ### 남은 범위
 
-- V6 개발 DB 적용과 실제 Core runtime DML·Performance Advisor 재검증
 - Core API Preview 실제 Firebase token 역할·충돌 검증
 - 관리자 서버 배정 API와 Android repository 전환
 - 실기기·관리자 Preview 통합 검증 후 Firestore 쓰기 종료
