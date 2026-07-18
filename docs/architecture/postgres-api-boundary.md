@@ -1,6 +1,6 @@
 # PostgreSQL API 경계
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 ## 원칙
 
@@ -30,7 +30,7 @@ App Check는 이 흐름을 대체하지 않는다. App Check가 유효해도 ID 
 | --- | --- | --- |
 | `bodeul_migration` / `bodeul_migrator` | Flyway DDL과 소유권 | migration workflow에서만 사용 |
 | `bodeul_core_runtime` / `bodeul_core_service` | 사용자 서비스 | Core API에 필요한 DML만 허용 |
-| `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 서비스 | 현재 병원 가이드와 역할 확인 SELECT만 허용 |
+| `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 서비스 | 운영 조회와 검증된 관리자 전용 함수만 허용 |
 
 브라우저, APK, 공개 `NEXT_PUBLIC_*`/`VITE_*` 값에는 DB 접속 정보를 넣지 않는다.
 
@@ -56,7 +56,7 @@ App Check는 이 흐름을 대체하지 않는다. App Check가 유효해도 ID 
 - 장애 시 rollback 절차와 데이터 보정 책임을 기록한다.
 - backup/restore를 격리 환경에서 리허설한다.
 
-병원 가이드 관리자 조회는 이 경계를 실제 검증했다. 예약 요청은 PostgreSQL read model 백필까지 완료했지만 Android 쓰기 source of truth는 아직 Firestore다.
+병원 가이드 관리자 조회와 매니저 배정, Android 예약·동행·리포트·후속 처리 쓰기는 이 경계를 실제 검증했다. 개발 환경에서 해당 도메인은 PostgreSQL이 source of truth이고 Firestore Rules는 업무 쓰기를 거부한다. 채팅·위치는 V8 schema까지만 준비했으며 Core API·Realtime·Android 전환 전까지 Firestore legacy 경로를 제한적으로 유지한다.
 
 ## 금지하는 구조
 

@@ -91,7 +91,7 @@ Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, p
 
 `GET /api/appointments/{id}/follow-up`은 연결된 환자·보호자·배정 매니저에게 후기·정산·긴급 지원 기록을 제공한다. `PATCH /api/appointments/{id}/follow-up`은 완료 예약의 환자·보호자만 사용할 수 있고 최신 후속 기록의 `version`과 변경할 필드만 받는다.
 
-V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. 채팅과 고빈도 위치는 아직 Firestore에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. V8은 채팅·첨부 메타데이터·읽음 위치·최근 위치 이력을 정규화하고 Core runtime의 최소 DML, 위치 기록 함수와 종료 시 보관 만료 예약을 추가한다. V8 적용만으로 앱 경로가 전환되지는 않으며 Core API endpoint와 Realtime private Broadcast 연결 전까지 채팅·위치는 Firestore legacy 경로에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
 
 ## 동행 세션 API
 
@@ -118,7 +118,7 @@ V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약
 - runtime role의 DDL 차단과 최대 연결 수 제한
 - `public` schema 신규 객체의 Data API 자동 노출 차단
 
-bootstrap은 개발 DB에서 `postgres` 권한으로 먼저 적용한다. 비밀번호는 SQL 파일에 추가하지 않고 보안 경로에서 별도로 설정한 뒤 각 로그인 role을 활성화한다.
+bootstrap은 개발 DB에서 `postgres` 권한으로 먼저 적용한다. 각 bootstrap 파일은 명시적 트랜잭션으로 권한 role 전환과 default privilege 변경을 묶으며, 오류 시 전체 파일을 rollback한다. 비밀번호는 SQL 파일에 추가하지 않고 보안 경로에서 별도로 설정한 뒤 각 로그인 role을 활성화한다.
 
 Flyway는 runtime profile에서 실행하지 않는다. migration 전용 자격 증명을 준비한 환경에서만 다음처럼 실행한다. migration profile은 연결 직후 `SET ROLE bodeul_migration`을 실행해 history와 업무 객체의 소유자를 로그인 계정이 아닌 migration 권한 role로 통일한다.
 
@@ -137,9 +137,10 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 
 ## 다음 작업
 
-1. V6 개발 DB 적용과 Core API Preview 역할·충돌 검증
-2. 관리자 서버 배정 API와 Android 세션 repository 전환
-3. 채팅·위치의 PostgreSQL/Realtime 전환과 자동 파기 구현
+1. V8 개발 DB 적용과 Core API 채팅·위치 endpoint 구현
+2. Firebase JWT 기반 Supabase Realtime private Broadcast 인가와 재연결 검증
+3. Android 채팅·위치 repository 전환 뒤 Firestore legacy 쓰기 중지
+4. 만료 데이터와 Storage 첨부를 처리하는 일일 파기 job 구현
 
 ## 보안
 
