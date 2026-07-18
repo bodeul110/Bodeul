@@ -18,6 +18,8 @@
   - Next.js 관리자 서버, Spring Core API, 공용 Supabase PostgreSQL, Firebase 유지 범위와 전환 순서
 - [Kakao Local Core API 경계](kakao-local-core-api.md)
   - 병원·약국 검색 API 계약, 서버 캐시와 호출 제한, Android rollback 제거 조건
+- [예약 Core API 전환 계약](appointment-core-api.md)
+  - 예약 운영 테이블, API·인가·가격·버전 충돌과 Android cutover 경계
 - [PostgreSQL API 경계 기준](postgres-api-boundary.md)
   - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)

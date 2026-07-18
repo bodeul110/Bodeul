@@ -56,4 +56,33 @@ class AppointmentRequestsMigrationContractTests {
                 .contains("reminder_stages jsonb")
                 .contains("imported_at timestamptz");
     }
+
+    @Test
+    void operationalMigrationAddsOnlyTheRequiredCoreWritePrivileges() throws IOException {
+        ClassPathResource resource = new ClassPathResource(
+                "db/migration/V4__promote_appointment_requests_to_operational.sql"
+        );
+        String sql = resource.getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(sql)
+                .contains("add column name text not null default ''")
+                .contains("add column email text not null default ''")
+                .contains("add column phone text not null default ''")
+                .contains("with participant_profiles as")
+                .contains("update bodeul.app_users as app_user")
+                .contains("alter column firestore_id drop not null")
+                .contains("alter column imported_at drop not null")
+                .contains("add column client_request_id uuid")
+                .contains("add column version bigint not null default 0")
+                .contains("unique index uq_appointment_requests_requester_client_request")
+                .contains("grant insert, update on table bodeul.appointment_requests to bodeul_core_runtime")
+                .contains("revoke insert, update, delete on table bodeul.appointment_requests from bodeul_admin_runtime")
+                .contains("to bodeul_core_runtime")
+                .contains("with check (true)")
+                .doesNotContain("grant delete")
+                .doesNotContain("to anon")
+                .doesNotContain("to authenticated")
+                .doesNotContain("to service_role")
+                .doesNotContain("password");
+    }
 }

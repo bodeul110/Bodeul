@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [예약 PostgreSQL source of truth 전환 1단계 검증 (2026-07-18)](issue-219-appointment-core-api-phase-1-2026-07-18.md)
 - [Production PostgreSQL 백업·복원 리허설 (2026-07-18)](postgres-production-backup-restore-rehearsal-2026-07-18.md)
 - [Production 인프라 최초 구축 및 분리 검증 (2026-07-17)](production-infrastructure-bootstrap-2026-07-17.md)
 - [Issue 190 ARM 실기기 검증 기록 (2026-07-17)](issue-190-arm-device-validation-2026-07-17.md)
