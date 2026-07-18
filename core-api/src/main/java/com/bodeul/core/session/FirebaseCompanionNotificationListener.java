@@ -10,9 +10,11 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.bodeul.core.auth.AppUserRepository;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
 import com.google.firebase.cloud.FirestoreClient;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.BatchResponse;
@@ -21,7 +23,8 @@ import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -33,9 +36,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
  */
 @Component
 @Profile("database")
-@ConditionalOnBean(FirebaseApp.class)
+@ConditionalOnProperty(name = "FIREBASE_PROJECT_ID")
 class FirebaseCompanionNotificationListener {
 
+    private static final String FIREBASE_APP_NAME = "bodeul-core-notification";
     private static final Logger LOGGER = LoggerFactory.getLogger(
             FirebaseCompanionNotificationListener.class);
     private static final int MAX_MULTICAST_TOKENS = 500;
@@ -44,15 +48,15 @@ class FirebaseCompanionNotificationListener {
             .build();
 
     private final AppUserRepository appUserRepository;
-    private final Firestore firestore;
-    private final FirebaseMessaging messaging;
+    private final String firebaseProjectId;
+    private volatile Firestore firestore;
+    private volatile FirebaseMessaging messaging;
 
     FirebaseCompanionNotificationListener(
             AppUserRepository appUserRepository,
-            FirebaseApp firebaseApp) {
+            @Value("${FIREBASE_PROJECT_ID:}") String firebaseProjectId) {
         this.appUserRepository = appUserRepository;
-        this.firestore = FirestoreClient.getFirestore(firebaseApp);
-        this.messaging = FirebaseMessaging.getInstance(firebaseApp);
+        this.firebaseProjectId = firebaseProjectId.trim();
     }
 
     @Async("companionNotificationExecutor")
@@ -111,6 +115,7 @@ class FirebaseCompanionNotificationListener {
             return;
         }
         try {
+            ensureFirebaseServices();
             BatchResponse response = messaging.sendEachForMulticast(
                     message.addAllTokens(tokens).build());
             LOGGER.info(
@@ -147,6 +152,7 @@ class FirebaseCompanionNotificationListener {
 
     private void addTokens(Set<String> tokens, String firebaseUid) {
         try {
+            ensureFirebaseServices();
             DocumentSnapshot snapshot = firestore.collection("users")
                     .document(firebaseUid)
                     .get()
@@ -165,6 +171,36 @@ class FirebaseCompanionNotificationListener {
             }
         } catch (Exception exception) {
             LOGGER.warn("동행 알림 대상 기기 토큰을 읽지 못했습니다.");
+        }
+    }
+
+    private void ensureFirebaseServices() throws Exception {
+        if (firestore != null && messaging != null) {
+            return;
+        }
+        synchronized (this) {
+            if (firestore != null && messaging != null) {
+                return;
+            }
+            FirebaseApp app = FirebaseApp.getApps().stream()
+                    .filter(candidate -> firebaseProjectId.equals(
+                            candidate.getOptions().getProjectId()))
+                    .findFirst()
+                    .orElseGet(this::initializeFirebaseApp);
+            firestore = FirestoreClient.getFirestore(app);
+            messaging = FirebaseMessaging.getInstance(app);
+        }
+    }
+
+    private FirebaseApp initializeFirebaseApp() {
+        try {
+            FirebaseOptions options = FirebaseOptions.builder()
+                    .setCredentials(GoogleCredentials.getApplicationDefault())
+                    .setProjectId(firebaseProjectId)
+                    .build();
+            return FirebaseApp.initializeApp(options, FIREBASE_APP_NAME);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Firebase Admin SDK를 초기화하지 못했습니다.", exception);
         }
     }
 }
