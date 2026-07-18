@@ -140,7 +140,12 @@ GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 E
 1. Core API 채팅·위치 endpoint와 PostgreSQL 커밋 후 Broadcast 발행 구현
 2. Firebase JWT 기반 Supabase Realtime private 채널 인가와 재연결 검증
 3. Android 채팅·위치 repository 전환 뒤 Firestore legacy 쓰기 중지
-4. 만료 데이터와 Storage 첨부를 처리하는 일일 파기 job 구현
+
+## 자동 파기 DB 권한
+
+`db/bootstrap/004_retention_runtime.sql`은 예약 파기 작업을 Core API와 관리자 서버 자격 증명에서 분리한다. `bodeul_retention_service`는 환경별 비밀번호를 설정하기 전까지 `NOLOGIN`으로 유지하고, 로그인 후에도 `bodeul_retention_runtime`에 공개된 V13 함수만 실행한다. 테이블 직접 DML 권한은 부여하지 않는다.
+
+V13은 채팅 본문 비식별화, 정밀 위치 삭제, Storage 첨부 삭제 claim·완료, 비식별 실행 이력과 월간 집계를 제공한다. Storage 삭제는 예약 함수가 수행하며, 실패한 첨부는 `DELETE_PENDING`으로 남겨 다음 실행에서 재시도한다. 자세한 실행 순서는 [#222 개인정보 자동 파기 구현 기록](../docs/reports/issue-222-data-retention-2026-07-19.md)을 따른다.
 
 ## 보안
 

@@ -1,6 +1,6 @@
 # 인프라 개요
 
-기준일: 2026-07-18
+기준일: 2026-07-19
 
 ## 런타임
 
@@ -12,7 +12,7 @@
 | 공용 DB | PostgreSQL | Supabase Tokyo 개발·production 분리 |
 | 실시간 전달 | Supabase Realtime private Broadcast | 개발 검증 후 production 전환 |
 | 인증·푸시·파일 | Firebase Auth, FCM, Storage | `bodeul-dev`, `bodeul-prod-110` 분리 |
-| Firebase 결합 로직 | Functions v2 | Firebase |
+| Firebase 결합 로직 | Functions v2, 예약 파기 작업 | Firebase `asia-northeast3` |
 
 ## 요청 경계
 
@@ -29,6 +29,7 @@
 - Core API DB URL과 Kakao REST 키는 Google Secret Manager에서 Cloud Run에 주입한다.
 - GitHub Actions 배포는 장기 JSON key 대신 WIF를 사용한다.
 - DB migration 자격 증명은 runtime 서비스에 전달하지 않는다.
+- 예약 파기 함수는 Supavisor transaction mode와 `bodeul_retention_service`를 사용하며 Core·관리자 DB 자격 증명을 재사용하지 않는다.
 - production GCP/Firebase 식별자, DB migration secret과 Cloud Run DB Secret version은 별도로 만들었다. Vercel Production 값과 Kakao production key는 아직 연결하지 않았다.
 
 ## 저장소 경계
@@ -38,6 +39,7 @@
 ## 현재 리스크
 
 - Firestore와 PostgreSQL 병행 도메인의 데이터 불일치
+- 자동 파기는 개발 환경 dry-run·apply 리허설 후 production 활성화가 필요함
 - production 도메인과 실명 운영자 미확정
 - 관리자 App Check 미강제
 - production DB restore는 완료했지만 Cloud Run·Vercel rollback 리허설 미완료
