@@ -17,7 +17,7 @@
 - 관리자 배정은 테이블의 광범위한 쓰기 권한 대신 `assign_companion_session` DB 함수만 실행한다.
 - 배정 함수는 관리자와 매니저 role, 예약 상태, 예약 버전을 검증한 뒤 예약 `MATCHED`, 세션 `READY`, 감사 기록을 한 트랜잭션에서 생성한다.
 - 앱과 서버의 동시 수정을 검출할 수 있도록 세션·리포트·후속 처리에 `version`을 둔다.
-- Core API는 세션 조회·현장 메모·단계 전환·리포트 endpoint를 소유하고, Android가 PostgreSQL에 직접 연결하지 않는다.
+- Core API는 세션 조회·현장 메모·단계 전환·리포트·예약 후속 처리 endpoint를 소유하고, Android가 PostgreSQL에 직접 연결하지 않는다.
 - 진행 단계 수는 Android 입력이 아니라 예약의 병원·진료과와 연결된 `hospital_guides.steps`에서 계산한다.
 
 ## 대안
@@ -67,24 +67,27 @@ Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각은
 | `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 서버의 병원 가이드 단계 수를 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
 | `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 리포트 조회 |
 | `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 리포트 upsert, 예약·세션 `COMPLETED`를 한 트랜잭션으로 반영 |
+| `GET /api/appointments/{id}/follow-up` | 환자·보호자·배정 매니저 | 예약 참여 관계 확인 후 후기·정산·긴급 지원 기록 조회. 미생성 상태는 `version=0`인 빈 응답 반환 |
+| `PATCH /api/appointments/{id}/follow-up` | 환자·보호자 | 완료 예약만 허용하고 `version` 조건으로 제공된 후속 필드만 생성·갱신 |
 
 환자·보호자의 예약 취소는 `REQUESTED`와 `MATCHED`에서만 허용한다. `MATCHED` 취소는 예약을 먼저 잠근 뒤 활성 세션을 `CANCELED`로 바꾸며, 세션 갱신이 실패하면 전체 트랜잭션을 rollback한다. 매니저는 배정된 예약 상세를 읽을 수 있지만 환자용 예약 생성·수정·취소 API는 사용할 수 없다.
 
 ## 권한 경계
 
-| role | V5·V6 권한 |
+| role | V5~V7 권한 |
 | --- | --- |
-| `bodeul_core_runtime` | 세션·리포트·후속 처리 SELECT, 세션의 진행 컬럼 UPDATE, 리포트 지정 컬럼 INSERT·UPDATE |
+| `bodeul_core_runtime` | 세션·리포트·후속 처리 SELECT, 세션 진행 컬럼 UPDATE, 리포트와 후속 처리 지정 컬럼 INSERT·UPDATE |
 | `bodeul_admin_runtime` | 세션·리포트·후속 처리·배정 감사 SELECT, 배정 함수 EXECUTE |
 | `anon`, `authenticated`, `service_role`, `public` | 테이블과 배정 함수 권한 없음 |
 | `bodeul_migration` | Flyway DDL과 Firestore 백필 |
 
-V6는 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사용하는 컬럼 권한과 RLS 쓰기 정책만 추가한다. DELETE 권한과 관리자 runtime의 광범위한 쓰기 권한은 부여하지 않는다.
+V6와 V7은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사용하는 컬럼 권한과 RLS 쓰기 정책만 추가한다. V7 기준 후속 처리 권한은 INSERT 14개 열, UPDATE 13개 열로 제한되며 DELETE 권한과 관리자 runtime의 광범위한 쓰기 권한은 부여하지 않는다.
 
 ## Android 전환 경계
 
-- 예약·세션 진행·현장 메모·약국 상태·세션 리포트는 Core API 응답을 화면 원본으로 사용한다.
+- 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
+- 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
 - 채팅, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 공유 상태는 #221까지 Firestore에 남기고 화면에서 합성한다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 관리자 서버의 PostgreSQL 배정은 검증했지만 Android가 아직 Firebase 보조 데이터를 목록 시작점으로 사용한다. 따라서 Firestore 보조 문서 없이 Core API에서 생성된 예약·배정이 앱에 나타나는지는 별도 전환이 필요하다.
@@ -110,4 +113,5 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - 채팅과 위치가 Firestore에 남는 동안 세션 화면은 두 저장소를 합성한다. 한쪽 장애 시 부분 정보가 보일 수 있다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
 - V6 Core 쓰기 권한은 개발 DB migration run `29639792606`에서 검증했다. Cloud Run Preview run `29639915209` 이후 실제 Firebase token으로 환자·보호자·매니저 목록 200, 관리자 목록 403, 환자 수정 403, 매니저 version 충돌 409를 확인했다.
+- V7은 PostgreSQL 17 임시 인스턴스에서 V1부터 연속 migration을 적용했다. Core runtime의 후속 처리 생성·부분 수정은 각각 version 1·2를 반환했고 오래된 version 수정은 0건이었으며, `anon`, `authenticated`, `service_role`에는 후속 처리 권한이 없음을 확인했다.
 - Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. 다만 이 임시 Core-only 예약을 Android 목록에서 조회하는 경로는 Firebase 보조 데이터 의존을 제거한 뒤 검증한다.

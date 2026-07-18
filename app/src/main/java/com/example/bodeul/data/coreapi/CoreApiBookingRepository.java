@@ -30,16 +30,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 예약 원본은 Core API에서 읽고, 아직 이전하지 않은 세션·채팅·후속 데이터만 Firestore에서 합성한다.
+ * 예약·세션·리포트·후속 처리는 Core API에서 읽고, 아직 이전하지 않은 채팅·위치 데이터만 Firestore에서 합성한다.
  */
 public final class CoreApiBookingRepository implements BookingRepository {
     private static final long CORE_REFRESH_INTERVAL_MILLIS = 10_000L;
     private static final String LEGACY_REQUIRED_MESSAGE =
-            "이 예약의 동행 세션 기능은 PostgreSQL 전환 후 사용할 수 있습니다.";
+            "이 예약에는 아직 Firestore 채팅 연결 정보가 없습니다.";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final CoreApiAppointmentClient appointmentClient;
     private final CoreApiCompanionSessionClient sessionClient;
+    private final CoreApiFollowUpClient followUpClient;
     private final FirebaseBookingRepository firebaseRepository;
 
     public CoreApiBookingRepository(
@@ -48,6 +49,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
     ) {
         this.appointmentClient = new CoreApiAppointmentClient(context);
         this.sessionClient = new CoreApiCompanionSessionClient(context);
+        this.followUpClient = new CoreApiFollowUpClient(context);
         this.firebaseRepository = firebaseRepository;
     }
 
@@ -229,8 +231,8 @@ public final class CoreApiBookingRepository implements BookingRepository {
             String requestId,
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
-        withLegacyId(requestId, callback, legacyId ->
-                firebaseRepository.getAppointmentFollowUp(currentUser, legacyId, callback));
+        withCoreId(requestId, callback, coreId ->
+                followUpClient.getFollowUp(coreId, requestId, callback));
     }
 
     @Override
@@ -240,12 +242,8 @@ public final class CoreApiBookingRepository implements BookingRepository {
             AppointmentFollowUpReviewRating reviewRating,
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
-        withLegacyId(requestId, callback, legacyId ->
-                firebaseRepository.saveAppointmentFollowUpReview(
-                        currentUser,
-                        legacyId,
-                        reviewRating,
-                        callback));
+        withCoreId(requestId, callback, coreId ->
+                followUpClient.saveReview(coreId, requestId, reviewRating, callback));
     }
 
     @Override
@@ -256,10 +254,10 @@ public final class CoreApiBookingRepository implements BookingRepository {
             String settlementNote,
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
-        withLegacyId(requestId, callback, legacyId ->
-                firebaseRepository.saveAppointmentFollowUpSettlement(
-                        currentUser,
-                        legacyId,
+        withCoreId(requestId, callback, coreId ->
+                followUpClient.saveSettlement(
+                        coreId,
+                        requestId,
                         settlementStatus,
                         settlementNote,
                         callback));
@@ -272,10 +270,10 @@ public final class CoreApiBookingRepository implements BookingRepository {
             AppointmentFollowUpSupportEscalationStatus escalationStatus,
             RepositoryCallback<AppointmentFollowUpRecord> callback
     ) {
-        withLegacyId(requestId, callback, legacyId ->
-                firebaseRepository.saveAppointmentFollowUpSupportEscalation(
-                        currentUser,
-                        legacyId,
+        withCoreId(requestId, callback, coreId ->
+                followUpClient.saveSupportEscalation(
+                        coreId,
+                        requestId,
                         escalationStatus,
                         callback));
     }
@@ -570,7 +568,35 @@ public final class CoreApiBookingRepository implements BookingRepository {
                 });
     }
 
+    private <T> void withCoreId(
+            String requestId,
+            RepositoryCallback<T> callback,
+            CoreOperation operation
+    ) {
+        appointmentClient.resolveCoreId(
+                requestId,
+                new RepositoryCallback<String>() {
+                    @Override
+                    public void onSuccess(String coreId) {
+                        if (coreId.isEmpty()) {
+                            callback.onError("예약의 Core API 식별자를 확인하지 못했습니다.");
+                            return;
+                        }
+                        operation.run(coreId);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                });
+    }
+
     private interface LegacyOperation {
         void run(String legacyId);
+    }
+
+    private interface CoreOperation {
+        void run(String coreId);
     }
 }

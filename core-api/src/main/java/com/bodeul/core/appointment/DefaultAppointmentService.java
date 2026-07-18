@@ -12,11 +12,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import com.bodeul.core.appointment.AppUserProfileRepository.AppUserProfile;
 import com.bodeul.core.appointment.AppointmentRepository.AppointmentMutation;
 import com.bodeul.core.appointment.AppointmentRepository.AppointmentRecord;
+import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpMutation;
+import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpRecord;
 import com.bodeul.core.appointment.AppointmentRepository.ParticipantSnapshot;
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
@@ -34,6 +37,12 @@ class DefaultAppointmentService implements AppointmentService {
             .ofPattern("uuuu-MM-dd HH:mm", Locale.KOREA)
             .withResolverStyle(ResolverStyle.STRICT);
     private static final int BASE_PRICE = 69_000;
+    private static final Set<String> REVIEW_RATINGS = Set.of(
+            "excellent", "good", "ok", "disappointing", "need_help");
+    private static final Set<String> SETTLEMENT_STATUSES = Set.of(
+            "CONFIRMED", "NEEDS_HELP", "OVERTIME_REVIEW", "REFUND_REVIEW");
+    private static final Set<String> SUPPORT_ESCALATION_STATUSES = Set.of(
+            "GUIDE_VIEWED", "MANAGER_CALLED", "DIALED_119");
 
     private final AppointmentRepository appointmentRepository;
     private final AppUserProfileRepository profileRepository;
@@ -179,6 +188,70 @@ class DefaultAppointmentService implements AppointmentService {
             throw AppointmentException.stateConflict();
         }
         return toView(canceled);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AppointmentFollowUpView getAppointmentFollowUp(
+            AppUserRepository.AppUser appUser,
+            UUID appointmentId) {
+        requireReadableRole(appUser);
+        AppointmentRecord appointment = findAppointment(appointmentId);
+        requireReader(appUser, appointment);
+        return appointmentRepository.findFollowUpByAppointmentId(appointmentId)
+                .map(this::toFollowUpView)
+                .orElseGet(() -> emptyFollowUpView(appointmentId));
+    }
+
+    @Override
+    @Transactional
+    public AppointmentFollowUpView updateAppointmentFollowUp(
+            AppUserRepository.AppUser appUser,
+            UUID appointmentId,
+            UpdateAppointmentFollowUpCommand command) {
+        requireSupportedRole(appUser);
+        if (command == null || command.version() < 0) {
+            throw AppointmentException.invalidRequest("후속 기록 버전이 필요합니다.");
+        }
+        AppointmentRecord appointment = findAppointment(appointmentId);
+        requireParticipant(appUser, appointment);
+        if (!"COMPLETED".equals(appointment.status())) {
+            throw AppointmentException.stateConflict();
+        }
+
+        String reviewRatingCode = normalizeOptionalCode(
+                command.reviewRatingCode(), REVIEW_RATINGS, false, "후기 만족도");
+        String settlementStatus = normalizeOptionalCode(
+                command.settlementStatus(), SETTLEMENT_STATUSES, true, "정산 확인 상태");
+        String supportEscalationStatus = normalizeOptionalCode(
+                command.supportEscalationStatus(), SUPPORT_ESCALATION_STATUSES, true, "긴급 지원 상태");
+        if (reviewRatingCode == null
+                && settlementStatus == null
+                && supportEscalationStatus == null) {
+            throw AppointmentException.invalidRequest("저장할 후속 기록이 필요합니다.");
+        }
+        String settlementNote = settlementStatus == null
+                ? null
+                : limitText(normalizeText(command.settlementNote()), "정산 확인 메모", 2_000);
+
+        var existing = appointmentRepository.findFollowUpByAppointmentId(appointmentId);
+        long currentVersion = existing.map(AppointmentFollowUpRecord::version).orElse(0L);
+        if (currentVersion != command.version()) {
+            throw AppointmentException.versionConflict();
+        }
+        AppointmentFollowUpMutation mutation = new AppointmentFollowUpMutation(
+                appointmentId,
+                appUser.id(),
+                command.version(),
+                reviewRatingCode,
+                settlementStatus,
+                settlementNote,
+                supportEscalationStatus);
+        return (existing.isEmpty()
+                        ? appointmentRepository.insertFollowUp(mutation)
+                        : appointmentRepository.updateFollowUp(mutation))
+                .map(this::toFollowUpView)
+                .orElseThrow(AppointmentException::versionConflict);
     }
 
     private AppointmentRecord findAppointment(UUID appointmentId) {
@@ -495,6 +568,24 @@ class DefaultAppointmentService implements AppointmentService {
                 appointment.version());
     }
 
+    private AppointmentFollowUpView toFollowUpView(AppointmentFollowUpRecord followUp) {
+        return new AppointmentFollowUpView(
+                followUp.appointmentId(),
+                nullToEmpty(followUp.reviewRatingCode()),
+                instantText(followUp.reviewSavedAt()),
+                nullToEmpty(followUp.settlementStatus()),
+                nullToEmpty(followUp.settlementNote()),
+                instantText(followUp.settlementSavedAt()),
+                nullToEmpty(followUp.supportEscalationStatus()),
+                instantText(followUp.supportEscalatedAt()),
+                followUp.version());
+    }
+
+    private AppointmentFollowUpView emptyFollowUpView(UUID appointmentId) {
+        return new AppointmentFollowUpView(
+                appointmentId, "", "", "", "", "", "", "", 0L);
+    }
+
     private Instant parseAppointmentAt(String value) {
         try {
             return LocalDateTime.parse(value, APPOINTMENT_FORMATTER)
@@ -528,6 +619,24 @@ class DefaultAppointmentService implements AppointmentService {
         }
         if (!allowed.contains(normalized)) {
             throw AppointmentException.invalidRequest(label + " 값이 올바르지 않습니다.");
+        }
+        return normalized;
+    }
+
+    private String normalizeOptionalCode(
+            String value,
+            Set<String> allowed,
+            boolean uppercase,
+            String label) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = normalizeText(value);
+        normalized = uppercase
+                ? normalized.toUpperCase(Locale.ROOT)
+                : normalized.toLowerCase(Locale.ROOT);
+        if (!allowed.contains(normalized)) {
+            throw AppointmentException.invalidRequest(label + " 값을 확인해 주세요.");
         }
         return normalized;
     }
@@ -576,6 +685,10 @@ class DefaultAppointmentService implements AppointmentService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private String instantText(Instant value) {
+        return value == null ? "" : value.toString();
     }
 
     private enum MobilitySupport {

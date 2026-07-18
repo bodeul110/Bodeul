@@ -3452,6 +3452,30 @@
 ### 남은 범위
 
 - Core-only 예약·배정을 Android가 Firebase 보조 문서 없이 조회하도록 repository 시작점을 전환
-- PostgreSQL 후속 처리 API 연결
-- 관리자 웹 App Check Issue #16과 production V5·V6 migration 승인
+- 관리자 웹 App Check Issue #16과 production V5~V7 migration 승인
 - 통합 검증 후 세션·리포트·후속 처리 Firestore 쓰기 중지
+
+## 140. 2026-07-18 예약 후속 처리 Core API 전환
+
+### 구현과 운영 설정
+
+- Flyway V7에서 `bodeul_core_runtime`에 `appointment_follow_ups` 지정 열 INSERT·UPDATE 권한과 RLS 쓰기 정책을 추가했다.
+- `GET/PATCH /api/appointments/{id}/follow-up`을 추가해 참여자 조회, 완료 예약의 환자·보호자 부분 저장과 version 충돌 검사를 구현했다.
+- 저장 전 Firebase ID token, App Check, PostgreSQL role과 예약 참여 관계를 검증한다.
+- Android Core API 예약 저장소의 후기·정산 확인·긴급 지원 조회와 저장을 새 endpoint로 전환했다.
+- 채팅·첨부·위치 공유는 #221까지 Firestore에 유지한다.
+
+### 검증
+
+- Core API 단위·통합 테스트와 전체 `check` 통과
+- Android `testDebugUnitTest`, `assembleDebug`, `lintDebug` 통과
+- PostgreSQL 17 임시 인스턴스에 V1~V7 연속 migration 적용 성공
+- Core runtime의 후속 처리 생성 version 1, 정산 부분 수정 version 2, 기존 후기 유지 확인
+- 오래된 version 수정 0건, `anon`·`authenticated`·`service_role` 권한 0건 확인
+- 임시 DB 트랜잭션 rollback과 컨테이너 삭제 완료
+
+### 남은 범위
+
+- 병합 후 개발 DB V7 migration과 Cloud Run Preview 실제 역할·App Check 검증
+- Core-only 예약·배정의 Firebase 보조 문서 의존 제거와 실기기 검증
+- 통합 검증 후 `appointmentFollowUps` Firestore 운영 쓰기 중지

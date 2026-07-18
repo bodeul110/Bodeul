@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -141,6 +142,42 @@ class AppointmentApiIntegrationTests {
                 .andExpect(jsonPath("$.error").value("invalid_appointment_request"));
     }
 
+    @Test
+    void authenticatedParticipantCanReadFollowUp() throws Exception {
+        appointmentService.followUpResult = followUp();
+
+        mockMvc.perform(get("/api/appointments/{appointmentId}/follow-up", APPOINTMENT_ID)
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.appointmentRequestId").value(APPOINTMENT_ID.toString()))
+                .andExpect(jsonPath("$.reviewRatingCode").value("good"))
+                .andExpect(jsonPath("$.version").value(2));
+    }
+
+    @Test
+    void followUpPatchPassesVersionAndPartialFields() throws Exception {
+        appointmentService.followUpResult = followUp();
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/follow-up", APPOINTMENT_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "version": 1,
+                                  "settlementFollowUpStatus": "NEEDS_HELP",
+                                  "settlementFollowUpNote": "결제 내역 확인 요청"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2));
+
+        assertThat(appointmentService.lastAppointmentId).isEqualTo(APPOINTMENT_ID);
+        assertThat(appointmentService.lastFollowUpCommand.version()).isEqualTo(1);
+        assertThat(appointmentService.lastFollowUpCommand.settlementStatus())
+                .isEqualTo("NEEDS_HELP");
+    }
+
     private String validCreateJson(UUID clientRequestId) {
         return """
                 {
@@ -211,6 +248,19 @@ class AppointmentApiIntegrationTests {
                 2);
     }
 
+    private AppointmentService.AppointmentFollowUpView followUp() {
+        return new AppointmentService.AppointmentFollowUpView(
+                APPOINTMENT_ID,
+                "good",
+                "2026-07-18T00:00:00Z",
+                "NEEDS_HELP",
+                "결제 내역 확인 요청",
+                "2026-07-18T00:01:00Z",
+                "",
+                "",
+                2);
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class AppointmentApiTestConfiguration {
 
@@ -247,6 +297,8 @@ class AppointmentApiIntegrationTests {
         private UUID lastAppointmentId;
         private CreateAppointmentCommand lastCreateCommand;
         private UpdateAppointmentCommand lastUpdateCommand;
+        private AppointmentFollowUpView followUpResult;
+        private UpdateAppointmentFollowUpCommand lastFollowUpCommand;
 
         @Override
         public List<AppointmentView> getMyAppointments(AppUserRepository.AppUser appUser) {
@@ -290,6 +342,24 @@ class AppointmentApiIntegrationTests {
             return result;
         }
 
+        @Override
+        public AppointmentFollowUpView getAppointmentFollowUp(
+                AppUserRepository.AppUser appUser,
+                UUID appointmentId) {
+            recordCall(appUser, appointmentId);
+            return followUpResult;
+        }
+
+        @Override
+        public AppointmentFollowUpView updateAppointmentFollowUp(
+                AppUserRepository.AppUser appUser,
+                UUID appointmentId,
+                UpdateAppointmentFollowUpCommand command) {
+            recordCall(appUser, appointmentId);
+            lastFollowUpCommand = command;
+            return followUpResult;
+        }
+
         void reset() {
             result = null;
             failure = null;
@@ -297,6 +367,8 @@ class AppointmentApiIntegrationTests {
             lastAppointmentId = null;
             lastCreateCommand = null;
             lastUpdateCommand = null;
+            followUpResult = null;
+            lastFollowUpCommand = null;
         }
 
         private void recordCall(AppUserRepository.AppUser appUser, UUID appointmentId) {

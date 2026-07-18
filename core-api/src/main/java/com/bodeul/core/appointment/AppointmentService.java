@@ -25,6 +25,15 @@ public interface AppointmentService {
             UUID appointmentId,
             long version);
 
+    AppointmentFollowUpView getAppointmentFollowUp(
+            AppUserRepository.AppUser appUser,
+            UUID appointmentId);
+
+    AppointmentFollowUpView updateAppointmentFollowUp(
+            AppUserRepository.AppUser appUser,
+            UUID appointmentId,
+            UpdateAppointmentFollowUpCommand command);
+
     record AppointmentDraft(
             String linkedParticipantName,
             String linkedParticipantPhone,
@@ -49,6 +58,14 @@ public interface AppointmentService {
     }
 
     record UpdateAppointmentCommand(long version, AppointmentDraft draft) {
+    }
+
+    record UpdateAppointmentFollowUpCommand(
+            long version,
+            String reviewRatingCode,
+            String settlementStatus,
+            String settlementNote,
+            String supportEscalationStatus) {
     }
 
     record AppointmentView(
@@ -86,6 +103,18 @@ public interface AppointmentService {
             String paymentApprovalCode,
             String paymentApprovedAt,
             String paymentProviderLabel,
+            long version) {
+    }
+
+    record AppointmentFollowUpView(
+            UUID appointmentRequestId,
+            String reviewRatingCode,
+            String reviewSavedAt,
+            String settlementFollowUpStatus,
+            String settlementFollowUpNote,
+            String settlementFollowUpSavedAt,
+            String supportEscalationStatus,
+            String supportEscalatedAt,
             long version) {
     }
 }

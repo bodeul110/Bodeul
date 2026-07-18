@@ -451,6 +451,20 @@
   - `POST /appointments/{id}/follow-up/support-escalation`
 - 관리자 운영 화면은 `GET /admin/appointments/actions` 혹은 기존 대시보드 응답 안에 사용자 후속 상태를 포함해 내려주는 구조가 필요하다.
 
+### 2026-07-18 예약 후속 PostgreSQL 전환 계약
+
+위 2026-04-23 항목은 초기 Firestore 구현 이력이다. 현재 Core API 모드의 운영 원본은 `bodeul.appointment_follow_ups`이며 Android는 `appointmentFollowUps/{requestId}`를 더 이상 조회하거나 저장하지 않는다.
+
+- `GET /api/appointments/{appointmentId}/follow-up`
+  - 환자·보호자·배정 매니저가 연결 관계를 통과한 예약만 조회한다.
+  - 아직 저장된 값이 없으면 각 상태가 빈 문자열이고 `version=0`인 응답을 반환한다.
+- `PATCH /api/appointments/{appointmentId}/follow-up`
+  - 환자·보호자만 사용할 수 있고 예약 상태가 `COMPLETED`여야 한다.
+  - `version`과 함께 `reviewRatingCode`, `settlementFollowUpStatus`·`settlementFollowUpNote`, `supportEscalationStatus` 중 저장할 필드만 보낸다.
+  - 다른 요청이 먼저 저장해 version이 달라지면 `409 appointment_version_conflict`를 반환한다.
+- Core API는 Firebase ID token, App Check, PostgreSQL 사용자 role과 예약 참여 관계를 검증한 뒤 지정 열만 갱신한다.
+- 채팅·첨부·위치 공유는 이 계약에 포함하지 않으며 #221 전환 전까지 Firestore에 남는다.
+
 ### 2026-04-23 관리자 운영 필터/우선순위 메모
 
 - 현재 관리자 운영 화면의 필터는 클라이언트 조합 기준이다.
