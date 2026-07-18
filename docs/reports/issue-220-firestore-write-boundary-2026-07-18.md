@@ -45,10 +45,11 @@
 - 배정 매니저의 위치 좌표·이력 갱신과 환자의 채팅·읽음 갱신은 허용된다.
 - 매니저와 관리자의 리포트 쓰기, 환자와 관리자의 후속 처리 쓰기는 거부된다.
 - 참여자 읽기와 관리자 전용 컬렉션, Storage 역할 경계는 기존대로 통과한다.
+- PR #239 병합 commit `e7edcd35`의 `firestore.rules`를 Firebase CLI로 `bodeul-dev`에 배포했다. 원격 컴파일과 Rules release가 모두 성공했다.
 
 ## 영향과 리스크
 
 - Android `ServiceLocator`가 선택하는 Core API 저장소의 예약·취소·세션·리포트·후속 처리 경로는 영향을 받지 않는다.
 - `FirebaseAdminRequestStore`의 Android 관리자 배정과 `FirebaseBookingRepository`의 과거 예약·후속 처리 쓰기는 더 이상 허용되지 않는다. 운영 관리자 배정은 별도 관리자 웹 서버 API를 사용해야 한다.
 - Firestore legacy ID가 없는 Core-only 세션은 기존 채팅·위치 문서도 없으므로 #221 완료 전에는 해당 실시간 기능을 사용할 수 없다. 이는 이번 Rules 변경으로 새로 생긴 제약이 아니라 Core-only 전환에서 이미 확인된 잔여 범위다.
-- 배포 전 개발 프로젝트에서 Rules를 적용하고 Core API 예약·취소, 관리자 웹 배정, 기존 세션 채팅·위치 회귀를 다시 확인한다.
+- production에는 이 Rules를 아직 배포하지 않았다. production PostgreSQL migration과 역할별 검증이 끝난 뒤 같은 쓰기 경계를 적용한다.

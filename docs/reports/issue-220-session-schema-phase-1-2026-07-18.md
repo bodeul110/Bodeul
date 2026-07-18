@@ -68,6 +68,7 @@
 | 후속 처리 실기기 | SM-S921N GET·PATCH 7건 200, App Check `valid`, 세 필드와 actor 일치, version 3 |
 | 임시 데이터 정리 | 검증 예약·후속 기록 각각 잔여 0건 |
 | Firestore 업무 쓰기 경계 | Rules emulator 7/7 통과, 업무 쓰기 거부와 기존 채팅·위치 허용 확인 |
+| 개발 Firestore Rules 배포 | PR #239 merge commit `e7edcd35`, `bodeul-dev` 컴파일·release 성공 |
 | `git diff --check` | 통과 |
 
 PR #228 병합 후 개발 DB migration run `29638503856`에서 Flyway V5 적용을 완료했다. V5 이력 성공, 신규 테이블 4개의 owner `bodeul_migration`, RLS 활성화, Core/Admin SELECT 정책 7개를 확인했다. 배정 함수는 `security definer`이고 Admin runtime만 실행 가능하며 Core·Supabase client role은 실행할 수 없다.
