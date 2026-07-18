@@ -25,7 +25,9 @@
 | Artifact Registry/이미지 | `bodeul-core-api` | 개발 프로젝트와 이름은 같아도 프로젝트 경계로 분리된다. |
 | 배포 서비스 계정 | `bodeul-core-deployer` | WIF 배포 전용 |
 | 런타임 서비스 계정 | `bodeul-core-runtime` | Secret Manager 접근과 실행 전용 |
+| DB 백업 서비스 계정 | `bodeul-db-backup` | 검증된 dump의 GCS 생성·조회 전용, 삭제 권한 없음 |
 | WIF pool/provider | `github-actions` / `bodeul-core-api-production` | 저장소, `master`, GitHub Environment 조건을 모두 제한한다. |
+| DB 백업 WIF provider | `github-actions` / `bodeul-db-backup-production` | `core-api-migration-production` Environment 전용 |
 | 배포 Environment | `core-api-production` | 수동 production 배포와 승인 보호 |
 | migration Environment | `core-api-migration-production` | 앱 배포와 DB 변경을 분리한다. |
 | Supabase 표시 이름 / ref | `bodeul-prod` / `aoijbzgozbopsxzrasbb` | 개발 프로젝트와 별도 생성 |
@@ -103,6 +105,9 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - 복원 후 custom login role 비밀번호를 교체하고 runtime 권한, row 수와 핵심 쿼리를 다시 검증한다.
 - PostgreSQL 백업에는 Firebase Storage 객체가 포함되지 않으므로 파일 백업과 복원 절차를 별도로 유지한다.
 - DB가 4GB를 넘거나 허용 가능한 데이터 손실 시간이 24시간보다 짧아지면 PITR을 적용한다.
+- `.github/workflows/postgres-production-backup-restore.yml`은 production migration 자격 증명으로 읽기 전용 custom-format dump를 만든다. 별도 PostgreSQL 컨테이너에서 owner, ACL, 전체 테이블 row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력을 대조한 경우에만 GCS에 업로드한다.
+- workflow의 GCS 권한은 `bodeul-db-backup`에 한정하며 object 생성·조회만 허용한다. dump는 GitHub Artifact에 올리지 않는다.
+- 검증된 object는 `gs://bodeul-prod-110-db-backups/postgres/verified/YYYY/MM/DD/<실행시각>/`에 dump, SHA-256과 복원 보고서를 함께 보관한다.
 
 ## 보안과 모니터링
 
@@ -134,6 +139,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
 - production Supabase는 빈 데이터 상태로 `bodeul` schema, 최소 권한 role, RLS 3개 테이블과 정책 6개를 갖는다. 공개 role table grant는 0건이다.
 - pre-migration schema dump는 비공개 GCS bucket에 28일 보존으로 저장했다. 실제 restore 리허설은 출시 게이트로 남아 있다.
+- production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 실제 production dump·restore workflow 성공 기록은 출시 게이트로 남아 있다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
 
 ## 사람 결정이 필요한 항목

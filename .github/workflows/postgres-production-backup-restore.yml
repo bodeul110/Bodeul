@@ -1,0 +1,129 @@
+name: Production PostgreSQL Backup and Restore Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_project:
+        description: 확인을 위해 production project ID를 입력하세요.
+        required: true
+        type: string
+      confirm_commit:
+        description: 실행할 master commit SHA 40자를 입력하세요.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: postgres-production-backup-restore
+  cancel-in-progress: false
+
+jobs:
+  backup-and-restore:
+    name: backup-and-isolated-restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: core-api-migration-production
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: 대상 확인
+        shell: bash
+        env:
+          CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          DB_BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
+          DB_BACKUP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.DB_BACKUP_WORKLOAD_IDENTITY_PROVIDER }}
+          DB_BACKUP_SERVICE_ACCOUNT: ${{ vars.DB_BACKUP_SERVICE_ACCOUNT }}
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+            echo "production DB 백업은 master에서만 실행할 수 있습니다." >&2
+            exit 1
+          fi
+
+          if [ "$CONFIRM_PROJECT" != "$GCP_PROJECT_ID" ] || [ "$GCP_PROJECT_ID" != "bodeul-prod-110" ]; then
+            echo "입력한 project ID가 production 대상과 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+          if [ "$CONFIRM_COMMIT" != "$GITHUB_SHA" ] || [[ ! "$CONFIRM_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "입력한 commit SHA가 workflow 실행 commit과 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+          required_values=(
+            "$DB_BACKUP_BUCKET"
+            "$DB_BACKUP_WORKLOAD_IDENTITY_PROVIDER"
+            "$DB_BACKUP_SERVICE_ACCOUNT"
+            "$MIGRATION_DB_JDBC_URL"
+            "$MIGRATION_DB_USERNAME"
+            "$MIGRATION_DB_PASSWORD"
+          )
+          for value in "${required_values[@]}"; do
+            if [ -z "$value" ]; then
+              echo "production backup Environment 설정이 완전하지 않습니다." >&2
+              exit 1
+            fi
+          done
+
+      - name: Node.js 22 설정
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: logical dump와 격리 복원 검증
+        id: rehearsal
+        env:
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+          POSTGRES_BACKUP_IMAGE: postgres:17-alpine
+        run: >-
+          node core-api/db/backup/rehearse-postgres-backup.mjs
+          --output-dir "$RUNNER_TEMP/bodeul-postgres-backup"
+
+      - name: Google Cloud 인증
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.DB_BACKUP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DB_BACKUP_SERVICE_ACCOUNT }}
+
+      - name: Google Cloud CLI 설정
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: 검증된 백업 업로드
+        id: upload
+        shell: bash
+        env:
+          DB_BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
+          DUMP_PATH: ${{ steps.rehearsal.outputs.dump_path }}
+          CHECKSUM_PATH: ${{ steps.rehearsal.outputs.checksum_path }}
+          REPORT_PATH: ${{ steps.rehearsal.outputs.report_path }}
+          DUMP_NAME: ${{ steps.rehearsal.outputs.dump_name }}
+          OBJECT_PREFIX: ${{ steps.rehearsal.outputs.object_prefix }}
+          SHA256: ${{ steps.rehearsal.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          destination="gs://${DB_BACKUP_BUCKET}/postgres/verified/${OBJECT_PREFIX}/"
+          gcloud storage cp "$DUMP_PATH" "$CHECKSUM_PATH" "$REPORT_PATH" "$destination"
+
+          backup_reference="${destination}${DUMP_NAME}#sha256=${SHA256}"
+          echo "backup_reference=${backup_reference}" >> "$GITHUB_OUTPUT"
+          {
+            echo
+            echo "### 외부 보관"
+            echo
+            echo "- 위치: \`${destination}${DUMP_NAME}\`"
+            echo "- checksum: \`${SHA256}\`"
+            echo "- migration backup_reference: \`${backup_reference}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
