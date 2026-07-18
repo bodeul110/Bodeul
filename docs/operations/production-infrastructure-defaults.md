@@ -1,6 +1,6 @@
 # Production 인프라 기본값
 
-기준일: 2026-07-17
+기준일: 2026-07-18
 
 이 문서는 BoDeul production 리소스의 실제 식별자, 리전, 배포 경계와 운영 기준을 고정한다. 2026-07-17에 Google Cloud/Firebase와 Supabase production 기반을 생성했으며, 도메인 구매와 실명 담당자 지정은 별도 운영 결정으로 남긴다.
 
@@ -13,6 +13,8 @@
 - 두 서버는 같은 production PostgreSQL을 서로 다른 최소 권한 role로 사용하며 서로를 proxy로 호출하지 않는다.
 - Firebase Auth, FCM, Storage와 Firebase 결합 Functions는 production Firebase 프로젝트에서 유지한다.
 - 개발 Preview를 출시 전 검증 환경으로 사용하고, 현재 규모에서는 세 번째 staging 환경을 만들지 않는다.
+- 목표 production 전환일은 2026-12-15 10:00 KST로 둔다.
+- 월 반복 비용 승인 한도는 150,000 KRW, 정상 목표는 100,000~130,000 KRW로 둔다.
 
 ## 리소스 기준
 
@@ -115,12 +117,14 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - 서비스 계정 JSON key는 발급하지 않고 GitHub OIDC와 WIF를 사용한다.
 - 모든 관리자 계정에 MFA를 적용하고 공용 계정을 금지한다.
 - 출시 전 최소 2명의 실명 운영자를 정해 한 명의 계정 잠금이 전체 운영 중단으로 이어지지 않게 한다.
-- Google Cloud budget 알림 임계값은 50%, 80%, 100%로 고정한다. 실제 월 한도 금액은 결제 책임자가 정한다.
+- Google Cloud budget 알림 임계값은 50%, 80%, 100%로 고정한다. 개발 10,000 KRW, production 30,000 KRW를 유지한다.
+- 실제 사용자 데이터 투입 전 Supabase 조직을 Pro로, 실제 운영 전 Vercel을 개발자 좌석 2개의 Pro로 전환한다.
+- Supabase spend cap을 유지하고 PITR, custom domain과 Log Drain은 초기 운영 비용에 포함하지 않는다.
 - Cloud Run 오류율·지연·인스턴스 수, PostgreSQL 연결 수·용량·백업, Vercel 실패 배포와 Firebase Auth 오류를 확인한다.
 
 ## 생성과 출시 순서
 
-1. 결제 책임자와 월 예산을 확인한다. 기준 도메인, 운영자 2명, 출시 일정은 출시 전에 확정한다.
+1. 월 150,000 KRW 운영 한도와 2026-12-15 목표 일정을 기준으로 한다. 결제 책임자, 기준 도메인과 운영자 2명은 출시 전에 확정한다.
 2. production Google Cloud 프로젝트를 만들고 Firebase를 활성화한다. 완료.
 3. production Supabase 프로젝트와 DB role을 만들고 Flyway migration을 실행한다. 완료.
 4. WIF, 서비스 계정, Artifact Registry와 Secret Manager를 만든다. 완료. Cloud Run 서비스 생성은 첫 승인 배포에서 수행한다.
@@ -138,6 +142,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - `core-api-migration-production`에는 production migration 자격 증명을 등록했고, run `29570950189`에서 보호 승인 뒤 Flyway V1~V3 적용을 완료했다.
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
 - production Supabase는 빈 데이터 상태로 `bodeul` schema, 최소 권한 role, RLS 3개 테이블과 정책 6개를 갖는다. 공개 role table grant는 0건이다.
+- production Supabase 조직은 현재 Free다. 2026-11-16까지 Pro로 전환하고 spend cap과 일일 7일 백업을 확인한다.
 - pre-migration schema dump는 비공개 GCS bucket에 28일 보존으로 저장했다. 실제 restore 리허설은 출시 게이트로 남아 있다.
 - production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18에 현재 production dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
@@ -146,7 +151,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 
 - 구매할 기준 도메인
 - 실명 운영자 2명, 장애 대응 책임자와 rollback 승인자
-- 출시일, 점검 시간과 사용자 공지 방식
+- 2026-12-15 전환에 맞춘 사용자 공지 내용과 최종 점검 시간
 
 나머지 리소스 이름, 리전, 환경 경계, 배포·백업·보안 기본값은 이 문서를 기준으로 진행한다.
 
@@ -165,4 +170,6 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - [관리자 웹 환경 기준](admin-web-environments.md)
 - [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)
 - [비용과 쿼터 모니터링](cost-monitoring.md)
+- [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)
+- [데이터 보관 및 파기 정책](data-retention-policy.md)
 - [Production PostgreSQL 백업·복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md)

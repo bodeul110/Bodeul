@@ -31,7 +31,7 @@
 - [관리자 API 초기 응답 계약](admin-api-contract.md)
   - 종료된 Node prototype에서 Next.js로 이관한 초기 인증과 응답 계약 기록
 - [인프라 리스크와 보완 계획](infra-risk-review.md)
-  - Rules, App Check, 백업/복원, API Key, 비용, Hosting 리스크
+  - 이중 데이터 원본, Realtime, App Check, 백업/복원, 보관·파기와 비용 리스크
 - [멘토 Q&A 준비](mentor-qna.md)
   - Firebase, Firestore, 앱 구조, 관리자 웹, 보안/운영 예상 질문 답변
 - [인프라 개요](infrastructure.md)

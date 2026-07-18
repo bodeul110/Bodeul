@@ -28,8 +28,12 @@
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
 - [Production 인프라 기본값](production-infrastructure-defaults.md)
   - 운영 프로젝트·서비스 이름, Tokyo 리전, 배포·권한·백업 기준과 사람 결정 항목
+- [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)
+  - 2026-12-15 목표 일정, 월 비용 한도, 도메인별 전환 순서와 Go/No-Go 기준
 - [비용과 쿼터 모니터링](cost-monitoring.md)
   - Google Cloud budget, Firebase/Cloud Run metric, Kakao Local 쿼터와 알림 대응
+- [데이터 보관 및 파기 정책](data-retention-policy.md)
+  - 위치, 채팅, 첨부와 매니저 증빙의 보관 기간, legal hold와 자동 파기 기준
 - [위치 이력 보관 및 노출 정책](location-history-retention-policy.md)
   - 실시간 위치 공유 좌표, 최근 이력, 화면 노출, 장기 보관 기준
 
