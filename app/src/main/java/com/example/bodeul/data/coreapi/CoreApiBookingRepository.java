@@ -524,7 +524,14 @@ public final class CoreApiBookingRepository implements BookingRepository {
                         request.getGuardianName(),
                         request.getGuardianEmail(),
                         request.getGuardianPhone()),
-                null,
+                toParticipant(
+                        request.getManagerUserId(),
+                        UserRole.MANAGER,
+                        request.getManagerName().isEmpty()
+                                ? "배정 매니저"
+                                : request.getManagerName(),
+                        request.getManagerEmail(),
+                        request.getManagerPhone()),
                 null,
                 null,
                 null);

@@ -94,7 +94,12 @@ Preview deploy run `29642778613`의 리비전 `bodeul-core-api-preview-00011-tp4
 
 Core-only 화면 전환에서는 예약 응답에 PostgreSQL `app_users`의 배정 매니저 이름·전화번호·이메일을 포함하고, Android 매니저 홈·이력과 보호자 진행 현황이 Core API 예약·세션 목록에서 직접 모델을 조합하도록 시작점을 바꿨다. Firestore는 이 경로에서 예약·세션·리포트 조회에 사용하지 않는다. Core API `check`와 Android `testDebugUnitTest`, `assembleDebug`, `lintDebug`가 통과했으며 Preview·실기기 검증은 배포 후 기록한다.
 
+첫 Preview 실기기 검증에서 환자 예약 상세는 Core-only 예약을 표시했지만 매니저 모델이 비어 `배정 대기 중`으로 보이는 누락을 확인했다. Core-only 상세 생성 시 같은 예약 응답의 배정 매니저 프로필을 포함하도록 보완하고 재검증한다.
+
+Preview deploy run `29643728174`의 리비전 `bodeul-core-api-preview-00012-tqv`에서 Firestore 예약 문서와 연결 세션 문서가 모두 0건인 임시 PostgreSQL 예약·배정을 검증했다. 매니저 홈은 `보들 검증병원`과 `0/7`, 보호자 리포트는 같은 예약의 `매니저 배정 완료`와 `0/7`, 환자 예약 상세는 배정 상태와 담당 매니저를 표시했다. 첫 환자 화면에서 발견한 담당 매니저 누락은 Core-only 상세 조합에 예약 응답 프로필을 추가한 뒤 재설치해 수정됨을 확인했다. 임시 예약 상세 GET 3건을 포함한 역할별 요청은 모두 200이고 App Check는 전부 `valid`였다.
+
+검증 뒤 marker와 UUID를 함께 확인해 임시 배정 감사, 세션, 예약을 각각 1건 삭제했다. 재조회 결과 세 테이블의 해당 예약 잔여는 모두 0건이다.
+
 ## 남은 범위
 
-- 관리자 Preview에서 생성한 Core-only 예약·배정을 Android 역할별 화면에서 Firestore 보조 문서 없이 실기기 검증한다.
-- 검증 완료 후 해당 Firestore 쓰기를 중지한다.
+- 세션·리포트·후속 처리 Firestore 클라이언트 쓰기를 제한한다.

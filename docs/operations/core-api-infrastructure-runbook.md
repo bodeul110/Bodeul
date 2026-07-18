@@ -121,6 +121,8 @@ Cloud Run preview에는 `BODEUL_APP_CHECK_MODE=observe`를 고정한다. Android
 
 2026-07-18 [Core API Preview Deploy #29642778613](https://github.com/bodeul110/Bodeul/actions/runs/29642778613)로 commit `e2611cfdffbb6f69b63f4ea6460d41f2c63f7050`을 배포했다. 리비전 `bodeul-core-api-preview-00011-tp4`가 트래픽 100%를 처리하며 `/health` 200, 무인증 후속 처리 경로 401을 반환했다. SM-S921N의 실제 환자 계정으로 임시 완료 예약의 후기·정산·긴급 지원을 순서대로 저장해 GET·PATCH 7건이 모두 200, `app_check_verdict=valid`였고 DB version은 3, 세 actor는 모두 환자 계정과 일치했다. 검증 직후 임시 예약과 후속 기록을 삭제해 잔여 0건을 확인했다.
 
+2026-07-18 [Core API Preview Deploy #29643728174](https://github.com/bodeul110/Bodeul/actions/runs/29643728174)로 commit `4edb9ea08aad69ff9e5d88c5cad798c16e05756e`을 배포했다. 리비전 `bodeul-core-api-preview-00012-tqv`가 트래픽 100%를 처리한다. Firestore `appointmentRequests`와 연결 `companionSessions`가 각각 0건인 임시 PostgreSQL 예약·배정을 만들어 SM-S921N에서 매니저 홈 `0/7`, 보호자 진행 현황, 환자 예약 상세를 확인했다. 임시 예약 상세 GET 3건과 역할별 예약·세션 목록 요청은 모두 200이고 App Check 판정은 전부 `valid`였다. 첫 환자 화면에서 매니저 모델 누락을 발견해 Core-only 상세 조합을 보완했으며 재설치 후 담당 매니저가 표시되는 것을 확인했다. 검증 뒤 임시 예약·세션·감사를 각각 1건 삭제하고 잔여 0건을 확인했다.
+
 ## Secret Manager
 
 preview에서 다음 secret ID를 사용한다.
