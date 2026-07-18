@@ -101,4 +101,4 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - 기존 배정의 관리자 actor는 Firestore에 없으므로 감사 기록을 추정해 만들지 않는다. 전환 이후 배정부터 기록한다.
 - 채팅과 위치가 Firestore에 남는 동안 세션 화면은 두 저장소를 합성한다. 한쪽 장애 시 부분 정보가 보일 수 있다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
-- V6 Core 쓰기 권한과 API는 로컬 PostgreSQL까지 검증한 상태다. 개발 DB migration과 Cloud Run 배포, 실제 token 요청을 통과하기 전에는 운영 경로로 간주하지 않는다.
+- V6 Core 쓰기 권한은 개발 DB migration run `29639792606`에서 검증했다. Core API를 Cloud Run Preview에 배포하고 실제 token 요청을 통과하기 전에는 운영 경로로 간주하지 않는다.

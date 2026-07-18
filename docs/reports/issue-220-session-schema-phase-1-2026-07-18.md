@@ -45,15 +45,16 @@
 
 PR #228 병합 후 개발 DB migration run `29638503856`에서 Flyway V5 적용을 완료했다. V5 이력 성공, 신규 테이블 4개의 owner `bodeul_migration`, RLS 활성화, Core/Admin SELECT 정책 7개를 확인했다. 배정 함수는 `security definer`이고 Admin runtime만 실행 가능하며 Core·Supabase client role은 실행할 수 없다.
 
+PR #230 병합 후 개발 DB migration run `29639792606`에서 Flyway V6 적용을 완료했다. 백필 2/2/1건은 그대로 유지됐고 Core runtime은 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT가 가능하지만 두 테이블 DELETE는 불가능하다. Admin runtime의 세션 UPDATE·리포트 INSERT, Supabase client role의 쓰기 grant는 모두 0건이다. 쓰기 RLS 정책 3개와 외래키 covering index 7개를 확인했다.
+
 로컬 PostgreSQL 리허설에는 임시 데이터만 사용했고 컨테이너는 종료 후 삭제했다. 최신 Firestore 백업과 생성 SQL은 Git 제외 경로에 있으며 커밋하지 않는다.
 
 첫 백필 시도는 Windows PowerShell 파이프가 Base64를 UTF-16으로 전달해 파일 준비 단계에서 중단됐다. DB 쓰기 전 실패했고 임시 파일과 secret을 삭제했다. secret 본문을 출력하지 않는 인자 전달 방식으로 다시 등록해 attempt 2를 성공시킨 뒤 즉시 삭제했다.
 
-백필 직후 Performance Advisor의 미사용 인덱스 INFO는 표본이 5건뿐이라 삭제 근거로 사용하지 않았다. 외래키 보조 인덱스 INFO 7건은 V6에 covering index를 추가해 이후 개발 DB 적용 때 재검증한다.
+V6 적용 후 Security Advisor lint는 0건이고 외래키 미인덱스 INFO 7건은 해소됐다. Performance Advisor에는 기존·신규 인덱스의 미사용 INFO만 남았다. 표본이 5건뿐이고 실제 API 트래픽이 없으므로 삭제 근거로 사용하지 않는다.
 
 ## 남은 범위
 
-- 개발 DB에 V6를 적용하고 Core runtime 실제 DML과 advisor를 다시 확인한다.
 - Core API Preview를 배포해 실제 Firebase token으로 역할별 200·403과 version 충돌을 확인한다.
 - 별도 관리자 서버의 배정 API를 새 함수에 연결한다.
 - Android 실기기와 관리자 Preview에서 같은 PostgreSQL 상태를 보는지 검증한다.
