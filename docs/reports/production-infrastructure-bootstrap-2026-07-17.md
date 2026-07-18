@@ -69,7 +69,7 @@ DB 백업 provider는 같은 저장소와 `master`에 더해 `core-api-migration
 - Cloud Run 첫 production revision을 배포하고 public invoker, health 200, 무인증 401과 rollback을 검증한다.
 - Vercel Production에 production Firebase 공개 설정과 SELECT-only 관리자 DB URL을 등록하고 관리자 role을 활성화한다.
 - Google 로그인용 release SHA-256·OAuth 설정, App Check Play Integrity·Web provider와 authorized domain을 구성한다.
-- Supabase를 실제 사용자 데이터 수용 전에 일일 backup이 있는 등급 또는 동등한 보호 수준으로 전환하고 restore를 리허설한다.
+- production logical dump의 격리 restore 리허설은 완료했다. 실제 사용자 데이터 수용 전 Supabase 일일 backup 등급 또는 동등한 보호 수준과 주기 실행 일정을 확정한다.
 - 기준 도메인, 실명 운영자 2명, 출시 일정과 장애·rollback 담당자를 정한다.
 
 ## 리스크
@@ -85,3 +85,7 @@ DB 백업 provider는 같은 저장소와 `master`에 더해 `core-api-migration
 - [Google Cloud budget](https://docs.cloud.google.com/billing/docs/how-to/budgets)
 - [Firebase 기본 Storage bucket 생성](https://firebase.google.com/docs/reference/rest/storage/rest/v1alpha/projects.defaultBucket/create)
 - [Firebase Security Rules 관리와 배포](https://firebase.google.com/docs/rules/manage-deploy)
+
+## 후속 검증
+
+- [Production PostgreSQL 백업·복원 리허설 (2026-07-18)](postgres-production-backup-restore-rehearsal-2026-07-18.md)

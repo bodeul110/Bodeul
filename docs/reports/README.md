@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Production PostgreSQL 백업·복원 리허설 (2026-07-18)](postgres-production-backup-restore-rehearsal-2026-07-18.md)
 - [Production 인프라 최초 구축 및 분리 검증 (2026-07-17)](production-infrastructure-bootstrap-2026-07-17.md)
 - [Issue 190 ARM 실기기 검증 기록 (2026-07-17)](issue-190-arm-device-validation-2026-07-17.md)
 - [관리자 병원 가이드 PostgreSQL read model 준비 (2026-07-17)](issue-154-admin-hospital-guides-schema-2026-07-17.md)

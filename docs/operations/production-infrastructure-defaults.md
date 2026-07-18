@@ -139,7 +139,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
 - production Supabase는 빈 데이터 상태로 `bodeul` schema, 최소 권한 role, RLS 3개 테이블과 정책 6개를 갖는다. 공개 role table grant는 0건이다.
 - pre-migration schema dump는 비공개 GCS bucket에 28일 보존으로 저장했다. 실제 restore 리허설은 출시 게이트로 남아 있다.
-- production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 실제 production dump·restore workflow 성공 기록은 출시 게이트로 남아 있다.
+- production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18에 현재 production dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
 
 ## 사람 결정이 필요한 항목
@@ -165,3 +165,4 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - [관리자 웹 환경 기준](admin-web-environments.md)
 - [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)
 - [비용과 쿼터 모니터링](cost-monitoring.md)
+- [Production PostgreSQL 백업·복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md)
