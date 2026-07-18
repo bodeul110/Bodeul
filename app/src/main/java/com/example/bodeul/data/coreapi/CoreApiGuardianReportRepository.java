@@ -2,33 +2,31 @@ package com.example.bodeul.data.coreapi;
 
 import android.content.Context;
 
+import androidx.annotation.Nullable;
+
 import com.example.bodeul.data.GuardianReportRepository;
 import com.example.bodeul.data.RepositoryCallback;
-import com.example.bodeul.data.firebase.FirebaseGuardianReportRepository;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.domain.model.UserRole;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 보호자 화면의 예약·세션·리포트 원본은 Core API에서 읽고 보조 프로필과 가이드는 Firebase에서 합성한다.
+ * 보호자 화면의 예약·세션·리포트를 Core API 원본만으로 조합한다.
  */
 public final class CoreApiGuardianReportRepository implements GuardianReportRepository {
-    private final FirebaseGuardianReportRepository firebaseRepository;
     private final CoreApiAppointmentClient appointmentClient;
     private final CoreApiCompanionSessionClient sessionClient;
 
-    public CoreApiGuardianReportRepository(
-            Context context,
-            FirebaseGuardianReportRepository firebaseRepository
-    ) {
-        this.firebaseRepository = firebaseRepository;
+    public CoreApiGuardianReportRepository(Context context) {
         this.appointmentClient = new CoreApiAppointmentClient(context);
         this.sessionClient = new CoreApiCompanionSessionClient(context);
     }
@@ -38,24 +36,40 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
             User currentUser,
             RepositoryCallback<GuardianReportDashboard> callback
     ) {
-        firebaseRepository.getGuardianDashboard(
-                currentUser,
-                new RepositoryCallback<GuardianReportDashboard>() {
-                    @Override
-                    public void onSuccess(GuardianReportDashboard result) {
-                        overlayEntries(
-                                result.getGuardian(),
-                                result.getEntries(),
-                                0,
-                                new ArrayList<>(),
-                                callback);
-                    }
+        if (currentUser.getRole() != UserRole.GUARDIAN) {
+            callback.onError("보호자 계정으로 로그인해주세요.");
+            return;
+        }
+        appointmentClient.getAppointments(new RepositoryCallback<List<AppointmentRequest>>() {
+            @Override
+            public void onSuccess(List<AppointmentRequest> appointments) {
+                sessionClient.getSessions(
+                        new RepositoryCallback<List<CoreApiCompanionSessionClient.SessionSnapshot>>() {
+                            @Override
+                            public void onSuccess(
+                                    List<CoreApiCompanionSessionClient.SessionSnapshot> sessions
+                            ) {
+                                loadEntries(
+                                        currentUser,
+                                        appointments,
+                                        sessions,
+                                        0,
+                                        new ArrayList<>(),
+                                        callback);
+                            }
 
-                    @Override
-                    public void onError(String message) {
-                        callback.onError(message);
-                    }
-                });
+                            @Override
+                            public void onError(String message) {
+                                callback.onError(message);
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
     }
 
     @Override
@@ -63,78 +77,70 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
         return true;
     }
 
-    private void overlayEntries(
+    private void loadEntries(
             User guardian,
-            List<GuardianReportEntry> source,
+            List<AppointmentRequest> appointments,
+            List<CoreApiCompanionSessionClient.SessionSnapshot> sessions,
             int index,
             List<GuardianReportEntry> output,
             RepositoryCallback<GuardianReportDashboard> callback
     ) {
-        if (index >= source.size()) {
+        if (index >= appointments.size()) {
             callback.onSuccess(new GuardianReportDashboard(guardian, output));
             return;
         }
-        GuardianReportEntry entry = source.get(index);
-        appointmentClient.getAppointment(
-                entry.getAppointmentRequest().getId(),
-                new RepositoryCallback<AppointmentRequest>() {
+
+        AppointmentRequest appointment = appointments.get(index);
+        appointmentClient.resolveCoreId(
+                appointment.getId(),
+                new RepositoryCallback<String>() {
                     @Override
-                    public void onSuccess(AppointmentRequest appointment) {
-                        if (entry.getSession() == null) {
-                            output.add(copyEntry(entry, appointment, null, null));
-                            overlayEntries(guardian, source, index + 1, output, callback);
+                    public void onSuccess(String coreAppointmentId) {
+                        CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot =
+                                findSession(sessions, coreAppointmentId);
+                        if (sessionSnapshot == null) {
+                            output.add(toEntry(appointment, null, null));
+                            loadEntries(
+                                    guardian,
+                                    appointments,
+                                    sessions,
+                                    index + 1,
+                                    output,
+                                    callback);
                             return;
                         }
-                        sessionClient.findSession(
-                                entry.getSession().getId(),
-                                null,
-                                new RepositoryCallback<CoreApiCompanionSessionClient.SessionSnapshot>() {
+
+                        CompanionSession session = sessionSnapshot.merge(null, appointment.getId());
+                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
+                            output.add(toEntry(appointment, session, null));
+                            loadEntries(
+                                    guardian,
+                                    appointments,
+                                    sessions,
+                                    index + 1,
+                                    output,
+                                    callback);
+                            return;
+                        }
+
+                        sessionClient.getReport(
+                                sessionSnapshot,
+                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
                                     @Override
                                     public void onSuccess(
-                                            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
+                                            CoreApiCompanionSessionClient.ReportSnapshot report
                                     ) {
-                                        if (sessionSnapshot == null) {
-                                            callback.onError("PostgreSQL 동행 세션 정보를 찾지 못했습니다.");
-                                            return;
-                                        }
-                                        CompanionSession session = sessionSnapshot.merge(
-                                                entry.getSession(),
-                                                appointment.getId());
-                                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
-                                            output.add(copyEntry(entry, appointment, session, null));
-                                            overlayEntries(
-                                                    guardian,
-                                                    source,
-                                                    index + 1,
-                                                    output,
-                                                    callback);
-                                            return;
-                                        }
-                                        sessionClient.getReport(
-                                                sessionSnapshot,
-                                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(
-                                                            CoreApiCompanionSessionClient.ReportSnapshot report
-                                                    ) {
-                                                        output.add(copyEntry(
-                                                                entry,
-                                                                appointment,
-                                                                session,
-                                                                report.toModel(session.getId())));
-                                                        overlayEntries(
-                                                                guardian,
-                                                                source,
-                                                                index + 1,
-                                                                output,
-                                                                callback);
-                                                    }
-
-                                                    @Override
-                                                    public void onError(String message) {
-                                                        callback.onError(message);
-                                                    }
-                                                });
+                                        output.add(toEntry(
+                                                appointment,
+                                                session,
+                                                report.toModel(session.getId())));
+                                        loadEntries(
+                                                guardian,
+                                                appointments,
+                                                sessions,
+                                                index + 1,
+                                                output,
+                                                callback);
                                     }
 
                                     @Override
@@ -151,18 +157,53 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
                 });
     }
 
-    private GuardianReportEntry copyEntry(
-            GuardianReportEntry source,
+    @Nullable
+    private CoreApiCompanionSessionClient.SessionSnapshot findSession(
+            List<CoreApiCompanionSessionClient.SessionSnapshot> sessions,
+            String coreAppointmentId
+    ) {
+        for (CoreApiCompanionSessionClient.SessionSnapshot session : sessions) {
+            if (session.getCoreAppointmentId().equals(coreAppointmentId)) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    private GuardianReportEntry toEntry(
             AppointmentRequest appointment,
-            CompanionSession session,
-            SessionReport report
+            @Nullable CompanionSession session,
+            @Nullable SessionReport report
     ) {
         return new GuardianReportEntry(
                 appointment,
-                source.getPatient(),
-                source.getManager(),
+                new User(
+                        appointment.getPatientUserId(),
+                        UserRole.PATIENT,
+                        appointment.getPatientName(),
+                        appointment.getPatientEmail(),
+                        appointment.getPatientPhone()),
+                toManager(appointment),
                 session,
                 report,
-                source.getHospitalGuide());
+                HospitalGuideFallbackFactory.create(
+                        appointment.getHospitalName(),
+                        appointment.getDepartmentName()));
+    }
+
+    @Nullable
+    private User toManager(AppointmentRequest appointment) {
+        if (appointment.getManagerUserId().isEmpty()) {
+            return null;
+        }
+        String name = appointment.getManagerName().isEmpty()
+                ? "배정 매니저"
+                : appointment.getManagerName();
+        return new User(
+                appointment.getManagerUserId(),
+                UserRole.MANAGER,
+                name,
+                appointment.getManagerEmail(),
+                appointment.getManagerPhone());
     }
 }

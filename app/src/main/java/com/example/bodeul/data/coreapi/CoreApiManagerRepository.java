@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
@@ -19,6 +20,8 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SupportInquiry;
 import com.example.bodeul.domain.model.SupportInquiryCategory;
+import com.example.bodeul.domain.model.User;
+import com.example.bodeul.domain.model.UserRole;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,10 +45,15 @@ public final class CoreApiManagerRepository implements ManagerRepository {
 
     @Override
     public void getManagerDashboard(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        firebaseRepository.getManagerDashboard(managerUserId, new RepositoryCallback<ManagerDashboard>() {
+        sessionClient.getSessions(new RepositoryCallback<List<CoreApiCompanionSessionClient.SessionSnapshot>>() {
             @Override
-            public void onSuccess(ManagerDashboard result) {
-                overlayDashboard(result, callback);
+            public void onSuccess(List<CoreApiCompanionSessionClient.SessionSnapshot> sessions) {
+                CoreApiCompanionSessionClient.SessionSnapshot activeSession = findActiveSession(sessions);
+                if (activeSession == null) {
+                    callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
+                    return;
+                }
+                loadDashboard(activeSession, callback);
             }
 
             @Override
@@ -82,7 +90,7 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 managerUserId,
                 message,
                 attachments,
-                overlayCallback(callback));
+                overlayCallback(managerUserId, callback));
     }
 
     @Override
@@ -134,7 +142,7 @@ public final class CoreApiManagerRepository implements ManagerRepository {
         firebaseRepository.updateLiveLocationSharingState(
                 managerUserId,
                 active,
-                overlayCallback(callback));
+                overlayCallback(managerUserId, callback));
     }
 
     @Override
@@ -229,12 +237,18 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             String managerUserId,
             RepositoryCallback<List<AppointmentRequestDetail>> callback
     ) {
-        firebaseRepository.getManagerHistoryDetails(
-                managerUserId,
-                new RepositoryCallback<List<AppointmentRequestDetail>>() {
+        sessionClient.getSessions(new RepositoryCallback<List<CoreApiCompanionSessionClient.SessionSnapshot>>() {
                     @Override
-                    public void onSuccess(List<AppointmentRequestDetail> result) {
-                        overlayHistory(result, 0, new ArrayList<>(), callback);
+                    public void onSuccess(
+                            List<CoreApiCompanionSessionClient.SessionSnapshot> sessions
+                    ) {
+                        List<CoreApiCompanionSessionClient.SessionSnapshot> completed = new ArrayList<>();
+                        for (CoreApiCompanionSessionClient.SessionSnapshot session : sessions) {
+                            if (session.getStatus() == SessionStatus.COMPLETED) {
+                                completed.add(session);
+                            }
+                        }
+                        loadHistory(completed, 0, new ArrayList<>(), callback);
                     }
 
                     @Override
@@ -413,12 +427,13 @@ public final class CoreApiManagerRepository implements ManagerRepository {
     }
 
     private RepositoryCallback<ManagerDashboard> overlayCallback(
+            String managerUserId,
             RepositoryCallback<ManagerDashboard> callback
     ) {
         return new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                overlayDashboard(result, callback);
+                getManagerDashboard(managerUserId, callback);
             }
 
             @Override
@@ -428,64 +443,47 @@ public final class CoreApiManagerRepository implements ManagerRepository {
         };
     }
 
-    private void overlayDashboard(
-            ManagerDashboard dashboard,
+    private CoreApiCompanionSessionClient.SessionSnapshot findActiveSession(
+            List<CoreApiCompanionSessionClient.SessionSnapshot> sessions
+    ) {
+        for (CoreApiCompanionSessionClient.SessionSnapshot session : sessions) {
+            if (session.getStatus() != SessionStatus.COMPLETED
+                    && session.getStatus() != SessionStatus.CANCELED) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    private void loadDashboard(
+            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot,
             RepositoryCallback<ManagerDashboard> callback
     ) {
         appointmentClient.getAppointment(
-                dashboard.getAppointmentRequest().getId(),
+                sessionSnapshot.getCoreAppointmentId(),
                 new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest appointment) {
-                        sessionClient.findSession(
-                                dashboard.getSession().getId(),
-                                null,
-                                new RepositoryCallback<CoreApiCompanionSessionClient.SessionSnapshot>() {
-                                    @Override
-                                    public void onSuccess(
-                                            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
-                                    ) {
-                                        if (sessionSnapshot == null) {
-                                            callback.onError("PostgreSQL 동행 세션 정보를 찾지 못했습니다.");
-                                            return;
-                                        }
-                                        CompanionSession session = sessionSnapshot.merge(
-                                                dashboard.getSession(),
-                                                appointment.getId());
-                                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
-                                            callback.onSuccess(copyDashboard(
-                                                    dashboard,
-                                                    appointment,
-                                                    session,
-                                                    null));
-                                            return;
-                                        }
-                                        sessionClient.getReport(
-                                                sessionSnapshot,
-                                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(
-                                                            CoreApiCompanionSessionClient.ReportSnapshot report
-                                                    ) {
-                                                        callback.onSuccess(copyDashboard(
-                                                                dashboard,
-                                                                appointment,
-                                                                session,
-                                                                report.toModel(session.getId())));
-                                                    }
-
-                                                    @Override
-                                                    public void onError(String message) {
-                                                        callback.onError(message);
-                                                    }
-                                                });
-                                    }
-
-                                    @Override
-                                    public void onError(String message) {
-                                        callback.onError(message);
-                                    }
-                                });
+                        callback.onSuccess(new ManagerDashboard(
+                                toManager(appointment),
+                                toParticipant(
+                                        appointment.getPatientUserId(),
+                                        UserRole.PATIENT,
+                                        appointment.getPatientName(),
+                                        appointment.getPatientEmail(),
+                                        appointment.getPatientPhone()),
+                                toParticipant(
+                                        appointment.getGuardianUserId(),
+                                        UserRole.GUARDIAN,
+                                        appointment.getGuardianName(),
+                                        appointment.getGuardianEmail(),
+                                        appointment.getGuardianPhone()),
+                                appointment,
+                                sessionSnapshot.merge(null, appointment.getId()),
+                                HospitalGuideFallbackFactory.create(
+                                        appointment.getHospitalName(),
+                                        appointment.getDepartmentName()),
+                                null));
                     }
 
                     @Override
@@ -495,87 +493,38 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 });
     }
 
-    private ManagerDashboard copyDashboard(
-            ManagerDashboard source,
-            AppointmentRequest appointment,
-            CompanionSession session,
-            SessionReport report
-    ) {
-        return new ManagerDashboard(
-                source.getManager(),
-                source.getPatient(),
-                source.getGuardian(),
-                appointment,
-                session,
-                source.getHospitalGuide(),
-                report);
-    }
-
-    private void overlayHistory(
-            List<AppointmentRequestDetail> source,
+    private void loadHistory(
+            List<CoreApiCompanionSessionClient.SessionSnapshot> sessions,
             int index,
             List<AppointmentRequestDetail> output,
             RepositoryCallback<List<AppointmentRequestDetail>> callback
     ) {
-        if (index >= source.size()) {
+        if (index >= sessions.size()) {
+            output.sort((left, right) -> right.getAppointmentRequest()
+                    .getAppointmentAt()
+                    .compareTo(left.getAppointmentRequest().getAppointmentAt()));
             callback.onSuccess(output);
             return;
         }
-        AppointmentRequestDetail detail = source.get(index);
-        if (detail.getSession() == null) {
-            output.add(detail);
-            overlayHistory(source, index + 1, output, callback);
-            return;
-        }
+        CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot = sessions.get(index);
         appointmentClient.getAppointment(
-                detail.getAppointmentRequest().getId(),
+                sessionSnapshot.getCoreAppointmentId(),
                 new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest appointment) {
-                        sessionClient.findSession(
-                                detail.getSession().getId(),
-                                null,
-                                new RepositoryCallback<CoreApiCompanionSessionClient.SessionSnapshot>() {
+                        CompanionSession session = sessionSnapshot.merge(null, appointment.getId());
+                        sessionClient.getReport(
+                                sessionSnapshot,
+                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
                                     @Override
                                     public void onSuccess(
-                                            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
+                                            CoreApiCompanionSessionClient.ReportSnapshot report
                                     ) {
-                                        if (sessionSnapshot == null) {
-                                            callback.onError("PostgreSQL 동행 이력을 찾지 못했습니다.");
-                                            return;
-                                        }
-                                        CompanionSession session = sessionSnapshot.merge(
-                                                detail.getSession(),
-                                                appointment.getId());
-                                        if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
-                                            output.add(copyDetail(detail, appointment, session, null));
-                                            overlayHistory(source, index + 1, output, callback);
-                                            return;
-                                        }
-                                        sessionClient.getReport(
-                                                sessionSnapshot,
-                                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(
-                                                            CoreApiCompanionSessionClient.ReportSnapshot report
-                                                    ) {
-                                                        output.add(copyDetail(
-                                                                detail,
-                                                                appointment,
-                                                                session,
-                                                                report.toModel(session.getId())));
-                                                        overlayHistory(
-                                                                source,
-                                                                index + 1,
-                                                                output,
-                                                                callback);
-                                                    }
-
-                                                    @Override
-                                                    public void onError(String message) {
-                                                        callback.onError(message);
-                                                    }
-                                                });
+                                        output.add(toHistoryDetail(
+                                                appointment,
+                                                session,
+                                                report.toModel(session.getId())));
+                                        loadHistory(sessions, index + 1, output, callback);
                                     }
 
                                     @Override
@@ -592,21 +541,54 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 });
     }
 
-    private AppointmentRequestDetail copyDetail(
-            AppointmentRequestDetail source,
+    private AppointmentRequestDetail toHistoryDetail(
             AppointmentRequest appointment,
             CompanionSession session,
             SessionReport report
     ) {
         return new AppointmentRequestDetail(
                 appointment,
-                source.getPatient(),
-                source.getGuardian(),
-                source.getManager(),
+                toParticipant(
+                        appointment.getPatientUserId(),
+                        UserRole.PATIENT,
+                        appointment.getPatientName(),
+                        appointment.getPatientEmail(),
+                        appointment.getPatientPhone()),
+                toParticipant(
+                        appointment.getGuardianUserId(),
+                        UserRole.GUARDIAN,
+                        appointment.getGuardianName(),
+                        appointment.getGuardianEmail(),
+                        appointment.getGuardianPhone()),
+                toManager(appointment),
                 session,
                 report,
-                source.getHospitalGuide(),
-                source.getFollowUpRecord());
+                HospitalGuideFallbackFactory.create(
+                        appointment.getHospitalName(),
+                        appointment.getDepartmentName()),
+                null);
+    }
+
+    private User toManager(AppointmentRequest appointment) {
+        String name = appointment.getManagerName().isEmpty()
+                ? "배정 매니저"
+                : appointment.getManagerName();
+        return toParticipant(
+                appointment.getManagerUserId(),
+                UserRole.MANAGER,
+                name,
+                appointment.getManagerEmail(),
+                appointment.getManagerPhone());
+    }
+
+    private User toParticipant(
+            String userId,
+            UserRole role,
+            String name,
+            String email,
+            String phone
+    ) {
+        return new User(userId, role, name, email, phone);
     }
 
     private interface DashboardOperation {

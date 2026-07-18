@@ -528,12 +528,18 @@ class DefaultAppointmentService implements AppointmentService {
     }
 
     private AppointmentView toView(AppointmentRecord appointment) {
+        AppUserProfile manager = appointment.managerUserId() == null
+                ? null
+                : profileRepository.findById(appointment.managerUserId()).orElse(null);
         return new AppointmentView(
                 appointment.id(),
                 nullToEmpty(appointment.firestoreId()),
                 appointment.patientUserId(),
                 appointment.guardianUserId(),
                 appointment.managerUserId(),
+                manager == null ? "" : manager.name(),
+                manager == null ? "" : manager.phone(),
+                manager == null ? "" : manager.email(),
                 appointment.patient().name(),
                 appointment.patient().phone(),
                 appointment.patient().email(),

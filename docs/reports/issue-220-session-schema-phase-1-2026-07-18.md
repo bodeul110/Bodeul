@@ -92,7 +92,9 @@ PR [#235](https://github.com/bodeul110/Bodeul/pull/235) 병합 후 개발 DB mig
 
 Preview deploy run `29642778613`의 리비전 `bodeul-core-api-preview-00011-tp4`에서 후속 처리 경로를 실검증했다. SM-S921N 환자 계정으로 임시 완료 예약에 후기 `good`, 정산 `NEEDS_HELP`, 긴급 지원 `GUIDE_VIEWED`를 저장했고 각 저장 전 최신 version 조회를 포함한 GET·PATCH 7건이 모두 200이었다. Cloud Run 로그의 App Check 판정은 모두 `valid`였고 DB version은 3, 세 actor는 환자 계정과 일치했다. 임시 데이터는 검증 직후 삭제했다.
 
+Core-only 화면 전환에서는 예약 응답에 PostgreSQL `app_users`의 배정 매니저 이름·전화번호·이메일을 포함하고, Android 매니저 홈·이력과 보호자 진행 현황이 Core API 예약·세션 목록에서 직접 모델을 조합하도록 시작점을 바꿨다. Firestore는 이 경로에서 예약·세션·리포트 조회에 사용하지 않는다. Core API `check`와 Android `testDebugUnitTest`, `assembleDebug`, `lintDebug`가 통과했으며 Preview·실기기 검증은 배포 후 기록한다.
+
 ## 남은 범위
 
-- 관리자 Preview에서 생성한 Core-only 예약·배정을 Android 목록이 Firestore 보조 문서 없이 조회하도록 전환하고 실기기에서 검증한다.
+- 관리자 Preview에서 생성한 Core-only 예약·배정을 Android 역할별 화면에서 Firestore 보조 문서 없이 실기기 검증한다.
 - 검증 완료 후 해당 Firestore 쓰기를 중지한다.

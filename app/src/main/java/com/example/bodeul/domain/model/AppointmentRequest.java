@@ -37,6 +37,9 @@ public class AppointmentRequest {
     private final String paymentProviderLabel;
     private AppointmentStatus status;
     private String managerUserId;
+    private String managerName = "";
+    private String managerPhone = "";
+    private String managerEmail = "";
 
     public AppointmentRequest(
             String id,
@@ -621,9 +624,31 @@ public class AppointmentRequest {
         return managerUserId;
     }
 
+    public String getManagerName() {
+        return managerName;
+    }
+
+    public String getManagerPhone() {
+        return managerPhone;
+    }
+
+    public String getManagerEmail() {
+        return managerEmail;
+    }
+
+    public void setManagerProfile(String name, String phone, String email) {
+        managerName = valueOrEmpty(name);
+        managerPhone = valueOrEmpty(phone);
+        managerEmail = valueOrEmpty(email);
+    }
+
     // 매니저가 배정되면 요청 자체도 바로 매칭 완료 상태로 반영한다.
     public void assignManager(String managerUserId) {
         this.managerUserId = managerUserId;
         this.status = AppointmentStatus.MATCHED;
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 }
