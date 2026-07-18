@@ -47,7 +47,7 @@
 
 `nextVisitAt`에는 날짜와 자유 텍스트가 혼재한다. PostgreSQL에서는 정규화 가능한 시각을 `next_visit_at`에, 원문을 `next_visit_note`에 보관해 기존 데이터를 잃지 않는다.
 
-V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각을 받을 PostgreSQL 계약을 추가한다. 앱의 기존 값은 자동 백필하지 않으며, Core API와 Realtime 경로가 검증되기 전까지 Firestore legacy 경로에 남는다. 전환 뒤 새 쓰기는 PostgreSQL만 사용하고 Realtime 이벤트는 커밋 결과 알림으로만 사용한다.
+V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시각을 받을 PostgreSQL 계약을 추가한다. V10은 Core API 쓰기 결과를 최소 payload의 private Broadcast 신호로 발행한다. 앱의 기존 값은 자동 백필하지 않으며, private 채널 RLS와 Android 경로가 검증되기 전까지 Firestore legacy 경로에 남는다. 전환 뒤 새 쓰기는 PostgreSQL만 사용하고 Realtime 이벤트는 커밋 결과 알림으로만 사용한다.
 
 ## 채팅·위치 저장 계약
 
@@ -80,6 +80,10 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 서버의 병원 가이드 단계 수를 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
 | `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 리포트 조회 |
 | `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 리포트 upsert, 예약·세션 `COMPLETED`를 한 트랜잭션으로 반영 |
+| `GET /api/companion-sessions/{id}/realtime` | 환자·보호자·배정 매니저 | 최근 채팅·읽음과 진행 중 위치 snapshot 조회, Realtime 재연결 복구 |
+| `POST /api/companion-sessions/{id}/messages` | 환자·보호자·배정 매니저 | 참여·진행 상태와 첨부 메타데이터 검증 후 재시도 중복 없이 채팅 저장 |
+| `PUT /api/companion-sessions/{id}/read-receipt` | 환자·보호자·배정 매니저 | 같은 세션 메시지 기준으로 읽음 위치를 앞으로만 갱신 |
+| `POST /api/companion-sessions/{id}/locations` | 배정 매니저 | 좌표·수집 시각·진행 상태 검증 후 최근 위치 기록 |
 | `GET /api/appointments/{id}/follow-up` | 환자·보호자·배정 매니저 | 예약 참여 관계 확인 후 후기·정산·긴급 지원 기록 조회. 미생성 상태는 `version=0`인 빈 응답 반환 |
 | `PATCH /api/appointments/{id}/follow-up` | 환자·보호자 | 완료 예약만 허용하고 `version` 조건으로 제공된 후속 필드만 생성·갱신 |
 
@@ -101,7 +105,7 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
-- 채팅, 첨부, 위치 좌표·이력·읽음 시각과 실시간 위치 공유 상태는 #221의 Core API·Realtime·Android 전환 전까지 Firestore에 남기고 화면에서 합성한다. V8 schema 준비만으로 앱 경로가 바뀐 것으로 간주하지 않는다.
+- 채팅, 첨부, 위치 좌표·이력·읽음 시각은 Core API 계약과 V10 Broadcast까지 구현했다. private 채널 RLS와 Android 전환 전까지 실제 화면은 Firestore에 남기며 API 구현만으로 앱 경로가 바뀐 것으로 간주하지 않는다.
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리 쓰기를 거부한다. 기존 `companionSessions` 문서에서는 배정 매니저의 채팅·위치·읽음과 환자·보호자의 채팅·읽음만 갱신할 수 있다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.

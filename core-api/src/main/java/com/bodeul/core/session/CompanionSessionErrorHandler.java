@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice(assignableTypes = CompanionSessionController.class)
-@Profile({"database", "companion-session-test"})
+@RestControllerAdvice(assignableTypes = {
+        CompanionSessionController.class,
+        CompanionRealtimeController.class
+})
+@Profile({"database", "companion-session-test", "companion-realtime-test"})
 class CompanionSessionErrorHandler {
 
     @ExceptionHandler(CompanionSessionException.class)
