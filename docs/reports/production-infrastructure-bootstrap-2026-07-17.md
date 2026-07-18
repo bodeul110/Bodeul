@@ -26,11 +26,13 @@
 | Firebase 앱 | Android `com.example.bodeul`, 관리자 Web 앱 등록 |
 | Rules | 현재 저장소의 Firestore·Storage Rules를 production release로 배포 |
 | Artifact Registry | `asia-northeast1/bodeul-core-api` Docker repository |
-| 서비스 계정 | `bodeul-core-deployer`, `bodeul-core-runtime` |
-| WIF | `github-actions/bodeul-core-api-production` |
+| 서비스 계정 | `bodeul-core-deployer`, `bodeul-core-runtime`, `bodeul-db-backup` |
+| WIF | `github-actions/bodeul-core-api-production`, `github-actions/bodeul-db-backup-production` |
 | Supabase | `bodeul-prod`, ref `aoijbzgozbopsxzrasbb`, `ap-northeast-1`, PostgreSQL 17 |
 
 WIF provider 조건은 `bodeul110/Bodeul`, `refs/heads/master`, `core-api-production`을 모두 요구한다. 배포 계정에는 Cloud Run 배포, 해당 Artifact Registry 쓰기와 runtime 서비스 계정 사용 권한만 부여했다. 사용자 관리 서비스 계정 key는 만들지 않았다.
+
+DB 백업 provider는 같은 저장소와 `master`에 더해 `core-api-migration-production` Environment를 요구한다. `bodeul-db-backup`에는 production DB backup bucket의 object 생성·조회 권한만 부여했으며 삭제 권한과 서비스 계정 key는 부여하지 않았다.
 
 ## DB migration과 검증
 
@@ -58,6 +60,8 @@ WIF provider 조건은 `bodeul110/Bodeul`, `refs/heads/master`, `core-api-produc
 `core-api-production`에는 production project, region, Artifact Registry, WIF, 서비스 계정, Firebase 식별자, App Check `observe`와 DB Secret Manager version `1`을 등록했다. Kakao production secret version은 아직 없으므로 배포 workflow는 인증 전에 실패한다.
 
 `core-api-migration-production`에는 production migration 전용 JDBC URL, 사용자명과 비밀번호를 등록했다. 원문은 저장소, 문서와 Actions 출력에 남기지 않았다.
+
+같은 Environment에는 production project, backup bucket, DB 백업 WIF provider와 서비스 계정을 변수로 등록했다. `.github/workflows/postgres-production-backup-restore.yml`은 owner와 ACL을 포함한 dump를 격리 PostgreSQL에 복원하고 manifest가 일치한 경우에만 외부 bucket에 업로드한다.
 
 ## 남은 출시 게이트
 
