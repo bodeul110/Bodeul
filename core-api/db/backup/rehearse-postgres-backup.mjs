@@ -172,8 +172,15 @@ function collectManifest(query) {
   const flyway = tables.flyway_schema_history
     ? (() => {
         const [successfulCount, maxVersion] = query(`
-          select count(*) filter (where success)::text, coalesce(max(version), '')
-          from bodeul.flyway_schema_history;
+          select
+            (select count(*) filter (where success)::text from bodeul.flyway_schema_history),
+            coalesce((
+              select version
+              from bodeul.flyway_schema_history
+              where success
+              order by installed_rank desc
+              limit 1
+            ), '');
         `).split("\t");
         return { successfulCount, maxVersion };
       })()
