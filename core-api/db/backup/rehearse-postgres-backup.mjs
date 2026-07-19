@@ -10,6 +10,7 @@ const RESTORE_ROLES = [
   "bodeul_migration",
   "bodeul_core_runtime",
   "bodeul_admin_runtime",
+  "bodeul_retention_runtime",
   "anon",
   "authenticated",
   "service_role",
