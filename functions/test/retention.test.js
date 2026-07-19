@@ -7,8 +7,57 @@ const {
   isAllowedChatAttachmentPath,
   isAllowedManagerDocumentPath,
   previousMonthStart,
+  postgresConnectionOptions,
+  retentionApplyEnabled,
+  retentionCounts,
   runRetentionJob,
 } = require("../src/retention");
+
+test("PostgreSQL 연결은 Supabase CA 검증을 강제한다", () => {
+  const ca = "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----";
+  const options = postgresConnectionOptions(ca);
+
+  assert.equal(options.ssl.ca, ca);
+  assert.equal(options.ssl.rejectUnauthorized, true);
+  assert.equal(options.prepare, false);
+  assert.equal(options.max, 1);
+});
+
+test("Supabase CA가 없거나 PEM 형식이 아니면 연결 구성을 거부한다", () => {
+  assert.throws(
+      () => postgresConnectionOptions(""),
+      (error) => error.code === "DATABASE_CA_CONFIG_INVALID",
+  );
+  assert.throws(
+      () => postgresConnectionOptions("not-a-certificate"),
+      (error) => error.code === "DATABASE_CA_CONFIG_INVALID",
+  );
+});
+
+test("DB 집계 payload는 계약 키만 남기고 안전한 정수로 정규화한다", () => {
+  const counts = retentionCounts({
+    mode: "DRY_RUN",
+    asOf: "2026-07-19T00:00:00.000Z",
+    postgresMessageCandidates: "3",
+    attachmentsDeleted: -1,
+    unexpected: 100,
+  });
+
+  assert.equal(counts.postgresMessageCandidates, 3);
+  assert.equal(counts.attachmentsDeleted, 0);
+  assert.equal(counts.managerDocumentDeleteFailures, 0);
+  assert.equal(Object.hasOwn(counts, "mode"), false);
+  assert.equal(Object.hasOwn(counts, "unexpected"), false);
+  assert.equal(Object.keys(counts).length, 20);
+});
+
+test("정기 파기는 true를 명시한 환경에서만 활성화한다", () => {
+  assert.equal(retentionApplyEnabled("true"), true);
+  assert.equal(retentionApplyEnabled(" TRUE "), true);
+  assert.equal(retentionApplyEnabled("false"), false);
+  assert.equal(retentionApplyEnabled("1"), false);
+  assert.equal(retentionApplyEnabled(undefined), false);
+});
 
 function createDatabase(overrides = {}) {
   const calls = [];

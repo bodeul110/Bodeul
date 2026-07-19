@@ -12,6 +12,10 @@ async function main() {
   if (!databaseUrl) {
     throw new Error("RETENTION_DATABASE_URL 환경변수가 필요합니다.");
   }
+  const databaseCaCert = String(process.env.RETENTION_DATABASE_CA_CERT || "").trim();
+  if (!databaseCaCert) {
+    throw new Error("RETENTION_DATABASE_CA_CERT 환경변수가 필요합니다.");
+  }
   if (!options.projectId) {
     throw new Error("--project로 Firebase 프로젝트 ID를 지정해 주세요.");
   }
@@ -27,6 +31,7 @@ async function main() {
 
   const summary = await runConfiguredRetentionJob({
     databaseUrl,
+    databaseCaCert,
     apply: options.apply,
   });
   console.log(JSON.stringify(summary, null, 2));
