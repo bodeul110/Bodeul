@@ -10,6 +10,8 @@
   - 기능설명서를 현재 앱 구조로 다시 풀어쓴 기준 문서
 - [MVP 범위](mvp-scope.md)
   - 현재 단계 우선 구현 범위와 후속 범위 구분
+- [기획 정책 및 공용 계정 준비 기준](product-policy-and-shared-account-readiness.md)
+  - 출시 전 기획 결정, 공용 계정 소유권, 구독 등급과 비용 준비 기준
 - [리팩토링 로드맵](refactoring-roadmap-2026-06-20.md)
   - 구조 정리 우선순위와 분할 기준
 
