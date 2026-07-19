@@ -91,7 +91,7 @@ jobs:
               exit 1
             fi
 
-            if [[ ! "$MIGRATION_BACKUP_REFERENCE" =~ ^[A-Za-z0-9._:/#-]+$ ]]; then
+            if [[ ! "$MIGRATION_BACKUP_REFERENCE" =~ ^[A-Za-z0-9._:/#=-]+$ ]]; then
               echo "백업 증적에는 URL 또는 안전한 식별자만 입력할 수 있습니다." >&2
               exit 1
             fi
