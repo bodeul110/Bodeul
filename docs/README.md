@@ -18,17 +18,16 @@
 새 작업을 시작할 때는 아래 순서를 기본으로 쓴다.
 
 1. [현재 구현 상태](status/implementation-status.md)
-2. [기획팀 전달용 계정·결제 준비표](planning/planning-account-payment-handoff.md)
-3. [기획 정책 및 공용 계정 준비 기준](planning/product-policy-and-shared-account-readiness.md)
-4. [협업 규칙](operations/collaboration-rules.md)
-5. [내부 테스트 가이드](operations/internal-test-guide.md)
-6. [화면 개편 목표 정리](planning/screen-restructure-target.md)
-7. [Firebase 설정](operations/firebase/setup.md)
-8. [인프라 개요](architecture/infrastructure.md)
-9. [Production 인프라 기본값](operations/production-infrastructure-defaults.md)
-10. [2026년 Production 운영 전환 계획](operations/production-transition-plan-2026.md)
-11. [데이터 보관 및 파기 정책](operations/data-retention-policy.md)
-12. [Production 인프라 구축 기록](reports/production-infrastructure-bootstrap-2026-07-17.md)
+2. [개발 진행용 계정 준비 목록](planning/planning-account-payment-handoff.md)
+3. [협업 규칙](operations/collaboration-rules.md)
+4. [내부 테스트 가이드](operations/internal-test-guide.md)
+5. [화면 개편 목표 정리](planning/screen-restructure-target.md)
+6. [Firebase 설정](operations/firebase/setup.md)
+7. [인프라 개요](architecture/infrastructure.md)
+8. [Production 인프라 기본값](operations/production-infrastructure-defaults.md)
+9. [2026년 Production 운영 전환 계획](operations/production-transition-plan-2026.md)
+10. [데이터 보관 및 파기 정책](operations/data-retention-policy.md)
+11. [Production 인프라 구축 기록](reports/production-infrastructure-bootstrap-2026-07-17.md)
 
 ## 카테고리
 
