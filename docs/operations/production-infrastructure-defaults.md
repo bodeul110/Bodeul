@@ -139,11 +139,11 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - `.github/workflows/core-api-migration.yml`의 production 경로에 `master` SHA, 백업 증적과 사전 Core API 검사를 적용했다.
 - `core-api/deploy/cloud-run/set-production-secrets.ps1`에 production 전용 secret version 입력 경계를 준비했다.
 - `core-api-production`에는 production GCP/Firebase 식별자와 DB Secret Manager version을 등록했다. Kakao production secret version은 비어 있어 첫 배포는 계속 fail-closed다.
-- `core-api-migration-production`에는 production migration 자격 증명을 등록했고, run `29570950189`에서 보호 승인 뒤 Flyway V1~V3 적용을 완료했다.
+- `core-api-migration-production`에는 production migration 자격 증명을 등록했다. run `29669867122`에서 V13까지 적용했고, run `29670197027`에서 최종 dump의 격리 복원과 manifest 일치를 확인했다.
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
-- production Supabase는 빈 데이터 상태로 `bodeul` schema, 최소 권한 role, RLS 3개 테이블과 정책 6개를 갖는다. 공개 role table grant는 0건이다.
+- production Supabase는 빈 데이터 상태로 Flyway V13, `bodeul` schema, 최소 권한 role, 업무·이력 테이블 13개와 RLS 정책 33개를 갖는다. 공개 role table grant와 Security Advisor 경고는 0건이다.
 - production Supabase 조직은 현재 Free다. 2026-11-16까지 Pro로 전환하고 spend cap과 일일 7일 백업을 확인한다.
-- pre-migration schema dump는 비공개 GCS bucket에 28일 보존으로 저장했다. 실제 restore 리허설은 출시 게이트로 남아 있다.
+- migration 전·V12·V13 검증 dump를 비공개 GCS bucket에 28일 보존으로 저장했다. V13 최종 restore 리허설은 완료했고, 실제 데이터 규모의 복구 시간 측정은 출시 후 분기 리허설에서 반복한다.
 - production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18에 현재 production dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
 
@@ -173,3 +173,4 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)
 - [데이터 보관 및 파기 정책](data-retention-policy.md)
 - [Production PostgreSQL 백업·복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md)
+- [Production PostgreSQL V13 migration·복원 검증](../reports/postgres-production-v13-migration-restore-2026-07-19.md)

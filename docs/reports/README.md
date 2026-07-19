@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Production PostgreSQL V13 migration·복원 검증 (2026-07-19)](postgres-production-v13-migration-restore-2026-07-19.md)
 - [Issue 221 Android Realtime 전환 4단계 (2026-07-18)](issue-221-android-realtime-phase-4-2026-07-18.md)
 - [Issue 221 Firebase JWT와 private Realtime 인가 3단계 (2026-07-18)](issue-221-realtime-auth-phase-3-2026-07-18.md)
 - [Issue 221 채팅·위치 Core API와 Broadcast 2단계 (2026-07-18)](issue-221-realtime-api-phase-2-2026-07-18.md)

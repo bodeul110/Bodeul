@@ -71,7 +71,7 @@ flowchart LR
 | 관리자 DB 접속 | `bodeul_admin_service`, transaction pooler, 최대 연결 5 | Preview 전용 자격 증명과 Supabase Root CA 검증, 쓰기 권한 없음 확인 |
 | 사용자 Core API | `core-api/`, Java 21, Spring Boot, Cloud Run Tokyo | `/health` 200, Firebase token, PostgreSQL role, App Check observe, rollback, 실세션 API와 FCM 확인 |
 | Kakao Local | Core API의 `/api/places/search` 뒤에 배치 | Android 직접 REST 키 제거, 인증된 실제 호출 확인 |
-| 공용 DB | 개발·production Supabase PostgreSQL을 Tokyo에 분리 | production Flyway V1~V3, 격리 복원, role·RLS·공개 grant 0건, Security Advisor 경고 0건 |
+| 공용 DB | 개발·production Supabase PostgreSQL을 Tokyo에 분리 | production Flyway V1~V13, 최종 격리 복원 manifest 일치, 전용 role·RLS·공개 grant 0건, Security Advisor 경고 0건 |
 | 실시간 | Supabase Realtime private Broadcast | 실제 참여·비참여 인가, 재연결, 10개 동시 join과 Broadcast 10/10 수신 확인 |
 | Firebase | 개발·production Auth, Firestore, Storage를 분리 | production Rules 배포, Firestore 삭제 방지, App Check는 미강제 |
 
