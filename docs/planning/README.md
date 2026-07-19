@@ -13,6 +13,11 @@
 - [리팩토링 로드맵](refactoring-roadmap-2026-06-20.md)
   - 구조 정리 우선순위와 분할 기준
 
+## 기획 전달 자료
+
+- [외부 서비스 계정 목록](planning-account-payment-handoff.md)
+  - 기획 측에서 준비할 계정과 결제 상태
+
 ## 같이 볼 문서
 
 - [현재 구현 상태](../status/implementation-status.md)
