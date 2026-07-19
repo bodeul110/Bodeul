@@ -10,10 +10,13 @@
   - 기능설명서를 현재 앱 구조로 다시 풀어쓴 기준 문서
 - [MVP 범위](mvp-scope.md)
   - 현재 단계 우선 구현 범위와 후속 범위 구분
-- [개발 진행용 계정 준비 목록](planning-account-payment-handoff.md)
-  - 현재 개발에 추가로 필요한 외부 계정과 결제 상태
 - [리팩토링 로드맵](refactoring-roadmap-2026-06-20.md)
   - 구조 정리 우선순위와 분할 기준
+
+## 기획 전달 자료
+
+- [외부 서비스 계정 목록](planning-account-payment-handoff.md)
+  - 기획 측에서 준비할 계정과 결제 상태
 
 ## 같이 볼 문서
 
