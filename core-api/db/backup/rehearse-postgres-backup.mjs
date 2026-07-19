@@ -256,14 +256,36 @@ function validateManifest(manifest, label) {
 }
 
 function waitForPostgres(containerName) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  let consecutiveSuccesses = 0;
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     const result = spawnSync(
       "docker",
-      ["exec", containerName, "pg_isready", "--username", "postgres", "--dbname", "postgres"],
+      [
+        "exec",
+        containerName,
+        "psql",
+        "--username",
+        "postgres",
+        "--dbname",
+        "postgres",
+        "--no-psqlrc",
+        "--tuples-only",
+        "--no-align",
+        "--set",
+        "ON_ERROR_STOP=1",
+        "--command",
+        "select 1;",
+      ],
       { stdio: "ignore" },
     );
     if (result.status === 0) {
-      return;
+      consecutiveSuccesses += 1;
+      if (consecutiveSuccesses >= 3) {
+        return;
+      }
+    } else {
+      consecutiveSuccesses = 0;
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
   }
