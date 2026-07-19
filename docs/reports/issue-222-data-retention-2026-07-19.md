@@ -118,8 +118,10 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - [ ] 개인정보 처리방침에 위치 24시간, 채팅 180일, 첨부·증빙 30일 기준이 동일하게 반영됐는지 확인
 - [ ] 위치기반서비스 이용약관의 위치정보 이용·보유·파기 문구 확인
 - [ ] 개인정보 보호책임자 또는 법률 검토 결과 기록
-- [ ] production 전용 retention role과 secret 생성
-- [ ] production backup 기준점과 dry-run 결과 승인
+- [x] production 전용 retention 권한 role 생성 (`NOLOGIN` 유지)
+- [ ] production retention 로그인 secret 생성과 파기 함수 배포
+- [x] production V13 backup 기준점과 격리 복원 검증
+- [ ] production 파기 함수 dry-run 결과 승인
 - [ ] production apply 활성화 전 격리 fixture 재검증
 
 법률·개인정보 검토는 기술 구현으로 대신할 수 없으므로 완료 전까지 #222를 출시 게이트로 유지한다.
