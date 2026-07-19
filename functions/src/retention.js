@@ -2,15 +2,12 @@ const {getApp} = require("firebase-admin/app");
 const {FieldPath, FieldValue, getFirestore} = require("firebase-admin/firestore");
 const {getStorage} = require("firebase-admin/storage");
 const logger = require("firebase-functions/logger");
-const {defineBoolean, defineSecret} = require("firebase-functions/params");
+const {defineSecret} = require("firebase-functions/params");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const postgres = require("postgres");
 
 const RETENTION_DATABASE_URL = defineSecret("RETENTION_DATABASE_URL");
-const RETENTION_APPLY_ENABLED = defineBoolean("RETENTION_APPLY_ENABLED", {
-  default: false,
-  description: "자동 파기 예약 작업의 실제 삭제 활성화 여부",
-});
+const RETENTION_DATABASE_CA_CERT = defineSecret("RETENTION_DATABASE_CA_CERT");
 
 const RETENTION_SCHEDULE_OPTIONS = {
   region: "asia-northeast3",
@@ -20,7 +17,7 @@ const RETENTION_SCHEDULE_OPTIONS = {
   memory: "256MiB",
   maxInstances: 1,
   retryCount: 1,
-  secrets: [RETENTION_DATABASE_URL],
+  secrets: [RETENTION_DATABASE_URL, RETENTION_DATABASE_CA_CERT],
 };
 
 const RETENTION_MONTHLY_REPORT_OPTIONS = {
@@ -31,7 +28,7 @@ const RETENTION_MONTHLY_REPORT_OPTIONS = {
   memory: "256MiB",
   maxInstances: 1,
   retryCount: 1,
-  secrets: [RETENTION_DATABASE_URL],
+  secrets: [RETENTION_DATABASE_URL, RETENTION_DATABASE_CA_CERT],
 };
 
 const DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
@@ -50,21 +47,35 @@ const MANAGER_DOCUMENT_LEGACY_PATH_KEYS = {
   criminalRecord: "managerCriminalRecordStoragePath",
 };
 const REVIEWED_MANAGER_DOCUMENT_STATUSES = new Set(["APPROVED", "REJECTED"]);
+const RETENTION_COUNT_KEYS = [
+  "postgresMessageCandidates",
+  "postgresAttachmentCandidates",
+  "postgresLocationCandidates",
+  "postgresLegalHoldSkips",
+  "firestoreMessageCandidates",
+  "firestoreAttachmentCandidates",
+  "firestoreLocationCandidates",
+  "firestoreLegalHoldSkips",
+  "managerDocumentCandidates",
+  "managerDocumentLegalHoldSkips",
+  "messagesRedacted",
+  "attachmentsDeleted",
+  "attachmentDeleteFailures",
+  "locationsDeleted",
+  "firestoreMessagesRedacted",
+  "firestoreAttachmentsDeleted",
+  "firestoreAttachmentDeleteFailures",
+  "firestoreLocationsCleared",
+  "managerDocumentsDeleted",
+  "managerDocumentDeleteFailures",
+];
 
 class PostgresRetentionRepository {
-  constructor(databaseUrl) {
+  constructor(databaseUrl, databaseCaCert) {
     if (!sanitizeText(databaseUrl)) {
       throw createRetentionError("DATABASE_CONFIG_MISSING");
     }
-    this.sql = postgres(databaseUrl, {
-      max: 1,
-      prepare: false,
-      ssl: {rejectUnauthorized: true},
-      connect_timeout: 10,
-      idle_timeout: 5,
-      max_lifetime: 60,
-      connection: {application_name: "bodeul-retention-job"},
-    });
+    this.sql = postgres(databaseUrl, postgresConnectionOptions(databaseCaCert));
   }
 
   async beginJob(mode, asOf, startedAt) {
@@ -134,16 +145,26 @@ class PostgresRetentionRepository {
 
   async finishJob(jobId, status, finishedAt, summary, failureStage = null) {
     const counts = retentionCounts(summary);
-    const rows = await this.sql`
-      select bodeul.finish_retention_job(
-        ${jobId}::uuid,
-        ${status},
-        ${finishedAt.toISOString()}::timestamptz,
-        ${JSON.stringify(counts)}::jsonb,
-        ${failureStage}
-      ) as finished
-    `;
-    return rows[0]?.finished === true;
+    try {
+      const rows = await this.sql`
+        select bodeul.finish_retention_job(
+          ${jobId}::uuid,
+          ${status},
+          ${finishedAt.toISOString()}::timestamptz,
+          ${this.sql.json(counts)}::jsonb,
+          ${failureStage}
+        ) as finished
+      `;
+      return rows[0]?.finished === true;
+    } catch (error) {
+      logger.error("자동 파기 실행 집계를 저장하지 못했습니다.", {
+        status,
+        failureStage: sanitizeText(failureStage) || null,
+        errorCode: retentionErrorCode(error),
+        counts,
+      });
+      throw error;
+    }
   }
 
   async monthlySummary(monthStart) {
@@ -768,10 +789,9 @@ function emptyRetentionSummary(mode, asOf) {
 }
 
 function retentionCounts(summary) {
-  const counts = {...summary};
-  delete counts.mode;
-  delete counts.asOf;
-  return counts;
+  return Object.fromEntries(
+      RETENTION_COUNT_KEYS.map((key) => [key, toCount(summary?.[key])]),
+  );
 }
 
 function resolveStorageBucketName() {
@@ -782,8 +802,29 @@ function resolveStorageBucketName() {
   return `${projectId}.firebasestorage.app`;
 }
 
-function createRuntimeDependencies(databaseUrl) {
-  const database = new PostgresRetentionRepository(databaseUrl);
+function postgresConnectionOptions(databaseCaCert) {
+  const ca = sanitizeText(databaseCaCert);
+  if (!ca.startsWith("-----BEGIN CERTIFICATE-----") ||
+      !ca.endsWith("-----END CERTIFICATE-----")) {
+    throw createRetentionError("DATABASE_CA_CONFIG_INVALID");
+  }
+  return {
+    max: 1,
+    prepare: false,
+    ssl: {ca, rejectUnauthorized: true},
+    connect_timeout: 10,
+    idle_timeout: 5,
+    max_lifetime: 60,
+    connection: {application_name: "bodeul-retention-job"},
+  };
+}
+
+function retentionApplyEnabled(value = process.env.RETENTION_APPLY_ENABLED) {
+  return sanitizeText(value).toLowerCase() === "true";
+}
+
+function createRuntimeDependencies(databaseUrl, databaseCaCert) {
+  const database = new PostgresRetentionRepository(databaseUrl, databaseCaCert);
   const legacyStore = new FirebaseLegacyCompanionStore(getFirestore());
   const managerStore = new FirebaseManagerDocumentStore(getFirestore());
   const bucket = getStorage(getApp()).bucket(resolveStorageBucketName());
@@ -791,8 +832,13 @@ function createRuntimeDependencies(databaseUrl) {
   return {database, legacyStore, managerStore, storage};
 }
 
-async function runConfiguredRetentionJob({databaseUrl, apply, now = new Date()}) {
-  const dependencies = createRuntimeDependencies(databaseUrl);
+async function runConfiguredRetentionJob({
+  databaseUrl,
+  databaseCaCert,
+  apply,
+  now = new Date(),
+}) {
+  const dependencies = createRuntimeDependencies(databaseUrl, databaseCaCert);
   try {
     return await runRetentionJob({...dependencies, apply, now});
   } finally {
@@ -862,7 +908,8 @@ const cleanupExpiredData = onSchedule(RETENTION_SCHEDULE_OPTIONS, async () => {
   try {
     const summary = await runConfiguredRetentionJob({
       databaseUrl: RETENTION_DATABASE_URL.value(),
-      apply: RETENTION_APPLY_ENABLED.value(),
+      databaseCaCert: RETENTION_DATABASE_CA_CERT.value(),
+      apply: retentionApplyEnabled(),
     });
     logger.info("개인정보 자동 파기 작업을 마쳤습니다.", summary);
   } catch (error) {
@@ -877,7 +924,10 @@ const cleanupExpiredData = onSchedule(RETENTION_SCHEDULE_OPTIONS, async () => {
 const reportMonthlyRetention = onSchedule(
     RETENTION_MONTHLY_REPORT_OPTIONS,
     async () => {
-      const database = new PostgresRetentionRepository(RETENTION_DATABASE_URL.value());
+      const database = new PostgresRetentionRepository(
+          RETENTION_DATABASE_URL.value(),
+          RETENTION_DATABASE_CA_CERT.value(),
+      );
       try {
         const summary = await database.monthlySummary(previousMonthStart(new Date()));
         logger.info("월간 개인정보 파기 집계를 생성했습니다.", summary);
@@ -901,6 +951,9 @@ module.exports = {
   isAllowedChatAttachmentPath,
   isAllowedManagerDocumentPath,
   previousMonthStart,
+  postgresConnectionOptions,
+  retentionApplyEnabled,
+  retentionCounts,
   retentionErrorCode,
   runConfiguredRetentionJob,
   runRetentionJob,

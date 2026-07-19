@@ -90,6 +90,8 @@
 - Firestore 전환 데이터는 종료 시각 기준 위치 24시간, 첨부 30일, 채팅 본문 180일을 같은 예약 작업에서 적용한다.
 - 매니저 증빙 원본은 심사 후 30일과 `managerDocumentLegalHoldUntil`을 확인한 뒤 삭제한다. 매니저 본인은 legal hold 필드를 수정할 수 없다.
 - 일일 작업은 기본 dry-run이며 `RETENTION_APPLY_ENABLED=true`인 환경에서만 실제 파기를 수행한다.
+- 개발 환경의 두 예약 함수는 Supabase CA와 DB URL을 각각 Secret Manager에서 주입하고 서버 인증서 검증을 강제한다.
 - 월간 보고는 원문, 사용자 ID, 좌표, Storage 경로 없이 건수와 실패 단계만 기록한다.
+- 개발 환경에서 PostgreSQL·Storage 격리 fixture APPLY와 legal hold 보존을 확인했으며, 정기 apply 플래그는 다시 `false`로 배포했다.
 - 구현과 검증 근거는 [#222 개인정보 자동 파기 구현 기록](../reports/issue-222-data-retention-2026-07-19.md)에 정리한다.
 - production 활성화는 개인정보 처리방침, 위치기반서비스 이용약관, 개인정보 보호책임자 또는 법률 검토가 끝난 뒤 진행한다.
