@@ -26,7 +26,10 @@ async function createCliContext() {
     FIRESTORE_EMULATOR_ACCESS_TOKEN :
     await resolveFirebaseAccessToken();
   if (!accessToken) {
-    throw new Error("firebase login 토큰을 찾지 못했습니다. `firebase login`으로 다시 로그인한 뒤 실행해 주세요.");
+    throw new Error(
+        "Google OAuth access token 또는 Firebase 로그인 토큰을 찾지 못했습니다. " +
+        "CI는 WIF 인증을, 로컬은 `firebase login` 상태를 확인해 주세요.",
+    );
   }
 
   return {
@@ -123,6 +126,11 @@ function resolveStorageBucket(projectId) {
 }
 
 async function resolveFirebaseAccessToken() {
+  const googleOauthAccessToken = sanitizeText(process.env.GOOGLE_OAUTH_ACCESS_TOKEN);
+  if (googleOauthAccessToken) {
+    return googleOauthAccessToken;
+  }
+
   const tokenFromEnv = sanitizeText(process.env.FIREBASE_TOKEN);
   if (tokenFromEnv) {
     return resolveAccessTokenFromRawToken(tokenFromEnv);

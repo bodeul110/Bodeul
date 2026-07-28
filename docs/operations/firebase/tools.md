@@ -275,19 +275,21 @@ npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.
 
 - CI용 실행점은 [run-ci-preflight.js](../../../tools/firebase/run-ci-preflight.js)이고, 내부에서 [run-local-preflight.js](../../../tools/firebase/run-local-preflight.js)를 그대로 재사용한다.
 - Firebase 입력이 준비되면 운영 워크플로까지 포함하고, 준비되지 않았으면 자동으로 `--skip-workflow`를 붙여 빌드/테스트만 수행한다.
-- `--require-firebase`를 주면 `FIREBASE_TOKEN`, 프로젝트 식별 정보가 없을 때 실패로 종료한다.
+- `--require-firebase`를 주면 WIF가 발급한 `GOOGLE_OAUTH_ACCESS_TOKEN` 또는 로컬 Firebase token과 프로젝트 식별 정보가 없을 때 실패로 종료한다.
 - GitHub Actions 워크플로는 [.github/workflows/android-preflight.yml](../../../.github/workflows/android-preflight.yml)에 추가했다.
 - `workflow_dispatch`로 실제 실행하려면 이 워크플로 파일이 원격 기본 브랜치에도 올라가 있어야 한다. 로컬에만 있고 아직 push하지 않았다면 `gh workflow run`은 `workflow ... not found on the default branch`로 실패한다.
 - GitHub Actions에서 전체 점검을 돌리려면 아래 시크릿/변수를 맞춘다.
-  - `secrets.FIREBASE_TOKEN`
-  - `secrets.FIREBASE_OAUTH_CLIENT_SECRET` (`FIREBASE_TOKEN`이 refresh token일 때만)
   - `secrets.GOOGLE_SERVICES_JSON`
   - `secrets.FIREBASERC_JSON`
   - `vars.FIREBASE_PROJECT_ID`
-- `FIREBASE_TOKEN`은 Firebase 공식 문서 기준 `firebase login:ci`로 발급받는 refresh token 또는 access token을 받을 수 있다.
-- refresh token을 쓰는 경우 [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)가 access token으로 교환해야 하므로, `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 필요하다.
-- 이 OAuth client secret은 저장소에 하드코딩하지 않고, 로컬에서는 `local.properties`의 `firebaseOauthClientSecret`, CI에서는 `secrets.FIREBASE_OAUTH_CLIENT_SECRET`으로 분리한다.
-- 시크릿이 없으면 워크플로는 기본적으로 Android 빌드/테스트만 수행하고, 생성된 `tools/firebase/reports/` 산출물은 아티팩트로 업로드한다.
+  - `vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER`
+  - `vars.FIREBASE_CI_SERVICE_ACCOUNT`
+- `require_firebase_ops=true`인 수동 실행은 `google-github-actions/auth@v3`로 WIF 인증한 뒤 30분짜리 OAuth access token만 현재 job에 전달한다.
+- WIF provider는 저장소 ID `1209358990`, 소유자 ID `275679915`, `master`, `android-preflight.yml`, `workflow_dispatch` 조건을 모두 검사한다.
+- 전용 서비스 계정 `bodeul-firebase-preflight@bodeul-dev.iam.gserviceaccount.com`에는 `roles/datastore.viewer`, `roles/firebaseauth.viewer`, `roles/serviceusage.serviceUsageConsumer`만 부여한다.
+- 운영 계정은 프로젝트 custom role `bodeulWifProviderAdmin`으로 기존 WIF provider API의 관리 권한만 갖는다. 임시 Role Admin과 Service Account Admin은 구성 직후 회수한다.
+- 사용자 refresh token과 OAuth client secret은 GitHub Actions에 저장하지 않는다. 운영 점검을 요구하지 않은 PR 실행은 WIF 인증 없이 Android/Firebase 도구의 로컬 검증만 수행한다.
+- 생성된 `tools/firebase/reports/` 산출물은 항상 아티팩트로 업로드한다.
 
 ### GitHub Actions 시크릿 반영
 
@@ -298,17 +300,18 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispat
 ```
 
 - [configure-actions-firebase.js](../../../tools/github/configure-actions-firebase.js)는 origin 원격 또는 `--repo` 값 기준으로 저장소를 해석하고, 아래 항목을 GitHub Actions에 반영한다.
-  - `secrets.FIREBASE_TOKEN`
-  - `secrets.FIREBASE_OAUTH_CLIENT_SECRET` (`FIREBASE_TOKEN`이 refresh token일 때)
   - `secrets.GOOGLE_SERVICES_JSON`
   - `secrets.FIREBASERC_JSON`
   - `vars.FIREBASE_PROJECT_ID`
-- 로컬에서는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수 또는 `local.properties`의 `firebaseOauthClientSecret` 값을 읽어 위 시크릿으로 올린다.
+  - `vars.FIREBASE_WORKLOAD_IDENTITY_PROVIDER`
+  - `vars.FIREBASE_CI_SERVICE_ACCOUNT`
+- 이 도구는 `FIREBASE_TOKEN`과 `FIREBASE_OAUTH_CLIENT_SECRET`을 생성하거나 변경하지 않는다.
+- 기본 WIF 값과 다른 환경에서는 `--workload-identity-provider`, `--service-account`로 명시한다.
 - `--dispatch`를 붙이면 `android-preflight.yml`을 `workflow_dispatch`로 즉시 실행한다.
 - `--backup-file`, `--app-evidence`, `--workflow`로 dispatch 입력값을 조정할 수 있다.
 - 현재 로컬 원격은 `git@github.com:bodeul110/Bodeul.git`이지만, GitHub CLI 계정이 해당 저장소 API 접근 권한이 없는 상태면 시크릿 반영은 실패한다. 이 경우 `gh auth login` 또는 `gh auth switch`로 저장소 권한이 있는 계정으로 바꾼 뒤 다시 실행한다.
 - `--app-evidence` 경로는 repo 루트 기준 경로와 `tools/firebase` 작업 디렉터리 기준 경로를 둘 다 허용한다. CI에서는 `tools/firebase/templates/app-navigation-evidence.sample.json`처럼 repo 루트 기준 경로를 그대로 써도 된다.
-- 원격 전체 모드 검증은 `gh workflow run android-preflight.yml --repo bodeul110/Bodeul --ref master --field require_firebase_ops=true --field app_evidence_path=tools/firebase/templates/app-navigation-evidence.sample.json`로 수행했고, 실행 결과는 [GitHub Actions run 24873140407](https://github.com/bodeul110/Bodeul/actions/runs/24873140407)에서 확인할 수 있다.
+- 원격 전체 모드 검증은 `gh workflow run android-preflight.yml --repo bodeul110/Bodeul --ref master --field require_firebase_ops=true --field app_evidence_path=tools/firebase/templates/app-navigation-evidence.sample.json`로 수행한다.
 
 ### Rules emulator 테스트
 
