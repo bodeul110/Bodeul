@@ -759,12 +759,12 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 new RepositoryCallback<CompanionChatAttachment>() {
                     @Override
                     public void onSuccess(CompanionChatAttachment result) {
-                        deleteSampleFile(sampleFile);
                         sendChatMessageWithAttachments(
                                 user,
                                 message,
                                 Collections.singletonList(result),
-                                completionAction
+                                completionAction,
+                                () -> deleteSampleFile(sampleFile)
                         );
                     }
 
@@ -783,6 +783,22 @@ public class AutomationEntryActivity extends AppCompatActivity {
             java.util.List<CompanionChatAttachment> attachments,
             Runnable completionAction
     ) {
+        sendChatMessageWithAttachments(
+                user,
+                message,
+                attachments,
+                completionAction,
+                () -> { }
+        );
+    }
+
+    private void sendChatMessageWithAttachments(
+            User user,
+            String message,
+            java.util.List<CompanionChatAttachment> attachments,
+            Runnable completionAction,
+            Runnable cleanupAction
+    ) {
         updateStatus("채팅 메시지 저장 중", message);
         if (user.getRole() == UserRole.MANAGER) {
             managerRepository.sendCompanionChatMessage(
@@ -792,11 +808,13 @@ public class AutomationEntryActivity extends AppCompatActivity {
                     new RepositoryCallback<ManagerDashboard>() {
                         @Override
                         public void onSuccess(ManagerDashboard result) {
+                            cleanupAction.run();
                             completionAction.run();
                         }
 
                         @Override
                         public void onError(String message) {
+                            cleanupAction.run();
                             showError("채팅 메시지 저장에 실패했습니다.", message);
                         }
                     }
@@ -817,11 +835,13 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 new RepositoryCallback<AppointmentRequestDetail>() {
                     @Override
                     public void onSuccess(AppointmentRequestDetail result) {
+                        cleanupAction.run();
                         completionAction.run();
                     }
 
                     @Override
                     public void onError(String message) {
+                        cleanupAction.run();
                         showError("채팅 메시지 저장에 실패했습니다.", message);
                     }
                 }
