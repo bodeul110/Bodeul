@@ -403,11 +403,12 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - 점검부터 리포트 생성까지 한 번에 실행하려면 `npm run workflow:ops -- --file ...`를 사용하면 된다.
 - Firebase 점검과 Android 빌드/테스트까지 한 번에 확인하는 로컬 프리플라이트는 `npm run preflight:local -- --file ...`로 실행할 수 있다.
 - 실제 앱 화면을 운영 리포트에 붙이려면 `npm run capture:app -- --screen-id ... --title ...` 또는 `npm run capture:app -- --preset manager-home`처럼 증적 파일을 만든 뒤 `--app-evidence` 옵션으로 `report:ops`, `workflow:ops`, `preflight:local`에 전달한다.
-- CI에서는 `npm run preflight:ci` 또는 [.github/workflows/android-preflight.yml](../../../.github/workflows/android-preflight.yml)로 같은 점검 루틴을 재사용한다. Firebase 시크릿이 없으면 자동으로 운영 워크플로를 건너뛰고 빌드/테스트만 수행한다.
-- CI에서 쓰는 `FIREBASE_TOKEN`은 `firebase login:ci` refresh token 또는 access token을 받을 수 있다.
-- refresh token을 쓰는 경우 [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)가 access token으로 교환해야 하므로 `FIREBASE_OAUTH_CLIENT_SECRET`도 함께 필요하다.
-- 이 값은 저장소에 두지 않고, 로컬 `local.properties`의 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 환경 변수로만 관리한다.
-- GitHub Actions 시크릿/변수는 [configure-actions-firebase.js](../../../tools/github/configure-actions-firebase.js)로 한 번에 반영할 수 있다. 현재 GitHub CLI 계정이 저장소 API 접근 권한이 있어야 하며, 권한이 없으면 `gh auth switch` 또는 `gh auth login`으로 계정을 먼저 맞춰야 한다.
+- CI에서는 `npm run preflight:ci` 또는 [.github/workflows/android-preflight.yml](../../../.github/workflows/android-preflight.yml)로 같은 점검 루틴을 재사용한다. Firebase 운영 점검을 요구하지 않으면 Android 빌드/테스트만 수행한다.
+- GitHub Actions의 Firebase 운영 점검은 사용자 refresh token이 아니라 GitHub OIDC와 Google Cloud WIF로 전용 서비스 계정을 가장한다.
+- `google-github-actions/auth`가 실행마다 30분짜리 OAuth access token을 만들고, [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)는 `GOOGLE_OAUTH_ACCESS_TOKEN`을 우선 사용한다.
+- WIF provider는 `bodeul110/Bodeul`, 저장소 ID, `master`, `android-preflight.yml`, `workflow_dispatch`를 모두 만족하는 토큰만 허용한다.
+- 전용 서비스 계정은 개발 프로젝트의 Firestore 읽기, Firebase Auth 읽기와 API 사용 권한만 갖는다.
+- GitHub Actions 설정은 [configure-actions-firebase.js](../../../tools/github/configure-actions-firebase.js)로 반영한다. 이 도구는 사용자 토큰을 올리지 않고 WIF provider·서비스 계정 변수와 정적 Firebase 설정만 관리한다.
 - 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.
 - 운영 도구 전체 목록은 [tools.md](tools.md)에 정리했다.
 
