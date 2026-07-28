@@ -3612,3 +3612,27 @@
 - #251 Firestore 보조 문서가 없는 Core-only 세션 첨부의 서버 중계 또는 서명 URL 구현
 - FCM 재시도·실패율 관측, release App Check enforce 검증
 - production 적용과 #222 일일 파기
+
+## 146. 2026-07-28 Firebase Preflight WIF 전환
+
+### 선택 근거
+
+- GitHub Actions에 저장한 Firebase 사용자 refresh token은 계정 비밀번호·세션 변경에 영향을 받고 장기 자격 증명으로 남는다.
+- 공식 Firebase CLI와 Google Cloud 지침은 CI에서 Application Default Credentials와 Workload Identity Federation 사용을 권장한다.
+- 기존 `github-actions` WIF 풀을 재사용하되 Android Preflight 전용 provider와 서비스 계정을 분리해 다른 배포 자격과 권한을 공유하지 않는다.
+
+### 구현과 운영 설정
+
+- `bodeul-firebase-preflight` provider는 저장소·소유자 ID, `master`, workflow 경로와 `workflow_dispatch`를 모두 검사한다.
+- 같은 이름의 전용 서비스 계정에는 Firestore·Firebase Auth 읽기와 API 사용 권한만 부여했다.
+- 조직 정책상 운영 계정에 프로젝트 Owner를 둘 수 없어 기존 WIF provider API 권한만 포함한 프로젝트 custom role `bodeulWifProviderAdmin`을 운영 계정에 부여했다.
+- custom role 생성과 서비스 계정 정책 연결에 사용한 임시 Role Admin·Service Account Admin 권한은 작업 직후 회수했다.
+- Android Preflight는 WIF로 30분짜리 access token을 발급하고 Firebase 도구는 `GOOGLE_OAUTH_ACCESS_TOKEN`을 사용자 token보다 우선한다.
+- Actions 설정 도구는 더 이상 `FIREBASE_TOKEN`이나 OAuth client secret을 GitHub에 올리지 않는다.
+
+### 검증 기준
+
+- Firebase 도구 단위 테스트와 CI preflight 통과
+- WIF provider 조건, 서비스 계정 IAM, 사용자 관리형 key 0개 확인
+- `master`의 수동 Android Preflight에서 Firebase 운영 점검 성공
+- 성공 확인 뒤 `FIREBASE_TOKEN`, `FIREBASE_OAUTH_CLIENT_SECRET` 저장소 secret 삭제
