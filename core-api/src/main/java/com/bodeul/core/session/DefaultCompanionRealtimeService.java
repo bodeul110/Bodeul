@@ -81,8 +81,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             AppUserRepository.AppUser appUser,
             UUID sessionId,
             PostMessageCommand command) {
-        SessionRecord session = requireReadableSession(appUser, sessionId);
-        requireActive(session);
+        SessionRecord session = requireMessageWrite(appUser, sessionId);
         MessageMutation mutation = normalizeMessage(appUser, session, command);
         CompanionRealtimeRepository.MessageSaveResult saved = realtimeRepository.saveMessage(mutation);
         if (!messageMatches(saved.message(), mutation)) {
@@ -97,6 +96,14 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                     recipientUserIds(session, saved.message().senderUserId())));
         }
         return toView(saved.message());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void validateMessageWrite(
+            AppUserRepository.AppUser appUser,
+            UUID sessionId) {
+        requireMessageWrite(appUser, sessionId);
     }
 
     @Override
@@ -266,6 +273,14 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         requireReadableRole(appUser);
         SessionRecord session = findSession(sessionId);
         requireReader(appUser, session);
+        return session;
+    }
+
+    private SessionRecord requireMessageWrite(
+            AppUserRepository.AppUser appUser,
+            UUID sessionId) {
+        SessionRecord session = requireReadableSession(appUser, sessionId);
+        requireActive(session);
         return session;
     }
 
