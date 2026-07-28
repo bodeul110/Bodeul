@@ -3609,7 +3609,7 @@
 
 ### 남은 범위
 
-- #251 Core-only 세션 첨부 서버 중계, 인증된 실기기 업로드·다운로드와 개발 만료·삭제 종단 검증 완료. 실제 DB 저장 실패 보상 삭제와 production 적용이 남음
+- #251 Core-only 세션 첨부 서버 중계, 인증된 실기기 업로드·다운로드, DB 충돌 보상 삭제와 개발 만료·삭제 종단 검증 완료. production 적용은 #134 출시 게이트에서 진행
 - FCM 재시도·실패율 관측, release App Check enforce 검증
 - production 적용과 #222 일일 파기
 
@@ -3658,11 +3658,11 @@
 - Preview deploy run `30364434679`, merge SHA `e30d87e75cb93da7a8223956ac6e682e227cd8dc`, 리비전 `bodeul-core-api-preview-00017-x9r` 트래픽 100% 확인
 - SM-S921N(Android 16)에서 인증된 첨부 메시지 POST 200, 69바이트 PNG 객체 생성, 첨부 GET 200, 채팅 표시와 Android 파일 열기 선택 화면 진입 확인
 - 자동화 원본은 전송 완료 후 삭제됐고 인증 다운로드 미리보기 캐시가 생성됨을 확인
+- 같은 `clientMessageId`에 다른 첨부를 보내 실제 PostgreSQL idempotency 충돌 409를 유도하고, 충돌 객체 경로가 실행 전·후 모두 없으며 기존 원본 한 개만 유지됨을 확인
 
-### 남은 범위
+### 후속 운영 범위
 
-- 실제 DB 저장 실패를 유도한 업로드 객체 보상 삭제 확인. 서비스 단위 테스트는 통과함
-- production 출시 게이트 이후 production Rules와 Core API 적용
+- #134 production 출시 게이트 이후 production Rules와 Core API 적용
 
 ## 148. 2026-07-28 Core 첨부 자동 파기 경로 보완과 개발 리허설
 

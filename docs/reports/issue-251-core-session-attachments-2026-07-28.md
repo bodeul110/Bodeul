@@ -45,9 +45,9 @@ Firestore `companionSessions` 문서가 없는 세션에서도 환자·보호자
 - Preview deploy run `30364434679` 성공. merge SHA `e30d87e75cb93da7a8223956ac6e682e227cd8dc` 이미지와 리비전 `bodeul-core-api-preview-00017-x9r`의 트래픽 100%를 확인했다.
 - 같은 실기기에서 인증된 multipart 메시지 POST 200, 69바이트 PNG 객체 생성, 첨부 GET 200과 로컬 미리보기 캐시 생성을 확인했다. 채팅 화면에 메시지와 첨부가 표시됐고 `첨부 열기`가 Android 파일 열기 선택 화면으로 연결됐다.
 - 자동화 원본 `cache/automation-companion-chat.png`는 전송 완료 뒤 남지 않았다.
+- 같은 `clientMessageId`에 내용이 다른 PNG를 보내 실제 PostgreSQL idempotency 충돌 409를 발생시켰다. 충돌 요청의 예상 Storage 경로는 실행 전·후 모두 없었고 기존 실기기 원본 한 개만 유지되어 보상 삭제를 확인했다.
 - #222 개발 리허설에서 만료 객체 삭제, PostgreSQL metadata `DELETED` 비식별화, legal hold 객체 보존과 최종 후보 0건을 확인했다.
 
-## 남은 검증
+## 후속 운영 범위
 
-- 실제 DB 저장 실패를 유도해 이번 요청에서 생성한 Storage 객체가 보상 삭제되는지 개발 환경에서 확인한다. 서비스 단위 테스트의 보상 삭제 검증은 통과했다.
-- production Rules와 Core API는 production 출시 게이트가 열릴 때 적용한다.
+- production Rules와 Core API는 #134 production 출시 게이트가 열릴 때 적용한다.
