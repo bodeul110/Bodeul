@@ -102,6 +102,16 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 | Supabase Security Advisor | 보안 lint 0건 |
 | Supabase Performance Advisor | 미사용 인덱스 INFO 8건만 확인, 개발 초기 사용량 기준이라 즉시 삭제하지 않음 |
 
+## 2026-07-28 Core API 첨부 경로 후속 검증
+
+- Core API 첨부 경로가 기존 `세션 ID/파일`에서 `세션 ID/클라이언트 메시지 UUID/파일` 구조로 확장됐지만 파기 함수의 Storage 경로 허용 목록에는 반영되지 않은 문제를 확인했다.
+- PR #276에서 legacy 경로와 UUID 하위 경로를 함께 허용하고, 임의 하위 디렉터리와 추가 중첩은 계속 거부하도록 수정했다.
+- Android Preflight에 Node 22 Functions 테스트 단계를 추가했고 run `30356833407`에서 16개 테스트가 통과했다. JavaScript CodeQL도 같은 PR에서 통과했다.
+- 개발 Firebase의 `cleanupExpiredData`, `reportMonthlyRetention`을 제한 재배포했다. 리비전은 각각 `cleanupexpireddata-00007-jad`, `reportmonthlyretention-00005-jun`이다.
+- 두 함수 모두 Node.js 22, DB URL Secret v2, CA Secret v1과 `RETENTION_APPLY_ENABLED=false`를 유지한다.
+- 2026-07-28 21:03 KST Scheduler 수동 실행은 HTTP 200으로 완료됐다. `DRY_RUN`, 모든 후보 0건과 삭제 실패 0건을 확인했다.
+- 새 Core API 중첩 경로의 실제 Storage 삭제는 별도 격리 fixture APPLY로 확인해야 하며, 정기 apply는 계속 비활성 상태다.
+
 ## 리스크와 전환 조건
 
 - 하루 500건보다 만료 적재가 빠르면 backlog가 생길 수 있다. 7일 연속 backlog가 줄지 않으면 배치 반복 또는 Cloud Run Job 전환을 검토한다.

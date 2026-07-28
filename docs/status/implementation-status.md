@@ -3660,3 +3660,26 @@
 - ADB 연결 실기기에서 인증된 Core-only 세션 첨부 업로드·다운로드 확인
 - 실제 DB 저장 실패 보상 삭제와 #222의 30일 만료·삭제 종단 검증
 - production 출시 게이트 이후 production Rules와 Core API 적용
+
+## 148. 2026-07-28 Core 첨부 자동 파기 경로 보완
+
+### 구현과 운영 설정
+
+- 자동 파기 Storage 허용 목록에 `세션 ID/클라이언트 메시지 UUID/파일` Core 첨부 경로를 추가했다.
+- 기존 `세션 ID/파일` 경로는 호환용으로 유지하고 임의 디렉터리와 추가 중첩은 거부한다.
+- Android Preflight가 Functions 변경 시 Node 22 `npm test`를 실행하도록 CI 누락을 보완했다.
+- 개발 `cleanupExpiredData`, `reportMonthlyRetention` 함수를 새 소스로 제한 재배포했다.
+
+### 검증
+
+- 로컬 Functions 테스트 16개, workflow YAML 파싱과 diff 검사 통과
+- PR #276의 Node 22 Functions 테스트와 JavaScript CodeQL 통과 후 squash 병합
+- 개발 리비전 `cleanupexpireddata-00007-jad`, `reportmonthlyretention-00005-jun` ACTIVE 확인
+- `RETENTION_APPLY_ENABLED=false`, DB URL Secret v2, CA Secret v1 유지 확인
+- Scheduler 수동 실행 HTTP 200, `DRY_RUN`, 후보와 삭제 실패 각각 0건 확인
+
+### 남은 범위
+
+- 격리된 새 Core 첨부 경로 fixture의 실제 APPLY와 Storage·PostgreSQL 상태 대조
+- Firestore 전환 fixture APPLY와 개인정보 처리방침·위치기반서비스 이용약관 대조
+- production 출시 게이트 이후 production 파기 로그인 secret, 함수 dry-run과 fixture APPLY
