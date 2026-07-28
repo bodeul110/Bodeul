@@ -244,14 +244,14 @@ jobs:
           labels: |-
             environment=production
             component=core-api
-          timeout: 30s
+          timeout: 60s
           flags: >-
             --service-account=${{ env.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
             --cpu=1
             --memory=1Gi
             --min-instances=0
             --max-instances=2
-            --concurrency=20
+            --concurrency=8
             --port=8080
             --execution-environment=gen2
             --cpu-boost

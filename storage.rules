@@ -30,6 +30,9 @@ service firebase.storage {
 
     function isSessionParticipant(sessionId) {
       return signedIn()
+          && firestore.exists(
+            /databases/(default)/documents/companionSessions/$(sessionId)
+          )
           && (
             isAdmin()
             || sessionDoc(sessionId).data.managerUserId == request.auth.uid

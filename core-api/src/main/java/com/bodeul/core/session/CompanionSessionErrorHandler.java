@@ -7,9 +7,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.transaction.TransactionException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice(assignableTypes = {
         CompanionSessionController.class,
@@ -25,7 +29,14 @@ class CompanionSessionErrorHandler {
                 .body(new ApiError(exception.error(), exception.getMessage()));
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class,
+            MultipartException.class,
+            MaxUploadSizeExceededException.class
+    })
     ResponseEntity<ApiError> handleInvalidRequest(Exception exception) {
         return ResponseEntity.badRequest()
                 .cacheControl(CacheControl.noStore())

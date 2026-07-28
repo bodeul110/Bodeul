@@ -26,7 +26,7 @@ public final class CompanionChatAttachmentUploadPolicy {
 
         String contentType = resolveContentType(resolver, fileUri);
         if (!isAllowedContentType(contentType)) {
-            return "안심 채팅 첨부는 PDF 또는 이미지 파일만 보낼 수 있습니다.";
+            return "안심 채팅 첨부는 JPEG, PNG 또는 PDF 파일만 보낼 수 있습니다.";
         }
 
         UploadFileSizePolicy.Result sizeResult = UploadFileSizePolicy.validate(
@@ -73,13 +73,14 @@ public final class CompanionChatAttachmentUploadPolicy {
     }
 
     public static String resolveContentType(ContentResolver resolver, Uri fileUri) {
-        String resolverContentType = normalizeText(resolver.getType(fileUri));
+        String resolverContentType = normalizeContentType(resolver.getType(fileUri));
         if (!resolverContentType.isEmpty()) {
             return resolverContentType;
         }
 
         String extension = MimeTypeMap.getFileExtensionFromUrl(fileUri.toString());
-        return normalizeText(MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
+        return normalizeContentType(
+                MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension));
     }
 
     public static long resolveFileSize(ContentResolver resolver, Uri fileUri) {
@@ -95,7 +96,8 @@ public final class CompanionChatAttachmentUploadPolicy {
             return false;
         }
         return "application/pdf".equals(contentType)
-                || contentType.startsWith("image/");
+                || "image/jpeg".equals(contentType)
+                || "image/png".equals(contentType);
     }
 
     private static String sanitizeFileName(String rawFileName) {
@@ -118,5 +120,10 @@ public final class CompanionChatAttachmentUploadPolicy {
 
     private static String normalizeText(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static String normalizeContentType(String value) {
+        String normalized = normalizeText(value).toLowerCase(java.util.Locale.ROOT);
+        return "image/jpg".equals(normalized) ? "image/jpeg" : normalized;
     }
 }

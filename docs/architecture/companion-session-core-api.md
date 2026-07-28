@@ -52,7 +52,8 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 ## 채팅·위치 저장 계약
 
 - 채팅 본문은 세션별 행으로 저장하고 `client_message_id`로 네트워크 재시도의 중복 저장을 막는다.
-- 첨부 원본은 Firebase Storage에 두되 경로, MIME, 크기와 파기 상태는 PostgreSQL에서 인가한다. 허용 형식은 JPEG, PNG, PDF이고 파일당 최대 10 MiB다.
+- 첨부 원본은 Firebase Storage에 두되 경로, MIME, 크기와 파기 상태는 PostgreSQL에서 인가한다. Android는 Storage에 직접 쓰지 않고 Core API의 multipart endpoint로 전송한다. Core API는 참여 관계를 확인한 뒤 런타임 서비스 계정으로 저장하며, 다운로드 때도 참여 관계와 만료 상태를 다시 확인한다.
+- 허용 형식은 파일 시그니처가 일치하는 JPEG, PNG, PDF이고 파일당 최대 10 MiB, 메시지당 최대 3개다. 저장 경로는 세션 ID, 재시도 식별자와 SHA-256으로 결정해 같은 요청 재시도에서 객체가 중복되지 않게 한다.
 - 읽음 위치는 `(companion_session_id, user_id)` 한 행으로 관리하고 같은 세션 메시지만 참조할 수 있다.
 - 위치는 배정된 매니저와 진행 가능한 세션을 확인하는 `record_companion_location` 함수만 기록한다. 15분보다 오래됐거나 5분보다 미래인 좌표는 거부하고 세션별 최근 10건만 유지한다.
 - 세션 완료·취소 전이는 채팅 180일, 첨부 30일, 정밀 위치 24시간 뒤로 `expires_at`을 예약한다. 실제 삭제와 Storage 정리는 #222 일일 job이 수행한다.
@@ -81,7 +82,9 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 리포트 조회 |
 | `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 리포트 upsert, 예약·세션 `COMPLETED`를 한 트랜잭션으로 반영 |
 | `GET /api/companion-sessions/{id}/realtime` | 환자·보호자·배정 매니저 | 최근 채팅·읽음과 진행 중 위치 snapshot 조회, Realtime 재연결 복구 |
-| `POST /api/companion-sessions/{id}/messages` | 환자·보호자·배정 매니저 | 참여·진행 상태와 첨부 메타데이터 검증 후 재시도 중복 없이 채팅 저장 |
+| `POST /api/companion-sessions/{id}/messages` JSON | 환자·보호자·배정 매니저 | 첨부 없는 메시지 또는 기존 Storage 객체의 metadata를 재시도 중복 없이 저장 |
+| `POST /api/companion-sessions/{id}/messages` multipart | 환자·보호자·배정 매니저 | 참여 관계 확인, 첨부 원본 저장과 메시지 metadata 저장. DB 실패 시 이번 요청이 생성한 객체를 보상 삭제 |
+| `GET /api/companion-sessions/{id}/attachments/{attachmentId}` | 환자·보호자·배정 매니저 | 참여 관계와 PostgreSQL 만료·삭제 상태를 확인한 뒤 `no-store`로 원본 반환 |
 | `PUT /api/companion-sessions/{id}/read-receipt` | 환자·보호자·배정 매니저 | 같은 세션 메시지 기준으로 읽음 위치를 앞으로만 갱신 |
 | `POST /api/companion-sessions/{id}/locations` | 배정 매니저 | 좌표·수집 시각·진행 상태 검증 후 최근 위치 기록 |
 | `GET /api/appointments/{id}/follow-up` | 환자·보호자·배정 매니저 | 예약 참여 관계 확인 후 후기·정산·긴급 지원 기록 조회. 미생성 상태는 `version=0`인 빈 응답 반환 |
@@ -105,7 +108,7 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
-- 채팅, 첨부 metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 화면은 private Broadcast를 변경 신호로 받고 진입·재연결·이벤트 수신 때 Core API snapshot으로 복구한다.
+- 채팅, 첨부 원본·metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 첨부 미리보기는 인증된 API 응답을 앱 전용 단기 캐시에 저장한 뒤 `FileProvider` URI로 연다. 화면은 private Broadcast를 변경 신호로 받고 진입·재연결·이벤트 수신 때 Core API snapshot으로 복구한다.
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 읽는다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
@@ -136,3 +139,4 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. Preview 리비전 `00012-tqv`에서는 Firestore 예약·세션 문서가 0건인 임시 Core-only 배정을 매니저 홈, 보호자 리포트, 환자 예약 상세에서 모두 확인했다. 관련 API 요청은 모두 200이고 App Check 판정은 `valid`였다.
 - 개발 Rules emulator에서 예약·세션·리포트·후속 처리와 기존 세션 채팅·위치의 클라이언트 업무 쓰기 거부를 7개 시나리오로 검증했다. Android 관리자 앱의 Firestore 직접 배정은 더 이상 운영 경로가 아니며 별도 관리자 웹 서버 API를 사용한다.
 - 개발 DB V12 migration run `29650223504`, Cloud Run Preview deploy run `29651623086`과 개발 Firestore Rules 배포를 완료했다. 실제 세션의 채팅·읽음·위치·재연결, FCM 실기기 알림과 private Realtime 10개 동시 연결·10/10 Broadcast 수신을 확인했다.
+- Core-only 첨부는 서버 중계 방식을 선택했다. 현재 30 MiB 이하 요청을 Core API 메모리에서 검증하므로 MVP 규모에는 적합하지만, 첨부 트래픽이나 파일 크기가 커지면 짧은 수명의 서명 URL과 완료 확인 API로 전환한다. Storage 저장 뒤 DB 저장이 실패한 경우 보상 삭제를 시도하며, 삭제 자체가 실패한 객체는 #222의 일일 정리 작업이 최종 회수해야 한다.

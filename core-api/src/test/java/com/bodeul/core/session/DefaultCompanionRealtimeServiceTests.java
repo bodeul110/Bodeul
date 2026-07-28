@@ -22,6 +22,7 @@ class DefaultCompanionRealtimeServiceTests {
     private static final UUID GUARDIAN_ID = UUID.fromString("6b82d10f-8f20-4a77-b9b4-055a346b689d");
     private static final UUID MANAGER_ID = UUID.fromString("fdb39fea-f2da-408e-bf46-77dbf2265a73");
     private static final UUID MESSAGE_ID = UUID.fromString("318a7261-bbb4-40db-aa91-4a92edbd3da3");
+    private static final UUID ATTACHMENT_ID = UUID.fromString("cfc32ab6-66e8-4fd3-bf0e-4a15ea5d3d78");
 
     private FakeSessionRepository sessionRepository;
     private FakeRealtimeRepository realtimeRepository;
@@ -159,6 +160,36 @@ class DefaultCompanionRealtimeServiceTests {
                 .isEqualTo("companion_chat_message_not_found");
     }
 
+    @Test
+    void participantGetsAuthorizedAttachmentDownloadPath() {
+        realtimeRepository.attachment = Optional.of(attachment());
+
+        var result = service.getAttachment(patient(), SESSION_ID, ATTACHMENT_ID);
+
+        assertThat(result.id()).isEqualTo(ATTACHMENT_ID);
+        assertThat(result.downloadPath()).isEqualTo(
+                "/api/companion-sessions/" + SESSION_ID + "/attachments/" + ATTACHMENT_ID);
+    }
+
+    @Test
+    void unrelatedParticipantCannotReadAttachmentMetadata() {
+        realtimeRepository.attachment = Optional.of(attachment());
+        var unrelatedPatient = user(UUID.randomUUID(), AppUserRole.PATIENT);
+
+        assertThatThrownBy(() -> service.getAttachment(unrelatedPatient, SESSION_ID, ATTACHMENT_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
+    void unavailableAttachmentIsReportedAsNotFound() {
+        assertThatThrownBy(() -> service.getAttachment(patient(), SESSION_ID, ATTACHMENT_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_chat_attachment_not_found");
+    }
+
     private CompanionRealtimeService.PostLocationCommand locationCommand() {
         return new CompanionRealtimeService.PostLocationCommand(
                 UUID.randomUUID(),
@@ -231,6 +262,16 @@ class DefaultCompanionRealtimeServiceTests {
                 Instant.parse("2026-07-18T00:10:00Z"));
     }
 
+    private CompanionRealtimeRepository.AttachmentRecord attachment() {
+        return new CompanionRealtimeRepository.AttachmentRecord(
+                ATTACHMENT_ID,
+                MESSAGE_ID,
+                "companion-chat-attachments/" + SESSION_ID + "/attachment.pdf",
+                "attachment.pdf",
+                "application/pdf",
+                1_024L);
+    }
+
     private final class FakeSessionRepository implements CompanionSessionRepository {
         private Optional<SessionRecord> session = Optional.empty();
 
@@ -287,6 +328,7 @@ class DefaultCompanionRealtimeServiceTests {
                 PATIENT_ID,
                 MESSAGE_ID,
                 Instant.parse("2026-07-18T00:11:00Z")));
+        private Optional<AttachmentRecord> attachment = Optional.empty();
         private MessageMutation lastMessage;
         private LocationMutation lastLocation;
         private boolean forceDifferentPayload;
@@ -304,6 +346,11 @@ class DefaultCompanionRealtimeServiceTests {
         @Override
         public List<LocationRecord> findRecentLocations(UUID sessionId, int limit) {
             return locations;
+        }
+
+        @Override
+        public Optional<AttachmentRecord> findAttachment(UUID sessionId, UUID attachmentId) {
+            return attachment.filter(value -> value.id().equals(attachmentId));
         }
 
         @Override

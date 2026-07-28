@@ -16,6 +16,11 @@ interface CompanionRealtimeService {
             UUID sessionId,
             PostMessageCommand command);
 
+    AttachmentView getAttachment(
+            AppUserRepository.AppUser appUser,
+            UUID sessionId,
+            UUID attachmentId);
+
     ReadReceiptView updateReadReceipt(
             AppUserRepository.AppUser appUser,
             UUID sessionId,
@@ -68,7 +73,8 @@ interface CompanionRealtimeService {
             String storagePath,
             String fileName,
             String contentType,
-            long sizeBytes) {
+            long sizeBytes,
+            String downloadPath) {
     }
 
     record ReadReceiptView(

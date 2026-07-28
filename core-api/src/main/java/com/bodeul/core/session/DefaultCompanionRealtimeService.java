@@ -100,6 +100,21 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public AttachmentView getAttachment(
+            AppUserRepository.AppUser appUser,
+            UUID sessionId,
+            UUID attachmentId) {
+        requireReadableSession(appUser, sessionId);
+        if (attachmentId == null) {
+            throw CompanionSessionException.invalidRequest("첨부 파일 ID가 필요합니다.");
+        }
+        return realtimeRepository.findAttachment(sessionId, attachmentId)
+                .map(attachment -> toView(sessionId, attachment))
+                .orElseThrow(CompanionSessionException::attachmentNotFound);
+    }
+
+    @Override
     @Transactional
     public ReadReceiptView updateReadReceipt(
             AppUserRepository.AppUser appUser,
@@ -343,16 +358,20 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                 message.senderRole(),
                 message.body(),
                 format(message.sentAt()),
-                message.attachments().stream().map(this::toView).toList());
+                message.attachments().stream()
+                        .map(attachment -> toView(message.sessionId(), attachment))
+                        .toList());
     }
 
-    private AttachmentView toView(AttachmentRecord attachment) {
+    private AttachmentView toView(UUID sessionId, AttachmentRecord attachment) {
         return new AttachmentView(
                 attachment.id(),
                 attachment.storagePath(),
                 attachment.fileName(),
                 attachment.contentType(),
-                attachment.sizeBytes());
+                attachment.sizeBytes(),
+                "/api/companion-sessions/" + sessionId
+                        + "/attachments/" + attachment.id());
     }
 
     private ReadReceiptView toView(ReadReceiptRecord receipt, String userRole) {

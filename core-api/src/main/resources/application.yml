@@ -1,6 +1,10 @@
 spring:
   application:
     name: bodeul-core-api
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 32MB
   profiles:
     default: local
     group:

@@ -67,9 +67,9 @@ production은 다음 식별자를 사용한다.
 | Memory | 1 GiB | Spring, Firebase Admin, JDBC의 512 MiB OOM 위험 완화 |
 | 최소 인스턴스 | 0 | 개발 환경 유휴 비용 제한 |
 | 최대 인스턴스 | 1 | 비용과 DB 연결 수 상한 고정 |
-| Concurrency | 20 | 초기 저부하 검증 기준 |
+| Concurrency | 8 | 최대 30 MiB multipart 요청과 1 GiB 메모리 한도를 함께 고려 |
 | DB pool | 최대 5 | Admin, migration, Supabase 관리 연결 여유 확보 |
-| Request timeout | 30초 | 외부 API 지연 무제한 대기 방지 |
+| Request timeout | 60초 | 모바일 첨부 업로드 허용. 외부 API 호출은 애플리케이션 내부 timeout으로 제한 |
 | Port | Cloud Run `PORT`, 기본 8080 | 플랫폼 계약 준수 |
 | 실행 사용자 | distroless `nonroot` | 컨테이너 root 실행 방지 |
 
@@ -130,6 +130,13 @@ Cloud Run preview에는 `BODEUL_APP_CHECK_MODE=observe`를 고정한다. Android
 
 - `roles/datastore.viewer`: Firestore `users` 문서의 기기 token 조회
 - `roles/firebasecloudmessaging.admin`: Firebase Admin SDK의 FCM 발송
+
+Core-only 채팅 첨부를 위해서는 프로젝트 role을 추가하지 않고 Firebase 기본 버킷에만 다음 권한을 부여한다.
+
+- preview `gs://bodeul-dev.firebasestorage.app`: `bodeul-core-preview-runtime@bodeul-dev.iam.gserviceaccount.com`에 `roles/storage.objectUser`
+- production `gs://bodeul-prod-110.firebasestorage.app`: `bodeul-core-runtime@bodeul-prod-110.iam.gserviceaccount.com`에 `roles/storage.objectUser`
+
+이 권한은 원본 생성·조회·보상 삭제에 필요하다. DB 백업 버킷과 프로젝트 전체에는 부여하지 않는다. 애플리케이션은 `FIREBASE_STORAGE_BUCKET`이 없으면 `${FIREBASE_PROJECT_ID}.firebasestorage.app`을 사용하며, 기본 이름과 다른 버킷을 쓸 때만 명시한다.
 
 Cloud Run은 [request-based billing](https://cloud.google.com/run/docs/configuring/billing-settings)을 사용하므로 요청 처리 중에만 CPU가 할당된다. [응답 뒤 background activity](https://cloud.google.com/run/docs/tips/general)는 실행을 보장할 수 없으므로 알림 listener는 PostgreSQL `AFTER_COMMIT` 이후 같은 요청 안에서 실행한다. token 조회는 `getAll`로 묶으며 Firestore와 FCM 대기를 각각 12초로 제한한다. 발송 실패는 이미 commit된 업무 쓰기를 rollback하지 않는다. 응답 지연 p95가 5초를 넘거나 재시도가 필요하면 Cloud Tasks 같은 durable queue로 옮긴다.
 
@@ -342,7 +349,7 @@ production은 자동 배포하지 않는다. `.github/workflows/core-api-product
 
 DB migration은 `.github/workflows/core-api-migration.yml`의 `production` target을 사용한다. `master`의 실제 commit SHA와 복원 가능한 백업 증적 URL 또는 ID가 모두 있어야 `core-api-migration-production` Environment 승인으로 넘어간다. workflow는 Core API 검사를 통과한 뒤 Flyway를 실행하고 target, commit, 백업 참조를 job summary에 남긴다.
 
-초기 production은 1 vCPU, 1 GiB, 최소 인스턴스 0, 최대 인스턴스 2, concurrency 20과 인스턴스당 DB pool 2를 사용한다. 배포 뒤 `/health` 200과 무인증 auth/place search 401을 확인한다. smoke test가 실패하고 직전 정상 revision이 있으면 workflow가 트래픽을 직전 revision 100%로 자동 복구한다. 최초 배포처럼 직전 revision이 없으면 실패 상태를 유지하고 운영자가 원인을 확인한다.
+초기 production은 1 vCPU, 1 GiB, 최소 인스턴스 0, 최대 인스턴스 2, concurrency 8과 인스턴스당 DB pool 2를 사용한다. 배포 뒤 `/health` 200과 무인증 auth/place search 401을 확인한다. smoke test가 실패하고 직전 정상 revision이 있으면 workflow가 트래픽을 직전 revision 100%로 자동 복구한다. 최초 배포처럼 직전 revision이 없으면 실패 상태를 유지하고 운영자가 원인을 확인한다.
 
 ## Rollback
 

@@ -373,7 +373,8 @@ public class CompanionChatActivity extends AppCompatActivity {
             return;
         }
 
-        if (!TextUtils.isEmpty(attachment.getPreviewUri())) {
+        if (!TextUtils.isEmpty(attachment.getPreviewUri())
+                && !attachment.getPreviewUri().startsWith("/api/companion-sessions/")) {
             attachmentThumbnailLoader.loadInto(imageView, Uri.parse(attachment.getPreviewUri()));
             return;
         }

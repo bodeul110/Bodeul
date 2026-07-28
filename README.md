@@ -56,7 +56,8 @@ flowchart LR
   Admin -->|"Admin role"| DB
   Jobs -->|"Retention role"| DB
   Core -->|"장소 검색"| Kakao
-  Core -.->|"토큰 검증 · 푸시"| Firebase
+  App -.->|"인증 · 알림 · 비이전 기능"| Firebase
+  Core -.->|"토큰 검증 · 채팅 첨부 · 푸시"| Firebase
   Admin -.->|"토큰 검증"| Firebase
   Jobs -->|"FCM · Storage"| Firebase
 
