@@ -128,6 +128,29 @@ class DefaultCompanionAttachmentServiceTests {
     }
 
     @Test
+    void authorizationFailureHappensBeforeStorageWrite() {
+        realtimeService.validationFailure = CompanionSessionException.permissionDenied();
+        MockMultipartFile attachment = new MockMultipartFile(
+                "attachments",
+                "document.pdf",
+                "application/pdf",
+                "%PDF-1.7".getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> service.postMessage(
+                        patient(),
+                        SESSION_ID,
+                        CLIENT_MESSAGE_ID,
+                        "",
+                        List.of(attachment)))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+
+        assertThat(attachmentStorage.storedPaths).isEmpty();
+        assertThat(realtimeService.lastCommand).isNull();
+    }
+
+    @Test
     void retryDoesNotDeletePreexistingIdempotentObject() {
         attachmentStorage.created = false;
         realtimeService.failure = CompanionSessionException.idempotencyConflict();
@@ -194,6 +217,7 @@ class DefaultCompanionAttachmentServiceTests {
         private UUID lastAttachmentId;
         private AttachmentView attachmentView;
         private RuntimeException failure;
+        private RuntimeException validationFailure;
 
         @Override
         public RealtimeSnapshotView getSnapshot(AppUserRepository.AppUser appUser, UUID sessionId) {
@@ -217,6 +241,15 @@ class DefaultCompanionAttachmentServiceTests {
                     command.body(),
                     "2026-07-28T00:00:00Z",
                     List.of());
+        }
+
+        @Override
+        public void validateMessageWrite(
+                AppUserRepository.AppUser appUser,
+                UUID sessionId) {
+            if (validationFailure != null) {
+                throw validationFailure;
+            }
         }
 
         @Override

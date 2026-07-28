@@ -16,6 +16,10 @@ interface CompanionRealtimeService {
             UUID sessionId,
             PostMessageCommand command);
 
+    void validateMessageWrite(
+            AppUserRepository.AppUser appUser,
+            UUID sessionId);
+
     AttachmentView getAttachment(
             AppUserRepository.AppUser appUser,
             UUID sessionId,
