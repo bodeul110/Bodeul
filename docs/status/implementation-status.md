@@ -3658,10 +3658,10 @@
 ### 남은 범위
 
 - ADB 연결 실기기에서 인증된 Core-only 세션 첨부 업로드·다운로드 확인
-- 실제 DB 저장 실패 보상 삭제와 #222의 30일 만료·삭제 종단 검증
+- 실제 DB 저장 실패 시 업로드 객체 보상 삭제 확인
 - production 출시 게이트 이후 production Rules와 Core API 적용
 
-## 148. 2026-07-28 Core 첨부 자동 파기 경로 보완
+## 148. 2026-07-28 Core 첨부 자동 파기 경로 보완과 개발 리허설
 
 ### 구현과 운영 설정
 
@@ -3677,9 +3677,14 @@
 - 개발 리비전 `cleanupexpireddata-00007-jad`, `reportmonthlyretention-00005-jun` ACTIVE 확인
 - `RETENTION_APPLY_ENABLED=false`, DB URL Secret v2, CA Secret v1 유지 확인
 - Scheduler 수동 실행 HTTP 200, `DRY_RUN`, 후보와 삭제 실패 각각 0건 확인
+- preview 전용 고정 fixture 실행 경로 PR #278 CI 통과 후 merge commit `96e9b3a135e2731186806679a016fc4504df4271` 반영
+- DB setup run `30360287210`: fixture 7행, 첨부 후보 1건, legal hold skip 2건
+- 리비전 `cleanupexpireddata-00008-bek` 단일 APPLY: Scheduler HTTP 200, 첨부 삭제 1건, legal hold skip 2건, 실패 0건
+- DB status run `30361215537`: 만료 첨부 `DELETED`와 메타데이터 비식별화, legal hold 첨부 `ACTIVE`와 53B Storage 객체 보존 확인
+- cleanup run `30361372405`: fixture 7행과 고정 Storage prefix 객체 모두 정리
+- 리비전 `cleanupexpireddata-00009-cil`에서 `RETENTION_APPLY_ENABLED=false`, 최종 dry-run 모든 후보와 실패 0건 확인
 
 ### 남은 범위
 
-- 격리된 새 Core 첨부 경로 fixture의 실제 APPLY와 Storage·PostgreSQL 상태 대조
 - Firestore 전환 fixture APPLY와 개인정보 처리방침·위치기반서비스 이용약관 대조
 - production 출시 게이트 이후 production 파기 로그인 secret, 함수 dry-run과 fixture APPLY

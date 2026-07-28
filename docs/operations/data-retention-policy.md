@@ -84,7 +84,7 @@
 - [개인정보보호위원회 개인정보 처리방침 작성 기준](https://www.pipc.go.kr/)
 - [Production 운영 전환 계획](production-transition-plan-2026.md)
 
-## 구현 상태 (2026-07-19)
+## 구현 상태 (2026-07-28)
 
 - PostgreSQL 만료 후보 조회, 채팅 본문 비식별화, 위치 원본 삭제, 첨부 claim·재시도 계약은 Flyway V13으로 구현했다.
 - Firestore 전환 데이터는 종료 시각 기준 위치 24시간, 첨부 30일, 채팅 본문 180일을 같은 예약 작업에서 적용한다.
@@ -92,6 +92,6 @@
 - 일일 작업은 기본 dry-run이며 `RETENTION_APPLY_ENABLED=true`인 환경에서만 실제 파기를 수행한다.
 - 개발 환경의 두 예약 함수는 Supabase CA와 DB URL을 각각 Secret Manager에서 주입하고 서버 인증서 검증을 강제한다.
 - 월간 보고는 원문, 사용자 ID, 좌표, Storage 경로 없이 건수와 실패 단계만 기록한다.
-- 개발 환경에서 PostgreSQL·Storage 격리 fixture APPLY와 legal hold 보존을 확인했으며, 정기 apply 플래그는 다시 `false`로 배포했다.
+- 개발 환경에서 새 Core 중첩 첨부 경로의 PostgreSQL·Storage 격리 fixture APPLY, 메타데이터 비식별화와 legal hold 보존을 확인했다. fixture를 정리한 뒤 정기 apply 플래그를 `false`로 복구했고 최종 dry-run 후보는 0건이다.
 - 구현과 검증 근거는 [#222 개인정보 자동 파기 구현 기록](../reports/issue-222-data-retention-2026-07-19.md)에 정리한다.
 - production 활성화는 개인정보 처리방침, 위치기반서비스 이용약관, 개인정보 보호책임자 또는 법률 검토가 끝난 뒤 진행한다.
