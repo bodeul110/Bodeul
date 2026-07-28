@@ -283,10 +283,21 @@ test("관리자 증빙은 Storage 삭제 후에만 Firestore 참조를 지운다
   assert.equal(summary.managerDocumentsDeleted, 1);
 });
 
-test("삭제 경로는 허용된 Storage 접두사와 단일 파일 깊이로 제한한다", () => {
+test("채팅 첨부 삭제 경로는 legacy와 Core API 구조만 허용한다", () => {
   assert.equal(isAllowedChatAttachmentPath(
       "companion-chat-attachments/728916a2-d57e-4e8f-bd99-c6c47498b4ba/a.pdf",
   ), true);
+  assert.equal(isAllowedChatAttachmentPath(
+      "companion-chat-attachments/728916a2-d57e-4e8f-bd99-c6c47498b4ba/"
+      + "e402cf5d-8811-4dd5-83f5-58529251cc65/0-evidence.pdf",
+  ), true);
+  assert.equal(isAllowedChatAttachmentPath(
+      "companion-chat-attachments/session/not-a-uuid/evidence.pdf",
+  ), false);
+  assert.equal(isAllowedChatAttachmentPath(
+      "companion-chat-attachments/session/"
+      + "e402cf5d-8811-4dd5-83f5-58529251cc65/nested/evidence.pdf",
+  ), false);
   assert.equal(isAllowedChatAttachmentPath("manager-documents/user/idCard/a.pdf"), false);
   assert.equal(isAllowedManagerDocumentPath(
       "manager-documents/manager-1/idCard/a.pdf",

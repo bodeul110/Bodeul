@@ -34,6 +34,17 @@ const RETENTION_MONTHLY_REPORT_OPTIONS = {
 const DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
 const MANAGER_DOCUMENT_RETENTION_MILLIS = 30 * DAY_IN_MILLIS;
 const POSTGRES_BATCH_SIZE = 500;
+const UUID_PATH_SEGMENT_PATTERN = [
+  "[0-9a-fA-F]{8}",
+  "[0-9a-fA-F]{4}",
+  "[0-9a-fA-F]{4}",
+  "[0-9a-fA-F]{4}",
+  "[0-9a-fA-F]{12}",
+].join("-");
+const CHAT_ATTACHMENT_PATH_PATTERN = new RegExp(
+    "^companion-chat-attachments/[A-Za-z0-9_-]{1,128}/"
+    + `(?:${UUID_PATH_SEGMENT_PATTERN}/)?[^/]+$`,
+);
 const MANAGER_DOCUMENT_KEYS = [
   "idCard",
   "license",
@@ -752,8 +763,7 @@ function sameManagerDocumentCandidate(left, right) {
 }
 
 function isAllowedChatAttachmentPath(value) {
-  return /^companion-chat-attachments\/[A-Za-z0-9_-]{1,128}\/[^/]+$/
-      .test(sanitizeText(value));
+  return CHAT_ATTACHMENT_PATH_PATTERN.test(sanitizeText(value));
 }
 
 function isAllowedManagerDocumentPath(value) {
