@@ -3,16 +3,13 @@ package com.bodeul.core.session;
 import java.util.Map;
 import java.util.Objects;
 
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.firebase.cloud.StorageClient;
+import com.google.cloud.storage.StorageOptions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -21,21 +18,29 @@ import org.springframework.stereotype.Component;
 @Profile("database")
 class FirebaseCompanionAttachmentStorage implements CompanionAttachmentStorage {
 
-    private static final String FIREBASE_APP_NAME = "bodeul-core-attachment-storage";
     private static final String SHA256_METADATA_KEY = "bodeul-sha256";
 
     private final String projectId;
     private final String bucketName;
-    private volatile Bucket bucket;
+    private volatile Storage storage;
 
+    @Autowired
     FirebaseCompanionAttachmentStorage(
             @Value("${FIREBASE_PROJECT_ID:}") String projectId,
             @Value("${FIREBASE_STORAGE_BUCKET:}") String configuredBucketName) {
+        this(projectId, configuredBucketName, null);
+    }
+
+    FirebaseCompanionAttachmentStorage(
+            String projectId,
+            String configuredBucketName,
+            Storage storage) {
         this.projectId = normalize(projectId);
         String normalizedBucket = normalize(configuredBucketName);
         this.bucketName = normalizedBucket.isEmpty() && !this.projectId.isEmpty()
                 ? this.projectId + ".firebasestorage.app"
                 : normalizedBucket;
+        this.storage = storage;
     }
 
     @Override
@@ -44,14 +49,13 @@ class FirebaseCompanionAttachmentStorage implements CompanionAttachmentStorage {
             byte[] content,
             String contentType,
             String sha256) {
-        Bucket targetBucket = requireBucket();
         BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, storagePath))
                 .setContentType(contentType)
                 .setCacheControl("private, no-store")
                 .setMetadata(Map.of(SHA256_METADATA_KEY, sha256))
                 .build();
         try {
-            targetBucket.getStorage().create(
+            requireStorage().create(
                     blobInfo,
                     content,
                     Storage.BlobTargetOption.doesNotExist());
@@ -74,7 +78,7 @@ class FirebaseCompanionAttachmentStorage implements CompanionAttachmentStorage {
     @Override
     public byte[] read(String storagePath, long maxBytes) {
         try {
-            Blob blob = requireBucket().get(storagePath);
+            Blob blob = requireStorage().get(BlobId.of(bucketName, storagePath));
             if (blob == null || blob.getSize() <= 0L || blob.getSize() > maxBytes) {
                 throw CompanionSessionException.attachmentNotFound();
             }
@@ -93,7 +97,7 @@ class FirebaseCompanionAttachmentStorage implements CompanionAttachmentStorage {
     @Override
     public void delete(String storagePath) {
         try {
-            Blob blob = requireBucket().get(storagePath);
+            Blob blob = requireStorage().get(BlobId.of(bucketName, storagePath));
             if (blob != null && !blob.delete()) {
                 throw CompanionSessionException.attachmentUnavailable();
             }
@@ -109,7 +113,7 @@ class FirebaseCompanionAttachmentStorage implements CompanionAttachmentStorage {
             byte[] content,
             String contentType,
             String sha256) {
-        Blob blob = requireBucket().get(storagePath);
+        Blob blob = requireStorage().get(BlobId.of(bucketName, storagePath));
         return blob != null
                 && blob.getSize() == content.length
                 && Objects.equals(contentType, blob.getContentType())
@@ -117,40 +121,26 @@ class FirebaseCompanionAttachmentStorage implements CompanionAttachmentStorage {
                 && Objects.equals(sha256, blob.getMetadata().get(SHA256_METADATA_KEY));
     }
 
-    private Bucket requireBucket() {
+    private Storage requireStorage() {
         if (projectId.isEmpty() || bucketName.isEmpty()) {
             throw CompanionSessionException.attachmentUnavailable();
         }
-        if (bucket != null) {
-            return bucket;
+        if (storage != null) {
+            return storage;
         }
         synchronized (this) {
-            if (bucket == null) {
+            if (storage == null) {
                 try {
-                    FirebaseApp app = FirebaseApp.getApps().stream()
-                            .filter(candidate -> projectId.equals(candidate.getOptions().getProjectId()))
-                            .findFirst()
-                            .orElseGet(this::initializeFirebaseApp);
-                    bucket = StorageClient.getInstance(app).bucket(bucketName);
+                    storage = StorageOptions.newBuilder()
+                            .setProjectId(projectId)
+                            .build()
+                            .getService();
                 } catch (RuntimeException exception) {
                     throw CompanionSessionException.attachmentUnavailable();
                 }
             }
         }
-        return bucket;
-    }
-
-    private FirebaseApp initializeFirebaseApp() {
-        try {
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.getApplicationDefault())
-                    .setProjectId(projectId)
-                    .setStorageBucket(bucketName)
-                    .build();
-            return FirebaseApp.initializeApp(options, FIREBASE_APP_NAME);
-        } catch (Exception exception) {
-            throw new IllegalStateException("Firebase Storage를 초기화하지 못했습니다.", exception);
-        }
+        return storage;
     }
 
     private String normalize(String value) {
