@@ -40,9 +40,14 @@ Firestore `companionSessions` 문서가 없는 세션에서도 환자·보호자
 - 첨부 저장 전에 PostgreSQL 세션 참여자와 활성 상태를 확인하고, 메시지 저장 시 다시 확인하도록 보완했다. 권한 확인 실패 시 Storage 쓰기가 발생하지 않는 테스트를 포함해 `core-api` 전체 `check`를 재검증했다.
 - Core API Preview deploy run `30355824697` 성공. merge SHA `2a3b01f6083dbafd51b8e6b8075bbe36334acebc` 이미지와 리비전 `bodeul-core-api-preview-00016-v94`의 트래픽 100%를 확인했다.
 - 배포 리비전에서 `/health` 200, 무인증 multipart 첨부 메시지와 첨부 다운로드 각각 401 `missing_authorization`을 독립 요청으로 확인했다.
+- SM-S921N(Android 16) 첫 인증 업로드에서 HTTP 503을 재현했다. Firebase Admin의 `bucket()` 초기화가 `storage.buckets.get`을 요구하지만 런타임 계정에는 의도한 버킷 단위 `roles/storage.objectUser`만 있어 발생한 오류였다.
+- PR #280에서 IAM을 넓히지 않고 Google Cloud Storage 객체 API를 직접 사용하도록 수정했다. Android 자동화 샘플 파일도 비동기 전송 완료 후 정리하도록 보완했다.
+- Preview deploy run `30364434679` 성공. merge SHA `e30d87e75cb93da7a8223956ac6e682e227cd8dc` 이미지와 리비전 `bodeul-core-api-preview-00017-x9r`의 트래픽 100%를 확인했다.
+- 같은 실기기에서 인증된 multipart 메시지 POST 200, 69바이트 PNG 객체 생성, 첨부 GET 200과 로컬 미리보기 캐시 생성을 확인했다. 채팅 화면에 메시지와 첨부가 표시됐고 `첨부 열기`가 Android 파일 열기 선택 화면으로 연결됐다.
+- 자동화 원본 `cache/automation-companion-chat.png`는 전송 완료 뒤 남지 않았다.
+- #222 개발 리허설에서 만료 객체 삭제, PostgreSQL metadata `DELETED` 비식별화, legal hold 객체 보존과 최종 후보 0건을 확인했다.
 
 ## 남은 검증
 
-- 현재 ADB 연결 기기가 없어 인증된 Core-only 세션의 실기기 업로드·다운로드는 확인하지 못했다.
-- 실제 DB 저장 실패를 유도한 Storage 보상 삭제와 30일 만료·삭제 종단 시나리오는 #222 파기 작업과 함께 검증한다.
+- 실제 DB 저장 실패를 유도해 이번 요청에서 생성한 Storage 객체가 보상 삭제되는지 개발 환경에서 확인한다. 서비스 단위 테스트의 보상 삭제 검증은 통과했다.
 - production Rules와 Core API는 production 출시 게이트가 열릴 때 적용한다.

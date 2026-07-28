@@ -3609,7 +3609,7 @@
 
 ### 남은 범위
 
-- #251 Core-only 세션 첨부 서버 중계는 완료했으며, 인증된 실기기 업로드·다운로드와 만료·삭제 종단 검증이 남음
+- #251 Core-only 세션 첨부 서버 중계, 인증된 실기기 업로드·다운로드와 개발 만료·삭제 종단 검증 완료. 실제 DB 저장 실패 보상 삭제와 production 적용이 남음
 - FCM 재시도·실패율 관측, release App Check enforce 검증
 - production 적용과 #222 일일 파기
 
@@ -3654,11 +3654,14 @@
 - Core API Preview deploy run `30355824697`, merge SHA `2a3b01f6083dbafd51b8e6b8075bbe36334acebc`, 리비전 `bodeul-core-api-preview-00016-v94` 트래픽 100% 확인
 - 배포 리비전에서 health 200, 무인증 multipart 첨부 메시지와 첨부 다운로드 각각 401 `missing_authorization` 확인
 - 개발·production 기본 버킷 IAM에서 의도한 runtime service account 외 별도 `roles/storage.objectUser` 구성원이 없음을 재확인
+- 실기기 첫 인증 업로드의 HTTP 503을 버킷 메타데이터 권한 불일치로 좁히고, PR #280에서 IAM 추가 없이 객체 API 직접 접근으로 수정
+- Preview deploy run `30364434679`, merge SHA `e30d87e75cb93da7a8223956ac6e682e227cd8dc`, 리비전 `bodeul-core-api-preview-00017-x9r` 트래픽 100% 확인
+- SM-S921N(Android 16)에서 인증된 첨부 메시지 POST 200, 69바이트 PNG 객체 생성, 첨부 GET 200, 채팅 표시와 Android 파일 열기 선택 화면 진입 확인
+- 자동화 원본은 전송 완료 후 삭제됐고 인증 다운로드 미리보기 캐시가 생성됨을 확인
 
 ### 남은 범위
 
-- ADB 연결 실기기에서 인증된 Core-only 세션 첨부 업로드·다운로드 확인
-- 실제 DB 저장 실패 시 업로드 객체 보상 삭제 확인
+- 실제 DB 저장 실패를 유도한 업로드 객체 보상 삭제 확인. 서비스 단위 테스트는 통과함
 - production 출시 게이트 이후 production Rules와 Core API 적용
 
 ## 148. 2026-07-28 Core 첨부 자동 파기 경로 보완과 개발 리허설

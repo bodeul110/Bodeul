@@ -136,7 +136,9 @@ Core-only 채팅 첨부를 위해서는 프로젝트 role을 추가하지 않고
 - preview `gs://bodeul-dev.firebasestorage.app`: `bodeul-core-preview-runtime@bodeul-dev.iam.gserviceaccount.com`에 `roles/storage.objectUser`
 - production `gs://bodeul-prod-110.firebasestorage.app`: `bodeul-core-runtime@bodeul-prod-110.iam.gserviceaccount.com`에 `roles/storage.objectUser`
 
-이 권한은 원본 생성·조회·보상 삭제에 필요하다. DB 백업 버킷과 프로젝트 전체에는 부여하지 않는다. 애플리케이션은 `FIREBASE_STORAGE_BUCKET`이 없으면 `${FIREBASE_PROJECT_ID}.firebasestorage.app`을 사용하며, 기본 이름과 다른 버킷을 쓸 때만 명시한다.
+이 권한은 원본 생성·조회·보상 삭제에 필요하다. DB 백업 버킷과 프로젝트 전체에는 부여하지 않는다. 애플리케이션은 `FIREBASE_STORAGE_BUCKET`이 없으면 `${FIREBASE_PROJECT_ID}.firebasestorage.app`을 사용하며, 기본 이름과 다른 버킷을 쓸 때만 명시한다. Storage 구현은 버킷 메타데이터 조회 없이 객체 API를 직접 사용하므로 `storage.buckets.get`이나 `roles/storage.legacyBucketReader`를 추가하지 않는다.
+
+2026-07-28 Preview deploy run `30364434679`로 commit `e30d87e75cb93da7a8223956ac6e682e227cd8dc`를 배포했다. 리비전 `bodeul-core-api-preview-00017-x9r`에서 SM-S921N 인증 첨부 메시지 POST 200, Storage 객체 생성과 첨부 GET 200을 확인했다. 기존 버킷 단위 `roles/storage.objectUser` 외 IAM 권한은 추가하지 않았다.
 
 Cloud Run은 [request-based billing](https://cloud.google.com/run/docs/configuring/billing-settings)을 사용하므로 요청 처리 중에만 CPU가 할당된다. [응답 뒤 background activity](https://cloud.google.com/run/docs/tips/general)는 실행을 보장할 수 없으므로 알림 listener는 PostgreSQL `AFTER_COMMIT` 이후 같은 요청 안에서 실행한다. token 조회는 `getAll`로 묶으며 Firestore와 FCM 대기를 각각 12초로 제한한다. 발송 실패는 이미 commit된 업무 쓰기를 rollback하지 않는다. 응답 지연 p95가 5초를 넘거나 재시도가 필요하면 Cloud Tasks 같은 durable queue로 옮긴다.
 
