@@ -272,6 +272,11 @@ jobs:
         working-directory: functions
         run: npm ci
 
+      - name: Functions 테스트
+        if: steps.scope.outputs.functions == 'true'
+        working-directory: functions
+        run: npm test
+
       - name: Firebase 도구 점검
         if: steps.scope.outputs.firebase_tools == 'true'
         shell: bash
