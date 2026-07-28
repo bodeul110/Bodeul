@@ -34,6 +34,21 @@ on:
         required: false
         default: ""
         type: string
+      retention_fixture_action:
+        description: preview 자동 파기 fixture 작업
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - setup
+          - status
+          - cleanup
+      confirm_retention_fixture_project:
+        description: fixture 작업 시 bodeul-dev를 입력하세요.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -67,6 +82,8 @@ jobs:
           MIGRATION_CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
           MIGRATION_BACKUP_REFERENCE: ${{ inputs.backup_reference }}
           COMPANION_SESSION_SEED_SHA256: ${{ inputs.companion_session_seed_sha256 }}
+          RETENTION_FIXTURE_ACTION: ${{ inputs.retention_fixture_action }}
+          RETENTION_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_retention_fixture_project }}
         run: |
           set -euo pipefail
 
@@ -104,6 +121,21 @@ jobs:
             fi
             if [[ ! "$COMPANION_SESSION_SEED_SHA256" =~ ^[0-9a-fA-F]{64}$ ]]; then
               echo "동행 세션 백필 SHA-256을 확인해 주세요." >&2
+              exit 1
+            fi
+          fi
+
+          if [ "$RETENTION_FIXTURE_ACTION" != "none" ]; then
+            if [ "$MIGRATION_TARGET" != "preview" ] || [ "$GITHUB_REF" != "refs/heads/master" ]; then
+              echo "자동 파기 fixture는 master의 preview DB에서만 실행할 수 있습니다." >&2
+              exit 1
+            fi
+            if [ "$RETENTION_FIXTURE_CONFIRM_PROJECT" != "bodeul-dev" ]; then
+              echo "자동 파기 fixture 프로젝트 확인값이 일치하지 않습니다." >&2
+              exit 1
+            fi
+            if [ "${{ inputs.apply_companion_session_seed }}" = "true" ]; then
+              echo "동행 세션 백필과 자동 파기 fixture를 같은 실행에서 적용할 수 없습니다." >&2
               exit 1
             fi
           fi
@@ -181,6 +213,16 @@ jobs:
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
         run: ./gradlew applyCompanionSessionSeed --console=plain
 
+      - name: 자동 파기 fixture 실행
+        if: inputs.retention_fixture_action != 'none'
+        env:
+          RETENTION_FIXTURE_ACTION: ${{ inputs.retention_fixture_action }}
+          RETENTION_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_retention_fixture_project }}
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: ./gradlew runRetentionFixture --console=plain
+
       - name: 동행 세션 백필 파일 삭제
         if: always() && inputs.apply_companion_session_seed
         shell: bash
@@ -202,5 +244,9 @@ jobs:
             if [ "${{ inputs.apply_companion_session_seed }}" = "true" ]; then
               echo "- Companion session seed: applied"
               echo "- Seed SHA-256: ${{ inputs.companion_session_seed_sha256 }}"
+            fi
+            if [ "${{ inputs.retention_fixture_action }}" != "none" ]; then
+              echo "- Retention fixture: ${{ inputs.retention_fixture_action }}"
+              echo "- Retention fixture project: bodeul-dev"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
