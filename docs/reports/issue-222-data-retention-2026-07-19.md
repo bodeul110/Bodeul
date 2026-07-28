@@ -82,6 +82,14 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 
 로컬 실행 시 두 Secret 값은 셸 환경변수로만 주입하며 파일이나 명령 이력에 값을 남기지 않는다. 일반 운영 검증은 Secret 본문을 로컬로 꺼내지 않고 Firebase 런타임 바인딩과 Cloud Scheduler 수동 실행을 사용한다.
 
+### 반복 가능한 Core 첨부 fixture 작업
+
+- `Core API DB Migration` workflow의 `retention_fixture_action`은 `setup`, `status`, `cleanup`만 허용한다.
+- 이 작업은 `master`의 `preview` 환경과 확인값 `bodeul-dev`에서만 실행되며, JDBC URL 또는 migration 사용자명에서도 개발 Supabase project ref를 다시 확인한다.
+- fixture는 고정 UUID와 `retention-fixture-core-*` 표식만 사용한다. 임의 SQL, production 대상, 동행 세션 백필과의 동시 실행은 거부한다.
+- workflow는 PostgreSQL fixture만 다룬다. Firebase Storage 객체 준비·상태 대조와 단일 파기 APPLY는 별도 단계이며, `RETENTION_APPLY_ENABLED` 값을 변경하지 않는다.
+- `status`는 fixture 행 상태와 전체 첨부 만료 후보·legal hold 건수만 출력하고 DB 자격 증명이나 사용자 원문은 출력하지 않는다.
+
 ## 검증 기록
 
 | 검증 | 결과 |

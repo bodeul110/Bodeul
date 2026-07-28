@@ -57,3 +57,10 @@ tasks.register<JavaExec>("applyCompanionSessionSeed") {
 	classpath = sourceSets["main"].runtimeClasspath
 	mainClass.set("com.bodeul.core.CompanionSessionSeedApplication")
 }
+
+tasks.register<JavaExec>("runRetentionFixture") {
+	group = "application"
+	description = "preview 자동 파기 리허설용 고정 fixture를 준비, 조회 또는 정리합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.RetentionFixtureApplication")
+}
