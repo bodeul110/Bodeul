@@ -1,6 +1,7 @@
 # #222 개인정보 자동 파기 구현 기록
 
 기준일: 2026-07-19
+최종 갱신: 2026-07-28
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -118,7 +119,13 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - 개발 Firebase의 `cleanupExpiredData`, `reportMonthlyRetention`을 제한 재배포했다. 리비전은 각각 `cleanupexpireddata-00007-jad`, `reportmonthlyretention-00005-jun`이다.
 - 두 함수 모두 Node.js 22, DB URL Secret v2, CA Secret v1과 `RETENTION_APPLY_ENABLED=false`를 유지한다.
 - 2026-07-28 21:03 KST Scheduler 수동 실행은 HTTP 200으로 완료됐다. `DRY_RUN`, 모든 후보 0건과 삭제 실패 0건을 확인했다.
-- 새 Core API 중첩 경로의 실제 Storage 삭제는 별도 격리 fixture APPLY로 확인해야 하며, 정기 apply는 계속 비활성 상태다.
+- PR #278에서 preview 전용 고정 fixture 실행기를 추가했다. Core API와 preflight CI 통과 후 merge commit `96e9b3a135e2731186806679a016fc4504df4271`로 반영했다.
+- DB setup run `30360287210`은 fixture 7행을 만들었다. 만료 첨부 후보 1건과 legal hold skip 2건을 확인했고, Storage에는 DB와 같은 경로·크기의 PDF 객체 50B와 53B를 준비했다.
+- 2026-07-28 21:49 KST dry-run은 `postgresAttachmentCandidates=1`, `postgresLegalHoldSkips=2`, 나머지 후보와 실패 0건으로 완료됐다.
+- 리비전 `cleanupexpireddata-00008-bek`에서 단일 APPLY를 실행했다. Scheduler HTTP 200, 첨부 삭제 1건, legal hold skip 2건과 실패 0건을 확인했다.
+- DB status run `30361215537`에서 만료 첨부는 `DELETED`, Storage 경로·삭제 시각·크기 비식별화 완료 상태였다. legal hold 첨부는 `ACTIVE`, 원래 경로와 53B 객체를 유지했다.
+- legal hold 객체를 수동 삭제한 뒤 cleanup run `30361372405`에서 fixture 7행을 정리했다. 고정 Storage prefix에도 남은 객체가 없음을 확인했다.
+- 리비전 `cleanupexpireddata-00009-cil`로 `RETENTION_APPLY_ENABLED=false`를 복구했다. 2026-07-28 22:01 KST 최종 dry-run의 모든 후보와 실패는 0건이다.
 
 ## 리스크와 전환 조건
 
@@ -127,7 +134,7 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - Firestore 전환 문서는 문서 ID cursor로 500개씩 조회한다. 실행 시간이 Functions 한도에 가까워지면 페이지별 checkpoint 또는 Cloud Run Job으로 전환한다.
 - Firebase 기본 Storage bucket 이름은 `{projectId}.firebasestorage.app` 규약을 사용한다. 환경별 bucket이 다르면 함수 설정을 분리해야 한다.
 - Supabase CA가 교체되면 Secret의 새 버전을 등록하고 두 함수를 재배포해야 한다. CA 검증 실패 시 자동으로 우회하지 않는다.
-- Firestore 전환 문서와 매니저 증빙의 파기 분기는 단위 테스트와 빈 개발 컬렉션 dry-run까지 확인했다. 실제 Firestore fixture APPLY는 별도 리허설 기록이 필요하다.
+- Core API 중첩 첨부 경로는 개발 PostgreSQL·Storage fixture APPLY까지 확인했다. Firestore 전환 문서와 매니저 증빙의 파기 분기는 단위 테스트와 빈 개발 컬렉션 dry-run까지만 확인했으므로 실제 Firestore fixture APPLY는 별도 리허설 기록이 필요하다.
 
 ## 출시 전 확인
 
