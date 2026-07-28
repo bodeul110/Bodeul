@@ -67,6 +67,29 @@ test("Emulator context는 Firebase 로그인 token 없이 격리 자격 증명�
   }
 });
 
+test("WIF OAuth access token을 Firebase 사용자 token보다 우선한다", async () => {
+  const originalProjectId = process.env.FIREBASE_PROJECT_ID;
+  const originalGoogleOauthAccessToken = process.env.GOOGLE_OAUTH_ACCESS_TOKEN;
+  const originalFirebaseToken = process.env.FIREBASE_TOKEN;
+  const originalEmulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
+  process.env.FIREBASE_PROJECT_ID = "bodeul-dev";
+  process.env.GOOGLE_OAUTH_ACCESS_TOKEN = "wif-oauth-access-token";
+  process.env.FIREBASE_TOKEN = "legacy-refresh-token";
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+
+  try {
+    const context = await createCliContext();
+    assert.equal(context.projectId, "bodeul-dev");
+    assert.equal(context.accessToken, "wif-oauth-access-token");
+    assert.equal(context.useFirestoreEmulator, false);
+  } finally {
+    restoreEnv("FIREBASE_PROJECT_ID", originalProjectId);
+    restoreEnv("GOOGLE_OAUTH_ACCESS_TOKEN", originalGoogleOauthAccessToken);
+    restoreEnv("FIREBASE_TOKEN", originalFirebaseToken);
+    restoreEnv("FIRESTORE_EMULATOR_HOST", originalEmulatorHost);
+  }
+});
+
 function restoreEnv(name, value) {
   if (value === undefined) {
     delete process.env[name];
