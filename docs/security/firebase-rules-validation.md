@@ -45,7 +45,8 @@
 | 경로 | 환자 | 보호자 | 매니저 | 관리자 |
 | --- | --- | --- | --- | --- |
 | `manager-documents/{managerUserId}/{documentKey}/{fileName}` | 접근 없음 | 접근 없음 | 본인 경로 읽기/쓰기 가능. 허용 키와 파일 형식, 10MB 제한 적용 | 모든 매니저 서류 읽기 가능 |
-| `companion-chat-attachments/{sessionId}/{fileName}` | 세션 참여자이면 읽기/쓰기 가능 | 세션 참여자이면 읽기/쓰기 가능 | 세션 참여자이면 읽기/쓰기 가능 | 규칙상 세션 참여자 기준. 관리자 별도 우회는 없음 |
+| legacy `companion-chat-attachments/{sessionId}/{fileName}` | Firestore 세션 참여자이면 읽기/쓰기 가능 | Firestore 세션 참여자이면 읽기/쓰기 가능 | Firestore 세션 참여자이면 읽기/쓰기 가능 | Firestore 세션 문서가 존재하면 읽기/쓰기 가능 |
+| Core-only 세션 채팅 첨부 | 클라이언트 직접 접근 거부, Core API 경유 | 클라이언트 직접 접근 거부, Core API 경유 | 클라이언트 직접 접근 거부, Core API 경유 | 관리자 전용 다운로드 API는 별도 요구사항 |
 | 그 외 경로 | 거부 | 거부 | 거부 | 거부 |
 
 ## 확인된 보안 판단
@@ -55,12 +56,13 @@
 - `users` 목록 조회는 관리자만 가능하므로 환자/보호자/매니저가 이메일이나 전화번호로 다른 사용자를 직접 검색하는 구조는 닫혀 있다.
 - 참여자 연결과 배정 매니저 조회는 클라이언트 직접 쿼리 대신 Functions callable을 사용한다.
 - 매니저 서류 원본은 Storage에서 매니저 본인과 관리자 읽기 경계가 분리되어 있다.
+- Firestore 세션 문서가 없는 Core-only 채팅 첨부는 Storage Rules로 권한을 복제하지 않는다. Spring Core API가 PostgreSQL 참여 관계와 만료 상태를 확인하고 Cloud Run 런타임 계정의 버킷 IAM으로 원본을 처리한다.
 
 ## 남은 보강
 
 - Rules 변경 시 PR에서 `Firebase Rules` workflow 결과를 확인한다.
 - 관리자 custom claims 전환 여부는 관리자 계정 수, role read 비용, 긴급 권한 회수 정책이 확정된 뒤 다시 판단한다.
-- `companion-chat-attachments`에 관리자 감사 목적 읽기 권한이 필요한지 운영 요구를 확정한다.
+- Core-only 채팅 첨부에 관리자 감사 목적 다운로드 API가 필요한지 운영 요구를 확정한다.
 
 ## 자동 테스트
 
@@ -80,7 +82,7 @@ npm --prefix tools/firebase run test:rules
 - `sessionReports`, 관리자 전용 컬렉션, `appointmentReminderJobs`: 역할별 쓰기/읽기 경계
 - 관리자 전용 컬렉션: `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs`
 - Storage `manager-documents`: 매니저 본인과 관리자 읽기, 허용 문서 키/파일 형식 검증
-- Storage `companion-chat-attachments`: 세션 참여자 읽기/쓰기, 비참여자와 비허용 파일 형식 거부
+- Storage `companion-chat-attachments`: legacy 세션 참여자 읽기/쓰기, 비참여자와 비허용 파일 형식 거부, Firestore 문서가 없는 Core-only 세션의 클라이언트 직접 업로드 거부
 
 CI 실행:
 - workflow: `.github/workflows/firebase-rules.yml`

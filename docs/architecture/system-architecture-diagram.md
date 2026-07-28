@@ -55,7 +55,8 @@ flowchart LR
   Android -->|"비이전 Firebase 기능"| Firestore
   Spring -->|"기기 token read"| Firestore
   Next --> Storage
-  Android --> Storage
+  Android -->|"매니저 서류·legacy 첨부"| Storage
+  Spring -->|"Core-only 채팅 첨부"| Storage
   Firestore --> Functions
   Functions --> FCM
   Spring --> FCM
@@ -69,6 +70,7 @@ flowchart LR
 - Firebase Auth, FCM, Storage와 결합 Functions는 유지한다.
 - 개발 업무 원본은 PostgreSQL이며 Firestore 업무 쓰기는 차단했다. Firestore는 인증 프로필·지원·서류와 rollback 비교 자료에만 남는다.
 - 채팅·위치는 PostgreSQL에 영속 저장하고 private Broadcast는 변경 신호만 보낸다. 재연결 뒤 Core API snapshot을 다시 읽는다.
+- Core-only 채팅 첨부 원본은 Spring Core API가 Firebase Storage에 저장한다. 참여자와 만료 여부는 PostgreSQL에서 판정하고 Android는 Storage URL을 직접 받지 않는다.
 - Android의 Kakao 로그인·지도 SDK는 클라이언트에 남지만 Kakao Local REST는 Core API 뒤에 둔다.
 - production 프로젝트와 DB schema 분리는 완료했지만 아직 사용자 트래픽을 연결하지 않았다. 이 다이어그램은 검증된 개발 경계와 출시 전 production 목표를 함께 나타낸다.
 

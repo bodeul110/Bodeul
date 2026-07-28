@@ -557,6 +557,14 @@ function testCases(testEnv) {
             new Uint8Array([7, 8, 9]),
             { contentType: "text/plain" },
         ));
+        await assertFails(uploadBytes(
+            ref(
+                storageFor(testEnv, users.patient),
+                "companion-chat-attachments/session-core-only/direct.png",
+            ),
+            new Uint8Array([7, 8, 9]),
+            { contentType: "image/png" },
+        ));
       },
     },
   ];

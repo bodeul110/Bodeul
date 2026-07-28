@@ -76,6 +76,20 @@ final class CompanionSessionException extends RuntimeException {
                 "동행 채팅 메시지를 찾을 수 없습니다.");
     }
 
+    static CompanionSessionException attachmentNotFound() {
+        return new CompanionSessionException(
+                HttpStatus.NOT_FOUND,
+                "companion_chat_attachment_not_found",
+                "첨부 파일을 찾을 수 없거나 보관 기간이 지났습니다.");
+    }
+
+    static CompanionSessionException attachmentUnavailable() {
+        return new CompanionSessionException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "companion_chat_attachment_unavailable",
+                "첨부 파일을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+
     static CompanionSessionException versionConflict() {
         return new CompanionSessionException(
                 HttpStatus.CONFLICT,

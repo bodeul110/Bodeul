@@ -13,6 +13,8 @@ interface CompanionRealtimeRepository {
 
     List<LocationRecord> findRecentLocations(UUID sessionId, int limit);
 
+    Optional<AttachmentRecord> findAttachment(UUID sessionId, UUID attachmentId);
+
     MessageSaveResult saveMessage(MessageMutation mutation);
 
     Optional<ReadReceiptRecord> upsertReadReceipt(

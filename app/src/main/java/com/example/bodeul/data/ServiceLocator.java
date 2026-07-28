@@ -4,8 +4,6 @@ import android.content.Context;
 
 import com.example.bodeul.data.firebase.FirebaseAdminRepository;
 import com.example.bodeul.data.firebase.FirebaseAuthRepository;
-import com.example.bodeul.data.firebase.FirebaseCompanionChatAttachmentPreviewResolver;
-import com.example.bodeul.data.firebase.FirebaseCompanionChatAttachmentUploader;
 import com.example.bodeul.data.firebase.FirebaseBookingRepository;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentStorageUploader;
 import com.example.bodeul.data.firebase.FirebaseManagerDocumentPreviewResolver;
@@ -13,6 +11,8 @@ import com.example.bodeul.data.firebase.FirebaseManagerRepository;
 import com.example.bodeul.data.firebase.FirebaseNotificationTokenRegistrar;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.coreapi.CoreApiBookingRepository;
+import com.example.bodeul.data.coreapi.CoreApiCompanionChatAttachmentPreviewResolver;
+import com.example.bodeul.data.coreapi.CoreApiCompanionChatAttachmentUploader;
 import com.example.bodeul.data.coreapi.CoreApiGuardianReportRepository;
 import com.example.bodeul.data.coreapi.CoreApiManagerRepository;
 import com.example.bodeul.data.mock.MockAdminRepository;
@@ -91,7 +91,7 @@ public final class ServiceLocator {
         if (companionChatAttachmentUploader == null) {
             if (FirebaseSupport.isConfigured(context)) {
                 companionChatAttachmentUploader =
-                        new FirebaseCompanionChatAttachmentUploader(context.getApplicationContext());
+                        new CoreApiCompanionChatAttachmentUploader(context.getApplicationContext());
             } else {
                 companionChatAttachmentUploader =
                         new MockCompanionChatAttachmentUploader(context.getApplicationContext());
@@ -106,7 +106,8 @@ public final class ServiceLocator {
         if (companionChatAttachmentPreviewResolver == null) {
             if (FirebaseSupport.isConfigured(context)) {
                 companionChatAttachmentPreviewResolver =
-                        new FirebaseCompanionChatAttachmentPreviewResolver();
+                        new CoreApiCompanionChatAttachmentPreviewResolver(
+                                context.getApplicationContext());
             } else {
                 companionChatAttachmentPreviewResolver =
                         new MockCompanionChatAttachmentPreviewResolver();

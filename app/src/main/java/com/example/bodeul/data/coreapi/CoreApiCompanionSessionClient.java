@@ -1,6 +1,7 @@
 package com.example.bodeul.data.coreapi;
 
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
@@ -144,23 +145,62 @@ final class CoreApiCompanionSessionClient {
         resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
             @Override
             public void onSuccess(SessionSnapshot session) {
+                String clientMessageId = UUID.randomUUID().toString();
+                List<CompanionChatAttachment> safeAttachments = attachments == null
+                        ? List.of()
+                        : attachments.stream()
+                                .filter(attachment -> attachment != null && !attachment.isEmpty())
+                                .toList();
+                RepositoryCallback<JSONObject> responseCallback = new RepositoryCallback<JSONObject>() {
+                    @Override
+                    public void onSuccess(JSONObject ignored) {
+                        getRealtime(session, callback);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                };
+                if (safeAttachments.stream().anyMatch(
+                        CoreApiCompanionSessionClient.this::isLocalAttachment)) {
+                    if (!safeAttachments.stream().allMatch(
+                            CoreApiCompanionSessionClient.this::isLocalAttachment)) {
+                        callback.onError("첨부 파일 전송 방식을 확인하지 못했습니다.");
+                        return;
+                    }
+                    List<CoreApiAuthenticatedClient.UploadPart> uploadParts = safeAttachments.stream()
+                            .map(attachment -> new CoreApiAuthenticatedClient.UploadPart(
+                                    Uri.parse(attachment.getFullPath()),
+                                    attachment.getFileName(),
+                                    attachment.getContentType(),
+                                    attachment.getSizeBytes()))
+                            .toList();
+                    authenticatedClient.execute(
+                            (idToken, appCheckToken) -> authenticatedClient.requestMultipartJson(
+                                    "/api/companion-sessions/" + session.coreId + "/messages",
+                                    clientMessageId,
+                                    valueOrEmpty(bodyText),
+                                    uploadParts,
+                                    idToken,
+                                    appCheckToken),
+                            responseCallback,
+                            "채팅 첨부 파일을 보내지 못했습니다.",
+                            "동행 채팅 첨부 API");
+                    return;
+                }
                 JSONObject body = new JSONObject();
                 try {
-                    body.put("clientMessageId", UUID.randomUUID().toString());
+                    body.put("clientMessageId", clientMessageId);
                     body.put("body", valueOrEmpty(bodyText));
                     JSONArray attachmentItems = new JSONArray();
-                    if (attachments != null) {
-                        for (CompanionChatAttachment attachment : attachments) {
-                            if (attachment == null || attachment.isEmpty()) {
-                                continue;
-                            }
-                            JSONObject item = new JSONObject();
-                            item.put("storagePath", attachment.getFullPath());
-                            item.put("fileName", attachment.getFileName());
-                            item.put("contentType", attachment.getContentType());
-                            item.put("sizeBytes", attachment.getSizeBytes());
-                            attachmentItems.put(item);
-                        }
+                    for (CompanionChatAttachment attachment : safeAttachments) {
+                        JSONObject item = new JSONObject();
+                        item.put("storagePath", attachment.getFullPath());
+                        item.put("fileName", attachment.getFileName());
+                        item.put("contentType", attachment.getContentType());
+                        item.put("sizeBytes", attachment.getSizeBytes());
+                        attachmentItems.put(item);
                     }
                     body.put("attachments", attachmentItems);
                 } catch (JSONException exception) {
@@ -174,17 +214,7 @@ final class CoreApiCompanionSessionClient {
                                 body,
                                 idToken,
                                 appCheckToken),
-                        new RepositoryCallback<JSONObject>() {
-                            @Override
-                            public void onSuccess(JSONObject ignored) {
-                                getRealtime(session, callback);
-                            }
-
-                            @Override
-                            public void onError(String message) {
-                                callback.onError(message);
-                            }
-                        },
+                        responseCallback,
                         "채팅 메시지를 보내지 못했습니다.",
                         "동행 채팅 API"
                 );
@@ -584,7 +614,7 @@ final class CoreApiCompanionSessionClient {
                                 optText(attachment, "contentType"),
                                 parseInstantMillis(optText(message, "sentAt")),
                                 Math.max(attachment.optLong("sizeBytes", 0L), 0L),
-                                ""));
+                                optText(attachment, "downloadPath")));
                     }
                 }
                 messages.add(new CompanionChatMessage(
@@ -632,6 +662,13 @@ final class CoreApiCompanionSessionClient {
             }
         }
         return new RealtimeSnapshot(realtimeTopic, messages, receipts, locations);
+    }
+
+    private boolean isLocalAttachment(CompanionChatAttachment attachment) {
+        String scheme = Uri.parse(attachment.getFullPath()).getScheme();
+        return "content".equalsIgnoreCase(scheme)
+                || "file".equalsIgnoreCase(scheme)
+                || "android.resource".equalsIgnoreCase(scheme);
     }
 
     private static long parseInstantMillis(String value) {

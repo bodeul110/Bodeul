@@ -1,11 +1,15 @@
 package com.bodeul.core.session;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
 import com.bodeul.core.auth.AppUserRepository;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +18,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/companion-sessions/{sessionId}")
@@ -22,9 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 class CompanionRealtimeController {
 
     private final CompanionRealtimeService realtimeService;
+    private final CompanionAttachmentService attachmentService;
 
-    CompanionRealtimeController(CompanionRealtimeService realtimeService) {
+    CompanionRealtimeController(
+            CompanionRealtimeService realtimeService,
+            CompanionAttachmentService attachmentService) {
         this.realtimeService = realtimeService;
+        this.attachmentService = attachmentService;
     }
 
     @GetMapping("/realtime")
@@ -34,7 +45,7 @@ class CompanionRealtimeController {
         return noStore(realtimeService.getSnapshot(appUser, sessionId));
     }
 
-    @PostMapping("/messages")
+    @PostMapping(value = "/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<CompanionRealtimeService.ChatMessageView> postMessage(
             @AuthenticationPrincipal AppUserRepository.AppUser appUser,
             @PathVariable UUID sessionId,
@@ -43,6 +54,42 @@ class CompanionRealtimeController {
                 appUser,
                 sessionId,
                 request == null ? null : request.toCommand()));
+    }
+
+    @PostMapping(value = "/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ResponseEntity<CompanionRealtimeService.ChatMessageView> postMessageWithAttachments(
+            @AuthenticationPrincipal AppUserRepository.AppUser appUser,
+            @PathVariable UUID sessionId,
+            @RequestParam UUID clientMessageId,
+            @RequestParam(defaultValue = "") String body,
+            @RequestPart(name = "attachments", required = false) List<MultipartFile> attachments) {
+        return noStore(attachmentService.postMessage(
+                appUser,
+                sessionId,
+                clientMessageId,
+                body,
+                attachments));
+    }
+
+    @GetMapping("/attachments/{attachmentId}")
+    ResponseEntity<byte[]> downloadAttachment(
+            @AuthenticationPrincipal AppUserRepository.AppUser appUser,
+            @PathVariable UUID sessionId,
+            @PathVariable UUID attachmentId) {
+        CompanionAttachmentService.DownloadedAttachment attachment = attachmentService.download(
+                appUser,
+                sessionId,
+                attachmentId);
+        ContentDisposition disposition = ContentDisposition.inline()
+                .filename(attachment.fileName(), StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(MediaType.parseMediaType(attachment.contentType()))
+                .contentLength(attachment.content().length)
+                .body(attachment.content());
     }
 
     @PutMapping("/read-receipt")

@@ -1,5 +1,6 @@
 package com.bodeul.core.session;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,12 +18,16 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.multipart.MultipartFile;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,9 +48,13 @@ class CompanionRealtimeApiIntegrationTests {
     @Autowired
     private MutableCompanionRealtimeService realtimeService;
 
+    @Autowired
+    private MutableCompanionAttachmentService attachmentService;
+
     @BeforeEach
     void reset() {
         realtimeService.reset();
+        attachmentService.reset();
     }
 
     @Test
@@ -77,7 +86,7 @@ class CompanionRealtimeApiIntegrationTests {
                         .content("""
                                 {
                                   "clientMessageId": "%s",
-                                  "body": "검사실로 이동합니다.",
+                                  "body": "검사실로 이동합니다",
                                   "attachments": [{
                                     "storagePath": "companion-chat-attachments/%s/photo.jpg",
                                     "fileName": "photo.jpg",
@@ -110,6 +119,52 @@ class CompanionRealtimeApiIntegrationTests {
                 .andExpect(jsonPath("$.error").value("companion_message_idempotency_conflict"));
     }
 
+    @Test
+    void multipartMessageDelegatesAttachmentBytesToAttachmentService() throws Exception {
+        MockMultipartFile attachment = new MockMultipartFile(
+                "attachments",
+                "검사결과.png",
+                "image/png",
+                "image-bytes".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/companion-sessions/{sessionId}/messages", SESSION_ID)
+                        .file(attachment)
+                        .param("clientMessageId", CLIENT_MESSAGE_ID.toString())
+                        .param("body", "검사 결과를 확인해 주세요")
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.clientMessageId").value(CLIENT_MESSAGE_ID.toString()));
+
+        assertThat(attachmentService.lastUser.id()).isEqualTo(USER_ID);
+        assertThat(attachmentService.lastSessionId).isEqualTo(SESSION_ID);
+        assertThat(attachmentService.lastClientMessageId).isEqualTo(CLIENT_MESSAGE_ID);
+        assertThat(attachmentService.lastBody).isEqualTo("검사 결과를 확인해 주세요");
+        assertThat(attachmentService.lastAttachments).singleElement()
+                .extracting("originalFilename", "contentType", "size")
+                .containsExactly("검사결과.png", "image/png", 11L);
+    }
+
+    @Test
+    void authenticatedParticipantDownloadsAttachmentWithoutCaching() throws Exception {
+        UUID attachmentId = UUID.randomUUID();
+
+        mockMvc.perform(get(
+                            "/api/companion-sessions/{sessionId}/attachments/{attachmentId}",
+                            SESSION_ID,
+                            attachmentId)
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("Content-Type", "application/pdf"))
+                .andExpect(content().bytes("attachment-content".getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(attachmentService.lastUser.id()).isEqualTo(USER_ID);
+        assertThat(attachmentService.lastSessionId).isEqualTo(SESSION_ID);
+        assertThat(attachmentService.lastAttachmentId).isEqualTo(attachmentId);
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class ApiTestConfiguration {
 
@@ -136,6 +191,11 @@ class CompanionRealtimeApiIntegrationTests {
         @Bean
         MutableCompanionRealtimeService mutableCompanionRealtimeService() {
             return new MutableCompanionRealtimeService();
+        }
+
+        @Bean
+        MutableCompanionAttachmentService mutableCompanionAttachmentService() {
+            return new MutableCompanionAttachmentService();
         }
     }
 
@@ -186,6 +246,23 @@ class CompanionRealtimeApiIntegrationTests {
         }
 
         @Override
+        public AttachmentView getAttachment(
+                AppUserRepository.AppUser appUser,
+                UUID sessionId,
+                UUID attachmentId) {
+            failIfNeeded();
+            lastUser = appUser;
+            lastSessionId = sessionId;
+            return new AttachmentView(
+                    attachmentId,
+                    "companion-chat-attachments/" + sessionId + "/attachment.pdf",
+                    "attachment.pdf",
+                    "application/pdf",
+                    18L,
+                    "/api/companion-sessions/" + sessionId + "/attachments/" + attachmentId);
+        }
+
+        @Override
         public ReadReceiptView updateReadReceipt(
                 AppUserRepository.AppUser appUser,
                 UUID sessionId,
@@ -217,6 +294,60 @@ class CompanionRealtimeApiIntegrationTests {
             if (failure != null) {
                 throw failure;
             }
+        }
+    }
+
+    static final class MutableCompanionAttachmentService implements CompanionAttachmentService {
+        private AppUserRepository.AppUser lastUser;
+        private UUID lastSessionId;
+        private UUID lastClientMessageId;
+        private String lastBody;
+        private List<MultipartFile> lastAttachments;
+        private UUID lastAttachmentId;
+
+        void reset() {
+            lastUser = null;
+            lastSessionId = null;
+            lastClientMessageId = null;
+            lastBody = null;
+            lastAttachments = null;
+            lastAttachmentId = null;
+        }
+
+        @Override
+        public CompanionRealtimeService.ChatMessageView postMessage(
+                AppUserRepository.AppUser appUser,
+                UUID sessionId,
+                UUID clientMessageId,
+                String body,
+                List<MultipartFile> attachments) {
+            lastUser = appUser;
+            lastSessionId = sessionId;
+            lastClientMessageId = clientMessageId;
+            lastBody = body;
+            lastAttachments = attachments;
+            return new CompanionRealtimeService.ChatMessageView(
+                    UUID.randomUUID(),
+                    clientMessageId,
+                    appUser.id(),
+                    appUser.role().name(),
+                    body,
+                    "2026-07-18T00:00:00Z",
+                    List.of());
+        }
+
+        @Override
+        public DownloadedAttachment download(
+                AppUserRepository.AppUser appUser,
+                UUID sessionId,
+                UUID attachmentId) {
+            lastUser = appUser;
+            lastSessionId = sessionId;
+            lastAttachmentId = attachmentId;
+            return new DownloadedAttachment(
+                    "검사결과.pdf",
+                    "application/pdf",
+                    "attachment-content".getBytes(StandardCharsets.UTF_8));
         }
     }
 }

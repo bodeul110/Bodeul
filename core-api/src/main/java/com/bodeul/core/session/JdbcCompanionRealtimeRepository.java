@@ -115,6 +115,39 @@ class JdbcCompanionRealtimeRepository implements CompanionRealtimeRepository {
     }
 
     @Override
+    public Optional<AttachmentRecord> findAttachment(UUID sessionId, UUID attachmentId) {
+        List<AttachmentRecord> attachments = jdbcTemplate.query(
+                """
+                        select
+                            attachment.id,
+                            attachment.chat_message_id,
+                            attachment.storage_path,
+                            attachment.file_name,
+                            attachment.content_type,
+                            attachment.size_bytes
+                        from bodeul.companion_chat_attachments attachment
+                        join bodeul.companion_chat_messages message
+                          on message.id = attachment.chat_message_id
+                        where attachment.id = :attachmentId
+                          and message.companion_session_id = :sessionId
+                          and message.deleted_at is null
+                          and attachment.deleted_at is null
+                          and attachment.status = 'ACTIVE'
+                          and (
+                            attachment.expires_at is null
+                            or attachment.expires_at > now()
+                            or attachment.legal_hold_until > now()
+                          )
+                        limit 1
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("sessionId", sessionId)
+                        .addValue("attachmentId", attachmentId),
+                (resultSet, rowNumber) -> mapAttachment(resultSet));
+        return attachments.stream().findFirst();
+    }
+
+    @Override
     public MessageSaveResult saveMessage(MessageMutation mutation) {
         List<UUID> insertedIds = jdbcTemplate.query(
                 """
@@ -312,6 +345,11 @@ class JdbcCompanionRealtimeRepository implements CompanionRealtimeRepository {
                         where chat_message_id in (:messageIds)
                           and deleted_at is null
                           and status = 'ACTIVE'
+                          and (
+                            expires_at is null
+                            or expires_at > now()
+                            or legal_hold_until > now()
+                          )
                         order by created_at, id
                         """,
                 new MapSqlParameterSource("messageIds", messageIds),
