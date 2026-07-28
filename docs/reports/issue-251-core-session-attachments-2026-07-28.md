@@ -36,4 +36,13 @@ Firestore `companionSessions` 문서가 없는 세션에서도 환자·보호자
 - Android `assembleDebug` 통과
 - Firestore/Storage Rules emulator 7개 시나리오 통과. Firestore 세션 문서가 없는 경로의 클라이언트 직접 업로드 거부 포함
 - 개발·production Firebase 기본 버킷에 각 Cloud Run 런타임 계정의 버킷 단위 `roles/storage.objectUser` 적용
-- Preview 배포, 인증된 Core-only 세션 업로드·다운로드와 보상 삭제 종단 검증은 남아 있다.
+- 개발 Storage Rules 배포 완료
+- 첨부 저장 전에 PostgreSQL 세션 참여자와 활성 상태를 확인하고, 메시지 저장 시 다시 확인하도록 보완했다. 권한 확인 실패 시 Storage 쓰기가 발생하지 않는 테스트를 포함해 `core-api` 전체 `check`를 재검증했다.
+- Core API Preview deploy run `30355824697` 성공. merge SHA `2a3b01f6083dbafd51b8e6b8075bbe36334acebc` 이미지와 리비전 `bodeul-core-api-preview-00016-v94`의 트래픽 100%를 확인했다.
+- 배포 리비전에서 `/health` 200, 무인증 multipart 첨부 메시지와 첨부 다운로드 각각 401 `missing_authorization`을 독립 요청으로 확인했다.
+
+## 남은 검증
+
+- 현재 ADB 연결 기기가 없어 인증된 Core-only 세션의 실기기 업로드·다운로드는 확인하지 못했다.
+- 실제 DB 저장 실패를 유도한 Storage 보상 삭제와 30일 만료·삭제 종단 시나리오는 #222 파기 작업과 함께 검증한다.
+- production Rules와 Core API는 production 출시 게이트가 열릴 때 적용한다.

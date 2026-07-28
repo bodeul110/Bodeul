@@ -3609,7 +3609,7 @@
 
 ### 남은 범위
 
-- #251 Firestore 보조 문서가 없는 Core-only 세션 첨부의 서버 중계 또는 서명 URL 구현
+- #251 Core-only 세션 첨부 서버 중계는 완료했으며, 인증된 실기기 업로드·다운로드와 만료·삭제 종단 검증이 남음
 - FCM 재시도·실패율 관측, release App Check enforce 검증
 - production 적용과 #222 일일 파기
 
@@ -3636,3 +3636,27 @@
 - WIF provider 조건, 서비스 계정 IAM, 사용자 관리형 key 0개 확인
 - `master`의 수동 Android Preflight에서 Firebase 운영 점검 성공
 - 성공 확인 뒤 `FIREBASE_TOKEN`, `FIREBASE_OAUTH_CLIENT_SECRET` 저장소 secret 삭제
+
+## 147. 2026-07-28 Core-only 세션 첨부 권한 전환
+
+### 구현과 운영 설정
+
+- Android 채팅 첨부 업로드·다운로드를 Spring Core API 경로로 전환하고 기존 Firebase Storage 경로는 구버전 첨부 조회 호환용으로만 유지했다.
+- Core API는 PostgreSQL 참여 관계와 세션 활성 상태를 Storage 쓰기 전에 확인하고, 메시지 저장 직전에도 다시 확인한다.
+- 첨부 원본은 Firebase Storage에 두고 PostgreSQL에는 참여자, 경로, 해시, 크기와 30일 만료 metadata를 기록한다.
+- 개발·production 기본 버킷에 각 Core runtime service account의 버킷 단위 `roles/storage.objectUser`만 부여했다.
+- 개발 Storage Rules는 Firestore 보조 문서가 없는 경로의 클라이언트 직접 접근을 거부하도록 배포했다.
+
+### 검증
+
+- Core API 전체 `check`, Android `testDebugUnitTest`·`assembleDebug`, Rules emulator 7개 시나리오 통과
+- PR #273과 권한 선확인 보완 PR #274의 필수 CI 통과 후 squash 병합
+- Core API Preview deploy run `30355824697`, merge SHA `2a3b01f6083dbafd51b8e6b8075bbe36334acebc`, 리비전 `bodeul-core-api-preview-00016-v94` 트래픽 100% 확인
+- 배포 리비전에서 health 200, 무인증 multipart 첨부 메시지와 첨부 다운로드 각각 401 `missing_authorization` 확인
+- 개발·production 기본 버킷 IAM에서 의도한 runtime service account 외 별도 `roles/storage.objectUser` 구성원이 없음을 재확인
+
+### 남은 범위
+
+- ADB 연결 실기기에서 인증된 Core-only 세션 첨부 업로드·다운로드 확인
+- 실제 DB 저장 실패 보상 삭제와 #222의 30일 만료·삭제 종단 검증
+- production 출시 게이트 이후 production Rules와 Core API 적용
