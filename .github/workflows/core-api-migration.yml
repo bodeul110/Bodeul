@@ -170,12 +170,12 @@ jobs:
           java-version: "21"
 
       - name: Gradle 설정
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-provider: basic
 
       - name: Gradle Wrapper 검증
-        uses: gradle/actions/wrapper-validation@v6
+        uses: gradle/actions/wrapper-validation@v6.2.0
 
       - name: Core API 검증
         run: ./gradlew check --console=plain

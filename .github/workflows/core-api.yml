@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Gradle Wrapper 검증
-        uses: gradle/actions/wrapper-validation@v6
+        uses: gradle/actions/wrapper-validation@v6.2.0
 
       - name: Java 21 설정
         uses: actions/setup-java@v5
@@ -50,7 +50,7 @@ jobs:
           java-version: "21"
 
       - name: Gradle 설정
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-provider: basic
 
