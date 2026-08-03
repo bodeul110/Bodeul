@@ -1,7 +1,7 @@
 [versions]
 androidGradlePlugin = "9.3.1"
 googleServices = "4.5.0"
-firebaseBom = "34.16.0"
+firebaseBom = "34.17.0"
 androidxAppcompat = "1.7.1"
 androidxCredentials = "1.6.0"
 material = "1.14.0"
