@@ -9,6 +9,7 @@
     "deploy": "firebase deploy --only functions",
     "serve": "firebase emulators:start --only functions",
     "logs": "firebase functions:log",
+    "test:retention:emulator": "node scripts/run-retention-emulator-tests.js",
     "retention:dry-run": "node scripts/run-retention.js --dry-run",
     "retention:apply": "node scripts/run-retention.js --apply",
     "test": "node --test test/*.test.js"
