@@ -1,6 +1,6 @@
 # 구현 상태
 
-기준: 2026-07-19
+기준: 2026-08-22
 
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
@@ -25,7 +25,7 @@
 - 건강정보 읽기 화면
 - 카카오 지도 기반 실시간 위치 확인, 위치 이력, 병원/약국 실좌표 마커 표시
 - 위치 이력은 세션당 최근 10건 유지와 원본 좌표 장기 보관 금지 기준을 문서화함
-- 세션 공용 안심 채팅, 채팅 푸시, 읽음 상태, 이미지/PDF 첨부와 다건 첨부
+- 환자·보호자·매니저 직접 안심 채팅, 채팅 푸시, 읽음 상태, 이미지/PDF 첨부와 다건 첨부
 - 최종 진료 리포트 조회, 후기/정산 후속/SOS 후속 처리
 - 문의 접수와 관리자 응답 조회
 
@@ -82,7 +82,11 @@
 - OCR 기반 처방전/약봉투 인식과 자동 복약 비교
 - 건강정보 별도 프로필 영속 저장
 - 실운영용 카카오 알림톡/외부 메시지 채널 연동값 확정
-- App Check 강제 적용, production PostgreSQL 업무 migration, Core-only 세션 첨부 권한 이전과 보관 자료 일일 파기
+- 환자→보호자 정보공유 동의·철회와 대리권 감사 정책
+- 매니저 self-accept 여부와 시스템 이벤트형 동행방 제품 결정
+- production Kakao 키, Cloud Run·Vercel 운영 자격 증명, App Check 강제와 rollback 검증
+- 개발 Firestore 전환 문서·매니저 증빙 fixture 파기 APPLY
+- production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 법률 문서 대조
 
 ## 4. 검증 기준
 
@@ -95,8 +99,8 @@
 
 - Firestore 쿼리와 인덱스 운영 점검 결과는 [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](../reports/firestore-query-index-review-2026-06-26.md)에 둔다.
 - 2026-06-20 이후 장문 점검과 실기기 확인 기록은 `../reports/` 아래 성격별 보고서에 둔다.
-- 최신 전체 점검 결과는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)을 기준으로 본다.
-- 문서 정합성 정리 결과는 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 둔다.
+- 최신 제품·디자인 문서 정합성은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 기준으로 본다.
+- 과거 전체 점검과 문서 정리는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)과 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 보관한다.
 - 위치 이력 운영 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)에 둔다.
 
 ## 6. 누적 변경 이력
@@ -1056,7 +1060,7 @@
 - 워크플로 단계는 `workflow:ops`를 내부에서 재사용하고, 백업 파일 경로가 주어지면 Firebase 점검 결과와 Gradle 빌드/테스트 결과를 한 묶음으로 기록한다.
 - [tools/firebase/package.json](../../tools/firebase/package.json)에 `preflight:local` 실행점을 추가했고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 사용 방법과 `--skip-workflow`, `--skip-build`, `--skip-tests` 옵션을 반영했다.
 - 프리플라이트가 생성하는 Markdown 요약도 운영 리포트와 마찬가지로 [.gitignore](../../.gitignore)에 Git 추적 대상에서 제외하도록 정리했다.
-- 검증은 `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json` 실행으로 완료했고, Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 요약 파일 [local-preflight-summary-20260424-125837.md](../../tools/firebase/reports/local-preflight-summary-20260424-125837.md), [local-preflight-summary-20260424-125837.json](../../tools/firebase/reports/local-preflight-summary-20260424-125837.json)을 생성했다.
+- 검증은 `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json` 실행으로 완료했고, Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 당시 로컬 요약 파일 `local-preflight-summary-20260424-125837.md`, `local-preflight-summary-20260424-125837.json`을 생성했다.
 
 ### 변경 범위
 
@@ -1077,7 +1081,7 @@
 - [operations-report.js](../../tools/firebase/lib/operations-report.js), [generate-operations-report.js](../../tools/firebase/generate-operations-report.js), [run-operations-workflow.js](../../tools/firebase/run-operations-workflow.js), [run-local-preflight.js](../../tools/firebase/run-local-preflight.js)에 `--app-evidence` 연결을 추가해, 증적 파일이 있으면 운영 리포트 HTML과 워크플로/프리플라이트 요약에 앱 화면 섹션과 통계가 함께 반영되도록 했다.
 - [tools/firebase/package.json](../../tools/firebase/package.json)에 `capture:app` 실행점을 추가했고, [.gitignore](../../.gitignore)에 `reports/screenshots/*.png`를 제외하도록 정리했다.
 - 증적 포맷 예시는 [app-navigation-evidence.sample.json](../../tools/firebase/templates/app-navigation-evidence.sample.json)에 남겨 두었다.
-- 검증은 `node --check tools/firebase/capture-app-navigation-evidence.js`, `node --check tools/firebase/generate-operations-report.js`, `node --check tools/firebase/run-operations-workflow.js`, `node --check tools/firebase/run-local-preflight.js`로 문법을 확인했고, `npm run report:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 리포트 [firestore-operations-report-20260424-131150.html](../../tools/firebase/reports/firestore-operations-report-20260424-131150.html), 요약 [firestore-operations-summary-20260424-131150.json](../../tools/firebase/reports/firestore-operations-summary-20260424-131150.json), 프리플라이트 [local-preflight-summary-20260424-131152.md](../../tools/firebase/reports/local-preflight-summary-20260424-131152.md)를 생성했다. 실제 `adb` 캡처는 연결된 디바이스가 없어 도움말 확인까지만 수행했다.
+- 검증은 `node --check tools/firebase/capture-app-navigation-evidence.js`, `node --check tools/firebase/generate-operations-report.js`, `node --check tools/firebase/run-operations-workflow.js`, `node --check tools/firebase/run-local-preflight.js`로 문법을 확인했고, `npm run report:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json`, `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 당시 로컬 리포트 `firestore-operations-report-20260424-131150.html`, 요약 `firestore-operations-summary-20260424-131150.json`, 프리플라이트 `local-preflight-summary-20260424-131152.md`를 생성했다. 실제 `adb` 캡처는 연결된 디바이스가 없어 도움말 확인까지만 수행했다.
 
 ### 변경 범위
 
@@ -1102,7 +1106,7 @@
 - [.github/workflows/android-preflight.yml](../../.github/workflows/android-preflight.yml)을 추가해 `pull_request`, `workflow_dispatch`에서 JDK 17/Node 22를 설정한 뒤 CI 프리플라이트를 실행하고, `tools/firebase/reports/` 산출물을 아티팩트로 업로드하도록 구성했다.
 - 워크플로는 `secrets.GOOGLE_SERVICES_JSON`, `secrets.FIREBASERC_JSON`, `secrets.FIREBASE_TOKEN`, `vars.FIREBASE_PROJECT_ID`가 있으면 Firebase 운영 점검까지 포함하고, 없으면 자동으로 Android 빌드/테스트만 수행한다.
 - 사용 방법과 필요한 시크릿 이름은 [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 반영했다.
-- 검증은 `node --check tools/firebase/run-ci-preflight.js`로 문법을 확인했고, `npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 산출물 [firestore-operations-report-20260424-131815.html](../../tools/firebase/reports/firestore-operations-report-20260424-131815.html), [firestore-operations-summary-20260424-131815.json](../../tools/firebase/reports/firestore-operations-summary-20260424-131815.json), [local-preflight-summary-20260424-131817.md](../../tools/firebase/reports/local-preflight-summary-20260424-131817.md)를 생성했다.
+- 검증은 `node --check tools/firebase/run-ci-preflight.js`로 문법을 확인했고, `npm run preflight:ci -- --app-evidence templates/app-navigation-evidence.sample.json` 실행으로 Firebase 운영 워크플로(`ready`), `assembleDebug`, `testDebugUnitTest`가 모두 통과했으며 당시 로컬 산출물 `firestore-operations-report-20260424-131815.html`, `firestore-operations-summary-20260424-131815.json`, `local-preflight-summary-20260424-131817.md`를 생성했다.
 
 ### 변경 범위
 
@@ -1143,8 +1147,8 @@
 - 연결된 실기기 `SM-S921N (Android 16)`에 [installDebug](../../app/build/outputs/apk/debug/app-debug.apk) 기준 최신 debug 앱을 다시 설치한 뒤 프리셋 전체를 실측했다.
 - 자동 진입 실측 과정에서 `adb shell am start`만으로는 현재 태스크에 인텐트가 재전달되며 포커스 검증이 흔들리는 문제가 있어, [android-toolkit.js](../../tools/firebase/lib/android-toolkit.js)에서 프리셋 자동 진입 시 `-S` 강제 재시작을 붙이도록 수정했다.
 - [app-navigation-routes.js](../../tools/firebase/lib/app-navigation-routes.js)의 기본 대기 시간을 10초로 늘렸고, [capture-app-navigation-evidence.js](../../tools/firebase/capture-app-navigation-evidence.js)에서는 `com.example.bodeul/.MainActivity`처럼 축약된 액티비티 표기도 정상 비교하도록 포커스 판정을 보강했다.
-- 프리셋 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `manager-home`, `manager-history`, `manager-guide`, `manager-support`, `manager-profile`, `admin-dashboard`를 모두 실행했고, [app-navigation-evidence-latest.json](../../tools/firebase/reports/app-navigation-evidence-latest.json)에 `통과 12 / 경고 0 / 실패 0`으로 기록했다.
-- 실기기 증적을 반영한 운영 리포트 [firestore-operations-report-20260424-133404.html](../../tools/firebase/reports/firestore-operations-report-20260424-133404.html), 요약 [firestore-operations-summary-20260424-133404.json](../../tools/firebase/reports/firestore-operations-summary-20260424-133404.json), 프리플라이트 [local-preflight-summary-20260424-133408.md](../../tools/firebase/reports/local-preflight-summary-20260424-133408.md)를 다시 생성했다.
+- 프리셋 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `manager-home`, `manager-history`, `manager-guide`, `manager-support`, `manager-profile`, `admin-dashboard`를 모두 실행했고, 당시 로컬 `app-navigation-evidence-latest.json`에 `통과 12 / 경고 0 / 실패 0`으로 기록했다.
+- 실기기 증적을 반영한 당시 로컬 운영 리포트 `firestore-operations-report-20260424-133404.html`, 요약 `firestore-operations-summary-20260424-133404.json`, 프리플라이트 `local-preflight-summary-20260424-133408.md`를 다시 생성했다.
 - 검증은 `.\gradlew.bat installDebug --console=plain`, 프리셋 전체 `node tools/firebase/capture-app-navigation-evidence.js --preset ...`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json --app-evidence reports/app-navigation-evidence-latest.json`, `npm run preflight:local -- --file backups/firestore-backup-20260424-015754.json --app-evidence reports/app-navigation-evidence-latest.json` 순서로 수행했다.
 
 ### 변경 범위
@@ -2405,12 +2409,12 @@
 
 ### 변경 범위
 
-- pp/src/main/java/com/example/bodeul/util/KakaoMapExternalLauncher.java`r
-- pp/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java`r
-- pp/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java`r
-- pp/src/main/res/values/strings.xml`r
-- ../design/feature-spec-gap-checklist-2026-05-22.md`r
-- implementation-status.md`r
+- `app/src/main/java/com/example/bodeul/util/KakaoMapExternalLauncher.java`
+- `app/src/main/java/com/example/bodeul/ui/manager/ManagerGuideMapFallbackLauncher.java`
+- `app/src/main/java/com/example/bodeul/ui/booking/BookingLiveLocationMapFallbackLauncher.java`
+- `app/src/main/res/values/strings.xml`
+- `docs/design/feature-spec-gap-checklist-2026-05-22.md`
+- `docs/status/implementation-status.md`
 
 ### 남은 범위
 
@@ -3691,3 +3695,27 @@
 
 - Firestore 전환 fixture APPLY와 개인정보 처리방침·위치기반서비스 이용약관 대조
 - production 출시 게이트 이후 production 파기 로그인 secret, 함수 dry-run과 fixture APPLY
+
+## 149. 2026-08-22 Notion·Figma 기준 문서 정렬
+
+### 정리한 기준
+
+- Notion은 제품 의도와 미결 정책, Figma는 화면 구조와 시각 위계, 저장소는 현재 구현과 기술 계약을 소유하도록 책임을 분리했다.
+- Figma `보들 가이드`의 현재 페이지 `460:2`, 최상위 화면 38개, 가이드 1~13과 미연결 채팅 시안 6개를 현행 화면 지도로 정리했다.
+- Notion의 Firestore 단일 원본, 채팅 제외와 AI/STT 처리 문구는 현재 구현 근거가 아니라고 명시했다.
+- 제품 목표인 매니저 self-accept와 시스템 이벤트 동행방이 현재 관리자 배정·직접 채팅 구현과 다르다는 점을 분리했다.
+- 로컬 기능설명서 PDF와 Figma export를 현재 원본이 아닌 과거·임시 스냅샷으로 낮췄다.
+
+### 문서
+
+- [기획·디자인·구현 기준](../planning/source-of-truth.md)
+- [Notion 제품 기준 정합성](../planning/notion-product-alignment.md)
+- [Figma 현행 화면 지도](../design/figma-current-screen-map.md)
+- [Notion·Figma 문서 정합성 점검](../reports/notion-figma-document-alignment-2026-08-22.md)
+
+### 검증
+
+- 문서 내부 상대 링크 검사
+- `git diff --check`
+- 변경 파일의 Notion 비공개 URL·페이지 ID와 계정 정보 미포함 확인
+- 문서 전용 변경이므로 Android·Core API 빌드는 수행하지 않음
