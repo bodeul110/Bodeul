@@ -236,7 +236,7 @@ public class MockManagerRepository implements ManagerRepository {
         User manager = repository.findUserById(managerUserId);
         ManagerHomeProfile profile = repository.getManagerHomeProfile(managerUserId);
         if (manager == null || profile == null) {
-            callback.onError("매니저 내 페이지 정보를 불러오지 못했습니다.");
+            callback.onError("매니저 정보를 불러오지 못했습니다.");
             return;
         }
 

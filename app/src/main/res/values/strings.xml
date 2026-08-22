@@ -35,7 +35,7 @@
     <string name="permission_item_badge_document">문서 업로드</string>
     <string name="permission_item_badge_future">위치 안내</string>
     <string name="permission_data_title">예약과 리포트는 서버에서만 관리합니다</string>
-    <string name="permission_data_description">예약 메모와 진행 리포트는 Firebase에서 불러오며, 앱 재시작 뒤 디스크에 남지 않도록 캐시를 줄여두었습니다.</string>
+    <string name="permission_data_description">예약 메모와 진행 리포트는 인증된 서비스 서버를 통해 불러오며, 앱 재시작 뒤 기기에 남는 데이터를 줄이도록 캐시를 최소화했습니다.</string>
     <string name="permission_notification_title">답변과 현장 공유 알림을 제때 받을 수 있습니다</string>
     <string name="permission_notification_description">문의 답변, 안심 채팅, 위치 자동 알림은 시스템 알림 권한을 허용해야 즉시 받을 수 있습니다. 거부해도 앱은 열리지만 중요한 변경을 놓칠 수 있습니다.</string>
     <string name="permission_document_title">서류 업로드는 시스템 문서 선택기를 사용합니다</string>
@@ -151,13 +151,13 @@
     <string name="client_home_progress_empty_body">새 동행을 접수하면 이곳에 매칭, 동행, 리포트 흐름이 순서대로 표시됩니다.</string>
     <string name="client_home_progress_detail_button">예약 상세 보기</string>
     <string name="client_home_notice_title">서비스 안내</string>
-    <string name="client_home_notice_prepare_eyebrow">REQUEST READY</string>
+    <string name="client_home_notice_prepare_eyebrow">요청 준비</string>
     <string name="client_home_notice_prepare_title">예약 전에 필요한 메모를 함께 남겨주세요.</string>
     <string name="client_home_notice_prepare_body">보호자 연락처, 복용 약, 챙겨야 할 서류를 적어두면 매칭 이후에도 같은 정보가 그대로 이어집니다.</string>
-    <string name="client_home_notice_guardian_eyebrow">CARE UPDATE</string>
+    <string name="client_home_notice_guardian_eyebrow">현장 공유</string>
     <string name="client_home_notice_guardian_title">보호자는 현장 공유와 최종 리포트를 함께 받습니다.</string>
     <string name="client_home_notice_guardian_body">매니저가 진행 단계와 메모를 저장하면 보호자 리포트 화면에서 실시간 상황과 진료 요약을 확인할 수 있습니다.</string>
-    <string name="client_home_notice_patient_eyebrow">MATCH SUPPORT</string>
+    <string name="client_home_notice_patient_eyebrow">배정 안내</string>
     <string name="client_home_notice_patient_title">신청 후에는 접수 상태와 매칭 여부를 계속 확인할 수 있습니다.</string>
     <string name="client_home_notice_patient_body">접수 대기, 매니저 배정, 동행 진행, 종료 상태가 신청 화면과 메인 홈에 함께 반영됩니다.</string>
     <string name="copyright_footer">© 2026 보들 병원동행 서비스. 모든 권리를 보유합니다.</string>
@@ -438,7 +438,7 @@
     <string name="manager_home_greeting">%1$s 매니저님,\n안녕하세요.</string>
     <string name="manager_home_subtitle">오늘도 따뜻한 동행을 시작해볼까요?</string>
     <string name="manager_home_card_eyebrow">현재 동행 세션</string>
-    <string name="manager_home_card_waiting">현재 매칭 요청 감지중</string>
+    <string name="manager_home_card_waiting">배정 현황</string>
     <string name="manager_home_card_title">현재 단계 %1$d / %2$d</string>
     <string name="manager_home_card_body">%1$s 환자님의 %2$s 방문을 준비 중입니다.</string>
     <string name="manager_home_card_button">실시간 동행 가이드 시작하기</string>
@@ -451,9 +451,9 @@
     <string name="manager_home_service_card_secondary_title">실시간 기록으로 보호자와 현장을 자연스럽게 연결합니다.</string>
     <string name="manager_home_service_card_secondary_body">진행 단계와 메모를 바로 남기고, 보호자가 확인할 리포트까지 같은 흐름으로 이어집니다.</string>
     <string name="manager_home_nav_home">홈</string>
-    <string name="manager_home_nav_history">과거이력</string>
+    <string name="manager_home_nav_history">동행 이력</string>
     <string name="manager_home_nav_guide">가이드</string>
-    <string name="manager_home_nav_profile">내 페이지</string>
+    <string name="manager_home_nav_profile">내 정보</string>
     <string name="manager_action_docs">서류 등록</string>
     <string name="manager_action_docs_short">서류</string>
     <string name="manager_action_docs_desc">자격증, 신분증, 통장사본 등 제출 상태를 남겨주세요.</string>
@@ -745,20 +745,20 @@
     <string name="manager_home_greeting_default">매니저님,
 안녕하세요.</string>
     <string name="manager_home_subtitle_active">오늘 연결된 동행을 바로 확인해보세요.</string>
-    <string name="manager_home_waiting_badge">보들 AI 매칭 감지중</string>
-    <string name="manager_home_waiting_status">LIVE</string>
-    <string name="manager_home_waiting_title">매칭 대기 중입니다.</string>
-    <string name="manager_home_waiting_body">주변 동행 요청을 다시 확인하고 있습니다.
-새 일정이 연결되면 이곳에서 바로 안내해드릴게요.</string>
-    <string name="manager_home_waiting_button">실시간 AI 매칭 시작하기</string>
-    <string name="manager_home_matching_refresh_toast">매칭 가능한 동행 요청을 다시 확인했습니다.</string>
+    <string name="manager_home_waiting_badge">배정 현황</string>
+    <string name="manager_home_waiting_status">대기 중</string>
+    <string name="manager_home_waiting_title">연결된 동행이 없습니다.</string>
+    <string name="manager_home_waiting_body">배정된 동행이 있는지 새로고침으로 확인할 수 있습니다.
+새 일정이 배정되면 이곳에서 바로 안내합니다.</string>
+    <string name="manager_home_waiting_button">배정 현황 새로고침</string>
+    <string name="manager_home_matching_refresh_toast">배정 현황을 새로고침했습니다.</string>
     <string name="manager_home_live_section_title">오늘 연결된 동행 일정</string>
     <string name="manager_home_live_title">%1$s 환자 동행</string>
     <string name="manager_home_live_subtitle">%1$s · %2$s</string>
     <string name="manager_home_live_note">특이사항: %1$s</string>
     <string name="manager_home_live_note_empty">추가로 전달된 특이사항이 없습니다.</string>
     <string name="manager_home_live_footer">보호자 연락처 · %1$s · %2$s</string>
-    <string name="manager_action_history">과거 경력</string>
+    <string name="manager_action_history">동행 이력</string>
     <string name="manager_action_history_short">이력</string>
     <string name="manager_action_support">문의하기</string>
     <string name="manager_action_support_short">문의</string>
@@ -1045,7 +1045,7 @@
     <string name="appointment_progress_stage_request_body_active">연결 정보와 요청 메모를 검토하고 있습니다.</string>
     <string name="appointment_progress_stage_request_body_done">예약이 정상 접수되었습니다.</string>
     <string name="appointment_progress_stage_request_body_canceled">접수 후 일정이 취소되었습니다.</string>
-    <string name="appointment_progress_stage_match_body_pending">AI 매칭과 일정 확인 후 담당 매니저가 배정됩니다.</string>
+    <string name="appointment_progress_stage_match_body_pending">일정 확인 후 담당 매니저가 배정됩니다.</string>
     <string name="appointment_progress_stage_match_body_assigned">담당 매니저: %1$s</string>
     <string name="appointment_progress_stage_match_body_canceled_before">매니저 배정 전에 일정이 종료되었습니다.</string>
     <string name="appointment_progress_stage_match_body_canceled_after">매니저 배정 뒤 일정이 취소되었습니다.</string>
@@ -1057,8 +1057,8 @@
     <string name="appointment_progress_stage_report_body_ready">진료 요약: %1$s</string>
     <string name="appointment_progress_stage_report_body_ready_pending">최종 리포트 저장을 마무리하고 있습니다.</string>
     <string name="appointment_progress_stage_report_body_canceled">취소된 일정이라 리포트가 생성되지 않습니다.</string>
-    <string name="feature_manager_history_title">과거 동행 이력</string>
-    <string name="feature_manager_profile_title">내 페이지</string>
+    <string name="feature_manager_history_title">동행 이력</string>
+    <string name="feature_manager_profile_title">내 정보</string>
     <string name="feature_manager_support_title">문의하기</string>
     <string name="feature_client_support_title">문의 접수</string>
     <string name="client_support_subtitle">예약, 진행, 리포트, 정산 관련 문의를 남기고 최근 접수 내역을 같은 화면에서 확인합니다.</string>
@@ -1098,7 +1098,7 @@
     <string name="client_support_response_expand">답변 펼쳐보기</string>
     <string name="client_support_response_collapse">답변 접기</string>
     <string name="manager_profile_subtitle">계정 정보, 서류 상태, 활동 가능 일정, 검토 이력을 한 화면에서 관리합니다.</string>
-    <string name="manager_profile_hero_title">%1$s 매니저님의 내 페이지</string>
+    <string name="manager_profile_hero_title">%1$s 매니저님의 내 정보</string>
     <string name="manager_profile_hero_body">연락처 %1$s\n이메일 %2$s</string>
     <string name="manager_profile_contact_missing">등록된 정보가 없습니다.</string>
     <string name="manager_profile_account_title">계정 요약</string>
@@ -1196,9 +1196,9 @@
     <string name="manager_profile_history_submitted_body">제출 요약: %1$s</string>
     <string name="manager_profile_history_approved_body">승인 메모: %1$s</string>
     <string name="manager_profile_history_rejected_body">보완 메모: %1$s</string>
-    <string name="manager_history_subtitle">완료된 동행 기록과 최종 리포트를 모아 과거 경력으로 정리합니다.</string>
+    <string name="manager_history_subtitle">완료된 동행 기록과 최종 리포트를 동행 이력으로 정리합니다.</string>
     <string name="manager_history_hero_badge">완료 동행 %1$d건</string>
-    <string name="manager_history_hero_title">%1$s 매니저님의 과거 경력</string>
+    <string name="manager_history_hero_title">%1$s 매니저님의 동행 이력</string>
     <string name="manager_history_hero_body_empty">아직 완료된 동행이 없습니다. 동행이 종료되면 최종 리포트와 함께 이 화면에 쌓입니다.</string>
     <string name="manager_history_hero_body_value">가장 최근 종료 동행은 %1$s 환자 일정입니다.\n병원 %2$s\n예약 시각 %3$s</string>
     <string name="manager_history_list_title">완료된 동행 목록</string>
