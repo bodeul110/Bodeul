@@ -1,7 +1,8 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { inspectBackupArtifact } from "./backup-artifact.mjs";
 
 const POSTGRES_IMAGE = process.env.POSTGRES_BACKUP_IMAGE || "postgres:17-alpine";
 const REQUIRED_RLS_TABLES = ["app_users", "hospital_guides", "appointment_requests"];
@@ -385,11 +386,7 @@ try {
     { env: { ...process.env, PGPASSWORD: connection.password } },
   );
 
-  const dumpBytes = statSync(dumpPath).size;
-  if (dumpBytes === 0) {
-    fail("생성된 dump가 비어 있습니다.");
-  }
-  const sha256 = createHash("sha256").update(readFileSync(dumpPath)).digest("hex");
+  const { bytes: dumpBytes, sha256 } = inspectBackupArtifact(dumpPath);
   writeFileSync(checksumPath, `${sha256}  ${dumpName}\n`, "utf8");
 
   console.log("격리 PostgreSQL 컨테이너에 dump를 복원합니다.");
