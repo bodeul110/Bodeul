@@ -136,6 +136,15 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - Node.js 22로 Functions 전체 테스트 19개가 통과했다. 운영·개발 Firebase 데이터, Storage 객체와 정기 apply 설정은 변경하지 않았다.
 - 이 검증은 상태 기반 단위 fixture다. Firestore 전환 문서와 매니저 증빙의 실제 개발 fixture APPLY 및 Storage 결과 대조는 계속 남아 있다.
 
+## 2026-08-22 Firestore·Storage Emulator 통합 검증
+
+- 고정 테스트 프로젝트 `bodeul-retention-emulator`에서만 실행되는 통합 테스트를 추가했다. 실제 Firebase 프로젝트 ID나 자격 증명을 사용하지 않는다.
+- Firestore 전환 세션의 만료 채팅 본문·정밀 위치·첨부 2건과 매니저 증빙 2건을 만들고, Storage 첨부와 증빙을 실제 Emulator bucket에 저장했다.
+- 첫 APPLY에서 경로별 한 건의 Storage 실패를 주입해 성공 객체와 참조만 제거되고 실패 객체와 참조는 유지되는지 확인했다. 두 번째 APPLY에서는 남은 객체와 참조가 제거되고 실패 집계가 0으로 돌아오는지 확인했다.
+- legal hold가 설정된 세션의 본문·위치·첨부와 매니저 증빙은 두 실행 모두 Firestore 참조와 Storage 원본을 유지했다.
+- Node.js 22.23.2에서 파기 Emulator 테스트 1/1, 기존 Firestore·Storage Rules 테스트 7/7과 Functions 일반 테스트 19개가 통과했다.
+- 이 결과는 transaction과 Storage 객체 삭제 경로를 로컬 격리 환경에서 검증한 것이다. 개발 Firebase의 실제 전환 문서·매니저 증빙 fixture APPLY와 결과 대조를 대신하지 않는다.
+
 ## 리스크와 전환 조건
 
 - 하루 500건보다 만료 적재가 빠르면 backlog가 생길 수 있다. 7일 연속 backlog가 줄지 않으면 배치 반복 또는 Cloud Run Job 전환을 검토한다.
