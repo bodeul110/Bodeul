@@ -127,6 +127,15 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - legal hold 객체를 수동 삭제한 뒤 cleanup run `30361372405`에서 fixture 7행을 정리했다. 고정 Storage prefix에도 남은 객체가 없음을 확인했다.
 - 리비전 `cleanupexpireddata-00009-cil`로 `RETENTION_APPLY_ENABLED=false`를 복구했다. 2026-07-28 22:01 KST 최종 dry-run의 모든 후보와 실패는 0건이다.
 
+## 2026-08-22 실패·재시도 단위 검증 보강
+
+- PostgreSQL 첨부 두 건 중 한 건의 Storage 삭제가 실패하는 fixture로, 성공 건만 파기 완료로 기록되고 실패 건은 다음 실행에서 다시 처리되는지 확인했다.
+- Firestore 전환 세션은 만료 첨부 두 건 중 성공한 참조만 제거하고, 실패한 참조를 유지한 뒤 다음 실행 성공 때 제거하는지 실제 `FirebaseLegacyCompanionStore.applySession()` 경로로 확인했다.
+- 매니저 증빙은 Storage 삭제 실패 시 Firestore 참조를 지우지 않고 다음 실행 성공 뒤에만 참조를 제거하는지 확인했다.
+- 저장소별 부분 성공은 작업 상태를 `COMPLETED`로 두되 성공·실패 건수를 분리해 `finishJob` 집계에 전달한다. 작업을 중단시키는 예외는 그 전까지의 집계를 보존하고 `FAILED`와 `PURGE_FIRESTORE` 실패 단계를 기록한다.
+- Node.js 22로 Functions 전체 테스트 19개가 통과했다. 운영·개발 Firebase 데이터, Storage 객체와 정기 apply 설정은 변경하지 않았다.
+- 이 검증은 상태 기반 단위 fixture다. Firestore 전환 문서와 매니저 증빙의 실제 개발 fixture APPLY 및 Storage 결과 대조는 계속 남아 있다.
+
 ## 리스크와 전환 조건
 
 - 하루 500건보다 만료 적재가 빠르면 backlog가 생길 수 있다. 7일 연속 backlog가 줄지 않으면 배치 반복 또는 Cloud Run Job 전환을 검토한다.
