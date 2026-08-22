@@ -14,6 +14,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatImageButton;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
@@ -70,8 +71,8 @@ public class LoginActivity extends AppCompatActivity {
     private Chip chipRolePatient;
     private Chip chipRoleGuardian;
     private MaterialButton buttonSubmit;
-    private MaterialButton buttonSocialKakao;
-    private MaterialButton buttonSocialGoogle;
+    private AppCompatImageButton buttonSocialKakao;
+    private AppCompatImageButton buttonSocialGoogle;
     private MaterialButton buttonSocialNaver;
     private ProgressBar progressBar;
     private AuthSummaryCardBinder summaryCardBinder;
