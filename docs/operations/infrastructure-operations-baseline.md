@@ -1,6 +1,6 @@
 # 인프라 운영 기준선
 
-기준일: 2026-07-18
+기준일: 2026-08-22
 
 ## 개발 인프라 기준선
 
@@ -9,7 +9,7 @@
 | 관리자 웹 | 별도 저장소 Next.js, Vercel Preview, 관리자 DB 실제 401·403·200 검증 완료 |
 | Core API | Cloud Run `bodeul-core-api-preview`, Spring Boot, WIF 배포와 revision rollback |
 | 공용 DB | Supabase Tokyo 개발 프로젝트, migration/core/admin role 분리 |
-| Firebase | `bodeul-dev`, Auth·Storage·Functions·FCM 유지. Firestore 업무 데이터는 읽기 전용 전환, 기존 채팅·위치 필드만 임시 쓰기 허용 |
+| Firebase | `bodeul-dev`, Auth·Storage·Functions·FCM 유지. Firestore Core 업무 문서 client 쓰기 차단, 인증 프로필·지원·매니저 서류 메타데이터 유지 |
 | Kakao | Local REST 키는 Secret Manager, 호출은 Core API 뒤에서 수행 |
 | production | GCP/Firebase·Supabase·WIF·DB migration 구축, 트래픽·도메인·관리자 DB·Kakao 미연결 |
 
@@ -33,7 +33,7 @@
 | App Check | observe 지표, 정상 실기기·웹 요청, rollback |
 | source of truth | backfill, row 비교, 쓰기 주체, 장애 복구 |
 
-예약·매칭·세션·리포트·후속 처리는 개발 환경에서 PostgreSQL 단일 쓰기로 전환했다. Firestore Rules는 해당 업무 문서의 클라이언트 쓰기를 차단하고, #221 완료 전 기존 세션의 채팅·위치·읽음 필드만 예외로 허용한다.
+예약·세션·리포트·후속 처리·채팅·읽음·위치는 개발 환경에서 PostgreSQL 단일 쓰기로 전환했다. 현재 매칭 배정은 관리자 서버의 admin-only 함수가 담당한다. Firestore Rules는 해당 Core 업무 문서의 클라이언트 쓰기를 차단한다.
 
 ## 비밀값
 
@@ -50,9 +50,10 @@ Oracle Node preview, 메인 `api/`, 메인 `admin-web/`과 관리자 Firebase Ho
 
 - 기준 도메인, 실명 운영자 2명과 출시 일정 확정
 - Vercel 관리자 DB, Kakao production key와 첫 Cloud Run revision 연결
-- production backup/restore와 rollback 리허설
+- Cloud Run·Vercel production rollback 리허설
 - 관리자 웹 App Check와 MFA
-- 도메인별 PostgreSQL 쓰기 전환
+- production Core 도메인 migration·Kakao·자격 증명 종단 검증
+- production 자동 파기 fixture와 법률 문서 대조
 - 비용·오류율·연결 수 알림 구성
 
 상세 구조는 [현재 인프라 구성도](../architecture/infra-overview.md)와 [Production 인프라 기본값](production-infrastructure-defaults.md)을 따른다.

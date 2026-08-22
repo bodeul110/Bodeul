@@ -1,6 +1,6 @@
 # 목표 인프라 구조
 
-기준일: 2026-07-19
+기준일: 2026-08-22
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -14,7 +14,7 @@
 - 관리자 Vercel Functions, Cloud Run과 Supabase는 Tokyo 리전에 맞춘다.
 - Firebase Auth, FCM, App Check, Storage와 Firebase 결합 Functions는 유지한다.
 - 채팅·위치·상태 갱신은 PostgreSQL 커밋 후 Supabase Realtime private Broadcast로 전달한다.
-- Firestore 업무 문서는 전환 기간의 읽기 전용 rollback 자료로만 남기고 안정화 후 업무 경로에서 제거한다. 인증 프로필·지원·서류처럼 Firebase에 남긴 데이터는 별도 계약으로 유지한다.
+- 전환 대상 Core 업무 Firestore 문서는 전환 기간의 읽기 전용 rollback 자료로만 남기고 안정화 후 해당 업무 경로에서 제거한다. 인증 프로필·지원·서류처럼 Firebase에 남긴 데이터는 별도 계약으로 유지한다.
 - 두 서버는 서로를 proxy로 호출하지 않는다.
 - Kakao Local REST와 서버 비밀값이 필요한 외부 연동은 Spring Core API가 소유한다.
 

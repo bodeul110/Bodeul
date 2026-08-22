@@ -1,6 +1,6 @@
 # 아키텍처 문서
 
-앱, 관리자 웹, Firebase, 운영 도구의 구조와 데이터 계약을 설명한다.
+Android 앱, 관리자 웹, Core API, PostgreSQL, Firebase와 운영 도구의 구조 및 데이터 계약을 설명한다.
 
 ## 핵심 문서
 
@@ -9,9 +9,9 @@
 - [현재 인프라 구성도](infra-overview.md)
   - Android, Next.js 관리자 서버, Spring Core API, Firebase와 Supabase PostgreSQL의 현재 흐름
 - [Firebase 선택 근거](why-firebase.md)
-  - Firebase 중심 BaaS 구조를 유지하는 이유와 대안, 전환 조건
+  - PostgreSQL 전환 뒤에도 Auth, FCM, App Check, Storage와 일부 Firestore 데이터를 유지하는 이유
 - [Firestore 선택 근거](why-firestore.md)
-  - Firestore를 MySQL/PostgreSQL/Supabase 대신 쓰는 이유와 보완 조건
+  - 초기 MVP에서 Firestore를 선택한 이유와 현재 PostgreSQL 전환 판단 기록
 - [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)
   - 멘토 피드백 이후 Firebase 인프라는 유지하고 Supabase PostgreSQL로 운영 DB를 옮기는 결정
 - [목표 인프라 구조](target-infrastructure.md)
@@ -47,7 +47,7 @@
 - [아키텍처 개요](overview.md)
   - 화면/도메인/데이터 역할 분리 기준
 - [데이터 및 API 문서](data-api.md)
-  - Firestore 문서 구조와 앱/웹 저장 계약
+  - 초기 Firestore 데이터 초안과 전환 이력. 예약·세션의 현행 계약은 Core API 전환 문서를 우선
 
 ## 같이 볼 문서
 

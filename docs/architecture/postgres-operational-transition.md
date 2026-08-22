@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-07-18
+기준일: 2026-08-22
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -13,7 +13,7 @@ Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도�
 - 사용자·매니저 API는 Cloud Run의 Spring Core API가 담당한다.
 - 관리자 API는 Vercel의 Next.js 관리자 서버가 담당한다.
 - 두 서버는 공용 PostgreSQL을 사용하되 서로를 경유하지 않는다.
-- Firestore는 전환 전 도메인의 source of truth로만 유지하고, 전환 후에는 읽기 전용 rollback 기간을 거쳐 제거한다.
+- 전환 대상 예약·세션 등 Core 업무 Firestore 문서는 전환 전까지 source of truth로 유지하고, 전환 후에는 읽기 전용 rollback 기간을 거쳐 제거한다. 인증 프로필·지원·매니저 서류 심사 메타데이터는 유지한다.
 - 실시간 채팅·위치·상태는 Supabase Realtime private Broadcast로 전달하되 모든 영속 쓰기는 서버를 거친다.
 
 ## 현재 상태
@@ -22,15 +22,19 @@ Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도�
 | --- | --- |
 | Supabase 개발 DB와 private `bodeul` schema | 완료 |
 | migration/core/admin role 분리 | 완료 |
-| Spring Core API Cloud Run 배포와 인증·DB 검증 | 완료 |
+| Spring Core API Cloud Run Preview 배포와 인증·DB 검증 | 개발/Preview 완료 |
 | Kakao Local REST의 Core API 이전 | 완료 |
-| Next.js 관리자 서버의 인증·인가·병원 가이드 조회 | 완료 |
+| Next.js 관리자 서버의 인증·인가·병원 가이드 조회 | Vercel Preview 완료 |
 | Node API와 메인 관리자 웹 중복본 종료 | 완료 |
-| 예약 요청 PostgreSQL read model 백필 | 완료, source of truth는 Firestore |
-| 도메인별 쓰기 전환 | 진행 전/부분 준비 |
+| 예약 요청 PostgreSQL read model 백필 | 완료 |
+| 예약 생성·수정·취소 PostgreSQL 쓰기 전환 | 개발 환경 완료, Core API 단일 쓰기 |
+| 매칭·동행·리포트·후속 처리 전환 | 개발 환경 완료, 관리자 배정과 Core API 경계 분리 |
+| 채팅·읽음·위치와 Realtime 전환 | 개발 환경 완료, Firestore client 쓰기 차단 |
+| 세션 첨부 Core API 중계 | 개발 환경과 실기기 검증 완료, production 게이트 대기 |
+| 자동 파기 | Core 중첩 첨부 fixture APPLY 완료. Firestore 전환 문서·매니저 증빙 fixture APPLY와 production 게이트 대기 |
 | production 프로젝트 분리 | 완료 |
 | production PostgreSQL 복원 리허설 | 완료 |
-| production 유료 등급과 실제 트래픽 | 2026-11~12월 예정 |
+| production 유료 등급과 실제 트래픽 | 미전환 |
 
 ## 선택한 방식
 
@@ -43,23 +47,34 @@ Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도�
 7. 실시간 위치처럼 쓰기 빈도가 높은 기능은 PostgreSQL에 최신·요약 이력만 저장하고 Realtime Broadcast로 화면 갱신을 전달한다.
 8. Firestore와 PostgreSQL의 무기한 이중 쓰기를 금지한다.
 
-## 도메인 전환 순서
+## 도메인별 현재 경계
 
-### 1. 낮은 위험 read model
+### 1. PostgreSQL로 전환한 Core 업무 도메인
 
-병원 가이드와 예약 요청처럼 비교 가능한 조회 모델을 PostgreSQL에 만든다. row 수, 필수 필드, 관계와 API 응답을 기존 Firebase 데이터와 비교한다.
+- 예약 생성·수정·취소
+- 관리자 서버의 매니저 배정
+- 동행 세션·리포트·후속 처리
+- 환자·보호자·매니저 직접 채팅과 읽음 상태
+- 위치 공유와 최근 10건 이력
+- 세션 채팅 첨부 메타데이터와 만료 상태
 
-### 2. 관리자 쓰기
+예약·동행·채팅·위치 쓰기는 Android에서 Firestore로 fallback하지 않는다. Realtime은 PostgreSQL 커밋 알림이고 재연결 시 Core API snapshot을 다시 읽는다.
 
-병원 가이드 수정, 문의 처리, 매니저 심사 메타데이터를 관리자 서버 API로 옮긴다. 쓰기 전에는 감사 로그, 세분화한 DB 권한과 rollback을 준비한다.
+매칭 배정은 관리자 Next.js 서버가 `assign_companion_session` admin-only 함수를 실행한다. 매니저 self-accept API는 현재 없다.
 
-### 3. 예약·매칭·리포트
+### 2. Firebase에 유지하는 경계
 
-Spring Core API 계약, migration, backfill, read 비교와 Android feature flag를 함께 준비한다. cutover 시 Firestore 쓰기는 중단하거나 종료 조건이 있는 shadow write로 제한한다.
+- Firebase Auth와 App Check
+- 인증 프로필, 지원·문의와 매니저 서류 심사 메타데이터의 Firestore 계약
+- 매니저 서류와 세션 첨부 원본의 Firebase Storage 계약
+- FCM과 Firebase 결합 Functions
+- 전환 전 예약·세션 문서의 제한적 rollback 비교 읽기
 
-### 4. 실시간 기능
+Firebase에 남은 도메인을 PostgreSQL로 자동 이전하지 않는다. 각 도메인에 별도 계약과 검증이 생길 때만 경계를 바꾼다.
 
-채팅 본문은 PostgreSQL에 별도 행으로 저장하고, 위치는 진행 중 최신 좌표와 제한된 이력만 저장한다. 커밋 뒤 Supabase Realtime private Broadcast로 화면 갱신 이벤트를 전달하고, 백그라운드 사용자는 FCM으로 깨운다. 클라이언트가 Realtime 이벤트를 놓치면 서버 API에서 최신 상태를 다시 읽는다.
+### 3. production 전환 대기
+
+개발 환경의 Core 도메인 전환과 실기기 검증, Core 중첩 첨부 파기 리허설은 완료했다. Firestore 전환 문서·매니저 증빙 fixture APPLY가 남아 있다. production에서는 Kakao 키, Cloud Run·Vercel 자격 증명, App Check, custom domain, rollback과 법률 문서 대조를 Go/No-Go에서 다시 확인한다.
 
 ## 대안
 
@@ -87,8 +102,8 @@ Spring Core API 계약, migration, backfill, read 비교와 Android feature flag
 - migration, backfill, 결과 비교, rollback과 restore가 반복 가능하다.
 - 역할별 실제 401·403·정상 응답과 감사 로그를 확인한다.
 - 비용·연결 수·오류율을 관측하고 장애 담당을 정한다.
-- Firestore 업무 쓰기가 0건이고, 읽기 전용 rollback 기간 종료 뒤 legacy 경로를 제거한다.
-- 위치, 채팅과 증빙서류 자동 파기 정책을 실제 job으로 검증한다.
+- 전환 대상 Core 도메인의 Firestore 업무 쓰기가 0건이고, 읽기 전용 rollback 기간 종료 뒤 legacy 경로를 제거한다.
+- 위치, 채팅과 세션 첨부 자동 파기 job은 개발 검증을 유지하고 production fixture로 다시 확인한다.
 
 ## 관련 문서
 

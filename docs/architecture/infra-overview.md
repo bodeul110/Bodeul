@@ -1,6 +1,6 @@
 # 현재 인프라 구성도
 
-기준일: 2026-07-19
+기준일: 2026-08-22
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -52,9 +52,9 @@ flowchart LR
   Realtime --> UserWeb
   Realtime --> Admin
   AdminNext --> Storage
-  CoreApi --> Storage
+  CoreApi -->|"세션 첨부"| Storage
   Android -->|"비이전 Firebase 기능"| Firestore
-  Android --> Storage
+  Android -->|"매니저 서류·Firebase 유지 경로"| Storage
   CoreApi -->|"기기 token read"| Firestore
   Firestore --> Functions
   Functions --> FCM
@@ -94,8 +94,9 @@ flowchart LR
 | 기존 예약·세션 문서 | Firestore rollback 비교 자료 | client 업무 쓰기를 차단하고 전환 결과 비교와 제한적 조회에만 사용한다. |
 | 병원 가이드 관리자 조회 | PostgreSQL | Next.js 관리자 서버를 통해 읽는다. |
 | 예약 요청 read model | 개발 PostgreSQL | Android와 관리자 웹은 각 서버 API를 통해 같은 PostgreSQL 상태를 읽는다. 기존 Firestore 문서는 rollback 비교 자료다. |
-| 역할·관계형 운영 데이터 | PostgreSQL | 서버별 최소 권한 role을 사용한다. |
-| 파일 원본 | Firebase Storage | 메타데이터만 PostgreSQL 이전을 검토한다. |
+| Core 업무 role·관계형 운영 데이터 | PostgreSQL | 서버별 최소 권한 role을 사용한다. Firebase 유지 기능의 role은 Firestore·Storage Rules가 판정한다. |
+| 세션 첨부 원본 | Firebase Storage | Android는 Core API를 거치고 경로·해시·크기·만료 상태는 PostgreSQL에서 인가한다. |
+| 매니저 서류 원본 | Firebase Storage | 앱 업로드와 관리자 미리보기 경계를 유지하고 심사 메타데이터는 Firestore를 사용한다. |
 | 푸시 | Core API + FCM, Firebase 기능은 Functions + FCM | 채팅·위치는 Core commit 결과로 보내고 예약·지원 등 Firebase 결합 알림은 Functions가 처리한다. |
 | 실시간 화면 갱신 | Supabase Realtime private Broadcast | PostgreSQL 커밋 뒤 변경 신호만 보내고 재연결 시 Core API snapshot을 다시 조회한다. |
 
@@ -103,7 +104,7 @@ flowchart LR
 
 - Vercel Production에 production Firebase와 SELECT-only 관리자 DB 값을 등록하고 Cloud Run 첫 승인을 배포한다.
 - 관리자 웹 custom domain, Auth authorized domain, App Check enforcement와 live 승인 조건을 확정한다.
-- 개발에서 전환한 예약·매칭·동행·채팅·위치 domain을 production migration과 함께 재검증한다.
+- 개발에서 전환한 예약·매칭·동행·채팅·위치 domain을 production 데이터 cutover와 함께 재검증한다.
 - Cloud Run과 Vercel rollback을 실제 격리 환경에서 검증한다. PostgreSQL restore는 2026-07-18 완료했다.
 - 2026-11-16까지 Supabase와 Vercel을 Pro로 전환하고 2026-12-15 Go/No-Go를 수행한다.
 
