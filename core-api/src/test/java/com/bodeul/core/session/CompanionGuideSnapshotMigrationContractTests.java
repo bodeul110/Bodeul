@@ -94,6 +94,7 @@ class CompanionGuideSnapshotMigrationContractTests {
     @Test
     void ciScenarioExecutesEmptyUpgradeAndRollbackPaths() throws IOException {
         String script = fileSql("db/verification/verify_companion_guide_snapshot_migration.sh");
+        String checks = fileSql("db/verification/006_companion_guide_snapshot_checks.sql");
 
         assertThat(script)
                 .contains("SPRING_FLYWAY_BASELINE_VERSION=0")
@@ -104,6 +105,9 @@ class CompanionGuideSnapshotMigrationContractTests {
                 .contains("007_companion_guide_snapshot_upgrade_checks.sql")
                 .contains("V14__restore_live_companion_guides.sql")
                 .contains("009_companion_guide_snapshot_rollback_checks.sql");
+        assertThat(checks)
+                .contains("set local role bodeul_core_runtime")
+                .contains("가이드 수정 뒤 신규 세션이 최신 revision snapshot을 받지 못했습니다.");
     }
 
     private String migrationSql() throws IOException {

@@ -188,11 +188,33 @@ insert into bodeul.appointment_requests (
         'AUTHORIZED',
         '2026-08-22T00:00:00Z',
         '2026-08-22T00:00:00Z'
+    ),
+    (
+        '00000000-0000-0000-0000-000000000213',
+        '00000000-0000-0000-0000-000000000201',
+        '00000000-0000-0000-0000-000000000201',
+        'PATIENT',
+        '검증 환자',
+        '코드병원',
+        '신경과',
+        '2026-10-03T01:00:00Z',
+        1790989200000,
+        '2026-10-03',
+        'INDEPENDENT',
+        'ONE_WAY',
+        'ANY',
+        'REQUESTED',
+        'CARD',
+        'NONE',
+        'AUTHORIZED',
+        '2026-08-22T00:00:00Z',
+        '2026-08-22T00:00:00Z'
     );
 
 do $$
 declare
     v_session_id uuid;
+    v_latest_session_id uuid;
     v_missing_session_id uuid;
     v_snapshot jsonb;
     v_snapshot_revision bigint;
@@ -240,6 +262,26 @@ begin
             or jsonb_array_length(v_snapshot) <> 1
             or v_snapshot -> 0 ->> 'title' <> '첫 단계' then
         raise exception '가이드 수정이 기존 세션 snapshot을 변경했습니다.';
+    end if;
+
+    v_latest_session_id := bodeul.assign_companion_session(
+        '00000000-0000-0000-0000-000000000213',
+        '00000000-0000-0000-0000-000000000202',
+        '00000000-0000-0000-0000-000000000203',
+        0,
+        '최신 revision 검증'
+    );
+
+    select guide_steps_snapshot, guide_revision
+    into v_snapshot, v_snapshot_revision
+    from bodeul.companion_sessions
+    where id = v_latest_session_id;
+
+    if v_snapshot_revision <> 2
+            or jsonb_array_length(v_snapshot) <> 2
+            or v_snapshot -> 0 ->> 'title' <> '수정된 첫 단계'
+            or v_snapshot -> 1 ->> 'code' <> 'UNLISTED_EXTENSION' then
+        raise exception '가이드 수정 뒤 신규 세션이 최신 revision snapshot을 받지 못했습니다.';
     end if;
 
     begin
@@ -291,6 +333,28 @@ begin
           and guide_steps_snapshot = '[]'::jsonb
     ) then
         raise exception '가이드가 없는 신규 세션의 차단 상태가 명시되지 않았습니다.';
+    end if;
+end;
+$$;
+
+set local role bodeul_core_runtime;
+update bodeul.companion_sessions
+set current_step_order = 1,
+    updated_at = now()
+where appointment_request_id = '00000000-0000-0000-0000-000000000211';
+
+set local role bodeul_migration;
+do $$
+begin
+    if not exists (
+        select 1
+        from bodeul.companion_sessions
+        where appointment_request_id = '00000000-0000-0000-0000-000000000211'
+          and current_step_order = 1
+          and guide_revision = 1
+          and jsonb_array_length(guide_steps_snapshot) = 1
+    ) then
+        raise exception '기존 Core runtime 진행 갱신이 snapshot 계약과 공존하지 못했습니다.';
     end if;
 end;
 $$;
