@@ -2,7 +2,7 @@
 
 기준일: 2026-07-17
 
-> 이 문서는 종료된 Node `bodeul-api`에서 검증한 초기 계약 기록이다. 병원 가이드의 401·403·200 계약은 별도 저장소의 Next.js `GET /admin/hospital-guides`로 이관했고 메인 Node 소스는 제거했다. 현재 경계는 [관리자 웹 구조](admin-web-architecture.md)를 따른다.
+> 이 문서는 종료된 Node `bodeul-api`에서 검증한 초기 계약 기록이다. 아래 endpoint, CORS, 환경변수와 rollback 방식은 현행 운영 절차가 아니다. 병원 가이드의 401·403·200 계약은 별도 저장소의 Next.js `GET /admin/hospital-guides`로 이관했고 메인 Node 소스는 제거했다. 현재 경계는 [관리자 웹 구조](admin-web-architecture.md)와 [관리자 웹 환경 기준](../operations/admin-web-environments.md)을 따른다.
 
 ## 작업 목적
 
@@ -10,7 +10,7 @@
 
 ## 선택한 방식
 
-첫 운영 read API는 `GET /admin/hospital-guides`로 둔다. `GET /admin/api-contract`는 Firebase ID token 검증 경로와 PostgreSQL 설정 상태 응답 형식을 확인하는 계약 API로 유지한다.
+당시 첫 운영 read API는 `GET /admin/hospital-guides`로 두고, `GET /admin/api-contract`로 Firebase ID token 검증 경로와 PostgreSQL 설정 상태 응답 형식을 확인했다.
 
 ## 대안
 
@@ -27,7 +27,7 @@
 - Firebase Admin SDK 설정이 없는 로컬/CI 환경에서는 verifier가 없으면 503을 반환한다.
 - PostgreSQL `hospital_guides`와 기존 Firestore 데이터가 어긋나면 관리자 웹 전환 QA에서 차이가 발생할 수 있다.
 - 관리자 웹 브라우저 호출은 CORS origin 설정이 맞지 않으면 preflight에서 차단된다.
-- 기본 rollback은 `VITE_BODEUL_DATA_BACKEND=firebase`로 되돌리는 방식이다.
+- 당시 Vite 토글을 이용한 Firestore rollback은 검증 편의를 위한 임시 방식이었다. 현재 전환된 도메인은 Firestore 이중 쓰기나 클라이언트 토글로 복귀하지 않는다.
 
 ## 공통 인증
 
@@ -63,7 +63,7 @@ Firebase Admin SDK 설정은 서버 환경변수로만 주입한다.
 
 운영/preview 배포 URL은 이 목록에 명시적으로 추가한다. origin이 맞지 않으면 `cors_origin_not_allowed` 403으로 preflight를 거부한다.
 
-환경별 `VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`, `BODEUL_API_ALLOWED_ORIGINS` 기준과 rollback 절차는 [관리자 웹 API 환경변수와 CORS 기준](../operations/admin-api-environments.md)을 따른다.
+`VITE_BODEUL_DATA_BACKEND`, `VITE_BODEUL_API_BASE_URL`, `BODEUL_API_ALLOWED_ORIGINS`는 종료된 프로토타입의 변수다. 현재 Next.js 관리자 서버에 다시 도입하지 않는다.
 
 ## `GET /healthz`
 
@@ -181,7 +181,9 @@ limit $1
 
 Supabase 조회 기준으로 `hospital_guides.steps`는 `jsonb` 배열이다. 이번 PR은 기존 스키마를 읽기만 하며 Supabase schema, seed, migration은 변경하지 않는다.
 
-## 후속 범위
+## 당시 후속 범위
 
 - 매니저 서류 심사, 문의 조회 등 추가 read API 확장
 - 병원 가이드 외 화면의 Firestore 응답과 PostgreSQL/API 응답 비교 검증
+
+이 항목은 과거 계획 기록이며 현재 작업 목록이 아니다. 현행 작업은 GitHub Issue와 [현재 구현 상태](../status/implementation-status.md)를 따른다.

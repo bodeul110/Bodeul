@@ -1,13 +1,13 @@
 # Firebase 선택 근거
 
-기준일: 2026-07-18
+기준일: 2026-08-22
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 ## 결론
 
-Firebase 전체를 제거하지는 않지만 Firebase 중심 업무 데이터 구조도 유지하지 않는다. Firebase는 Auth, FCM, App Check와 Storage에 집중하고, 업무 데이터와 최종 role 인가는 Supabase PostgreSQL과 서버 계층이 담당한다.
+Firebase 전체를 제거하지는 않지만 Firebase 중심 Core 업무 데이터 구조도 유지하지 않는다. Firebase는 Auth, FCM, App Check, Storage와 인증 프로필·지원·매니저 서류 심사 메타데이터에 집중한다. 예약·세션·채팅·읽음·위치·리포트·후속 처리와 해당 Core API·관리자 관계형 요청의 최종 role 인가는 Supabase PostgreSQL과 서버 계층이 담당한다. Firebase에 남긴 기능은 계속 `users/{uid}.role`과 Rules로 인가한다.
 
 ## 작업 목적
 
@@ -16,8 +16,8 @@ PostgreSQL과 서버 계층을 도입한 뒤에도 Firebase의 어떤 기능을 
 ## 선택한 방식
 
 - Firebase Auth로 사용자 로그인과 세션을 관리한다.
-- Cloud Firestore는 도메인 전환 전 source of truth와 전환 후 30일 읽기 전용 rollback 자료로만 사용한다.
-- Firebase Storage에 매니저 서류와 채팅 첨부 원본을 저장한다.
+- Cloud Firestore는 인증 프로필·지원·매니저 서류 심사 메타데이터에 유지한다. 전환된 예약·세션 업무 문서는 30일 읽기 전용 rollback 비교 자료로만 사용한다.
+- Firebase Storage에 매니저 서류와 세션 채팅 첨부 원본을 저장한다. Core-only 세션 첨부는 Android가 직접 쓰지 않고 Spring Core API를 거친다.
 - Cloud Functions는 Firebase Auth·FCM·Storage와 직접 결합된 작업만 맡기고 업무 규칙은 Spring 또는 Next.js 서버로 옮긴다.
 - FCM은 앱 푸시 알림에 사용한다.
 - 관리자 웹 배포는 Vercel로 분리했으며 Firebase Hosting은 현재 메인 저장소의 운영 대상이 아니다.
@@ -41,7 +41,7 @@ PostgreSQL과 서버 계층을 도입한 뒤에도 Firebase의 어떤 기능을 
 
 ## 리스크
 
-- 전환 전 클라이언트의 Firestore/Storage 직접 접근은 Rules 품질에 계속 의존한다.
+- Firestore에 유지한 인증 프로필·지원·매니저 서류와 매니저 서류 Storage 직접 접근은 Rules 품질에 계속 의존한다.
 - 복잡한 권한, 정산, 통계가 커지면 클라이언트 직접 접근 구조가 한계가 될 수 있다.
 - release App Check가 아직 강제 상태가 아니라 운영 전 abuse 방어를 더 정리해야 한다.
 - Firebase read/write, Storage, Functions 호출량이 늘면 비용 추적이 필요하다.
