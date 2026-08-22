@@ -12,6 +12,8 @@ Figma 원본의 현재 화면 구조, 구현에 적용할 수 있는 시각 기�
   - Figma 원본과 로컬 export 사용 원칙
 - [화면 개편 목표](../planning/screen-restructure-target.md)
   - 제품 흐름을 반영한 화면 정보 구조
+- [소셜 로그인 브랜드 자산](social-login-brand-assets.md)
+  - 로그인 버튼의 공식 출처, 적용 기준과 파일 무결성
 
 ## 과거 감사 이력
 
