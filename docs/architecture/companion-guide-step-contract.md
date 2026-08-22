@@ -57,7 +57,29 @@ Figma의 13개 화면, PostgreSQL 병원 가이드의 데이터 기반 단계 �
 
 ### 리스크
 
-V14 직후 Core API는 여전히 live 가이드 길이를 사용한다. 따라서 snapshot과 `currentStepOrder`의 일치 판정, 상세 단계 응답과 진행 차단은 #324가 완료되기 전까지 운영 계약으로 간주하지 않는다. rollback은 V14 이후 가이드나 세션 데이터가 생기면 정보 손실을 막기 위해 중단한다.
+V14 뒤 Core API는 세션에 고정된 snapshot만 읽고, live 병원 가이드를 세션 조회에 다시 조인하지 않는다. rollback은 V14 이후 가이드나 세션 데이터가 생기면 정보 손실을 막기 위해 중단한다.
+
+## Core API snapshot 진행 판단
+
+### 작업 목적
+
+관리자 가이드 수정과 무관하게 진행 중 세션의 단계 응답과 advance 결과를 동일하게 유지한다.
+
+### 선택한 방식
+
+V14 snapshot을 구조화해 additive 응답으로 제공하고, 조회와 advance가 같은 코드·순서·현재 범위 판정을 사용한다. repository UPDATE에도 snapshot 범위와 낙관 잠금 조건을 함께 둔다.
+
+### 대안
+
+조회 때 최신 `hospital_guides`를 계속 조인하거나, Android가 `totalStepCount`만 보고 단계 코드를 추정하거나, legacy 제목에서 코드를 자동 생성할 수 있다.
+
+### 선택 이유
+
+현재 MVP 규모에서도 관리자 수정이 진행 중 동행의 의미를 바꾸면 실기기 복구와 보호자 표시가 서로 달라진다. 세션 생성 시점 snapshot을 단일 기준으로 쓰면 별도 이벤트 모델을 도입하기 전에도 기존 API 호환성을 유지하면서 잘못된 진행을 409로 차단할 수 있다.
+
+### 리스크
+
+코드 없는 `LEGACY_HOSPITAL_GUIDE_V0` 세션은 안전하게 진행을 차단한다. V14 적용 뒤 Core API를 배포하고, 신규 배정에 쓰는 병원 가이드를 코드 계약 v1으로 승격하지 않으면 운영 세션이 `STEP_CONTRACT_MISMATCH` 상태가 될 수 있다.
 
 ## 계약 원칙
 
@@ -67,7 +89,7 @@ V14 직후 Core API는 여전히 live 가이드 길이를 사용한다. 따라�
 | `order` | 가이드 안의 표시·진행 순서 | 같은 가이드 버전 안에서 1부터 시작하는 고유 양수다. 업무 의미 식별자로 사용하지 않는다. |
 | `eventCode` | 서버가 확정한 상태 변화 | 상태 변경과 멱등 이벤트 레코드는 같은 DB 트랜잭션에서 기록한다. Realtime·FCM 같은 외부 발행만 커밋 성공 뒤 처리한다. 알림 범위는 #299가 확정하기 전 임의로 확대하지 않는다. |
 | `inputContract` | 단계에서 받는 값과 검증 | 형식·최대값은 기술 계약에 둘 수 있지만 필수·건너뛰기 여부는 #307 결정을 따른다. |
-| `guideVersion` | 세션에 고정된 가이드 개정 | 새 세션 생성 시 고정한다. 진행 중 세션은 최신 관리자 가이드로 자동 치환하지 않는다. 현재는 미구현이다. |
+| `guideRevision` | 세션에 고정된 가이드 개정 | 새 세션 생성 시 고정한다. 진행 중 세션은 최신 관리자 가이드로 자동 치환하지 않는다. |
 
 `MATCHED`는 가이드 1의 완료 이벤트가 아니라 동행 가이드 진입 전 예약 배정 이벤트다.
 
@@ -93,7 +115,7 @@ V14 직후 Core API는 여전히 live 가이드 길이를 사용한다. 따라�
 
 ## 현재 구현 차이
 
-공통으로 PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `completed_at`이 있고, Core API는 `hospital_guides.steps` 배열 길이로만 `totalStepCount`를 계산한다. 단계 상태는 현재 1=`MEETING`, 2=`WAITING`, 3~4=`IN_TREATMENT`, 5 이상=`PAYMENT`로 압축된다. Android Core 경로는 상세 단계 배열을 받지 않고 모든 세션에 7단계 `HospitalGuideFallbackFactory`를 생성한다. 공통 ScrollView에는 위치·보호자·현장·복약·리포트 입력이 단계와 관계없이 함께 노출된다.
+PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `completed_at`과 V14의 가이드 ID·revision·단계 snapshot이 있다. Core API는 snapshot의 상세 단계와 진행 가능 여부를 반환하며, 단계 상태는 1=`MEETING`, 2=`WAITING`, 3~4=`IN_TREATMENT`, 5 이상=`PAYMENT`로 계속 압축한다. Android Core 경로는 아직 상세 단계 응답을 사용하지 않고 모든 세션에 7단계 `HospitalGuideFallbackFactory`를 생성한다. 공통 ScrollView에는 위치·보호자·현장·복약·리포트 입력이 단계와 관계없이 함께 노출된다.
 
 | # | PostgreSQL 현재 값 | Core API 현재 동작 | Android 현재 동작 | 필요한 후속 계약 |
 | ---: | --- | --- | --- | --- |
@@ -119,11 +141,11 @@ V14 직후 Core API는 여전히 live 가이드 길이를 사용한다. 따라�
 
 ## 목표 API 최소 응답
 
-Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 최소한 아래 의미를 제공해야 한다. 실제 JSON 이름은 후속 Core API 이슈에서 확정한다.
+Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 아래 의미를 additive 응답으로 제공한다.
 
 | 값 | 목적 |
 | --- | --- |
-| `guideId`, `guideVersion` | 세션에 고정된 병원 가이드 식별과 개정 |
+| `guideId`, `guideRevision` | 세션에 고정된 병원 가이드 식별과 개정 |
 | `steps[].code`, `steps[].order` | 안정적인 업무 의미와 표시 순서 분리 |
 | `steps[].title`, `steps[].description` | 병원별 안내 표시 |
 | `steps[].inputContract` | 입력 종류, 형식, 최대값과 정책 확정 뒤 필수 여부 |
@@ -131,22 +153,35 @@ Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 최�
 | `canAdvance`, `blockedReason` | 서버가 판정한 진행 가능 여부와 사용자 안내 |
 | `completedEvents[]` | checkpoint와 중복 요청 복구를 위한 커밋 완료 상태 |
 
+`completedEvents[]`와 단계별 `inputContract`는 아직 응답하지 않는다. #324 범위에서는 `steps[].code`, `order`, `title`, `description`, `currentStepCode`, `canAdvance`, `blockedReason`까지만 고정했다.
+
+### Core API 진행 판정
+
+| `blockedReason` | 의미 |
+| --- | --- |
+| `SESSION_TERMINAL` | 세션이 `COMPLETED` 또는 `CANCELED`라 더 진행할 수 없음 |
+| `GUIDE_NOT_READY` | snapshot이 없거나 비어 있고, 가이드를 찾지 못했거나 legacy 원본이 미확정임 |
+| `STEP_CONTRACT_MISMATCH` | 코드 계약을 지원하지 않거나 order·code·현재 순번이 snapshot과 일치하지 않음 |
+| `LAST_STEP_REACHED` | 현재 순번이 snapshot의 마지막 단계임 |
+
+진행 가능한 경우 `blockedReason`은 `null`이다. `currentStepOrder=0`은 가이드 진입 전이므로 `currentStepCode=null`이고, `1..N`은 `steps[order-1].code`와 일치해야 한다. 유효한 형식의 unknown code는 일반 단계로 보존하며 차단 사유로 사용하지 않는다.
+
 Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에 없는 이벤트를 로컬 완료로 간주하지 않는다.
 
 ## 단계 수와 알 수 없는 코드 처리
 
 | 입력 상태 | 현재 동작 | 목표 처리 |
 | --- | --- | --- |
-| 가이드 없음 또는 0단계 | Core API `totalStepCount=0`이라 advance를 거부하지만 Android는 활성 `다음`이 있는 7단계 공통 가이드를 표시해 서버 오류가 난다. | 신규 세션은 진행을 막고 `가이드 준비 중` 상태를 표시한다. 기존 legacy 세션만 고정된 7단계 snapshot을 사용한다. |
-| 1단계 | 서버는 1을 마지막 단계로 보지만 Android는 7단계를 표시하고 `다음`을 보내 서버 오류가 난다. | 한 단계의 전용 CTA와 종료·리포트 전이를 서버 응답으로 제공한다. |
-| 7단계 | Core API 경로는 DB 상세를 무시하고 Android 공통 fallback을 표시한다. Firebase·과거 PostgreSQL seed의 제목·설명은 이 fallback과 서로 다르며 안정적인 코드는 없다. | 진행 중 legacy 세션은 생성 당시 클라이언트가 실제 표시한 7단계를 우선 보존한다. 원본을 판별할 수 없으면 Core API 세션은 Android fallback을 `LEGACY_CORE_7_V1`, Firebase 세션은 저장된 가이드 배열을 `LEGACY_FIREBASE_7_V1`로 고정하고 새 13단계로 자동 변환하지 않는다. |
-| 13단계 | 서버는 배열 길이를 진행 한계로 쓰지만 Android는 7에서 버튼을 비활성화해 8~13으로 정상 진행할 수 없다. | 코드가 포함된 13개 상세 단계를 내려주고 화면 registry로 매핑한다. |
-| 13단계 초과 | 서버는 배열 길이만큼 진행할 수 있으나 Android는 7 이후 단계를 표시하지 않는다. | 목록을 자르지 않는다. 알려진 코드는 전용 화면, 추가 코드는 일반 제목·설명 화면으로 표시하며 `canAdvance`를 따른다. |
-| 알 수 없는 `stepCode` 또는 순서 | 현재 코드 필드가 없고 현재 순번에 맞는 Android 단계가 없으면 마지막 항목을 포커스로 사용한다. | 일반 단계 화면으로 제목·설명을 보존하고 코드 전용 입력은 숨긴다. 서버가 `canAdvance=true`로 응답한 경우에만 다음 단계로 진행한다. |
+| 가이드 없음 또는 0단계 | Core API는 빈 `steps`, `canAdvance=false`, `GUIDE_NOT_READY`를 반환하고 advance를 409로 거부한다. Android는 아직 7단계 fallback을 표시한다. | Android가 서버 차단 상태를 표시하도록 전환한다. |
+| 1단계 | Core API는 진입 전 order 0에서 진행을 허용하고 order 1에서 `LAST_STEP_REACHED`를 반환한다. | 한 단계의 전용 CTA와 종료·리포트 전이는 별도 상태 계약으로 연결한다. |
+| 7단계 | `LEGACY_CORE_7_V1` snapshot의 7개 코드·제목·설명을 그대로 반환한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 자동 추정하지 않고 차단한다. | Android가 응답 snapshot을 화면 원본으로 사용한다. |
+| 13단계 | Core API는 13개 상세 단계를 자르지 않고 반환한다. Android는 7에서 버튼을 비활성화한다. | Android 화면 registry로 13개 코드를 매핑한다. |
+| 13단계 초과 | Core API는 전체 배열과 unknown code를 보존한다. Android는 7 이후 단계를 표시하지 않는다. | 알려진 코드는 전용 화면, 추가 코드는 일반 제목·설명 화면으로 표시하며 `canAdvance`를 따른다. |
+| 알 수 없는 `stepCode` 또는 순서 | 유효한 대문자 스네이크 code는 그대로 반환하고 진행을 허용한다. order 불연속·중복 code·현재 순번 범위 오류는 `STEP_CONTRACT_MISMATCH`로 차단한다. | 일반 단계 화면으로 제목·설명을 보존하고 코드 전용 입력은 숨긴다. |
 
 ## 진행 중 세션 호환 원칙
 
-1. 세션 생성 시 `guideId`, `guideVersion`과 단계 snapshot을 고정한다.
+1. 세션 생성 시 `guideId`, `guideRevision`과 단계 snapshot을 고정한다.
 2. 관리자 가이드 수정은 새 세션부터 적용하고 `IN_PROGRESS` 세션의 순서·의미·총 단계를 바꾸지 않는다.
 3. 기존 7단계 세션은 완료될 때까지 생성 당시 실제 표시 기준을 legacy snapshot으로 유지한다. Core API 경로는 Android fallback, Firebase 경로는 세션에서 참조하던 저장 가이드 배열을 우선하며, 출처를 판별할 수 없는 경우 운영 확인 대상으로 분리한다. 순번이나 제목 유사도만 보고 13개 코드로 추정 변환하지 않는다.
 4. `currentStepOrder`와 `currentStepCode`가 불일치하면 자동 보정하지 않고 진행을 막아 운영 확인 대상으로 보낸다.
@@ -168,12 +203,12 @@ Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 
 | 범위 | 포함할 변경 | 완료 증거 |
 | --- | --- | --- |
 | PostgreSQL migration | 코드 포함 가이드 schema 검증, 세션 guide version·snapshot, 이벤트 멱등성, `care_ended_at`, 정책 확정 뒤 전용 증빙·일지 필드 | migration 연속 적용·rollback, 기존 7단계 row 보존, 권한 테스트 |
-| Core API | 상세 가이드 응답, `currentStepCode`, `canAdvance`, checkpoint·완료 전이, version 충돌과 멱등 요청 | 서비스·repository·HTTP 계약 테스트, 역할별 200·403·409 검증 |
+| Core API | 상세 가이드 응답, `currentStepCode`, `canAdvance`와 snapshot 범위·version 진행 차단은 #324에서 구현했다. checkpoint·완료 전이와 멱등 이벤트는 후속 범위다. | 서비스·repository·HTTP 계약 테스트, 역할별 200·403·409 검증 |
 | Android | stepCode 화면 registry, 일반 fallback 화면, 13개 전용 UI와 입력, process death·재연결 복구 | 단위·UI 테스트, 0·1·7·13·13초과·unknown fixture, 실기기 진행·재진입 검증 |
 
-## 이번 문서에서 하지 않은 일
+## 현재 제외 범위
 
-- PostgreSQL migration, API DTO, Android 화면과 상태 전이는 변경하지 않았다.
+- Android 화면과 단계별 상태 전이는 변경하지 않았다.
 - `stepCode` 초안을 운영 데이터에 seed하지 않았다.
 - 미확정 입력을 필수로 표시하거나 새로운 보호자 알림을 발송하지 않았다.
 - Figma 원본을 이번 작업에서 최신으로 재검증했다고 표시하지 않았다.

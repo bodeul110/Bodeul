@@ -78,7 +78,20 @@ public interface CompanionSessionService {
             long version,
             String startedAt,
             String completedAt,
-            String canceledAt) {
+            String canceledAt,
+            UUID guideId,
+            Long guideRevision,
+            List<GuideStepView> steps,
+            String currentStepCode,
+            boolean canAdvance,
+            String blockedReason) {
+    }
+
+    record GuideStepView(
+            String code,
+            int order,
+            String title,
+            String description) {
     }
 
     record ReportView(

@@ -220,6 +220,7 @@ class DefaultCompanionRealtimeServiceTests {
                 GUARDIAN_ID,
                 2,
                 5,
+                guideSnapshot(),
                 status,
                 "",
                 "",
@@ -237,6 +238,24 @@ class DefaultCompanionRealtimeServiceTests {
                 Instant.parse("2026-07-18T00:00:00Z"),
                 status.equals("COMPLETED") ? Instant.parse("2026-07-18T01:00:00Z") : null,
                 null);
+    }
+
+    private CompanionSessionRepository.GuideSnapshotRecord guideSnapshot() {
+        List<CompanionSessionRepository.GuideStepRecord> steps = new ArrayList<>();
+        for (int order = 1; order <= 5; order++) {
+            steps.add(new CompanionSessionRepository.GuideStepRecord(
+                    "STEP_" + order,
+                    order,
+                    "단계 " + order,
+                    "설명 " + order));
+        }
+        return new CompanionSessionRepository.GuideSnapshotRecord(
+                UUID.fromString("45bd0403-59a7-449a-90f6-fae10c79da30"),
+                2L,
+                1,
+                "HOSPITAL_GUIDE_STEP_CODE_V1",
+                true,
+                steps);
     }
 
     private CompanionRealtimeRepository.ChatMessageRecord message(String body) {

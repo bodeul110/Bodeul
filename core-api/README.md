@@ -91,11 +91,11 @@ Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, p
 
 `GET /api/appointments/{id}/follow-up`은 연결된 환자·보호자·배정 매니저에게 후기·정산·긴급 지원 기록을 제공한다. `PATCH /api/appointments/{id}/follow-up`은 완료 예약의 환자·보호자만 사용할 수 있고 최신 후속 기록의 `version`과 변경할 필드만 받는다.
 
-V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. V8은 채팅·첨부 메타데이터·읽음 위치·최근 위치 이력을 정규화하고 Core runtime의 최소 DML, 위치 기록 함수와 종료 시 보관 만료 예약을 추가한다. V9은 읽음 위치의 복합 외래키를 덮는 인덱스를 추가한다. V8·V9 적용만으로 앱 경로가 전환되지는 않으며 Core API endpoint와 Realtime private Broadcast 연결 전까지 채팅·위치는 Firestore legacy 경로에 남는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. V8은 채팅·첨부 메타데이터·읽음 위치·최근 위치 이력을 정규화하고 Core runtime의 최소 DML, 위치 기록 함수와 종료 시 보관 만료 예약을 추가한다. V9은 읽음 위치의 복합 외래키를 덮는 인덱스를 추가한다. V14는 배정 시점의 병원 가이드 ID·revision·단계 배열을 세션에 고정하고 이후 변경을 막는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
 
 ## 동행 세션 API
 
-`/api/companion-sessions`는 환자·보호자에게 연결된 세션과 리포트를 읽기 전용으로 제공하고, 배정된 매니저에게만 현장 메모·단계·리포트 쓰기를 허용한다. 모든 쓰기는 응답의 `version`을 요구한다. 단계 수는 예약의 병원·진료과와 연결된 PostgreSQL 병원 가이드에서 계산한다.
+`/api/companion-sessions`는 환자·보호자에게 연결된 세션과 리포트를 읽기 전용으로 제공하고, 배정된 매니저에게만 현장 메모·단계·리포트 쓰기를 허용한다. 모든 쓰기는 응답의 `version`을 요구한다. 단계 목록과 진행 한계는 V14가 세션 생성 시 고정한 `guide_steps_snapshot`에서 계산하며 이후 병원 가이드 수정의 영향을 받지 않는다. 응답은 기존 필드와 함께 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 제공한다.
 
 리포트 저장은 예약과 세션을 함께 `COMPLETED`로 바꾸며, 매칭된 예약 취소는 활성 세션을 함께 `CANCELED`로 바꾼다. 어느 한쪽 갱신이라도 실패하면 Spring transaction 전체를 rollback한다.
 

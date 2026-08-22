@@ -2,6 +2,8 @@
 
 기준일: 2026-07-19
 
+최종 갱신: 2026-08-22
+
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
@@ -18,7 +20,7 @@
 - 배정 함수는 관리자와 매니저 role, 예약 상태, 예약 버전을 검증한 뒤 예약 `MATCHED`, 세션 `READY`, 감사 기록을 한 트랜잭션에서 생성한다.
 - 앱과 서버의 동시 수정을 검출할 수 있도록 세션·리포트·후속 처리에 `version`을 둔다.
 - Core API는 세션 조회·현장 메모·단계 전환·리포트·예약 후속 처리 endpoint를 소유하고, Android가 PostgreSQL에 직접 연결하지 않는다.
-- 진행 단계 수는 Android 입력이 아니라 예약의 병원·진료과와 연결된 `hospital_guides.steps`에서 계산한다.
+- 진행 단계는 세션 생성 시 V14가 고정한 `guide_steps_snapshot`에서 계산한다. 이후 `hospital_guides` 수정은 진행 중 세션 응답과 진행 한계를 바꾸지 않는다.
 
 ## 대안
 
@@ -78,7 +80,7 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | `GET /api/companion-sessions` | 환자·보호자·매니저 | 본인 참여 또는 본인 배정 세션 최대 100건 |
 | `GET /api/companion-sessions/{id}` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 세션 조회 |
 | `PATCH /api/companion-sessions/{id}` | 배정 매니저 | 현장 메모·약국 진행 상태를 `version` 조건으로 부분 갱신 |
-| `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 서버의 병원 가이드 단계 수를 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
+| `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 고정 snapshot의 코드·순서·현재 범위와 `version`을 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
 | `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 리포트 조회 |
 | `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 리포트 upsert, 예약·세션 `COMPLETED`를 한 트랜잭션으로 반영 |
 | `GET /api/companion-sessions/{id}/realtime` | 환자·보호자·배정 매니저 | 최근 채팅·읽음과 진행 중 위치 snapshot 조회, Realtime 재연결 복구 |
@@ -112,7 +114,7 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 읽는다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
-- 병원 가이드는 현재 Android 공통 fallback을 사용한다. PostgreSQL 병원 가이드 상세 응답 전환은 별도 범위이며, 세션의 서버 단계 수와 진행 제한은 계속 Core API가 판정한다.
+- Core API는 세션에 고정된 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 반환한다. Android는 아직 공통 fallback을 사용하며 상세 snapshot 화면 전환은 별도 범위다.
 
 ## 백필과 rollback
 
@@ -131,6 +133,7 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 ## 리스크와 전환 조건
 
 - 개발 환경은 Core API와 관리자 서버가 PostgreSQL을 사용하고 Android의 대응 Firestore 쓰기를 중지해 전환 조건을 충족했다. production은 같은 migration과 역할별 종단 검증을 통과해야 전환 완료로 본다.
+- Core API snapshot 응답은 V14 열을 전제로 하므로 V14 migration을 먼저 적용한 뒤 API를 배포한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 의미를 추정하지 않고 진행을 차단하므로, 신규 배정 전에 운영 가이드를 코드 계약 v1으로 승격해야 한다.
 - 기존 배정의 관리자 actor는 Firestore에 없으므로 감사 기록을 추정해 만들지 않는다. 전환 이후 배정부터 기록한다.
 - 기존 Firestore 세션 문서는 rollback 비교 자료로 남아 있으므로 운영 화면이 이를 업무 원본으로 다시 사용하지 않는지 회귀 검증한다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.

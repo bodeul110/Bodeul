@@ -4,11 +4,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.session.CompanionSessionRepository.GuideSnapshotRecord;
+import com.bodeul.core.session.CompanionSessionRepository.GuideStepRecord;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.jdbc.core.RowMapper;
@@ -29,7 +35,12 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 appointment.patient_user_id,
                 appointment.guardian_user_id,
                 session.current_step_order,
-                coalesce(jsonb_array_length(guide.steps), 0) as total_step_count,
+                coalesce(jsonb_array_length(session.guide_steps_snapshot), 0) as total_step_count,
+                session.guide_id,
+                session.guide_revision,
+                session.guide_step_contract_version,
+                session.guide_steps_snapshot::text as guide_steps_snapshot,
+                session.guide_snapshot_source,
                 session.current_status,
                 session.guardian_update,
                 session.location_summary,
@@ -50,9 +61,6 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
             from bodeul.companion_sessions session
             join bodeul.appointment_requests appointment
               on appointment.id = session.appointment_request_id
-            left join bodeul.hospital_guides guide
-              on guide.hospital_name = appointment.hospital_name
-             and guide.department_name = appointment.department_name
             """;
 
     private static final String REPORT_SELECT = """
@@ -74,15 +82,19 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
             from bodeul.session_reports
             """;
 
-    private static final RowMapper<SessionRecord> SESSION_MAPPER =
-            (resultSet, rowNumber) -> mapSession(resultSet);
     private static final RowMapper<ReportRecord> REPORT_MAPPER =
             (resultSet, rowNumber) -> mapReport(resultSet);
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
+    private final RowMapper<SessionRecord> sessionMapper;
 
-    JdbcCompanionSessionRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+    JdbcCompanionSessionRepository(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
+        this.sessionMapper = (resultSet, rowNumber) -> mapSession(resultSet);
     }
 
     @Override
@@ -98,7 +110,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                         + "where " + userColumn + " = :userId "
                         + "order by appointment.appointment_at desc, session.created_at desc limit 100",
                 new MapSqlParameterSource("userId", userId),
-                SESSION_MAPPER);
+                sessionMapper);
     }
 
     @Override
@@ -207,6 +219,18 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                   and manager_user_id = :managerUserId
                   and current_status not in ('COMPLETED', 'CANCELED')
                   and version = :expectedVersion
+                  and guide_steps_snapshot is not null
+                  and jsonb_typeof(guide_steps_snapshot) = 'array'
+                  and current_step_order >= 0
+                  and current_step_order < jsonb_array_length(guide_steps_snapshot)
+                  and (
+                      (
+                          guide_snapshot_source = 'HOSPITAL_GUIDE_STEP_CODE_V1'
+                          and guide_step_contract_version = 1
+                      )
+                      or guide_snapshot_source = 'LEGACY_CORE_7_V1'
+                  )
+                  and bodeul.is_valid_guide_steps_v1(guide_steps_snapshot)
                 """;
         int updated = jdbcTemplate.update(sql, new MapSqlParameterSource()
                 .addValue("sessionId", sessionId)
@@ -346,7 +370,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
     }
 
     private Optional<SessionRecord> querySession(String sql, MapSqlParameterSource parameters) {
-        return jdbcTemplate.query(sql, parameters, SESSION_MAPPER)
+        return jdbcTemplate.query(sql, parameters, sessionMapper)
                 .stream()
                 .findFirst();
     }
@@ -357,7 +381,15 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 .findFirst();
     }
 
-    private static SessionRecord mapSession(ResultSet resultSet) throws SQLException {
+    private SessionRecord mapSession(ResultSet resultSet) throws SQLException {
+        String snapshotJson = resultSet.getString("guide_steps_snapshot");
+        GuideSnapshotRecord guideSnapshot = new GuideSnapshotRecord(
+                resultSet.getObject("guide_id", UUID.class),
+                nullableLong(resultSet, "guide_revision"),
+                nullableInteger(resultSet, "guide_step_contract_version"),
+                resultSet.getString("guide_snapshot_source"),
+                snapshotJson != null,
+                parseGuideSteps(snapshotJson));
         return new SessionRecord(
                 resultSet.getObject("id", UUID.class),
                 resultSet.getString("firestore_id"),
@@ -367,6 +399,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 resultSet.getObject("guardian_user_id", UUID.class),
                 resultSet.getInt("current_step_order"),
                 resultSet.getInt("total_step_count"),
+                guideSnapshot,
                 resultSet.getString("current_status"),
                 resultSet.getString("guardian_update"),
                 resultSet.getString("location_summary"),
@@ -384,6 +417,55 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 instant(resultSet, "started_at"),
                 instant(resultSet, "completed_at"),
                 instant(resultSet, "canceled_at"));
+    }
+
+    private List<GuideStepRecord> parseGuideSteps(String snapshotJson) throws SQLException {
+        if (snapshotJson == null) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(snapshotJson);
+            if (root == null || !root.isArray()) {
+                return List.of();
+            }
+            List<GuideStepRecord> steps = new ArrayList<>(root.size());
+            for (JsonNode step : root) {
+                steps.add(new GuideStepRecord(
+                        text(step, "code"),
+                        integer(step, "order"),
+                        text(step, "title"),
+                        text(step, "description")));
+            }
+            return List.copyOf(steps);
+        } catch (JsonProcessingException exception) {
+            throw new SQLException("동행 가이드 snapshot JSON을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private String text(JsonNode node, String field) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+        JsonNode value = node.get(field);
+        return value != null && value.isTextual() ? value.textValue() : null;
+    }
+
+    private int integer(JsonNode node, String field) {
+        if (node == null || !node.isObject()) {
+            return 0;
+        }
+        JsonNode value = node.get(field);
+        return value != null && value.canConvertToInt() ? value.intValue() : 0;
+    }
+
+    private static Long nullableLong(ResultSet resultSet, String column) throws SQLException {
+        Number value = (Number) resultSet.getObject(column);
+        return value == null ? null : value.longValue();
+    }
+
+    private static Integer nullableInteger(ResultSet resultSet, String column) throws SQLException {
+        Number value = (Number) resultSet.getObject(column);
+        return value == null ? null : value.intValue();
     }
 
     private static ReportRecord mapReport(ResultSet resultSet) throws SQLException {

@@ -22,8 +22,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,9 +65,35 @@ class CompanionSessionApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.sessions[0].id").value(SESSION_ID.toString()))
-                .andExpect(jsonPath("$.sessions[0].version").value(3));
+                .andExpect(jsonPath("$.sessions[0].currentStepOrder").value(2))
+                .andExpect(jsonPath("$.sessions[0].totalStepCount").value(5))
+                .andExpect(jsonPath("$.sessions[0].version").value(3))
+                .andExpect(jsonPath("$.sessions[0].guideId")
+                        .value("45bd0403-59a7-449a-90f6-fae10c79da30"))
+                .andExpect(jsonPath("$.sessions[0].guideRevision").value(4))
+                .andExpect(jsonPath("$.sessions[0].steps[1].code").value("STEP_2"))
+                .andExpect(jsonPath("$.sessions[0].steps[1].order").value(2))
+                .andExpect(jsonPath("$.sessions[0].steps[1].title").value("단계 2"))
+                .andExpect(jsonPath("$.sessions[0].steps[1].description").value("설명 2"))
+                .andExpect(jsonPath("$.sessions[0].currentStepCode").value("STEP_2"))
+                .andExpect(jsonPath("$.sessions[0].canAdvance").value(true))
+                .andExpect(jsonPath("$.sessions[0].blockedReason").value(nullValue()));
 
         assertThat(sessionService.lastUser.id()).isEqualTo(USER_ID);
+    }
+
+    @Test
+    void authenticatedUserReadsFrozenSessionDetail() throws Exception {
+        mockMvc.perform(get("/api/companion-sessions/{sessionId}", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.id").value(SESSION_ID.toString()))
+                .andExpect(jsonPath("$.steps.length()").value(5))
+                .andExpect(jsonPath("$.currentStepCode").value("STEP_2"))
+                .andExpect(jsonPath("$.canAdvance").value(true));
+
+        assertThat(sessionService.lastSessionId).isEqualTo(SESSION_ID);
     }
 
     @Test
@@ -99,6 +127,50 @@ class CompanionSessionApiIntegrationTests {
                         .content("{\"version\":3,\"guardianUpdate\":\"변경\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("companion_session_manager_required"));
+    }
+
+    @Test
+    void assignedManagerAdvancesWithOptimisticVersion() throws Exception {
+        mockMvc.perform(post("/api/companion-sessions/{sessionId}/advance", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("{\"version\":3}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.id").value(SESSION_ID.toString()))
+                .andExpect(jsonPath("$.canAdvance").value(true));
+
+        assertThat(sessionService.lastSessionId).isEqualTo(SESSION_ID);
+        assertThat(sessionService.lastAdvanceVersion).isEqualTo(3);
+    }
+
+    @Test
+    void advancePermissionAndStateConflictsReturnExpectedStatus() throws Exception {
+        sessionService.failure = CompanionSessionException.managerRequired();
+        mockMvc.perform(post("/api/companion-sessions/{sessionId}/advance", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("{\"version\":3}"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.error").value("companion_session_manager_required"));
+
+        sessionService.failure = CompanionSessionException.stateConflict();
+        mockMvc.perform(post("/api/companion-sessions/{sessionId}/advance", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("{\"version\":3}"))
+                .andExpect(status().isConflict())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.error").value("companion_session_state_conflict"));
+
+        sessionService.failure = CompanionSessionException.versionConflict();
+        mockMvc.perform(post("/api/companion-sessions/{sessionId}/advance", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("{\"version\":2}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("companion_session_version_conflict"));
     }
 
     @Test
@@ -147,7 +219,22 @@ class CompanionSessionApiIntegrationTests {
                 3,
                 "",
                 "",
-                "");
+                "",
+                UUID.fromString("45bd0403-59a7-449a-90f6-fae10c79da30"),
+                4L,
+                guideSteps(),
+                "STEP_2",
+                true,
+                null);
+    }
+
+    private static List<CompanionSessionService.GuideStepView> guideSteps() {
+        return List.of(
+                new CompanionSessionService.GuideStepView("STEP_1", 1, "단계 1", "설명 1"),
+                new CompanionSessionService.GuideStepView("STEP_2", 2, "단계 2", "설명 2"),
+                new CompanionSessionService.GuideStepView("STEP_3", 3, "단계 3", "설명 3"),
+                new CompanionSessionService.GuideStepView("STEP_4", 4, "단계 4", "설명 4"),
+                new CompanionSessionService.GuideStepView("STEP_5", 5, "단계 5", "설명 5"));
     }
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -183,12 +270,14 @@ class CompanionSessionApiIntegrationTests {
         private AppUserRepository.AppUser lastUser;
         private UUID lastSessionId;
         private UpdateSessionCommand lastUpdate;
+        private long lastAdvanceVersion;
         private RuntimeException failure;
 
         void reset() {
             lastUser = null;
             lastSessionId = null;
             lastUpdate = null;
+            lastAdvanceVersion = -1;
             failure = null;
         }
 
@@ -225,6 +314,9 @@ class CompanionSessionApiIntegrationTests {
                 UUID sessionId,
                 long version) {
             failIfNeeded();
+            lastUser = appUser;
+            lastSessionId = sessionId;
+            lastAdvanceVersion = version;
             return session();
         }
 
