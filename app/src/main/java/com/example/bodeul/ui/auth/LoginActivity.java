@@ -8,12 +8,18 @@ import android.text.TextUtils;
 import android.util.Patterns;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatImageButton;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OneShotPreDrawListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
@@ -44,6 +50,7 @@ public class LoginActivity extends AppCompatActivity {
     private UserRole roleHint;
     private boolean registerMode;
     private boolean loading;
+    private boolean imeVisible;
     private long verificationResendAvailableAtMillis;
     @Nullable
     private CountDownTimer verificationResendCooldownTimer;
@@ -55,6 +62,7 @@ public class LoginActivity extends AppCompatActivity {
     private TextView textForgotPassword;
     private TextView textResendVerification;
     private TextView textSocialHelper;
+    private ScrollView scrollLogin;
     private TextInputLayout layoutName;
     private TextInputLayout layoutPhone;
     private TextInputLayout layoutEmail;
@@ -70,8 +78,8 @@ public class LoginActivity extends AppCompatActivity {
     private Chip chipRolePatient;
     private Chip chipRoleGuardian;
     private MaterialButton buttonSubmit;
-    private MaterialButton buttonSocialKakao;
-    private MaterialButton buttonSocialGoogle;
+    private AppCompatImageButton buttonSocialKakao;
+    private AppCompatImageButton buttonSocialGoogle;
     private MaterialButton buttonSocialNaver;
     private ProgressBar progressBar;
     private AuthSummaryCardBinder summaryCardBinder;
@@ -102,6 +110,7 @@ public class LoginActivity extends AppCompatActivity {
         textForgotPassword = findViewById(R.id.textForgotPassword);
         textResendVerification = findViewById(R.id.textResendVerification);
         textSocialHelper = findViewById(R.id.textSocialHelper);
+        scrollLogin = findViewById(R.id.scrollLogin);
         layoutName = findViewById(R.id.layoutName);
         layoutPhone = findViewById(R.id.layoutPhone);
         layoutEmail = findViewById(R.id.layoutEmail);
@@ -124,6 +133,7 @@ public class LoginActivity extends AppCompatActivity {
         summaryCardBinder = new AuthSummaryCardBinder(findViewById(R.id.layoutLoginSummaryCard));
         summaryFormatter = new LoginSummaryFormatter(this);
 
+        configureImeInsets();
         configureRoleChips();
         restoreScreenState(savedInstanceState);
         bindMode();
@@ -149,6 +159,74 @@ public class LoginActivity extends AppCompatActivity {
         chipRoleManager.setOnClickListener(roleListener);
         chipRolePatient.setOnClickListener(roleListener);
         chipRoleGuardian.setOnClickListener(roleListener);
+    }
+
+    private void configureImeInsets() {
+        int initialLeftPadding = scrollLogin.getPaddingLeft();
+        int initialTopPadding = scrollLogin.getPaddingTop();
+        int initialRightPadding = scrollLogin.getPaddingRight();
+        int initialBottomPadding = scrollLogin.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(scrollLogin, (view, windowInsets) -> {
+            Insets imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+            Insets navigationInsets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.navigationBars()
+            );
+            int bottomInset = Math.max(imeInsets.bottom, navigationInsets.bottom);
+            imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
+            view.setPadding(
+                    initialLeftPadding,
+                    initialTopPadding,
+                    initialRightPadding,
+                    initialBottomPadding + bottomInset
+            );
+
+            if (imeVisible) {
+                OneShotPreDrawListener.add(view, () -> {
+                    View focusedView = getCurrentFocus();
+                    if (focusedView != null) {
+                        scrollFocusedViewAboveKeyboard(focusedView);
+                    }
+                });
+            }
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(scrollLogin);
+
+        View.OnFocusChangeListener inputFocusListener = (focusedView, hasFocus) -> {
+            if (hasFocus && imeVisible) {
+                scrollLogin.post(() -> scrollFocusedViewAboveKeyboard(focusedView));
+            }
+        };
+        inputName.setOnFocusChangeListener(inputFocusListener);
+        inputPhone.setOnFocusChangeListener(inputFocusListener);
+        inputEmail.setOnFocusChangeListener(inputFocusListener);
+        inputPassword.setOnFocusChangeListener(inputFocusListener);
+    }
+
+    private void scrollFocusedViewAboveKeyboard(View focusedView) {
+        if (!focusedView.isAttachedToWindow()) {
+            return;
+        }
+
+        int[] scrollLocation = new int[2];
+        int[] focusLocation = new int[2];
+        scrollLogin.getLocationOnScreen(scrollLocation);
+        focusedView.getLocationOnScreen(focusLocation);
+
+        int verticalMargin = Math.round(24 * getResources().getDisplayMetrics().density);
+        int visibleTop = scrollLocation[1] + scrollLogin.getPaddingTop();
+        int visibleBottom = scrollLocation[1]
+                + scrollLogin.getHeight()
+                - scrollLogin.getPaddingBottom();
+        int focusedTop = focusLocation[1];
+        int focusedBottom = focusedTop + focusedView.getHeight();
+
+        if (focusedBottom + verticalMargin > visibleBottom) {
+            scrollLogin.scrollBy(0, focusedBottom + verticalMargin - visibleBottom);
+        } else if (focusedTop - verticalMargin < visibleTop) {
+            scrollLogin.scrollBy(0, focusedTop - verticalMargin - visibleTop);
+        }
     }
 
     private void restoreScreenState(@Nullable Bundle savedInstanceState) {

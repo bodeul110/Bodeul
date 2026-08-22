@@ -1,40 +1,40 @@
 # 인프라 리스크와 보완 계획
 
-기준일: 2026-07-19
+기준일: 2026-08-22
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 ## 결론
 
-현재 가장 큰 리스크는 개발에서 검증한 PostgreSQL 단일 업무 원본 경계를 production 전환 전까지 그대로 재현하고, 위치·채팅·첨부 파기를 자동화하는 것이다. 목표 구조는 Supabase PostgreSQL 단일 업무 원본, Spring Core API와 Next.js 관리자 서버의 분리된 접근, Firebase Auth·FCM·App Check·Storage 유지다.
+현재 가장 큰 리스크는 개발에서 검증한 PostgreSQL Core 업무 원본 경계와 자동 파기를 production에서 그대로 재현하는 것이다. 목표 구조는 Core 업무 도메인의 Supabase PostgreSQL 단일 원본, Spring Core API와 Next.js 관리자 서버의 분리된 접근, Firebase Auth·FCM·App Check·Storage와 일부 Firestore 결합 데이터 유지다.
 
-개발 Android의 예약·매칭·동행·리포트·후속 처리·채팅·읽음·위치는 PostgreSQL 단일 쓰기로 전환했고 Firestore client 쓰기를 차단했다. production 기반과 PostgreSQL 복원 경로는 준비됐으며, 2026-12-15 Go/No-Go 전까지 production migration, 보관 자료 파기, release App Check와 rollback을 검증한다.
+개발 Android의 예약·동행·리포트·후속 처리·채팅·읽음·위치는 PostgreSQL 단일 쓰기로 전환했고 Firestore client 쓰기를 차단했다. 매칭 배정은 관리자 서버의 admin-only 함수가 담당한다. production schema와 PostgreSQL 복원 경로는 준비됐으며, Go/No-Go 전까지 실제 데이터 cutover, 파기 fixture, release App Check와 rollback을 검증한다.
 
 ## 리스크 요약
 
 | 리스크 | 현재 상태 | 보완 계획 |
 | --- | --- | --- |
-| 이중 데이터 원본 | 개발 업무 쓰기는 PostgreSQL로 단일화했고 Firestore는 rollback 비교 자료다. production은 아직 사용자 트래픽을 받지 않는다. | production 전환 뒤 최대 30일 비교 기간을 두고 관련 Firestore 업무 경로를 제거한다. |
-| 권한 기준 분기 | 인증은 Firebase, 최종 role은 PostgreSQL `app_users.role`이다. | Firebase UID를 키로 유지하고 서버가 매 요청에서 PostgreSQL role을 확인한다. |
+| 이중 데이터 원본 | 개발 Core 업무 쓰기는 PostgreSQL로 단일화했고 해당 Firestore 문서는 rollback 비교 자료다. production은 아직 사용자 트래픽을 받지 않는다. | production 전환 뒤 최대 30일 비교 기간을 두고 관련 Firestore Core 업무 경로를 제거한다. |
+| 권한 기준 분기 | 인증은 Firebase이고 Core API·관리자 관계형 요청의 최종 role은 PostgreSQL `app_users.role`이다. Firebase 유지 기능은 Firestore·Storage Rules role을 사용한다. | Firebase UID를 공통 키로 유지하고 각 요청 경계가 해당 저장소의 role을 확인한다. |
 | 실시간 운영 | 개발 위치·채팅은 PostgreSQL 영속 저장과 Supabase private Broadcast로 전환했다. | production 부하, 재연결, FCM 실패율과 durable retry 필요성을 확인한다. |
 | DB 연결 고갈 | Cloud Run과 Vercel이 같은 DB를 사용한다. | Core pool 2, Admin pool 1, runtime role connection limit 5와 최대 인스턴스 2를 유지한다. |
 | App Check | 개발 Android valid 검증은 완료했지만 release enforcement가 남았다. | release Play Integrity와 관리자 웹 provider를 확인한 뒤 observe에서 enforce로 전환한다. |
-| 민감 데이터 보관 | 위치, 채팅 첨부와 매니저 서류의 자동 파기가 없다. | 위치 24시간, 채팅 180일·첨부 30일, 서류 원본 30일 정책과 일일 정리 job을 구현한다. |
+| 민감 데이터 보관 | V13 파기 계약과 Core 중첩 첨부 fixture APPLY는 완료했다. Firestore 전환 문서·매니저 증빙은 단위 테스트와 빈 컬렉션 dry-run까지만 완료했다. | 개발 Firestore fixture APPLY 뒤 production fixture, legal hold, 개인정보 처리방침과 위치기반서비스 이용약관을 대조한다. |
 | 복구 | production PostgreSQL 격리 복원은 완료했다. | Cloud Run·Vercel rollback을 리허설하고 분기별 DB 복원을 반복한다. |
 | 비용 | GCP budget은 있으나 Supabase와 Vercel은 아직 무료 등급이다. | 월 150,000 KRW 한도 안에서 2026-11-16까지 Supabase/Vercel Pro로 전환한다. |
 | 외부 API | Kakao Local은 Core API로 이동했지만 production key가 없다. | Secret Manager version을 추가하고 429, timeout과 fallback을 production 후보에서 검증한다. |
 | 운영자 의존 | 실명 운영자와 rollback 승인자가 확정되지 않았다. | 출시 전 최소 2명과 장애 연락·승인 경로를 지정한다. |
 
-## Firestore 종료 리스크
+## Firestore Core 업무 경계 종료 리스크
 
-개발 업무 쓰기는 이미 Firestore에서 제거했지만 인증 프로필, 지원, 매니저 서류와 Storage 인가처럼 아직 Firebase에 남긴 기능이 있어 Firestore 전체를 즉시 제거할 수는 없다. 업무 원본과 Firebase 결합 데이터를 섞지 않도록 다음 기준을 적용한다.
+개발 Core 업무 쓰기는 이미 Firestore에서 제거했지만 인증 프로필, 지원, 매니저 서류와 Storage 인가처럼 아직 Firebase에 남긴 기능이 있어 Firestore 전체를 즉시 제거할 수는 없다. Core 업무 원본과 Firebase 결합 데이터를 섞지 않도록 다음 기준을 적용한다.
 
-- 개발에서는 PostgreSQL만 업무 데이터를 쓰고 Firestore 업무 쓰기는 차단한다.
+- 개발에서는 PostgreSQL이 Core 업무 데이터를 쓰고 Firestore의 해당 업무 쓰기는 차단한다.
 - production cutover 전에는 migration과 역할별 종단 검증을 반복하고 사용자 트래픽을 연결하지 않는다.
-- Firestore는 최대 30일 동안 읽기 전용 비교와 rollback 판단 자료로만 유지한다.
+- 전환 대상 Core 업무 Firestore 문서는 최대 30일 동안 읽기 전용 비교와 rollback 판단 자료로만 유지한다.
 - rollback은 Firestore 이중 쓰기가 아니라 PostgreSQL 백업 복원 또는 검증된 보정 스크립트를 사용한다.
-- rollback 기간이 끝나면 관련 Rules, Functions, index와 운영 스크립트를 함께 제거한다.
+- rollback 기간이 끝나면 전환된 Core 업무에만 관련된 Rules, Functions, index와 운영 스크립트를 제거한다. 인증 프로필·지원·매니저 서류 경계는 유지한다.
 
 ## Realtime 리스크
 
@@ -50,7 +50,7 @@ Realtime 이벤트는 누락, 중복 또는 순서 변경이 발생할 수 있�
 
 ## 민감 데이터와 파기
 
-위치 좌표, 채팅 첨부와 매니저 증빙은 일반 운영 데이터보다 짧게 보관한다. 파기 job은 dry-run과 apply를 분리하고, 원문 대신 레코드 ID와 처리 결과만 감사 로그에 남긴다.
+위치 좌표, 채팅 첨부와 매니저 증빙은 일반 운영 데이터보다 짧게 보관한다. 개발 파기 job은 dry-run과 apply를 분리했고 Core 중첩 첨부 fixture APPLY를 완료했다. Firestore 전환 문서와 매니저 증빙은 실제 fixture APPLY가 남아 있으며, 감사 로그에는 원문 대신 비식별 집계와 처리 결과만 남긴다.
 
 법정 보존 또는 분쟁 대응 예외는 일반 테이블 조회에서 격리하고 근거, 승인자와 만료일을 기록한다. 상세 기간은 [데이터 보관 및 파기 정책](../operations/data-retention-policy.md)을 따른다.
 

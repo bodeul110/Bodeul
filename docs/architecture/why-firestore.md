@@ -1,23 +1,23 @@
 # Firestore 선택 근거
 
-기준일: 2026-07-18
+기준일: 2026-08-22
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 이 문서는 Firestore 선택 이유만 따로 설명한다. 더 긴 비교는 [DB 선택 근거](database-selection.md)를 기준으로 본다.
 
-2026-06-26 이후 운영 DB는 Supabase PostgreSQL로 단계 전환하기로 결정했다. 2026-07-18에는 Firestore를 장기 캐시나 shadow 저장소로 남기지 않고, 전환 기간의 읽기 전용 rollback 자료로만 유지한 뒤 제거하기로 확정했다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유를 설명하는 과거 판단 기록이며, 현재 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+2026-06-26 이후 Core 업무 운영 DB는 Supabase PostgreSQL로 단계 전환하기로 결정했다. 2026-07-18에는 전환 대상 예약·세션 등 Core 업무 Firestore 문서를 장기 캐시나 shadow 저장소로 남기지 않고, 전환 기간의 읽기 전용 rollback 자료로만 유지한 뒤 제거하기로 확정했다. 인증 프로필·지원·매니저 서류 심사 메타데이터의 Firestore 경계는 유지한다. 이 문서는 초기 MVP에서 Firestore를 선택한 이유를 설명하는 과거 판단 기록이며, 현재 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
 
 ## 결론
 
-초기 MVP에서는 문서 단위 구현 속도와 Firebase 통합 때문에 Cloud Firestore가 적합했다. 운영 목표에서는 관계형 무결성, 서버 권한과 단일 데이터 원본을 위해 Supabase PostgreSQL을 선택한다.
+초기 MVP에서는 문서 단위 구현 속도와 Firebase 통합 때문에 Cloud Firestore가 적합했다. Core 업무 운영 목표에서는 관계형 무결성, 서버 권한과 단일 데이터 원본을 위해 Supabase PostgreSQL을 선택한다.
 
 ## 작업 목적
 
 “왜 Firestore인가?”, “왜 MySQL/PostgreSQL이 아닌가?”, “나중에 어떻게 바꿀 것인가?”에 답한다.
 
-## 선택한 방식
+## 초기 선택한 방식
 
 - `users`, `appointmentRequests`, `companionSessions`, `sessionReports`, `supportInquiries` 같은 컬렉션을 도메인별 문서 계약으로 관리한다.
 - Android 앱과 관리자 웹은 같은 Firestore 문서 계약을 공유한다.
@@ -26,14 +26,14 @@
 
 ## 대안
 
-| 대안 | 장점 | 현재 보류 이유 |
+| 대안 | 장점 | 당시 보류 이유 |
 | --- | --- | --- |
 | MySQL/PostgreSQL | 조인, 정산, 통계, 트랜잭션 무결성에 강하다. | API 서버와 ORM, 배포, 운영, 권한 검증 계층이 추가된다. |
 | Supabase/PostgreSQL | SQL과 RLS를 쓰면서 Realtime도 제공한다. | Firebase Auth/FCM/Storage/Functions와의 현재 결합을 다시 설계해야 한다. |
 | Realtime Database | 실시간 동기화가 단순하다. | 도메인별 문서 계약, 관리자 조회, Rules 유지보수에는 Firestore가 더 적합하다. |
 | BigQuery | 장기 분석과 대용량 집계에 강하다. | 운영 트랜잭션 저장소가 아니라 분석 저장소다. |
 
-## 선택 이유
+## 당시 선택 이유
 
 - 예약/세션/리포트/문의는 문서 단위 상태 전이가 중심이다.
 - 실시간 위치, 채팅, 예약 상태 변경은 Firestore listener와 FCM 트리거로 연결하기 쉽다.
@@ -41,16 +41,23 @@
 - 현재 팀 규모에서는 별도 DB 서버와 API 서버를 운영하는 비용보다 Firebase 통합 이익이 크다.
 - Rules와 Storage Rules가 같은 `users/{uid}.role` 기준을 공유하므로 권한 설명이 단순하다.
 
-## 리스크
+## 당시 확인한 리스크
 
 - 관계형 조인이 필요한 정산/통계/검색이 커지면 쿼리가 복잡해진다.
 - 관리자 대시보드가 컬렉션 전체 스캔에 가까워지면 read 비용과 성능 리스크가 커진다.
 - Rules에서 `users/{uid}.role`을 읽는 구조는 단순하지만, 관리자 수가 늘면 custom claims 검토가 필요하다.
 - 데이터 모델이 중복 저장과 집계 문서를 요구할 수 있다.
 
-## 전환 조건
+## 당시 정한 전환 조건
 
 - 정산, 통계, 검색이 MVP 보조 기능이 아니라 핵심 운영 기능이 된다.
 - Firestore 읽기/쓰기 비용이 반복적으로 예산 기준을 넘는다.
 - 여러 컬렉션 조인이 대부분의 화면에서 필수가 된다.
 - 관리자/매니저 권한 정책이 복잡해져 Rules보다 서버 API가 더 안전해진다.
+
+## 현재 유지 경계
+
+- 예약·세션·채팅·읽음·위치·리포트·후속 처리는 개발 환경에서 PostgreSQL 단일 쓰기로 전환했다.
+- 인증 프로필·지원·매니저 서류 심사 메타데이터는 현재 Firestore를 유지한다.
+- 전환 전 예약·세션 문서는 rollback 비교용 읽기 경계이며 새 업무 쓰기의 원본이 아니다.
+- 파일 원본은 Firebase Storage, 인증과 푸시는 Firebase Auth·FCM을 계속 사용한다.

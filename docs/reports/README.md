@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Notion·Figma 문서 정합성 점검 (2026-08-22)](notion-figma-document-alignment-2026-08-22.md)
 - [Issue 251 Core-only 세션 첨부 경계 (2026-07-28)](issue-251-core-session-attachments-2026-07-28.md)
 - [Production PostgreSQL V13 migration·복원 검증 (2026-07-19)](postgres-production-v13-migration-restore-2026-07-19.md)
 - [Issue 221 Android Realtime 전환 4단계 (2026-07-18)](issue-221-android-realtime-phase-4-2026-07-18.md)
