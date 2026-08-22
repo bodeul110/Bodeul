@@ -1,7 +1,9 @@
 package com.example.bodeul.ui.manager;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -56,5 +58,14 @@ public class ManagerGuideStepRegistryTest {
         assertEquals(
                 ManagerGuideStepRegistry.PresentationType.GENERAL,
                 ManagerGuideStepRegistry.resolve(null));
+    }
+
+    @Test
+    public void isPharmacyRoute_matchesOnlyStablePharmacyRouteCode() {
+        assertTrue(ManagerGuideStepRegistry.isPharmacyRoute("PHARMACY_ROUTE"));
+        assertTrue(ManagerGuideStepRegistry.isPharmacyRoute(" PHARMACY_ROUTE "));
+        assertFalse(ManagerGuideStepRegistry.isPharmacyRoute("PRESCRIPTION_DOCUMENTS"));
+        assertFalse(ManagerGuideStepRegistry.isPharmacyRoute("LEGACY_CORE_PHARMACY"));
+        assertFalse(ManagerGuideStepRegistry.isPharmacyRoute(null));
     }
 }

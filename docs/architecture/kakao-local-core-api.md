@@ -1,6 +1,6 @@
 # Kakao Local Core API 경계
 
-기준일: 2026-07-16
+기준일: 2026-08-23
 
 ## 작업 목적
 
@@ -14,6 +14,14 @@ Android APK에 Kakao Local REST API 키를 넣지 않고, 병원·약국 검색�
 - Kakao REST API 키는 Google Secret Manager에서 Cloud Run 환경 변수로 주입한다.
 - preview는 Cloud Run 최대 인스턴스가 1개이므로 서버 메모리에서 결과를 6시간, 최대 1,000개 캐시하고 사용자별 분당 60회로 제한한다.
 - Core API가 실패하면 Android는 Kakao를 직접 호출하지 않고 기존 로컬 병원 목록 또는 기본 지도 안내로 복구한다.
+
+## 동행 가이드 9 외부 검색 경계
+
+- `PHARMACY_ROUTE`의 `카카오맵에서 약국 찾기`는 Core API 검색이 아니라 카카오맵 장소 검색 화면을 여는 탐색용 CTA다.
+- Android는 `kakaomap://open?page=placeSearch`를 먼저 열고, 실패하면 카카오 모바일 웹과 설치 화면으로 내려간다.
+- 외부 앱을 여는 동작만으로 현재 단계를 완료하거나 변경하지 않는다. 일반 복귀에서는 기존 ViewModel의 같은 세션과 단계를 유지한다.
+- 외부 카카오맵에서 입력한 검색어나 선택 결과는 BoDeul 서버와 PostgreSQL에 저장하지 않는다.
+- 예약 병원 검색, 앱 안의 병원·약국 후보 목록과 내장 지도 표시는 계속 `GET /api/places/search`를 사용한다.
 
 ## API 계약
 

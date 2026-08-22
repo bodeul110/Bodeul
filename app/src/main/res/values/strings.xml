@@ -493,11 +493,13 @@
     <string name="guide_map_action_meeting_title">만남 위치 다시 확인</string>
     <string name="guide_map_action_meeting_body">현재 예약된 만남 위치는 %1$s입니다. 길 안내가 애매하면 바로 검색해 다시 확인하세요.</string>
     <string name="guide_map_action_meeting_button">만남 위치 검색</string>
-    <string name="guide_map_action_pharmacy_title">인근 약국 위치 확인</string>
-    <string name="guide_map_action_pharmacy_body">%1$s 일정 종료 후 약국 동행이 이어질 수 있으니, 인근 약국 후보를 미리 열어봅니다.</string>
-    <string name="guide_map_action_pharmacy_button">약국 위치 보기</string>
+    <string name="guide_map_action_pharmacy_title">카카오맵에서 약국 찾기</string>
+    <string name="guide_map_action_pharmacy_body">카카오맵의 장소 검색 화면에서 이용할 약국을 직접 찾아보세요.</string>
+    <string name="guide_map_action_pharmacy_button">카카오맵 열기</string>
     <string name="guide_map_default_meeting_place">%1$s 정문 안내 데스크</string>
     <string name="guide_map_open_error">지도 앱이나 브라우저를 열 수 없습니다.</string>
+    <string name="guide_map_web_fallback_notice">카카오맵 앱이 없어 모바일 웹으로 연결했습니다.</string>
+    <string name="guide_map_install_fallback_notice">카카오맵 설치 화면으로 연결했습니다.</string>
     <string name="guide_status_completed">완료</string>
     <string name="guide_status_active">진행 중</string>
     <string name="guide_status_pending">대기</string>
