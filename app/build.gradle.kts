@@ -95,6 +95,7 @@ dependencies {
     implementation(libs.okhttp)
     debugImplementation(libs.firebase.appcheck.debug)
     testImplementation(libs.junit4)
+    testImplementation(libs.json.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.espresso.core)
 }

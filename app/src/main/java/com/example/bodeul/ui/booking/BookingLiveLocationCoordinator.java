@@ -332,7 +332,10 @@ public final class BookingLiveLocationCoordinator {
         if (session == null) {
             return context.getString(R.string.booking_live_location_value_pending);
         }
-        if (guide != null && !guide.getSteps().isEmpty()) {
+        if (guide != null) {
+            if (guide.getSteps().isEmpty()) {
+                return context.getString(R.string.booking_status_guide_preparing);
+            }
             return context.getString(
                     R.string.booking_live_location_step_format,
                     session.getCurrentStepOrder(),

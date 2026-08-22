@@ -352,6 +352,8 @@
     <string name="guardian_report_line_report_medication_follow_up">추가 확인</string>
     <string name="guardian_report_line_report_next_visit">다음 방문 일정</string>
     <string name="guardian_report_guide_line">%1$d단계 가이드 준비 완료</string>
+    <string name="guardian_report_guide_preparing">병원 가이드 준비 중</string>
+    <string name="guardian_report_progress_preparing">가이드 준비 중</string>
     <string name="guardian_report_session_ready">출발 준비 중</string>
     <string name="guardian_report_session_meeting">환자 만나 이동 중</string>
     <string name="guardian_report_session_waiting">접수 또는 대기 중</string>
@@ -440,6 +442,7 @@
     <string name="manager_home_card_eyebrow">현재 동행 세션</string>
     <string name="manager_home_card_waiting">배정 현황</string>
     <string name="manager_home_card_title">현재 단계 %1$d / %2$d</string>
+    <string name="manager_home_card_title_preparing">병원 가이드 준비 중</string>
     <string name="manager_home_card_body">%1$s 환자님의 %2$s 방문을 준비 중입니다.</string>
     <string name="manager_home_card_button">실시간 동행 가이드 시작하기</string>
     <string name="manager_home_service_title">보들 동행서비스 소개</string>
@@ -502,6 +505,9 @@
     <string name="guide_button_last">마지막 단계 확인</string>
     <string name="guide_button_done">서비스 종료 완료</string>
     <string name="guide_button_waiting">배정된 일정 대기 중</string>
+    <string name="guide_button_preparing">가이드 준비 중</string>
+    <string name="guide_button_review_required">가이드 확인 필요</string>
+    <string name="guide_button_blocked">현재 단계 진행 불가</string>
     <string name="guide_guardian_section">보호자 공유 메시지</string>
     <string name="guide_guardian_hint">예: 환자분을 만나 병원에 도착했습니다.</string>
     <string name="guide_guardian_save">상황 공유 저장</string>
@@ -557,6 +563,11 @@
     <string name="guide_report_submit">진료 리포트 전송</string>
     <string name="guide_report_update">리포트 수정 저장</string>
     <string name="guide_empty_steps">현재 진행 중인 동행 일정이 없어 가이드를 시작할 수 없습니다.</string>
+    <string name="guide_empty_steps_server">병원 가이드를 준비 중입니다. 단계가 확정되면 다시 확인해 주세요.</string>
+    <string name="guide_blocked_contract_mismatch">서버의 가이드 단계 정보가 일치하지 않아 진행을 멈췄습니다. 운영 담당자에게 확인해 주세요.</string>
+    <string name="guide_blocked_unknown">서버에서 현재 단계 진행을 제한했습니다. 잠시 후 다시 확인해 주세요.</string>
+    <string name="guide_blocked_last_step">현재 단계가 마지막 단계입니다.</string>
+    <string name="guide_blocked_terminal">이미 종료된 동행 세션입니다.</string>
     <string name="guide_steps_title">동행 진행 단계</string>
     <string name="guide_steps_helper">현재 세션 상태에 따라 완료 단계가 자동으로 반영됩니다.</string>
     <string name="guide_actions_title">현장 기록</string>
@@ -570,8 +581,10 @@
     <string name="guide_hero_note_empty">아직 전달된 요청 사항이 없습니다. 일정이 잡히면 보호자 요청과 주의 사항이 함께 표시됩니다.</string>
     <string name="guide_focus_badge_format">%1$d단계 포커스</string>
     <string name="guide_focus_badge_empty">대기 중</string>
+    <string name="guide_focus_badge_preparing">준비 중</string>
     <string name="guide_focus_title_format">%1$d. %2$s</string>
     <string name="guide_focus_title_empty">활성화된 단계가 없습니다.</string>
+    <string name="guide_focus_title_preparing">가이드 준비 중</string>
     <string name="guide_focus_body_empty">배정된 일정이 생기면 병원 가이드 단계와 현재 진행 포인트를 함께 보여줍니다.</string>
     <string name="guide_focus_preview_label">실시간 체크포인트</string>
     <string name="guide_focus_preview_empty">아직 저장된 현장 메모가 없습니다. 아래 카드에서 위치나 현장 상황을 먼저 기록해주세요.</string>
@@ -581,6 +594,7 @@
     <string name="guide_focus_preview_treatment">진행 공유: %1$s</string>
     <string name="guide_focus_preview_medication">약국 및 복약 메모: %1$s</string>
     <string name="guide_focus_preview_finish">종료 전 전달 메모: %1$s</string>
+    <string name="guide_focus_preview_general">현장 메모: %1$s</string>
     <string name="guide_location_section">위치 공유 메모</string>
     <string name="guide_location_hint">예: 병원 정문 도착, 접수 창구로 이동 중입니다.</string>
     <string name="guide_location_save">위치 메모 저장</string>
@@ -936,6 +950,7 @@
     <string name="client_booking_history_empty_title">아직 예약 이력이 없습니다.</string>
     <string name="client_booking_history_empty_body">첫 병원 동행 요청을 만들면 최근 이용 이력이 이 화면에 정리됩니다.</string>
     <string name="booking_status_guide_missing">병원 가이드 준비 전</string>
+    <string name="booking_status_guide_preparing">병원 가이드 준비 중</string>
     <string name="booking_status_guide_ready">%1$d단계 가이드 준비 완료</string>
     <string name="booking_status_report_pending">최종 리포트 작성 대기 중입니다.</string>
     <string name="guide_pharmacy_state_completed">약국 동행 완료</string>

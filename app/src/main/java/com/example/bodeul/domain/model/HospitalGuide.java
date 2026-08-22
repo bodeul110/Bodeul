@@ -1,5 +1,7 @@
 package com.example.bodeul.domain.model;
 
+import androidx.annotation.Nullable;
+
 import java.util.List;
 
 /**
@@ -8,6 +10,8 @@ import java.util.List;
 public class HospitalGuide {
     // 병원 가이드 자체와 적용 대상을 식별하는 정보다.
     private final String id;
+    @Nullable
+    private final Long revision;
     private final String hospitalName;
     private final String departmentName;
 
@@ -15,7 +19,18 @@ public class HospitalGuide {
     private final List<GuideStep> steps;
 
     public HospitalGuide(String id, String hospitalName, String departmentName, List<GuideStep> steps) {
+        this(id, null, hospitalName, departmentName, steps);
+    }
+
+    public HospitalGuide(
+            String id,
+            @Nullable Long revision,
+            String hospitalName,
+            String departmentName,
+            List<GuideStep> steps
+    ) {
         this.id = id;
+        this.revision = revision;
         this.hospitalName = hospitalName;
         this.departmentName = departmentName;
         this.steps = steps;
@@ -23,6 +38,11 @@ public class HospitalGuide {
 
     public String getId() {
         return id;
+    }
+
+    @Nullable
+    public Long getRevision() {
+        return revision;
     }
 
     public String getHospitalName() {

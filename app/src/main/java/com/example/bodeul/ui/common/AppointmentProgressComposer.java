@@ -266,11 +266,15 @@ public final class AppointmentProgressComposer {
         List<String> lines = new ArrayList<>();
         lines.add(toSessionStatusLabel(session.getStatus()));
         if (guide != null) {
-            lines.add(context.getString(
-                    R.string.booking_status_progress_step_format,
-                    session.getCurrentStepOrder(),
-                    guide.getSteps().size()
-            ));
+            if (guide.getSteps().isEmpty()) {
+                lines.add(context.getString(R.string.booking_status_guide_preparing));
+            } else {
+                lines.add(context.getString(
+                        R.string.booking_status_progress_step_format,
+                        session.getCurrentStepOrder(),
+                        guide.getSteps().size()
+                ));
+            }
         }
         addLine(lines, R.string.booking_status_line_live_location, session.getLocationSummary());
         if (!TextUtils.isEmpty(session.getGuardianUpdate())) {
@@ -337,6 +341,9 @@ public final class AppointmentProgressComposer {
     private String buildGuideDisplay(@Nullable HospitalGuide guide) {
         if (guide == null) {
             return context.getString(R.string.booking_status_guide_missing);
+        }
+        if (guide.getSteps().isEmpty()) {
+            return context.getString(R.string.booking_status_guide_preparing);
         }
         return context.getString(R.string.booking_status_guide_ready, guide.getSteps().size());
     }

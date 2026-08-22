@@ -68,14 +68,17 @@ public final class ManagerHomeCoordinator {
 
     private ManagerHomeHeroModel createActiveHeroModel(ManagerDashboard dashboard) {
         int totalSteps = dashboard.getHospitalGuide().getSteps().size();
-        return new ManagerHomeHeroModel(
-                context.getString(R.string.manager_home_card_eyebrow),
-                formatter.toSessionStatusLabel(dashboard.getSession().getStatus()),
-                context.getString(
+        String progressTitle = totalSteps == 0
+                ? context.getString(R.string.manager_home_card_title_preparing)
+                : context.getString(
                         R.string.manager_home_card_title,
                         dashboard.getSession().getCurrentStepOrder(),
                         totalSteps
-                ),
+                );
+        return new ManagerHomeHeroModel(
+                context.getString(R.string.manager_home_card_eyebrow),
+                formatter.toSessionStatusLabel(dashboard.getSession().getStatus()),
+                progressTitle,
                 context.getString(
                         R.string.manager_home_card_body,
                         dashboard.getPatient().getName(),

@@ -2,7 +2,7 @@
 
 기준일: 2026-08-22
 
-상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했다. Core API 응답 전환, Android 화면 registry, 이벤트와 필수 입력은 아직 적용되지 않았다.
+상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 13개 전용 입력 화면, 단계 이벤트와 필수 입력 정책은 아직 적용하지 않았다.
 
 ## 검증 기준
 
@@ -81,6 +81,28 @@ V14 snapshot을 구조화해 additive 응답으로 제공하고, 조회와 advan
 
 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0` 세션은 안전하게 진행을 차단한다. V14 적용 뒤 Core API를 배포하고, 신규 배정에 쓰는 병원 가이드를 코드 계약 v1으로 승격하지 않으면 운영 세션이 `STEP_CONTRACT_MISMATCH` 상태가 될 수 있다.
 
+## Android snapshot 표시 판단
+
+### 작업 목적
+
+Android가 서버의 고정 단계 배열을 무시하고 7단계 공통 가이드를 다시 만드는 문제를 없애며, 재조회 뒤에도 같은 현재 단계와 진행 제한을 복구한다.
+
+### 선택한 방식
+
+Core API 응답에 `steps` 키가 있으면 빈 배열까지 서버 snapshot으로 보존하고, 키 자체가 없는 롤링 배포 호환 응답에만 기존 fallback을 사용한다. `currentStepCode`로 포커스 단계를 먼저 찾고, 알려진 코드는 공통 표시 유형 registry에 연결하며 유효한 unknown 코드는 제목·설명을 유지한 일반 화면으로 보낸다. `canAdvance=false`이면 Android 저장소가 advance 요청을 보내지 않는다.
+
+### 대안
+
+Android가 단계 제목이나 순번으로 13개 화면을 추정하거나, 서버 응답과 무관하게 7단계 fallback을 계속 사용할 수 있다. 모든 코드를 Android enum으로 고정해 unknown 코드를 오류로 처리하는 방법도 있다.
+
+### 선택 이유
+
+현재 MVP에서도 병원별 추가 단계와 진행 중 가이드 revision 고정이 필요하다. 서버 snapshot을 원본으로 쓰면 0·1·7·13·13초과 단계가 잘리지 않고, 앱 프로세스 재생성과 realtime 재조회도 최신 병원 가이드가 아닌 해당 세션의 동일 snapshot으로 복구된다. unknown 코드를 일반 화면으로 보존하면 서버의 additive 확장을 구버전 앱이 임의로 차단하지 않는다.
+
+### 리스크
+
+현재 registry는 13개 전용 입력 UI가 아니라 기존 공통 가이드 화면의 표시 유형만 선택한다. 코드 없는 legacy snapshot은 일반 표시가 가능하더라도 서버가 `STEP_CONTRACT_MISMATCH`로 진행을 막는다. 개발 DB와 Core API에서는 legacy 7단계 snapshot의 진행, 화면 재진입, 앱 프로세스 재시작 복구를 실기기로 확인했으며, 운영 환경도 V14와 Core API 배포 순서를 지킨 뒤 같은 검증을 반복해야 한다.
+
 ## 계약 원칙
 
 | 항목 | 의미 | 규칙 |
@@ -115,7 +137,7 @@ V14 snapshot을 구조화해 additive 응답으로 제공하고, 조회와 advan
 
 ## 현재 구현 차이
 
-PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `completed_at`과 V14의 가이드 ID·revision·단계 snapshot이 있다. Core API는 snapshot의 상세 단계와 진행 가능 여부를 반환하며, 단계 상태는 1=`MEETING`, 2=`WAITING`, 3~4=`IN_TREATMENT`, 5 이상=`PAYMENT`로 계속 압축한다. Android Core 경로는 아직 상세 단계 응답을 사용하지 않고 모든 세션에 7단계 `HospitalGuideFallbackFactory`를 생성한다. 공통 ScrollView에는 위치·보호자·현장·복약·리포트 입력이 단계와 관계없이 함께 노출된다.
+PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `completed_at`과 V14의 가이드 ID·revision·단계 snapshot이 있다. Core API는 snapshot의 상세 단계와 진행 가능 여부를 반환하며, 단계 상태는 1=`MEETING`, 2=`WAITING`, 3~4=`IN_TREATMENT`, 5 이상=`PAYMENT`로 계속 압축한다. Android Core 경로는 상세 단계와 서버 진행 판정을 사용하고, `steps` 키가 없는 구버전 응답에만 7단계 `HospitalGuideFallbackFactory`를 사용한다. 공통 ScrollView에는 위치·보호자·현장·복약·리포트 입력이 단계와 관계없이 함께 노출된다.
 
 | # | PostgreSQL 현재 값 | Core API 현재 동작 | Android 현재 동작 | 필요한 후속 계약 |
 | ---: | --- | --- | --- | --- |
@@ -170,20 +192,20 @@ Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에
 
 ## 단계 수와 알 수 없는 코드 처리
 
-| 입력 상태 | 현재 동작 | 목표 처리 |
+| 입력 상태 | 현재 처리 | 남은 범위 |
 | --- | --- | --- |
-| 가이드 없음 또는 0단계 | Core API는 빈 `steps`, `canAdvance=false`, `GUIDE_NOT_READY`를 반환하고 advance를 409로 거부한다. Android는 아직 7단계 fallback을 표시한다. | Android가 서버 차단 상태를 표시하도록 전환한다. |
+| 가이드 없음 또는 0단계 | Core API는 빈 `steps`, `canAdvance=false`, `GUIDE_NOT_READY`를 반환한다. Android는 `가이드 준비 중`을 표시하고 advance 요청을 보내지 않는다. | 운영 가이드 준비 상태의 담당자 안내와 재시도 UX는 별도 운영 정책으로 보완한다. |
 | 1단계 | Core API는 진입 전 order 0에서 진행을 허용하고 order 1에서 `LAST_STEP_REACHED`를 반환한다. | 한 단계의 전용 CTA와 종료·리포트 전이는 별도 상태 계약으로 연결한다. |
-| 7단계 | `LEGACY_CORE_7_V1` snapshot의 7개 코드·제목·설명을 그대로 반환한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 자동 추정하지 않고 차단한다. | Android가 응답 snapshot을 화면 원본으로 사용한다. |
-| 13단계 | Core API는 13개 상세 단계를 자르지 않고 반환한다. Android는 7에서 버튼을 비활성화한다. | Android 화면 registry로 13개 코드를 매핑한다. |
-| 13단계 초과 | Core API는 전체 배열과 unknown code를 보존한다. Android는 7 이후 단계를 표시하지 않는다. | 알려진 코드는 전용 화면, 추가 코드는 일반 제목·설명 화면으로 표시하며 `canAdvance`를 따른다. |
-| 알 수 없는 `stepCode` 또는 순서 | 유효한 대문자 스네이크 code는 그대로 반환하고 진행을 허용한다. order 불연속·중복 code·현재 순번 범위 오류는 `STEP_CONTRACT_MISMATCH`로 차단한다. | 일반 단계 화면으로 제목·설명을 보존하고 코드 전용 입력은 숨긴다. |
+| 7단계 | `LEGACY_CORE_7_V1` snapshot의 7개 코드·제목·설명을 Android까지 그대로 보존한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 자동 추정하지 않고 차단한다. | 전용 입력 화면은 만들지 않고 기존 공통 화면을 유지한다. |
+| 13단계 | Core API와 Android가 13개 상세 단계를 자르지 않고 표시하며 알려진 코드를 공통 표시 유형에 연결한다. | 코드별 전용 입력 UI와 완료 조건은 #307 결정 뒤 구현한다. |
+| 13단계 초과 | 전체 배열을 보존하고 추가 코드는 일반 제목·설명 화면으로 표시하며 `canAdvance`를 따른다. | 서버가 새 코드를 정식 제품 코드로 확정하면 registry 표시 유형을 추가한다. |
+| 알 수 없는 `stepCode` 또는 순서 | 유효한 unknown code는 일반 화면으로 보존한다. order 불연속·중복 code·현재 순번 범위 오류는 `STEP_CONTRACT_MISMATCH` 안내와 함께 진행을 차단한다. | unknown 코드에는 코드 전용 입력을 노출하지 않는다. |
 
 ## 진행 중 세션 호환 원칙
 
 1. 세션 생성 시 `guideId`, `guideRevision`과 단계 snapshot을 고정한다.
 2. 관리자 가이드 수정은 새 세션부터 적용하고 `IN_PROGRESS` 세션의 순서·의미·총 단계를 바꾸지 않는다.
-3. 기존 7단계 세션은 완료될 때까지 생성 당시 실제 표시 기준을 legacy snapshot으로 유지한다. Core API 경로는 Android fallback, Firebase 경로는 세션에서 참조하던 저장 가이드 배열을 우선하며, 출처를 판별할 수 없는 경우 운영 확인 대상으로 분리한다. 순번이나 제목 유사도만 보고 13개 코드로 추정 변환하지 않는다.
+3. 기존 7단계 세션은 완료될 때까지 생성 당시 실제 표시 기준을 legacy snapshot으로 유지한다. Core API 경로는 서버 snapshot, Firebase 경로는 세션에서 참조하던 저장 가이드 배열을 우선하며, 출처를 판별할 수 없는 경우 운영 확인 대상으로 분리한다. 순번이나 제목 유사도만 보고 13개 코드로 추정 변환하지 않는다.
 4. `currentStepOrder`와 `currentStepCode`가 불일치하면 자동 보정하지 않고 진행을 막아 운영 확인 대상으로 보낸다.
 5. 동일 이벤트 재요청은 세션·단계·이벤트 기준으로 멱등 처리한다.
 6. `CARE_ENDED` 이후 최종 작성 화면 재진입, 수정 허용과 타임아웃은 #307 결정 전 구현값으로 고정하지 않는다.
@@ -204,11 +226,11 @@ Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 
 | --- | --- | --- |
 | PostgreSQL migration | 코드 포함 가이드 schema 검증, 세션 guide version·snapshot, 이벤트 멱등성, `care_ended_at`, 정책 확정 뒤 전용 증빙·일지 필드 | migration 연속 적용·rollback, 기존 7단계 row 보존, 권한 테스트 |
 | Core API | 상세 가이드 응답, `currentStepCode`, `canAdvance`와 snapshot 범위·version 진행 차단은 #324에서 구현했다. checkpoint·완료 전이와 멱등 이벤트는 후속 범위다. | 서비스·repository·HTTP 계약 테스트, 역할별 200·403·409 검증 |
-| Android | stepCode 화면 registry, 일반 fallback 화면, 13개 전용 UI와 입력, process death·재연결 복구 | 단위·UI 테스트, 0·1·7·13·13초과·unknown fixture, 실기기 진행·재진입 검증 |
+| Android | stepCode 공통 화면 registry, 일반 unknown 화면과 snapshot 재조회 복구는 #325에서 구현했다. 13개 전용 UI와 입력은 후속 범위다. | parser·registry·진행 정책 단위 테스트, 0·1·7·13·13초과·unknown fixture, 실기기 진행·재진입 검증 |
 
 ## 현재 제외 범위
 
-- Android 화면과 단계별 상태 전이는 변경하지 않았다.
+- 13개 전용 입력 화면과 단계별 완료 상태 전이는 변경하지 않았다.
 - `stepCode` 초안을 운영 데이터에 seed하지 않았다.
 - 미확정 입력을 필수로 표시하거나 새로운 보호자 알림을 발송하지 않았다.
 - Figma 원본을 이번 작업에서 최신으로 재검증했다고 표시하지 않았다.
