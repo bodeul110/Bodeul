@@ -4,6 +4,9 @@ package com.example.bodeul.domain.model;
  * 병원 동행 가이드에서 한 단계의 제목과 설명을 표현한다.
  */
 public class GuideStep {
+    // 서버와 Android가 단계의 업무 의미를 동일하게 식별하는 안정적인 코드다.
+    private final String code;
+
     // 화면 정렬과 진행 판별에 사용하는 단계 순서다.
     private final int order;
 
@@ -12,9 +15,18 @@ public class GuideStep {
     private final String description;
 
     public GuideStep(int order, String title, String description) {
+        this("", order, title, description);
+    }
+
+    public GuideStep(String code, int order, String title, String description) {
+        this.code = code == null ? "" : code.trim();
         this.order = order;
-        this.title = title;
-        this.description = description;
+        this.title = title == null ? "" : title;
+        this.description = description == null ? "" : description;
+    }
+
+    public String getCode() {
+        return code;
     }
 
     public int getOrder() {

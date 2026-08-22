@@ -1,0 +1,60 @@
+package com.example.bodeul.ui.manager;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+
+import org.junit.Test;
+
+public class ManagerGuideStepRegistryTest {
+    private static final String[] PRODUCT_CODES = {
+            "MEETING_CONFIRMATION",
+            "HOSPITAL_ROUTE",
+            "RECEPTION_QUEUE",
+            "VITALS_CHECK",
+            "PRE_CONSULTATION",
+            "CONSULTATION_SUPPORT",
+            "CONSULTATION_SUMMARY",
+            "PAYMENT_EVIDENCE",
+            "PHARMACY_ROUTE",
+            "PRESCRIPTION_DOCUMENTS",
+            "MEDICATION_CONFIRMATION",
+            "CARE_COMPLETION",
+            "MANAGER_JOURNAL"
+    };
+
+    private static final String[] LEGACY_CODES = {
+            "LEGACY_CORE_PATIENT_CONTACT",
+            "LEGACY_CORE_RECEPTION_PREPARATION",
+            "LEGACY_CORE_RECEPTION",
+            "LEGACY_CORE_CONSULTATION",
+            "LEGACY_CORE_PAYMENT",
+            "LEGACY_CORE_PHARMACY",
+            "LEGACY_CORE_RETURN_AND_CLOSE"
+    };
+
+    @Test
+    public void resolve_recognizesProductAndLegacyCodes() {
+        for (String code : PRODUCT_CODES) {
+            assertNotEquals(
+                    code,
+                    ManagerGuideStepRegistry.PresentationType.GENERAL,
+                    ManagerGuideStepRegistry.resolve(code));
+        }
+        for (String code : LEGACY_CODES) {
+            assertNotEquals(
+                    code,
+                    ManagerGuideStepRegistry.PresentationType.GENERAL,
+                    ManagerGuideStepRegistry.resolve(code));
+        }
+    }
+
+    @Test
+    public void resolve_returnsGeneralForUnknownCode() {
+        assertEquals(
+                ManagerGuideStepRegistry.PresentationType.GENERAL,
+                ManagerGuideStepRegistry.resolve("UNLISTED_EXTENSION"));
+        assertEquals(
+                ManagerGuideStepRegistry.PresentationType.GENERAL,
+                ManagerGuideStepRegistry.resolve(null));
+    }
+}

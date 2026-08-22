@@ -11,6 +11,7 @@ import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportDashboard;
 import com.example.bodeul.domain.model.GuardianReportEntry;
 import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
+import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
@@ -99,7 +100,7 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
                         CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot =
                                 findSession(sessions, coreAppointmentId);
                         if (sessionSnapshot == null) {
-                            output.add(toEntry(appointment, null, null));
+                            output.add(toEntry(appointment, null, null, null));
                             loadEntries(
                                     guardian,
                                     appointments,
@@ -112,7 +113,7 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
 
                         CompanionSession session = sessionSnapshot.merge(null, appointment.getId());
                         if (sessionSnapshot.getStatus() != SessionStatus.COMPLETED) {
-                            output.add(toEntry(appointment, session, null));
+                            output.add(toEntry(appointment, session, null, sessionSnapshot));
                             loadEntries(
                                     guardian,
                                     appointments,
@@ -133,7 +134,8 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
                                         output.add(toEntry(
                                                 appointment,
                                                 session,
-                                                report.toModel(session.getId())));
+                                                report.toModel(session.getId()),
+                                                sessionSnapshot));
                                         loadEntries(
                                                 guardian,
                                                 appointments,
@@ -173,8 +175,14 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
     private GuardianReportEntry toEntry(
             AppointmentRequest appointment,
             @Nullable CompanionSession session,
-            @Nullable SessionReport report
+            @Nullable SessionReport report,
+            @Nullable CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
     ) {
+        HospitalGuide guide = sessionSnapshot == null
+                ? null
+                : sessionSnapshot.toHospitalGuide(
+                        appointment.getHospitalName(),
+                        appointment.getDepartmentName());
         return new GuardianReportEntry(
                 appointment,
                 new User(
@@ -186,9 +194,11 @@ public final class CoreApiGuardianReportRepository implements GuardianReportRepo
                 toManager(appointment),
                 session,
                 report,
-                HospitalGuideFallbackFactory.create(
-                        appointment.getHospitalName(),
-                        appointment.getDepartmentName()));
+                guide == null
+                        ? HospitalGuideFallbackFactory.create(
+                                appointment.getHospitalName(),
+                                appointment.getDepartmentName())
+                        : guide);
     }
 
     @Nullable

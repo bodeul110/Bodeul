@@ -20,6 +20,10 @@ public class CompanionSession {
 
     // 현장 진행 상황과 공유 메모는 동행 중 계속 갱신된다.
     private int currentStepOrder;
+    private String currentStepCode = "";
+    private boolean hasServerAdvanceDecision;
+    private boolean serverCanAdvance;
+    private String advanceBlockedReason = "";
     private SessionStatus status;
     private String guardianUpdate;
     private String locationSummary;
@@ -262,6 +266,37 @@ public class CompanionSession {
     // 현재 진행 중인 가이드 단계를 갱신한다.
     public void setCurrentStepOrder(int currentStepOrder) {
         this.currentStepOrder = currentStepOrder;
+    }
+
+    public String getCurrentStepCode() {
+        return currentStepCode;
+    }
+
+    public boolean hasServerAdvanceDecision() {
+        return hasServerAdvanceDecision;
+    }
+
+    public boolean isServerAdvanceAllowed() {
+        return serverCanAdvance;
+    }
+
+    public String getAdvanceBlockedReason() {
+        return advanceBlockedReason;
+    }
+
+    // Core API가 계산한 현재 단계와 진행 판정을 화면 재생성 뒤에도 같은 모델에서 사용한다.
+    public void applyServerGuideProgress(
+            String currentStepCode,
+            boolean hasServerAdvanceDecision,
+            boolean serverCanAdvance,
+            String advanceBlockedReason
+    ) {
+        this.currentStepCode = currentStepCode == null ? "" : currentStepCode.trim();
+        this.hasServerAdvanceDecision = hasServerAdvanceDecision;
+        this.serverCanAdvance = serverCanAdvance;
+        this.advanceBlockedReason = advanceBlockedReason == null
+                ? ""
+                : advanceBlockedReason.trim();
     }
 
     public SessionStatus getStatus() {

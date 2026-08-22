@@ -11,6 +11,8 @@ import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionLocationHistoryEntry;
+import com.example.bodeul.domain.model.GuideStep;
+import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -531,6 +533,16 @@ final class CoreApiCompanionSessionClient {
     }
 
     private SessionSnapshot parseAndRememberSession(JSONObject item) throws JSONException {
+        SessionSnapshot snapshot = parseSessionSnapshot(item);
+        references.put(snapshot.coreId, snapshot);
+        references.put("appointment:" + snapshot.appointmentRequestId, snapshot);
+        if (!snapshot.legacyFirestoreId.isEmpty()) {
+            references.put(snapshot.legacyFirestoreId, snapshot);
+        }
+        return snapshot;
+    }
+
+    static SessionSnapshot parseSessionSnapshot(JSONObject item) throws JSONException {
         String coreId = requireText(item, "id");
         String legacyFirestoreId = optText(item, "legacyFirestoreId");
         String appointmentRequestId = requireText(item, "appointmentRequestId");
@@ -541,13 +553,37 @@ final class CoreApiCompanionSessionClient {
         } catch (IllegalArgumentException exception) {
             throw new JSONException("알 수 없는 동행 세션 상태입니다.");
         }
-        SessionSnapshot snapshot = new SessionSnapshot(
+
+        boolean hasGuideSnapshot = item.has("steps") && !item.isNull("steps");
+        List<GuideStep> guideSteps = new ArrayList<>();
+        if (hasGuideSnapshot) {
+            JSONArray stepItems = item.getJSONArray("steps");
+            for (int index = 0; index < stepItems.length(); index++) {
+                JSONObject step = stepItems.getJSONObject(index);
+                guideSteps.add(new GuideStep(
+                        optText(step, "code"),
+                        step.getInt("order"),
+                        optText(step, "title"),
+                        optText(step, "description")));
+            }
+        }
+
+        boolean hasAdvanceDecision = item.has("canAdvance") && !item.isNull("canAdvance");
+        return new SessionSnapshot(
                 coreId,
                 legacyFirestoreId,
                 appointmentRequestId,
                 managerUserId,
                 item.getInt("currentStepOrder"),
                 item.optInt("totalStepCount", 0),
+                optText(item, "guideId"),
+                optNullableLong(item, "guideRevision"),
+                hasGuideSnapshot,
+                guideSteps,
+                optText(item, "currentStepCode"),
+                hasAdvanceDecision,
+                hasAdvanceDecision && item.getBoolean("canAdvance"),
+                optText(item, "blockedReason"),
                 status,
                 optText(item, "guardianUpdate"),
                 optText(item, "locationSummary"),
@@ -562,12 +598,6 @@ final class CoreApiCompanionSessionClient {
                 optText(item, "locationAlertStage"),
                 optText(item, "locationAlertSentAt"),
                 item.getLong("version"));
-        references.put(coreId, snapshot);
-        references.put("appointment:" + appointmentRequestId, snapshot);
-        if (!legacyFirestoreId.isEmpty()) {
-            references.put(legacyFirestoreId, snapshot);
-        }
-        return snapshot;
     }
 
     private void forget(SessionSnapshot session) {
@@ -733,7 +763,7 @@ final class CoreApiCompanionSessionClient {
         return value.substring(0, dot + 1) + millis + value.substring(zone);
     }
 
-    private String requireText(JSONObject object, String key) throws JSONException {
+    private static String requireText(JSONObject object, String key) throws JSONException {
         String value = optText(object, key);
         if (value.isEmpty()) {
             throw new JSONException(key + " 값이 없습니다.");
@@ -741,11 +771,19 @@ final class CoreApiCompanionSessionClient {
         return value;
     }
 
-    private String optText(JSONObject object, String key) {
+    private static String optText(JSONObject object, String key) {
         if (object == null || object.isNull(key)) {
             return "";
         }
         return valueOrEmpty(object.optString(key, ""));
+    }
+
+    @Nullable
+    private static Long optNullableLong(JSONObject object, String key) throws JSONException {
+        if (object == null || !object.has(key) || object.isNull(key)) {
+            return null;
+        }
+        return object.getLong(key);
     }
 
     private static String valueOrEmpty(@Nullable String value) {
@@ -759,6 +797,15 @@ final class CoreApiCompanionSessionClient {
         private final String managerUserId;
         private final int currentStepOrder;
         private final int totalStepCount;
+        private final String guideId;
+        @Nullable
+        private final Long guideRevision;
+        private final boolean hasGuideSnapshot;
+        private final List<GuideStep> guideSteps;
+        private final String currentStepCode;
+        private final boolean hasAdvanceDecision;
+        private final boolean canAdvance;
+        private final String blockedReason;
         private final SessionStatus status;
         private final String guardianUpdate;
         private final String locationSummary;
@@ -781,6 +828,14 @@ final class CoreApiCompanionSessionClient {
                 String managerUserId,
                 int currentStepOrder,
                 int totalStepCount,
+                String guideId,
+                @Nullable Long guideRevision,
+                boolean hasGuideSnapshot,
+                List<GuideStep> guideSteps,
+                String currentStepCode,
+                boolean hasAdvanceDecision,
+                boolean canAdvance,
+                String blockedReason,
                 SessionStatus status,
                 String guardianUpdate,
                 String locationSummary,
@@ -802,6 +857,14 @@ final class CoreApiCompanionSessionClient {
             this.managerUserId = managerUserId;
             this.currentStepOrder = currentStepOrder;
             this.totalStepCount = totalStepCount;
+            this.guideId = guideId;
+            this.guideRevision = guideRevision;
+            this.hasGuideSnapshot = hasGuideSnapshot;
+            this.guideSteps = new ArrayList<>(guideSteps);
+            this.currentStepCode = currentStepCode;
+            this.hasAdvanceDecision = hasAdvanceDecision;
+            this.canAdvance = canAdvance;
+            this.blockedReason = blockedReason;
             this.status = status;
             this.guardianUpdate = guardianUpdate;
             this.locationSummary = locationSummary;
@@ -836,6 +899,27 @@ final class CoreApiCompanionSessionClient {
 
         int getTotalStepCount() {
             return totalStepCount;
+        }
+
+        boolean hasGuideSnapshot() {
+            return hasGuideSnapshot;
+        }
+
+        List<GuideStep> getGuideSteps() {
+            return new ArrayList<>(guideSteps);
+        }
+
+        @Nullable
+        HospitalGuide toHospitalGuide(String hospitalName, String departmentName) {
+            if (!hasGuideSnapshot) {
+                return null;
+            }
+            return new HospitalGuide(
+                    guideId,
+                    guideRevision,
+                    valueOrEmpty(hospitalName),
+                    valueOrEmpty(departmentName),
+                    new ArrayList<>(guideSteps));
         }
 
         CompanionSession merge(
@@ -876,6 +960,11 @@ final class CoreApiCompanionSessionClient {
                     parseInstantMillis(liveLocationSharingStartedAt));
             result.setLocationAlertStage(CompanionLocationAlertStage.fromValue(locationAlertStage));
             result.setLocationAlertSentAtMillis(parseInstantMillis(locationAlertSentAt));
+            result.applyServerGuideProgress(
+                    currentStepCode,
+                    hasAdvanceDecision,
+                    canAdvance,
+                    blockedReason);
             return result;
         }
     }

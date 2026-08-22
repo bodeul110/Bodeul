@@ -2,6 +2,7 @@ package com.example.bodeul.data.coreapi;
 
 import android.content.Context;
 
+import com.example.bodeul.R;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.firebase.FirebaseManagerRepository;
@@ -11,6 +12,7 @@ import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
+import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
@@ -30,6 +32,7 @@ import java.util.List;
  * 예약과 동행 운영 데이터는 Core API를 사용하고, 매니저 서류 등 아직 이전하지 않은 기능만 Firebase에 유지한다.
  */
 public final class CoreApiManagerRepository implements ManagerRepository {
+    private final Context context;
     private final FirebaseManagerRepository firebaseRepository;
     private final CoreApiAppointmentClient appointmentClient;
     private final CoreApiCompanionSessionClient sessionClient;
@@ -38,9 +41,10 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             Context context,
             FirebaseManagerRepository firebaseRepository
     ) {
+        this.context = context.getApplicationContext();
         this.firebaseRepository = firebaseRepository;
-        this.appointmentClient = new CoreApiAppointmentClient(context);
-        this.sessionClient = new CoreApiCompanionSessionClient(context);
+        this.appointmentClient = new CoreApiAppointmentClient(this.context);
+        this.sessionClient = new CoreApiCompanionSessionClient(this.context);
     }
 
     @Override
@@ -65,9 +69,16 @@ public final class CoreApiManagerRepository implements ManagerRepository {
 
     @Override
     public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        withDashboard(managerUserId, callback, dashboard -> sessionClient.advance(
-                dashboard.getSession().getId(),
-                refreshCallback(managerUserId, callback)));
+        withDashboard(managerUserId, callback, dashboard -> {
+            CompanionSession session = dashboard.getSession();
+            if (session.hasServerAdvanceDecision() && !session.isServerAdvanceAllowed()) {
+                callback.onError(toAdvanceBlockedMessage(session.getAdvanceBlockedReason()));
+                return;
+            }
+            sessionClient.advance(
+                    session.getId(),
+                    refreshCallback(managerUserId, callback));
+        });
     }
 
     @Override
@@ -546,9 +557,7 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                                                         appointment.getGuardianPhone()),
                                                 appointment,
                                                 realtimeSession,
-                                                HospitalGuideFallbackFactory.create(
-                                                        appointment.getHospitalName(),
-                                                        appointment.getDepartmentName()),
+                                                resolveHospitalGuide(sessionSnapshot, appointment),
                                                 null));
                                     }
 
@@ -596,7 +605,8 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                                         output.add(toHistoryDetail(
                                                 appointment,
                                                 session,
-                                                report.toModel(session.getId())));
+                                                report.toModel(session.getId()),
+                                                sessionSnapshot));
                                         loadHistory(sessions, index + 1, output, callback);
                                     }
 
@@ -617,7 +627,8 @@ public final class CoreApiManagerRepository implements ManagerRepository {
     private AppointmentRequestDetail toHistoryDetail(
             AppointmentRequest appointment,
             CompanionSession session,
-            SessionReport report
+            SessionReport report,
+            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
     ) {
         return new AppointmentRequestDetail(
                 appointment,
@@ -636,10 +647,37 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 toManager(appointment),
                 session,
                 report,
-                HospitalGuideFallbackFactory.create(
-                        appointment.getHospitalName(),
-                        appointment.getDepartmentName()),
+                resolveHospitalGuide(sessionSnapshot, appointment),
                 null);
+    }
+
+    private HospitalGuide resolveHospitalGuide(
+            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot,
+            AppointmentRequest appointment
+    ) {
+        HospitalGuide guide = sessionSnapshot.toHospitalGuide(
+                appointment.getHospitalName(),
+                appointment.getDepartmentName());
+        return guide == null
+                ? HospitalGuideFallbackFactory.create(
+                        appointment.getHospitalName(),
+                        appointment.getDepartmentName())
+                : guide;
+    }
+
+    private String toAdvanceBlockedMessage(String blockedReason) {
+        switch (blockedReason) {
+            case "GUIDE_NOT_READY":
+                return context.getString(R.string.guide_empty_steps_server);
+            case "STEP_CONTRACT_MISMATCH":
+                return context.getString(R.string.guide_blocked_contract_mismatch);
+            case "LAST_STEP_REACHED":
+                return context.getString(R.string.guide_blocked_last_step);
+            case "SESSION_TERMINAL":
+                return context.getString(R.string.guide_blocked_terminal);
+            default:
+                return context.getString(R.string.guide_blocked_unknown);
+        }
     }
 
     private User toManager(AppointmentRequest appointment) {

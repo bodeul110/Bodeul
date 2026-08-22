@@ -97,32 +97,59 @@ public final class ManagerGuidePresentationFormatter {
 
     public String buildFocusPreviewBody(GuideStep step, CompanionSession session) {
         String summary;
-        switch (step.getOrder()) {
-            case 1:
+        switch (resolvePresentationType(step)) {
+            case MEETING:
                 summary = firstNonEmpty(session.getLocationSummary(), session.getGuardianUpdate());
                 return context.getString(R.string.guide_focus_preview_meeting, fallback(summary));
-            case 2:
-            case 3:
+            case DOCUMENT:
                 summary = firstNonEmpty(session.getFieldPhotoNote(), session.getLocationSummary());
                 return context.getString(R.string.guide_focus_preview_document, fallback(summary));
-            case 4:
-            case 5:
+            case TREATMENT:
                 summary = firstNonEmpty(session.getGuardianUpdate(), session.getFieldPhotoNote());
                 return context.getString(R.string.guide_focus_preview_treatment, fallback(summary));
-            case 6:
+            case MEDICATION:
                 summary = firstNonEmpty(session.getPharmacySummary(), session.getMedicationNote(), session.getFieldPhotoNote());
                 return context.getString(R.string.guide_focus_preview_medication, fallback(summary));
-            default:
+            case FINISH:
                 summary = firstNonEmpty(session.getGuardianUpdate(), session.getPharmacySummary(), session.getMedicationNote());
                 return context.getString(R.string.guide_focus_preview_finish, fallback(summary));
+            case GENERAL:
+            default:
+                summary = firstNonEmpty(session.getGuardianUpdate(), session.getFieldPhotoNote(), session.getMedicationNote());
+                return context.getString(R.string.guide_focus_preview_general, fallback(summary));
         }
     }
 
     public int resolveFocusPreviewBackground(GuideStep step) {
-        if (step.getOrder() == 1 || step.getOrder() == 4 || step.getOrder() == 7) {
-            return R.drawable.bg_service_thumb_cool;
+        switch (resolvePresentationType(step)) {
+            case DOCUMENT:
+            case MEDICATION:
+                return R.drawable.bg_service_thumb_warm;
+            default:
+                return R.drawable.bg_service_thumb_cool;
         }
-        return R.drawable.bg_service_thumb_warm;
+    }
+
+    private ManagerGuideStepRegistry.PresentationType resolvePresentationType(GuideStep step) {
+        if (!TextUtils.isEmpty(step.getCode())) {
+            return ManagerGuideStepRegistry.resolve(step.getCode());
+        }
+        switch (step.getOrder()) {
+            case 1:
+                return ManagerGuideStepRegistry.PresentationType.MEETING;
+            case 2:
+            case 3:
+                return ManagerGuideStepRegistry.PresentationType.DOCUMENT;
+            case 4:
+            case 5:
+                return ManagerGuideStepRegistry.PresentationType.TREATMENT;
+            case 6:
+                return ManagerGuideStepRegistry.PresentationType.MEDICATION;
+            case 7:
+                return ManagerGuideStepRegistry.PresentationType.FINISH;
+            default:
+                return ManagerGuideStepRegistry.PresentationType.GENERAL;
+        }
     }
 
     private String fallback(String value) {

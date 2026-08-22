@@ -374,6 +374,9 @@ public final class GuardianReportCoordinator {
         if (session == null || guide == null) {
             return formatter.toStatusLabel(entry.getAppointmentRequest().getStatus());
         }
+        if (guide.getSteps().isEmpty()) {
+            return context.getString(R.string.guardian_report_progress_preparing);
+        }
         return context.getString(
                 R.string.guardian_report_progress_value,
                 session.getCurrentStepOrder(),
@@ -385,6 +388,9 @@ public final class GuardianReportCoordinator {
     private String buildGuideLine(@Nullable HospitalGuide guide) {
         if (guide == null) {
             return "";
+        }
+        if (guide.getSteps().isEmpty()) {
+            return context.getString(R.string.guardian_report_guide_preparing);
         }
         return context.getString(
                 R.string.guardian_report_guide_line,

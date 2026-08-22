@@ -44,6 +44,10 @@ public final class ManagerGuideCoordinator {
         SessionReport report = dashboard.getSessionReport();
         List<ManagerGuideStageModel> stages = buildStages(dashboard);
         GuideStep focusStep = findFocusStep(dashboard);
+        ManagerGuideProgressPolicy.Decision advanceDecision =
+                ManagerGuideProgressPolicy.resolve(
+                        session,
+                        dashboard.getHospitalGuide().getSteps().size());
 
         return new ManagerGuideScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
@@ -56,7 +60,7 @@ public final class ManagerGuideCoordinator {
                 createMapActions(dashboard),
                 buildHospitalMapPreviewModel(dashboard),
                 stages,
-                createFocusModel(focusStep, session),
+                createFocusModel(focusStep, session, advanceDecision),
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
                 CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
                 session.getLocationSummary(),
@@ -76,8 +80,8 @@ public final class ManagerGuideCoordinator {
                 report == null ? null : report.getMedicationComparisonDecision(),
                 report == null ? "" : report.getMedicationComparisonNote(),
                 report == null ? "" : report.getNextVisitAt(),
-                buildAdvanceButtonLabel(dashboard),
-                isAdvanceEnabled(dashboard),
+                buildAdvanceButtonLabel(advanceDecision),
+                advanceDecision.isAdvanceEnabled(),
                 context.getString(report == null
                         ? R.string.guide_report_submit
                         : R.string.guide_report_update),
@@ -256,13 +260,29 @@ public final class ManagerGuideCoordinator {
         return items;
     }
 
-    private ManagerGuideFocusModel createFocusModel(GuideStep focusStep, CompanionSession session) {
+    private ManagerGuideFocusModel createFocusModel(
+            GuideStep focusStep,
+            CompanionSession session,
+            ManagerGuideProgressPolicy.Decision advanceDecision
+    ) {
+        if (focusStep.getOrder() <= 0) {
+            return new ManagerGuideFocusModel(
+                    context.getString(R.string.guide_focus_badge_preparing),
+                    context.getString(R.string.guide_focus_title_preparing),
+                    focusStep.getDescription(),
+                    context.getString(R.string.guide_focus_preview_label),
+                    buildBlockedGuidance(advanceDecision),
+                    R.drawable.bg_service_thumb_cool
+            );
+        }
         return new ManagerGuideFocusModel(
                 context.getString(R.string.guide_focus_badge_format, focusStep.getOrder()),
                 context.getString(R.string.guide_focus_title_format, focusStep.getOrder(), focusStep.getTitle()),
                 focusStep.getDescription(),
                 context.getString(R.string.guide_focus_preview_label),
-                formatter.buildFocusPreviewBody(focusStep, session),
+                shouldShowBlockedGuidance(advanceDecision)
+                        ? buildBlockedGuidance(advanceDecision)
+                        : formatter.buildFocusPreviewBody(focusStep, session),
                 formatter.resolveFocusPreviewBackground(focusStep)
         );
     }
@@ -271,22 +291,17 @@ public final class ManagerGuideCoordinator {
         List<GuideStep> steps = dashboard.getHospitalGuide().getSteps();
         if (steps.isEmpty()) {
             return new GuideStep(
-                    1,
-                    context.getString(R.string.guide_steps_title),
-                    context.getString(R.string.guide_empty_steps)
+                    "",
+                    0,
+                    context.getString(R.string.guide_focus_title_preparing),
+                    context.getString(R.string.guide_empty_steps_server)
             );
         }
 
-        int currentOrder = Math.max(1, dashboard.getSession().getCurrentStepOrder());
-        if (dashboard.getSession().getStatus() == SessionStatus.COMPLETED) {
-            currentOrder = Math.min(currentOrder, steps.size());
-        }
-        for (GuideStep step : steps) {
-            if (step.getOrder() == currentOrder) {
-                return step;
-            }
-        }
-        return steps.get(steps.size() - 1);
+        GuideStep resolved = ManagerGuideFocusResolver.resolve(
+                steps,
+                dashboard.getSession());
+        return resolved == null ? steps.get(steps.size() - 1) : resolved;
     }
 
     private ManagerGuideStageState resolveStageState(CompanionSession session, GuideStep step, int totalSteps) {
@@ -304,23 +319,40 @@ public final class ManagerGuideCoordinator {
         return ManagerGuideStageState.UPCOMING;
     }
 
-    private String buildAdvanceButtonLabel(ManagerDashboard dashboard) {
-        CompanionSession session = dashboard.getSession();
-        int totalSteps = dashboard.getHospitalGuide().getSteps().size();
-        if (session.getStatus() == SessionStatus.COMPLETED) {
-            return context.getString(R.string.guide_button_done);
+    private String buildAdvanceButtonLabel(ManagerGuideProgressPolicy.Decision decision) {
+        switch (decision.getState()) {
+            case COMPLETED:
+                return context.getString(R.string.guide_button_done);
+            case LAST_STEP:
+                return context.getString(R.string.guide_button_last);
+            case GUIDE_NOT_READY:
+                return context.getString(R.string.guide_button_preparing);
+            case CONTRACT_MISMATCH:
+                return context.getString(R.string.guide_button_review_required);
+            case BLOCKED:
+                return context.getString(R.string.guide_button_blocked);
+            case ADVANCE:
+            default:
+                return context.getString(R.string.guide_button_next);
         }
-        if (session.getCurrentStepOrder() >= totalSteps) {
-            return context.getString(R.string.guide_button_last);
-        }
-        return context.getString(R.string.guide_button_next);
     }
 
-    private boolean isAdvanceEnabled(ManagerDashboard dashboard) {
-        CompanionSession session = dashboard.getSession();
-        int totalSteps = dashboard.getHospitalGuide().getSteps().size();
-        return session.getStatus() != SessionStatus.COMPLETED
-                && session.getCurrentStepOrder() < totalSteps;
+    private boolean shouldShowBlockedGuidance(ManagerGuideProgressPolicy.Decision decision) {
+        return decision.getState() == ManagerGuideProgressPolicy.State.GUIDE_NOT_READY
+                || decision.getState() == ManagerGuideProgressPolicy.State.CONTRACT_MISMATCH
+                || decision.getState() == ManagerGuideProgressPolicy.State.BLOCKED;
+    }
+
+    private String buildBlockedGuidance(ManagerGuideProgressPolicy.Decision decision) {
+        switch (decision.getState()) {
+            case CONTRACT_MISMATCH:
+                return context.getString(R.string.guide_blocked_contract_mismatch);
+            case BLOCKED:
+                return context.getString(R.string.guide_blocked_unknown);
+            case GUIDE_NOT_READY:
+            default:
+                return context.getString(R.string.guide_empty_steps_server);
+        }
     }
 
     private String buildPharmacyActionLabel(CompanionSession session) {

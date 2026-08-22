@@ -267,11 +267,13 @@ public final class BookingStatusCoordinator {
         if (guide != null) {
             items.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_status_line_step),
-                    context.getString(
-                            R.string.booking_status_progress_step_format,
-                            session.getCurrentStepOrder(),
-                            guide.getSteps().size()
-                    ),
+                    guide.getSteps().isEmpty()
+                            ? context.getString(R.string.booking_status_guide_preparing)
+                            : context.getString(
+                                    R.string.booking_status_progress_step_format,
+                                    session.getCurrentStepOrder(),
+                                    guide.getSteps().size()
+                            ),
                     false
             ));
         }
@@ -580,6 +582,9 @@ public final class BookingStatusCoordinator {
     private String buildGuideDisplay(@Nullable HospitalGuide hospitalGuide) {
         if (hospitalGuide == null) {
             return context.getString(R.string.booking_status_guide_missing);
+        }
+        if (hospitalGuide.getSteps().isEmpty()) {
+            return context.getString(R.string.booking_status_guide_preparing);
         }
         return context.getString(
                 R.string.booking_status_guide_ready,

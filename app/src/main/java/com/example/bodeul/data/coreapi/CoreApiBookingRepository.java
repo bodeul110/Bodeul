@@ -20,6 +20,8 @@ import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.HospitalGuide;
+import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
@@ -358,7 +360,12 @@ public final class CoreApiBookingRepository implements BookingRepository {
                                 callback.onError("PostgreSQL 동행 세션 정보를 찾지 못했습니다.");
                                 return;
                             }
-                            callback.onSuccess(copyDetail(request, legacyDetail, null, null));
+                            callback.onSuccess(copyDetail(
+                                    request,
+                                    legacyDetail,
+                                    null,
+                                    null,
+                                    legacyDetail.getHospitalGuide()));
                             return;
                         }
                         CompanionSession session = sessionSnapshot.merge(
@@ -375,7 +382,11 @@ public final class CoreApiBookingRepository implements BookingRepository {
                                                     request,
                                                     legacyDetail,
                                                     realtimeSession,
-                                                    null));
+                                                    null,
+                                                    resolveHospitalGuide(
+                                                            request,
+                                                            legacyDetail,
+                                                            sessionSnapshot)));
                                             return;
                                         }
                                         sessionClient.getReport(
@@ -389,7 +400,11 @@ public final class CoreApiBookingRepository implements BookingRepository {
                                                                 request,
                                                                 legacyDetail,
                                                                 realtimeSession,
-                                                                report.toModel(realtimeSession.getId())));
+                                                                report.toModel(realtimeSession.getId()),
+                                                                resolveHospitalGuide(
+                                                                        request,
+                                                                        legacyDetail,
+                                                                        sessionSnapshot)));
                                                     }
 
                                                     @Override
@@ -425,7 +440,8 @@ public final class CoreApiBookingRepository implements BookingRepository {
             AppointmentRequest request,
             AppointmentRequestDetail legacyDetail,
             @Nullable CompanionSession session,
-            @Nullable SessionReport report
+            @Nullable SessionReport report,
+            @Nullable HospitalGuide hospitalGuide
     ) {
         return new AppointmentRequestDetail(
                 request,
@@ -434,8 +450,25 @@ public final class CoreApiBookingRepository implements BookingRepository {
                 legacyDetail.getManager(),
                 session,
                 report,
-                legacyDetail.getHospitalGuide(),
+                hospitalGuide,
                 legacyDetail.getFollowUpRecord());
+    }
+
+    static HospitalGuide resolveHospitalGuide(
+            AppointmentRequest request,
+            AppointmentRequestDetail legacyDetail,
+            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
+    ) {
+        HospitalGuide guide = sessionSnapshot.toHospitalGuide(
+                request.getHospitalName(),
+                request.getDepartmentName());
+        HospitalGuide resolvedGuide = guide == null
+                ? legacyDetail.getHospitalGuide()
+                : guide;
+        return HospitalGuideFallbackFactory.fallbackIfMissing(
+                resolvedGuide,
+                request.getHospitalName(),
+                request.getDepartmentName());
     }
 
     private void scheduleCoreRefresh(
