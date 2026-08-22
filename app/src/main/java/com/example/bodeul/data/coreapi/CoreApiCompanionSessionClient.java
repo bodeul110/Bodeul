@@ -21,11 +21,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -146,11 +149,14 @@ final class CoreApiCompanionSessionClient {
             @Override
             public void onSuccess(SessionSnapshot session) {
                 String clientMessageId = UUID.randomUUID().toString();
-                List<CompanionChatAttachment> safeAttachments = attachments == null
-                        ? List.of()
-                        : attachments.stream()
-                                .filter(attachment -> attachment != null && !attachment.isEmpty())
-                                .toList();
+                List<CompanionChatAttachment> safeAttachments = new ArrayList<>();
+                if (attachments != null) {
+                    for (CompanionChatAttachment attachment : attachments) {
+                        if (attachment != null && !attachment.isEmpty()) {
+                            safeAttachments.add(attachment);
+                        }
+                    }
+                }
                 RepositoryCallback<JSONObject> responseCallback = new RepositoryCallback<JSONObject>() {
                     @Override
                     public void onSuccess(JSONObject ignored) {
@@ -169,13 +175,14 @@ final class CoreApiCompanionSessionClient {
                         callback.onError("첨부 파일 전송 방식을 확인하지 못했습니다.");
                         return;
                     }
-                    List<CoreApiAuthenticatedClient.UploadPart> uploadParts = safeAttachments.stream()
-                            .map(attachment -> new CoreApiAuthenticatedClient.UploadPart(
-                                    Uri.parse(attachment.getFullPath()),
-                                    attachment.getFileName(),
-                                    attachment.getContentType(),
-                                    attachment.getSizeBytes()))
-                            .toList();
+                    List<CoreApiAuthenticatedClient.UploadPart> uploadParts = new ArrayList<>();
+                    for (CompanionChatAttachment attachment : safeAttachments) {
+                        uploadParts.add(new CoreApiAuthenticatedClient.UploadPart(
+                                Uri.parse(attachment.getFullPath()),
+                                attachment.getFileName(),
+                                attachment.getContentType(),
+                                attachment.getSizeBytes()));
+                    }
                     authenticatedClient.execute(
                             (idToken, appCheckToken) -> authenticatedClient.requestMultipartJson(
                                     "/api/companion-sessions/" + session.coreId + "/messages",
@@ -295,7 +302,7 @@ final class CoreApiCompanionSessionClient {
                     body.put("clientLocationId", UUID.randomUUID().toString());
                     body.put("latitude", latitude);
                     body.put("longitude", longitude);
-                    body.put("capturedAt", Instant.now().toString());
+                    body.put("capturedAt", formatInstantMillis(System.currentTimeMillis()));
                 } catch (JSONException exception) {
                     callback.onError("위치 공유 요청을 준비하지 못했습니다.");
                     return;
@@ -671,15 +678,59 @@ final class CoreApiCompanionSessionClient {
                 || "android.resource".equalsIgnoreCase(scheme);
     }
 
-    private static long parseInstantMillis(String value) {
-        if (value == null || value.trim().isEmpty()) {
+    static String formatInstantMillis(long epochMillis) {
+        SimpleDateFormat formatter =
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return formatter.format(new Date(epochMillis));
+    }
+
+    static long parseInstantMillis(String rawValue) {
+        String value = rawValue == null ? "" : rawValue.trim();
+        if (value.isEmpty()) {
             return 0L;
         }
-        try {
-            return Instant.parse(value.trim()).toEpochMilli();
-        } catch (DateTimeParseException ignored) {
+        String normalized = normalizeFraction(value);
+        String pattern = normalized.contains(".")
+                ? "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
+                : "yyyy-MM-dd'T'HH:mm:ssXXX";
+        SimpleDateFormat parser = new SimpleDateFormat(pattern, Locale.US);
+        parser.setLenient(false);
+        parser.setTimeZone(TimeZone.getTimeZone("UTC"));
+        ParsePosition position = new ParsePosition(0);
+        Date parsed = parser.parse(normalized, position);
+        if (parsed == null || position.getIndex() != normalized.length()) {
             return 0L;
         }
+        return parsed.getTime();
+    }
+
+    private static String normalizeFraction(String value) {
+        int dot = value.indexOf('.');
+        if (dot < 0) {
+            return value;
+        }
+        int zone = value.indexOf('Z', dot);
+        if (zone < 0) {
+            zone = value.indexOf('+', dot);
+        }
+        if (zone < 0) {
+            zone = value.indexOf('-', dot);
+        }
+        if (zone < 0) {
+            return value;
+        }
+        String fraction = value.substring(dot + 1, zone);
+        if (fraction.isEmpty()) {
+            return value;
+        }
+        for (int index = 0; index < fraction.length(); index++) {
+            if (!Character.isDigit(fraction.charAt(index))) {
+                return value;
+            }
+        }
+        String millis = (fraction + "000").substring(0, 3);
+        return value.substring(0, dot + 1) + millis + value.substring(zone);
     }
 
     private String requireText(JSONObject object, String key) throws JSONException {
