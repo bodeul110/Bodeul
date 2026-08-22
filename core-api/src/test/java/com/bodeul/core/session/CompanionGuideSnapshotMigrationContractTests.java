@@ -96,6 +96,7 @@ class CompanionGuideSnapshotMigrationContractTests {
         String script = fileSql("db/verification/verify_companion_guide_snapshot_migration.sh");
 
         assertThat(script)
+                .contains("SPRING_FLYWAY_BASELINE_VERSION=0")
                 .contains("migrate_database bodeul_guide_empty")
                 .contains("migrate_database bodeul_guide_upgrade 13")
                 .contains("005_companion_guide_snapshot_legacy_fixture.sql")

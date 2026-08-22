@@ -39,10 +39,17 @@ migrate_database() {
     export MIGRATION_DB_USERNAME="$PGUSER"
     export MIGRATION_DB_PASSWORD="$PGPASSWORD"
 
+    # 보안 bootstrap이 schema와 함수를 먼저 만들므로 disposable DB에서만 version 0으로 기준선을 둔다.
     if [[ -n "$target" ]]; then
-        SPRING_FLYWAY_TARGET="$target" ./gradlew migrateDatabase --console=plain
+        SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
+            SPRING_FLYWAY_BASELINE_VERSION=0 \
+            SPRING_FLYWAY_TARGET="$target" \
+            ./gradlew migrateDatabase --console=plain
     else
-        env -u SPRING_FLYWAY_TARGET ./gradlew migrateDatabase --console=plain
+        env -u SPRING_FLYWAY_TARGET \
+            SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
+            SPRING_FLYWAY_BASELINE_VERSION=0 \
+            ./gradlew migrateDatabase --console=plain
     fi
 }
 
