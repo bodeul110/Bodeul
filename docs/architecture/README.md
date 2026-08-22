@@ -22,6 +22,8 @@ Android 앱, 관리자 웹, Core API, PostgreSQL, Firebase와 운영 도구의 �
   - 예약 운영 테이블, API·인가·가격·버전 충돌과 Android cutover 경계
 - [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)
   - 세션·리포트·후속 처리, 관리자 배정 함수와 단계별 cutover 경계
+- [동행 가이드 13개 화면과 단계 계약](companion-guide-step-contract.md)
+  - Figma 화면, 안정적인 단계 코드, 완료 이벤트와 PostgreSQL·Core API·Android 차이
 - [PostgreSQL API 경계 기준](postgres-api-boundary.md)
   - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)
