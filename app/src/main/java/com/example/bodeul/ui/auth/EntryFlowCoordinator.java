@@ -9,7 +9,6 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.User;
-import com.example.bodeul.util.NotificationPermissionSupport;
 
 /**
  * 앱 첫 실행 시 어떤 화면으로 보낼지 결정하는 진입 흐름 조정자다.
@@ -72,15 +71,10 @@ public final class EntryFlowCoordinator {
     }
 
     private boolean shouldShowPermissionGuide() {
-        if (!permissionGuidePreferences.hasCompletedGuide()) {
-            return true;
-        }
-        if (NotificationPermissionSupport.canPostNotifications(appContext)) {
-            return false;
-        }
-        if (permissionGuidePreferences.hasCompletedNotificationPrompt()) {
-            permissionGuidePreferences.markNotificationPromptPending();
-        }
-        return true;
+        return shouldShowPermissionGuide(permissionGuidePreferences.hasCompletedGuide());
+    }
+
+    static boolean shouldShowPermissionGuide(boolean guideCompleted) {
+        return !guideCompleted;
     }
 }
