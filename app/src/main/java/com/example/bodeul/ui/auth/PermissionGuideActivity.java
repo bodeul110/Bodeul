@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.os.BundleCompat;
@@ -60,6 +61,12 @@ public class PermissionGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonPermissionClose).setOnClickListener(view -> skipGuide());
         findViewById(R.id.buttonPermissionConfirm).setOnClickListener(view -> requestPermissions());
         notificationSettingsButton.setOnClickListener(view -> openNotificationSettings());
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                skipGuide();
+            }
+        });
         updateNotificationSettingsButton();
     }
 
@@ -81,7 +88,7 @@ public class PermissionGuideActivity extends AppCompatActivity {
                 ).show();
                 return;
             }
-            markGuideCompletedIfNotificationResolved();
+            markGuideCompleted();
             openNextScreen();
             return;
         }
@@ -90,7 +97,7 @@ public class PermissionGuideActivity extends AppCompatActivity {
     }
 
     private void handlePermissionRequestFinished() {
-        markGuideCompletedIfNotificationResolved();
+        markGuideCompleted();
         if (permissionGuideCatalog.hasMissingRequiredPermission(this)) {
             Toast.makeText(
                     this,
@@ -98,11 +105,13 @@ public class PermissionGuideActivity extends AppCompatActivity {
                     Toast.LENGTH_LONG
             ).show();
         } else if (permissionGuideCatalog.hasPendingRuntimePermissionRequest(this)) {
+            updateNotificationSettingsButton();
             Toast.makeText(
                     this,
                     R.string.permission_notification_recovery_notice,
                     Toast.LENGTH_LONG
             ).show();
+            return;
         }
         openNextScreen();
     }
@@ -123,7 +132,7 @@ public class PermissionGuideActivity extends AppCompatActivity {
     }
 
     private void handleNotificationSettingsReturned() {
-        markGuideCompletedIfNotificationResolved();
+        markGuideCompleted();
         if (NotificationPermissionSupport.canPostNotifications(this)) {
             Toast.makeText(
                     this,
@@ -140,11 +149,8 @@ public class PermissionGuideActivity extends AppCompatActivity {
         openNextScreen();
     }
 
-    private void markGuideCompletedIfNotificationResolved() {
+    private void markGuideCompleted() {
         permissionGuidePreferences.markCompleted();
-        if (NotificationPermissionSupport.canPostNotifications(this)) {
-            permissionGuidePreferences.markNotificationPromptCompleted();
-        }
     }
 
     private void updateNotificationSettingsButton() {
