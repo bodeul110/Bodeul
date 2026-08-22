@@ -69,6 +69,7 @@ interface CompanionSessionRepository {
             UUID guardianUserId,
             int currentStepOrder,
             int totalStepCount,
+            GuideSnapshotRecord guideSnapshot,
             String currentStatus,
             String guardianUpdate,
             String locationSummary,
@@ -86,6 +87,26 @@ interface CompanionSessionRepository {
             Instant startedAt,
             Instant completedAt,
             Instant canceledAt) {
+    }
+
+    record GuideSnapshotRecord(
+            UUID guideId,
+            Long guideRevision,
+            Integer stepContractVersion,
+            String source,
+            boolean present,
+            List<GuideStepRecord> steps) {
+
+        public GuideSnapshotRecord {
+            steps = steps == null ? List.of() : List.copyOf(steps);
+        }
+    }
+
+    record GuideStepRecord(
+            String code,
+            int order,
+            String title,
+            String description) {
     }
 
     record ReportRecord(

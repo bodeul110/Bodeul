@@ -6,15 +6,19 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.session.CompanionSessionRepository.GuideSnapshotRecord;
+import com.bodeul.core.session.CompanionSessionRepository.GuideStepRecord;
 import com.bodeul.core.session.CompanionSessionRepository.ReportMutation;
 import com.bodeul.core.session.CompanionSessionRepository.ReportRecord;
 import com.bodeul.core.session.CompanionSessionRepository.SessionPatch;
@@ -32,6 +36,11 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     private static final DateTimeFormatter KOREAN_DATE_TIME = DateTimeFormatter
             .ofPattern("uuuu-MM-dd HH:mm", Locale.KOREA);
     private static final Set<String> TERMINAL_STATUSES = Set.of("COMPLETED", "CANCELED");
+    private static final Pattern STEP_CODE = Pattern.compile("^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$");
+    private static final String SESSION_TERMINAL = "SESSION_TERMINAL";
+    private static final String GUIDE_NOT_READY = "GUIDE_NOT_READY";
+    private static final String STEP_CONTRACT_MISMATCH = "STEP_CONTRACT_MISMATCH";
+    private static final String LAST_STEP_REACHED = "LAST_STEP_REACHED";
     private static final Set<String> MEDICATION_DECISIONS = Set.of(
             "", "MATCHED", "CHANGED", "RECHECK_REQUIRED");
     private static final Set<String> LOCATION_ALERT_STAGES = Set.of(
@@ -127,7 +136,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         SessionRecord existing = findSession(sessionId);
         requireManagerAssignment(appUser, existing);
         requireMutable(existing, version);
-        if (existing.totalStepCount() <= 0 || existing.currentStepOrder() >= existing.totalStepCount()) {
+        if (!progressState(existing).canAdvance()) {
             throw CompanionSessionException.stateConflict();
         }
 
@@ -318,6 +327,17 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     }
 
     private SessionView toView(SessionRecord session) {
+        GuideSnapshotRecord snapshot = session.guideSnapshot();
+        List<CompanionSessionService.GuideStepView> steps = snapshot == null
+                ? List.of()
+                : snapshot.steps().stream()
+                        .map(step -> new CompanionSessionService.GuideStepView(
+                                step.code(),
+                                step.order(),
+                                step.title(),
+                                step.description()))
+                        .toList();
+        ProgressState progress = progressState(session);
         return new SessionView(
                 session.id(),
                 session.firestoreId() == null ? "" : session.firestoreId(),
@@ -341,7 +361,79 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 session.version(),
                 format(session.startedAt()),
                 format(session.completedAt()),
-                format(session.canceledAt()));
+                format(session.canceledAt()),
+                snapshot == null ? null : snapshot.guideId(),
+                snapshot == null ? null : snapshot.guideRevision(),
+                steps,
+                progress.currentStepCode(),
+                progress.canAdvance(),
+                progress.blockedReason());
+    }
+
+    private ProgressState progressState(SessionRecord session) {
+        String contractBlock = guideContractBlock(session);
+        String currentStepCode = contractBlock == null && session.currentStepOrder() > 0
+                ? session.guideSnapshot().steps().get(session.currentStepOrder() - 1).code()
+                : null;
+
+        if (TERMINAL_STATUSES.contains(session.currentStatus())) {
+            return new ProgressState(currentStepCode, false, SESSION_TERMINAL);
+        }
+        if (contractBlock != null) {
+            return new ProgressState(null, false, contractBlock);
+        }
+        if (session.currentStepOrder() == session.totalStepCount()) {
+            return new ProgressState(currentStepCode, false, LAST_STEP_REACHED);
+        }
+        return new ProgressState(currentStepCode, true, null);
+    }
+
+    private String guideContractBlock(SessionRecord session) {
+        GuideSnapshotRecord snapshot = session.guideSnapshot();
+        if (snapshot == null
+                || !snapshot.present()
+                || snapshot.steps().isEmpty()
+                || "GUIDE_NOT_FOUND".equals(snapshot.source())
+                || "UNRESOLVED_LEGACY".equals(snapshot.source())) {
+            return GUIDE_NOT_READY;
+        }
+
+        boolean supportedSource = "LEGACY_CORE_7_V1".equals(snapshot.source())
+                || ("HOSPITAL_GUIDE_STEP_CODE_V1".equals(snapshot.source())
+                && Integer.valueOf(1).equals(snapshot.stepContractVersion())
+                && snapshot.guideId() != null
+                && snapshot.guideRevision() != null
+                && snapshot.guideRevision() > 0);
+        if (!supportedSource || session.totalStepCount() != snapshot.steps().size()) {
+            return STEP_CONTRACT_MISMATCH;
+        }
+
+        Set<String> codes = new HashSet<>();
+        for (int index = 0; index < snapshot.steps().size(); index++) {
+            GuideStepRecord step = snapshot.steps().get(index);
+            if (step == null
+                    || step.order() != index + 1
+                    || step.code() == null
+                    || !STEP_CODE.matcher(step.code()).matches()
+                    || !codes.add(step.code())
+                    || step.title() == null
+                    || step.title().isBlank()
+                    || step.description() == null) {
+                return STEP_CONTRACT_MISMATCH;
+            }
+        }
+
+        if (session.currentStepOrder() < 0
+                || session.currentStepOrder() > snapshot.steps().size()) {
+            return STEP_CONTRACT_MISMATCH;
+        }
+        return null;
+    }
+
+    private record ProgressState(
+            String currentStepCode,
+            boolean canAdvance,
+            String blockedReason) {
     }
 
     private ReportView toView(ReportRecord report) {
