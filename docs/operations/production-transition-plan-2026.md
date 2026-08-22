@@ -1,11 +1,12 @@
 # 2026년 Production 운영 전환 계획
 
 기준일: 2026-07-18
+기술 진행 상태 갱신: 2026-08-22
 목표 전환일: 2026-12-15 10:00 KST
 
 ## 목표
 
-2026년 말까지 Supabase PostgreSQL을 업무 데이터의 단일 source of truth로 전환한다. Android와 사용자 웹은 Spring Core API를, 관리자 웹은 Next.js 관리자 서버를 거쳐 같은 PostgreSQL을 사용한다. Firebase는 Auth, FCM, App Check와 파일 저장소 역할만 유지한다.
+2026년 말까지 Supabase PostgreSQL을 예약·세션·채팅·읽음·위치·리포트·후속 처리의 단일 source of truth로 전환한다. Android와 사용자 웹은 Spring Core API를, 관리자 웹은 Next.js 관리자 서버를 거쳐 같은 PostgreSQL을 사용한다. Firebase는 Auth, FCM, App Check, 파일 저장소와 인증 프로필·지원·매니저 서류 심사 메타데이터 역할을 유지한다.
 
 운영 전환은 연말에 한 번에 구현하는 작업이 아니다. 2026년 11월까지 개발 환경의 도메인 전환과 보안 검증을 끝내고, 12월에는 production migration, rollback, smoke test와 트래픽 전환만 수행한다.
 
@@ -32,13 +33,16 @@
 
 | 범위 | source of truth | 접근 경로 |
 | --- | --- | --- |
-| 사용자·역할·예약·매칭·동행·채팅·위치·리포트·운영 메타데이터 | Supabase PostgreSQL `bodeul` schema | Spring Core API 또는 Next.js 관리자 서버 |
+| 예약·동행·채팅·읽음·위치·리포트·후속 처리 | Supabase PostgreSQL `bodeul` schema | Spring Core API |
+| 매니저 배정 | Supabase PostgreSQL `bodeul` schema | Next.js 관리자 서버의 admin-only 함수 |
+| 인증 프로필·지원·매니저 서류 심사 메타데이터 | Cloud Firestore | Firebase 결합 저장소와 Rules |
 | 실시간 채팅·위치·상태 알림 | PostgreSQL 커밋 후 Supabase Realtime private Broadcast | Supabase Third-Party Auth가 검증한 Firebase JWT로 구독, 클라이언트 DB 쓰기 금지 |
 | 사용자 인증 | Firebase Auth | Firebase ID token을 서버에서 검증 |
 | 백그라운드 알림 | Firebase FCM | 서버에서 발송 |
 | 앱·웹 요청 출처 검증 | Firebase App Check | Core API와 관리자 서버에서 검증 |
-| 파일 원본 | Firebase Storage | 서버 인가 후 제한된 업로드·다운로드 경로 사용 |
-| Firestore | 전환 기간의 읽기 전용 rollback 자료 | 신규 업무 쓰기 금지, 안정화 후 제거 |
+| 세션 채팅 첨부 원본 | Firebase Storage | Spring Core API 중계와 PostgreSQL 참여 관계 인가 |
+| 매니저 증빙 원본 | Firebase Storage | Android 전용 경로 직접 업로드와 Firebase Storage Rules 인가 |
+| 전환된 Core 업무의 Firestore 문서 | 읽기 전용 rollback 비교 자료 | 신규 Core 업무 쓰기 금지, 안정화 후 해당 legacy 경로 제거 |
 
 Supabase Data API를 업무 데이터 쓰기 경로로 사용하지 않는다. Realtime은 커밋된 사건을 전달하는 채널이며, 권위 있는 조회와 명령은 계속 서버를 거친다.
 
@@ -48,16 +52,14 @@ Realtime 전환 전에 개발·production Supabase에 각각 Firebase Third-Part
 
 | 기간 | 완료 목표 | 종료 조건 |
 | --- | --- | --- |
-| 2026-07-18~08-31 | 예약 도메인 전환 | Spring CRUD·인가·테스트, Android API repository, 개발 DB backfill·비교 완료 |
-| 2026-09-01~09-30 | 예약 source of truth 전환 | 개발 환경 PostgreSQL 단일 쓰기, Firestore 쓰기 차단과 rollback 리허설 |
-| 2026-10-01~10-31 | 매칭·동행·리포트·관리자 쓰기 전환 | 공용 migration, 서버별 최소 권한, 감사 이력과 계약 테스트 완료 |
-| 2026-11-01~11-15 | 채팅·위치 Realtime 전환 | Firebase Third-Party Auth, private Broadcast RLS, 재연결, FCM fallback, 보관·파기 작업 검증 |
+| 2026-07-18~08-31 | 예약·세션·Realtime 개발 전환 | 완료: Core CRUD, 관리자 배정, Android API, 채팅·위치·Realtime과 실기기 검증 |
+| 2026-07-19~07-28 | 보관·첨부 개발 검증 | 부분 완료: V13, Core 첨부 중계·실기기·fixture APPLY 완료. Firestore 전환 문서·매니저 증빙 fixture APPLY 대기 |
 | 2026-11-16~11-30 | 운영 등급·production 사전 검증 | Supabase/Vercel 유료 전환, production secret, full rehearsal 완료 |
 | 2026-12-01~12-11 | 출시 후보 동결 | release 빌드, App Check, backup/restore, rollback, 부하·권한 smoke 통과 |
 | 2026-12-14 | Go/No-Go | 차단 항목 0건, 운영자 확인, 전환·복구 명령 재확인 |
 | 2026-12-15 | production 전환 | 10:00 KST migration과 배포, 핵심 사용자 흐름 smoke 통과 |
 | 2026-12-15~2027-01-14 | 안정화 기간 | Firestore 읽기 전용 rollback 자료 유지, 일일 오류·비용·정합성 확인 |
-| 2027-01-15 이후 | legacy 제거 | 보존 예외를 제외한 Firestore 업무 데이터와 관련 Functions 제거 |
+| 2027-01-15 이후 | legacy 제거 | 보존 예외를 제외한 전환 대상 Core 업무 Firestore 데이터와 관련 Functions 제거 |
 
 ## 도메인 전환 공통 게이트
 

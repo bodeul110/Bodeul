@@ -1,252 +1,102 @@
 # PostgreSQL 운영 전환 런북
 
-기준일: 2026-07-18
+기준일: 2026-08-22
 
-초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
-현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
+## 목적
 
-## 작업 목적
+예약·매칭·동행·채팅·읽음·위치·리포트·후속 처리의 운영 원본을 Supabase PostgreSQL로 전환할 때 필요한 리소스, 검증 순서와 rollback 기준을 고정한다. 인증·푸시·파일과 Firebase에 남기기로 한 데이터는 전환 대상에서 제외한다.
 
-Firebase 인프라는 유지하면서 운영 DB를 Supabase PostgreSQL로 옮기기 위해 인프라 담당자가 만들어야 하는 외부 리소스, GitHub 설정, 초기 검증 순서를 고정한다. 2026-07-10 기준 Oracle Cloud API 서버는 #140의 preview 실연동 검증에서 사용됐지만, production 서버나 live 전환 기준은 아니다.
+현재 구조와 데이터 경계는 [목표 인프라 구조](../architecture/target-infrastructure.md), 운영 일정과 Go/No-Go는 [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)을 우선한다.
 
-2026-07-12 멘토링 이후 운영 목표는 Next.js 관리자 서버와 Spring Core API가 공용 PostgreSQL에 각각 접근하는 구조로 갱신됐다. 2026-07-17 두 대체 서버의 실제 검증을 마치고 Node `api/`를 제거했다. 아래 Node 절차는 이미 수행한 전환 검증 기록이며 다시 구축하는 운영 절차가 아니다. 새 Core API 구축은 [Spring Core API 인프라 런북](core-api-infrastructure-runbook.md)을 따른다.
+## 현재 리소스 상태
 
-## 인프라 담당자가 생성할 리소스
+| 범위 | 개발 | production | 남은 작업 |
+| --- | --- | --- | --- |
+| Supabase PostgreSQL | `bodeul-dev`, Tokyo, V1~V13·runtime role·Realtime 검증 | `bodeul-prod`, Tokyo, V1~V13·최소 권한·격리 복원 검증 | 실제 사용자 데이터 전 Pro 전환 |
+| Spring Core API | Cloud Run preview, WIF·Secret Manager·DB·Kakao 개발 연동 검증 | Artifact Registry·WIF·DB secret 준비 | Kakao 운영 키, 첫 revision, smoke·rollback |
+| 관리자 Next.js | Vercel Preview에서 Firebase token·관리자 DB role 401·403·200 검증 | Production 환경 사용 예정 | SELECT-only DB 값, Firebase·App Check, smoke·rollback |
+| Firebase | `bodeul-dev` Auth·FCM·App Check·Storage | `bodeul-prod-110` 분리와 결제·기본 리소스 준비 | release App Check와 운영 키·도메인 검증 |
+| 보관·파기 | V13, Core 중첩 첨부 Storage fixture APPLY와 최종 dry-run 0건 검증 | migration·역할·복원 검증 | Firestore 전환 문서·매니저 증빙 개발 fixture APPLY 후 정책·약관 승인과 production 활성화 |
 
-### Supabase
+완료 증거는 [Production 인프라 구축 기록](../reports/production-infrastructure-bootstrap-2026-07-17.md), [PostgreSQL 복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md), [개인정보 자동 파기 구현 기록](../reports/issue-222-data-retention-2026-07-19.md)을 따른다.
 
-| 항목 | 값 |
-| --- | --- |
-| 조직 또는 팀 이름 | `bodeul` |
-| 개발 프로젝트 | `bodeul-dev-rdb` |
-| 운영 프로젝트 | `bodeul-prod-rdb` |
-| DB 엔진 | PostgreSQL |
-| 개발 리전 | `ap-northeast-1` (Tokyo) |
-| 운영 리전 | 개발 리허설 후 한국 또는 가장 가까운 Asia Pacific 리전으로 결정 |
-| 초기 schema | Data API에 노출하지 않는 private `bodeul` schema |
-| 초기 테이블 접두어 | 없음. PostgreSQL 표준 snake_case 테이블명 사용 |
+## 데이터와 요청 경계
 
-생성 순서:
-
-1. 먼저 `bodeul-dev-rdb`만 만든다.
-2. Firestore 백업 import, schema 검증, 비교 리포트가 끝난 뒤 `bodeul-prod-rdb`를 만든다.
-3. 운영 프로젝트에는 테스트 데이터를 넣지 않는다.
-
-2026-06-29 기준 `bodeul-dev-rdb`는 생성됐고 schema 적용, seed 적용, row count/FK/주요 필드 spot check까지 완료됐다.
-
-### Core API 실행 환경
-
-Oracle Free Tier VM은 #140의 Node API 계약 검증에 사용한 과거 preview 자산이다. `/healthz`, Supabase 조회, Firebase Admin 인증과 병원 가이드 응답 비교 결과는 보존하지만 Spring production 목표로 확장하지 않는다.
-
-현재 Spring Core API 개발 실행 환경은 Google Cloud Run이다.
-
-| 항목 | 개발 기준 |
-| --- | --- |
-| Google Cloud project | `bodeul-dev` |
-| Cloud Run 서비스 | `bodeul-core-api-preview` |
-| 리전 | `asia-northeast1` |
-| 컨테이너 | Java 21, 비루트 distroless runtime |
-| DB 연결 | Supavisor session mode, pool max 5 |
-| 배포 인증 | GitHub OIDC + WIF |
-| runtime secret | Google Secret Manager |
-
-상세 생성, 배포, rollback 절차는 [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)을 따른다.
-
-## GitHub 설정 이름
-
-### Environment
-
-| Environment | 용도 | 생성 시점 |
+| 범위 | 원본 | 허용 경로 |
 | --- | --- | --- |
-| `core-api-preview` | Cloud Run 개발 Core API 배포/검증 | 생성 완료 |
-| `core-api-production` | 운영 Core API 수동 배포 | 보호 규칙 생성 완료, 운영 리소스 준비 후 값 등록 |
-| `core-api-migration-production` | 운영 DB migration | 보호 규칙 생성 완료, 운영 DB 준비 후 secret 등록 |
+| 예약·동행·채팅·읽음·위치·리포트·후속 처리 | Supabase PostgreSQL `bodeul` schema | Spring Core API |
+| 매니저 배정 | Supabase PostgreSQL `bodeul` schema | Next.js 관리자 서버의 admin-only 함수 |
+| 인증 프로필·지원·매니저 서류 심사 메타데이터 | Cloud Firestore | Firebase 결합 저장소와 Rules |
+| 세션 채팅 첨부·매니저 증빙 원본 | Firebase Storage | Core API 중계 또는 매니저 서류 전용 Firebase 경로 |
+| 인증·요청 출처 | Firebase Auth·App Check | 서버에서 token 검증 |
+| 실시간 화면 갱신 | Supabase Realtime private Broadcast | PostgreSQL 커밋 알림 뒤 서버 API 재조회 |
+| 백그라운드 알림 | Firebase FCM | 서버 또는 Firebase 결합 Functions |
 
-DB schema migration은 `core-api-migration-preview` Environment로 분리한다. Runtime DB 값은 Google Secret Manager에 두고 `core-api-preview`에는 WIF와 서비스 식별용 Variables만 둔다.
+- Android와 브라우저는 PostgreSQL 접속 문자열이나 service role을 가지지 않는다.
+- Core API는 `bodeul_core_service`, 관리자 서버는 `bodeul_admin_service`처럼 분리된 최소 권한 runtime role을 사용한다.
+- DDL은 메인 저장소 `core-api/`의 Flyway migration만 소유한다.
+- Supabase Data API를 Core 업무의 조회·쓰기 경로로 사용하지 않는다.
+- 한 도메인의 쓰기 원본을 Firestore와 PostgreSQL에 동시에 두지 않는다.
 
-### `core-api-preview` Variables
+## production 전환 순서
 
-| 이름 | 값 기준 |
-| --- | --- |
-| `GCP_PROJECT_ID` | `bodeul-dev` |
-| `GCP_REGION` | `asia-northeast1` |
-| `CLOUD_RUN_SERVICE` | `bodeul-core-api-preview` |
-| `CLOUD_RUN_ARTIFACT_REPOSITORY` | `bodeul-core-api` |
-| `CLOUD_RUN_WORKLOAD_IDENTITY_PROVIDER` | `github-actions/bodeul-core-api-preview` provider resource name |
-| `CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT` | preview deployer 서비스 계정 email |
-| `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT` | preview runtime 서비스 계정 email |
-| `CORE_DB_JDBC_URL_SECRET_VERSION` | JDBC URL secret의 배포 대상 숫자 version |
-| `CORE_DB_USERNAME_SECRET_VERSION` | DB username secret의 배포 대상 숫자 version |
-| `CORE_DB_PASSWORD_SECRET_VERSION` | DB password secret의 배포 대상 숫자 version |
-| `FIREBASE_PROJECT_ID` | `bodeul-dev` |
+1. Supabase 조직을 Pro로 전환하고 spend cap, 일일 백업과 외부 주간 dump 경로를 확인한다.
+2. production Firebase가 발급한 token만 신뢰하도록 Supabase Third-Party Auth와 Realtime RLS를 검증한다.
+3. Kakao 운영 REST 키를 Secret Manager에 등록하고 Cloud Run 첫 production revision을 수동 배포한다.
+4. Core API의 health, Firebase 인증, DB 401·403·200, Kakao 검색과 attachment smoke를 실행한다.
+5. Vercel Production에 관리자 SELECT-only DB 값과 Firebase·App Check 값을 등록한다.
+6. 관리자 서버의 인증, 역할 거부, 조회와 감사 이력을 격리 운영 데이터로 검증한다.
+7. release Android로 예약, 채팅, 위치, 첨부, FCM과 재연결 흐름을 실기기에서 확인한다.
+8. Cloud Run revision과 Vercel deployment rollback을 실제로 재현한다.
+9. 개발 Firestore 전환 문서와 매니저 증빙 fixture APPLY를 수행하고 원상복구와 비식별 보고를 확인한다.
+10. 자동 파기 production dry-run을 확인한 뒤 정책·약관 승인 시에만 apply를 활성화한다.
+11. Go/No-Go 승인 뒤 migration과 애플리케이션 배포를 수행하고 30일 안정화 기간을 시작한다.
 
-### Secret Manager
+## 도메인별 전환 게이트
 
-| 이름 | 값 기준 |
-| --- | --- |
-| `bodeul-core-api-preview-db-jdbc-url` | Supabase 개발 DB JDBC connection string |
-| `bodeul-core-api-preview-db-username` | Core runtime 로그인 role |
-| `bodeul-core-api-preview-db-password` | Core runtime 비밀번호 |
+각 도메인은 다음 조건을 모두 만족해야 PostgreSQL을 production 쓰기 원본으로 사용한다.
 
-주의:
-
-- secret 값은 문서, Issue, PR 본문에 적지 않는다.
-- DB 연결값은 서버 전용이다. Android 앱이나 관리자 웹에 노출하지 않는다.
-- Supabase service role key는 기본값으로 만들지 않는다. 필요할 때 별도 근거를 남기고 추가한다.
-- Firebase Admin은 Cloud Run runtime 서비스 계정 ADC를 사용하며 JSON key를 만들지 않는다.
-
-## 종료된 Node API 검증 기준
-
-| 항목 | 결정 |
-| --- | --- |
-| 디렉터리 후보 | `api/` |
-| 런타임 | Node 22 |
-| 언어 후보 | TypeScript |
-| 서버 프레임워크 후보 | 1차는 Node 기본 `http`, 라우팅 확장 시 Fastify 검토 |
-| DB 접근 후보 | Drizzle ORM 또는 node-postgres |
-| 인증 | Firebase ID token 검증 |
-| 권한 | PostgreSQL `app_users.role` 기준 |
-| 헬스체크 | `GET /healthz` |
-
-API 서버는 Firebase 전체 대체 서버가 아니다. PostgreSQL 접근, 서버 검증이 필요한 쓰기 작업, 관리자 권한 검증을 담당하는 얇은 경계로 시작한다.
-
-이 Node API는 Spring Core API와 Next.js 관리자 서버의 parity 검증 후 2026-07-17 종료했다. 코드와 CI는 제거했고 Git 이력과 검증 보고서만 보존한다.
-
-세부 경계는 [PostgreSQL API 경계 기준](../architecture/postgres-api-boundary.md)을 따른다.
-
-첫 API 후보:
-
-| 후보 | 목적 |
-| --- | --- |
-| `GET /healthz` | 배포와 모니터링 최소 기준 |
-| `GET /admin/hospital-guides` | 낮은 위험의 관리자 read API 검증 |
-| `GET /admin/manager-document-reviews` | 매니저 서류 심사 메타데이터 조회 검증 |
-| `GET /admin/support-requests` | 문의 통합 테이블 조회 검증 |
-
-write API는 read API의 인증, 권한, row 비교가 통과한 뒤 별도 PR에서 진행한다.
-
-## 초기 검증 범위
-
-1. PostgreSQL schema 초안 보완
-2. Firestore 백업 JSON을 PostgreSQL seed 입력으로 변환하는 dry-run
-3. `bodeul-dev-rdb`에 seed 적용
-   - 동행 세션 SQL은 `core-api-migration-preview` Environment의 일회성 `COMPANION_SESSION_SEED_SQL_BASE64` secret으로만 전달한다.
-   - workflow 입력 `companion_session_seed_sha256`과 파일 해시가 일치해야 하며, 완료 후 secret을 삭제한다.
-4. Firestore와 PostgreSQL의 row count 비교
-5. 주요 도메인별 필드 누락 비교
-6. 관리자 웹에서 먼저 전환할 후보 도메인 선정
-
-2026-06-29 기준 1~5번은 완료됐다. 6번은 첫 API 후보를 병원 가이드, 매니저 서류 심사 메타데이터, 문의 조회로 좁힌 상태다.
-
-초기 범위에서 제외:
-
-- 예약 생성/취소
-- 실시간 위치
-- FCM 발송 큐
-- 결제/정산 확정 처리
-- 운영 API VM 배포
-
-이유:
-
-- DB 전환 기준을 검증하기 전에 서버 배포와 클라이언트 전환까지 동시에 진행하면 rollback이 어렵다.
-- 관리자 서류 심사와 병원 가이드는 운영 영향이 있지만 실시간 위치나 예약 상태 전이보다 rollback이 쉽다.
-
-## 마이그레이션 검증 순서
-
-1. Firestore 백업 생성
-   - `npm --prefix tools/firebase run backup:state`
-2. 백업 JSON을 PostgreSQL seed 입력으로 변환하는 dry-run 실행
-   - 예약 요청: `npm --prefix tools/firebase run postgres:appointment-requests:check -- --file backups/<백업 파일>.json`
-   - 동행 세션·리포트·후속 처리: `npm --prefix tools/firebase run postgres:sessions:check -- --file backups/<백업 파일>.json`
-3. `bodeul-dev-rdb`에 seed 적용
-4. Firestore와 PostgreSQL의 row count 비교
-5. 관리자 서류 심사 목록 또는 병원 가이드 조회 결과 비교
-6. 전환 후보 도메인의 source of truth 변경 조건 기록
-7. Spring Core API와 별도 Next.js 관리자 서버에 전환 도메인의 endpoint를 추가한다.
-8. #140/#123처럼 preview API 응답 JSON을 저장하고 Firestore/API 비교를 마무리한다.
-9. production 전환은 #134의 production 기준 확정 후 별도 이슈로 준비한다.
-
-Issue #87 실행 결과:
-
-| 항목 | 상태 |
-| --- | --- |
-| Supabase 개발 DB 생성 | 완료 |
-| schema 적용 | 완료 |
-| 실제 Firestore 백업 검증 | 오류 0건, 경고 0건 |
-| seed 입력 JSON 생성 | 완료 |
-| rollback SQL 검증 | 완료 |
-| 적용 SQL 실행 | 완료 |
-| row count 비교 | 일치 |
-| FK spot check | 누락 0건 |
-| 주요 필드 spot check | 통과 |
-
-상세 결과는 [PostgreSQL seed dry-run 기준 기록](../reports/postgres-seed-dry-run-plan-2026-06-29.md)에 둔다.
-
-## 전환 플래그
-
-| 이름 | 값 | 의미 |
-| --- | --- | --- |
-| `BODEUL_DATA_BACKEND` | `firebase` | 기존 Firestore 직접 접근 |
-| `BODEUL_DATA_BACKEND` | `api` | API 서버 접근 |
-
-관리자 웹과 Android 앱 모두 같은 개념을 쓰되, 실제 환경변수 이름은 플랫폼 규칙에 맞춘다.
-
-- 관리자 웹: `VITE_BODEUL_DATA_BACKEND`
-- Android: `BuildConfig.BODEUL_DATA_BACKEND`
+1. Flyway migration과 적용 전 백업이 있다.
+2. 개발 DB에서 backfill row 수, 필수 필드, FK와 핵심 API 응답이 일치한다.
+3. Firebase ID token과 PostgreSQL role의 정상·401·403 테스트가 있다.
+4. Android 또는 관리자 웹이 서버 경로만 사용하고 legacy Firestore 쓰기가 거부된다.
+5. 보관 기간, 자동 파기와 legal hold가 같은 도메인 계약에 포함된다.
+6. 실패 시 복원할 PostgreSQL 백업과 호환 가능한 직전 애플리케이션 revision이 있다.
+7. 운영 smoke 담당자와 rollback 승인자가 정해져 있다.
 
 ## Rollback 기준
 
-아래 중 하나라도 발생하면 해당 도메인의 source of truth를 Firestore로 되돌린다.
+다음 상황에서는 신규 쓰기를 중지하고 직전 애플리케이션과 PostgreSQL 상태를 복구한다.
 
-- PostgreSQL seed/import 결과가 Firestore 기준과 불일치
-- 관리자 승인/반려 기록이 누락되거나 중복 저장
-- Firebase Auth token 검증 실패율 증가
-- API 서버가 15분 이상 장애
-- 실시간 알림 또는 관리자 피드 누락
+- migration row 수, FK 또는 필수 필드가 승인된 결과와 다르다.
+- 예약·세션 상태 전이가 누락되거나 중복된다.
+- Firebase token·role 검증 오류가 기준치를 넘는다.
+- Core API 또는 관리자 서버 장애가 15분 이상 지속된다.
+- 채팅·위치 커밋은 성공했지만 Realtime 재조회로 상태를 회복할 수 없다.
 
-Rollback 방식:
+Rollback 순서:
 
-1. 클라이언트 플래그를 `firebase`로 되돌린다.
-2. PostgreSQL 쓰기를 중지한다.
-3. Firestore 백업과 운영 상태를 다시 비교한다.
-4. 원인을 문서화한 뒤 같은 범위를 재시도한다.
+1. 배포와 신규 쓰기를 중지한다.
+2. Cloud Run revision 또는 Vercel deployment를 직전 호환 버전으로 돌린다.
+3. migration 전 백업 또는 검증된 역방향 보정으로 PostgreSQL을 복구한다.
+4. 핵심 API와 데이터 정합성 smoke를 다시 실행한다.
+5. 원인, 손실 가능 시간과 복구 결과를 보고서로 남긴다.
+
+전환된 도메인을 Firestore 이중 쓰기나 클라이언트 토글로 되돌리지 않는다. 안정화 기간의 Firestore 읽기 전용 자료는 비교에만 사용한다.
 
 ## 완료 조건
 
-운영 DB 전환 완료는 아래 조건을 모두 만족할 때로 본다.
+- production의 Core 업무 도메인은 PostgreSQL만 쓰기 원본으로 사용한다.
+- 관리자 웹과 Android는 각각 Next.js 관리자 서버와 Spring Core API를 거친다.
+- runtime role에 DDL·과도한 schema 권한·공개 role 권한이 없다.
+- PostgreSQL backup/restore와 Cloud Run·Vercel rollback 기록이 있다.
+- release App Check, Realtime RLS, Storage 접근과 실기기 핵심 흐름이 통과한다.
+- 비용 한도, 보관 정책, 실명 운영자와 장애 연락 경로가 승인됐다.
 
-- `bodeul-prod-rdb`가 전환된 도메인의 운영 source of truth로 사용된다.
-- 관리자 웹의 핵심 운영 조회/쓰기 기능이 PostgreSQL/API 경계를 사용한다.
-- Android 앱의 예약/세션 핵심 흐름이 PostgreSQL/API 경계를 사용한다.
-- Firestore 백업/복원과 PostgreSQL 백업/복원 리허설 결과가 모두 문서화되어 있다.
-- Firebase는 Auth, FCM, Storage, Hosting 등 유지하기로 결정한 역할을 계속 맡는다.
-- Firestore는 전환 완료 도메인에서 legacy read-only, 캐시, shadow, 백업 용도로만 남는다.
+## 관련 문서
 
-## 인프라 담당자에게 넘길 작업
-
-1. 완료: Supabase 계정을 만들고 `bodeul-dev-rdb` 프로젝트를 생성한다.
-2. 완료: 프로젝트 이름과 리전만 팀에 공유한다.
-3. 유지: DB connection string 원문은 채팅, Issue, PR에 적지 않는다.
-4. 진행: Core API DB 접속 정보는 Google Secret Manager에 등록하고 GitHub Actions에는 OIDC/WIF용 공개 식별자만 둔다. 기존 GitHub Environment의 중복 DB secret은 첫 Cloud Run 배포 확인 뒤 제거한다.
-5. 진행: 개발 Spring 서비스는 `bodeul-dev`의 Cloud Run `bodeul-core-api-preview`로 고정한다. production 서비스는 별도 Google Cloud 프로젝트의 Tokyo `bodeul-core-api`로 만들며, 이름과 전환 조건은 [Production 인프라 기본값](production-infrastructure-defaults.md)을 따른다.
-
-인프라 담당자가 공유해야 하는 값:
-
-| 항목 | 공유 방식 |
-| --- | --- |
-| Supabase 프로젝트 이름 | Issue 댓글 또는 팀 채팅에 공개 가능 |
-| Supabase 리전 | Issue 댓글 또는 팀 채팅에 공개 가능 |
-| DB connection string | 공개 공유 금지. GitHub Environment secret 입력 시점에만 사용 |
-| Supabase anon/service role key | 공개 공유 금지. 필요 여부를 별도 이슈에서 결정 |
-
-## 관련 이슈
-
-- [#86 PostgreSQL 운영 전환 기준 확정](https://github.com/bodeul110/Bodeul/issues/86)
-- [#87 Supabase 개발 DB 준비 및 API 경계 검토](https://github.com/bodeul110/Bodeul/issues/87)
-- [#88 bodeul-api 서버 골격 추가](https://github.com/bodeul110/Bodeul/issues/88)
-- [#123 병원 가이드 Firestore/API 응답 비교 기록](https://github.com/bodeul110/Bodeul/issues/123)
-- [#134 관리자 웹 production 배포 기준 확정](https://github.com/bodeul110/Bodeul/issues/134)
-- [#140 Oracle/Vercel 기반 관리자 웹 API 모드 실연동 검증 환경 구축](https://github.com/bodeul110/Bodeul/issues/140)
-- [#219 예약 PostgreSQL 운영 전환](https://github.com/bodeul110/Bodeul/issues/219)
-- [#220 매칭·동행·리포트 PostgreSQL 전환](https://github.com/bodeul110/Bodeul/issues/220)
-- [#221 채팅·위치 PostgreSQL/Realtime 전환](https://github.com/bodeul110/Bodeul/issues/221)
+- [PostgreSQL 운영 전환 결정](../architecture/postgres-operational-transition.md)
+- [PostgreSQL API 경계](../architecture/postgres-api-boundary.md)
+- [Spring Core API 인프라 런북](core-api-infrastructure-runbook.md)
+- [Production 인프라 기본값](production-infrastructure-defaults.md)
+- [데이터 보관 및 파기 정책](data-retention-policy.md)
