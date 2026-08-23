@@ -26,6 +26,8 @@ gcloud auth application-default login
 gcloud auth application-default set-quota-project bodeul-dev
 ```
 
+일회성 운영자 계정에 `serviceusage.services.use` 권한이 없어 quota project 설정이 거부되면, 그 권한만을 위해 Editor나 Owner를 부여하지 않는다. 이 리허설처럼 리소스 소유 프로젝트의 API만 호출할 때는 `gcloud auth application-default login --disable-quota-project`로 다시 인증한다. Google 로그인 주소가 다른 주 계정으로 연결되는 경우에는 gcloud에 Google이 반환하는 주 계정을 지정해야 한다.
+
 Android Preflight WIF 계정은 읽기 전용이다. 일회 리허설을 위해 해당 계정의 권한을 확대하거나 쓰기 권한을 가진 새 workflow를 만들지 않는다. 이번 리허설의 인증 경로는 ADC 하나로 고정하고 Firebase CLI 사용자 token adapter는 사용하지 않는다.
 
 ## 실행 순서
@@ -55,6 +57,8 @@ npm --prefix functions run retention:firebase-fixture -- status --project bodeul
 | 삭제 실패 | 0 | 한 건이라도 있으면 명령 실패 |
 
 실패·재시도 주입은 실제 개발 버킷의 권한을 변경하지 않고 기존 Firestore·Storage Emulator 통합 테스트에서 검증한다.
+
+2026-08-23 실제 `bodeul-dev` 리허설에서 위 순서와 기대 집계가 일치했고, cleanup 뒤 문서와 객체가 모두 없는 `ABSENT` 상태를 확인했다. 상세 집계는 아래 검증 기록을 기준으로 한다.
 
 ## 중단 및 복구
 
