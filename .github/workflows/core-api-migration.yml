@@ -64,7 +64,6 @@ on:
         required: false
         default: ""
         type: string
-
 permissions:
   contents: read
 
@@ -195,6 +194,17 @@ jobs:
             exit 1
           fi
 
+      - name: 가이드 실기기 fixture secret 확인
+        if: inputs.guide_device_fixture_action == 'setup'
+        shell: bash
+        env:
+          GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID: ${{ secrets.GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID }}
+        run: |
+          if [[ ! "$GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID" =~ ^[A-Za-z0-9_-]{1,128}$ ]]; then
+            echo "가이드 실기기 fixture 매니저 UID secret이 준비되지 않았습니다." >&2
+            exit 1
+          fi
+
       - name: Java 21 설정
         uses: actions/setup-java@v5
         with:
@@ -260,6 +270,7 @@ jobs:
         env:
           GUIDE_DEVICE_FIXTURE_ACTION: ${{ inputs.guide_device_fixture_action }}
           GUIDE_DEVICE_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_guide_device_fixture_project }}
+          GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID: ${{ secrets.GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID }}
           MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
           MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
