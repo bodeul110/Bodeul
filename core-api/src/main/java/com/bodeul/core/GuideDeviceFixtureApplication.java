@@ -28,9 +28,11 @@ public final class GuideDeviceFixtureApplication {
     static final String GUIDE_ID = "44444444-4444-4444-8444-444444444402";
     static final String APPOINTMENT_ID = "44444444-4444-4444-8444-444444444403";
     static final String CLIENT_REQUEST_ID = "44444444-4444-4444-8444-444444444404";
+    static final String ADMIN_ID = "44444444-4444-4444-8444-444444444405";
     static final String PATIENT_FIREBASE_UID = "guide-device-fixture-patient";
+    static final String ADMIN_FIREBASE_UID = "guide-device-fixture-admin";
+    static final String ADMIN_EMAIL = "guide-device-fixture-admin@bodeul.invalid";
     static final String MANAGER_EMAIL = "manager@bodeul.app";
-    static final String ADMIN_EMAIL = "admin@bodeul.app";
     static final String HOSPITAL_NAME = "BoDeul 실기기 검증병원";
     static final String DEPARTMENT_NAME = "약국 이동 검증";
 
@@ -155,13 +157,24 @@ public final class GuideDeviceFixtureApplication {
         }
 
         UUID managerUserId = findBaselineUser(connection, MANAGER_EMAIL, "MANAGER");
-        UUID adminUserId = findBaselineUser(connection, ADMIN_EMAIL, "ADMIN");
+        UUID adminUserId = UUID.fromString(ADMIN_ID);
         lockSessionWrites(connection);
         if (countActiveSessions(connection, managerUserId) != 0) {
             throw new SQLException("baseline manager already has an active session", "P0001");
         }
 
         int affectedRows = 0;
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into bodeul.app_users (
+                    id, firebase_uid, role, name, email, phone, created_at, updated_at
+                ) values (?::uuid, ?, 'ADMIN', '실기기 검증 관리자', ?, '', now(), now())
+                """)) {
+            statement.setString(1, ADMIN_ID);
+            statement.setString(2, ADMIN_FIREBASE_UID);
+            statement.setString(3, ADMIN_EMAIL);
+            affectedRows += statement.executeUpdate();
+        }
+
         try (PreparedStatement statement = connection.prepareStatement("""
                 insert into bodeul.app_users (
                     id, firebase_uid, role, name, email, phone, created_at, updated_at
@@ -374,6 +387,10 @@ public final class GuideDeviceFixtureApplication {
                 "delete from bodeul.app_users where id = ?::uuid and firebase_uid = ?",
                 PATIENT_ID,
                 PATIENT_FIREBASE_UID);
+        affectedRows += executeUpdate(connection,
+                "delete from bodeul.app_users where id = ?::uuid and firebase_uid = ?",
+                ADMIN_ID,
+                ADMIN_FIREBASE_UID);
         return affectedRows;
     }
 
@@ -387,6 +404,9 @@ public final class GuideDeviceFixtureApplication {
                 select (
                     (select count(*) from bodeul.app_users
                      where id = ?::uuid and firebase_uid = ? and role = 'PATIENT')
+                    + (select count(*) from bodeul.app_users
+                       where id = ?::uuid and firebase_uid = ? and role = 'ADMIN'
+                         and lower(email) = ?)
                     + (select count(*) from bodeul.hospital_guides
                        where id = ?::uuid and hospital_name = ? and department_name = ?
                          and step_contract_version = 1)
@@ -406,6 +426,9 @@ public final class GuideDeviceFixtureApplication {
             int index = 1;
             statement.setString(index++, PATIENT_ID);
             statement.setString(index++, PATIENT_FIREBASE_UID);
+            statement.setString(index++, ADMIN_ID);
+            statement.setString(index++, ADMIN_FIREBASE_UID);
+            statement.setString(index++, ADMIN_EMAIL);
             statement.setString(index++, GUIDE_ID);
             statement.setString(index++, HOSPITAL_NAME);
             statement.setString(index++, DEPARTMENT_NAME);
@@ -420,7 +443,7 @@ public final class GuideDeviceFixtureApplication {
             statement.setString(index, APPOINTMENT_ID);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
-                if (summary.fixtureRows() != 5 || resultSet.getInt(1) != 5) {
+                if (summary.fixtureRows() != 6 || resultSet.getInt(1) != 6) {
                     throw new SQLException("fixture ownership markers do not match", "P0001");
                 }
             }
@@ -451,7 +474,7 @@ public final class GuideDeviceFixtureApplication {
         String query = """
                 select
                     (
-                        (select count(*) from bodeul.app_users where id = ?::uuid)
+                        (select count(*) from bodeul.app_users where id in (?::uuid, ?::uuid))
                         + (select count(*) from bodeul.hospital_guides where id = ?::uuid)
                         + (select count(*) from bodeul.appointment_requests where id = ?::uuid)
                         + (select count(*) from bodeul.companion_sessions where appointment_request_id = ?::uuid)
@@ -475,8 +498,9 @@ public final class GuideDeviceFixtureApplication {
                 """;
         try (PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setString(1, PATIENT_ID);
-            statement.setString(2, GUIDE_ID);
-            for (int index = 3; index <= 11; index++) {
+            statement.setString(2, ADMIN_ID);
+            statement.setString(3, GUIDE_ID);
+            for (int index = 4; index <= 12; index++) {
                 statement.setString(index, APPOINTMENT_ID);
             }
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -488,7 +512,7 @@ public final class GuideDeviceFixtureApplication {
                 int stepCount = resultSet.getInt("step_count");
                 int contractVersion = resultSet.getInt("contract_version");
                 String currentStatus = resultSet.getString("current_status");
-                boolean ready = fixtureRows == 5
+                boolean ready = fixtureRows == 6
                         && currentStepOrder == 9
                         && "PHARMACY_ROUTE".equals(currentStepCode)
                         && "HOSPITAL_GUIDE_STEP_CODE_V1".equals(snapshotSource)

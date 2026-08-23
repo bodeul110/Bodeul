@@ -9,8 +9,8 @@
 - `Core API DB Migration` workflow의 `guide_device_fixture_action`으로 `setup`, `status`, `cleanup`을 실행한다.
 - 대상은 `master`의 `preview`와 Firebase 개발 프로젝트 `bodeul-dev`로 고정한다.
 - Supabase 개발 프로젝트 ref와 migration DB 사용자명도 실행기에서 다시 확인한다.
-- 기존 `manager@bodeul.app`과 `admin@bodeul.app` 행은 조회만 하고 수정하거나 삭제하지 않는다.
-- fixture 전용 환자, 병원 가이드, 예약, 세션과 배정 감사 기록만 단일 트랜잭션으로 생성한다.
+- 실기기 로그인과 연결되는 기존 `manager@bodeul.app` 행은 조회만 하고 수정하거나 삭제하지 않는다.
+- fixture 전용 관리자와 환자, 병원 가이드, 예약, 세션, 배정 감사 기록만 단일 트랜잭션으로 생성한다.
 - 세션은 13단계 snapshot의 9번째 `PHARMACY_ROUTE`에서 시작한다.
 - setup과 cleanup 동안 동행 세션 쓰기를 잠그고, cleanup 전에 모든 fixture 표식을 다시 대조한다.
 
@@ -46,7 +46,7 @@ gh workflow run core-api-migration.yml `
   -f confirm_guide_device_fixture_project=bodeul-dev
 ```
 
-성공 기준은 `fixtureRows=5`, `currentStepOrder=9`, `currentStepCode=PHARMACY_ROUTE`, `stepCount=13`, `ready=true`다.
+성공 기준은 `fixtureRows=6`, `currentStepOrder=9`, `currentStepCode=PHARMACY_ROUTE`, `stepCount=13`, `ready=true`다.
 
 ### 정리
 
