@@ -1,5 +1,7 @@
 const assert = require("node:assert/strict");
 const {createHash} = require("node:crypto");
+const {readFileSync} = require("node:fs");
+const {resolve} = require("node:path");
 const test = require("node:test");
 const {deleteApp} = require("firebase-admin/app");
 
@@ -101,6 +103,23 @@ test("production action은 로컬 ADC와 잘못된 Environment 토큰을 거부�
   assert.throws(
       () => assertBoundary({...options, confirmCommit: "f".repeat(40)}),
       /--confirm-commit/,
+  );
+});
+
+test("production WIF 리소스 ID는 GCP 길이 제한과 workflow 기준을 지킨다", () => {
+  const providerId = "bodeul-retention-prod";
+  const serviceAccountId = "bodeul-retention-operator";
+  const workflow = readFileSync(resolve(
+      __dirname,
+      "../../.github/workflows/firebase-retention-production.yml",
+  ), "utf8");
+
+  assert.ok(providerId.length <= 32);
+  assert.ok(serviceAccountId.length <= 30);
+  assert.match(workflow, new RegExp(`/providers/${providerId}\\$`));
+  assert.match(
+      workflow,
+      new RegExp(`${serviceAccountId}@\\$\\{FIREBASE_PROJECT_ID\\}`),
   );
 });
 

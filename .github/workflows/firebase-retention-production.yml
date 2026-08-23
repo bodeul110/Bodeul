@@ -121,11 +121,11 @@ jobs:
               exit 1
             fi
           done
-          if [[ ! "${FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER}" =~ /workloadIdentityPools/github-actions/providers/bodeul-firebase-retention-production$ ]]; then
+          if [[ ! "${FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER}" =~ /workloadIdentityPools/github-actions/providers/bodeul-retention-prod$ ]]; then
             echo "production 파기 WIF provider가 기준과 다릅니다." >&2
             exit 1
           fi
-          expected_account="bodeul-firebase-retention-operator@${FIREBASE_PROJECT_ID}.iam.gserviceaccount.com"
+          expected_account="bodeul-retention-operator@${FIREBASE_PROJECT_ID}.iam.gserviceaccount.com"
           if [[ "${FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT}" != "${expected_account}" ]]; then
             echo "production 파기 운영 서비스 계정이 기준과 다릅니다." >&2
             exit 1
