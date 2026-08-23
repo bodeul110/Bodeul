@@ -84,7 +84,7 @@
 - [개인정보보호위원회 개인정보 처리방침 작성 기준](https://www.pipc.go.kr/)
 - [Production 운영 전환 계획](production-transition-plan-2026.md)
 
-## 구현 상태 (2026-07-28)
+## 구현 상태 (2026-08-23)
 
 - PostgreSQL 만료 후보 조회, 채팅 본문 비식별화, 위치 원본 삭제, 첨부 claim·재시도 계약은 Flyway V13으로 구현했다.
 - Firestore 전환 데이터는 종료 시각 기준 위치 24시간, 첨부 30일, 채팅 본문 180일을 같은 예약 작업에서 적용한다.
@@ -93,6 +93,7 @@
 - 개발 환경의 두 예약 함수는 Supabase CA와 DB URL을 각각 Secret Manager에서 주입하고 서버 인증서 검증을 강제한다.
 - 월간 보고는 원문, 사용자 ID, 좌표, Storage 경로 없이 건수와 실패 단계만 기록한다.
 - 개발 환경에서 새 Core 중첩 첨부 경로의 PostgreSQL·Storage 격리 fixture APPLY, 메타데이터 비식별화와 legal hold 보존을 확인했다. fixture를 정리한 뒤 정기 apply 플래그를 `false`로 복구했고 최종 dry-run 후보는 0건이다.
-- Firestore 전환 문서와 매니저 증빙은 `bodeul-dev`의 고정 합성 문서·객체만 다루는 픽스처 실행 경계를 준비하고 Emulator 생명주기 검증을 통과했다. 실제 개발 Firebase APPLY 결과는 아직 남아 있다.
+- Firestore 전환 문서와 매니저 증빙은 `bodeul-dev`의 고정 합성 문서·객체로 dry-run과 단일 APPLY를 검증했다. 만료 세션의 본문·첨부·위치와 만료 매니저 증빙은 각각 1건 처리됐고, legal hold 대상 4건은 보존됐으며 삭제 실패는 0건이었다.
+- 검증 뒤 합성 문서 4개와 Storage 객체 4개를 정리하고 최종 상태가 `ABSENT`인지 다시 확인했다. 정기 apply 플래그와 일반 개발 데이터는 변경하지 않았다.
 - 구현과 검증 근거는 [#222 개인정보 자동 파기 구현 기록](../reports/issue-222-data-retention-2026-07-19.md)에 정리한다.
 - production 활성화는 개인정보 처리방침, 위치기반서비스 이용약관, 개인정보 보호책임자 또는 법률 검토가 끝난 뒤 진행한다.

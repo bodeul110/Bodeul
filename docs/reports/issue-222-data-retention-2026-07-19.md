@@ -154,7 +154,16 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - 실제 파기 클래스는 scoped adapter 뒤에서 재사용한다. PostgreSQL adapter는 후보 0건으로 고정하며, 일반 개발 문서를 전체 조회하거나 정기 apply 플래그를 바꾸지 않는다.
 - Node.js 22.23.2에서 Functions 일반 테스트 28개가 통과했고, 같은 실행의 Emulator 통합 테스트 2개는 Emulator 환경변수가 없어 건너뛰었다. Firestore·Storage Emulator를 별도로 실행한 기존 실패·재시도와 새 픽스처 생명주기 테스트는 2/2 통과했다. Firebase 도구 단위 테스트도 33/33 통과했다.
 - 실행 순서와 중단 기준은 [개발 Firebase 자동 파기 픽스처](../operations/firebase/retention-development-fixture.md)에 고정했다.
-- 이 단계는 실행기와 로컬 격리 검증까지다. 실제 `bodeul-dev`의 `setup -> dry-run -> apply -> status -> cleanup` 결과는 아직 기록하지 않았으므로 두 개발 fixture 완료 항목은 계속 미완료로 둔다.
+- 이 단계에서는 실행기와 로컬 격리 검증을 먼저 완료했다. 같은 날 수행한 실제 `bodeul-dev` 리허설 결과는 다음 절에 분리해 기록한다.
+
+## 2026-08-23 개발 Firebase 실제 리허설
+
+- 장기 서비스 계정 key 없이 운영자 ADC로 인증했고, 토큰이나 계정 식별자는 보고서에 남기지 않았다. quota project 권한은 확대하지 않고 비활성화한 채 `bodeul-dev` 리소스 접근 권한만 사용했다.
+- 최초 `status`는 고정 합성 문서 4개와 Storage 객체 4개가 모두 없는 `ABSENT`였다. `setup`은 기존 경로를 덮어쓰지 않고 8개 fixture를 만든 뒤 `READY`로 종료했다.
+- dry-run은 Firestore 채팅 본문·첨부·위치 후보 각 1건, 매니저 증빙 후보 1건을 집계했다. 세션 legal hold 제외 3건과 매니저 증빙 legal hold 제외 1건이었고 PostgreSQL 후보와 삭제·실패 건수는 모두 0이었다.
+- `2026-08-23T09:40:32.134Z` 단일 APPLY에서 Firestore 본문 비식별화 1건, 첨부 원본 삭제와 참조 제거 1건, 정밀 위치 제거 1건, 매니저 증빙 원본 삭제와 참조 제거 1건을 확인했다. 두 Storage 삭제 경로의 실패는 0건이었다.
+- APPLY 직후 상태는 `APPLIED`였다. legal hold 세션의 본문·첨부·위치와 매니저 증빙 참조 및 두 Storage 원본은 그대로 유지됐다.
+- fixture 표식과 경합 조건을 다시 확인한 뒤 cleanup을 실행했다. 최종 `status`는 문서와 객체 8개가 모두 없는 `ABSENT`였으며 정기 `RETENTION_APPLY_ENABLED` 값과 일반 개발 데이터는 변경하지 않았다.
 
 ## 리스크와 전환 조건
 
@@ -163,7 +172,7 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - Firestore 전환 문서는 문서 ID cursor로 500개씩 조회한다. 실행 시간이 Functions 한도에 가까워지면 페이지별 checkpoint 또는 Cloud Run Job으로 전환한다.
 - Firebase 기본 Storage bucket 이름은 `{projectId}.firebasestorage.app` 규약을 사용한다. 환경별 bucket이 다르면 함수 설정을 분리해야 한다.
 - Supabase CA가 교체되면 Secret의 새 버전을 등록하고 두 함수를 재배포해야 한다. CA 검증 실패 시 자동으로 우회하지 않는다.
-- Core API 중첩 첨부 경로는 개발 PostgreSQL·Storage fixture APPLY까지 확인했다. Firestore 전환 문서와 매니저 증빙의 파기 분기는 단위 테스트와 빈 개발 컬렉션 dry-run까지만 확인했으므로 실제 Firestore fixture APPLY는 별도 리허설 기록이 필요하다.
+- Core API 중첩 첨부 경로는 개발 PostgreSQL·Storage fixture APPLY까지 확인했다. Firestore 전환 문서와 매니저 증빙도 실제 개발 fixture APPLY와 cleanup까지 확인했다. production에서는 별도 자격 증명과 격리 fixture로 같은 순서를 다시 검증해야 한다.
 
 ## 출시 전 확인
 
