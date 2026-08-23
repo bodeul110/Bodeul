@@ -64,3 +64,10 @@ tasks.register<JavaExec>("runRetentionFixture") {
 	classpath = sourceSets["main"].runtimeClasspath
 	mainClass.set("com.bodeul.core.RetentionFixtureApplication")
 }
+
+tasks.register<JavaExec>("runGuideDeviceFixture") {
+	group = "application"
+	description = "preview 가이드 실기기 검증용 고정 fixture를 준비, 조회 또는 정리합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.GuideDeviceFixtureApplication")
+}
