@@ -1,0 +1,265 @@
+name: Firebase Retention Production Fixture
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "production 격리 픽스처 작업"
+        required: true
+        type: choice
+        options:
+          - status
+          - setup
+          - dry-run
+          - apply
+          - cleanup
+      confirm_project:
+        description: "production Firebase 프로젝트 ID를 입력하세요"
+        required: true
+        type: string
+      confirm_commit:
+        description: "실행할 master commit SHA 40자를 입력하세요"
+        required: true
+        type: string
+      fixture_id:
+        description: "고정 fixture ID를 입력하세요"
+        required: true
+        type: string
+      confirm_fixture_id:
+        description: "쓰기 작업이면 같은 fixture ID를 다시 입력하세요"
+        required: false
+        default: ""
+        type: string
+      firestore_backup_reference:
+        description: "setup/apply 시 production Firestore export metadata 객체를 입력하세요"
+        required: false
+        default: ""
+        type: string
+      storage_inventory_reference:
+        description: "setup/apply 시 production Storage inventory JSON 객체를 입력하세요"
+        required: false
+        default: ""
+        type: string
+      policy_review_reference:
+        description: "apply 시 승인된 Notion URL 또는 #222 댓글 URL을 입력하세요"
+        required: false
+        default: ""
+        type: string
+      confirm_apply:
+        description: "apply 시 지정된 APPLY 확인 문구를 입력하세요"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-retention-production
+  cancel-in-progress: false
+
+jobs:
+  production-fixture:
+    name: production-${{ inputs.action }}
+    runs-on: ubuntu-latest
+    environment: firebase-retention-production
+    timeout-minutes: 20
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER }}
+      FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT: ${{ vars.FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT }}
+      FIREBASE_RETENTION_ENVIRONMENT: firebase-retention-production
+      FIXTURE_ID: issue-222-production-v1
+      APPLY_CONFIRMATION: APPLY-ISSUE-222-PRODUCTION-V1
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: 실행 경계 확인
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+          INPUT_FIXTURE_ID: ${{ inputs.fixture_id }}
+          CONFIRM_FIXTURE_ID: ${{ inputs.confirm_fixture_id }}
+          FIREBASE_RETENTION_EXECUTION_TOKEN: ${{ secrets.FIREBASE_RETENTION_EXECUTION_TOKEN }}
+          FIRESTORE_BACKUP_REFERENCE: ${{ inputs.firestore_backup_reference }}
+          STORAGE_INVENTORY_REFERENCE: ${{ inputs.storage_inventory_reference }}
+          POLICY_REVIEW_REFERENCE: ${{ inputs.policy_review_reference }}
+          CONFIRM_APPLY: ${{ inputs.confirm_apply }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REPOSITORY}" != "bodeul110/Bodeul" || "${GITHUB_REF}" != "refs/heads/master" ]]; then
+            echo "production 파기 픽스처는 bodeul110/Bodeul의 master에서만 실행할 수 있습니다." >&2
+            exit 1
+          fi
+          if [[ ! "${CONFIRM_COMMIT}" =~ ^[0-9a-f]{40}$ || "${CONFIRM_COMMIT}" != "${GITHUB_SHA}" ]]; then
+            echo "입력한 master commit SHA와 workflow 실행 commit이 일치하지 않습니다." >&2
+            exit 1
+          fi
+          if [[ "${FIREBASE_PROJECT_ID}" != "bodeul-prod-110" || "${CONFIRM_PROJECT}" != "${FIREBASE_PROJECT_ID}" ]]; then
+            echo "production Firebase 프로젝트 확인값이 일치하지 않습니다." >&2
+            exit 1
+          fi
+          if [[ "${INPUT_FIXTURE_ID}" != "${FIXTURE_ID}" ]]; then
+            echo "fixture ID 확인값이 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+          required_variables=(
+            FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER
+            FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT
+            FIREBASE_RETENTION_EXECUTION_TOKEN
+          )
+          for variable_name in "${required_variables[@]}"; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "${variable_name} Environment variable이 비어 있습니다." >&2
+              exit 1
+            fi
+          done
+          if [[ ! "${FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER}" =~ /workloadIdentityPools/github-actions/providers/bodeul-firebase-retention-production$ ]]; then
+            echo "production 파기 WIF provider가 기준과 다릅니다." >&2
+            exit 1
+          fi
+          expected_account="bodeul-firebase-retention-operator@${FIREBASE_PROJECT_ID}.iam.gserviceaccount.com"
+          if [[ "${FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT}" != "${expected_account}" ]]; then
+            echo "production 파기 운영 서비스 계정이 기준과 다릅니다." >&2
+            exit 1
+          fi
+
+          if [[ "${ACTION}" == "setup" || "${ACTION}" == "apply" || "${ACTION}" == "cleanup" ]]; then
+            if [[ "${CONFIRM_FIXTURE_ID}" != "${FIXTURE_ID}" ]]; then
+              echo "쓰기 작업의 fixture ID 재확인값이 일치하지 않습니다." >&2
+              exit 1
+            fi
+          fi
+          if [[ "${ACTION}" == "setup" || "${ACTION}" == "apply" ]]; then
+            firestore_pattern='^gs://bodeul-prod-110-db-backups/firestore/verified/[A-Za-z0-9._~/-]+\.export_metadata$'
+            storage_pattern='^gs://bodeul-prod-110-db-backups/storage-inventory/verified/[A-Za-z0-9._~/-]+\.json$'
+            if [[ ! "${FIRESTORE_BACKUP_REFERENCE}" =~ ${firestore_pattern} ]]; then
+              echo "production Firestore export metadata 경로가 기준과 다릅니다." >&2
+              exit 1
+            fi
+            if [[ ! "${STORAGE_INVENTORY_REFERENCE}" =~ ${storage_pattern} ]]; then
+              echo "production Storage inventory 경로가 기준과 다릅니다." >&2
+              exit 1
+            fi
+          fi
+          if [[ "${ACTION}" == "apply" ]]; then
+            policy_pattern='^https://((app\.notion\.com|www\.notion\.so)/[A-Za-z0-9._~:/?#=&%-]+|github\.com/bodeul110/Bodeul/issues/222#issuecomment-[0-9]+)$'
+            if [[ "${CONFIRM_APPLY}" != "${APPLY_CONFIRMATION}" ]]; then
+              echo "APPLY 확인 문구가 일치하지 않습니다." >&2
+              exit 1
+            fi
+            if [[ ! "${POLICY_REVIEW_REFERENCE}" =~ ${policy_pattern} ]]; then
+              echo "APPLY에는 승인된 Notion URL 또는 #222 댓글 URL이 필요합니다." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Node.js 22 설정
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Functions 의존성 설치
+        working-directory: functions
+        run: npm ci
+
+      - name: Functions 테스트
+        working-directory: functions
+        run: npm test
+
+      - name: Google Cloud WIF 인증
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ env.FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT }}
+
+      - name: Google Cloud CLI 설정
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ env.FIREBASE_PROJECT_ID }}
+
+      - name: 복구 증적 객체 확인
+        if: inputs.action == 'setup' || inputs.action == 'apply'
+        shell: bash
+        env:
+          FIRESTORE_BACKUP_REFERENCE: ${{ inputs.firestore_backup_reference }}
+          STORAGE_INVENTORY_REFERENCE: ${{ inputs.storage_inventory_reference }}
+        run: |
+          set -euo pipefail
+          gcloud storage objects describe "${FIRESTORE_BACKUP_REFERENCE}" --format='value(name)' > /dev/null
+          gcloud storage objects describe "${STORAGE_INVENTORY_REFERENCE}" --format='value(name)' > /dev/null
+
+      - name: production 격리 픽스처 실행
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+          INPUT_FIXTURE_ID: ${{ inputs.fixture_id }}
+          CONFIRM_FIXTURE_ID: ${{ inputs.confirm_fixture_id }}
+          FIREBASE_RETENTION_EXECUTION_TOKEN: ${{ secrets.FIREBASE_RETENTION_EXECUTION_TOKEN }}
+          FIRESTORE_BACKUP_REFERENCE: ${{ inputs.firestore_backup_reference }}
+          STORAGE_INVENTORY_REFERENCE: ${{ inputs.storage_inventory_reference }}
+          POLICY_REVIEW_REFERENCE: ${{ inputs.policy_review_reference }}
+          CONFIRM_APPLY: ${{ inputs.confirm_apply }}
+        run: |
+          set -euo pipefail
+          args=(
+            "${ACTION}"
+            --project "${FIREBASE_PROJECT_ID}"
+            --fixture-id "${INPUT_FIXTURE_ID}"
+            --confirm-commit "${CONFIRM_COMMIT}"
+          )
+          if [[ "${ACTION}" == "setup" || "${ACTION}" == "apply" || "${ACTION}" == "cleanup" ]]; then
+            args+=(
+              --confirm-project "${CONFIRM_PROJECT}"
+              --confirm-fixture-id "${CONFIRM_FIXTURE_ID}"
+            )
+          fi
+          if [[ "${ACTION}" == "setup" || "${ACTION}" == "apply" ]]; then
+            args+=(
+              --firestore-backup-reference "${FIRESTORE_BACKUP_REFERENCE}"
+              --storage-inventory-reference "${STORAGE_INVENTORY_REFERENCE}"
+            )
+          fi
+          if [[ "${ACTION}" == "apply" ]]; then
+            args+=(
+              --confirm-apply "${CONFIRM_APPLY}"
+              --policy-review-reference "${POLICY_REVIEW_REFERENCE}"
+            )
+          fi
+          npm --prefix functions run retention:firebase-production-fixture -- "${args[@]}"
+
+      - name: 실행 결과 기록
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          FIRESTORE_BACKUP_REFERENCE: ${{ inputs.firestore_backup_reference }}
+          STORAGE_INVENTORY_REFERENCE: ${{ inputs.storage_inventory_reference }}
+          POLICY_REVIEW_REFERENCE: ${{ inputs.policy_review_reference }}
+        run: |
+          {
+            echo "## Firebase production 파기 격리 픽스처"
+            echo
+            echo "- Project: ${FIREBASE_PROJECT_ID}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Action: ${ACTION}"
+            echo "- Fixture: ${FIXTURE_ID}"
+            if [[ -n "${FIRESTORE_BACKUP_REFERENCE}" ]]; then
+              echo "- Firestore export: ${FIRESTORE_BACKUP_REFERENCE}"
+              echo "- Storage inventory: ${STORAGE_INVENTORY_REFERENCE}"
+            fi
+            if [[ -n "${POLICY_REVIEW_REFERENCE}" ]]; then
+              echo "- Policy review: ${POLICY_REVIEW_REFERENCE}"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

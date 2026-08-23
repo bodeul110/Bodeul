@@ -11,26 +11,59 @@ const {
   runRetentionJob,
 } = require("../../src/retention");
 
-const DEVELOPMENT_PROJECT_ID = "bodeul-dev";
-const FIXTURE_MARKER = "bodeul-retention-firebase-v1";
 const FIXTURE_OWNER = "bodeul110/Bodeul";
 const FIXTURE_ISSUE = "222";
 const DAY_IN_MILLIS = 24 * 60 * 60 * 1000;
-const SESSION_EXPIRED_ID = "retention-fixture-firestore-expired-v1";
-const SESSION_HELD_ID = "retention-fixture-firestore-held-v1";
-const MANAGER_EXPIRED_ID = "retention-fixture-manager-expired-v1";
-const MANAGER_HELD_ID = "retention-fixture-manager-held-v1";
-const SESSION_IDS = [SESSION_EXPIRED_ID, SESSION_HELD_ID];
-const MANAGER_IDS = [MANAGER_EXPIRED_ID, MANAGER_HELD_ID];
-const OBJECT_PATHS = {
-  sessionExpired: `companion-chat-attachments/${SESSION_EXPIRED_ID}/fixture.pdf`,
-  sessionHeld: `companion-chat-attachments/${SESSION_HELD_ID}/fixture.pdf`,
-  managerExpired: `manager-documents/${MANAGER_EXPIRED_ID}/idCard/fixture.pdf`,
-  managerHeld: `manager-documents/${MANAGER_HELD_ID}/license/fixture.pdf`,
-};
+const DEVELOPMENT_PROFILE = createFixtureProfile({
+  projectId: "bodeul-dev",
+  marker: "bodeul-retention-firebase-v1",
+  idPrefix: "retention-fixture",
+  messagePrefix: "개발",
+});
+const PRODUCTION_PROFILE = createFixtureProfile({
+  projectId: "bodeul-prod-110",
+  marker: "bodeul-retention-firebase-production-v1",
+  idPrefix: "retention-fixture-production",
+  messagePrefix: "production",
+});
+const DEVELOPMENT_PROJECT_ID = DEVELOPMENT_PROFILE.projectId;
+const FIXTURE_MARKER = DEVELOPMENT_PROFILE.marker;
+const SESSION_IDS = DEVELOPMENT_PROFILE.sessionIds;
+const MANAGER_IDS = DEVELOPMENT_PROFILE.managerIds;
+const OBJECT_PATHS = DEVELOPMENT_PROFILE.objectPaths;
 
-function buildFixtureDefinition(now = new Date()) {
+function createFixtureProfile({projectId, marker, idPrefix, messagePrefix}) {
+  const sessionExpiredId = `${idPrefix}-firestore-expired-v1`;
+  const sessionHeldId = `${idPrefix}-firestore-held-v1`;
+  const managerExpiredId = `${idPrefix}-manager-expired-v1`;
+  const managerHeldId = `${idPrefix}-manager-held-v1`;
+  return Object.freeze({
+    projectId,
+    marker,
+    owner: FIXTURE_OWNER,
+    issue: FIXTURE_ISSUE,
+    messagePrefix,
+    sessionIds: Object.freeze([sessionExpiredId, sessionHeldId]),
+    managerIds: Object.freeze([managerExpiredId, managerHeldId]),
+    documentIds: Object.freeze({
+      sessionExpired: sessionExpiredId,
+      sessionHeld: sessionHeldId,
+      managerExpired: managerExpiredId,
+      managerHeld: managerHeldId,
+    }),
+    objectPaths: Object.freeze({
+      sessionExpired: `companion-chat-attachments/${sessionExpiredId}/fixture.pdf`,
+      sessionHeld: `companion-chat-attachments/${sessionHeldId}/fixture.pdf`,
+      managerExpired: `manager-documents/${managerExpiredId}/idCard/fixture.pdf`,
+      managerHeld: `manager-documents/${managerHeldId}/license/fixture.pdf`,
+    }),
+  });
+}
+
+function buildFixtureDefinition(now = new Date(), profile = DEVELOPMENT_PROFILE) {
   assertValidDate(now);
+  assertFixtureProfile(profile);
+  const {documentIds, objectPaths} = profile;
   const createdAt = Timestamp.fromDate(new Date(now.getTime()));
   const sessionExpiredAt = Timestamp.fromDate(
       new Date(now.getTime() - (200 * DAY_IN_MILLIS)),
@@ -42,24 +75,24 @@ function buildFixtureDefinition(now = new Date()) {
       new Date(now.getTime() + (7 * DAY_IN_MILLIS)),
   );
   const marker = {
-    name: FIXTURE_MARKER,
-    owner: FIXTURE_OWNER,
-    issue: FIXTURE_ISSUE,
+    name: profile.marker,
+    owner: profile.owner,
+    issue: profile.issue,
     createdAt,
   };
 
   return {
     documents: {
       sessionExpired: {
-        path: `companionSessions/${SESSION_EXPIRED_ID}`,
+        path: `companionSessions/${documentIds.sessionExpired}`,
         data: {
           bodeulFixture: marker,
           currentStatus: "COMPLETED",
           completedAt: sessionExpiredAt,
           updatedAt: sessionExpiredAt,
           chatMessages: [{
-            body: "개발 파기 픽스처 메시지",
-            attachments: [{fullPath: OBJECT_PATHS.sessionExpired}],
+            body: `${profile.messagePrefix} 파기 픽스처 메시지`,
+            attachments: [{fullPath: objectPaths.sessionExpired}],
           }],
           sharedLatitude: 37.5665,
           sharedLongitude: 126.978,
@@ -70,7 +103,7 @@ function buildFixtureDefinition(now = new Date()) {
         },
       },
       sessionHeld: {
-        path: `companionSessions/${SESSION_HELD_ID}`,
+        path: `companionSessions/${documentIds.sessionHeld}`,
         data: {
           bodeulFixture: marker,
           currentStatus: "COMPLETED",
@@ -78,8 +111,8 @@ function buildFixtureDefinition(now = new Date()) {
           updatedAt: sessionExpiredAt,
           legalHoldUntil: heldUntil,
           chatMessages: [{
-            body: "개발 legal hold 픽스처 메시지",
-            attachments: [{fullPath: OBJECT_PATHS.sessionHeld}],
+            body: `${profile.messagePrefix} legal hold 픽스처 메시지`,
+            attachments: [{fullPath: objectPaths.sessionHeld}],
           }],
           sharedLatitude: 37.5665,
           sharedLongitude: 126.978,
@@ -88,7 +121,7 @@ function buildFixtureDefinition(now = new Date()) {
         },
       },
       managerExpired: {
-        path: `users/${MANAGER_EXPIRED_ID}`,
+        path: `users/${documentIds.managerExpired}`,
         data: {
           bodeulFixture: marker,
           role: "MANAGER",
@@ -98,16 +131,16 @@ function buildFixtureDefinition(now = new Date()) {
           managerDocumentUpdatedAt: managerExpiredAt,
           managerDocumentFiles: {
             idCard: {
-              fullPath: OBJECT_PATHS.managerExpired,
+              fullPath: objectPaths.managerExpired,
               uploadedAt: managerExpiredAt,
             },
           },
-          managerDocumentFilePaths: {idCard: OBJECT_PATHS.managerExpired},
-          managerIdCardStoragePath: OBJECT_PATHS.managerExpired,
+          managerDocumentFilePaths: {idCard: objectPaths.managerExpired},
+          managerIdCardStoragePath: objectPaths.managerExpired,
         },
       },
       managerHeld: {
-        path: `users/${MANAGER_HELD_ID}`,
+        path: `users/${documentIds.managerHeld}`,
         data: {
           bodeulFixture: marker,
           role: "MANAGER",
@@ -118,39 +151,44 @@ function buildFixtureDefinition(now = new Date()) {
           managerDocumentLegalHoldUntil: heldUntil,
           managerDocumentFiles: {
             license: {
-              fullPath: OBJECT_PATHS.managerHeld,
+              fullPath: objectPaths.managerHeld,
               uploadedAt: managerExpiredAt,
             },
           },
-          managerDocumentFilePaths: {license: OBJECT_PATHS.managerHeld},
-          managerLicenseStoragePath: OBJECT_PATHS.managerHeld,
+          managerDocumentFilePaths: {license: objectPaths.managerHeld},
+          managerLicenseStoragePath: objectPaths.managerHeld,
         },
       },
     },
-    objects: Object.values(OBJECT_PATHS),
+    objects: Object.values(objectPaths),
   };
 }
 
-async function setupFixture({firestore, bucket, now = new Date()}) {
-  const before = await inspectFixture({firestore, bucket, now});
+async function setupFixture({
+  firestore,
+  bucket,
+  now = new Date(),
+  profile = DEVELOPMENT_PROFILE,
+}) {
+  const before = await inspectFixture({firestore, bucket, now, profile});
   if (before.phase !== "ABSENT") {
     throw new Error(
         `픽스처가 비어 있지 않습니다(${before.phase}). cleanup 후 다시 실행해 주세요.`,
     );
   }
 
-  const fixture = buildFixtureDefinition(now);
+  const fixture = buildFixtureDefinition(now, profile);
   for (const objectPath of fixture.objects) {
     await bucket.file(objectPath).save(
-        Buffer.from(`fixture:${FIXTURE_MARKER}:${objectPath}`),
+        Buffer.from(`fixture:${profile.marker}:${objectPath}`),
         {
           resumable: false,
           metadata: {
             contentType: "application/pdf",
             metadata: {
-              bodeulFixture: FIXTURE_MARKER,
-              bodeulFixtureOwner: FIXTURE_OWNER,
-              bodeulFixtureIssue: FIXTURE_ISSUE,
+              bodeulFixture: profile.marker,
+              bodeulFixtureOwner: profile.owner,
+              bodeulFixtureIssue: profile.issue,
             },
           },
           preconditionOpts: {ifGenerationMatch: 0},
@@ -164,40 +202,48 @@ async function setupFixture({firestore, bucket, now = new Date()}) {
   }
   await batch.commit();
 
-  const after = await inspectFixture({firestore, bucket, now});
+  const after = await inspectFixture({firestore, bucket, now, profile});
   assertFixturePhase(after, "READY");
   return after;
 }
 
-async function runFixtureRetention({firestore, bucket, apply, now = new Date()}) {
-  const before = await inspectFixture({firestore, bucket, now});
+async function runFixtureRetention({
+  firestore,
+  bucket,
+  apply,
+  now = new Date(),
+  profile = DEVELOPMENT_PROFILE,
+}) {
+  const before = await inspectFixture({firestore, bucket, now, profile});
   assertFixturePhase(before, "READY");
 
   const summary = await runRetentionJob({
-    database: createFixtureDatabase(),
-    legacyStore: createScopedLegacyStore(firestore),
-    managerStore: createScopedManagerStore(firestore),
-    storage: createScopedStorageGateway(bucket),
+    database: createFixtureDatabase(profile),
+    legacyStore: createScopedLegacyStore(firestore, profile),
+    managerStore: createScopedManagerStore(firestore, profile),
+    storage: createScopedStorageGateway(bucket, profile),
     apply,
     now,
   });
   assertExpectedSummary(summary, apply);
 
-  const after = await inspectFixture({firestore, bucket, now});
+  const after = await inspectFixture({firestore, bucket, now, profile});
   assertFixturePhase(after, apply ? "APPLIED" : "READY");
   return {summary, status: after};
 }
 
-function createScopedLegacyStore(firestore) {
+function createScopedLegacyStore(firestore, profile = DEVELOPMENT_PROFILE) {
+  const {sessionIds} = profile;
   const delegate = new FirebaseLegacyCompanionStore(firestore, {
     documentGuard: (documentId, data) =>
-      SESSION_IDS.includes(documentId) && isFixtureMarker(data?.bodeulFixture),
+      sessionIds.includes(documentId) &&
+      isFixtureMarker(data?.bodeulFixture, profile),
   });
   return {
     async preview(asOf) {
       const documents = await getDocumentsById(
           firestore.collection("companionSessions"),
-          SESSION_IDS,
+          sessionIds,
       );
       const summary = {
         sessions: [],
@@ -207,7 +253,7 @@ function createScopedLegacyStore(firestore) {
         legalHoldSkips: 0,
       };
       for (const document of documents) {
-        assertFixtureDocument(document, SESSION_IDS, "동행 세션");
+        assertFixtureDocument(document, sessionIds, "동행 세션", profile);
         const evaluation = evaluateLegacyCompanionSession(
             document.id,
             document.data(),
@@ -224,26 +270,28 @@ function createScopedLegacyStore(firestore) {
       return summary;
     },
     async applySession(candidate, asOf, storage) {
-      assertAllowedId(candidate?.sessionId, SESSION_IDS, "동행 세션");
+      assertAllowedId(candidate?.sessionId, sessionIds, "동행 세션");
       return delegate.applySession(candidate, asOf, storage);
     },
   };
 }
 
-function createScopedManagerStore(firestore) {
+function createScopedManagerStore(firestore, profile = DEVELOPMENT_PROFILE) {
+  const {managerIds} = profile;
   const delegate = new FirebaseManagerDocumentStore(firestore, {
     documentGuard: (documentId, data) =>
-      MANAGER_IDS.includes(documentId) && isFixtureMarker(data?.bodeulFixture),
+      managerIds.includes(documentId) &&
+      isFixtureMarker(data?.bodeulFixture, profile),
   });
   return {
     async preview(asOf) {
       const documents = await getDocumentsById(
           firestore.collection("users"),
-          MANAGER_IDS,
+          managerIds,
       );
       const result = {candidates: [], legalHoldSkips: 0};
       for (const document of documents) {
-        assertFixtureDocument(document, MANAGER_IDS, "매니저");
+        assertFixtureDocument(document, managerIds, "매니저", profile);
         const evaluation = evaluateManagerDocument(
             document.id,
             document.data(),
@@ -255,18 +303,18 @@ function createScopedManagerStore(firestore) {
       return result;
     },
     async isStillEligible(candidate, asOf) {
-      assertAllowedId(candidate?.managerId, MANAGER_IDS, "매니저");
+      assertAllowedId(candidate?.managerId, managerIds, "매니저");
       return delegate.isStillEligible(candidate, asOf);
     },
     async clearReference(candidate, deletedAt) {
-      assertAllowedId(candidate?.managerId, MANAGER_IDS, "매니저");
+      assertAllowedId(candidate?.managerId, managerIds, "매니저");
       return delegate.clearReference(candidate, deletedAt);
     },
   };
 }
 
-function createScopedStorageGateway(bucket) {
-  const allowedPaths = new Set(Object.values(OBJECT_PATHS));
+function createScopedStorageGateway(bucket, profile = DEVELOPMENT_PROFILE) {
+  const allowedPaths = new Set(Object.values(profile.objectPaths));
   const scopedBucket = {
     file(storagePath) {
       assertAllowedStoragePath(storagePath, allowedPaths);
@@ -278,7 +326,7 @@ function createScopedStorageGateway(bucket) {
           }
           const file = bucket.file(storagePath);
           const [metadata] = await file.getMetadata();
-          if (!isFixtureObjectMetadata(metadata?.metadata)) {
+          if (!isFixtureObjectMetadata(metadata?.metadata, profile)) {
             throw new Error("Storage 객체의 픽스처 표식이 일치하지 않습니다.");
           }
           return bucket.file(storagePath, {generation: metadata.generation}).delete(options);
@@ -302,9 +350,9 @@ function assertAllowedId(documentId, allowedIds, label) {
   }
 }
 
-function assertFixtureDocument(document, allowedIds, label) {
+function assertFixtureDocument(document, allowedIds, label, profile) {
   assertAllowedId(document?.id, allowedIds, label);
-  if (!isFixtureMarker(document?.data()?.bodeulFixture)) {
+  if (!isFixtureMarker(document?.data()?.bodeulFixture, profile)) {
     throw new Error(`${label} 문서의 픽스처 표식이 일치하지 않습니다.`);
   }
 }
@@ -315,18 +363,23 @@ function assertAllowedStoragePath(storagePath, allowedPaths) {
   }
 }
 
-async function cleanupFixture({firestore, bucket, now = new Date()}) {
-  const before = await inspectFixture({firestore, bucket, now});
-  const ownership = await assertOwnedArtifacts({firestore, bucket});
+async function cleanupFixture({
+  firestore,
+  bucket,
+  now = new Date(),
+  profile = DEVELOPMENT_PROFILE,
+}) {
+  const before = await inspectFixture({firestore, bucket, now, profile});
+  const ownership = await assertOwnedArtifacts({firestore, bucket, profile});
 
-  for (const objectPath of Object.values(OBJECT_PATHS)) {
+  for (const objectPath of Object.values(profile.objectPaths)) {
     const generation = ownership.objectGenerations[objectPath];
     if (generation) {
       await bucket.file(objectPath, {generation}).delete({ignoreNotFound: true});
     }
   }
   const batch = firestore.batch();
-  for (const documentPath of fixtureDocumentPaths()) {
+  for (const documentPath of fixtureDocumentPaths(profile)) {
     const lastUpdateTime = ownership.documentUpdateTimes[documentPath];
     if (lastUpdateTime) {
       batch.delete(firestore.doc(documentPath), {lastUpdateTime});
@@ -334,18 +387,26 @@ async function cleanupFixture({firestore, bucket, now = new Date()}) {
   }
   await batch.commit();
 
-  const after = await inspectFixture({firestore, bucket, now});
+  const after = await inspectFixture({firestore, bucket, now, profile});
   assertFixturePhase(after, "ABSENT");
   return {before, after};
 }
 
-async function inspectFixture({firestore, bucket, now = new Date()}) {
+async function inspectFixture({
+  firestore,
+  bucket,
+  now = new Date(),
+  profile = DEVELOPMENT_PROFILE,
+}) {
   assertValidDate(now);
-  const documentEntries = Object.entries(buildFixtureDefinition(now).documents);
+  assertFixtureProfile(profile);
+  const documentEntries = Object.entries(
+      buildFixtureDefinition(now, profile).documents,
+  );
   const documentSnapshots = await Promise.all(
       documentEntries.map(([, document]) => firestore.doc(document.path).get()),
   );
-  const objectEntries = Object.entries(OBJECT_PATHS);
+  const objectEntries = Object.entries(profile.objectPaths);
   const objectStates = await Promise.all(objectEntries.map(async ([key, objectPath]) => {
     const file = bucket.file(objectPath);
     const [exists] = await file.exists();
@@ -355,7 +416,7 @@ async function inspectFixture({firestore, bucket, now = new Date()}) {
     const [metadata] = await file.getMetadata();
     return [key, {
       exists: true,
-      owned: isFixtureObjectMetadata(metadata?.metadata),
+      owned: isFixtureObjectMetadata(metadata?.metadata, profile),
     }];
   }));
 
@@ -363,16 +424,17 @@ async function inspectFixture({firestore, bucket, now = new Date()}) {
     const snapshot = documentSnapshots[index];
     return [key, {
       exists: snapshot.exists,
-      owned: snapshot.exists && isFixtureMarker(snapshot.data()?.bodeulFixture),
+      owned: snapshot.exists &&
+        isFixtureMarker(snapshot.data()?.bodeulFixture, profile),
       data: snapshot.exists ? snapshot.data() : null,
     }];
   }));
   const objects = Object.fromEntries(objectStates);
-  const evaluations = evaluateFixtureDocuments(documents, now);
+  const evaluations = evaluateFixtureDocuments(documents, now, profile);
 
   return {
-    projectId: DEVELOPMENT_PROJECT_ID,
-    marker: FIXTURE_MARKER,
+    projectId: profile.projectId,
+    marker: profile.marker,
     phase: resolveFixturePhase(documents, objects, evaluations),
     documents: summarizeArtifacts(documents),
     objects: summarizeArtifacts(objects),
@@ -380,32 +442,37 @@ async function inspectFixture({firestore, bucket, now = new Date()}) {
   };
 }
 
-function evaluateFixtureDocuments(documents, now) {
+function evaluateFixtureDocuments(documents, now, profile = DEVELOPMENT_PROFILE) {
+  const {documentIds} = profile;
   return {
-    sessionExpired: documents.sessionExpired.exists
+    sessionExpired: documents.sessionExpired.exists &&
+      documents.sessionExpired.owned
       ? evaluateLegacyCompanionSession(
-          SESSION_EXPIRED_ID,
+          documentIds.sessionExpired,
           documents.sessionExpired.data,
           now,
       )
       : null,
-    sessionHeld: documents.sessionHeld.exists
+    sessionHeld: documents.sessionHeld.exists &&
+      documents.sessionHeld.owned
       ? evaluateLegacyCompanionSession(
-          SESSION_HELD_ID,
+          documentIds.sessionHeld,
           documents.sessionHeld.data,
           now,
       )
       : null,
-    managerExpired: documents.managerExpired.exists
+    managerExpired: documents.managerExpired.exists &&
+      documents.managerExpired.owned
       ? evaluateManagerDocument(
-          MANAGER_EXPIRED_ID,
+          documentIds.managerExpired,
           documents.managerExpired.data,
           now,
       )
       : null,
-    managerHeld: documents.managerHeld.exists
+    managerHeld: documents.managerHeld.exists &&
+      documents.managerHeld.owned
       ? evaluateManagerDocument(
-          MANAGER_HELD_ID,
+          documentIds.managerHeld,
           documents.managerHeld.data,
           now,
       )
@@ -449,26 +516,31 @@ function resolveFixturePhase(documents, objects, evaluations) {
   return applied ? "APPLIED" : "PARTIAL";
 }
 
-async function assertOwnedArtifacts({firestore, bucket}) {
+async function assertOwnedArtifacts({
+  firestore,
+  bucket,
+  profile = DEVELOPMENT_PROFILE,
+}) {
   const documentUpdateTimes = {};
   const objectGenerations = {};
-  for (const documentPath of fixtureDocumentPaths()) {
+  for (const documentPath of fixtureDocumentPaths(profile)) {
     const snapshot = await firestore.doc(documentPath).get();
-    if (snapshot.exists && !isFixtureMarker(snapshot.data()?.bodeulFixture)) {
+    if (snapshot.exists &&
+        !isFixtureMarker(snapshot.data()?.bodeulFixture, profile)) {
       throw new Error(`픽스처 표식이 다른 문서는 삭제하지 않습니다: ${documentPath}`);
     }
     if (snapshot.exists) {
       documentUpdateTimes[documentPath] = snapshot.updateTime;
     }
   }
-  for (const objectPath of Object.values(OBJECT_PATHS)) {
+  for (const objectPath of Object.values(profile.objectPaths)) {
     const file = bucket.file(objectPath);
     const [exists] = await file.exists();
     if (!exists) {
       continue;
     }
     const [metadata] = await file.getMetadata();
-    if (!isFixtureObjectMetadata(metadata?.metadata)) {
+    if (!isFixtureObjectMetadata(metadata?.metadata, profile)) {
       throw new Error(`픽스처 표식이 다른 객체는 삭제하지 않습니다: ${objectPath}`);
     }
     objectGenerations[objectPath] = metadata.generation;
@@ -476,10 +548,10 @@ async function assertOwnedArtifacts({firestore, bucket}) {
   return {documentUpdateTimes, objectGenerations};
 }
 
-function createFixtureDatabase() {
+function createFixtureDatabase(profile = DEVELOPMENT_PROFILE) {
   return {
     async beginJob() {
-      return `${FIXTURE_MARKER}-local-job`;
+      return `${profile.marker}-local-job`;
     },
     async preview() {
       return {
@@ -539,12 +611,13 @@ function assertFixturePhase(status, expectedPhase) {
   }
 }
 
-function fixtureDocumentPaths() {
+function fixtureDocumentPaths(profile = DEVELOPMENT_PROFILE) {
+  const {documentIds} = profile;
   return [
-    `companionSessions/${SESSION_EXPIRED_ID}`,
-    `companionSessions/${SESSION_HELD_ID}`,
-    `users/${MANAGER_EXPIRED_ID}`,
-    `users/${MANAGER_HELD_ID}`,
+    `companionSessions/${documentIds.sessionExpired}`,
+    `companionSessions/${documentIds.sessionHeld}`,
+    `users/${documentIds.managerExpired}`,
+    `users/${documentIds.managerHeld}`,
   ];
 }
 
@@ -555,16 +628,23 @@ function summarizeArtifacts(artifacts) {
   ]));
 }
 
-function isFixtureMarker(value) {
-  return value?.name === FIXTURE_MARKER &&
-    value?.owner === FIXTURE_OWNER &&
-    String(value?.issue || "") === FIXTURE_ISSUE;
+function isFixtureMarker(value, profile = DEVELOPMENT_PROFILE) {
+  return value?.name === profile.marker &&
+    value?.owner === profile.owner &&
+    String(value?.issue || "") === profile.issue;
 }
 
-function isFixtureObjectMetadata(value) {
-  return value?.bodeulFixture === FIXTURE_MARKER &&
-    value?.bodeulFixtureOwner === FIXTURE_OWNER &&
-    String(value?.bodeulFixtureIssue || "") === FIXTURE_ISSUE;
+function isFixtureObjectMetadata(value, profile = DEVELOPMENT_PROFILE) {
+  return value?.bodeulFixture === profile.marker &&
+    value?.bodeulFixtureOwner === profile.owner &&
+    String(value?.bodeulFixtureIssue || "") === profile.issue;
+}
+
+function assertFixtureProfile(profile) {
+  if (!profile || !profile.projectId || !profile.marker ||
+      !profile.documentIds || !profile.objectPaths) {
+    throw new Error("Firebase 파기 픽스처 프로필이 올바르지 않습니다.");
+  }
 }
 
 function assertValidDate(value) {
@@ -574,10 +654,12 @@ function assertValidDate(value) {
 }
 
 module.exports = {
+  DEVELOPMENT_PROFILE,
   DEVELOPMENT_PROJECT_ID,
   FIXTURE_MARKER,
   MANAGER_IDS,
   OBJECT_PATHS,
+  PRODUCTION_PROFILE,
   SESSION_IDS,
   assertExpectedSummary,
   buildFixtureDefinition,

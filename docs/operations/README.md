@@ -45,6 +45,8 @@
 - [Firebase 설정](firebase/setup.md)
 - [Firebase 운영 도구](firebase/tools.md)
 - [Firebase 기준선 초기화](firebase/reset-baseline.md)
+- [개발 Firebase 자동 파기 픽스처](firebase/retention-development-fixture.md)
+- [Production Firebase 자동 파기 격리 픽스처](firebase/retention-production-fixture.md)
 
 ## 관련 문서
 

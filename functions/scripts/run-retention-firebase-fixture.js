@@ -5,6 +5,7 @@ const {getFirestore} = require("firebase-admin/firestore");
 const {getStorage} = require("firebase-admin/storage");
 
 const {
+  DEVELOPMENT_PROFILE,
   DEVELOPMENT_PROJECT_ID,
   cleanupFixture,
   inspectFixture,
@@ -37,38 +38,42 @@ async function main() {
   }
 }
 
-function initializeFixtureApp(appName) {
-  const storageBucket = `${DEVELOPMENT_PROJECT_ID}.firebasestorage.app`;
+function initializeFixtureApp(appName, profile = DEVELOPMENT_PROFILE) {
+  const storageBucket = `${profile.projectId}.firebasestorage.app`;
   return initializeApp({
-    projectId: DEVELOPMENT_PROJECT_ID,
+    projectId: profile.projectId,
     storageBucket,
     credential: applicationDefault(),
   }, appName);
 }
 
-function createFirebaseDependencies(app) {
-  const storageBucket = `${DEVELOPMENT_PROJECT_ID}.firebasestorage.app`;
+function createFirebaseDependencies(app, profile = DEVELOPMENT_PROFILE) {
+  const storageBucket = `${profile.projectId}.firebasestorage.app`;
   return {
     firestore: getFirestore(app),
     bucket: getStorage(app).bucket(storageBucket),
   };
 }
 
-async function runAction(action, dependencies) {
+async function runAction(
+    action,
+    dependencies,
+    profile = DEVELOPMENT_PROFILE,
+) {
   if (action === "setup") {
-    return setupFixture(dependencies);
+    return setupFixture({...dependencies, profile});
   }
   if (action === "status") {
-    return inspectFixture(dependencies);
+    return inspectFixture({...dependencies, profile});
   }
   if (action === "dry-run") {
-    return runFixtureRetention({...dependencies, apply: false});
+    return runFixtureRetention({...dependencies, profile, apply: false});
   }
   if (action === "apply") {
-    return runFixtureRetention({...dependencies, apply: true});
+    return runFixtureRetention({...dependencies, profile, apply: true});
   }
   if (action === "cleanup") {
-    return cleanupFixture(dependencies);
+    return cleanupFixture({...dependencies, profile});
   }
   throw new Error(`지원하지 않는 action입니다: ${action}`);
 }
