@@ -26,10 +26,19 @@ Google 계정 비밀번호를 여러 사람이 공유하지 않는다. 사람의
 - 관리자 그룹에는 두 Google Cloud 조직과 개발·production 프로젝트에서 기존 관리자 주체와 같은 권한을 병행 부여했다.
 - `developers@bodeul.kr`에는 현재 활동 중인 개발자 계정을 등록하고 `bodeul-dev`의 `roles/editor`를 병행 부여했다.
 - `prod-operators@bodeul.kr`에는 `bodeul-prod-110`의 Logging Viewer, Monitoring Viewer, Cloud Run Viewer, Secret Manager Viewer만 부여했다. Secret payload, Firestore 데이터와 Storage 객체 읽기 권한은 포함하지 않는다.
-- 관리자 그룹의 두 소유자 계정으로 개발·production 프로젝트와 두 조직의 IAM 조회를 검증했다.
-- 검증 뒤 `scp@bodeul.kr`의 중복 직접 관리자 IAM binding을 제거했으며, 관리자 권한은 `gcp-admins@bodeul.kr`로만 부여한다.
-- 개발자 개인 계정의 기존 `bodeul-dev` 직접 binding은 각 계정의 그룹 경유 접근을 확인하기 전까지 유지한다.
+- 주 관리자와 복구용 관리자에 해당하는 두 그룹 소유자 계정으로 개발·production 프로젝트와 두 조직의 IAM 조회를 그룹 경유로 각각 검증했다.
+- 검증 뒤 두 프로젝트와 두 조직에서 `scp@bodeul.kr`의 직접 관리자 IAM binding을 모두 제거했다. 직접 관리자 binding은 0건이며 관리자 권한은 `gcp-admins@bodeul.kr`로만 부여한다.
+- 팀에서 제외된 이전 개발자 계정의 `bodeul-dev` 직접 `roles/editor` binding을 제거했다.
+- 현재 활동 중인 개발자 계정의 기존 `bodeul-dev` 직접 `roles/editor` binding은 각 계정의 그룹 경유 접근을 확인하기 전까지만 유지한다.
 - 저장소의 로컬 Git 작성자 정보는 공용 Gmail이 아니라 GitHub `bodeul110`의 비공개 noreply 주소를 사용한다.
+
+### Google Workspace 확인 결과
+
+- Google Admin Console에는 관리 사용자 `scp@bodeul.kr` 한 명과 Google Workspace Business Standard 라이선스 한 개만 있다.
+- `scp@bodeul.kr`에는 보조 이메일 주소와 이메일 별칭이 등록돼 있지 않다.
+- 관리 도메인은 기본 도메인 `bodeul.kr`, 시스템 게스트 도메인, 가입 시 생성된 테스트 도메인 별칭뿐이다.
+- `bodeul.kr`로 이전할 비관리 Google 계정은 0건이다.
+- `bodeul.official@gmail.com`은 두 프로젝트, 두 조직과 세 역할 그룹에서 IAM 주체로 사용되지 않는다. 따라서 이 주소는 사이트용 외부 계정으로 유지하고 Google Cloud 권한을 부여하지 않는다.
 
 ## 조직 경계
 
@@ -52,7 +61,7 @@ Google Cloud에는 `bodeul326-org`와 `bodeul.kr` 두 조직이 보인다. 현�
 5. 감사 로그에서 새 계정 또는 그룹 경유 접근을 확인한다.
 6. 검증이 끝난 뒤에만 기존 직접 IAM binding을 제거한다. 관리자 binding은 2026-08-23에 이 절차를 완료했다.
 
-계정 삭제, 이메일 별칭 제거와 프로젝트 조직 이동을 먼저 실행하지 않는다. `bodeul.official@gmail.com` 로그인 시 다른 Workspace 계정으로 귀결되는 원인은 Google Admin Console의 사용자 별칭, 도메인, 미관리 계정 이전 상태를 확인하기 전까지 확정하지 않는다.
+계정 삭제, 이메일 별칭 제거와 프로젝트 조직 이동을 먼저 실행하지 않는다. Google Admin Console 검증 결과 `bodeul.official@gmail.com`과 `scp@bodeul.kr` 사이의 Workspace 별칭이나 비관리 계정 충돌은 없다. 로그인 시 `scp@bodeul.kr`로 전환되는 현상은 두 계정을 합친 서버 설정이 아니라 브라우저 프로필과 Google 계정 선택 세션을 분리해 확인한다.
 
 ## 점검 명령
 
