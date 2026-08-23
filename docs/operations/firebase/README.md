@@ -10,6 +10,8 @@ Firebase 프로젝트 설정, 개발 기준선 초기화, 운영 도구 사용�
   - `tools/firebase` 스크립트와 preflight/backup/restore/report 실행법
 - [Firebase 기준선 초기화](reset-baseline.md)
   - Firestore 개발 데이터 리셋과 재시드 기준
+- [개발 Firebase 자동 파기 픽스처](retention-development-fixture.md)
+  - 전환 문서와 매니저 증빙의 격리 setup/dry-run/apply/status/cleanup 절차
 
 ## 같이 볼 문서
 

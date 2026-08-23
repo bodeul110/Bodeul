@@ -93,5 +93,6 @@
 - 개발 환경의 두 예약 함수는 Supabase CA와 DB URL을 각각 Secret Manager에서 주입하고 서버 인증서 검증을 강제한다.
 - 월간 보고는 원문, 사용자 ID, 좌표, Storage 경로 없이 건수와 실패 단계만 기록한다.
 - 개발 환경에서 새 Core 중첩 첨부 경로의 PostgreSQL·Storage 격리 fixture APPLY, 메타데이터 비식별화와 legal hold 보존을 확인했다. fixture를 정리한 뒤 정기 apply 플래그를 `false`로 복구했고 최종 dry-run 후보는 0건이다.
+- Firestore 전환 문서와 매니저 증빙은 `bodeul-dev`의 고정 합성 문서·객체만 다루는 픽스처 실행 경계를 준비하고 Emulator 생명주기 검증을 통과했다. 실제 개발 Firebase APPLY 결과는 아직 남아 있다.
 - 구현과 검증 근거는 [#222 개인정보 자동 파기 구현 기록](../reports/issue-222-data-retention-2026-07-19.md)에 정리한다.
 - production 활성화는 개인정보 처리방침, 위치기반서비스 이용약관, 개인정보 보호책임자 또는 법률 검토가 끝난 뒤 진행한다.

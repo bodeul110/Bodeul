@@ -1,7 +1,7 @@
 # #222 개인정보 자동 파기 구현 기록
 
 기준일: 2026-07-19
-최종 갱신: 2026-07-28
+최종 갱신: 2026-08-23
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -144,6 +144,17 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - legal hold가 설정된 세션의 본문·위치·첨부와 매니저 증빙은 두 실행 모두 Firestore 참조와 Storage 원본을 유지했다.
 - Node.js 22.23.2에서 파기 Emulator 테스트 1/1, 기존 Firestore·Storage Rules 테스트 7/7과 Functions 일반 테스트 19개가 통과했다.
 - 이 결과는 transaction과 Storage 객체 삭제 경로를 로컬 격리 환경에서 검증한 것이다. 개발 Firebase의 실제 전환 문서·매니저 증빙 fixture APPLY와 결과 대조를 대신하지 않는다.
+
+## 2026-08-23 개발 Firebase 픽스처 실행 경계
+
+- `bodeul-dev`와 기본 Storage 버킷만 허용하는 Firestore·Storage 픽스처 실행기를 추가했다.
+- 고정 합성 문서 4개와 객체 4개만 allowlist로 다루며, production 프로젝트, Emulator 환경변수와 다른 프로젝트 환경값은 실행 전에 거부한다.
+- 쓰기 작업은 프로젝트 확인값을 요구하고, 문서와 객체의 픽스처 이름·저장소 소유자·이슈 번호가 모두 맞아야 정리한다.
+- Storage 생성은 generation 0, 삭제는 확인한 generation을 전제로 실행한다. Firestore 생성은 `create`, 정리는 확인한 update time을 전제로 실행해 같은 경로의 동시 변경을 덮어쓰거나 삭제하지 않는다.
+- 실제 파기 클래스는 scoped adapter 뒤에서 재사용한다. PostgreSQL adapter는 후보 0건으로 고정하며, 일반 개발 문서를 전체 조회하거나 정기 apply 플래그를 바꾸지 않는다.
+- Node.js 22.23.2에서 Functions 일반 테스트 28개가 통과했고, 같은 실행의 Emulator 통합 테스트 2개는 Emulator 환경변수가 없어 건너뛰었다. Firestore·Storage Emulator를 별도로 실행한 기존 실패·재시도와 새 픽스처 생명주기 테스트는 2/2 통과했다. Firebase 도구 단위 테스트도 33/33 통과했다.
+- 실행 순서와 중단 기준은 [개발 Firebase 자동 파기 픽스처](../operations/firebase/retention-development-fixture.md)에 고정했다.
+- 이 단계는 실행기와 로컬 격리 검증까지다. 실제 `bodeul-dev`의 `setup -> dry-run -> apply -> status -> cleanup` 결과는 아직 기록하지 않았으므로 두 개발 fixture 완료 항목은 계속 미완료로 둔다.
 
 ## 리스크와 전환 조건
 

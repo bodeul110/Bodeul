@@ -11,6 +11,12 @@ const {
   FirebaseStorageGateway,
   runRetentionJob,
 } = require("../src/retention");
+const {
+  cleanupFixture,
+  inspectFixture,
+  runFixtureRetention,
+  setupFixture,
+} = require("../scripts/lib/retention-firebase-fixture");
 
 const projectId = "bodeul-retention-emulator";
 const emulatorRequired = process.env.RETENTION_EMULATOR_TEST_REQUIRED === "true";
@@ -187,6 +193,49 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     await assertHeldData(firestore, bucket, paths);
     assert.deepEqual(finishes.map((finish) => finish.status), ["COMPLETED", "COMPLETED"]);
   } finally {
+    await clearFirestore();
+    await deleteApp(app);
+  }
+});
+
+test("개발 Firebase 픽스처 생명주기를 Emulator에서 격리 검증한다", {
+  skip: !emulatorRequired && !emulatorConfigured,
+}, async () => {
+  assert.equal(isLoopbackEmulatorHost(process.env.FIRESTORE_EMULATOR_HOST), true);
+  assert.equal(isLoopbackEmulatorHost(process.env.FIREBASE_STORAGE_EMULATOR_HOST), true);
+
+  const app = initializeApp({
+    projectId,
+    storageBucket: `${projectId}.firebasestorage.app`,
+  }, `retention-fixture-emulator-${process.pid}`);
+  const dependencies = {
+    firestore: getFirestore(app),
+    bucket: getStorage(app).bucket(),
+  };
+  const now = new Date("2026-08-23T00:00:00.000Z");
+
+  try {
+    await clearFirestore();
+    assert.equal((await inspectFixture({...dependencies, now})).phase, "ABSENT");
+    assert.equal((await setupFixture({...dependencies, now})).phase, "READY");
+
+    const dryRun = await runFixtureRetention({...dependencies, apply: false, now});
+    assert.equal(dryRun.summary.mode, "DRY_RUN");
+    assert.equal(dryRun.status.phase, "READY");
+
+    const apply = await runFixtureRetention({...dependencies, apply: true, now});
+    assert.equal(apply.summary.mode, "APPLY");
+    assert.equal(apply.status.phase, "APPLIED");
+
+    const cleanup = await cleanupFixture({...dependencies, now});
+    assert.equal(cleanup.before.phase, "APPLIED");
+    assert.equal(cleanup.after.phase, "ABSENT");
+  } finally {
+    try {
+      await cleanupFixture({...dependencies, now});
+    } catch (_error) {
+      // 본문 assertion을 보존하고 Emulator 문서는 아래에서 일괄 정리한다.
+    }
     await clearFirestore();
     await deleteApp(app);
   }
