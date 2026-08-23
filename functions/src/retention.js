@@ -208,8 +208,9 @@ class PostgresRetentionRepository {
 }
 
 class FirebaseManagerDocumentStore {
-  constructor(firestore) {
+  constructor(firestore, {documentGuard} = {}) {
     this.firestore = firestore;
+    this.documentGuard = normalizeDocumentGuard(documentGuard);
   }
 
   async preview(asOf) {
@@ -222,6 +223,7 @@ class FirebaseManagerDocumentStore {
       legalHoldSkips: 0,
     };
     for (const document of snapshot.docs) {
+      assertDocumentGuard(this.documentGuard, document);
       const evaluation = evaluateManagerDocument(
           document.id,
           document.data(),
@@ -238,6 +240,7 @@ class FirebaseManagerDocumentStore {
     if (!snapshot.exists) {
       return false;
     }
+    assertDocumentGuard(this.documentGuard, snapshot);
     return evaluateManagerDocument(snapshot.id, snapshot.data(), asOf)
         .candidates
         .some((current) => sameManagerDocumentCandidate(current, candidate));
@@ -250,6 +253,7 @@ class FirebaseManagerDocumentStore {
       if (!snapshot.exists) {
         return false;
       }
+      assertDocumentGuard(this.documentGuard, snapshot);
       const currentCandidate = evaluateManagerDocument(
           snapshot.id,
           snapshot.data(),
@@ -275,8 +279,9 @@ class FirebaseManagerDocumentStore {
 }
 
 class FirebaseLegacyCompanionStore {
-  constructor(firestore) {
+  constructor(firestore, {documentGuard} = {}) {
     this.firestore = firestore;
+    this.documentGuard = normalizeDocumentGuard(documentGuard);
   }
 
   async preview(asOf) {
@@ -296,6 +301,7 @@ class FirebaseLegacyCompanionStore {
       }
       const snapshot = await query.get();
       for (const document of snapshot.docs) {
+        assertDocumentGuard(this.documentGuard, document);
         const evaluation = evaluateLegacyCompanionSession(
             document.id,
             document.data(),
@@ -322,6 +328,7 @@ class FirebaseLegacyCompanionStore {
     if (!snapshot.exists) {
       return emptyLegacyApplyResult();
     }
+    assertDocumentGuard(this.documentGuard, snapshot);
     const evaluation = evaluateLegacyCompanionSession(snapshot.id, snapshot.data(), asOf);
     if (!evaluation.hasWork) {
       return emptyLegacyApplyResult();
@@ -343,6 +350,7 @@ class FirebaseLegacyCompanionStore {
       if (!currentSnapshot.exists) {
         return emptyLegacyApplyResult();
       }
+      assertDocumentGuard(this.documentGuard, currentSnapshot);
       const currentData = currentSnapshot.data();
       const currentEvaluation = evaluateLegacyCompanionSession(
           currentSnapshot.id,
@@ -388,6 +396,22 @@ class FirebaseLegacyCompanionStore {
     });
 
     return {...result, attachmentDeleteFailures};
+  }
+}
+
+function normalizeDocumentGuard(documentGuard) {
+  if (documentGuard === undefined || documentGuard === null) {
+    return null;
+  }
+  if (typeof documentGuard !== "function") {
+    throw createRetentionError("FIRESTORE_DOCUMENT_GUARD_INVALID");
+  }
+  return documentGuard;
+}
+
+function assertDocumentGuard(documentGuard, snapshot) {
+  if (documentGuard && !documentGuard(snapshot.id, snapshot.data())) {
+    throw createRetentionError("FIRESTORE_DOCUMENT_GUARD_REJECTED");
   }
 }
 

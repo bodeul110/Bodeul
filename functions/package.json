@@ -12,6 +12,7 @@
     "test:retention:emulator": "node scripts/run-retention-emulator-tests.js",
     "retention:dry-run": "node scripts/run-retention.js --dry-run",
     "retention:apply": "node scripts/run-retention.js --apply",
+    "retention:firebase-fixture": "node scripts/run-retention-firebase-fixture.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
