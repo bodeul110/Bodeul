@@ -131,8 +131,8 @@ class GuideDeviceFixtureApplicationTests {
     ) {
         return new GuideDeviceFixtureApplication.FixtureSummary(
                 action,
-                5,
-                5,
+                6,
+                6,
                 9,
                 "PHARMACY_ROUTE",
                 "HOSPITAL_GUIDE_STEP_CODE_V1",
