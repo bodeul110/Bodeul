@@ -49,6 +49,21 @@ on:
         required: false
         default: ""
         type: string
+      guide_device_fixture_action:
+        description: preview 가이드 실기기 fixture 작업
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - setup
+          - status
+          - cleanup
+      confirm_guide_device_fixture_project:
+        description: 가이드 실기기 fixture 작업 시 bodeul-dev를 입력하세요.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -84,6 +99,8 @@ jobs:
           COMPANION_SESSION_SEED_SHA256: ${{ inputs.companion_session_seed_sha256 }}
           RETENTION_FIXTURE_ACTION: ${{ inputs.retention_fixture_action }}
           RETENTION_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_retention_fixture_project }}
+          GUIDE_DEVICE_FIXTURE_ACTION: ${{ inputs.guide_device_fixture_action }}
+          GUIDE_DEVICE_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_guide_device_fixture_project }}
         run: |
           set -euo pipefail
 
@@ -136,6 +153,21 @@ jobs:
             fi
             if [ "${{ inputs.apply_companion_session_seed }}" = "true" ]; then
               echo "동행 세션 백필과 자동 파기 fixture를 같은 실행에서 적용할 수 없습니다." >&2
+              exit 1
+            fi
+          fi
+
+          if [ "$GUIDE_DEVICE_FIXTURE_ACTION" != "none" ]; then
+            if [ "$MIGRATION_TARGET" != "preview" ] || [ "$GITHUB_REF" != "refs/heads/master" ]; then
+              echo "가이드 실기기 fixture는 master의 preview DB에서만 실행할 수 있습니다." >&2
+              exit 1
+            fi
+            if [ "$GUIDE_DEVICE_FIXTURE_CONFIRM_PROJECT" != "bodeul-dev" ]; then
+              echo "가이드 실기기 fixture 프로젝트 확인값이 일치하지 않습니다." >&2
+              exit 1
+            fi
+            if [ "${{ inputs.apply_companion_session_seed }}" = "true" ] || [ "$RETENTION_FIXTURE_ACTION" != "none" ]; then
+              echo "가이드 실기기 fixture는 다른 fixture 또는 seed와 같은 실행에서 적용할 수 없습니다." >&2
               exit 1
             fi
           fi
@@ -223,6 +255,16 @@ jobs:
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
         run: ./gradlew runRetentionFixture --console=plain
 
+      - name: 가이드 실기기 fixture 실행
+        if: inputs.guide_device_fixture_action != 'none'
+        env:
+          GUIDE_DEVICE_FIXTURE_ACTION: ${{ inputs.guide_device_fixture_action }}
+          GUIDE_DEVICE_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_guide_device_fixture_project }}
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: ./gradlew runGuideDeviceFixture --console=plain
+
       - name: 동행 세션 백필 파일 삭제
         if: always() && inputs.apply_companion_session_seed
         shell: bash
@@ -248,5 +290,9 @@ jobs:
             if [ "${{ inputs.retention_fixture_action }}" != "none" ]; then
               echo "- Retention fixture: ${{ inputs.retention_fixture_action }}"
               echo "- Retention fixture project: bodeul-dev"
+            fi
+            if [ "${{ inputs.guide_device_fixture_action }}" != "none" ]; then
+              echo "- Guide device fixture: ${{ inputs.guide_device_fixture_action }}"
+              echo "- Guide device fixture project: bodeul-dev"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"

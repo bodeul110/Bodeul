@@ -24,6 +24,8 @@
   - Supabase, Cloud Run, GitHub Environment, API 서버 전환 준비 절차
 - [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)
   - Core API 컨테이너, WIF, Secret Manager, 배포와 rollback 절차
+- [Core API 가이드 실기기 fixture](core-api-guide-device-fixture.md)
+  - preview 13단계 가이드의 setup, status, cleanup과 실기기 검증 기준
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
 - [Production 인프라 기본값](production-infrastructure-defaults.md)
