@@ -118,7 +118,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - 서비스 계정 JSON key는 발급하지 않고 GitHub OIDC와 WIF를 사용한다.
 - 모든 관리자 계정에 MFA를 적용하고 공용 계정을 금지한다.
 - 출시 전 최소 2명의 실명 운영자를 정해 한 명의 계정 잠금이 전체 운영 중단으로 이어지지 않게 한다.
-- `gcp-admins@bodeul.kr`에 서로 다른 두 소유자 계정을 등록하고 두 조직 및 개발·production 프로젝트의 관리자 권한을 병행 부여했다. 기존 직접 IAM binding은 새 계정 로그인 검증 뒤 제거한다.
+- `gcp-admins@bodeul.kr`에 서로 다른 두 소유자 계정을 등록하고 두 조직 및 개발·production 프로젝트 조회를 두 계정으로 검증했다. 검증 뒤 `scp@bodeul.kr`의 중복 직접 관리자 IAM binding을 제거했다.
 - 개발자는 `developers@bodeul.kr`, production 조회 담당자는 `prod-operators@bodeul.kr`로 관리한다. production 조회 그룹에는 로그·모니터링·Cloud Run·Secret 메타데이터 조회만 허용한다.
 - Google Cloud budget 알림 임계값은 50%, 80%, 100%로 고정한다. 개발 10,000 KRW, production 30,000 KRW를 유지한다.
 - 실제 사용자 데이터 투입 전 Supabase 조직을 Pro로, 실제 운영 전 Vercel을 개발자 좌석 2개의 Pro로 전환한다.

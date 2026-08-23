@@ -26,7 +26,9 @@ Google 계정 비밀번호를 여러 사람이 공유하지 않는다. 사람의
 - 관리자 그룹에는 두 Google Cloud 조직과 개발·production 프로젝트에서 기존 관리자 주체와 같은 권한을 병행 부여했다.
 - `developers@bodeul.kr`에는 현재 활동 중인 개발자 계정을 등록하고 `bodeul-dev`의 `roles/editor`를 병행 부여했다.
 - `prod-operators@bodeul.kr`에는 `bodeul-prod-110`의 Logging Viewer, Monitoring Viewer, Cloud Run Viewer, Secret Manager Viewer만 부여했다. Secret payload, Firestore 데이터와 Storage 객체 읽기 권한은 포함하지 않는다.
-- 기존 개인별 직접 IAM binding은 그룹 경유 로그인을 검증하기 전까지 유지한다.
+- 관리자 그룹의 두 소유자 계정으로 개발·production 프로젝트와 두 조직의 IAM 조회를 검증했다.
+- 검증 뒤 `scp@bodeul.kr`의 중복 직접 관리자 IAM binding을 제거했으며, 관리자 권한은 `gcp-admins@bodeul.kr`로만 부여한다.
+- 개발자 개인 계정의 기존 `bodeul-dev` 직접 binding은 각 계정의 그룹 경유 접근을 확인하기 전까지 유지한다.
 - 저장소의 로컬 Git 작성자 정보는 공용 Gmail이 아니라 GitHub `bodeul110`의 비공개 noreply 주소를 사용한다.
 
 ## 조직 경계
@@ -48,7 +50,7 @@ Google Cloud에는 `bodeul326-org`와 `bodeul.kr` 두 조직이 보인다. 현�
 3. 새 계정으로 Google Cloud Console, Firebase Console과 필요한 CLI 조회를 검증한다.
 4. production 쓰기 권한은 필요한 역할만 별도로 승인한다.
 5. 감사 로그에서 새 계정 또는 그룹 경유 접근을 확인한다.
-6. 검증이 끝난 뒤에만 기존 직접 IAM binding을 제거한다.
+6. 검증이 끝난 뒤에만 기존 직접 IAM binding을 제거한다. 관리자 binding은 2026-08-23에 이 절차를 완료했다.
 
 계정 삭제, 이메일 별칭 제거와 프로젝트 조직 이동을 먼저 실행하지 않는다. `bodeul.official@gmail.com` 로그인 시 다른 Workspace 계정으로 귀결되는 원인은 Google Admin Console의 사용자 별칭, 도메인, 미관리 계정 이전 상태를 확인하기 전까지 확정하지 않는다.
 
