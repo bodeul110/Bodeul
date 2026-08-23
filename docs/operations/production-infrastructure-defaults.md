@@ -12,6 +12,7 @@
 - 관리자 웹은 Vercel Next.js 서버, 사용자 서비스는 Cloud Run Spring Core API가 담당한다.
 - 두 서버는 같은 production PostgreSQL을 서로 다른 최소 권한 role로 사용하며 서로를 proxy로 호출하지 않는다.
 - Firebase Auth, FCM, Storage와 Firebase 결합 Functions는 production Firebase 프로젝트에서 유지한다.
+- 사람의 Google Cloud 권한은 역할별 Cloud Identity 보안 그룹으로 관리하고, CI와 런타임은 WIF와 서비스 계정을 사용한다.
 - 개발 Preview를 출시 전 검증 환경으로 사용하고, 현재 규모에서는 세 번째 staging 환경을 만들지 않는다.
 - 목표 production 전환일은 2026-12-15 10:00 KST로 둔다.
 - 월 반복 비용 승인 한도는 150,000 KRW, 정상 목표는 100,000~130,000 KRW로 둔다.
@@ -117,6 +118,8 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - 서비스 계정 JSON key는 발급하지 않고 GitHub OIDC와 WIF를 사용한다.
 - 모든 관리자 계정에 MFA를 적용하고 공용 계정을 금지한다.
 - 출시 전 최소 2명의 실명 운영자를 정해 한 명의 계정 잠금이 전체 운영 중단으로 이어지지 않게 한다.
+- `gcp-admins@bodeul.kr`에 서로 다른 두 소유자 계정을 등록하고 두 조직 및 개발·production 프로젝트의 관리자 권한을 병행 부여했다. 기존 직접 IAM binding은 새 계정 로그인 검증 뒤 제거한다.
+- 개발자는 `developers@bodeul.kr`, production 조회 담당자는 `prod-operators@bodeul.kr`로 관리한다. production 조회 그룹에는 로그·모니터링·Cloud Run·Secret 메타데이터 조회만 허용한다.
 - Google Cloud budget 알림 임계값은 50%, 80%, 100%로 고정한다. 개발 10,000 KRW, production 30,000 KRW를 유지한다.
 - 실제 사용자 데이터 투입 전 Supabase 조직을 Pro로, 실제 운영 전 Vercel을 개발자 좌석 2개의 Pro로 전환한다.
 - Supabase spend cap을 유지하고 PITR, custom domain과 Log Drain은 초기 운영 비용에 포함하지 않는다.
@@ -172,5 +175,6 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - [비용과 쿼터 모니터링](cost-monitoring.md)
 - [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)
 - [데이터 보관 및 파기 정책](data-retention-policy.md)
+- [Google Cloud 계정 및 IAM 운영 기준](google-cloud-access-governance.md)
 - [Production PostgreSQL 백업·복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md)
 - [Production PostgreSQL V13 migration·복원 검증](../reports/postgres-production-v13-migration-restore-2026-07-19.md)
