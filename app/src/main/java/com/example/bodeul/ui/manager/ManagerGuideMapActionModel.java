@@ -12,6 +12,7 @@ public final class ManagerGuideMapActionModel {
     private final String queryText;
     @Nullable
     private final String directUrl;
+    private final boolean kakaoPlaceSearch;
 
     public ManagerGuideMapActionModel(
             String title,
@@ -20,11 +21,38 @@ public final class ManagerGuideMapActionModel {
             String queryText,
             @Nullable String directUrl
     ) {
+        this(title, body, buttonLabel, queryText, directUrl, false);
+    }
+
+    private ManagerGuideMapActionModel(
+            String title,
+            String body,
+            String buttonLabel,
+            String queryText,
+            @Nullable String directUrl,
+            boolean kakaoPlaceSearch
+    ) {
         this.title = title;
         this.body = body;
         this.buttonLabel = buttonLabel;
         this.queryText = queryText;
         this.directUrl = directUrl;
+        this.kakaoPlaceSearch = kakaoPlaceSearch;
+    }
+
+    static ManagerGuideMapActionModel createKakaoPlaceSearch(
+            String title,
+            String body,
+            String buttonLabel
+    ) {
+        return new ManagerGuideMapActionModel(
+                title,
+                body,
+                buttonLabel,
+                "",
+                null,
+                true
+        );
     }
 
     public String getTitle() {
@@ -46,5 +74,9 @@ public final class ManagerGuideMapActionModel {
     @Nullable
     public String getDirectUrl() {
         return directUrl;
+    }
+
+    boolean isKakaoPlaceSearch() {
+        return kakaoPlaceSearch;
     }
 }

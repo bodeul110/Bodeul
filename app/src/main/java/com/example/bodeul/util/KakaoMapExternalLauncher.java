@@ -10,7 +10,48 @@ import android.text.TextUtils;
  * 카카오 지도 앱과 모바일웹을 우선 사용하고, 실패하면 일반 지도 검색으로 내려가는 외부 지도 실행기다.
  */
 public final class KakaoMapExternalLauncher {
+    private static final String KAKAO_PLACE_SEARCH_URL = "kakaomap://open?page=placeSearch";
+    private static final String KAKAO_MOBILE_PLACE_SEARCH_URL =
+            "http://m.map.kakao.com/scheme/open?page=placeSearch";
+    private static final String KAKAO_MAP_MARKET_URL =
+            "market://details?id=net.daum.android.map";
+    private static final String KAKAO_MAP_PLAY_STORE_URL =
+            "https://play.google.com/store/apps/details?id=net.daum.android.map";
+
+    public enum PlaceSearchResult {
+        KAKAO_APP,
+        MOBILE_WEB,
+        APP_STORE,
+        FAILED
+    }
+
+    @FunctionalInterface
+    interface UrlStarter {
+        boolean start(String url);
+    }
+
     private KakaoMapExternalLauncher() {
+    }
+
+    public static PlaceSearchResult openPlaceSearch(Context context) {
+        return openPlaceSearch(url -> tryStart(
+                context,
+                new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        ));
+    }
+
+    static PlaceSearchResult openPlaceSearch(UrlStarter starter) {
+        if (starter.start(KAKAO_PLACE_SEARCH_URL)) {
+            return PlaceSearchResult.KAKAO_APP;
+        }
+        if (starter.start(KAKAO_MOBILE_PLACE_SEARCH_URL)) {
+            return PlaceSearchResult.MOBILE_WEB;
+        }
+        if (starter.start(KAKAO_MAP_MARKET_URL)
+                || starter.start(KAKAO_MAP_PLAY_STORE_URL)) {
+            return PlaceSearchResult.APP_STORE;
+        }
+        return PlaceSearchResult.FAILED;
     }
 
     public static boolean openSearch(Context context, String query) {
@@ -55,13 +96,10 @@ public final class KakaoMapExternalLauncher {
 
     private static boolean tryStart(Context context, Intent intent) {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (intent.resolveActivity(context.getPackageManager()) == null) {
-            return false;
-        }
         try {
             context.startActivity(intent);
             return true;
-        } catch (ActivityNotFoundException ignored) {
+        } catch (ActivityNotFoundException | SecurityException ignored) {
             return false;
         }
     }

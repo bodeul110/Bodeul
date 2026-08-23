@@ -62,6 +62,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
     private boolean activityVisible;
+    private boolean pharmacySearchNavigationInProgress;
 
     private View managerGuideStatePanel;
     private View managerGuideContentContainer;
@@ -472,8 +473,25 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void openMapFallback(ManagerGuideMapActionModel model) {
-        if (!ManagerGuideMapFallbackLauncher.open(this, model)) {
-            Toast.makeText(this, R.string.guide_map_open_error, Toast.LENGTH_SHORT).show();
+        ManagerGuideMapFallbackLauncher.OpenResult result =
+                ManagerGuideMapFallbackLauncher.open(this, model);
+        if (model.isKakaoPlaceSearch()
+                && result != ManagerGuideMapFallbackLauncher.OpenResult.FAILED) {
+            pharmacySearchNavigationInProgress = true;
+        }
+        switch (result) {
+            case OPENED_WEB_FALLBACK:
+                Toast.makeText(this, R.string.guide_map_web_fallback_notice, Toast.LENGTH_SHORT).show();
+                break;
+            case OPENED_APP_STORE:
+                Toast.makeText(this, R.string.guide_map_install_fallback_notice, Toast.LENGTH_SHORT).show();
+                break;
+            case FAILED:
+                Toast.makeText(this, R.string.guide_map_open_error, Toast.LENGTH_SHORT).show();
+                break;
+            case OPENED:
+            default:
+                break;
         }
     }
 
@@ -581,12 +599,19 @@ public class ManagerGuideActivity extends AppCompatActivity {
         super.onStart();
         activityVisible = true;
         StatePanelHelper.hide(managerGuideStatePanel);
+        if (pharmacySearchNavigationInProgress) {
+            pharmacySearchNavigationInProgress = false;
+            return;
+        }
         viewModel.reload();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (activityVisible && pharmacySearchNavigationInProgress) {
+            pharmacySearchNavigationInProgress = false;
+        }
         if (mapView != null) {
             mapView.resume();
         }
@@ -608,6 +633,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
             stopTrackerOnly();
             return;
         }
+        if (pharmacySearchNavigationInProgress) {
+            return;
+        }
         ManagerDashboard dashboard = viewModel.getUiState().getValue() != null ? viewModel.getUiState().getValue().dashboard : null;
         if (dashboard != null && dashboard.getSession().isLiveLocationSharingActive()) {
             stopLiveLocationSharing(true, false);
@@ -619,7 +647,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private void syncLiveLocationTrackingWithDashboard(@Nullable ManagerDashboard dashboard) {
         CompanionSession session = dashboard == null ? null : dashboard.getSession();
         if (!activityVisible) {
-            stopTrackerOnly();
+            if (!pharmacySearchNavigationInProgress) {
+                stopTrackerOnly();
+            }
             return;
         }
         if (session == null || !session.isLiveLocationSharingActive()) {

@@ -187,19 +187,18 @@ public final class ManagerGuideCoordinator {
                 meetingMapUrl
         ));
 
-        String pharmacyQuery = hospitalName + " 인근 약국";
-        String pharmacySearchUrl = hasCoordinates
-                ? buildKakaoSearchUrl(pharmacyQuery)
-                : null;
-
-        actions.add(new ManagerGuideMapActionModel(
-                context.getString(R.string.guide_map_action_pharmacy_title),
-                context.getString(R.string.guide_map_action_pharmacy_body, hospitalName),
-                context.getString(R.string.guide_map_action_pharmacy_button),
-                pharmacyQuery,
-                pharmacySearchUrl
-        ));
+        if (shouldShowPharmacyRouteAction(session)) {
+            actions.add(ManagerGuideMapActionModel.createKakaoPlaceSearch(
+                    context.getString(R.string.guide_map_action_pharmacy_title),
+                    context.getString(R.string.guide_map_action_pharmacy_body),
+                    context.getString(R.string.guide_map_action_pharmacy_button)
+            ));
+        }
         return actions;
+    }
+
+    static boolean shouldShowPharmacyRouteAction(CompanionSession session) {
+        return ManagerGuideStepRegistry.isPharmacyRoute(session.getCurrentStepCode());
     }
 
     private String buildKakaoMapUrl(String label, double latitude, double longitude) {
@@ -209,10 +208,6 @@ public final class ManagerGuideCoordinator {
                 + latitude
                 + ","
                 + longitude;
-    }
-
-    private String buildKakaoSearchUrl(String query) {
-        return "https://map.kakao.com/link/search/" + Uri.encode(query);
     }
 
     private HospitalMapPreviewModel buildHospitalMapPreviewModel(ManagerDashboard dashboard) {

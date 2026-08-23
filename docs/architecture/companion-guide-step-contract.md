@@ -1,8 +1,8 @@
 # 동행 가이드 13개 화면과 단계 계약
 
-기준일: 2026-08-22
+기준일: 2026-08-23
 
-상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 13개 전용 입력 화면, 단계 이벤트와 필수 입력 정책은 아직 적용하지 않았다.
+상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 9의 카카오맵 외부 검색을 분리했으며, 나머지 전용 입력 화면, 단계 이벤트와 필수 입력 정책은 아직 적용하지 않았다.
 
 ## 검증 기준
 
@@ -129,11 +129,41 @@ Android가 단계 제목이나 순번으로 13개 화면을 추정하거나, 서
 | 6 | `846:2386` | `CONSULTATION_SUPPORT` | 진료 중 핵심 안내와 결과를 현장 기록으로 남긴다. | 진료 메모 입력 후 `진료 완료`. 녹음·STT·AI 요약은 현재 범위가 아니다. | `CONSULT_COMPLETED` |
 | 7 | `846:1653` | `CONSULTATION_SUMMARY` | 진료 요약을 검토하고 수납 전 공유 내용을 확정한다. | 진료 요약 확인·수정 후 `요약 저장`. 최종 리포트 완료와는 구분한다. | `CONSULT_SUMMARY_READY` |
 | 8 | `846:1737` | `PAYMENT_EVIDENCE` | 수납 완료와 결제 증빙을 기록한다. | 결제 증빙 업로드와 `수납 완료`. 최소 장수·파일 형식·용량·교체·보관은 #307에서 확정한다. | `PAYMENT_COMPLETED` |
-| 9 | `846:1819` | `PHARMACY_ROUTE` | 처방전 기준 약국 이동을 돕는다. | `카카오맵에서 약국 찾기` 외부 이동. 서버 검색과 딥링크의 최종 조합은 #314에서 정리한다. | 별도 이벤트 없음 |
+| 9 | `846:1819` | `PHARMACY_ROUTE` | 처방전 기준 약국 이동을 돕는다. | `카카오맵에서 약국 찾기`를 누르면 카카오맵 장소 검색으로 외부 이동한다. 앱을 열 수 없으면 모바일 웹, 웹도 열 수 없으면 설치 화면으로 연결한다. | 별도 이벤트 없음 |
 | 10 | `846:2507` | `PRESCRIPTION_DOCUMENTS` | 처방 관련 이미지 자료를 등록한다. | 최대 3장 업로드 후 `저장`. 최소 1장 여부와 파일 정책은 #307에서 확정한다. | 별도 이벤트 없음 |
 | 11 | `846:1916` | `MEDICATION_CONFIRMATION` | 처방전, 약 수령과 복약 안내 완료 여부를 확인한다. | 처방전 수령·약국 완료·복약 안내 상태와 메모를 저장한다. | 별도 이벤트 없음 |
 | 12 | `857:7252` | `CARE_COMPLETION` | 환자 상태와 인계 내용을 최종 확인하고 실제 동행을 종료한다. | `동행 종료` 시 `careEndedAt` 기록. 최종 일지 작성 전 재진입 규칙은 #307에서 확정한다. | `CARE_ENDED` |
 | 13 | `846:2576` | `MANAGER_JOURNAL` | 최대 300자 매니저 일지를 작성하고 최종 완료·후기 진입으로 연결한다. | 일지 입력 후 `작성 완료`. 빈 값 허용 여부는 #307에서 확정한다. | `REPORT_READY`와 세션 `COMPLETED`를 같은 커밋에서 확정 |
+
+## 가이드 9 카카오맵 외부 이동 결정
+
+### 작업 목적
+
+가이드 9에서 매니저가 약국을 직접 탐색할 수 있게 하면서 외부 앱 실행과 서버 검색의 책임을 섞지 않는다.
+
+### 선택한 방식
+
+- 현재 단계 코드가 정확히 `PHARMACY_ROUTE`일 때만 약국 찾기 CTA를 표시한다. 순번, 제목 또는 넓은 `MEDICATION` 표시 유형으로 추정하지 않는다.
+- CTA는 카카오 공식 URL scheme인 `kakaomap://open?page=placeSearch`를 먼저 연다.
+- 카카오맵을 열 수 없으면 `http://m.map.kakao.com/scheme/open?page=placeSearch`, 앱 스토어 순서로 시도하고 사용자에게 대체 경로를 안내한다.
+- 외부 앱 실행은 단계 완료 이벤트나 `/advance` 요청을 만들지 않는다. 일반 복귀에서는 기존 ViewModel의 같은 세션과 단계를 유지하고, 구독 중인 Realtime 갱신만 반영한다.
+- 장소 검색어와 결과를 앱이나 PostgreSQL에 새로 저장하지 않는다. 예약 병원 검색과 내장 지도 후보 조회에 쓰는 Core API Kakao Local 경로는 유지한다.
+
+### 검토한 대안
+
+- Android가 Kakao Local REST API를 직접 호출하면 키가 APK에 포함되고 서버의 역할 검증·호출 제한을 우회하므로 제외했다.
+- 가이드 9도 Core API 검색 결과 목록을 먼저 표시하는 방식은 구현과 상태 관리가 늘고, 현재 Figma의 외부 이동 CTA보다 범위가 커서 제외했다.
+- 모든 가이드 단계에서 약국 CTA를 계속 표시하면 `PHARMACY_ROUTE`의 업무 의미와 맞지 않으므로 제외했다.
+
+### 선택 이유
+
+현재 MVP에서는 약국을 선택·예약하는 내부 업무가 아니라 현장에서 외부 지도를 여는 보조 동작이므로 카카오맵의 장소 검색 화면을 직접 여는 방식이 가장 단순하다. 서버 검색은 앱 안에서 구조화된 장소 목록이 필요한 예약·지도 기능에만 남겨 키와 쿼터를 Core API가 통제한다.
+
+### 리스크
+
+- 카카오맵 URL scheme이나 스토어 주소가 바뀌면 외부 실행이 실패할 수 있어 대체 경로와 실기기 회귀 검증이 필요하다.
+- 외부 앱에 머무는 동안 Android 프로세스가 종료되면 화면 상태를 다시 구성해야 한다. 현재 매니저당 미종료 세션 1개라는 운영 전제를 벗어나 여러 세션을 동시에 허용할 때는 세션 ID 지정 조회 계약을 추가한다.
+- 외부 앱에서 선택한 약국은 BoDeul에 자동 반영되지 않는다. 약국 선택·공유가 제품 요구가 되면 Core API 검색 결과와 세션 저장 계약을 별도 이슈로 추가한다.
 
 ## 현재 구현 차이
 
@@ -149,7 +179,7 @@ PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `c
 | 6 | `guardian_update`, `field_photo_note`만 있음 | PATCH 메모는 가능하나 진료 완료 이벤트 없음 | 공통 메모 입력을 제공 | 진료 완료와 요약 작성 시작 경계 |
 | 7 | `session_reports.summary`, `treatment_notes`가 있음 | 리포트 PUT이 세션 최종 완료까지 함께 처리 | 요약 입력은 있으나 중간 확정 단계와 분리되지 않음 | 중간 요약 저장과 최종 완료 분리 |
 | 8 | `PAYMENT` 상태 외 결제 증빙 전용 행·경로 없음 | 전용 upload·metadata API 없음 | 전용 증빙 업로드 화면 없음 | 용도별 Storage 경로·인가·파기와 metadata |
-| 9 | `pharmacy_summary`, `pharmacy_completed`가 있음 | Kakao Local 검색은 다른 검색 흐름에도 사용 | 외부 카카오맵 fallback과 내장 검색 경로가 공존 | #314의 딥링크·서버 검색 책임 분리 |
+| 9 | `pharmacy_summary`, `pharmacy_completed`가 있음 | Kakao Local 검색은 예약·내장 지도 후보 조회에 유지 | `PHARMACY_ROUTE`에서만 카카오맵 장소 검색 CTA를 표시하고 외부 이동만으로 단계를 진행하지 않음 | 외부 앱 설치·미설치·복귀 실기기 회귀 검증 |
 | 10 | 처방 이미지 전용 행·경로 없음. 채팅 첨부는 단계와 연결되지 않음 | 전용 다건 업로드·장수 검증 없음 | 전용 최대 3장 등록 화면 없음 | 처방 자료 Storage·metadata·교체·파기 |
 | 11 | `prescription_collected`, `pharmacy_completed`, `medication_guidance_completed`, 메모 필드가 있음 | PATCH로 상태와 메모 저장 가능 | 공통 가이드 화면에서 각 상태를 수정 가능 | stepCode에 따른 노출과 완료 판정 연결 |
 | 12 | `completed_at`만 있고 `care_ended_at`, `CARE_ENDED` 없음 | 리포트 PUT 성공 때 바로 `COMPLETED` 처리 | 동행 종료와 최종 일지 완료를 구분하지 않음 | 종료 시각·상태·재진입의 원자적 전이 |
@@ -216,7 +246,6 @@ Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에
 | --- | --- |
 | #307 | 가이드 4 측정값, 가이드 8 결제 증빙, 가이드 10 처방 이미지, 가이드 13 일지의 필수·건너뛰기·파일 제한·완료 시점 |
 | #299 | `MATCHED`, 상봉, 단계 진행, 동행 종료와 최종 완료 중 어떤 이벤트를 누구에게 FCM·앱 내 알림으로 보낼지 |
-| #314 | 가이드 9의 Kakao 앱 딥링크와 Core API Kakao Local 검색을 어떤 화면에서 각각 사용할지 |
 
 ## 후속 구현 분리 기준
 
@@ -226,7 +255,7 @@ Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 
 | --- | --- | --- |
 | PostgreSQL migration | 코드 포함 가이드 schema 검증, 세션 guide version·snapshot, 이벤트 멱등성, `care_ended_at`, 정책 확정 뒤 전용 증빙·일지 필드 | migration 연속 적용·rollback, 기존 7단계 row 보존, 권한 테스트 |
 | Core API | 상세 가이드 응답, `currentStepCode`, `canAdvance`와 snapshot 범위·version 진행 차단은 #324에서 구현했다. checkpoint·완료 전이와 멱등 이벤트는 후속 범위다. | 서비스·repository·HTTP 계약 테스트, 역할별 200·403·409 검증 |
-| Android | stepCode 공통 화면 registry, 일반 unknown 화면과 snapshot 재조회 복구는 #325에서 구현했다. 13개 전용 UI와 입력은 후속 범위다. | parser·registry·진행 정책 단위 테스트, 0·1·7·13·13초과·unknown fixture, 실기기 진행·재진입 검증 |
+| Android | stepCode 공통 화면 registry, 일반 unknown 화면과 snapshot 재조회 복구는 #325에서 구현했다. `PHARMACY_ROUTE`의 카카오맵 외부 이동은 #314에서 분리했다. 나머지 전용 UI와 입력은 후속 범위다. | parser·registry·진행 정책 단위 테스트, 0·1·7·13·13초과·unknown fixture, 외부 앱 설치·미설치·복귀 실기기 검증 |
 
 ## 현재 제외 범위
 
@@ -245,4 +274,4 @@ Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 
 - #306 Figma 동행 가이드 13개 화면과 단계 계약표 작성
 - #307 동행 단계 필수 입력·건너뛰기·완료 시점 확정
 - #299 알림 이벤트 정책
-- #314 가이드 9 Kakao 지도 경로 정렬
+- #314 가이드 9 Kakao 지도 경로 정렬: 본 문서의 외부 이동 계약과 Android CTA에 반영

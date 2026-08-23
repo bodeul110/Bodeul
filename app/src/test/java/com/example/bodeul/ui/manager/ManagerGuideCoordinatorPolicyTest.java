@@ -86,6 +86,17 @@ public class ManagerGuideCoordinatorPolicyTest {
                         createSession(0)));
     }
 
+    @Test
+    public void pharmacyRouteAction_usesCurrentStepCodeInsteadOfOrderFallback() {
+        CompanionSession pharmacyRoute = createSession(9);
+        pharmacyRoute.applyServerGuideProgress("PHARMACY_ROUTE", true, true, "");
+        assertTrue(ManagerGuideCoordinator.shouldShowPharmacyRouteAction(pharmacyRoute));
+
+        CompanionSession unknownAtSameOrder = createSession(9);
+        unknownAtSameOrder.applyServerGuideProgress("UNLISTED_EXTENSION", true, true, "");
+        assertFalse(ManagerGuideCoordinator.shouldShowPharmacyRouteAction(unknownAtSameOrder));
+    }
+
     private CompanionSession createSession(int currentStepOrder) {
         return new CompanionSession(
                 "session-id",

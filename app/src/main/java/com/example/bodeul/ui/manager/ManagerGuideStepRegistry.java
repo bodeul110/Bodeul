@@ -18,6 +18,10 @@ final class ManagerGuideStepRegistry {
     private ManagerGuideStepRegistry() {
     }
 
+    static boolean isPharmacyRoute(@Nullable String rawCode) {
+        return rawCode != null && "PHARMACY_ROUTE".equals(rawCode.trim());
+    }
+
     static PresentationType resolve(@Nullable String rawCode) {
         String code = rawCode == null ? "" : rawCode.trim();
         switch (code) {
