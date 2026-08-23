@@ -181,9 +181,11 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - setup과 apply에는 `bodeul-prod-110` 전용 Firestore export metadata와 Storage inventory 객체가 각각 필요하고, workflow가 WIF 인증 뒤 실제 존재를 확인한다. apply는 별도 확인 문구와 승인된 정책 검토 증적이 없으면 실행되지 않는다.
 - workflow는 일반 `retention:apply`를 호출하지 않고 production allowlist adapter만 사용한다. PostgreSQL과 일반 production 문서는 처리하지 않는다.
 - CLI 자체도 GitHub Actions 저장소·브랜치·commit과 Environment 전용 실행 토큰을 확인해 로컬 ADC로 승인 경계를 우회하지 못하게 했다.
-- Node.js 22.23.2에서 일반 테스트 36개가 통과했고 Emulator 전용 3개는 일반 실행에서 건너뛰었다. Firestore·Storage Emulator를 실행한 생명주기·재시도 검증은 개발·production 프로필을 포함해 3/3 통과했다. 신규 workflow는 `yq`와 `actionlint` 검사를 통과했다.
-- `firebase-retention-production` GitHub Environment는 `master` 제한, `bodeul110` 승인과 관리자 우회 금지로 생성했다. production 프로젝트 ID와 원문을 노출하지 않는 실행 토큰 secret을 등록했고, WIF와 전용 서비스 계정 변수는 비워 두어 현재 workflow는 인증 전에 실패한다.
-- 이 단계에서는 WIF, 전용 서비스 계정, production API와 Secret을 생성하지 않았고 production 데이터도 변경하지 않았다.
+- Node.js 22.23.2에서 일반 테스트 37개가 통과했고 Emulator 전용 3개는 일반 실행에서 건너뛰었다. Firestore·Storage Emulator를 실행한 생명주기·재시도 검증은 개발·production 프로필을 포함해 3/3 통과했다. 신규 workflow는 `yq`와 `actionlint` 검사를 통과했다.
+- `firebase-retention-production` GitHub Environment는 `master` 제한, `bodeul110` 승인과 관리자 우회 금지로 생성했다. production 프로젝트 ID와 원문을 노출하지 않는 실행 토큰 secret을 등록했다.
+- WIF provider `bodeul-retention-prod`는 저장소 불변 ID, `master`, Environment, workflow 파일과 수동 실행 event를 모두 확인한다. 서비스 계정 `bodeul-retention-operator`의 impersonation은 Environment exact subject 한 개만 허용한다.
+- 전용 서비스 계정에는 프로젝트 `roles/datastore.viewer`, `roles/serviceusage.serviceUsageConsumer`와 production Firebase·backup 버킷의 `roles/storage.objectViewer`만 부여했다. Environment의 WIF와 서비스 계정 변수도 실제 리소스명으로 등록했다.
+- 이 단계에서는 production API, Secret과 데이터를 변경하지 않았고 쓰기 권한도 부여하지 않았다. workflow의 `setup`, `apply`, `cleanup`은 IAM에서 차단되고 `status`만 검증 대상이다.
 - 실행 절차와 중단 기준은 [Production Firebase 자동 파기 격리 픽스처](../operations/firebase/retention-production-fixture.md)에 고정했다.
 
 ## 출시 전 확인

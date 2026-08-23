@@ -9,7 +9,8 @@
 - production 전용 fixture 프로필과 수동 workflow만 저장소에 준비했다.
 - `firebase-retention-production` GitHub Environment는 `master` 제한, `bodeul110` 필수 승인과 관리자 우회 금지로 생성했다. `FIREBASE_PROJECT_ID=bodeul-prod-110`도 등록했다.
 - 로컬 ADC 우회를 막는 Environment 전용 실행 토큰을 secret으로 등록했다. 토큰 원문은 저장소와 로그에 남기지 않고 실행기는 SHA-256 일치만 확인한다.
-- WIF provider와 전용 서비스 계정은 아직 운영 준비 항목이다. 두 변수는 비어 있어 workflow가 인증 전에 실패한다.
+- WIF provider `bodeul-retention-prod`와 전용 서비스 계정 `bodeul-retention-operator`를 생성하고 Environment 변수까지 등록했다.
+- provider는 저장소 불변 ID, `master`, Environment, workflow 파일과 `workflow_dispatch` event를 모두 확인한다. 서비스 계정에는 Firestore와 두 Storage 버킷의 조회 권한만 있어 현재 `status`만 허용되고 쓰기 action은 IAM에서 실패한다.
 - 개인정보 처리방침·위치기반서비스 이용약관 대조가 끝나지 않았으므로 `apply`는 차단 상태다.
 - production Firebase와 Storage에는 이 문서의 합성 fixture를 만들거나 변경하지 않았다.
 
@@ -47,25 +48,36 @@ workflow는 `.github/workflows/firebase-retention-production.yml`과 `firebase-r
 | 변수 | 값 |
 | --- | --- |
 | `FIREBASE_PROJECT_ID` | `bodeul-prod-110` (등록 완료) |
-| `FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER` | `github-actions/bodeul-firebase-retention-production` provider의 전체 리소스명 (미등록) |
-| `FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT` | `bodeul-firebase-retention-operator@bodeul-prod-110.iam.gserviceaccount.com` (미등록) |
+| `FIREBASE_RETENTION_WORKLOAD_IDENTITY_PROVIDER` | `github-actions/bodeul-retention-prod` provider의 전체 리소스명 (등록 완료) |
+| `FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT` | `bodeul-retention-operator@bodeul-prod-110.iam.gserviceaccount.com` (등록 완료) |
 
 Environment secret `FIREBASE_RETENTION_EXECUTION_TOKEN`은 등록 완료 상태다. 값은 운영자가 조회하거나 문서에 복사하지 않고, 교체할 때 새 난수와 저장소의 SHA-256 기준을 같은 PR에서 갱신한다.
 
-서비스 계정 JSON key는 만들지 않는다. WIF provider는 이 저장소, `master`, `firebase-retention-production` Environment에서 실행되는 workflow만 impersonation할 수 있게 제한한다.
+서비스 계정 JSON key는 만들지 않는다. GCP service account ID는 30자, WIF provider ID는 32자 제한을 지키며, 실제 등록값을 workflow에서도 동일하게 확인한다. WIF provider는 다음 조건을 모두 만족하는 OIDC token만 허용한다.
 
-전용 서비스 계정의 권한은 다음 범위로 제한한다.
+- 저장소: `bodeul110/Bodeul`
+- 저장소 불변 ID: `1209358990`
+- ref: `refs/heads/master`
+- Environment: `firebase-retention-production`
+- workflow: `bodeul110/Bodeul/.github/workflows/firebase-retention-production.yml@refs/heads/master`
+- event: `workflow_dispatch`
 
-- Firestore 문서 읽기·생성·갱신·삭제
-- `bodeul-prod-110.firebasestorage.app` 버킷의 객체 읽기·생성·삭제
+서비스 계정 impersonation은 `repo:bodeul110/Bodeul:environment:firebase-retention-production` exact subject 하나에만 `roles/iam.workloadIdentityUser`를 부여한다.
+
+현재 전용 서비스 계정의 권한은 다음 조회 범위로 제한한다.
+
+- Firestore 문서 읽기: 프로젝트 `roles/datastore.viewer`
+- Google API 사용: 프로젝트 `roles/serviceusage.serviceUsageConsumer`
+- `bodeul-prod-110.firebasestorage.app` 버킷의 객체 읽기
 - `bodeul-prod-110-db-backups` 버킷의 Firestore export metadata와 Storage inventory 객체 읽기
-- 프로젝트 API 사용에 필요한 최소 권한
 
-Firestore IAM은 컬렉션이나 문서 ID 단위로 좁힐 수 없으므로, workflow 승인과 코드 allowlist를 함께 적용한다. Core API 배포 계정, migration 계정과 예약 파기 runtime 계정을 재사용하지 않는다.
+Firestore IAM은 컬렉션이나 문서 ID 단위로 좁힐 수 없으므로, workflow 승인과 코드 allowlist를 함께 적용한다. Core API 배포 계정, migration 계정과 예약 파기 runtime 계정을 재사용하지 않는다. `setup`, `apply`, `cleanup` 전에 정책 승인과 복구 증적을 확인하고 별도 쓰기 권한 경계를 결정해야 한다. 현재 조회 전용 계정에 쓰기 역할을 추가하지 않는다.
 
 ## 실행 순서
 
 모든 action은 GitHub Actions의 `Firebase Retention Production Fixture` workflow에서 각각 실행한다.
+
+현재는 1번 `status`까지만 실행한다. 2번 이후 쓰기 action은 정책 승인과 별도 쓰기 권한 결정 전까지 실행하지 않는다.
 
 1. `status`: 최초 상태가 `ABSENT`인지 확인한다.
 2. `setup`: 프로젝트·fixture ID 재확인, Firestore export metadata와 Storage inventory 객체 경로를 입력한다.
