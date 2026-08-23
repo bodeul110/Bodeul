@@ -185,6 +185,7 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 - `firebase-retention-production` GitHub Environment는 `master` 제한, `bodeul110` 승인과 관리자 우회 금지로 생성했다. production 프로젝트 ID와 원문을 노출하지 않는 실행 토큰 secret을 등록했다.
 - WIF provider `bodeul-retention-prod`는 저장소 불변 ID, `master`, Environment, workflow 파일과 수동 실행 event를 모두 확인한다. 서비스 계정 `bodeul-retention-operator`의 impersonation은 Environment exact subject 한 개만 허용한다.
 - 전용 서비스 계정에는 프로젝트 `roles/datastore.viewer`, `roles/serviceusage.serviceUsageConsumer`와 production Firebase·backup 버킷의 `roles/storage.objectViewer`만 부여했다. Environment의 WIF와 서비스 계정 변수도 실제 리소스명으로 등록했다.
+- 2026-08-23 [production status run](https://github.com/bodeul110/Bodeul/actions/runs/32637096512)을 master `0106bba8a1decea4eca836d8afa72d54bbb3c493`에서 실행했다. 보호된 Environment 승인, 실행 경계, Functions 테스트, WIF 인증과 고정 경로 조회가 모두 통과했고 production fixture 상태는 `ABSENT`였다. 문서 4개와 Storage 객체 4개는 모두 존재하지 않았다.
 - 이 단계에서는 production API, Secret과 데이터를 변경하지 않았고 쓰기 권한도 부여하지 않았다. workflow의 `setup`, `apply`, `cleanup`은 IAM에서 차단되고 `status`만 검증 대상이다.
 - 실행 절차와 중단 기준은 [Production Firebase 자동 파기 격리 픽스처](../operations/firebase/retention-production-fixture.md)에 고정했다.
 

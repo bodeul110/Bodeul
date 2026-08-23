@@ -11,6 +11,7 @@
 - 로컬 ADC 우회를 막는 Environment 전용 실행 토큰을 secret으로 등록했다. 토큰 원문은 저장소와 로그에 남기지 않고 실행기는 SHA-256 일치만 확인한다.
 - WIF provider `bodeul-retention-prod`와 전용 서비스 계정 `bodeul-retention-operator`를 생성하고 Environment 변수까지 등록했다.
 - provider는 저장소 불변 ID, `master`, Environment, workflow 파일과 `workflow_dispatch` event를 모두 확인한다. 서비스 계정에는 Firestore와 두 Storage 버킷의 조회 권한만 있어 현재 `status`만 허용되고 쓰기 action은 IAM에서 실패한다.
+- 2026-08-23 [workflow run 32637096512](https://github.com/bodeul110/Bodeul/actions/runs/32637096512)에서 master `0106bba8a1decea4eca836d8afa72d54bbb3c493`의 `status`를 실행했다. WIF 인증과 고정 경로 조회가 통과했고 결과는 `ABSENT`였다.
 - 개인정보 처리방침·위치기반서비스 이용약관 대조가 끝나지 않았으므로 `apply`는 차단 상태다.
 - production Firebase와 Storage에는 이 문서의 합성 fixture를 만들거나 변경하지 않았다.
 
