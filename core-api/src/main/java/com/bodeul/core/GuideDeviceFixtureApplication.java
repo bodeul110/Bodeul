@@ -16,6 +16,7 @@ public final class GuideDeviceFixtureApplication {
     static final String ACTION_ENV = "GUIDE_DEVICE_FIXTURE_ACTION";
     static final String TARGET_ENV = "MIGRATION_TARGET";
     static final String CONFIRM_PROJECT_ENV = "GUIDE_DEVICE_FIXTURE_CONFIRM_PROJECT";
+    static final String MANAGER_FIREBASE_UID_ENV = "GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID";
     static final String JDBC_URL_ENV = "MIGRATION_DB_JDBC_URL";
     static final String DB_USERNAME_ENV = "MIGRATION_DB_USERNAME";
     static final String DB_PASSWORD_ENV = "MIGRATION_DB_PASSWORD";
@@ -32,7 +33,6 @@ public final class GuideDeviceFixtureApplication {
     static final String PATIENT_FIREBASE_UID = "guide-device-fixture-patient";
     static final String ADMIN_FIREBASE_UID = "guide-device-fixture-admin";
     static final String ADMIN_EMAIL = "guide-device-fixture-admin@bodeul.invalid";
-    static final String MANAGER_EMAIL = "manager@bodeul.app";
     static final String HOSPITAL_NAME = "BoDeul 실기기 검증병원";
     static final String DEPARTMENT_NAME = "약국 이동 검증";
 
@@ -91,7 +91,10 @@ public final class GuideDeviceFixtureApplication {
             DatabaseConfig databaseConfig = new DatabaseConfig(
                     jdbcUrl,
                     databaseUsername,
-                    requiredEnvironment(environment, DB_PASSWORD_ENV));
+                    requiredEnvironment(environment, DB_PASSWORD_ENV),
+                    action == FixtureAction.SETUP
+                            ? requiredEnvironment(environment, MANAGER_FIREBASE_UID_ENV)
+                            : environment.getOrDefault(MANAGER_FIREBASE_UID_ENV, "").trim());
             FixtureSummary summary = executor.execute(databaseConfig, action);
             standardOutput.println(summary.format());
             return 0;
@@ -132,7 +135,7 @@ public final class GuideDeviceFixtureApplication {
 
             try {
                 int affectedRows = switch (action) {
-                    case SETUP -> setup(connection);
+                    case SETUP -> setup(connection, config.managerFirebaseUid());
                     case STATUS -> 0;
                     case CLEANUP -> cleanup(connection);
                 };
@@ -150,13 +153,13 @@ public final class GuideDeviceFixtureApplication {
         }
     }
 
-    private static int setup(Connection connection) throws SQLException {
+    private static int setup(Connection connection, String managerFirebaseUid) throws SQLException {
         FixtureSummary existing = status(connection, FixtureAction.STATUS, 0);
         if (existing.fixtureRows() != 0) {
             throw new SQLException("guide device fixture already exists", "P0001");
         }
 
-        UUID managerUserId = findBaselineUser(connection, MANAGER_EMAIL, "MANAGER");
+        UUID managerUserId = findBaselineUser(connection, managerFirebaseUid, "MANAGER");
         UUID adminUserId = UUID.fromString(ADMIN_ID);
         lockSessionWrites(connection);
         if (countActiveSessions(connection, managerUserId) != 0) {
@@ -279,23 +282,23 @@ public final class GuideDeviceFixtureApplication {
         }
     }
 
-    private static UUID findBaselineUser(Connection connection, String email, String role) throws SQLException {
+    private static UUID findBaselineUser(Connection connection, String firebaseUid, String role) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 select id
                 from bodeul.app_users
-                where role = ? and lower(email) = ?
+                where role = ? and firebase_uid = ?
                 order by id
                 limit 2
                 """)) {
             statement.setString(1, role);
-            statement.setString(2, email.toLowerCase(Locale.ROOT));
+            statement.setString(2, firebaseUid);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
-                    throw new SQLException("baseline user is missing", "P0002");
+                    throw new SQLException("baseline user is missing", "P0101");
                 }
                 UUID userId = resultSet.getObject(1, UUID.class);
                 if (resultSet.next()) {
-                    throw new SQLException("baseline user is not unique", "P0003");
+                    throw new SQLException("baseline user is not unique", "P0102");
                 }
                 return userId;
             }
@@ -563,7 +566,7 @@ public final class GuideDeviceFixtureApplication {
         CLEANUP
     }
 
-    record DatabaseConfig(String jdbcUrl, String username, String password) {
+    record DatabaseConfig(String jdbcUrl, String username, String password, String managerFirebaseUid) {
     }
 
     record FixtureSummary(

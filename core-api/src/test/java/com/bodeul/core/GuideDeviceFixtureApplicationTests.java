@@ -72,6 +72,14 @@ class GuideDeviceFixtureApplicationTests {
     }
 
     @Test
+    void setupRequiresManagerFirebaseUid() {
+        Map<String, String> missingManager = new HashMap<>(environment("setup"));
+        missingManager.remove(GuideDeviceFixtureApplication.MANAGER_FIREBASE_UID_ENV);
+
+        assertThat(runWithoutDatabase(missingManager)).isEqualTo(2);
+    }
+
+    @Test
     void databaseErrorsExposeOnlySqlState() {
         ByteArrayOutputStream error = new ByteArrayOutputStream();
 
@@ -123,7 +131,8 @@ class GuideDeviceFixtureApplicationTests {
                 GuideDeviceFixtureApplication.JDBC_URL_ENV,
                 "jdbc:postgresql://db.parpdzttloacinyvhwmx.supabase.co:5432/postgres",
                 GuideDeviceFixtureApplication.DB_USERNAME_ENV, "migration-user",
-                GuideDeviceFixtureApplication.DB_PASSWORD_ENV, "migration-password");
+                GuideDeviceFixtureApplication.DB_PASSWORD_ENV, "migration-password",
+                GuideDeviceFixtureApplication.MANAGER_FIREBASE_UID_ENV, "preview-manager-uid");
     }
 
     private GuideDeviceFixtureApplication.FixtureSummary readySummary(

@@ -9,7 +9,8 @@
 - `Core API DB Migration` workflow의 `guide_device_fixture_action`으로 `setup`, `status`, `cleanup`을 실행한다.
 - 대상은 `master`의 `preview`와 Firebase 개발 프로젝트 `bodeul-dev`로 고정한다.
 - Supabase 개발 프로젝트 ref와 migration DB 사용자명도 실행기에서 다시 확인한다.
-- 실기기 로그인과 연결되는 기존 `manager@bodeul.app` 행은 조회만 하고 수정하거나 삭제하지 않는다.
+- Preview 환경 secret의 현재 fixture 매니저 Firebase UID를 PostgreSQL 매니저 행과 정확히 연결한다.
+- 연결된 기존 매니저 행은 조회만 하고 수정하거나 삭제하지 않는다.
 - fixture 전용 관리자와 환자, 병원 가이드, 예약, 세션, 배정 감사 기록만 단일 트랜잭션으로 생성한다.
 - 세션은 13단계 snapshot의 9번째 `PHARMACY_ROUTE`에서 시작한다.
 - setup과 cleanup 동안 동행 세션 쓰기를 잠그고, cleanup 전에 모든 fixture 표식을 다시 대조한다.
@@ -21,6 +22,7 @@
 1. `Core API DB Migration`에서 V14 이상이 개발 DB에 적용됐는지 확인한다.
 2. `Core API Preview Deploy`에서 같은 `master` 커밋이 배포됐는지 확인한다.
 3. 기준선 매니저에 진행 중인 다른 세션이 없는지 확인한다. 진행 중인 세션이 있으면 `setup`이 중단된다.
+4. `core-api-migration-preview` 환경의 `GUIDE_DEVICE_FIXTURE_MANAGER_FIREBASE_UID` secret이 현재 fixture 매니저 UID인지 확인한다. ID token은 저장하지 않는다.
 
 ### fixture 생성
 
@@ -74,7 +76,7 @@ gh workflow run core-api-migration.yml `
 
 ## 리스크
 
-- 기준선 계정 이메일이나 역할이 바뀌면 setup이 안전하게 중단된다.
+- 입력한 Firebase UID가 PostgreSQL의 매니저 역할 행과 연결되지 않으면 setup이 안전하게 중단된다.
 - setup이 실행되는 짧은 시간에는 개발 DB의 다른 동행 세션 쓰기가 대기한다.
 - 검증 중 채팅 첨부를 추가하면 Storage까지 함께 정리해야 하므로 자동 cleanup을 허용하지 않는다.
 - 이 fixture는 UI와 외부 이동 회귀 검증용이며 실제 예약 생성부터 관리자 배정까지의 전체 운영 흐름 검증을 대체하지 않는다.
