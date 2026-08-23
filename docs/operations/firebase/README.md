@@ -12,6 +12,8 @@ Firebase 프로젝트 설정, 개발 기준선 초기화, 운영 도구 사용�
   - Firestore 개발 데이터 리셋과 재시드 기준
 - [개발 Firebase 자동 파기 픽스처](retention-development-fixture.md)
   - 전환 문서와 매니저 증빙의 격리 setup/dry-run/apply/status/cleanup 절차
+- [Production Firebase 자동 파기 격리 픽스처](retention-production-fixture.md)
+  - 보호된 workflow, 전용 WIF와 정책 승인 뒤 합성 데이터만 검증하는 절차
 
 ## 같이 볼 문서
 

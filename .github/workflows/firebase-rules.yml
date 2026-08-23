@@ -12,8 +12,13 @@ on:
       - "functions/package.json"
       - "functions/package-lock.json"
       - "functions/src/retention.js"
+      - "functions/scripts/lib/retention-firebase-fixture.js"
+      - "functions/scripts/run-retention-firebase-fixture.js"
+      - "functions/scripts/run-retention-firebase-production-fixture.js"
       - "functions/scripts/run-retention-emulator-tests.js"
       - "functions/test/retention-emulator.test.js"
+      - "functions/test/retention-firebase-fixture.test.js"
+      - "functions/test/retention-firebase-production-fixture.test.js"
       - ".github/workflows/firebase-rules.yml"
   workflow_dispatch:
 
