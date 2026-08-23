@@ -162,8 +162,9 @@ public final class GuideDeviceFixtureApplication {
         UUID managerUserId = findBaselineUser(connection, managerFirebaseUid, "MANAGER");
         UUID adminUserId = UUID.fromString(ADMIN_ID);
         lockSessionWrites(connection);
-        if (countActiveSessions(connection, managerUserId) != 0) {
-            throw new SQLException("baseline manager already has an active session", "P0001");
+        int baselineActiveSessionCount = countActiveSessions(connection, managerUserId);
+        if (baselineActiveSessionCount > 1) {
+            throw new SQLException("baseline manager has unexpected active sessions", "P0103");
         }
 
         int affectedRows = 0;
@@ -214,9 +215,9 @@ public final class GuideDeviceFixtureApplication {
                 ) values (
                     ?::uuid, ?::uuid, ?::uuid, 'PATIENT',
                     '실기기 검증 환자', ?, ?,
-                    now() + interval '1 day',
-                    (extract(epoch from now() + interval '1 day') * 1000)::bigint,
-                    to_char((now() + interval '1 day') at time zone 'Asia/Seoul', 'YYYY-MM-DD'),
+                    timestamptz '2099-12-31 09:00:00+09',
+                    (extract(epoch from timestamptz '2099-12-31 09:00:00+09') * 1000)::bigint,
+                    '2099-12-31',
                     '검증병원 1층 안내 데스크', 'INDEPENDENT', 'ONE_WAY',
                     'ANY', 'REQUESTED',
                     69000, 0, 0, 69000,
@@ -269,7 +270,7 @@ public final class GuideDeviceFixtureApplication {
             statement.setString(1, APPOINTMENT_ID);
             affectedRows += requireSingleUpdate(statement, "fixture appointment progress");
         }
-        if (countActiveSessions(connection, managerUserId) != 1) {
+        if (countActiveSessions(connection, managerUserId) != baselineActiveSessionCount + 1) {
             throw new SQLException("baseline manager active session changed during setup", "P0001");
         }
         return affectedRows;
@@ -497,7 +498,21 @@ public final class GuideDeviceFixtureApplication {
                     coalesce((select guide_step_contract_version from bodeul.companion_sessions
                               where appointment_request_id = ?::uuid), 0) as contract_version,
                     coalesce((select current_status from bodeul.companion_sessions
-                              where appointment_request_id = ?::uuid), 'MISSING') as current_status
+                              where appointment_request_id = ?::uuid), 'MISSING') as current_status,
+                    coalesce((
+                        select ranked.appointment_request_id = ?::uuid
+                        from bodeul.companion_sessions ranked
+                        join bodeul.appointment_requests ranked_appointment
+                          on ranked_appointment.id = ranked.appointment_request_id
+                        where ranked.manager_user_id = (
+                            select fixture.manager_user_id
+                            from bodeul.companion_sessions fixture
+                            where fixture.appointment_request_id = ?::uuid
+                        )
+                          and ranked.current_status not in ('COMPLETED', 'CANCELED')
+                        order by ranked_appointment.appointment_at desc, ranked.created_at desc
+                        limit 1
+                    ), false) as fixture_selected_first
                 """;
         try (PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setString(1, PATIENT_ID);
@@ -506,6 +521,8 @@ public final class GuideDeviceFixtureApplication {
             for (int index = 4; index <= 12; index++) {
                 statement.setString(index, APPOINTMENT_ID);
             }
+            statement.setString(13, APPOINTMENT_ID);
+            statement.setString(14, APPOINTMENT_ID);
             try (ResultSet resultSet = statement.executeQuery()) {
                 resultSet.next();
                 int fixtureRows = resultSet.getInt("fixture_rows");
@@ -515,13 +532,15 @@ public final class GuideDeviceFixtureApplication {
                 int stepCount = resultSet.getInt("step_count");
                 int contractVersion = resultSet.getInt("contract_version");
                 String currentStatus = resultSet.getString("current_status");
+                boolean fixtureSelectedFirst = resultSet.getBoolean("fixture_selected_first");
                 boolean ready = fixtureRows == 6
                         && currentStepOrder == 9
                         && "PHARMACY_ROUTE".equals(currentStepCode)
                         && "HOSPITAL_GUIDE_STEP_CODE_V1".equals(snapshotSource)
                         && stepCount == 13
                         && contractVersion == 1
-                        && "PAYMENT".equals(currentStatus);
+                        && "PAYMENT".equals(currentStatus)
+                        && fixtureSelectedFirst;
                 return new FixtureSummary(
                         action,
                         affectedRows,
@@ -532,6 +551,7 @@ public final class GuideDeviceFixtureApplication {
                         stepCount,
                         contractVersion,
                         currentStatus,
+                        fixtureSelectedFirst,
                         ready);
             }
         }
@@ -579,12 +599,13 @@ public final class GuideDeviceFixtureApplication {
             int stepCount,
             int contractVersion,
             String currentStatus,
+            boolean fixtureSelectedFirst,
             boolean ready
     ) {
         String format() {
             return ("action=%s affectedRows=%d fixtureRows=%d currentStepOrder=%d "
                     + "currentStepCode=%s snapshotSource=%s stepCount=%d contractVersion=%d "
-                    + "currentStatus=%s ready=%s")
+                    + "currentStatus=%s fixtureSelectedFirst=%s ready=%s")
                     .formatted(
                             action,
                             affectedRows,
@@ -595,6 +616,7 @@ public final class GuideDeviceFixtureApplication {
                             stepCount,
                             contractVersion,
                             currentStatus,
+                            fixtureSelectedFirst,
                             ready);
         }
     }
