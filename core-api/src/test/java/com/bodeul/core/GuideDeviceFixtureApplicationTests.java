@@ -36,6 +36,7 @@ class GuideDeviceFixtureApplicationTests {
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("action=SETUP")
                 .contains("currentStepCode=PHARMACY_ROUTE")
+                .contains("fixtureSelectedFirst=true")
                 .contains("ready=true")
                 .doesNotContain("migration-password");
         assertThat(error.toString(StandardCharsets.UTF_8)).isEmpty();
@@ -148,6 +149,7 @@ class GuideDeviceFixtureApplicationTests {
                 13,
                 1,
                 "PAYMENT",
+                true,
                 true);
     }
 }
