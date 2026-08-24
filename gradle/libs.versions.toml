@@ -2,7 +2,7 @@
 androidGradlePlugin = "9.3.1"
 googleServices = "4.5.0"
 firebaseBom = "34.18.0"
-androidxAppcompat = "1.7.1"
+androidxAppcompat = "1.8.0"
 androidxCredentials = "1.6.0"
 material = "1.14.0"
 googleId = "1.2.0"
