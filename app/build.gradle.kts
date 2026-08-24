@@ -17,13 +17,18 @@ val localProperties = Properties().apply {
 }
 
 fun localOrGradleProperty(name: String): String {
-    return (localProperties.getProperty(name)
-        ?: providers.gradleProperty(name).orNull
-        ?: "").trim()
+    val localValue = localProperties.getProperty(name)?.trim().orEmpty()
+    if (localValue.isNotEmpty()) {
+        return localValue
+    }
+    return providers.gradleProperty(name).orNull?.trim().orEmpty()
 }
 
 val kakaoNativeAppKey = localOrGradleProperty("kakaoNativeAppKey")
 val bodeulCoreApiBaseUrl = localOrGradleProperty("bodeulCoreApiBaseUrl")
+val bodeulCoreApiDebugBaseUrl = localOrGradleProperty("bodeulCoreApiDebugBaseUrl")
+val effectiveBodeulCoreApiDebugBaseUrl = bodeulCoreApiBaseUrl.ifEmpty { bodeulCoreApiDebugBaseUrl }
+check(effectiveBodeulCoreApiDebugBaseUrl.isNotEmpty()) { "Debug Core API 주소가 비어 있습니다." }
 val bodeulSupabaseUrl = localOrGradleProperty("bodeulSupabaseUrl")
 val bodeulSupabasePublishableKey = localOrGradleProperty("bodeulSupabasePublishableKey")
 val naverClientId = localOrGradleProperty("naverClientId")
@@ -42,7 +47,6 @@ android {
         versionName = "1.0"
         manifestPlaceholders["kakaoScheme"] = "kakao$kakaoNativeAppKey"
         resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
-        resValue("string", "bodeul_core_api_base_url", bodeulCoreApiBaseUrl)
         resValue("string", "bodeul_supabase_url", bodeulSupabaseUrl)
         resValue("string", "bodeul_supabase_publishable_key", bodeulSupabasePublishableKey)
         resValue("string", "naver_client_id", naverClientId)
@@ -54,7 +58,17 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 공개 Preview 주소를 기본으로 사용하되 local.properties로 다른 개발 서버를 선택할 수 있다.
+            resValue(
+                "string",
+                "bodeul_core_api_base_url",
+                effectiveBodeulCoreApiDebugBaseUrl
+            )
+        }
         release {
+            // 운영 앱이 개발 서버를 바라보지 않도록 Preview 기본값을 상속하지 않는다.
+            resValue("string", "bodeul_core_api_base_url", bodeulCoreApiBaseUrl)
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
