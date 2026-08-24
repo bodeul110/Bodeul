@@ -22,11 +22,15 @@
 naverClientId=발급받은_클라이언트_ID
 naverClientName=보들
 kakaoNativeAppKey=발급받은_네이티브_앱_키
-bodeulCoreApiBaseUrl=https://개발_Core_API_주소
+# 다른 개발 서버가 필요할 때만 Debug 기본 주소를 덮어쓴다.
+bodeulCoreApiBaseUrl=https://다른_개발_Core_API_주소
 bodeulSupabaseUrl=https://개발_Supabase_프로젝트.supabase.co
 bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 ```
 
+- Debug 빌드는 별도 설정이 없어도 `https://bodeul-core-api-preview-cyvvxy3kia-an.a.run.app`을 사용한다. 이 공개 서비스 주소에는 비밀값이 없다.
+- `bodeulCoreApiBaseUrl`을 `local.properties` 또는 Gradle `-P`로 지정하면 Debug 기본 주소를 덮어쓴다.
+- Release 빌드는 Debug 기본 주소를 사용하지 않는다. 운영 Core API 주소를 `bodeulCoreApiBaseUrl`로 명시해야 한다.
 - 네이버 클라이언트 시크릿은 Android 앱에 포함하지 않는다.
 - 현재 앱의 네이버 로그인 버튼은 `naver_login_enabled=false`로 숨겨져 있으며, 서버 중계형 OAuth 흐름이 확정될 때 다시 연다.
 - `kakaoNativeAppKey`에는 Kakao Developers에서 `com.example.bodeul` 패키지명과 현재 서명 키 해시를 연결한 Android 플랫폼 전용 네이티브 앱 키를 사용한다. 추적되는 `gradle.properties`에는 실제 키를 넣지 않는다.
@@ -504,10 +508,10 @@ npm run seed:manager-docs:apply
 
 ## 카카오 병원/약국 실좌표 검색 메모
 - 카카오 모빌리티 기본 SDK만으로는 병원/약국 키워드의 실좌표 검색을 안정적으로 처리하기 어렵다.
-- 좌표 검색이 필요한 개발 환경에서는 `local.properties`에 Core API 주소를 설정한다.
+- Debug 빌드는 저장소에 기록된 개발 Core API Preview 주소를 기본으로 사용한다. 다른 서버를 사용할 때만 `local.properties`에서 덮어쓴다.
 
 ```properties
-bodeulCoreApiBaseUrl=https://개발_Core_API_주소
+bodeulCoreApiBaseUrl=https://다른_개발_Core_API_주소
 ```
 
 - Android는 Firebase ID token과 발급된 App Check token으로 `GET /api/places/search`를 호출하고, Core API가 Kakao Local REST API key를 사용한다.
