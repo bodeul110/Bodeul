@@ -35,7 +35,7 @@ App Check enforcement를 켜면 유효한 App Check 토큰이 없는 요청은 �
 | 영역 | 현재 상태 | 파일 |
 | --- | --- | --- |
 | Android debug | Debug provider 설치, 토큰 자동 갱신 활성화 | `app/src/debug/java/com/example/bodeul/firebase/AppCheckInstaller.java` |
-| Android release | Play Integrity provider 설치, 토큰 자동 갱신 활성화 | `app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java` |
+| Android release | Play Integrity provider 설치, 토큰 자동 갱신 활성화, 서명 입력 누락 시 릴리스 산출물 차단 | `app/src/release/java/com/example/bodeul/firebase/AppCheckInstaller.java`, `app/build.gradle.kts` |
 | 앱 시작점 | Firebase App Check provider 설치를 앱 시작 시 호출 | `app/src/main/java/com/example/bodeul/BodeulApplication.java` |
 | 관리자 웹 | 별도 저장소 Next.js 전환과 실제 관리자 API 200/403 완료, App Check provider는 미등록 | `bodeul-admin-web` |
 | 관리자 웹 rollback | Vite reCAPTCHA v3 초기화 경로는 rollback 자산으로만 유지 | `bodeul-admin-web` |
@@ -58,7 +58,7 @@ App Check enforcement를 켜면 유효한 App Check 토큰이 없는 요청은 �
 | 최근 30일 메트릭 | 전체 5,581건 중 Android Firestore `VALID` 1건, invalid 4,163건, outdated client 1,353건, unknown origin 64건 |
 | Core API preview | 리비전 `bodeul-core-api-preview-00007-8hk`가 observe로 트래픽 100% 처리, ARM debug 실기기 장소 검색 3건 `valid`와 HTTP 200 확인 |
 
-현재 판단은 `HOLD`다. Android debug 실기기의 주요 화면 15건, 채팅 첨부, Kakao Map, Core API `valid`는 확인했다. 다만 팀 소유 release signing 설정, release Play Integrity, 관리자 웹 provider와 `VALID` 요청, #192의 enforce/rollback 재현이 남아 있어 아직 강제하지 않는다. 상세 결과는 [Issue 190 ARM 실기기 검증 기록](../reports/issue-190-arm-device-validation-2026-07-17.md)에 남겼다.
+현재 판단은 `HOLD`다. Android debug 실기기의 주요 화면 15건, 채팅 첨부, Kakao Map, Core API `valid`는 확인했다. Gradle에는 누락·부분 입력 상태의 릴리스 산출물을 차단하는 [서명 운영 계약](android-release-signing.md)을 추가했다. 다만 팀 소유 release key와 인증서 등록, release Play Integrity, 관리자 웹 provider와 `VALID` 요청, #192의 enforce/rollback 재현이 남아 있어 아직 강제하지 않는다. 상세 결과는 [Issue 190 ARM 실기기 검증 기록](../reports/issue-190-arm-device-validation-2026-07-17.md)에 남겼다.
 
 ## 개발/운영 환경 경계
 
@@ -155,7 +155,7 @@ Firebase Console의 서비스별 enforcement는 적용 또는 해제 후 반영�
 
 ## 현재 결론
 
-현재 프로젝트에서는 App Check를 강제하지 않는다. Android debug token과 ARM 실기기 주요 화면 15건, 채팅 첨부, Spring Core API 장소 검색의 `valid` 3건은 확인했고 preview 리비전 `00007-8hk`는 observe 모드로 운용한다. 다만 등록된 SHA-256은 debug 인증서뿐이고 release signing 설정이 없다. 팀 소유 release key, Play Integrity release 실기기, Next.js 관리자 웹의 reCAPTCHA Enterprise와 `VALID` 요청, #192 롤백 검증을 먼저 준비한다. 그 다음 Functions callable과 custom backend를 제한적으로 전환한다. Storage, Firestore, Authentication은 주요 사용자 흐름과 서비스별 메트릭을 다시 확인한 뒤 순서대로 적용한다.
+현재 프로젝트에서는 App Check를 강제하지 않는다. Android debug token과 ARM 실기기 주요 화면 15건, 채팅 첨부, Spring Core API 장소 검색의 `valid` 3건은 확인했고 preview 리비전 `00007-8hk`는 observe 모드로 운용한다. Gradle release signing 입력 계약과 fail-closed 검증은 준비했지만 등록된 SHA-256은 debug 인증서뿐이고 실제 팀 소유 release key는 아직 없다. 팀 소유 release key, Play Integrity release 실기기, Next.js 관리자 웹의 reCAPTCHA Enterprise와 `VALID` 요청, #192 롤백 검증을 먼저 준비한다. 그 다음 Functions callable과 custom backend를 제한적으로 전환한다. Storage, Firestore, Authentication은 주요 사용자 흐름과 서비스별 메트릭을 다시 확인한 뒤 순서대로 적용한다.
 
 ## 참고 공식 문서
 

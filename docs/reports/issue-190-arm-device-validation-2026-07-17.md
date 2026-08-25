@@ -86,6 +86,14 @@ npm.cmd --prefix tools/firebase run capture:app -- --preset manager-guide --seri
 - Android unit test와 debug APK 빌드 성공
 - 개발 Firestore/Storage Rules 배포 성공
 
+## 2026-08-25 릴리스 서명 경계 보완
+
+- release signing 입력 계약과 누락·부분 입력 fail-closed 검증을 추가했다.
+- 서명 입력 없이 `assembleRelease`를 실행해 릴리스 산출물이 생성되지 않음을 확인했다.
+- 구성 캐시 사용, 일부 입력, 존재하지 않는 키 저장소 파일, 축약 릴리스 작업명과 `-x` 축약 제외 우회도 모두 실패함을 확인했다.
+- 기존 로컬 debug keystore는 비배포용 성공 경로 확인에만 사용했고 릴리스 산출물은 만들지 않았다.
+- 실제 키는 생성하지 않았고 입력값과 인증서 정보도 기록하지 않았다.
+
 ## 남은 범위
 
 - 팀 소유 release keystore, alias와 암호 보관 주체를 확정한다.

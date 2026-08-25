@@ -3722,3 +3722,30 @@
 - `git diff --check`
 - 변경 파일의 Notion 비공개 URL·페이지 ID와 계정 정보 미포함 확인
 - 문서 전용 변경이므로 Android·Core API 빌드는 수행하지 않음
+
+## 150. 2026-08-25 Android 릴리스 서명 fail-closed 경계
+
+### 구현과 운영 설정
+
+- 팀 소유 릴리스 키가 확정되기 전에도 unsigned 릴리스 산출물이 만들어지지 않도록 Gradle 검증을 추가했다.
+- 키 저장소 경로와 alias는 추적되지 않는 로컬 설정·Gradle 속성·환경변수로 받고, 두 암호는 환경변수로만 받는다.
+- 릴리스 산출물 작업은 `validateReleaseSigning`을 선행하고 누락·부분 입력·키 저장소 파일 부재 시 실패한다.
+- 비밀값을 Gradle 구성 캐시에 남기지 않도록 릴리스 작업에는 `--no-configuration-cache`를 요구한다.
+- Android 키 저장소 확장자를 Git 추적에서 제외하고 [릴리스 서명 운영 계약](../operations/android-release-signing.md)을 추가했다.
+
+### 검증
+
+- `assembleDebug` 성공과 구성 캐시 저장 확인
+- 구성 캐시 활성 릴리스 작업 차단
+- 릴리스 서명 전체 누락·부분 입력·키 저장소 파일 부재 차단
+- 축약 릴리스 작업명과 `-x vRS` 축약 제외 시도에서도 unsigned 산출물 생성 차단
+- 기존 로컬 debug keystore를 비배포용으로만 사용해 서명 구성 성공 경로 확인
+- 실패 출력에 테스트 입력값과 암호 sentinel이 포함되지 않음을 확인
+- `assembleRelease --no-configuration-cache` 실패 후 신규 APK·AAB가 생성되지 않음을 확인
+
+### 남은 범위
+
+- 팀 소유 release keystore, alias, 암호 보관 주체와 오프라인 백업 위치 확정
+- Firebase와 Kakao에 release SHA-256 등록
+- Google Play Console과 Firebase Play Integrity 연결
+- ARM release 후보의 App Check `VALID`와 rollback 검증
