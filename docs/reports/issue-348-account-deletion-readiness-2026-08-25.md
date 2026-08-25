@@ -32,7 +32,9 @@
 - repository 미구성·DB 오류 시 `SOURCE_UNAVAILABLE`과 `INVENTORY_INCOMPLETE` 확인
 - migration 문자열 계약에서 고정 `search_path`, 최소 실행 권한, 원문·민감 컬럼 미조회와 제한된 rollback 확인
 
-개발 `Core API DB Migration` run `32861819498`에서 PostgreSQL 17.6의 기존 V14를 V15로 올렸다. Flyway는 migration 15개를 검증하고 V15 한 건을 적용해 schema version 15로 종료했다. 함수 권한과 합성 UUID 결과를 자동 확인하는 후속 task를 같은 workflow에 추가한다.
+개발 `Core API DB Migration` run `32861819498`에서 PostgreSQL 17.6의 기존 V14를 V15로 올렸다. Flyway는 migration 15개를 검증하고 V15 한 건을 적용해 schema version 15로 종료했다.
+
+후속 run `32864048561`에서는 V15가 이미 최신이라 migration 없이 종료된 뒤 `verifyAccountDeletionInventory`가 통과했다. 이 읽기 전용 검증은 함수 소유자·`SECURITY DEFINER`·고정 `search_path`, 실제 Core/Admin 서비스 역할의 schema `USAGE`와 함수 `EXECUTE`, 공개 역할의 실행 차단, Core runtime/service의 배정 감사 원문 조회 차단을 확인했다. 합성 UUID 조회는 정의된 14개 열을 순서대로 반환했고 모든 집계값이 0이었다.
 
 로컬 Docker 엔진이 기동되지 않아 임시 PostgreSQL에서 V1~V15 연속 적용과 V15 rollback은 완료하지 못했다. 개발 DB에는 rollback을 실행하지 않으며 rollback SQL은 제한된 문자열 계약까지만 확인했다.
 
