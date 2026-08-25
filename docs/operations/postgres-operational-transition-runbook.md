@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 런북
 
-기준일: 2026-08-22
+기준일: 2026-08-25
 
 ## 목적
 
@@ -16,7 +16,7 @@
 | Spring Core API | Cloud Run preview, WIF·Secret Manager·DB·Kakao 개발 연동 검증 | Artifact Registry·WIF·DB secret 준비 | Kakao 운영 키, 첫 revision, smoke·rollback |
 | 관리자 Next.js | Vercel Preview에서 Firebase token·관리자 DB role 401·403·200 검증 | Production 환경 사용 예정 | SELECT-only DB 값, Firebase·App Check, smoke·rollback |
 | Firebase | `bodeul-dev` Auth·FCM·App Check·Storage | `bodeul-prod-110` 분리와 결제·기본 리소스 준비 | release App Check와 운영 키·도메인 검증 |
-| 보관·파기 | V13, Core 중첩 첨부 Storage fixture APPLY와 최종 dry-run 0건 검증 | migration·역할·복원 검증 | Firestore 전환 문서·매니저 증빙 개발 fixture APPLY 후 정책·약관 승인과 production 활성화 |
+| 보관·파기 | V13, Core 첨부와 Firestore 전환 문서·매니저 증빙 fixture APPLY·cleanup, 최종 dry-run 검증 | migration·역할·복원과 읽기 전용 fixture 상태 검증 | 보관기간 충돌·정책·약관 승인 뒤 production 쓰기 권한과 격리 fixture 검증 |
 
 완료 증거는 [Production 인프라 구축 기록](../reports/production-infrastructure-bootstrap-2026-07-17.md), [PostgreSQL 복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md), [개인정보 자동 파기 구현 기록](../reports/issue-222-data-retention-2026-07-19.md)을 따른다.
 
@@ -48,7 +48,7 @@
 6. 관리자 서버의 인증, 역할 거부, 조회와 감사 이력을 격리 운영 데이터로 검증한다.
 7. release Android로 예약, 채팅, 위치, 첨부, FCM과 재연결 흐름을 실기기에서 확인한다.
 8. Cloud Run revision과 Vercel deployment rollback을 실제로 재현한다.
-9. 개발 Firestore 전환 문서와 매니저 증빙 fixture APPLY를 수행하고 원상복구와 비식별 보고를 확인한다.
+9. 완료된 개발 Firestore 전환 문서와 매니저 증빙 fixture APPLY·cleanup 증적을 재확인한다.
 10. 자동 파기 production dry-run을 확인한 뒤 정책·약관 승인 시에만 apply를 활성화한다.
 11. Go/No-Go 승인 뒤 migration과 애플리케이션 배포를 수행하고 30일 안정화 기간을 시작한다.
 
