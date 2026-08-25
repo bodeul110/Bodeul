@@ -9,6 +9,7 @@
 - Gradle Wrapper
 - 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
+- 삭제 실행 없이 본인 계정의 PostgreSQL 연관 건수와 미점검 저장소를 확인하는 `GET /api/account/deletion-readiness`
 - 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
 - 환자·보호자 예약 생성·수정·취소와 배정 매니저 조회를 처리하는 `/api/appointments`
 - 참여자·배정 매니저의 동행 조회와 매니저 진행·리포트를 처리하는 `/api/companion-sessions`
@@ -72,6 +73,12 @@ $env:CORE_DB_PASSWORD = "<runtime-password>"
 Cloud Run에서는 전용 runtime 서비스 계정의 Application Default Credentials를 사용한다. 서비스 계정 JSON과 `GOOGLE_APPLICATION_CREDENTIALS` 파일을 만들지 않으며, `FIREBASE_PROJECT_ID`를 명시해 다른 project token을 거부한다.
 
 첫 범위는 Firebase Admin SDK의 기본 `verifyIdToken`을 사용하므로 token 폐기 여부를 추가 조회하지 않는다. ID token 만료 전 즉시 차단이 필요하면 PostgreSQL 역할을 제거하고, 계정 폐기 확인을 매 요청에 적용할지는 네트워크 비용과 캐시 전략을 정한 뒤 별도 반영한다.
+
+## 계정 삭제 영향도 점검
+
+`GET /api/account/deletion-readiness`는 인증된 본인의 내부 사용자 ID만 사용해 PostgreSQL 연관 데이터 건수와 객관적인 기술 차단 코드를 조회한다. 요청에서 사용자 ID를 받지 않으며 응답에는 Firebase UID, 레코드 ID, 이름, 연락처, 본문, 좌표와 Storage 경로를 포함하지 않는다. 응답은 캐시하지 않는다.
+
+이 API는 삭제 가능 여부를 승인하거나 데이터를 삭제하지 않는다. `readOnly=true`, `deletionExecuted=false`, `decision=NOT_EVALUATED`, `complete=false`가 현재 고정 계약이다. PostgreSQL 집계에 성공해도 Firestore, Storage, Firebase Auth와 백업은 `NOT_EVALUATED`로 남으므로 실제 탈퇴 기능으로 사용하면 안 된다. 자세한 구현 경계는 [계정 탈퇴·삭제 준비 상태](../docs/operations/account-deletion-readiness.md)를 따른다.
 
 ## Kakao Local 장소 검색
 

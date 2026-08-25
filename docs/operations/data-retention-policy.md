@@ -121,3 +121,10 @@
 - [ ] 승인된 개인정보 처리방침과 실제 파기 job을 대조
 
 정책·법률 대조 결과는 [2026-08-25 정책·법률 정합성 점검](../reports/notion-policy-legal-alignment-2026-08-25.md)을 따른다.
+
+## 계정 삭제 구현 상태 (2026-08-25)
+
+- Core API에 인증된 본인의 PostgreSQL 연관 건수만 조회하는 읽기 전용 점검 경계를 추가했다.
+- 이 점검은 삭제를 실행하거나 가능 여부를 승인하지 않으며 Firestore, Storage, Firebase Auth와 백업을 미점검 상태로 표시한다.
+- 실제 탈퇴·법정 보존 분리·재가입 차단은 아직 완료되지 않았다.
+- API와 권한 경계는 [계정 탈퇴·삭제 준비 상태](account-deletion-readiness.md), 검증 기록은 [Issue 348 계정 삭제 영향도 1단계](../reports/issue-348-account-deletion-readiness-2026-08-25.md)를 따른다.

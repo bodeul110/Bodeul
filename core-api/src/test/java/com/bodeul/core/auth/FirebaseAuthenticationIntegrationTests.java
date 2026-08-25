@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -62,6 +63,13 @@ class FirebaseAuthenticationIntegrationTests {
     @Test
     void missingAuthorizationReturns401() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("missing_authorization"));
+    }
+
+    @Test
+    void missingAuthorizationForAccountDeletionReadinessReturns401() throws Exception {
+        mockMvc.perform(get("/api/account/deletion-readiness"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("missing_authorization"));
     }
@@ -137,6 +145,27 @@ class FirebaseAuthenticationIntegrationTests {
 
         assertThat(tokenVerifier.lastToken).isEqualTo(rawToken);
         assertThat(appUserRepository.lastFirebaseUid).isEqualTo("firebase-user-1");
+    }
+
+    @Test
+    void accountDeletionReadinessIsReadOnlyAndFailsClosedWhenSourcesAreIncomplete() throws Exception {
+        mockMvc.perform(get("/api/account/deletion-readiness")
+                        .header("Authorization", "Bearer valid-firebase-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readOnly").value(true))
+                .andExpect(jsonPath("$.deletionExecuted").value(false))
+                .andExpect(jsonPath("$.decision").value("NOT_EVALUATED"))
+                .andExpect(jsonPath("$.complete").value(false))
+                .andExpect(jsonPath("$.sources[0].source").value("POSTGRESQL"))
+                .andExpect(jsonPath("$.sources[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.sources[1].source").value("FIRESTORE"))
+                .andExpect(jsonPath("$.sources[1].status").value("NOT_EVALUATED"))
+                .andExpect(jsonPath("$.observationCodes").isEmpty())
+                .andExpect(jsonPath("$.blockerCodes[0]").value("SOURCE_UNAVAILABLE"))
+                .andExpect(jsonPath("$.blockerCodes[1]").value("INVENTORY_INCOMPLETE"))
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(content().string(not(containsString(APP_USER_ID.toString()))))
+                .andExpect(content().string(not(containsString("firebase-user-1"))));
     }
 
     @Test
