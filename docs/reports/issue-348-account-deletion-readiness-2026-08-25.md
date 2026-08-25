@@ -36,7 +36,7 @@
 
 후속 run `32864048561`에서는 V15가 이미 최신이라 migration 없이 종료된 뒤 `verifyAccountDeletionInventory`가 통과했다. 이 읽기 전용 검증은 함수 소유자·`SECURITY DEFINER`·고정 `search_path`, 실제 Core/Admin 서비스 역할의 schema `USAGE`와 함수 `EXECUTE`, 공개 역할의 실행 차단, Core runtime/service의 배정 감사 원문 조회 차단을 확인했다. 합성 UUID 조회는 정의된 14개 열을 순서대로 반환했고 모든 집계값이 0이었다.
 
-로컬 Docker 엔진이 기동되지 않아 임시 PostgreSQL에서 V1~V15 연속 적용과 V15 rollback은 완료하지 못했다. 개발 DB에는 rollback을 실행하지 않으며 rollback SQL은 제한된 문자열 계약까지만 확인했다.
+로컬 Docker 엔진은 기동되지 않았지만 `Core API CI`의 disposable PostgreSQL 17에서 V1~V15 연속 적용이 통과했다. 공유 개발 DB에는 rollback을 실행하지 않았고 CI도 V15 rollback 자체는 실행하지 않으므로, V15 rollback SQL은 제한된 문자열 계약까지만 확인했다.
 
 ## 남은 범위
 
