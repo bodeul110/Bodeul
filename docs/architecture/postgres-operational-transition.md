@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-08-22
+기준일: 2026-08-25
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -31,7 +31,7 @@ Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도�
 | 매칭·동행·리포트·후속 처리 전환 | 개발 환경 완료, 관리자 배정과 Core API 경계 분리 |
 | 채팅·읽음·위치와 Realtime 전환 | 개발 환경 완료, Firestore client 쓰기 차단 |
 | 세션 첨부 Core API 중계 | 개발 환경과 실기기 검증 완료, production 게이트 대기 |
-| 자동 파기 | Core 중첩 첨부 fixture APPLY 완료. Firestore 전환 문서·매니저 증빙 fixture APPLY와 production 게이트 대기 |
+| 자동 파기 | Core 중첩 첨부와 Firestore 전환 문서·매니저 증빙의 개발 fixture APPLY·cleanup 완료. 정책 충돌 해소와 production 게이트 대기 |
 | production 프로젝트 분리 | 완료 |
 | production PostgreSQL 복원 리허설 | 완료 |
 | production 유료 등급과 실제 트래픽 | 미전환 |
@@ -74,7 +74,7 @@ Firebase에 남은 도메인을 PostgreSQL로 자동 이전하지 않는다. 각
 
 ### 3. production 전환 대기
 
-개발 환경의 Core 도메인 전환과 실기기 검증, Core 중첩 첨부 파기 리허설은 완료했다. Firestore 전환 문서·매니저 증빙 fixture APPLY가 남아 있다. production에서는 Kakao 키, Cloud Run·Vercel 자격 증명, App Check, custom domain, rollback과 법률 문서 대조를 Go/No-Go에서 다시 확인한다.
+개발 환경의 Core 도메인 전환과 실기기 검증, Core 중첩 첨부·Firestore 전환 문서·매니저 증빙 파기 리허설은 완료했다. production에서는 보관기간 충돌 해소, Kakao 키, Cloud Run·Vercel 자격 증명, App Check, custom domain, rollback과 법률 문서 대조를 Go/No-Go에서 다시 확인한다.
 
 ## 대안
 

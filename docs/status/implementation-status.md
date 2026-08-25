@@ -1,6 +1,6 @@
 # 구현 상태
 
-기준: 2026-08-22
+기준: 2026-08-25
 
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
@@ -37,6 +37,8 @@
 - 병원 동행 가이드 진행, 보호자 공유 메시지, 복약 메모, 진료 리포트 저장
 - 백그라운드 위치 서비스와 카카오 지도 기반 위치 공유
 - 위치 권한 / 로그인 / 불러오기 실패 상태 패널 표시
+
+실시간 위치와 이동경로는 코드와 개발 검증에는 존재하지만 최신 MVP 기획 방향에서는 제외 대상이다. production 기능으로 승인된 상태가 아니며, 상봉번호와 위치 미수집 흐름이 확정되면 별도 변경에서 권한 요청·서비스·화면을 정리해야 한다.
 
 ### 관리자 앱 (레거시 운영 화면)
 
@@ -85,8 +87,9 @@
 - 환자→보호자 정보공유 동의·철회와 대리권 감사 정책
 - 매니저 self-accept 여부와 시스템 이벤트형 동행방 제품 결정
 - production Kakao 키, Cloud Run·Vercel 운영 자격 증명, App Check 강제와 rollback 검증
-- 개발 Firestore 전환 문서·매니저 증빙 fixture 파기 APPLY
-- production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 법률 문서 대조
+- Notion 보관기간·위치·매칭·채팅·서류 정책 충돌 해소
+- 탈퇴·삭제, 법정 보존 분리와 백업 삭제 재적용 구현
+- production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 승인된 약관 대조
 
 ## 4. 검증 기준
 
@@ -99,7 +102,7 @@
 
 - Firestore 쿼리와 인덱스 운영 점검 결과는 [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](../reports/firestore-query-index-review-2026-06-26.md)에 둔다.
 - 2026-06-20 이후 장문 점검과 실기기 확인 기록은 `../reports/` 아래 성격별 보고서에 둔다.
-- 최신 제품·디자인 문서 정합성은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 기준으로 본다.
+- 최신 정책·법률 상태는 [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](../reports/notion-policy-legal-alignment-2026-08-25.md), 화면 기준은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 본다.
 - 과거 전체 점검과 문서 정리는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)과 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 보관한다.
 - 위치 이력 운영 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)에 둔다.
 

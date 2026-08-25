@@ -1,6 +1,6 @@
 # 인프라 리스크와 보완 계획
 
-기준일: 2026-08-22
+기준일: 2026-08-25
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -20,7 +20,7 @@
 | 실시간 운영 | 개발 위치·채팅은 PostgreSQL 영속 저장과 Supabase private Broadcast로 전환했다. | production 부하, 재연결, FCM 실패율과 durable retry 필요성을 확인한다. |
 | DB 연결 고갈 | Cloud Run과 Vercel이 같은 DB를 사용한다. | Core pool 2, Admin pool 1, runtime role connection limit 5와 최대 인스턴스 2를 유지한다. |
 | App Check | 개발 Android valid 검증은 완료했지만 release enforcement가 남았다. | release Play Integrity와 관리자 웹 provider를 확인한 뒤 observe에서 enforce로 전환한다. |
-| 민감 데이터 보관 | V13 파기 계약과 Core 중첩 첨부 fixture APPLY는 완료했다. Firestore 전환 문서·매니저 증빙은 단위 테스트와 빈 컬렉션 dry-run까지만 완료했다. | 개발 Firestore fixture APPLY 뒤 production fixture, legal hold, 개인정보 처리방침과 위치기반서비스 이용약관을 대조한다. |
+| 민감 데이터 보관 | V13, Core 첨부와 개발 Firestore 전환 문서·매니저 증빙 fixture APPLY·cleanup을 완료했다. Notion의 보관기간끼리 충돌하고 production 쓰기 권한은 비활성 상태다. | 보관기간 충돌, 개인정보 처리방침과 위치기반서비스 이용약관을 먼저 승인한 뒤 production 격리 fixture를 검증한다. |
 | 복구 | production PostgreSQL 격리 복원은 완료했다. | Cloud Run·Vercel rollback을 리허설하고 분기별 DB 복원을 반복한다. |
 | 비용 | GCP budget은 있으나 Supabase와 Vercel은 아직 무료 등급이다. | 월 150,000 KRW 한도 안에서 2026-11-16까지 Supabase/Vercel Pro로 전환한다. |
 | 외부 API | Kakao Local은 Core API로 이동했지만 production key가 없다. | Secret Manager version을 추가하고 429, timeout과 fallback을 production 후보에서 검증한다. |
@@ -50,7 +50,7 @@ Realtime 이벤트는 누락, 중복 또는 순서 변경이 발생할 수 있�
 
 ## 민감 데이터와 파기
 
-위치 좌표, 채팅 첨부와 매니저 증빙은 일반 운영 데이터보다 짧게 보관한다. 개발 파기 job은 dry-run과 apply를 분리했고 Core 중첩 첨부 fixture APPLY를 완료했다. Firestore 전환 문서와 매니저 증빙은 실제 fixture APPLY가 남아 있으며, 감사 로그에는 원문 대신 비식별 집계와 처리 결과만 남긴다.
+위치 좌표, 채팅 첨부와 매니저 증빙은 일반 운영 데이터보다 짧게 보관한다. 개발 파기 job은 dry-run과 apply를 분리했고 Core 중첩 첨부, Firestore 전환 문서와 매니저 증빙의 실제 개발 fixture APPLY·cleanup을 완료했다. 감사 로그에는 원문 대신 비식별 집계와 처리 결과만 남긴다.
 
 법정 보존 또는 분쟁 대응 예외는 일반 테이블 조회에서 격리하고 근거, 승인자와 만료일을 기록한다. 상세 기간은 [데이터 보관 및 파기 정책](../operations/data-retention-policy.md)을 따른다.
 
@@ -79,4 +79,5 @@ Realtime 이벤트는 누락, 중복 또는 순서 변경이 발생할 수 있�
 - [Production 인프라 기본값](../operations/production-infrastructure-defaults.md)
 - [비용과 쿼터 모니터링](../operations/cost-monitoring.md)
 - [데이터 보관 및 파기 정책](../operations/data-retention-policy.md)
+- [2026-08-25 정책·법률 정합성 점검](../reports/notion-policy-legal-alignment-2026-08-25.md)
 - [Production PostgreSQL 복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md)

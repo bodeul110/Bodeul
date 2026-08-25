@@ -1,6 +1,6 @@
 # 문서 홈
 
-기준일: 2026-08-22
+기준일: 2026-08-25
 
 이 문서는 현재 저장소 문서의 단일 진입점이다. `docs/` 루트에는 이 색인만 두고 실제 문서는 주제별 하위 디렉터리에 둔다.
 
@@ -24,6 +24,7 @@
 | 인프라·배포 | [인프라 개요](architecture/infrastructure.md), [Production 인프라 기본값](operations/production-infrastructure-defaults.md) |
 | Firebase 운영 | [Firebase 설정](operations/firebase/setup.md), [운영 문서](operations/README.md) |
 | 보안·권한 | [보안 문서](security/README.md), [데이터 보관 및 파기 정책](operations/data-retention-policy.md) |
+| 기획·법률 정책 확인 | [Notion 제품 기준 정합성](planning/notion-product-alignment.md), [2026-08-25 정책·법률 점검](reports/notion-policy-legal-alignment-2026-08-25.md) |
 | 검증 결과 확인 | [현재 구현 상태](status/implementation-status.md), [보고서](reports/README.md) |
 
 ## 카테고리
@@ -44,6 +45,7 @@
 ## 외부 자료 원칙
 
 - Notion은 제품 의도와 미결 정책을 관리한다. 비공개 URL, 페이지 ID, 계정 정보와 개인정보를 공개 저장소에 기록하지 않는다.
+- 답변이 작성됐더라도 확정자·확정일이 없거나 다른 정책 문서와 충돌하면 최종 승인으로 보지 않는다.
 - Figma `보들 가이드`의 `Page 2(460:2)`는 현재 화면 구조와 시각 위계의 원본이다.
 - `docs/local/`의 기능설명서 PDF와 `design_refs/local/`의 export는 과거 또는 임시 스냅샷이다.
 - Figma나 Notion의 `구현 완료` 표기는 코드와 검증 기록 없이 현재 구현 근거로 쓰지 않는다.
