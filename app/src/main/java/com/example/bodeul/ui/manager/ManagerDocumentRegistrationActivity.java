@@ -414,7 +414,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 ),
                 getString(R.string.state_permission_body),
                 getString(R.string.state_action_open_home),
-                view -> openHome(),
+                view -> openGeneralHome(),
                 getString(R.string.state_action_open_login),
                 view -> openRoleSelection()
         );
@@ -449,7 +449,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 getString(R.string.state_action_retry),
                 view -> loadScreen(),
                 getString(R.string.state_action_open_home),
-                view -> openHome()
+                view -> openManagerHome()
         );
     }
 
@@ -482,8 +482,15 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         contentContainer.setVisibility(View.VISIBLE);
     }
 
-    private void openHome() {
+    private void openGeneralHome() {
         startActivity(new Intent(this, MainActivity.class));
+        finish();
+    }
+
+    private void openManagerHome() {
+        Intent intent = new Intent(this, ManagerActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
         finish();
     }
 

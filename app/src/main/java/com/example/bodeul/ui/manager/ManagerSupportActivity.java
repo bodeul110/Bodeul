@@ -247,7 +247,7 @@ public class ManagerSupportActivity extends AppCompatActivity {
                 getString(R.string.state_permission_title, getString(R.string.feature_manager_support_title)),
                 getString(R.string.state_permission_body),
                 getString(R.string.state_action_open_home),
-                view -> openHome(),
+                view -> openGeneralHome(),
                 getString(R.string.state_action_open_login),
                 view -> openRoleSelection()
         );
@@ -295,7 +295,7 @@ public class ManagerSupportActivity extends AppCompatActivity {
         managerSupportContentContainer.setVisibility(View.VISIBLE);
     }
 
-    private void openHome() {
+    private void openGeneralHome() {
         startActivity(new Intent(this, MainActivity.class));
         finish();
     }

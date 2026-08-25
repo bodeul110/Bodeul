@@ -16,7 +16,14 @@
         android:orientation="vertical"
         android:padding="22dp">
 
+        <LinearLayout
+            android:id="@+id/groupGuideFieldNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
         <TextView
+            android:id="@+id/textGuideFieldNoteTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/guide_photo_section"
@@ -25,6 +32,7 @@
             android:textStyle="bold" />
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/layoutGuideFieldNoteInput"
             style="@style/BodeulFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -44,6 +52,14 @@
             style="@style/BodeulOutlinedButton"
             android:layout_marginTop="14dp"
             android:text="@string/guide_photo_save" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/groupGuideMedicationNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
         <TextView
             android:layout_width="wrap_content"
@@ -74,6 +90,14 @@
             style="@style/BodeulOutlinedButton"
             android:layout_marginTop="14dp"
             android:text="@string/guide_medication_save" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/groupGuidePharmacy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
         <TextView
             android:layout_width="wrap_content"
@@ -159,5 +183,6 @@
             style="@style/BodeulOutlinedButton"
             android:layout_marginTop="10dp"
             android:text="@string/guide_medication_guidance_mark_completed" />
+        </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

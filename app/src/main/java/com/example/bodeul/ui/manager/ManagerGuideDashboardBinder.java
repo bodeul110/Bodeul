@@ -42,6 +42,7 @@ public final class ManagerGuideDashboardBinder {
     private final TextView textGuideFocusPreviewLabel;
     private final TextView textGuideFocusPreviewBody;
     private final View viewGuideFocusPreview;
+    private final ManagerGuideStepSectionsBinder stepSectionsBinder;
     private final TextView textGuideLiveLocationStatus;
     private final TextView textGuideLiveLocationHistory;
     private final TextInputEditText inputGuideLocationSummary;
@@ -95,6 +96,7 @@ public final class ManagerGuideDashboardBinder {
             TextView textGuideFocusPreviewLabel,
             TextView textGuideFocusPreviewBody,
             View viewGuideFocusPreview,
+            ManagerGuideStepSectionsBinder stepSectionsBinder,
             TextView textGuideLiveLocationStatus,
             TextView textGuideLiveLocationHistory,
             TextInputEditText inputGuideLocationSummary,
@@ -147,6 +149,7 @@ public final class ManagerGuideDashboardBinder {
         this.textGuideFocusPreviewLabel = textGuideFocusPreviewLabel;
         this.textGuideFocusPreviewBody = textGuideFocusPreviewBody;
         this.viewGuideFocusPreview = viewGuideFocusPreview;
+        this.stepSectionsBinder = stepSectionsBinder;
         this.textGuideLiveLocationStatus = textGuideLiveLocationStatus;
         this.textGuideLiveLocationHistory = textGuideLiveLocationHistory;
         this.inputGuideLocationSummary = inputGuideLocationSummary;
@@ -194,6 +197,10 @@ public final class ManagerGuideDashboardBinder {
         bindMapActions(screenModel.getMapActions());
         bindStages(screenModel.getStages());
         bindFocus(screenModel.getFocusModel());
+        stepSectionsBinder.bind(
+                screenModel.getSectionVisibility(),
+                screenModel.getCurrentStepCode()
+        );
         textGuideLiveLocationStatus.setText(screenModel.getLiveLocationStatus());
         textGuideLiveLocationHistory.setText(screenModel.getLiveLocationHistory());
 
@@ -321,6 +328,9 @@ public final class ManagerGuideDashboardBinder {
 
     private void bindStages(List<ManagerGuideStageModel> stages) {
         guideStageRailContainer.removeAllViews();
+        if (guideStageRailContainer.getVisibility() != View.VISIBLE) {
+            return;
+        }
         for (ManagerGuideStageModel stage : stages) {
             View stageView = inflater.inflate(R.layout.item_manager_guide_stage, guideStageRailContainer, false);
             stageItemBinder.bind(stageView, stage);

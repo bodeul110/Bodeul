@@ -176,7 +176,7 @@ public class ManagerGuideViewModel extends ViewModel {
         managerRepository.advanceCurrentStep(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("?ㅼ쓬 ?④퀎濡??대룞?덉뒿?덈떎.");
+                _toastMessage.setValue("다음 단계로 이동했습니다.");
                 bindDashboard(result);
             }
 
@@ -190,13 +190,13 @@ public class ManagerGuideViewModel extends ViewModel {
     public void saveLocationSummary(String summary) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(summary)) {
-            _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
         managerRepository.saveLocationSummary(currentUser.getId(), summary, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("?꾩튂 ?붿빟????λ릺?덉뒿?덈떎.");
+                _toastMessage.setValue("위치 메모를 저장했습니다.");
                 bindDashboard(result);
             }
 
@@ -210,13 +210,13 @@ public class ManagerGuideViewModel extends ViewModel {
     public void saveGuardianUpdate(String message) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(message)) {
-            _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
         managerRepository.saveGuardianUpdate(currentUser.getId(), message, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("蹂댄샇???뚮┝????λ릺?덉뒿?덈떎.");
+                _toastMessage.setValue("보호자 공유 메시지를 저장했습니다.");
                 bindDashboard(result);
             }
 
@@ -230,13 +230,13 @@ public class ManagerGuideViewModel extends ViewModel {
     public void saveFieldPhotoNote(String note) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(note)) {
-            _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
         managerRepository.saveFieldPhotoNote(currentUser.getId(), note, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("?꾩옣 ?ъ쭊 硫붾え媛 ??λ릺?덉뒿?덈떎.");
+                _toastMessage.setValue("현장 메모를 저장했습니다.");
                 bindDashboard(result);
             }
 
@@ -250,13 +250,13 @@ public class ManagerGuideViewModel extends ViewModel {
     public void saveMedicationNote(String note) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(note)) {
-            _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
         managerRepository.saveMedicationNote(currentUser.getId(), note, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("蹂듭빟 ?덈궡媛 ??λ릺?덉뒿?덈떎.");
+                _toastMessage.setValue("복약 메모를 저장했습니다.");
                 bindDashboard(result);
             }
 
@@ -270,13 +270,13 @@ public class ManagerGuideViewModel extends ViewModel {
     public void savePharmacySummary(String summary) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(summary)) {
-            _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
         managerRepository.savePharmacySummary(currentUser.getId(), summary, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("?쎄뎅 ?숉뻾 ?붿빟????λ릺?덉뒿?덈떎.");
+                _toastMessage.setValue("약국 진행 내용을 저장했습니다.");
                 bindDashboard(result);
             }
 
@@ -300,8 +300,8 @@ public class ManagerGuideViewModel extends ViewModel {
                             @Override
                             public void onSuccess(ManagerDashboard updated) {
                                 _toastMessage.setValue(nextValue
-                                        ? "泥섎갑???섎졊???꾨즺濡??쒖떆?덉뒿?덈떎."
-                                        : "泥섎갑???섎졊 ?꾩쑝濡??섎룎?몄뒿?덈떎.");
+                                        ? "처방전 수령을 완료로 표시했습니다."
+                                        : "처방전 수령 전으로 되돌렸습니다.");
                                 bindDashboard(updated);
                             }
 
@@ -364,8 +364,8 @@ public class ManagerGuideViewModel extends ViewModel {
                             @Override
                             public void onSuccess(ManagerDashboard updated) {
                                 _toastMessage.setValue(nextValue
-                                        ? "蹂듭빟 ?덈궡瑜??꾨즺濡??쒖떆?덉뒿?덈떎."
-                                        : "蹂듭빟 ?덈궡 ?꾩쑝濡??섎룎?몄뒿?덈떎.");
+                                        ? "복약 안내를 완료로 표시했습니다."
+                                        : "복약 안내 전으로 되돌렸습니다.");
                                 bindDashboard(updated);
                             }
 
@@ -397,7 +397,7 @@ public class ManagerGuideViewModel extends ViewModel {
     ) {
         if (currentUser == null) return;
         if (TextUtils.isEmpty(summary)) {
-            _toastMessage.setValue("?꾩닔 ?낅젰 ??ぉ??梨꾩썙二쇱꽭??");
+            _toastMessage.setValue("진료 요약을 입력해 주세요.");
             return;
         }
         boolean hasMedicationComparisonInput = !TextUtils.isEmpty(medication)
@@ -427,7 +427,7 @@ public class ManagerGuideViewModel extends ViewModel {
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override
                     public void onSuccess(ManagerDashboard result) {
-                        _toastMessage.setValue("?숉뻾 ?쇱?媛 ?쒖텧?섏뿀?듬땲??");
+                        _toastMessage.setValue("동행 리포트를 제출했습니다.");
                         bindDashboard(result);
                     }
 
@@ -449,7 +449,7 @@ public class ManagerGuideViewModel extends ViewModel {
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override
                     public void onSuccess(ManagerDashboard result) {
-                        _toastMessage.setValue("?꾩옱 ?꾩튂瑜?怨듭쑀?덉뒿?덈떎.");
+                        _toastMessage.setValue("현재 위치를 공유했습니다.");
                         bindDashboard(result);
                     }
 
@@ -473,9 +473,9 @@ public class ManagerGuideViewModel extends ViewModel {
                     @Override
                     public void onSuccess(ManagerDashboard result) {
                         if (active) {
-                            _toastMessage.setValue("?ㅼ떆媛??꾩튂 怨듭쑀媛 ?쒖옉?섏뿀?듬땲??");
+                            _toastMessage.setValue("실시간 위치 공유를 시작했습니다.");
                         } else {
-                            _toastMessage.setValue("?ㅼ떆媛??꾩튂 怨듭쑀媛 以묒??섏뿀?듬땲??");
+                            _toastMessage.setValue("실시간 위치 공유를 중지했습니다.");
                         }
                         bindDashboard(result);
                         if (onActivationComplete != null) onActivationComplete.run();

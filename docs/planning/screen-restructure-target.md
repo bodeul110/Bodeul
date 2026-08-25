@@ -7,6 +7,7 @@
 - 기준 분리: [기획·디자인·구현 기준](source-of-truth.md)
 - 제품 범위: [Notion 제품 기준 정합성](notion-product-alignment.md)
 - 화면 구조: [Figma 현행 화면 지도](../design/figma-current-screen-map.md)
+- 매니저 구현 흐름: [매니저 화면 흐름 지도](../design/manager-screen-flow-map.md)
 - 실제 구현: [현재 구현 상태](../status/implementation-status.md)
 
 이 문서는 현재 제품 흐름을 화면 단위로 묶는 목표 정보 구조다. 서버·DB 계약이나 구현 완료 여부를 정의하지 않는다.

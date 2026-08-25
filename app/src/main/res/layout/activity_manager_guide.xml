@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_screen_glow"
-    android:fillViewport="true">
+    android:orientation="vertical">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -198,11 +204,13 @@
                             android:id="@+id/guideStageRailContainer"
                             android:layout_width="126dp"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical" />
+                            android:orientation="vertical"
+                            android:visibility="gone" />
 
                         <Space
                             android:layout_width="12dp"
-                            android:layout_height="1dp" />
+                            android:layout_height="1dp"
+                            android:visibility="gone" />
 
                         <com.google.android.material.card.MaterialCardView
                             android:layout_width="0dp"
@@ -284,14 +292,11 @@
                         </com.google.android.material.card.MaterialCardView>
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/buttonAdvanceGuide"
-                        style="@style/BodeulHomeButton"
-                        android:layout_marginTop="18dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardGuideMap"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
@@ -339,6 +344,7 @@
             </com.google.android.material.card.MaterialCardView>
 
             <TextView
+                android:id="@+id/textGuideActionsTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="26dp"
@@ -348,17 +354,44 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/textGuideActionsHelper"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="@string/guide_actions_helper"
                 android:textColor="@color/bodeul_text_secondary"
                 android:textSize="13sp" />
-            <include layout="@layout/include_manager_guide_location_card" />
+            <include
+                android:id="@+id/cardGuideLocationActions"
+                layout="@layout/include_manager_guide_location_card" />
 
-            <include layout="@layout/include_manager_guide_notes_card" />
+            <include
+                android:id="@+id/cardGuideNotesActions"
+                layout="@layout/include_manager_guide_notes_card" />
 
-            <include layout="@layout/include_manager_guide_report_card" />
+            <include
+                android:id="@+id/cardGuideReportActions"
+                layout="@layout/include_manager_guide_report_card" />
         </LinearLayout>
     </LinearLayout>
-</ScrollView>
+    </ScrollView>
+
+    <FrameLayout
+        android:id="@+id/managerGuideBottomAction"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bodeul_surface"
+        android:elevation="12dp"
+        android:paddingStart="24dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="18dp"
+        android:visibility="gone">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonAdvanceGuide"
+            style="@style/BodeulHomeButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </FrameLayout>
+</LinearLayout>

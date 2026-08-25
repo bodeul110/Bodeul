@@ -61,6 +61,8 @@ public final class ManagerGuideCoordinator {
                 buildHospitalMapPreviewModel(dashboard),
                 stages,
                 createFocusModel(focusStep, session, advanceDecision),
+                ManagerGuideSectionVisibility.forStep(focusStep),
+                focusStep.getCode(),
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
                 CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
                 session.getLocationSummary(),
@@ -80,8 +82,8 @@ public final class ManagerGuideCoordinator {
                 report == null ? null : report.getMedicationComparisonDecision(),
                 report == null ? "" : report.getMedicationComparisonNote(),
                 report == null ? "" : report.getNextVisitAt(),
-                buildAdvanceButtonLabel(advanceDecision),
-                advanceDecision.isAdvanceEnabled(),
+                buildAdvanceButtonLabel(focusStep, advanceDecision),
+                isPrimaryActionEnabled(focusStep, session, advanceDecision),
                 context.getString(report == null
                         ? R.string.guide_report_submit
                         : R.string.guide_report_update),
@@ -110,6 +112,8 @@ public final class ManagerGuideCoordinator {
                         context.getString(R.string.guide_focus_preview_empty),
                         R.drawable.bg_service_thumb_cool
                 ),
+                ManagerGuideSectionVisibility.hidden(),
+                "",
                 context.getString(R.string.live_location_status_inactive_empty),
                 context.getString(R.string.live_location_history_empty),
                 "",
@@ -314,7 +318,14 @@ public final class ManagerGuideCoordinator {
         return ManagerGuideStageState.UPCOMING;
     }
 
-    private String buildAdvanceButtonLabel(ManagerGuideProgressPolicy.Decision decision) {
+    private String buildAdvanceButtonLabel(
+            GuideStep focusStep,
+            ManagerGuideProgressPolicy.Decision decision
+    ) {
+        if (isReportCompletionStep(focusStep)
+                && decision.getState() != ManagerGuideProgressPolicy.State.COMPLETED) {
+            return context.getString(R.string.guide_action_journal_complete);
+        }
         switch (decision.getState()) {
             case COMPLETED:
                 return context.getString(R.string.guide_button_done);
@@ -327,6 +338,60 @@ public final class ManagerGuideCoordinator {
             case BLOCKED:
                 return context.getString(R.string.guide_button_blocked);
             case ADVANCE:
+            default:
+                return buildStepActionLabel(focusStep);
+        }
+    }
+
+    private boolean isPrimaryActionEnabled(
+            GuideStep focusStep,
+            CompanionSession session,
+            ManagerGuideProgressPolicy.Decision decision
+    ) {
+        if (isReportCompletionStep(focusStep)) {
+            return session.getStatus() != SessionStatus.COMPLETED
+                    && session.getStatus() != SessionStatus.CANCELED;
+        }
+        return decision.isAdvanceEnabled();
+    }
+
+    private boolean isReportCompletionStep(GuideStep step) {
+        if (step == null) {
+            return false;
+        }
+        String code = step.getCode() == null ? "" : step.getCode().trim();
+        return "MANAGER_JOURNAL".equals(code)
+                || "LEGACY_CORE_RETURN_AND_CLOSE".equals(code)
+                || (code.isEmpty() && step.getOrder() == 7);
+    }
+
+    private String buildStepActionLabel(GuideStep step) {
+        String code = step == null || step.getCode() == null ? "" : step.getCode().trim();
+        switch (code) {
+            case "MEETING_CONFIRMATION":
+                return context.getString(R.string.guide_action_meeting_complete);
+            case "HOSPITAL_ROUTE":
+                return context.getString(R.string.guide_action_department_arrived);
+            case "RECEPTION_QUEUE":
+                return context.getString(R.string.guide_action_reception_complete);
+            case "VITALS_CHECK":
+                return context.getString(R.string.guide_action_vitals_complete);
+            case "PRE_CONSULTATION":
+                return context.getString(R.string.guide_action_consultation_ready);
+            case "CONSULTATION_SUPPORT":
+                return context.getString(R.string.guide_action_consultation_complete);
+            case "CONSULTATION_SUMMARY":
+                return context.getString(R.string.guide_action_summary_complete);
+            case "PAYMENT_EVIDENCE":
+                return context.getString(R.string.guide_action_payment_complete);
+            case "PHARMACY_ROUTE":
+                return context.getString(R.string.guide_action_pharmacy_arrived);
+            case "PRESCRIPTION_DOCUMENTS":
+                return context.getString(R.string.guide_action_prescription_complete);
+            case "MEDICATION_CONFIRMATION":
+                return context.getString(R.string.guide_action_medication_complete);
+            case "CARE_COMPLETION":
+                return context.getString(R.string.guide_action_care_complete);
             default:
                 return context.getString(R.string.guide_button_next);
         }

@@ -161,7 +161,7 @@ public class ManagerHistoryActivity extends AppCompatActivity {
                 getString(R.string.state_permission_title, getString(R.string.feature_manager_history_title)),
                 getString(R.string.state_permission_body),
                 getString(R.string.state_action_open_home),
-                view -> openHome(),
+                view -> openGeneralHome(),
                 getString(R.string.state_action_open_login),
                 view -> openRoleSelection()
         );
@@ -193,7 +193,7 @@ public class ManagerHistoryActivity extends AppCompatActivity {
                 getString(R.string.state_action_retry),
                 view -> loadHistory(),
                 getString(R.string.state_action_open_home),
-                view -> openHome()
+                view -> openManagerHome()
         );
     }
 
@@ -226,8 +226,15 @@ public class ManagerHistoryActivity extends AppCompatActivity {
         managerHistoryContentContainer.setVisibility(View.VISIBLE);
     }
 
-    private void openHome() {
+    private void openGeneralHome() {
         startActivity(new Intent(this, MainActivity.class));
+        finish();
+    }
+
+    private void openManagerHome() {
+        Intent intent = new Intent(this, ManagerActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
         finish();
     }
 

@@ -2,6 +2,8 @@ package com.example.bodeul.ui.manager;
 
 import androidx.annotation.Nullable;
 
+import com.example.bodeul.domain.model.GuideStep;
+
 /**
  * 서버 단계 코드를 현재 공통 가이드 화면의 표시 유형으로 연결한다.
  */
@@ -49,6 +51,31 @@ final class ManagerGuideStepRegistry {
             case "CARE_COMPLETION":
             case "MANAGER_JOURNAL":
             case "LEGACY_CORE_RETURN_AND_CLOSE":
+                return PresentationType.FINISH;
+            default:
+                return PresentationType.GENERAL;
+        }
+    }
+
+    static PresentationType resolve(@Nullable GuideStep step) {
+        if (step == null) {
+            return PresentationType.GENERAL;
+        }
+        if (step.getCode() != null && !step.getCode().trim().isEmpty()) {
+            return resolve(step.getCode());
+        }
+        switch (step.getOrder()) {
+            case 1:
+                return PresentationType.MEETING;
+            case 2:
+            case 3:
+                return PresentationType.DOCUMENT;
+            case 4:
+            case 5:
+                return PresentationType.TREATMENT;
+            case 6:
+                return PresentationType.MEDICATION;
+            case 7:
                 return PresentationType.FINISH;
             default:
                 return PresentationType.GENERAL;

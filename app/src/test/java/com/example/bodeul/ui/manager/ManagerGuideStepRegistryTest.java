@@ -7,6 +7,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import com.example.bodeul.domain.model.GuideStep;
+
 public class ManagerGuideStepRegistryTest {
     private static final String[] PRODUCT_CODES = {
             "MEETING_CONFIRMATION",
@@ -57,7 +59,7 @@ public class ManagerGuideStepRegistryTest {
                 ManagerGuideStepRegistry.resolve("UNLISTED_EXTENSION"));
         assertEquals(
                 ManagerGuideStepRegistry.PresentationType.GENERAL,
-                ManagerGuideStepRegistry.resolve(null));
+                ManagerGuideStepRegistry.resolve((GuideStep) null));
     }
 
     @Test
@@ -68,4 +70,18 @@ public class ManagerGuideStepRegistryTest {
         assertFalse(ManagerGuideStepRegistry.isPharmacyRoute("LEGACY_CORE_PHARMACY"));
         assertFalse(ManagerGuideStepRegistry.isPharmacyRoute(null));
     }
+
+    @Test
+    public void resolveGuideStep_usesStableCodeBeforeLegacyOrderFallback() {
+        GuideStep codedStep = new GuideStep("PHARMACY_ROUTE", 1, "약국 이동", "");
+        GuideStep legacyOrderStep = new GuideStep("", 6, "복약", "");
+
+        assertEquals(
+                ManagerGuideStepRegistry.PresentationType.MEDICATION,
+                ManagerGuideStepRegistry.resolve(codedStep));
+        assertEquals(
+                ManagerGuideStepRegistry.PresentationType.MEDICATION,
+                ManagerGuideStepRegistry.resolve(legacyOrderStep));
+    }
+
 }

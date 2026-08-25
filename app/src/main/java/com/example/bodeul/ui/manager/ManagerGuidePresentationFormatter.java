@@ -131,25 +131,7 @@ public final class ManagerGuidePresentationFormatter {
     }
 
     private ManagerGuideStepRegistry.PresentationType resolvePresentationType(GuideStep step) {
-        if (!TextUtils.isEmpty(step.getCode())) {
-            return ManagerGuideStepRegistry.resolve(step.getCode());
-        }
-        switch (step.getOrder()) {
-            case 1:
-                return ManagerGuideStepRegistry.PresentationType.MEETING;
-            case 2:
-            case 3:
-                return ManagerGuideStepRegistry.PresentationType.DOCUMENT;
-            case 4:
-            case 5:
-                return ManagerGuideStepRegistry.PresentationType.TREATMENT;
-            case 6:
-                return ManagerGuideStepRegistry.PresentationType.MEDICATION;
-            case 7:
-                return ManagerGuideStepRegistry.PresentationType.FINISH;
-            default:
-                return ManagerGuideStepRegistry.PresentationType.GENERAL;
-        }
+        return ManagerGuideStepRegistry.resolve(step);
     }
 
     private String fallback(String value) {
