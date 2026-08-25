@@ -229,6 +229,13 @@ jobs:
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
         run: ./gradlew migrateDatabase --console=plain
 
+      - name: 계정 삭제 영향도 DB 계약 검증
+        env:
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: ./gradlew verifyAccountDeletionInventory --console=plain
+
       - name: 동행 세션 백필 파일 준비
         if: inputs.apply_companion_session_seed
         shell: bash

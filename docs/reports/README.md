@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 348 계정 삭제 영향도 1단계 (2026-08-25)](issue-348-account-deletion-readiness-2026-08-25.md)
 - [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](notion-policy-legal-alignment-2026-08-25.md)
 - [Notion·Figma 문서 정합성 점검 (2026-08-22)](notion-figma-document-alignment-2026-08-22.md)
 - [Issue 251 Core-only 세션 첨부 경계 (2026-07-28)](issue-251-core-session-attachments-2026-07-28.md)
