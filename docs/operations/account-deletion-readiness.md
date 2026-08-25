@@ -69,6 +69,7 @@ Flyway V15의 `bodeul.account_deletion_postgres_inventory(uuid)` 함수가 집�
 - 응답은 읽기 전용·미판정·미완료 상태를 유지하고 민감 식별자를 포함하지 않는다.
 - PostgreSQL 연결 또는 함수 오류는 `SOURCE_UNAVAILABLE`로 닫힌다.
 - migration은 집계 함수 외 DML 권한을 추가하지 않고 rollback은 해당 함수만 제거한다.
+- 개발·운영 migration workflow는 Flyway 적용 뒤 함수 소유·고정 경로, 실제 Core/Admin 서비스 역할의 최소 실행 권한, Core 서비스의 배정 감사 원문 차단과 합성 UUID 0건 결과를 읽기 전용 트랜잭션에서 확인한다.
 - Core API 전체 테스트를 통과해야 한다.
 
 ## 남은 범위

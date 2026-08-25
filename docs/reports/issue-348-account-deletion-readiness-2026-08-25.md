@@ -24,15 +24,17 @@
 
 ## 검증
 
-- 계정 readiness와 Firebase 인증 통합 집중 테스트 27건 통과
-- `core-api` 전체 테스트 212건과 `check` 통과
+- 계정 readiness, DB 계약과 Firebase 인증 통합 집중 테스트 32건 통과
+- `core-api` 전체 테스트 217건과 `check` 통과
 - 인증 누락 401, 캐시 금지, 고정 미판정 응답과 식별자 미노출 확인
 - 진행 중 예약·세션은 탈퇴 차단으로 단정하지 않고 관찰 코드로만 반환하며 legal hold는 응답에 노출하지 않는지 확인
 - DB 집계 열이 `NULL`이거나 음수이면 0건으로 해석하지 않고 출처 오류로 닫히는지 확인
 - repository 미구성·DB 오류 시 `SOURCE_UNAVAILABLE`과 `INVENTORY_INCOMPLETE` 확인
 - migration 문자열 계약에서 고정 `search_path`, 최소 실행 권한, 원문·민감 컬럼 미조회와 제한된 rollback 확인
 
-로컬 Docker 엔진이 기동되지 않아 이번 변경 시점에는 임시 PostgreSQL의 V1~V15 연속 적용과 rollback을 완료하지 못했다. 개발 DB 적용 전 `Core API DB Migration` preview workflow로 Flyway 적용과 함수 권한을 확인해야 한다.
+개발 `Core API DB Migration` run `32861819498`에서 PostgreSQL 17.6의 기존 V14를 V15로 올렸다. Flyway는 migration 15개를 검증하고 V15 한 건을 적용해 schema version 15로 종료했다. 함수 권한과 합성 UUID 결과를 자동 확인하는 후속 task를 같은 workflow에 추가한다.
+
+로컬 Docker 엔진이 기동되지 않아 임시 PostgreSQL에서 V1~V15 연속 적용과 V15 rollback은 완료하지 못했다. 개발 DB에는 rollback을 실행하지 않으며 rollback SQL은 제한된 문자열 계약까지만 확인했다.
 
 ## 남은 범위
 

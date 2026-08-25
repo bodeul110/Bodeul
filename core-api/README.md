@@ -140,6 +140,8 @@ $env:MIGRATION_DB_PASSWORD = "<migration-password>"
 runtime 서버에는 `MIGRATION_DB_*` 값을 주입하지 않는다.
 GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 Environment의 승인을 거친다.
 
+V15 이후 migration workflow는 Flyway 적용 뒤 `verifyAccountDeletionInventory`를 실행한다. 이 task는 합성 UUID만 사용해 함수 반환 열과 0건 결과를 확인하고 실제 Core/Admin 서비스 역할의 스키마·함수 권한, 공개 역할 차단과 Core 서비스의 배정 감사 원문 조회 거부를 읽기 전용 트랜잭션에서 검증한다.
+
 개발 DB의 동행 세션 백필은 `applyCompanionSessionSeed` task를 사용한다. 이 실행기는 `companion_sessions`, `session_reports`, `appointment_follow_ups`의 순서가 맞는 제한된 upsert만 허용하며 DDL, DELETE, 다른 schema 참조를 거부한다. GitHub workflow에서는 생성 SQL을 일회성 Environment secret으로 전달하고 입력 SHA-256이 일치할 때만 실행한 뒤 임시 파일과 secret을 삭제한다.
 
 ## 다음 작업

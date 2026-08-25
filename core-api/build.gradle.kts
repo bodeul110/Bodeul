@@ -44,6 +44,13 @@ tasks.register<JavaExec>("migrateDatabase") {
 	mainClass.set("com.bodeul.core.DatabaseMigrationApplication")
 }
 
+tasks.register<JavaExec>("verifyAccountDeletionInventory") {
+	group = "verification"
+	description = "계정 삭제 영향도 함수와 runtime 최소 권한을 읽기 전용으로 검증합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.AccountDeletionInventoryVerificationApplication")
+}
+
 tasks.register<JavaExec>("applyAppointmentRequestsSeed") {
 	group = "application"
 	description = "검증된 예약 요청 seed를 migration role로 적용합니다."
