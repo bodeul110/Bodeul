@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 348 Firestore 사용자 문서 부분 영향도 (2026-08-26)](issue-348-firestore-inventory-2026-08-26.md)
 - [Issue 348 계정 삭제 영향도 1단계 (2026-08-25)](issue-348-account-deletion-readiness-2026-08-25.md)
 - [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](notion-policy-legal-alignment-2026-08-25.md)
 - [Notion·Figma 문서 정합성 점검 (2026-08-22)](notion-figma-document-alignment-2026-08-22.md)

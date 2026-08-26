@@ -6,7 +6,7 @@ import java.util.UUID;
 
 interface AccountDeletionReadinessService {
 
-    ReadinessResult inspect(UUID userId);
+    ReadinessResult inspect(UUID userId, String firebaseUid);
 
     enum Decision {
         NOT_EVALUATED
@@ -22,6 +22,7 @@ interface AccountDeletionReadinessService {
 
     enum SourceStatus {
         COMPLETE,
+        PARTIAL,
         NOT_EVALUATED,
         ERROR
     }

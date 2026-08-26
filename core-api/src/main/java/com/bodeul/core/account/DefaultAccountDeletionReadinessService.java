@@ -14,19 +14,24 @@ import org.springframework.stereotype.Service;
 class DefaultAccountDeletionReadinessService implements AccountDeletionReadinessService {
 
     private final Optional<AccountDeletionImpactRepository> impactRepository;
+    private final Optional<FirebaseAccountDeletionImpactRepository> firebaseImpactRepository;
 
-    DefaultAccountDeletionReadinessService(Optional<AccountDeletionImpactRepository> impactRepository) {
+    DefaultAccountDeletionReadinessService(
+            Optional<AccountDeletionImpactRepository> impactRepository,
+            Optional<FirebaseAccountDeletionImpactRepository> firebaseImpactRepository) {
         this.impactRepository = impactRepository;
+        this.firebaseImpactRepository = firebaseImpactRepository;
     }
 
     @Override
-    public ReadinessResult inspect(UUID userId) {
+    public ReadinessResult inspect(UUID userId, String firebaseUid) {
         Set<ObservationCode> observationCodes = new LinkedHashSet<>();
         Set<BlockerCode> blockerCodes = new LinkedHashSet<>();
         SourceInventory postgres = inspectPostgres(userId, observationCodes, blockerCodes);
+        SourceInventory firestore = inspectFirestore(firebaseUid, blockerCodes);
         List<SourceInventory> sources = List.of(
                 postgres,
-                notEvaluated(Source.FIRESTORE),
+                firestore,
                 notEvaluated(Source.STORAGE),
                 notEvaluated(Source.FIREBASE_AUTH),
                 notEvaluated(Source.BACKUP));
@@ -40,6 +45,35 @@ class DefaultAccountDeletionReadinessService implements AccountDeletionReadiness
                 sources,
                 List.copyOf(observationCodes),
                 List.copyOf(blockerCodes));
+    }
+
+    private SourceInventory inspectFirestore(
+            String firebaseUid,
+            Set<BlockerCode> blockerCodes) {
+        if (firebaseImpactRepository.isEmpty()) {
+            blockerCodes.add(BlockerCode.SOURCE_UNAVAILABLE);
+            return new SourceInventory(Source.FIRESTORE, SourceStatus.ERROR, Map.of());
+        }
+
+        final FirebaseAccountDeletionImpactRepository.FirestoreImpact impact;
+        try {
+            impact = firebaseImpactRepository.orElseThrow().inspectUserDocument(firebaseUid);
+        } catch (FirebaseAccountDeletionImpactRepository.SourceAccessException exception) {
+            blockerCodes.add(BlockerCode.SOURCE_UNAVAILABLE);
+            return new SourceInventory(Source.FIRESTORE, SourceStatus.ERROR, Map.of());
+        }
+
+        return new SourceInventory(
+                Source.FIRESTORE,
+                SourceStatus.PARTIAL,
+                Map.of(
+                        "userDocuments", impact.userDocumentCount(),
+                        "notificationTokens", impact.notificationTokenCount(),
+                        "notificationTokenEntries", impact.notificationTokenEntryCount(),
+                        "notificationTokenEntryMismatches",
+                        impact.notificationTokenEntryMismatchCount(),
+                        "managerDocumentMetadataEntries", impact.managerDocumentMetadataCount(),
+                        "managerDocumentReferences", impact.managerDocumentReferenceCount()));
     }
 
     private SourceInventory inspectPostgres(

@@ -2,6 +2,7 @@ package com.bodeul.core.account;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -11,13 +12,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultAccountDeletionReadinessServiceTests {
 
     private static final UUID USER_ID = UUID.fromString("89f9b085-0e02-4a22-9399-f2d019a5d1ba");
+    private static final String FIREBASE_UID = "firebase-user-1";
 
     @Test
     void successfulPostgresInventoryStillDoesNotDecideDeletion() {
         AccountDeletionImpactRepository repository = userId -> impact(1, 2, 1, 1);
-        var service = new DefaultAccountDeletionReadinessService(Optional.of(repository));
+        FirebaseAccountDeletionImpactRepository firebaseRepository = firebaseUid -> firestoreImpact();
+        var service = new DefaultAccountDeletionReadinessService(
+                Optional.of(repository),
+                Optional.of(firebaseRepository));
 
-        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID);
+        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID, FIREBASE_UID);
 
         assertThat(result.readOnly()).isTrue();
         assertThat(result.deletionExecuted()).isFalse();
@@ -32,6 +37,17 @@ class DefaultAccountDeletionReadinessServiceTests {
                 .containsEntry("appointments", 4L)
                 .containsEntry("activeAppointments", 2L)
                 .doesNotContainKey("activeLegalHolds");
+        assertThat(result.sources().get(1).source())
+                .isEqualTo(AccountDeletionReadinessService.Source.FIRESTORE);
+        assertThat(result.sources().get(1).status())
+                .isEqualTo(AccountDeletionReadinessService.SourceStatus.PARTIAL);
+        assertThat(result.sources().get(1).counts())
+                .containsEntry("userDocuments", 1L)
+                .containsEntry("notificationTokens", 2L)
+                .containsEntry("notificationTokenEntries", 2L)
+                .containsEntry("notificationTokenEntryMismatches", 4L)
+                .containsEntry("managerDocumentMetadataEntries", 3L)
+                .containsEntry("managerDocumentReferences", 3L);
         assertThat(result.observationCodes()).containsExactly(
                 AccountDeletionReadinessService.ObservationCode.ACTIVE_APPOINTMENT_PRESENT,
                 AccountDeletionReadinessService.ObservationCode.ACTIVE_SESSION_PRESENT);
@@ -41,14 +57,19 @@ class DefaultAccountDeletionReadinessServiceTests {
 
     @Test
     void missingRepositoryFailsClosedWithoutIdentifiers() {
-        var service = new DefaultAccountDeletionReadinessService(Optional.empty());
+        var service = new DefaultAccountDeletionReadinessService(
+                Optional.empty(),
+                Optional.empty());
 
-        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID);
+        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID, FIREBASE_UID);
 
         assertThat(result.complete()).isFalse();
         assertThat(result.sources().getFirst().status())
                 .isEqualTo(AccountDeletionReadinessService.SourceStatus.ERROR);
         assertThat(result.sources().getFirst().counts()).isEmpty();
+        assertThat(result.sources().get(1).status())
+                .isEqualTo(AccountDeletionReadinessService.SourceStatus.ERROR);
+        assertThat(result.sources().get(1).counts()).isEmpty();
         assertThat(result.blockerCodes()).containsExactly(
                 AccountDeletionReadinessService.BlockerCode.SOURCE_UNAVAILABLE,
                 AccountDeletionReadinessService.BlockerCode.INVENTORY_INCOMPLETE);
@@ -61,9 +82,11 @@ class DefaultAccountDeletionReadinessServiceTests {
         AccountDeletionImpactRepository repository = userId -> {
             throw new DataAccessResourceFailureException("secret database endpoint");
         };
-        var service = new DefaultAccountDeletionReadinessService(Optional.of(repository));
+        var service = new DefaultAccountDeletionReadinessService(
+                Optional.of(repository),
+                Optional.of(firebaseUid -> firestoreImpact()));
 
-        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID);
+        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID, FIREBASE_UID);
 
         assertThat(result.sources().getFirst().status())
                 .isEqualTo(AccountDeletionReadinessService.SourceStatus.ERROR);
@@ -76,14 +99,60 @@ class DefaultAccountDeletionReadinessServiceTests {
     @Test
     void missingPostgresProfileIsAnObjectiveBlocker() {
         AccountDeletionImpactRepository repository = userId -> impact(0, 0, 0, 0);
-        var service = new DefaultAccountDeletionReadinessService(Optional.of(repository));
+        var service = new DefaultAccountDeletionReadinessService(
+                Optional.of(repository),
+                Optional.of(firebaseUid -> firestoreImpact()));
 
-        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID);
+        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID, FIREBASE_UID);
 
         assertThat(result.observationCodes()).containsExactly(
                 AccountDeletionReadinessService.ObservationCode.POSTGRES_PROFILE_MISSING);
         assertThat(result.blockerCodes()).containsExactly(
                 AccountDeletionReadinessService.BlockerCode.INVENTORY_INCOMPLETE);
+    }
+
+    @Test
+    void firestoreLookupUsesOnlyTheAuthenticatedFirebaseUid() {
+        AtomicReference<String> inspectedUid = new AtomicReference<>();
+        FirebaseAccountDeletionImpactRepository firebaseRepository = firebaseUid -> {
+            inspectedUid.set(firebaseUid);
+            return firestoreImpact();
+        };
+        var service = new DefaultAccountDeletionReadinessService(
+                Optional.of(userId -> impact(1, 0, 0, 0)),
+                Optional.of(firebaseRepository));
+
+        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID, FIREBASE_UID);
+
+        assertThat(inspectedUid).hasValue(FIREBASE_UID);
+        assertThat(result.toString())
+                .doesNotContain(FIREBASE_UID)
+                .doesNotContain(USER_ID.toString());
+    }
+
+    @Test
+    void firestoreFailureFailsClosedWithoutRawError() {
+        FirebaseAccountDeletionImpactRepository firebaseRepository = firebaseUid -> {
+            throw new FirebaseAccountDeletionImpactRepository.SourceAccessException(
+                    new IllegalStateException("secret firestore endpoint"));
+        };
+        var service = new DefaultAccountDeletionReadinessService(
+                Optional.of(userId -> impact(1, 0, 0, 0)),
+                Optional.of(firebaseRepository));
+
+        AccountDeletionReadinessService.ReadinessResult result = service.inspect(USER_ID, FIREBASE_UID);
+
+        assertThat(result.sources().get(1).status())
+                .isEqualTo(AccountDeletionReadinessService.SourceStatus.ERROR);
+        assertThat(result.sources().get(1).counts()).isEmpty();
+        assertThat(result.blockerCodes()).contains(
+                AccountDeletionReadinessService.BlockerCode.SOURCE_UNAVAILABLE,
+                AccountDeletionReadinessService.BlockerCode.INVENTORY_INCOMPLETE);
+        assertThat(result.toString()).doesNotContain("secret firestore endpoint");
+    }
+
+    private FirebaseAccountDeletionImpactRepository.FirestoreImpact firestoreImpact() {
+        return new FirebaseAccountDeletionImpactRepository.FirestoreImpact(1, 2, 2, 4, 3, 3);
     }
 
     private AccountDeletionImpactRepository.PostgreSqlImpact impact(

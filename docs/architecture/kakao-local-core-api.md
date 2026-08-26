@@ -1,6 +1,6 @@
 # Kakao Local Core API 경계
 
-기준일: 2026-08-23
+기준일: 2026-08-26
 
 ## 작업 목적
 
@@ -88,10 +88,27 @@ X-Firebase-AppCheck: <App Check token>
 
 현재 MVP 규모에서는 Cloud Run 1개 preview 인스턴스와 짧은 서버 캐시만으로 키 비노출, 중복 호출 감소, 사용자별 제한을 함께 검증할 수 있다. 별도 Redis나 API Gateway를 먼저 도입하면 운영 대상만 늘어나므로 실제 트래픽이 확인되기 전에는 추가하지 않는다.
 
+## 호출 허용 IP와 outbound 결정
+
+- preview와 초기 production Cloud Run은 기본 동적 outbound IP를 사용한다.
+- Kakao REST API 키의 호출 허용 IP는 비워 두며, 현재 MVP에서는 VPC와 Cloud NAT를 만들지 않는다.
+- Kakao 호출 허용 IP는 필수 연결 조건이 아니라 키 유출 피해를 줄이는 선택적 보안 기능이다. 현재는 REST 키를 Android와 GitHub에서 제거하고 Secret Manager로만 주입하며, Firebase 인증·PostgreSQL 역할 인가·사용자별 호출 제한·비밀값 로그 비노출을 먼저 적용했다.
+- 고정 IP를 위해서는 모든 outbound를 VPC로 보내고 Cloud NAT와 외부 IP를 계속 운영해야 한다. Cloud NAT에는 gateway 시간, 외부 IP 시간과 처리량 비용이 발생하므로 호출량이 적고 외부 시스템이 고정 IP를 요구하지 않는 MVP에 선제 도입하지 않는다.
+- 고정 outbound가 필요해지면 Serverless VPC Access connector보다 Cloud Run의 Direct VPC egress를 우선 검토하고, 별도 변경에서 reserved IP와 Cloud NAT를 구성한다.
+
+다음 중 하나가 확인되면 고정 outbound와 Kakao 호출 허용 IP를 다시 검토한다.
+
+1. Kakao 계약·정책 또는 production 사용 승인이 호출 허용 IP를 필수로 요구한다.
+2. 보안 검토에서 Secret Manager, 최소 권한, 키 회전과 호출 제한만으로는 키 오용 위험을 수용할 수 없다고 판단한다.
+3. 다른 production 의존성도 고정 outbound를 요구해 VPC와 Cloud NAT의 운영 비용을 함께 분담할 수 있다.
+
+전환할 때는 고정 outbound 리비전의 실제 출발 IP와 Kakao 실호출을 먼저 확인한 뒤 Kakao 콘솔의 호출 허용 IP를 활성화한다. rollback은 Kakao 호출 허용 IP를 먼저 해제한 뒤 VPC·NAT 설정을 되돌려 장소 검색 중단을 피한다.
+
 ## 리스크와 전환 조건
 
 - Cloud Run을 2개 이상으로 확장하면 인메모리 캐시와 rate limit은 인스턴스별로 분리된다. production 확장 전 Redis, API Gateway 또는 Cloud Armor 기반의 공용 제한을 검토한다.
-- Kakao 호출 허용 IP 제한은 고정 outbound IP가 있어야 한다. Cloud Run에 Serverless VPC Access와 Cloud NAT를 붙이기 전에는 적용할 수 없으므로 production 네트워크 설계에서 다시 결정한다.
+- Kakao 호출 허용 IP 제한은 고정 outbound IP가 있어야 한다. 초기 production은 동적 outbound를 유지하며, 위 전환 조건을 충족할 때 Direct VPC egress와 Cloud NAT를 별도 변경으로 도입한다.
+- 동적 outbound 동안 REST 키가 Secret Manager 밖으로 유출되면 Kakao가 출발 IP로 직접 차단하지 못한다. Secret 접근 감사, 키 회전과 Kakao 쿼터 이상 징후 확인을 보완 통제로 유지한다.
 - Android의 직접 호출과 `kakaoRestApiKey` 리소스는 CodeQL 검토 후 제거했다. Core API 성공률과 로컬 목록 fallback 동작은 실기기에서 확인한다.
 - App Check token 발급 실패는 observe 단계에서 헤더 누락으로 기록하고 기존 검색을 유지한다. enforce 전환은 Android 실기기에서 `valid`가 확인된 뒤 수행한다.
 - Kakao 쿼터 사용량은 Kakao Developers 앱 관리 페이지에서 확인하며, 429 발생 건수는 원본 응답 없이 오류 코드 기준으로 집계한다.
@@ -101,4 +118,8 @@ X-Firebase-AppCheck: <App Check token>
 - [Kakao Local 키워드 장소 검색](https://developers.kakao.com/docs/ko/local/dev-guide#search-by-keyword)
 - [Kakao REST API 오류와 429](https://developers.kakao.com/docs/en/rest-api/reference#response-code)
 - [Kakao API 보안 권장 사항](https://developers.kakao.com/docs/ko/getting-started/security-guideline)
+- [Kakao 호출 허용 IP 주소](https://developers.kakao.com/docs/ko/app-setting/app#allowed-ip-address)
 - [Kakao API 쿼터](https://developers.kakao.com/docs/ko/getting-started/quota)
+- [Cloud Run 고정 outbound IP](https://cloud.google.com/run/docs/configuring/static-outbound-ip)
+- [Cloud Run Direct VPC egress와 connector 비교](https://cloud.google.com/run/docs/configuring/connecting-vpc)
+- [Cloud NAT 가격](https://cloud.google.com/nat/pricing)
