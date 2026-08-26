@@ -185,6 +185,38 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
+      - name: Kakao outbound 정책 확인
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          existing_service="$(gcloud run services list \
+            --project="${GCP_PROJECT_ID}" \
+            --region="${GCP_REGION}" \
+            --filter="metadata.name=${CLOUD_RUN_SERVICE}" \
+            --format='value(metadata.name)')"
+
+          if [[ -z "${existing_service}" ]]; then
+            echo "첫 배포 전이므로 기존 Cloud Run 네트워크 설정이 없습니다."
+            exit 0
+          fi
+
+          gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+            --project="${GCP_PROJECT_ID}" \
+            --region="${GCP_REGION}" \
+            --format=json > service.json
+
+          if jq -e '
+            (.spec.template.metadata.annotations // {}) as $annotations
+            | (($annotations["run.googleapis.com/vpc-access-connector"] // "") != "")
+              or (($annotations["run.googleapis.com/network-interfaces"] // "") != "")
+          ' service.json > /dev/null; then
+            echo "현재 MVP의 Kakao outbound 정책은 dynamic입니다. VPC 연결을 제거하거나 고정 egress 전환 근거와 workflow를 함께 변경하세요." >&2
+            exit 1
+          fi
+
+          echo "기존 Cloud Run 서비스가 dynamic outbound 정책을 사용합니다."
+
       - name: 현재 정상 revision 기록
         id: previous
         shell: bash
@@ -244,6 +276,7 @@ jobs:
           labels: |-
             environment=production
             component=core-api
+            kakao-egress=dynamic
           timeout: 60s
           flags: >-
             --service-account=${{ env.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
