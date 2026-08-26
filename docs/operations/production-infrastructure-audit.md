@@ -161,4 +161,4 @@ Web App Check 기반 설정은 다음 스크립트로 적용한다. 이 스크�
 4. `production-infrastructure-audit` 승인을 완료한다.
 5. Summary의 baseline 상태와 출시 차단 항목을 확인한다.
 
-2026-08-26 운영 provider 강화와 Firestore PITR 적용 후 관리자 단기 토큰 점검 및 [`master` GitHub WIF 감사 run 32971183897](https://github.com/bodeul110/Bodeul/actions/runs/32971183897)에서 baseline 전체가 통과했고 출시 차단 항목 4개가 분리됐다. 이후 실행 결과도 원시 응답이 아니라 정제된 상태표와 run 링크만 `docs/reports/` 및 Issue #134에 남긴다.
+2026-08-26 운영 provider 강화, Firestore PITR과 Web App Check 기반 설정을 적용했다. App Check 조회 권한까지 갱신한 뒤 [`master` GitHub WIF 감사 run 32978549310](https://github.com/bodeul110/Bodeul/actions/runs/32978549310)에서 baseline 36개가 모두 통과했고 출시 차단 항목 5개가 분리됐다. 이후 실행 결과도 원시 응답이 아니라 정제된 상태표와 run 링크만 `docs/reports/` 및 Issue #134에 남긴다.
