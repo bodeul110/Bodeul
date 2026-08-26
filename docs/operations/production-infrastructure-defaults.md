@@ -31,8 +31,8 @@
 | 배포 서비스 계정 | `bodeul-core-deployer` | WIF 배포 전용 |
 | 런타임 서비스 계정 | `bodeul-core-runtime` | Secret Manager 접근과 실행 전용 |
 | DB 백업 서비스 계정 | `bodeul-db-backup` | 검증된 dump의 GCS 생성·조회 전용, 삭제 권한 없음 |
-| WIF pool/provider | `github-actions` / `bodeul-core-api-production` | 저장소, `master`, GitHub Environment 조건을 모두 제한한다. |
-| DB 백업 WIF provider | `github-actions` / `bodeul-db-backup-production` | `core-api-migration-production` Environment 전용 |
+| WIF pool/provider | `github-actions` / `bodeul-core-api-production` | 불변 저장소·소유자 ID, `master`, deploy workflow, 수동 이벤트와 `core-api-production` subject 전용 |
+| DB 백업 WIF provider | `github-actions` / `bodeul-db-backup-production` | 불변 저장소·소유자 ID, backup workflow, 수동 이벤트와 `core-api-migration-production` subject 전용 |
 | 배포 Environment | `core-api-production` | 수동 production 배포와 승인 보호 |
 | migration Environment | `core-api-migration-production` | 앱 배포와 DB 변경을 분리한다. |
 | 인프라 감사 Environment | `production-infrastructure-audit` | metadata-only WIF 점검과 승인 보호 |
