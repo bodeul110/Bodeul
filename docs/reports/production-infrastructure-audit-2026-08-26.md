@@ -43,11 +43,12 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 
 ## GitHub WIF 실행 증적
 
-- 실행: [Production Infrastructure Audit run 32969865527](https://github.com/bodeul110/Bodeul/actions/runs/32969865527)
-- 대상 commit: `51839e1d476a4a28255f062d86dbc607ceeef0d8`
-- `contract`: 11초, 성공
-- `baseline-drift`: 33초, 성공
-- Google Cloud WIF 인증과 Production metadata 감사 단계 모두 성공
+| 실행 | 대상 commit | 결과 |
+| --- | --- | --- |
+| [운영 WIF 강화 검증 run 32969865527](https://github.com/bodeul110/Bodeul/actions/runs/32969865527) | `51839e1d476a4a28255f062d86dbc607ceeef0d8` | contract 11초, baseline 33초, 성공 |
+| [Firestore PITR 반영 감사 run 32971183897](https://github.com/bodeul110/Bodeul/actions/runs/32971183897) | `e9c55cac63e99416719bb3d12de64d45f72658b2` | contract 9초, baseline 33초, 성공 |
+
+두 실행 모두 Google Cloud WIF 인증과 Production metadata 감사 단계를 통과했다.
 
 ## 남은 출시 게이트
 
