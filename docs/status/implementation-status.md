@@ -57,6 +57,7 @@
 - 승인 / 반려 저장, 검토 메모 저장
 - 목록 기본 마스킹, 상세 모달에서만 원문 확인
 - 15분 유휴 세션 자동 로그아웃
+- Production reCAPTCHA Enterprise client와 `X-Firebase-AppCheck` 전달, Next.js 서버 `observe` 검증. 인증된 `VALID` 요청과 `enforce`는 미완료
 
 ### 알림 / 서버 / 운영 도구
 
@@ -3801,3 +3802,23 @@
 - 실제 사용자 데이터 투입 전 Supabase Pro, 일일 백업과 spend cap 확인
 - Kakao production Secret과 첫 Cloud Run revision, smoke·rollback 검증
 - 정책·약관 승인 뒤 production 자동 파기 fixture와 쓰기 전환 검증
+
+## 153. 2026-08-26 관리자 웹 Production App Check 관찰 배포
+
+### 구현과 운영 설정
+
+- 별도 `bodeul-admin-web` 저장소 PR #37에서 reCAPTCHA Enterprise provider와 `X-Firebase-AppCheck` 전달을 반영했다.
+- Next.js 서버에 `off`, `observe`, `enforce` 모드와 허용 Web App ID 검증을 추가했다.
+- Vercel Production은 client 활성화와 서버 `observe`로 배포해 App Check 실패를 기록하되 아직 요청을 차단하지 않는다.
+
+### 검증
+
+- 관리자 웹 test 32개, lint, TypeScript 검사, Next.js·Vite rollback build 통과
+- 병합 commit의 Build·CodeQL과 Vercel Production 배포 성공
+- canonical 운영 주소 루트 200, 무인증 관리자 API 401, Tokyo 함수 배치 확인
+
+### 남은 범위
+
+- 인증된 관리자 계정으로 주요 흐름과 App Check `VALID` 요청 확인
+- 관찰 결과 확인 뒤 `enforce` 전환과 rollback 실검증
+- 개발 Web provider와 Preview debug token 분리

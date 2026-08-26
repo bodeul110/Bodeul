@@ -16,7 +16,7 @@ Production 배포·DB 백업 자격 증명의 허용 범위를 현재 GitHub wor
 | 백업 계정 impersonation | Environment 전체 `principalSet`을 `repo:bodeul110/Bodeul:environment:core-api-migration-production` exact subject 하나로 교체 |
 | 사용자 관리 서비스 계정 key | 감사·배포·런타임·백업·보존 계정 모두 0개 유지 |
 | Web App Check 기반 | canonical production hostname만 허용한 reCAPTCHA Enterprise `SCORE` key, App Check 설정과 exact Auth domain 구성 |
-| App Check 단계 | Web 기반 설정 완료, Android release·클라이언트 token 증거 대기 상태인 `preparing`; enforcement는 계속 `OFF` |
+| App Check 단계 | Web provider와 관리자 웹 client·서버 `observe` 배포 완료, Android release·실제 `VALID` 증거 대기 상태인 `preparing`; Firebase 서비스 enforcement는 계속 `OFF` |
 
 기존 workflow 파일과 GitHub Environment 이름은 변경하지 않았다. 따라서 정상 수동 실행의 OIDC subject는 유지하면서, 다른 workflow·event·저장소 이전으로 발급된 토큰은 provider 단계에서 거부한다.
 
@@ -43,7 +43,7 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 | 출시 준비 상태 | PITR 완료 후 의도된 미완료 5개를 `EXPECTED_BLOCKER` 또는 `EXPECTED_ABSENT`로 분리 |
 | Storage Rules | 저장소 테스트 7개와 추가 경계 검사 4개 통과, production ruleset과 저장소 hash 일치 |
 | Firestore PITR | `POINT_IN_TIME_RECOVERY_ENABLED`, version 보존 `604800s` 확인 |
-| Web App Check | production debug token 0개, 제한된 key·Auth domain·TTL·기본 위험 점수 일치, 통합 단계 `preparing` |
+| Web App Check | production debug token 0개, 제한된 key·Auth domain·TTL·기본 위험 점수 일치, 관리자 웹 Production client 활성화·서버 `observe`, 전체 통합 단계 `preparing` |
 | 임시 권한 | 적용 후 개인 직접 project binding 0개, App Check 역할 갱신용 임시 binding 0개, 기존 임시 custom role 삭제 상태 |
 
 ## GitHub WIF 실행 증적
@@ -65,11 +65,18 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 - migration 전후 [backup·restore run 32980749558](https://github.com/bodeul110/Bodeul/actions/runs/32980749558), [run 32981633994](https://github.com/bodeul110/Bodeul/actions/runs/32981633994)가 모두 격리 복원과 외부 보관을 통과했다.
 - migration 후 Supabase Security Advisor 경고는 0건이다. 미사용 인덱스 INFO는 업무 데이터와 쿼리 통계가 쌓인 뒤 재평가한다.
 
+## 관리자 웹 App Check 배포
+
+- 별도 관리자 웹 저장소 [PR #37](https://github.com/bodeul110/bodeul-admin-web/pull/37)에서 reCAPTCHA Enterprise provider, `X-Firebase-AppCheck` 전달과 서버 `off/observe/enforce` 검증을 반영했다.
+- Vercel Production은 client 활성화와 서버 `observe` 값으로 배포했고, 병합 commit의 Build·CodeQL과 Vercel 배포가 모두 성공했다.
+- canonical 주소는 루트 200, 무인증 관리자 API 401, Tokyo 함수 배치를 확인했다.
+- 인증된 관리자 세션의 `VALID` 요청과 `enforce`·rollback은 아직 검증하지 않았다.
+
 ## 남은 출시 게이트
 
 - Kakao REST API production Secret version 등록
 - Core API 첫 Cloud Run production revision 승인 배포
-- Android release SHA-256·Play 연결과 관리자 웹 클라이언트 token 전송 검증
+- Android release SHA-256·Play 연결과 관리자 웹 인증 세션의 `VALID` 요청 검증
 - Android·Web `ALLOW`·`VALID` 요청 확인 후 App Check 관찰·단계별 enforcement 검증
 - 개발 버킷 canary 후 Firebase Storage UBLA 적용
 
