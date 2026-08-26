@@ -4,5 +4,5 @@
   "kakaoSecret": "metadata-only",
   "firestorePitr": "enabled",
   "firebaseStorageUbla": "deferred",
-  "appCheck": "unverified"
+  "appCheck": "preparing"
 }

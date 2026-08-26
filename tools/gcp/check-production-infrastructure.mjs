@@ -18,6 +18,19 @@ const FIXED = Object.freeze({
   projectNumber: "649312328770",
   region: "asia-northeast1",
   firebaseDisplayName: "BoDeul Production",
+  androidAppId: "1:649312328770:android:b0698534ff92da7fdea1db",
+  androidAppDisplayName: "BoDeul Android Production",
+  androidPackageName: "com.example.bodeul",
+  webAppId: "1:649312328770:web:3ade1cb9e994abb3dea1db",
+  webAppDisplayName: "BoDeul Admin Web Production",
+  adminWebHostname: "bodeul-admin-web-iota.vercel.app",
+  recaptchaKeyDisplayName: "BoDeul Admin Web Production App Check",
+  firebaseAuthDomains: Object.freeze([
+    "bodeul-prod-110.firebaseapp.com",
+    "bodeul-prod-110.web.app",
+    "bodeul-admin-web-iota.vercel.app",
+  ]),
+  functionsRegion: "asia-northeast3",
   artifactRepository: "bodeul-core-api",
   cloudRunService: "bodeul-core-api",
   workloadIdentityProvider:
@@ -55,7 +68,7 @@ const STATE_ENV = Object.freeze({
   KAKAO_SECRET_EXPECTED_STATE: Object.freeze(["metadata-only", "enabled"]),
   FIRESTORE_PITR_EXPECTED_STATE: Object.freeze(["deferred", "enabled"]),
   FIREBASE_STORAGE_UBLA_EXPECTED_STATE: Object.freeze(["deferred", "enabled"]),
-  APP_CHECK_EXPECTED_STATE: Object.freeze(["unverified", "observe", "enforced"]),
+  APP_CHECK_EXPECTED_STATE: Object.freeze(["unverified", "preparing", "observe", "staged", "enforced"]),
 });
 
 const REQUIRED_APIS = Object.freeze([
@@ -94,11 +107,40 @@ const AUDIT_ROLE_PERMISSIONS = Object.freeze([
   "secretmanager.versions.get",
   "run.services.get",
   "run.services.getIamPolicy",
+  "cloudfunctions.functions.list",
   "datastore.databases.getMetadata",
   "storage.buckets.get",
   "storage.buckets.getIamPolicy",
+  "firebase.clients.get",
   "firebase.projects.get",
+  "firebaseappcheck.debugTokens.get",
+  "firebaseappcheck.playIntegrityConfig.get",
+  "firebaseappcheck.recaptchaEnterpriseConfig.get",
+  "firebaseappcheck.services.get",
   "firebaseauth.configs.get",
+  "monitoring.timeSeries.list",
+  "recaptchaenterprise.keys.get",
+]);
+
+const APP_CHECK_SERVICES = Object.freeze([
+  "identitytoolkit.googleapis.com",
+  "firestore.googleapis.com",
+  "firebasestorage.googleapis.com",
+]);
+
+const APP_CHECK_PROVIDER_APIS = Object.freeze({
+  android: "playintegrity.googleapis.com",
+  web: "recaptchaenterprise.googleapis.com",
+});
+
+const APP_CHECK_CALLABLE_FUNCTIONS = Object.freeze([
+  "kakaoCustomToken",
+  "naverCustomToken",
+  "resolveLinkedParticipant",
+  "findSocialDuplicateEmailProvider",
+  "resolveAssignedManagerProfile",
+  "dispatchAdminActionDeliveryJobs",
+  "dispatchAppointmentReminderJobs",
 ]);
 
 const SECRET_BASELINE = Object.freeze([
@@ -305,6 +347,126 @@ export function isExpectedCloudRunImage(image) {
   return new RegExp(`^${escapedPrefix}(?::[0-9a-f]{40}|@sha256:[0-9a-f]{64})$`).test(String(image ?? ""));
 }
 
+export function classifyAppCheckStage({androidProviderState, webProviderState, serviceModes}) {
+  const modes = APP_CHECK_SERVICES.map((service) => serviceModes?.[service] ?? "OFF");
+  const providerStates = [androidProviderState, webProviderState];
+  const providersReady = providerStates.every((state) => state === "ready");
+  const providersAbsent = providerStates.every((state) => state === "absent");
+  const providersValid = providerStates.every((state) => ["absent", "partial", "ready"].includes(state));
+  if (!providersValid) return "invalid";
+  if (modes.every((mode) => mode === "OFF")) {
+    return providersAbsent ? "unverified" : "preparing";
+  }
+  if (providersReady && modes.every((mode) => mode === "ENFORCED")) return "enforced";
+  if (providersReady && modes.every((mode) => mode === "UNENFORCED")) return "observe";
+  if (providersReady && modes.every((mode) => ["UNENFORCED", "ENFORCED"].includes(mode))) return "staged";
+  return "invalid";
+}
+
+export function combineAppCheckStage(firebaseStage, functionsState) {
+  if (!["unverified", "preparing", "observe", "staged", "enforced"].includes(firebaseStage) ||
+      !["absent", "observe", "staged", "enforced"].includes(functionsState)) return "invalid";
+  if (["unverified", "preparing"].includes(firebaseStage)) {
+    return ["absent", "observe"].includes(functionsState) ? firebaseStage : "invalid";
+  }
+  if (functionsState === "absent") return "invalid";
+  if (firebaseStage === "observe") return functionsState === "observe" ? "observe" : "staged";
+  if (firebaseStage === "staged") return "staged";
+  return functionsState === "enforced" ? "enforced" : "staged";
+}
+
+export function isExpectedRecaptchaEnterpriseKey(key, siteKey, hostname, displayName) {
+  const resourceId = String(key?.name ?? "").split("/").at(-1);
+  const settings = key?.webSettings ?? {};
+  return resourceId === siteKey && key?.displayName === displayName && settings.integrationType === "SCORE" &&
+    settings.allowAllDomains !== true && settings.allowAmpTraffic !== true &&
+    key?.testingOptions === undefined && exactStringSet(settings.allowedDomains, [hostname]);
+}
+
+export function validRecaptchaRiskAnalysis(config) {
+  const minValidScore = config?.riskAnalysis?.minValidScore;
+  return minValidScore === undefined || minValidScore === null || Number(minValidScore) === 0.5;
+}
+
+export function validPlayIntegrityPolicy(config) {
+  const allowUnrecognizedVersion = config?.appIntegrity?.allowUnrecognizedVersion;
+  const minimumDeviceRecognition = config?.deviceIntegrity?.minDeviceRecognitionLevel;
+  const requireLicensed = config?.accountDetails?.requireLicensed;
+  return (allowUnrecognizedVersion === undefined || allowUnrecognizedVersion === false) &&
+    (minimumDeviceRecognition === undefined || minimumDeviceRecognition === "NO_INTEGRITY" ||
+      minimumDeviceRecognition === "DEVICE_RECOGNITION_LEVEL_UNSPECIFIED") &&
+    (requireLicensed === undefined || requireLicensed === false);
+}
+
+export async function readAppCheckDebugTokens(client, appId) {
+  const debugTokens = [];
+  const seenTokens = new Set();
+  let pageToken = "";
+  do {
+    const url = new URL(
+      `https://firebaseappcheck.googleapis.com/v1/projects/${FIXED.projectNumber}/apps/${appId}/debugTokens`,
+    );
+    url.searchParams.set("pageSize", "100");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const page = await client.get(url.toString());
+    debugTokens.push(...asArray(page.debugTokens));
+    const nextToken = String(page.nextPageToken ?? "").trim();
+    if (nextToken && (seenTokens.has(nextToken) || seenTokens.size >= 49)) {
+      throw new Error("App Check debug token 페이지 경계를 확인할 수 없습니다.");
+    }
+    if (nextToken) seenTokens.add(nextToken);
+    pageToken = nextToken;
+  } while (pageToken);
+  return debugTokens;
+}
+
+export function summarizeValidAppCheckRequests(timeSeries, appIds) {
+  const counts = Object.fromEntries(appIds.map((appId) => [appId, 0]));
+  for (const series of asArray(timeSeries)) {
+    const labels = series?.metric?.labels ?? {};
+    const appId = labels.app_id;
+    if (!(appId in counts) || labels.result !== "ALLOW" || labels.security !== "VALID") continue;
+    for (const point of asArray(series?.points)) {
+      const value = Number(point?.value?.int64Value ?? 0);
+      if (!Number.isSafeInteger(value) || value < 0) {
+        throw new Error("App Check 메트릭 값이 안전한 정수 형식이 아닙니다.");
+      }
+      counts[appId] += value;
+    }
+  }
+  return counts;
+}
+
+export async function readAppCheckVerificationSeries(client, now = new Date()) {
+  const end = new Date(now);
+  if (Number.isNaN(end.getTime())) throw new Error("App Check 메트릭 조회 시각이 올바르지 않습니다.");
+  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1_000);
+  const series = [];
+  const seenTokens = new Set();
+  let pageToken = "";
+  do {
+    const url = new URL(`https://monitoring.googleapis.com/v3/projects/${FIXED.projectId}/timeSeries`);
+    url.searchParams.set("filter", 'metric.type="firebaseappcheck.googleapis.com/services/verification_count"');
+    url.searchParams.set("interval.startTime", start.toISOString());
+    url.searchParams.set("interval.endTime", end.toISOString());
+    url.searchParams.set("view", "FULL");
+    url.searchParams.set("pageSize", "1000");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const page = await client.get(url.toString());
+    if (asArray(page.executionErrors).length > 0 || asArray(page.unreachable).length > 0) {
+      throw new Error("App Check 메트릭 응답이 완전하지 않습니다.");
+    }
+    series.push(...asArray(page.timeSeries));
+    const nextToken = String(page.nextPageToken ?? "").trim();
+    if (nextToken && (seenTokens.has(nextToken) || seenTokens.size >= 49)) {
+      throw new Error("App Check 메트릭 페이지 경계를 확인할 수 없습니다.");
+    }
+    if (nextToken) seenTokens.add(nextToken);
+    pageToken = nextToken;
+  } while (pageToken);
+  return series;
+}
+
 function isExpectedProvider(provider, contract) {
   const mapping = provider?.attributeMapping ?? {};
   const allowedAudiences = asArray(provider?.oidc?.allowedAudiences);
@@ -354,7 +516,7 @@ export async function auditProductionInfrastructure({
   await auditCloudRun(client, baseline, release, env);
   await auditFirebase(client, baseline);
   await auditAuth(client, baseline);
-  auditAppCheckRelease(release, env);
+  await auditAppCheck(client, baseline, release, env);
   await auditFirestore(client, baseline, release, env);
   await auditBuckets(client, baseline, release, env);
   return buildReport(baseline, release);
@@ -798,22 +960,205 @@ async function auditAuth(client, checks) {
       const email = config?.signIn?.email ?? {};
       const privacy = config?.emailPrivacyConfig ?? {};
       const valid = email.enabled === true && email.passwordRequired === true &&
-        privacy.enableImprovedEmailPrivacy === true;
-      return result(valid, "이메일 인증과 이메일 열거 보호 설정이 기준과 일치합니다.", "Firebase Auth 설정이 기준과 다릅니다.");
+        privacy.enableImprovedEmailPrivacy === true && config.subtype === "IDENTITY_PLATFORM";
+      return result(valid, "Identity Platform, 이메일 인증과 이메일 열거 보호 설정이 기준과 일치합니다.", "Firebase Auth 설정이 기준과 다릅니다.");
     },
   });
 }
 
-function auditAppCheckRelease(releaseChecks, env) {
-  const unverified = env.APP_CHECK_EXPECTED_STATE === "unverified";
+export async function auditAppCheck(client, checks, releaseChecks, env) {
+  let actualStage = "invalid";
+  let firebaseStage = "invalid";
+  let androidProviderState = "invalid";
+  let webProviderState = "invalid";
+  let functionsState = "invalid";
+  await capture(checks, {
+    id: "firebase.app-check",
+    area: "Firebase App Check",
+    run: async () => {
+      const androidName = `projects/${FIXED.projectId}/androidApps/${FIXED.androidAppId}`;
+      const webName = `projects/${FIXED.projectId}/webApps/${FIXED.webAppId}`;
+      const android = await client.get(`https://firebase.googleapis.com/v1beta1/${androidName}`);
+      const web = await client.get(`https://firebase.googleapis.com/v1beta1/${webName}`);
+      const certificates = await client.get(`https://firebase.googleapis.com/v1beta1/${androidName}/sha`);
+      const androidDebugTokens = await readAppCheckDebugTokens(client, FIXED.androidAppId);
+      const webDebugTokens = await readAppCheckDebugTokens(client, FIXED.webAppId);
+      const playIntegrity = await client.getOptional(
+        `https://firebaseappcheck.googleapis.com/v1/projects/${FIXED.projectNumber}/apps/${FIXED.androidAppId}/playIntegrityConfig`,
+      );
+      const recaptchaEnterprise = await client.getOptional(
+        `https://firebaseappcheck.googleapis.com/v1/projects/${FIXED.projectNumber}/apps/${FIXED.webAppId}/recaptchaEnterpriseConfig`,
+      );
+      const authConfig = await client.get(
+        `https://identitytoolkit.googleapis.com/admin/v2/projects/${FIXED.projectId}/config`,
+      );
+      const providerApiStates = {};
+      for (const [provider, api] of Object.entries(APP_CHECK_PROVIDER_APIS)) {
+        const service = await client.get(
+          `https://serviceusage.googleapis.com/v1/projects/${FIXED.projectNumber}/services/${api}`,
+        );
+        providerApiStates[provider] = service.state === "ENABLED";
+      }
+      const serviceModes = {};
+      for (const service of APP_CHECK_SERVICES) {
+        const config = await client.get(
+          `https://firebaseappcheck.googleapis.com/v1/projects/${FIXED.projectNumber}/services/${service}`,
+        );
+        serviceModes[service] = config.enforcementMode ?? "OFF";
+      }
+
+      const appsValid = android.name === androidName && android.appId === FIXED.androidAppId &&
+        android.displayName === FIXED.androidAppDisplayName && android.packageName === FIXED.androidPackageName &&
+        android.state === "ACTIVE" && web.name === webName && web.appId === FIXED.webAppId &&
+        web.displayName === FIXED.webAppDisplayName && web.state === "ACTIVE";
+      const releaseSha256 = normalizeSha256(env.ANDROID_RELEASE_SHA256);
+      const sha256Certificates = asArray(certificates.certificates)
+        .filter((certificate) => certificate.certType === "SHA_256");
+      const releaseShaRegistered = releaseSha256.length === 64 && sha256Certificates
+        .some((certificate) => normalizeSha256(certificate.shaHash) === releaseSha256);
+      const androidTouched = providerApiStates.android || playIntegrity !== null ||
+        releaseSha256.length > 0 || sha256Certificates.length > 0;
+      const androidConfigValid = playIntegrity === null || (playIntegrity.name ===
+          `projects/${FIXED.projectNumber}/apps/${FIXED.androidAppId}/playIntegrityConfig` &&
+        validAppCheckTtl(playIntegrity.tokenTtl) && validPlayIntegrityPolicy(playIntegrity));
+      if (!androidTouched) {
+        androidProviderState = "absent";
+      } else if (providerApiStates.android && playIntegrity !== null && androidConfigValid && releaseShaRegistered) {
+        androidProviderState = "ready";
+      } else {
+        androidProviderState = androidConfigValid ? "partial" : "invalid";
+      }
+
+      const siteKey = String(recaptchaEnterprise?.siteKey ?? "").trim();
+      const webTouched = providerApiStates.web || recaptchaEnterprise !== null || siteKey.length > 0;
+      const webConfigValid = recaptchaEnterprise === null || (recaptchaEnterprise.name ===
+          `projects/${FIXED.projectNumber}/apps/${FIXED.webAppId}/recaptchaEnterpriseConfig` &&
+        validAppCheckTtl(recaptchaEnterprise.tokenTtl) && validRecaptchaRiskAnalysis(recaptchaEnterprise));
+      let recaptchaKeyValid = false;
+      if (siteKey && providerApiStates.web) {
+        const key = await client.get(
+          `https://recaptchaenterprise.googleapis.com/v1/projects/${FIXED.projectId}/keys/${encodeURIComponent(siteKey)}`,
+        );
+        recaptchaKeyValid = isExpectedRecaptchaEnterpriseKey(
+          key,
+          siteKey,
+          FIXED.adminWebHostname,
+          FIXED.recaptchaKeyDisplayName,
+        );
+      }
+      const authDomainReady = exactStringSet(authConfig.authorizedDomains, FIXED.firebaseAuthDomains);
+      if (!webTouched) {
+        webProviderState = "absent";
+      } else if (!webConfigValid || (siteKey && (!providerApiStates.web || !recaptchaKeyValid))) {
+        webProviderState = "invalid";
+      } else if (!siteKey || !authDomainReady) {
+        webProviderState = "partial";
+      } else {
+        webProviderState = "ready";
+      }
+
+      firebaseStage = classifyAppCheckStage({androidProviderState, webProviderState, serviceModes});
+      const productionDebugTokensAbsent = androidDebugTokens.length === 0 && webDebugTokens.length === 0;
+      const valid = appsValid && productionDebugTokensAbsent && firebaseStage !== "invalid";
+      return result(
+        valid,
+        `Android·Web 앱과 Firebase App Check 구성이 ${firebaseStage} 기준에 유효합니다.`,
+        "Android·Web 앱, production debug token 또는 App Check provider·서비스 단계가 저장소 기준과 다릅니다.",
+      );
+    },
+  });
+
+  await capture(checks, {
+    id: "firebase.functions-app-check",
+    area: "Firebase Functions",
+    run: async () => {
+      const response = await client.get(
+        `https://cloudfunctions.googleapis.com/v2/projects/${FIXED.projectId}/locations/${FIXED.functionsRegion}/functions?pageSize=1000`,
+      );
+      const functionsById = new Map(asArray(response.functions).map((entry) => [
+        String(entry.name ?? "").split("/").at(-1),
+        entry,
+      ]));
+      const required = APP_CHECK_CALLABLE_FUNCTIONS.map((id) => functionsById.get(id)).filter(Boolean);
+      if (required.length === 0) {
+        functionsState = "absent";
+      } else if (required.length !== APP_CHECK_CALLABLE_FUNCTIONS.length ||
+          required.some((entry) => entry.state !== "ACTIVE")) {
+        functionsState = "incomplete";
+      } else {
+        const modes = required.map((entry) =>
+          String(entry?.serviceConfig?.environmentVariables?.ENABLE_APPCHECK_ENFORCEMENT ?? "").trim() === "true");
+        functionsState = modes.every(Boolean) ? "enforced" : (modes.every((value) => !value) ? "observe" : "staged");
+      }
+      const valid = functionsState !== "invalid" && functionsState !== "incomplete";
+      return result(
+        valid,
+        `Callable Functions의 App Check 구성이 ${functionsState} 기준에 유효합니다.`,
+        "Callable Functions 배포 또는 App Check 환경변수 구성이 불완전합니다.",
+      );
+    },
+  });
+
+  const appCheck = checks.find((check) => check.id === "firebase.app-check");
+  const functionsCheck = checks.find((check) => check.id === "firebase.functions-app-check");
+  const configurationBlocker = [appCheck, functionsCheck].find((check) => check?.status !== STATUS.PASS);
+  actualStage = configurationBlocker ? "invalid" : combineAppCheckStage(firebaseStage, functionsState);
+  const stageStatus = configurationBlocker?.status ??
+    (actualStage === env.APP_CHECK_EXPECTED_STATE ? STATUS.PASS : STATUS.DRIFT);
+  checks.push(makeCheck({
+    id: "firebase.app-check-stage",
+    area: "Firebase App Check",
+    status: stageStatus,
+    message: stageStatus === STATUS.PASS ?
+      `Firebase 서비스와 callable Functions의 통합 단계가 ${actualStage} 기준에 일치합니다.` :
+      "Firebase 서비스와 callable Functions의 통합 단계가 저장소 기대값과 다릅니다.",
+  }));
+  const stageCheck = checks.at(-1);
+  const blockingCheck = [appCheck, functionsCheck, stageCheck].find((check) => check?.status !== STATUS.PASS);
+  const releaseStatus = blockingCheck?.status ??
+    (actualStage === "enforced" && functionsState === "enforced" ? STATUS.PASS : STATUS.EXPECTED_BLOCKER);
+  let message = "App Check 준비 상태를 판정할 수 없습니다.";
+  if (!blockingCheck && actualStage === "unverified") {
+    const missingProviders = [
+      androidProviderState === "ready" ? "" : "Android release SHA-256·Play Integrity",
+      webProviderState === "ready" ? "" : "Web reCAPTCHA Enterprise",
+    ].filter(Boolean).join(", ");
+    message = `${missingProviders} 구성이 필요합니다.`;
+  } else if (!blockingCheck && actualStage === "preparing") {
+    message = "App Check provider 구성을 진행 중이며 Android·Web 모두의 완료가 필요합니다.";
+  } else if (!blockingCheck && actualStage === "observe") {
+    message = "App Check provider와 monitoring은 준비됐으며 정상 요청 확인 뒤 enforcement 전환이 필요합니다.";
+  } else if (!blockingCheck && actualStage === "staged") {
+    message = "App Check enforcement를 서비스별로 전환 중이며 모든 대상의 완료가 필요합니다.";
+  } else if (!blockingCheck && actualStage === "enforced" && functionsState === "enforced") {
+    message = "App Check provider와 callable Functions·Auth·Firestore·Storage enforcement가 준비됐습니다.";
+  }
   releaseChecks.push(makeCheck({
     id: "release.app-check-enforcement",
     area: "출시 준비",
-    status: unverified ? STATUS.EXPECTED_BLOCKER : STATUS.UNAVAILABLE,
-    message: unverified ?
-      "Release App Check provider와 enforcement는 별도 실검증이 필요합니다." :
-      "App Check enforcement 기대 상태를 검증하는 API 점검이 아직 구현되지 않았습니다.",
+    status: releaseStatus,
+    message,
   }));
+
+  await capture(releaseChecks, {
+    id: "release.app-check-valid-requests",
+    area: "출시 준비",
+    run: async () => {
+      const timeSeries = await readAppCheckVerificationSeries(client);
+      const counts = summarizeValidAppCheckRequests(timeSeries, [FIXED.androidAppId, FIXED.webAppId]);
+      const missing = [
+        counts[FIXED.androidAppId] > 0 ? "" : "Android",
+        counts[FIXED.webAppId] > 0 ? "" : "관리자 웹",
+      ].filter(Boolean);
+      return missing.length === 0 ? {
+        status: STATUS.PASS,
+        message: "최근 7일 Android·관리자 웹의 유효 App Check 요청을 모두 확인했습니다.",
+      } : {
+        status: STATUS.EXPECTED_BLOCKER,
+        message: `최근 7일 ${missing.join("·")} 유효 App Check 요청이 없습니다.`,
+      };
+    },
+  });
 }
 
 async function auditFirestore(client, checks, releaseChecks, env) {
@@ -932,7 +1277,11 @@ function checkEnvironmentContract(env) {
     .filter(([name, expected]) => String(env[name] ?? "").trim() !== expected).length;
   const stateMismatches = Object.entries(STATE_ENV)
     .filter(([name, allowed]) => !allowed.includes(String(env[name] ?? "").trim())).length;
-  const mismatches = fixedMismatches + stateMismatches;
+  const appCheckState = String(env.APP_CHECK_EXPECTED_STATE ?? "").trim();
+  const releaseSha256 = normalizeSha256(env.ANDROID_RELEASE_SHA256);
+  const releaseShaMismatch = releaseSha256.length > 0 && releaseSha256.length !== 64 ? 1 :
+    (!["unverified", "preparing"].includes(appCheckState) && releaseSha256.length !== 64 ? 1 : 0);
+  const mismatches = fixedMismatches + stateMismatches + releaseShaMismatch;
   return makeCheck({
     id: "configuration.fixed-target",
     area: "실행 경계",
@@ -975,6 +1324,14 @@ function createRestClient({token, fetchImpl}) {
   };
   return Object.freeze({
     get: (url) => request(url, "GET"),
+    getOptional: async (url) => {
+      try {
+        return await request(url, "GET");
+      } catch (error) {
+        if (error instanceof AuditRequestError && error.httpStatus === 404) return null;
+        throw error;
+      }
+    },
     post: (url, body) => request(url, "POST", body),
   });
 }
@@ -1005,6 +1362,19 @@ function result(valid, passMessage, driftMessage) {
     status: valid ? STATUS.PASS : STATUS.DRIFT,
     message: valid ? passMessage : driftMessage,
   };
+}
+
+export function validAppCheckTtl(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return true;
+  const match = /^(\d+)(?:\.(\d{1,9}))?s$/.exec(String(value));
+  if (!match) return false;
+  const seconds = Number(String(value).slice(0, -1));
+  return Number.isFinite(seconds) && seconds >= 1_800 && seconds <= 604_800;
+}
+
+function normalizeSha256(value) {
+  const normalized = String(value ?? "").replace(/:/g, "").trim().toLowerCase();
+  return /^[0-9a-f]*$/.test(normalized) ? normalized : "invalid";
 }
 
 function normalizeCondition(value) {
@@ -1061,8 +1431,11 @@ async function resolveAccessToken(env) {
   if (supplied) {
     return supplied;
   }
-  const command = process.platform === "win32" ? "gcloud.cmd" : "gcloud";
-  const result = spawnSync(command, ["auth", "print-access-token", "--quiet"], {
+  const windows = process.platform === "win32";
+  const command = windows ? (process.env.ComSpec || "cmd.exe") : "gcloud";
+  const args = windows ? ["/d", "/s", "/c", "gcloud.cmd auth print-access-token --quiet"] :
+    ["auth", "print-access-token", "--quiet"];
+  const result = spawnSync(command, args, {
     encoding: "utf8",
     windowsHide: true,
     timeout: 30_000,
