@@ -1,6 +1,6 @@
 # Production 인프라 기본값
 
-기준일: 2026-07-18
+기준일: 2026-08-26
 
 이 문서는 BoDeul production 리소스의 실제 식별자, 리전, 배포 경계와 운영 기준을 고정한다. 2026-07-17에 Google Cloud/Firebase와 Supabase production 기반을 생성했으며, 도메인 구매와 실명 담당자 지정은 별도 운영 결정으로 남긴다.
 
@@ -12,6 +12,7 @@
 - 관리자 웹은 Vercel Next.js 서버, 사용자 서비스는 Cloud Run Spring Core API가 담당한다.
 - 두 서버는 같은 production PostgreSQL을 서로 다른 최소 권한 role로 사용하며 서로를 proxy로 호출하지 않는다.
 - Firebase Auth, FCM, Storage와 Firebase 결합 Functions는 production Firebase 프로젝트에서 유지한다.
+- 초기 Core API는 Cloud Run 기본 동적 outbound를 사용한다. Kakao가 호출 허용 IP를 필수로 요구하거나 별도 보안 검토가 승인될 때만 Direct VPC egress, Cloud NAT와 고정 IP를 추가한다.
 - 사람의 Google Cloud 권한은 역할별 Cloud Identity 보안 그룹으로 관리하고, CI와 런타임은 WIF와 서비스 계정을 사용한다.
 - 개발 Preview를 출시 전 검증 환경으로 사용하고, 현재 규모에서는 세 번째 staging 환경을 만들지 않는다.
 - 목표 production 전환일은 2026-12-15 10:00 KST로 둔다.
@@ -74,6 +75,8 @@ Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Produ
 - production 리소스와 secret version이 준비되기 전에는 production workflow를 실행하지 않는다.
 
 초기 production 런타임은 1 vCPU, 1 GiB, 최소 인스턴스 0, 최대 인스턴스 2, 인스턴스당 DB pool 2로 시작한다. 최대 DB 연결을 4개로 제한하면서 초기 트래픽에 두 인스턴스까지 대응하는 현재 MVP 기준이다. 실제 지연·연결 수와 비용을 확인한 뒤 조정한다.
+
+Kakao Local은 production REST 키를 Secret Manager에서만 주입하고 호출 허용 IP는 초기에는 활성화하지 않는다. Kakao 문서상 호출 허용 IP는 선택적 보안 기능이며, 고정 outbound에는 VPC 경로, Cloud NAT, 외부 IP와 추가 비용·장애 지점이 생긴다. 현재 MVP에서는 인증·역할 인가·분당 제한·6시간 캐시·키 회전·로그 비노출을 우선 통제로 사용한다. 전환 조건과 순서는 [Kakao Local Core API 경계](../architecture/kakao-local-core-api.md)를 따른다.
 
 production Secret Manager ID는 다음으로 고정한다.
 
@@ -146,6 +149,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
 - production Supabase는 빈 데이터 상태로 Flyway V13, `bodeul` schema, 최소 권한 role, 업무·이력 테이블 13개와 RLS 정책 33개를 갖는다. 공개 role table grant와 Security Advisor 경고는 0건이다.
 - production Supabase 조직은 현재 Free다. 2026-11-16까지 Pro로 전환하고 spend cap과 일일 7일 백업을 확인한다.
+- production Core API의 초기 Kakao outbound 정책은 `dynamic`이다. 저장소의 배포 설정에는 VPC와 Cloud NAT를 연결하지 않으며 production workflow가 기존 서비스의 실제 VPC 연결을 조회해 정책과 다르면 배포를 중단한다. Kakao 호출 허용 IP의 실제 콘솔 상태는 production 키 등록 때 별도로 확인한다.
 - migration 전·V12·V13 검증 dump를 비공개 GCS bucket에 28일 보존으로 저장했다. V13 최종 restore 리허설은 완료했고, 실제 데이터 규모의 복구 시간 측정은 출시 후 분기 리허설에서 반복한다.
 - production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18에 현재 production dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
