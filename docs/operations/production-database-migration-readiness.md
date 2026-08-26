@@ -68,5 +68,5 @@ preview migration은 `confirm_database_project_ref`와 production target 검증�
 
 - mock 단위 테스트와 Core API 전체 검증으로 `--target-only` 인자 제한과 비밀번호 없는 실행 설정, direct·pooler 판별, 다른 project 차단, 비정상 입력 차단, 읽기 전용 트랜잭션, rollback, version별 query와 열 계약을 확인한다.
 - [run 32958462879](https://github.com/bodeul110/Bodeul/actions/runs/32958462879)에서 실제 Production Environment로 workflow를 호출했다. project·commit·Environment 설정과 JDBC 대상 형식은 통과했지만 실제 JDBC 연결 또는 첫 조회에서 실패했다.
-- 현재 등록된 Production DB는 가용성이 확인되지 않은 상태다. Supabase dashboard에서 project 상태, ref, 접근 권한과 자격 증명을 확인하고 이 workflow가 통과하기 전까지 V14·V15 적용은 차단한다.
+- Production Supabase project는 2026-07-25 Free plan 비활성 기준으로 자동 일시 중지됐다. 원래 소유 조직 계정에서 project를 재개하고 ref, 접근 권한과 custom login 자격 증명을 확인한 뒤 이 workflow가 통과하기 전까지 V14·V15 적용은 차단한다.
 - 사전 점검 통과 후에도 별도의 최신 백업과 격리 복원 증적 없이는 production migration workflow를 실행하지 않는다.

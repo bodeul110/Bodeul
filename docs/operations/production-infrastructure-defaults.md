@@ -51,6 +51,8 @@
 
 Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Production에는 production 값만 두며, 값이 없을 때 서버 API가 설정 오류로 종료되는 fail-closed 상태를 유지한다. Firebase authorized domain에는 실제 관리자 도메인과 출시 전 검증에 필요한 Vercel 도메인만 정확한 호스트명으로 등록하고 wildcard를 사용하지 않는다.
 
+Production Supabase Free project는 2026-07-25 비활성으로 자동 일시 중지됐다. 원래 소유 조직에서 재개하고 읽기 전용 DB 점검과 최신 백업·격리 복원을 다시 통과하기 전까지 migration과 첫 Cloud Run production 배포를 차단한다.
+
 동시 릴리스가 늘거나 production과 같은 데이터 규모·외부 연동으로 장기간 QA해야 할 때 세 번째 staging 프로젝트를 검토한다. 현재 MVP 규모에서는 비용과 운영 대상을 늘리는 효과가 더 크므로 추가하지 않는다.
 
 ## 배포 정책

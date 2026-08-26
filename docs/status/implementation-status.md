@@ -3293,6 +3293,7 @@
 - Tokyo Firestore, 기본 Storage bucket, Email/Password Auth, Android·Web 앱과 저장소 Rules release를 준비했다.
 - Cloud Run production Artifact Registry, WIF provider, deploy/runtime 서비스 계정과 DB Secret Manager version을 만들었다.
 - Tokyo Supabase `bodeul-prod`에 서버 전용 role·schema bootstrap과 Flyway V1~V3를 적용했다.
+- `bodeul-prod` Free project는 2026-07-25 비활성으로 자동 일시 중지됐다. 원래 소유 조직에서 재개하고 읽기 전용 점검과 최신 백업·격리 복원을 다시 통과하기 전까지 production migration과 배포를 차단한다.
 - GitHub production 배포·migration Environment를 실제 식별자와 분리된 secret으로 연결했다.
 - Windows에서 `gcloud.ps1`이 실행 파일로 선택되던 secret 입력 스크립트를 `gcloud.cmd` 우선으로 수정했다.
 
