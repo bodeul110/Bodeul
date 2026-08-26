@@ -58,11 +58,19 @@ $Permissions = @(
     "secretmanager.versions.get",
     "run.services.get",
     "run.services.getIamPolicy",
+    "cloudfunctions.functions.list",
     "datastore.databases.getMetadata",
     "storage.buckets.get",
     "storage.buckets.getIamPolicy",
+    "firebase.clients.get",
     "firebase.projects.get",
-    "firebaseauth.configs.get"
+    "firebaseappcheck.debugTokens.get",
+    "firebaseappcheck.playIntegrityConfig.get",
+    "firebaseappcheck.recaptchaEnterpriseConfig.get",
+    "firebaseappcheck.services.get",
+    "firebaseauth.configs.get",
+    "monitoring.timeSeries.list",
+    "recaptchaenterprise.keys.get"
 )
 
 $gcloud = Get-Command gcloud.cmd -ErrorAction SilentlyContinue

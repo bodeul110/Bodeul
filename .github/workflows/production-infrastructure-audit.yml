@@ -61,7 +61,7 @@ jobs:
             (.kakaoSecret == "metadata-only" or .kakaoSecret == "enabled") and
             (.firestorePitr == "deferred" or .firestorePitr == "enabled") and
             (.firebaseStorageUbla == "deferred" or .firebaseStorageUbla == "enabled") and
-            (.appCheck == "unverified" or .appCheck == "observe" or .appCheck == "enforced")
+            (.appCheck == "unverified" or .appCheck == "preparing" or .appCheck == "observe" or .appCheck == "staged" or .appCheck == "enforced")
           ' tools/gcp/production-infrastructure-state.json > /dev/null
 
       - name: 구성 스크립트 구문 검사
@@ -70,7 +70,8 @@ jobs:
           $scripts = @(
             "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1",
             "core-api/deploy/cloud-run/harden-production-operational-wif.ps1",
-            "tools/gcp/enable-production-firestore-pitr.ps1"
+            "tools/gcp/enable-production-firestore-pitr.ps1",
+            "tools/gcp/configure-production-web-app-check.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
@@ -111,6 +112,7 @@ jobs:
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
       DB_BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
       FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+      ANDROID_RELEASE_SHA256: ${{ vars.ANDROID_RELEASE_SHA256 }}
 
     steps:
       - name: 저장소 체크아웃
@@ -205,9 +207,15 @@ jobs:
             echo "Firebase Storage UBLA 기대 상태가 허용값과 다릅니다." >&2
             exit 1
           fi
-          if [[ "${APP_CHECK_EXPECTED_STATE}" != "unverified" && "${APP_CHECK_EXPECTED_STATE}" != "observe" && "${APP_CHECK_EXPECTED_STATE}" != "enforced" ]]; then
+          if [[ "${APP_CHECK_EXPECTED_STATE}" != "unverified" && "${APP_CHECK_EXPECTED_STATE}" != "preparing" && "${APP_CHECK_EXPECTED_STATE}" != "observe" && "${APP_CHECK_EXPECTED_STATE}" != "staged" && "${APP_CHECK_EXPECTED_STATE}" != "enforced" ]]; then
             echo "App Check 기대 상태가 허용값과 다릅니다." >&2
             exit 1
+          fi
+          if [[ "${APP_CHECK_EXPECTED_STATE}" != "unverified" && "${APP_CHECK_EXPECTED_STATE}" != "preparing" ]]; then
+            if [[ ! "${ANDROID_RELEASE_SHA256:-}" =~ ^[0-9A-Fa-f]{64}$ ]]; then
+              echo "App Check 관찰 이상 단계에는 production Android release SHA-256이 필요합니다." >&2
+              exit 1
+            fi
           fi
           expected_provider="projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/github-actions/providers/bodeul-infra-audit-production"
           if [[ "${AUDIT_WORKLOAD_IDENTITY_PROVIDER}" != "${expected_provider}" ]]; then

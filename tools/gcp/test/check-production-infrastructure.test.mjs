@@ -3,18 +3,28 @@ import test from "node:test";
 
 import {
   STATUS,
+  auditAppCheck,
   auditProductionInfrastructure,
   buildReport,
+  classifyAppCheckStage,
+  combineAppCheckStage,
   classifyHttpStatus,
   exitCodeForReport,
   hasExactProjectLocalRoles,
   isExpectedAuditProvider,
   isExpectedCloudRunImage,
   isExpectedOperationalProvider,
+  isExpectedRecaptchaEnterpriseKey,
   makeCheck,
+  readAppCheckDebugTokens,
+  readAppCheckVerificationSeries,
   renderMarkdown,
   sanitizeText,
+  summarizeValidAppCheckRequests,
   summarizeChecks,
+  validAppCheckTtl,
+  validPlayIntegrityPolicy,
+  validRecaptchaRiskAnalysis,
 } from "../check-production-infrastructure.mjs";
 
 const check = (status, message = "검사 결과") => makeCheck({
@@ -44,6 +54,7 @@ const validEnvironment = Object.freeze({
   FIRESTORE_PITR_EXPECTED_STATE: "deferred",
   FIREBASE_STORAGE_UBLA_EXPECTED_STATE: "deferred",
   APP_CHECK_EXPECTED_STATE: "unverified",
+  ANDROID_RELEASE_SHA256: "",
 });
 
 test("HTTP 상태를 감사 상태로 분류한다", () => {
@@ -174,6 +185,220 @@ test("Cloud Run 이미지는 production 저장소의 불변 식별자만 허용�
   assert.equal(isExpectedCloudRunImage(`docker.io/example/bodeul-core-api:${"a".repeat(40)}`), false);
 });
 
+test("App Check provider와 서비스 상태를 운영 단계로 분류한다", () => {
+  const off = {
+    "identitytoolkit.googleapis.com": "OFF",
+    "firestore.googleapis.com": "OFF",
+    "firebasestorage.googleapis.com": "OFF",
+  };
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "absent",
+    webProviderState: "absent",
+    serviceModes: off,
+  }), "unverified");
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "absent",
+    webProviderState: "ready",
+    serviceModes: off,
+  }), "preparing");
+
+  const observe = Object.fromEntries(Object.keys(off).map((service) => [service, "UNENFORCED"]));
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "ready",
+    webProviderState: "ready",
+    serviceModes: observe,
+  }), "observe");
+
+  const enforced = Object.fromEntries(Object.keys(off).map((service) => [service, "ENFORCED"]));
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "ready",
+    webProviderState: "ready",
+    serviceModes: enforced,
+  }), "enforced");
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "ready",
+    webProviderState: "ready",
+    serviceModes: {...observe, "firebasestorage.googleapis.com": "ENFORCED"},
+  }), "staged");
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "partial",
+    webProviderState: "ready",
+    serviceModes: observe,
+  }), "invalid");
+  assert.equal(classifyAppCheckStage({
+    androidProviderState: "invalid",
+    webProviderState: "absent",
+    serviceModes: off,
+  }), "invalid");
+});
+
+test("Firebase 서비스와 callable Functions 단계를 하나의 rollout 상태로 합친다", () => {
+  assert.equal(combineAppCheckStage("unverified", "absent"), "unverified");
+  assert.equal(combineAppCheckStage("preparing", "observe"), "preparing");
+  assert.equal(combineAppCheckStage("observe", "observe"), "observe");
+  assert.equal(combineAppCheckStage("observe", "enforced"), "staged");
+  assert.equal(combineAppCheckStage("staged", "observe"), "staged");
+  assert.equal(combineAppCheckStage("enforced", "observe"), "staged");
+  assert.equal(combineAppCheckStage("enforced", "enforced"), "enforced");
+  assert.equal(combineAppCheckStage("observe", "absent"), "invalid");
+});
+
+test("App Check TTL은 기본값과 공식 duration 범위만 허용한다", () => {
+  assert.equal(validAppCheckTtl(undefined), true);
+  assert.equal(validAppCheckTtl("3600s"), true);
+  assert.equal(validAppCheckTtl("3600.123456789s"), true);
+  assert.equal(validAppCheckTtl("1799.9s"), false);
+  assert.equal(validAppCheckTtl("604800.1s"), false);
+  assert.equal(validAppCheckTtl("3600.1234567890s"), false);
+});
+
+test("reCAPTCHA Enterprise 키는 SCORE와 단일 운영 도메인 제한을 요구한다", () => {
+  const siteKey = "public-site-key";
+  const hostname = "bodeul-admin-web-iota.vercel.app";
+  const key = {
+    name: `projects/bodeul-prod-110/keys/${siteKey}`,
+    displayName: "BoDeul Admin Web Production App Check",
+    webSettings: {
+      integrationType: "SCORE",
+      allowAllDomains: false,
+      allowAmpTraffic: false,
+      allowedDomains: [hostname],
+    },
+  };
+  const displayName = "BoDeul Admin Web Production App Check";
+  assert.equal(isExpectedRecaptchaEnterpriseKey(key, siteKey, hostname, displayName), true);
+  assert.equal(isExpectedRecaptchaEnterpriseKey({
+    ...key,
+    webSettings: {...key.webSettings, allowAllDomains: true},
+  }, siteKey, hostname, displayName), false);
+  assert.equal(isExpectedRecaptchaEnterpriseKey({
+    ...key,
+    testingOptions: {testingScore: 0.9},
+  }, siteKey, hostname, displayName), false);
+  assert.equal(isExpectedRecaptchaEnterpriseKey({
+    ...key,
+    webSettings: {...key.webSettings, allowedDomains: [hostname, "vercel.app"]},
+  }, siteKey, hostname, displayName), false);
+});
+
+test("reCAPTCHA Enterprise 위험 점수는 기본값 또는 0.5만 허용한다", () => {
+  assert.equal(validRecaptchaRiskAnalysis({}), true);
+  assert.equal(validRecaptchaRiskAnalysis({riskAnalysis: {minValidScore: 0.5}}), true);
+  assert.equal(validRecaptchaRiskAnalysis({riskAnalysis: {minValidScore: 0}}), false);
+  assert.equal(validRecaptchaRiskAnalysis({riskAnalysis: {minValidScore: 0.7}}), false);
+});
+
+test("Play Integrity는 배포 채널 확정 전 Firebase 기본 정책만 허용한다", () => {
+  assert.equal(validPlayIntegrityPolicy({}), true);
+  assert.equal(validPlayIntegrityPolicy({
+    appIntegrity: {allowUnrecognizedVersion: false},
+    deviceIntegrity: {minDeviceRecognitionLevel: "NO_INTEGRITY"},
+    accountDetails: {requireLicensed: false},
+  }), true);
+  assert.equal(validPlayIntegrityPolicy({appIntegrity: {allowUnrecognizedVersion: true}}), false);
+  assert.equal(validPlayIntegrityPolicy({deviceIntegrity: {minDeviceRecognitionLevel: "DEVICE_INTEGRITY"}}), false);
+  assert.equal(validPlayIntegrityPolicy({accountDetails: {requireLicensed: true}}), false);
+});
+
+test("production debug token은 모든 페이지를 읽고 순환 token을 차단한다", async () => {
+  const urls = [];
+  const client = {
+    get: async (url) => {
+      urls.push(new URL(url));
+      return urls.length === 1 ? {
+        debugTokens: [],
+        nextPageToken: "next-page",
+      } : {debugTokens: [{name: "redacted"}]};
+    },
+  };
+  const tokens = await readAppCheckDebugTokens(client, "test-app");
+  assert.equal(tokens.length, 1);
+  assert.equal(urls[0].searchParams.get("pageSize"), "100");
+  assert.equal(urls[1].searchParams.get("pageToken"), "next-page");
+
+  await assert.rejects(() => readAppCheckDebugTokens({
+    get: async () => ({nextPageToken: "loop"}),
+  }, "test-app"), /페이지 경계/);
+});
+
+test("App Check 유효 요청은 정확한 앱 ID의 ALLOW와 VALID만 합산한다", () => {
+  const counts = summarizeValidAppCheckRequests([
+    metricSeries("android", "ALLOW", "VALID", [2, 3]),
+    metricSeries("android", "ALLOW", "CONSUMED", [7]),
+    metricSeries("web", "DENY", "VALID", [11]),
+    metricSeries("web", "ALLOW", "VALID", [5]),
+    metricSeries("unknown", "ALLOW", "VALID", [13]),
+  ], ["android", "web"]);
+  assert.deepEqual(counts, {android: 5, web: 5});
+});
+
+test("App Check 메트릭 조회는 최근 7일과 모든 페이지를 사용한다", async () => {
+  const urls = [];
+  const client = {
+    get: async (url) => {
+      urls.push(new URL(url));
+      return urls.length === 1 ? {
+        timeSeries: [metricSeries("android", "ALLOW", "VALID", [1])],
+        nextPageToken: "next-page",
+      } : {timeSeries: [metricSeries("web", "ALLOW", "VALID", [1])]};
+    },
+  };
+  const now = new Date("2026-08-26T00:00:00.000Z");
+  const series = await readAppCheckVerificationSeries(client, now);
+  assert.equal(series.length, 2);
+  assert.equal(urls.length, 2);
+  assert.equal(urls[0].searchParams.get("interval.startTime"), "2026-08-19T00:00:00.000Z");
+  assert.equal(urls[0].searchParams.get("interval.endTime"), "2026-08-26T00:00:00.000Z");
+  assert.equal(urls[1].searchParams.get("pageToken"), "next-page");
+});
+
+test("provider config 404와 Functions 부재는 현재 production unverified 계약으로 판정한다", async () => {
+  const baseline = [];
+  const release = [];
+  await auditAppCheck(createAppCheckClient(), baseline, release, {
+    APP_CHECK_EXPECTED_STATE: "unverified",
+    ANDROID_RELEASE_SHA256: "",
+  });
+  assert.equal(baseline.every((item) => item.status === STATUS.PASS), true);
+  assert.equal(baseline.find((item) => item.id === "firebase.app-check-stage")?.message.includes("unverified"), true);
+  assert.equal(release.find((item) => item.id === "release.app-check-enforcement")?.status, STATUS.EXPECTED_BLOCKER);
+  assert.equal(release.find((item) => item.id === "release.app-check-valid-requests")?.status, STATUS.EXPECTED_BLOCKER);
+});
+
+test("provider config 리소스만 남아 있어도 unverified가 아니라 preparing으로 판정한다", async () => {
+  const baseline = [];
+  const release = [];
+  await auditAppCheck(createAppCheckClient({androidConfigResidual: true}), baseline, release, {
+    APP_CHECK_EXPECTED_STATE: "preparing",
+    ANDROID_RELEASE_SHA256: "",
+  });
+  assert.equal(baseline.every((item) => item.status === STATUS.PASS), true);
+  assert.equal(baseline.find((item) => item.id === "firebase.app-check-stage")?.message.includes("preparing"), true);
+});
+
+test("production debug token이 있으면 App Check baseline을 fail-closed 처리한다", async () => {
+  const baseline = [];
+  const release = [];
+  await auditAppCheck(createAppCheckClient({debugTokenPresent: true}), baseline, release, {
+    APP_CHECK_EXPECTED_STATE: "unverified",
+    ANDROID_RELEASE_SHA256: "",
+  });
+  assert.equal(baseline.find((item) => item.id === "firebase.app-check")?.status, STATUS.DRIFT);
+  assert.equal(baseline.find((item) => item.id === "firebase.app-check-stage")?.status, STATUS.DRIFT);
+});
+
+test("Firebase 관찰 중 Functions를 먼저 강제하면 통합 staged 단계로 판정한다", async () => {
+  const baseline = [];
+  const release = [];
+  await auditAppCheck(createAppCheckClient({providersReady: true, functionMode: "enforced"}), baseline, release, {
+    APP_CHECK_EXPECTED_STATE: "staged",
+    ANDROID_RELEASE_SHA256: "a".repeat(64),
+  });
+  assert.equal(baseline.every((item) => item.status === STATUS.PASS), true);
+  assert.equal(baseline.find((item) => item.id === "firebase.app-check-stage")?.message.includes("staged"), true);
+  assert.equal(release.find((item) => item.id === "release.app-check-enforcement")?.status, STATUS.EXPECTED_BLOCKER);
+});
+
 test("허용하지 않은 단계 상태는 실행 경계 drift로 기록한다", async () => {
   const report = await auditProductionInfrastructure({
     env: {...validEnvironment, CLOUD_RUN_EXPECTED_STATE: "deleted"},
@@ -197,3 +422,114 @@ test("원격 조회가 모두 거부되면 raw 응답 없이 실패 상태를 �
   assert.equal(exitCodeForReport(report), 1);
   assert.doesNotMatch(serialized, /operator@example\.com|raw denial/);
 });
+
+function metricSeries(appId, result, security, values) {
+  return {
+    metric: {labels: {app_id: appId, result, security}},
+    points: values.map((value) => ({value: {int64Value: String(value)}})),
+  };
+}
+
+function createAppCheckClient({
+  providersReady = false,
+  functionMode = "absent",
+  debugTokenPresent = false,
+  androidConfigResidual = false,
+} = {}) {
+  const androidAppId = "1:649312328770:android:b0698534ff92da7fdea1db";
+  const webAppId = "1:649312328770:web:3ade1cb9e994abb3dea1db";
+  const callableIds = [
+    "kakaoCustomToken",
+    "naverCustomToken",
+    "resolveLinkedParticipant",
+    "findSocialDuplicateEmailProvider",
+    "resolveAssignedManagerProfile",
+    "dispatchAdminActionDeliveryJobs",
+    "dispatchAppointmentReminderJobs",
+  ];
+  const get = async (url) => {
+    const parsed = new URL(url);
+    const path = parsed.pathname;
+    if (parsed.hostname === "monitoring.googleapis.com") return {};
+    if (path.endsWith(`/androidApps/${androidAppId}/sha`)) {
+      return providersReady ? {certificates: [{certType: "SHA_256", shaHash: "a".repeat(64)}]} : {};
+    }
+    if (path.endsWith(`/androidApps/${androidAppId}`)) {
+      return {
+        name: `projects/bodeul-prod-110/androidApps/${androidAppId}`,
+        appId: androidAppId,
+        displayName: "BoDeul Android Production",
+        packageName: "com.example.bodeul",
+        state: "ACTIVE",
+      };
+    }
+    if (path.endsWith(`/webApps/${webAppId}`)) {
+      return {
+        name: `projects/bodeul-prod-110/webApps/${webAppId}`,
+        appId: webAppId,
+        displayName: "BoDeul Admin Web Production",
+        state: "ACTIVE",
+      };
+    }
+    if (path.endsWith(`/apps/${androidAppId}/debugTokens`)) {
+      return debugTokenPresent ? {debugTokens: [{name: "redacted"}]} : {};
+    }
+    if (path.endsWith(`/apps/${webAppId}/debugTokens`)) return {};
+    if (parsed.hostname === "identitytoolkit.googleapis.com") {
+      return {
+        authorizedDomains: providersReady ? [
+          "bodeul-prod-110.firebaseapp.com",
+          "bodeul-prod-110.web.app",
+          "bodeul-admin-web-iota.vercel.app",
+        ] : ["bodeul-prod-110.firebaseapp.com", "bodeul-prod-110.web.app"],
+      };
+    }
+    if (parsed.hostname === "serviceusage.googleapis.com") return {state: providersReady ? "ENABLED" : "DISABLED"};
+    if (parsed.hostname === "recaptchaenterprise.googleapis.com") {
+      return {
+        name: "projects/bodeul-prod-110/keys/public-site-key",
+        displayName: "BoDeul Admin Web Production App Check",
+        webSettings: {
+          integrationType: "SCORE",
+          allowedDomains: ["bodeul-admin-web-iota.vercel.app"],
+        },
+      };
+    }
+    if (path.includes("/services/")) return {enforcementMode: providersReady ? "UNENFORCED" : undefined};
+    if (parsed.hostname === "cloudfunctions.googleapis.com") {
+      if (functionMode === "absent") return {};
+      return {functions: callableIds.map((id) => ({
+        name: `projects/bodeul-prod-110/locations/asia-northeast3/functions/${id}`,
+        state: "ACTIVE",
+        serviceConfig: {environmentVariables: {
+          ENABLE_APPCHECK_ENFORCEMENT: functionMode === "enforced" ? "true" : "false",
+        }},
+      }))};
+    }
+    throw new Error(`예상하지 않은 App Check 테스트 URL: ${url}`);
+  };
+  return {
+    get,
+    getOptional: async (url) => {
+      if (url.endsWith("/playIntegrityConfig")) {
+        if (!providersReady && !androidConfigResidual) return null;
+        return {
+          name: `projects/649312328770/apps/${androidAppId}/playIntegrityConfig`,
+          tokenTtl: "3600s",
+          appIntegrity: {allowUnrecognizedVersion: false},
+          deviceIntegrity: {minDeviceRecognitionLevel: "NO_INTEGRITY"},
+          accountDetails: {requireLicensed: false},
+        };
+      }
+      if (url.endsWith("/recaptchaEnterpriseConfig")) {
+        if (!providersReady) return null;
+        return {
+          name: `projects/649312328770/apps/${webAppId}/recaptchaEnterpriseConfig`,
+          siteKey: "public-site-key",
+          tokenTtl: "3600s",
+        };
+      }
+      throw new Error(`예상하지 않은 optional App Check 테스트 URL: ${url}`);
+    },
+  };
+}
