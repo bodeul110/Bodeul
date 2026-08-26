@@ -23,6 +23,6 @@ class AccountDeletionReadinessController {
             @AuthenticationPrincipal AppUserRepository.AppUser appUser) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(readinessService.inspect(appUser.id()));
+                .body(readinessService.inspect(appUser.id(), appUser.firebaseUid()));
     }
 }
