@@ -1,0 +1,229 @@
+name: Production Infrastructure Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/production-infrastructure-audit.yml"
+      - "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1"
+      - "tools/gcp/**"
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/production-infrastructure-audit.yml"
+      - "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1"
+      - "tools/gcp/**"
+  workflow_dispatch:
+    inputs:
+      confirm_project:
+        description: "확인을 위해 bodeul-prod-110을 입력하세요"
+        required: true
+        type: string
+      confirm_commit:
+        description: "점검할 master commit SHA 40자를 입력하세요"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-infrastructure-audit
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Node.js 22 설정
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+
+      - name: 감사 도구 단위 테스트
+        run: node --test tools/gcp/test/check-production-infrastructure.test.mjs
+
+      - name: 단계 상태 계약 검사
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e '
+            .schemaVersion == 1 and
+            (.cloudRun == "absent" or .cloudRun == "present") and
+            (.kakaoSecret == "metadata-only" or .kakaoSecret == "enabled") and
+            (.firestorePitr == "deferred" or .firestorePitr == "enabled") and
+            (.firebaseStorageUbla == "deferred" or .firebaseStorageUbla == "enabled") and
+            (.appCheck == "unverified" or .appCheck == "observe" or .appCheck == "enforced")
+          ' tools/gcp/production-infrastructure-state.json > /dev/null
+
+      - name: 구성 스크립트 구문 검사
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            "$env:GITHUB_WORKSPACE/core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1",
+            [ref]$tokens,
+            [ref]$parseErrors
+          )
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+
+  audit:
+    name: baseline-drift
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: contract
+    runs-on: ubuntu-latest
+    environment: production-infrastructure-audit
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      AUDIT_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.AUDIT_WORKLOAD_IDENTITY_PROVIDER }}
+      AUDIT_SERVICE_ACCOUNT: ${{ vars.AUDIT_SERVICE_ACCOUNT }}
+      CLOUD_RUN_ARTIFACT_REPOSITORY: ${{ vars.CLOUD_RUN_ARTIFACT_REPOSITORY }}
+      CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+      CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT }}
+      CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
+      DB_BACKUP_SERVICE_ACCOUNT: ${{ vars.DB_BACKUP_SERVICE_ACCOUNT }}
+      FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT: ${{ vars.FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      DB_BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
+      FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Node.js 22 설정
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+
+      - name: 검토된 단계 상태 불러오기
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_file="tools/gcp/production-infrastructure-state.json"
+          jq -e '.schemaVersion == 1' "${state_file}" > /dev/null
+          echo "CLOUD_RUN_EXPECTED_STATE=$(jq -r '.cloudRun' "${state_file}")" >> "${GITHUB_ENV}"
+          echo "KAKAO_SECRET_EXPECTED_STATE=$(jq -r '.kakaoSecret' "${state_file}")" >> "${GITHUB_ENV}"
+          echo "FIRESTORE_PITR_EXPECTED_STATE=$(jq -r '.firestorePitr' "${state_file}")" >> "${GITHUB_ENV}"
+          echo "FIREBASE_STORAGE_UBLA_EXPECTED_STATE=$(jq -r '.firebaseStorageUbla' "${state_file}")" >> "${GITHUB_ENV}"
+          echo "APP_CHECK_EXPECTED_STATE=$(jq -r '.appCheck' "${state_file}")" >> "${GITHUB_ENV}"
+
+      - name: 실행 대상 확인
+        shell: bash
+        env:
+          CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REPOSITORY}" != "bodeul110/Bodeul" || "${GITHUB_REF}" != "refs/heads/master" ]]; then
+            echo "production 인프라 점검은 bodeul110/Bodeul의 master에서만 실행할 수 있습니다." >&2
+            exit 1
+          fi
+          if [[ ! "${CONFIRM_COMMIT}" =~ ^[0-9a-f]{40}$ || "${CONFIRM_COMMIT}" != "${GITHUB_SHA}" ]]; then
+            echo "입력한 master commit SHA와 workflow 실행 commit이 일치하지 않습니다." >&2
+            exit 1
+          fi
+          if [[ "${CONFIRM_PROJECT}" != "bodeul-prod-110" || "${GCP_PROJECT_ID}" != "${CONFIRM_PROJECT}" ]]; then
+            echo "production Google Cloud 프로젝트 확인값이 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+          required_variables=(
+            GCP_PROJECT_NUMBER
+            GCP_REGION
+            AUDIT_WORKLOAD_IDENTITY_PROVIDER
+            AUDIT_SERVICE_ACCOUNT
+            CLOUD_RUN_ARTIFACT_REPOSITORY
+            CLOUD_RUN_SERVICE
+            CLOUD_RUN_DEPLOY_SERVICE_ACCOUNT
+            CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT
+            DB_BACKUP_SERVICE_ACCOUNT
+            FIREBASE_RETENTION_OPERATOR_SERVICE_ACCOUNT
+            FIREBASE_PROJECT_ID
+            DB_BACKUP_BUCKET
+            FIREBASE_STORAGE_BUCKET
+            CLOUD_RUN_EXPECTED_STATE
+            KAKAO_SECRET_EXPECTED_STATE
+            FIRESTORE_PITR_EXPECTED_STATE
+            FIREBASE_STORAGE_UBLA_EXPECTED_STATE
+            APP_CHECK_EXPECTED_STATE
+          )
+          for variable_name in "${required_variables[@]}"; do
+            if [[ -z "${!variable_name:-}" ]]; then
+              echo "${variable_name} Environment variable이 비어 있습니다." >&2
+              exit 1
+            fi
+          done
+
+          if [[ "${GCP_PROJECT_NUMBER}" != "649312328770" || "${GCP_REGION}" != "asia-northeast1" ]]; then
+            echo "production project number 또는 리전이 기준과 다릅니다." >&2
+            exit 1
+          fi
+          if [[ "${FIREBASE_PROJECT_ID}" != "${GCP_PROJECT_ID}" ]]; then
+            echo "Firebase와 Google Cloud project ID가 일치해야 합니다." >&2
+            exit 1
+          fi
+          if [[ "${CLOUD_RUN_EXPECTED_STATE}" != "absent" && "${CLOUD_RUN_EXPECTED_STATE}" != "present" ]]; then
+            echo "Cloud Run 기대 상태가 허용값과 다릅니다." >&2
+            exit 1
+          fi
+          if [[ "${KAKAO_SECRET_EXPECTED_STATE}" != "metadata-only" && "${KAKAO_SECRET_EXPECTED_STATE}" != "enabled" ]]; then
+            echo "Kakao Secret 기대 상태가 허용값과 다릅니다." >&2
+            exit 1
+          fi
+          if [[ "${FIRESTORE_PITR_EXPECTED_STATE}" != "deferred" && "${FIRESTORE_PITR_EXPECTED_STATE}" != "enabled" ]]; then
+            echo "Firestore PITR 기대 상태가 허용값과 다릅니다." >&2
+            exit 1
+          fi
+          if [[ "${FIREBASE_STORAGE_UBLA_EXPECTED_STATE}" != "deferred" && "${FIREBASE_STORAGE_UBLA_EXPECTED_STATE}" != "enabled" ]]; then
+            echo "Firebase Storage UBLA 기대 상태가 허용값과 다릅니다." >&2
+            exit 1
+          fi
+          if [[ "${APP_CHECK_EXPECTED_STATE}" != "unverified" && "${APP_CHECK_EXPECTED_STATE}" != "observe" && "${APP_CHECK_EXPECTED_STATE}" != "enforced" ]]; then
+            echo "App Check 기대 상태가 허용값과 다릅니다." >&2
+            exit 1
+          fi
+          expected_provider="projects/${GCP_PROJECT_NUMBER}/locations/global/workloadIdentityPools/github-actions/providers/bodeul-infra-audit-production"
+          if [[ "${AUDIT_WORKLOAD_IDENTITY_PROVIDER}" != "${expected_provider}" ]]; then
+            echo "production 감사 WIF provider가 기준과 다릅니다." >&2
+            exit 1
+          fi
+          expected_auditor="bodeul-infra-auditor@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+          if [[ "${AUDIT_SERVICE_ACCOUNT}" != "${expected_auditor}" ]]; then
+            echo "production 감사 서비스 계정이 기준과 다릅니다." >&2
+            exit 1
+          fi
+
+      - name: Google Cloud WIF 인증
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ env.AUDIT_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.AUDIT_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 900s
+
+      - name: Google Cloud CLI 설정
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Production 기반 드리프트 점검
+        run: node tools/gcp/check-production-infrastructure.mjs --summary "${GITHUB_STEP_SUMMARY}"
