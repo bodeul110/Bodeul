@@ -27,7 +27,7 @@ dependencies {
 	implementation("com.google.firebase:firebase-admin:9.10.0")
 	implementation("org.flywaydb:flyway-core")
 	implementation("org.flywaydb:flyway-database-postgresql")
-	runtimeOnly("org.postgresql:postgresql")
+	implementation("org.postgresql:postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -49,6 +49,21 @@ tasks.register<JavaExec>("verifyAccountDeletionInventory") {
 	description = "계정 삭제 영향도 함수와 runtime 최소 권한을 읽기 전용으로 검증합니다."
 	classpath = sourceSets["main"].runtimeClasspath
 	mainClass.set("com.bodeul.core.AccountDeletionInventoryVerificationApplication")
+}
+
+tasks.register<JavaExec>("verifyDatabaseMigrationReadiness") {
+	group = "verification"
+	description = "운영 DB의 Flyway 버전과 V14 백필 규모를 읽기 전용으로 점검합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.DatabaseMigrationReadinessApplication")
+}
+
+tasks.register<JavaExec>("verifyDatabaseConnectionTarget") {
+	group = "verification"
+	description = "DB 접속 없이 운영 Supabase 연결 대상만 검증합니다."
+	classpath = sourceSets["main"].runtimeClasspath
+	mainClass.set("com.bodeul.core.DatabaseMigrationReadinessApplication")
+	args("--target-only")
 }
 
 tasks.register<JavaExec>("applyAppointmentRequestsSeed") {
