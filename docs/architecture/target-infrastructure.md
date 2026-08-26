@@ -1,6 +1,6 @@
 # 목표 인프라 구조
 
-기준일: 2026-08-25
+기준일: 2026-08-26
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -53,8 +53,8 @@ DDL은 메인 저장소 `core-api/`의 Flyway migration만 소유한다. 런타�
 - Core-only 세션 채팅 첨부는 Spring Core API 서버 중계 계약으로 전환했다. 개발·production Firebase 기본 버킷에는 각 Cloud Run 런타임 계정의 버킷 단위 `roles/storage.objectUser`만 부여했고, 버킷 메타데이터 권한 없이 객체 API를 직접 사용한다. Preview 배포, 인증된 실기기 업로드·다운로드와 DB 충돌 보상 삭제를 완료했으며 production 적용은 #134 출시 게이트까지 보류한다.
 - 실제 세션으로 private Realtime join·재연결, 채팅·읽음·위치, FCM 실기기 알림을 확인했다. 10개 동시 join과 `chat.changed` 10/10 수신은 운영 목표 Pro 포함량 안에서 통과했다.
 - production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 개발 환경과 분리했다.
-- production Flyway V1~V13, 최소 권한 role, Artifact Registry, WIF와 DB Secret Manager version을 검증했다.
-- production PostgreSQL V13 dump를 격리 PostgreSQL 17에 복원해 schema, row 수, owner, ACL, RLS, 인덱스와 제약 일치를 검증했다.
+- production Flyway V1~V15, 최소 권한 role, Artifact Registry, WIF와 DB Secret Manager version을 검증했다.
+- production PostgreSQL V15 dump를 격리 PostgreSQL 17에 복원해 schema, row 수, owner, ACL, RLS, 인덱스와 제약 일치를 검증했다.
 - production Supabase 조직은 아직 Free이며, 실제 사용자 데이터 투입 전 Pro 전환이 필요하다.
 - Kakao 운영 키, 첫 Cloud Run revision과 Vercel Production 관리자 DB는 아직 연결하지 않았다.
 

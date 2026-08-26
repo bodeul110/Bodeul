@@ -28,7 +28,7 @@ Cloud Run은 현재 Spring 애플리케이션을 컨테이너로 유지하고, �
 - Kakao Local REST Secret 버전 `1`과 인증된 장소 검색 실호출은 Issue #158 검증 기록에서 확인했다.
 - Android App Check header 전달과 Spring `off/observe/enforce` 검증을 구현했다. preview는 Android 실기기 `valid`를 확인했지만 release Play Integrity와 rollback 검증 전까지 `observe`로 운용한다.
 - 채팅·읽음·위치 Core API와 Supabase private Realtime 전환을 배포했다. 최신 리비전 `bodeul-core-api-preview-00014-wnr`에서 실제 세션, FCM 실기기 알림과 10개 동시 연결을 검증했다.
-- production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 생성했다. Artifact Registry, WIF, deploy/runtime 서비스 계정과 DB Secret Manager version을 준비했고 Flyway V1~V13 적용과 격리 복원을 완료했다. Supabase Free project는 2026-07-25 비활성으로 자동 일시 중지돼 소유 조직 계정의 재개와 읽기 전용 점검 재통과가 필요하다. Cloud Run 서비스는 Kakao production Secret version을 기다리는 첫 승인 배포 전 상태다.
+- production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 생성했다. Artifact Registry, WIF, deploy/runtime 서비스 계정과 DB Secret Manager version을 준비했다. 2026-08-26 Supabase project를 재개하고 Flyway V15, 읽기 전용 상태 점검과 migration 전후 격리 복원을 완료했다. Cloud Run 서비스는 Kakao production Secret version을 기다리는 첫 승인 배포 전 상태다.
 
 실제 revision, image digest, 응답과 로그 검사 결과는 [Issue 156 Cloud Run preview 검증 기록](../reports/issue-156-core-api-cloud-run-preview-2026-07-16.md)에 정리한다.
 

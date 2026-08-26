@@ -1,6 +1,6 @@
 # 구현 상태
 
-기준: 2026-08-25
+기준: 2026-08-26
 
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
@@ -3777,3 +3777,27 @@
 - Kakao REST API production Secret version과 첫 Cloud Run production revision
 - Android·Web App Check provider와 enforcement 실검증
 - 개발 버킷 canary 후 Firebase Storage UBLA
+
+## 152. 2026-08-26 Production PostgreSQL V15 migration·복원
+
+### 구현과 운영 설정
+
+- 자동 일시 중지됐던 `bodeul-prod` Supabase project를 재개하고 `ACTIVE_HEALTHY` 상태를 확인했다.
+- 보호된 production workflow가 project ref, JDBC 최종 대상, migration login과 `master` commit을 다시 확인하도록 유지했다.
+- Flyway V14 guide snapshot 고정과 V15 계정 삭제 영향도 DB 계약을 적용했다.
+- migration 전후 logical dump를 각각 격리 PostgreSQL 17에 복원한 경우에만 비공개 GCS에 업로드했다.
+
+### 검증
+
+- migration 전 readiness run `32980526711`: Flyway V13, 실패 이력과 V14 backfill 후보 0건
+- migration 전 backup·restore run `32980749558`: 격리 복원과 manifest 일치
+- migration run `32981200371`: V14·V15 적용과 `verifyAccountDeletionInventory` 통과
+- migration 후 readiness run `32981484159`: Flyway V15, 실패 이력과 업무 데이터 0건
+- migration 후 backup·restore run `32981633994`: 최신 V15 복구 지점 검증·외부 보관
+- Supabase Security Advisor 경고 0건. 미사용 인덱스 INFO는 실제 쿼리 통계가 쌓일 때까지 유지
+
+### 남은 범위
+
+- 실제 사용자 데이터 투입 전 Supabase Pro, 일일 백업과 spend cap 확인
+- Kakao production Secret과 첫 Cloud Run revision, smoke·rollback 검증
+- 정책·약관 승인 뒤 production 자동 파기 fixture와 쓰기 전환 검증

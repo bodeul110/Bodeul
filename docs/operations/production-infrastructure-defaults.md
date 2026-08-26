@@ -53,7 +53,7 @@
 
 Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Production에는 production 값만 두며, 값이 없을 때 서버 API가 설정 오류로 종료되는 fail-closed 상태를 유지한다. Firebase authorized domain에는 실제 관리자 도메인과 출시 전 검증에 필요한 Vercel 도메인만 정확한 호스트명으로 등록하고 wildcard를 사용하지 않는다.
 
-Production Supabase Free project는 2026-07-25 비활성으로 자동 일시 중지됐다. 원래 소유 조직에서 재개하고 읽기 전용 DB 점검과 최신 백업·격리 복원을 다시 통과하기 전까지 migration과 첫 Cloud Run production 배포를 차단한다.
+Production Supabase Free project는 2026-08-26 재개했고 읽기 전용 DB 점검, Flyway V15와 migration 전후 백업·격리 복원을 통과했다. Free 등급의 자동 일시 중지 위험은 남으므로 실제 사용자 데이터 투입 전 Pro 전환을 계속 출시 게이트로 둔다.
 
 동시 릴리스가 늘거나 production과 같은 데이터 규모·외부 연동으로 장기간 QA해야 할 때 세 번째 staging 프로젝트를 검토한다. 현재 MVP 규모에서는 비용과 운영 대상을 늘리는 효과가 더 크므로 추가하지 않는다.
 
@@ -150,14 +150,14 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - `.github/workflows/core-api-migration.yml`의 production 경로에 `master` SHA, 백업 증적과 사전 Core API 검사를 적용했다.
 - `core-api/deploy/cloud-run/set-production-secrets.ps1`에 production 전용 secret version 입력 경계를 준비했다.
 - `core-api-production`에는 production GCP/Firebase 식별자와 DB Secret Manager version을 등록했다. Kakao production secret version은 비어 있어 첫 배포는 계속 fail-closed다.
-- `core-api-migration-production`에는 production migration 자격 증명을 등록했다. run `29669867122`에서 V13까지 적용했고, run `29670197027`에서 최종 dump의 격리 복원과 manifest 일치를 확인했다.
+- `core-api-migration-production`에는 production migration 자격 증명을 등록했다. run `32981200371`에서 V15까지 적용했고, run `32981484159`에서 최신 version과 실패 이력 0건을 읽기 전용으로 재확인했다.
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo, 삭제 방지와 7일 PITR version 보존을 사용하고 App Check는 아직 강제하지 않는다.
 - production Firebase Storage는 bucket 수준 Public Access Prevention을 강제했다. UBLA는 조직 정책 아래 즉시 되돌릴 수 없으므로 개발 버킷의 업로드·미리보기·삭제 실검증 전까지 보류한다.
-- production Supabase는 빈 데이터 상태로 Flyway V13, `bodeul` schema, 최소 권한 role, 업무·이력 테이블 13개와 RLS 정책 33개를 갖는다. 공개 role table grant와 Security Advisor 경고는 0건이다.
+- production Supabase는 빈 데이터 상태로 Flyway V15와 계정 삭제 영향도 DB 계약을 갖는다. 최소 권한 role과 공개 role table grant 0건을 유지하며 migration 후 Security Advisor 경고도 0건이다.
 - production Supabase 조직은 현재 Free다. 2026-11-16까지 Pro로 전환하고 spend cap과 일일 7일 백업을 확인한다.
 - production Core API의 초기 Kakao outbound 정책은 `dynamic`이다. 저장소의 배포 설정에는 VPC와 Cloud NAT를 연결하지 않으며 production workflow가 기존 서비스의 실제 VPC 연결을 조회해 정책과 다르면 배포를 중단한다. Kakao 호출 허용 IP의 실제 콘솔 상태는 production 키 등록 때 별도로 확인한다.
-- migration 전·V12·V13 검증 dump를 비공개 GCS bucket에 28일 보존으로 저장했다. V13 최종 restore 리허설은 완료했고, 실제 데이터 규모의 복구 시간 측정은 출시 후 분기 리허설에서 반복한다.
-- production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18에 현재 production dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
+- 기존 migration 전·V12·V13 검증 dump와 2026-08-26 V14·V15 적용 전후 검증 dump를 비공개 GCS bucket에 28일 보존으로 저장했다. 최신 V15 restore 리허설을 완료했고, 실제 데이터 규모의 복구 시간 측정은 출시 후 분기 리허설에서 반복한다.
+- production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18 당시 V3 dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
 - production 인프라 감사용 keyless 서비스 계정, custom metadata role, exact-subject WIF provider와 보호된 GitHub Environment를 구성했다. 단계 기대값은 저장소의 `tools/gcp/production-infrastructure-state.json`에서 PR 이력으로 관리한다.
 - production 리소스 생성 후 첫 배포 전에는 App Check를 `observe`로 시작하고 정상 release 요청을 확인한 뒤 `enforce`로 바꾼다.
 
@@ -190,3 +190,4 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - [Production 인프라 읽기 전용 점검](production-infrastructure-audit.md)
 - [Production PostgreSQL 백업·복원 리허설](../reports/postgres-production-backup-restore-rehearsal-2026-07-18.md)
 - [Production PostgreSQL V13 migration·복원 검증](../reports/postgres-production-v13-migration-restore-2026-07-19.md)
+- [Production DB V15 migration·복원 검증](../reports/production-db-migration-readiness-2026-08-26.md)

@@ -56,6 +56,15 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 
 세 실행 모두 Google Cloud WIF 인증과 Production metadata 감사 단계를 통과했다.
 
+## Production DB 복구와 최신화
+
+- 자동 일시 중지됐던 Supabase project를 재개하고 `ACTIVE_HEALTHY` 상태를 확인했다.
+- [readiness run 32980526711](https://github.com/bodeul110/Bodeul/actions/runs/32980526711)에서 Flyway V13과 V14 backfill 후보 0건을 확인했다.
+- [migration run 32981200371](https://github.com/bodeul110/Bodeul/actions/runs/32981200371)에서 Flyway V14·V15와 계정 삭제 영향도 DB 계약 검증을 통과했다.
+- [migration 후 readiness run 32981484159](https://github.com/bodeul110/Bodeul/actions/runs/32981484159)에서 Flyway V15와 실패 이력 0건을 확인했다.
+- migration 전후 [backup·restore run 32980749558](https://github.com/bodeul110/Bodeul/actions/runs/32980749558), [run 32981633994](https://github.com/bodeul110/Bodeul/actions/runs/32981633994)가 모두 격리 복원과 외부 보관을 통과했다.
+- migration 후 Supabase Security Advisor 경고는 0건이다. 미사용 인덱스 INFO는 업무 데이터와 쿼리 통계가 쌓인 뒤 재평가한다.
+
 ## 남은 출시 게이트
 
 - Kakao REST API production Secret version 등록
