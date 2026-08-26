@@ -3751,3 +3751,28 @@
 - Firebase와 Kakao에 release SHA-256 등록
 - Google Play Console과 Firebase Play Integrity 연결
 - ARM release 후보의 App Check `VALID`와 rollback 검증
+
+## 151. 2026-08-26 Production 인프라 감사와 운영 WIF 강화
+
+### 구현과 운영 설정
+
+- metadata 전용 감사 서비스 계정과 exact-subject WIF provider를 분리하고, GitHub Environment 승인 뒤에만 수동 감사가 실행되도록 구성했다.
+- Core API 배포와 DB 백업 provider를 불변 저장소·소유자 ID, `master`, 정확한 Environment·workflow·`workflow_dispatch` 조건으로 제한했다.
+- 배포·백업 서비스 계정 impersonation을 Environment 전체 principalSet에서 각 exact subject 하나로 축소했다.
+- Firebase Storage Public Access Prevention을 bucket 수준으로 강제하고, Storage Rules를 현재 저장소 ruleset과 일치시켰다.
+- Firebase Storage UBLA는 개발 버킷 canary 전까지 `deferred`로 유지했다.
+
+### 검증
+
+- 감사 도구 단위 테스트 11개, PowerShell 구문, GitHub Actions YAML 검사 통과
+- 관리자 단기 토큰 기반 Production metadata baseline 33개 전체 통과
+- [Production Infrastructure Audit run 32969865527](https://github.com/bodeul110/Bodeul/actions/runs/32969865527)에서 exact WIF 인증과 baseline 감사 성공
+- 감사·배포·런타임·백업·보존 서비스 계정의 사용자 관리 key 0개 확인
+- 적용에 사용한 임시 project binding 3개 회수와 권한 하나짜리 임시 custom role 삭제 확인
+
+### 남은 범위
+
+- Kakao REST API production Secret version과 첫 Cloud Run production revision
+- Android·Web App Check provider와 enforcement 실검증
+- Firestore PITR
+- 개발 버킷 canary 후 Firebase Storage UBLA

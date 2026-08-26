@@ -40,6 +40,14 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 | Storage Rules | 저장소 테스트 7개와 추가 경계 검사 4개 통과, production ruleset과 저장소 hash 일치 |
 | 임시 권한 | 적용 후 project binding 0개, 임시 custom role 삭제 상태 |
 
+## GitHub WIF 실행 증적
+
+- 실행: [Production Infrastructure Audit run 32969865527](https://github.com/bodeul110/Bodeul/actions/runs/32969865527)
+- 대상 commit: `51839e1d476a4a28255f062d86dbc607ceeef0d8`
+- `contract`: 11초, 성공
+- `baseline-drift`: 33초, 성공
+- Google Cloud WIF 인증과 Production metadata 감사 단계 모두 성공
+
 ## 남은 출시 게이트
 
 - Kakao REST API production Secret version 등록
