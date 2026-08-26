@@ -32,7 +32,7 @@
 
 WIF provider 조건은 `bodeul110/Bodeul`, `refs/heads/master`, `core-api-production`을 모두 요구한다. 배포 계정에는 Cloud Run 배포, 해당 Artifact Registry 쓰기와 runtime 서비스 계정 사용 권한만 부여했다. 사용자 관리 서비스 계정 key는 만들지 않았다.
 
-2026-08-26에는 이 조건을 불변 저장소·소유자 ID, 정확한 workflow와 `workflow_dispatch`까지 확장하고 impersonation을 exact subject 하나로 축소했다. 현재 검증 결과는 [Production 인프라 감사 및 운영 WIF 강화](production-infrastructure-audit-2026-08-26.md)를 따른다.
+2026-08-26에는 이 조건을 불변 저장소·소유자 ID, 정확한 workflow와 `workflow_dispatch`까지 확장하고 impersonation을 exact subject 하나로 축소했다. 같은 날 Firestore PITR과 7일 version 보존도 활성화했다. 현재 검증 결과는 [Production 인프라 감사 및 운영 WIF 강화](production-infrastructure-audit-2026-08-26.md)를 따른다.
 
 DB 백업 provider는 같은 저장소와 `master`에 더해 `core-api-migration-production` Environment를 요구한다. `bodeul-db-backup`에는 production DB backup bucket의 object 생성·조회 권한만 부여했으며 삭제 권한과 서비스 계정 key는 부여하지 않았다.
 
@@ -77,7 +77,7 @@ DB 백업 provider는 같은 저장소와 `master`에 더해 `core-api-migration
 ## 리스크
 
 - 예산 알림은 지출을 자동 차단하지 않는다.
-- Firestore PITR은 비용과 보존 기준을 확정한 뒤 출시 전에 활성화한다.
+- Firestore PITR은 2026-08-26에 7일 version 보존으로 활성화했다.
 - 빈 DB에서 unused index 경고는 사용량 근거가 없으므로 지금 제거하지 않는다.
 - Firebase Rules release는 배포했지만 production 앱의 실제 인증·App Check 흐름은 아직 검증하지 않았다.
 

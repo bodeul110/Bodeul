@@ -3760,6 +3760,7 @@
 - Core API 배포와 DB 백업 provider를 불변 저장소·소유자 ID, `master`, 정확한 Environment·workflow·`workflow_dispatch` 조건으로 제한했다.
 - 배포·백업 서비스 계정 impersonation을 Environment 전체 principalSet에서 각 exact subject 하나로 축소했다.
 - Firebase Storage Public Access Prevention을 bucket 수준으로 강제하고, Storage Rules를 현재 저장소 ruleset과 일치시켰다.
+- Firestore PITR을 활성화하고 version 보존 기간을 7일로 확정했다.
 - Firebase Storage UBLA는 개발 버킷 canary 전까지 `deferred`로 유지했다.
 
 ### 검증
@@ -3769,10 +3770,10 @@
 - [Production Infrastructure Audit run 32969865527](https://github.com/bodeul110/Bodeul/actions/runs/32969865527)에서 exact WIF 인증과 baseline 감사 성공
 - 감사·배포·런타임·백업·보존 서비스 계정의 사용자 관리 key 0개 확인
 - 적용에 사용한 임시 project binding 3개 회수와 권한 하나짜리 임시 custom role 삭제 확인
+- 관리자 권한 없이 PITR 스크립트를 재실행해 활성 상태와 `604800s` 보존을 다시 확인
 
 ### 남은 범위
 
 - Kakao REST API production Secret version과 첫 Cloud Run production revision
 - Android·Web App Check provider와 enforcement 실검증
-- Firestore PITR
 - 개발 버킷 canary 후 Firebase Storage UBLA

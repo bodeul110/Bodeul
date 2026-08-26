@@ -36,8 +36,9 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 | PowerShell 구문 | 감사 구성·운영 WIF 강화 스크립트 모두 통과 |
 | GitHub Actions YAML | `yq`, `actionlint` 통과 |
 | Production metadata 감사 | baseline 33개 전체 `PASS` |
-| 출시 준비 상태 | 의도된 미완료 5개를 `EXPECTED_BLOCKER` 또는 `EXPECTED_ABSENT`로 분리 |
+| 출시 준비 상태 | PITR 완료 후 의도된 미완료 4개를 `EXPECTED_BLOCKER` 또는 `EXPECTED_ABSENT`로 분리 |
 | Storage Rules | 저장소 테스트 7개와 추가 경계 검사 4개 통과, production ruleset과 저장소 hash 일치 |
+| Firestore PITR | `POINT_IN_TIME_RECOVERY_ENABLED`, version 보존 `604800s` 확인 |
 | 임시 권한 | 적용 후 project binding 0개, 임시 custom role 삭제 상태 |
 
 ## GitHub WIF 실행 증적
@@ -53,7 +54,6 @@ Google Cloud의 현재 사전 정의 WIF 관리자 역할과 기존 provider 갱
 - Kakao REST API production Secret version 등록
 - Core API 첫 Cloud Run production revision 승인 배포
 - Android·Web App Check provider와 enforcement 실검증
-- Firestore PITR 적용
 - 개발 버킷 canary 후 Firebase Storage UBLA 적용
 
 Firebase Storage Public Access Prevention은 이미 bucket 수준으로 강제했다. UBLA는 현재 조직 정책 아래 활성화하면 즉시 되돌릴 수 없으므로, 개발 버킷에서 매니저 서류·채팅 첨부·Core API·보존 정책 경로를 먼저 검증한다.

@@ -28,7 +28,7 @@ Production 배포나 데이터 조회 없이 Google Cloud/Firebase 기반의 누
 | Firestore | `(default)` database의 Tokyo·Native mode·삭제 방지 metadata |
 | Storage | Firebase Storage와 DB backup bucket의 위치·uniform access·public access prevention·보존 metadata |
 
-Cloud Run 첫 revision, Kakao production secret version, release App Check provider/enforcement, Firestore PITR와 Firebase Storage UBLA는 이미 구축됐다고 보는 baseline이 아니라 출시 차단 항목으로 따로 표시한다. Supabase와 PostgreSQL은 [Production DB migration 사전 점검](production-database-migration-readiness.md)에서 다룬다.
+Cloud Run 첫 revision, Kakao production secret version, release App Check provider/enforcement와 Firebase Storage UBLA는 이미 구축됐다고 보는 baseline이 아니라 출시 차단 항목으로 따로 표시한다. Supabase와 PostgreSQL은 [Production DB migration 사전 점검](production-database-migration-readiness.md)에서 다룬다.
 
 IAM 검사는 production 프로젝트에 직접 설정된 binding을 대조한다. 조직·폴더에서 상속된 Allow와 Deny는 이 서비스 계정의 조회 범위가 아니므로 effective IAM 전체를 보장하지 않는다. 2026-08-26 구성 시 조직 Deny 정책 0건과 WIF provider 생성 권한의 `DENY_ACCESS_STATE_NOT_DENIED`를 별도 관리자 점검으로 확인했고, 이때 사용한 임시 `denyReviewer`, WIF 관리자와 서비스 계정 관리자 역할은 확인 직후 모두 회수했다.
 
@@ -82,11 +82,11 @@ GitHub Environment에는 공개 식별자만 변수로 등록한다. 비밀값�
 | --- | --- | --- |
 | `cloudRun` / `CLOUD_RUN_EXPECTED_STATE` | `absent` | 첫 승인 배포 후 `present` |
 | `kakaoSecret` / `KAKAO_SECRET_EXPECTED_STATE` | `metadata-only` | 운영 version 등록 후 `enabled` |
-| `firestorePitr` / `FIRESTORE_PITR_EXPECTED_STATE` | `deferred` | PITR 적용 후 `enabled` |
+| `firestorePitr` / `FIRESTORE_PITR_EXPECTED_STATE` | `enabled` | 7일 version 보존 유지 |
 | `firebaseStorageUbla` / `FIREBASE_STORAGE_UBLA_EXPECTED_STATE` | `deferred` | 개발 버킷 실검증 후 `enabled` |
 | `appCheck` / `APP_CHECK_EXPECTED_STATE` | `unverified` | metadata 점검 구현 후 `observe`, release 검증 후 `enforced` |
 
-2026-08-26에 필수 API 15개, 감사 custom role, keyless 서비스 계정, exact-subject WIF provider와 impersonation을 구성했다. Firebase Storage에는 Public Access Prevention을 bucket 수준으로 강제했다. UBLA는 유효 조직 정책 아래 활성화하면 바로 되돌릴 수 없으므로, 개발 버킷에서 매니저 서류·채팅 첨부·Core API·보존 정책 경로를 실검증할 때까지 `deferred`로 둔다.
+2026-08-26에 필수 API 15개, 감사 custom role, keyless 서비스 계정, exact-subject WIF provider와 impersonation을 구성했다. Firestore PITR과 7일 version 보존을 활성화했고 Firebase Storage에는 Public Access Prevention을 bucket 수준으로 강제했다. UBLA는 유효 조직 정책 아래 활성화하면 바로 되돌릴 수 없으므로, 개발 버킷에서 매니저 서류·채팅 첨부·Core API·보존 정책 경로를 실검증할 때까지 `deferred`로 둔다.
 
 같은 날 deploy와 DB backup provider도 불변 저장소·소유자 ID, 정확한 workflow 경로와 `workflow_dispatch`로 제한하고, 서비스 계정 impersonation을 Environment 전체 principalSet에서 exact subject 하나로 축소했다. 이 변경은 각 기존 workflow 파일과 Environment 이름을 유지하므로 정상 수동 실행 subject는 바뀌지 않는다.
 
