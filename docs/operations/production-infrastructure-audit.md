@@ -112,4 +112,4 @@ GitHub Environment에는 공개 식별자만 변수로 등록한다. 비밀값�
 4. `production-infrastructure-audit` 승인을 완료한다.
 5. Summary의 baseline 상태와 출시 차단 항목을 확인한다.
 
-2026-08-26 선행 GitHub WIF 감사와 운영 provider 강화 후 관리자 단기 토큰 점검에서 baseline 전체가 통과했고 출시 차단 항목 5개가 분리됐다. 강화된 계약이 병합되면 `master`에서 수동 감사를 다시 실행해 exact provider 조건과 정제된 Summary를 확인한다. 실행 결과는 원시 응답이 아니라 정제된 상태표와 run 링크만 `docs/reports/` 및 Issue #134에 남긴다.
+2026-08-26 운영 provider 강화 후 관리자 단기 토큰 점검과 [`master` GitHub WIF 감사 run 32969865527](https://github.com/bodeul110/Bodeul/actions/runs/32969865527)에서 baseline 전체가 통과했고 출시 차단 항목 5개가 분리됐다. 이후 실행 결과도 원시 응답이 아니라 정제된 상태표와 run 링크만 `docs/reports/` 및 Issue #134에 남긴다.
