@@ -88,6 +88,22 @@ GitHub Environment에는 공개 식별자만 변수로 등록한다. 비밀값�
 
 2026-08-26에 필수 API 15개, 감사 custom role, keyless 서비스 계정, exact-subject WIF provider와 impersonation을 구성했다. Firebase Storage에는 Public Access Prevention을 bucket 수준으로 강제했다. UBLA는 유효 조직 정책 아래 활성화하면 바로 되돌릴 수 없으므로, 개발 버킷에서 매니저 서류·채팅 첨부·Core API·보존 정책 경로를 실검증할 때까지 `deferred`로 둔다.
 
+같은 날 deploy와 DB backup provider도 불변 저장소·소유자 ID, 정확한 workflow 경로와 `workflow_dispatch`로 제한하고, 서비스 계정 impersonation을 Environment 전체 principalSet에서 exact subject 하나로 축소했다. 이 변경은 각 기존 workflow 파일과 Environment 이름을 유지하므로 정상 수동 실행 subject는 바뀌지 않는다.
+
+운영 provider 강화는 Google Cloud 관리자 권한을 임시로 부여한 뒤 다음 스크립트로 적용한다. 스크립트는 기존 provider와 서비스 계정에 예상 밖 설정이 있으면 변경하지 않고 중단하며, 적용 후 정확한 조건과 단일 subject binding을 다시 검증한다.
+
+```powershell
+.\core-api\deploy\cloud-run\harden-production-operational-wif.ps1 `
+  -ProjectId bodeul-prod-110 `
+  -ConfirmProjectId bodeul-prod-110 `
+  -ConfirmProjectNumber 649312328770 `
+  -ConfirmDeployEnvironment core-api-production `
+  -ConfirmBackupEnvironment core-api-migration-production `
+  -OperatorAccount <Google-Cloud-관리자-계정> `
+  -ConfirmOperatorAccount <Google-Cloud-관리자-계정> `
+  -ConfirmApply APPLY-PRODUCTION-OPERATIONAL-WIF-HARDENING
+```
+
 ## 실행
 
 1. `master` 최신 commit SHA를 확인한다.
@@ -96,4 +112,4 @@ GitHub Environment에는 공개 식별자만 변수로 등록한다. 비밀값�
 4. `production-infrastructure-audit` 승인을 완료한다.
 5. Summary의 baseline 상태와 출시 차단 항목을 확인한다.
 
-관리자 단기 토큰을 사용한 2026-08-26 사전 점검에서는 baseline 전체가 통과했고 출시 차단 항목 5개가 분리됐다. 이는 GitHub WIF 실행 증적이 아니므로, workflow 병합 후 `master`에서 수동 실행해 WIF 인증과 정제된 Summary를 다시 확인한다. 실행 결과는 원시 응답이 아니라 정제된 상태표와 run 링크만 `docs/reports/` 및 Issue #134에 남긴다.
+2026-08-26 선행 GitHub WIF 감사와 운영 provider 강화 후 관리자 단기 토큰 점검에서 baseline 전체가 통과했고 출시 차단 항목 5개가 분리됐다. 강화된 계약이 병합되면 `master`에서 수동 감사를 다시 실행해 exact provider 조건과 정제된 Summary를 확인한다. 실행 결과는 원시 응답이 아니라 정제된 상태표와 run 링크만 `docs/reports/` 및 Issue #134에 남긴다.

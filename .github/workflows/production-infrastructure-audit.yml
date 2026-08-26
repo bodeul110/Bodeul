@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/production-infrastructure-audit.yml"
+      - "core-api/deploy/cloud-run/harden-production-operational-wif.ps1"
       - "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1"
       - "tools/gcp/**"
   push:
@@ -11,6 +12,7 @@ on:
       - master
     paths:
       - ".github/workflows/production-infrastructure-audit.yml"
+      - "core-api/deploy/cloud-run/harden-production-operational-wif.ps1"
       - "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1"
       - "tools/gcp/**"
   workflow_dispatch:
@@ -65,16 +67,22 @@ jobs:
       - name: 구성 스크립트 구문 검사
         shell: pwsh
         run: |
-          $tokens = $null
-          $parseErrors = $null
-          [void][System.Management.Automation.Language.Parser]::ParseFile(
-            "$env:GITHUB_WORKSPACE/core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1",
-            [ref]$tokens,
-            [ref]$parseErrors
+          $scripts = @(
+            "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1",
+            "core-api/deploy/cloud-run/harden-production-operational-wif.ps1"
           )
-          if ($parseErrors.Count -gt 0) {
-            $parseErrors | ForEach-Object { Write-Error $_.Message }
-            exit 1
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              "$env:GITHUB_WORKSPACE/$script",
+              [ref]$tokens,
+              [ref]$parseErrors
+            )
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error "$script`: $($_.Message)" }
+              exit 1
+            }
           }
 
   audit:

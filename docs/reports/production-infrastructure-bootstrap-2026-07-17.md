@@ -32,6 +32,8 @@
 
 WIF provider 조건은 `bodeul110/Bodeul`, `refs/heads/master`, `core-api-production`을 모두 요구한다. 배포 계정에는 Cloud Run 배포, 해당 Artifact Registry 쓰기와 runtime 서비스 계정 사용 권한만 부여했다. 사용자 관리 서비스 계정 key는 만들지 않았다.
 
+2026-08-26에는 이 조건을 불변 저장소·소유자 ID, 정확한 workflow와 `workflow_dispatch`까지 확장하고 impersonation을 exact subject 하나로 축소했다. 현재 검증 결과는 [Production 인프라 감사 및 운영 WIF 강화](production-infrastructure-audit-2026-08-26.md)를 따른다.
+
 DB 백업 provider는 같은 저장소와 `master`에 더해 `core-api-migration-production` Environment를 요구한다. `bodeul-db-backup`에는 production DB backup bucket의 object 생성·조회 권한만 부여했으며 삭제 권한과 서비스 계정 key는 부여하지 않았다.
 
 ## DB migration과 검증

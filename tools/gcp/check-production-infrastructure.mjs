@@ -148,13 +148,13 @@ const OPERATION_WIF = Object.freeze([
   Object.freeze({
     id: "deploy",
     provider: "bodeul-core-api-production",
-    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production'",
+    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/core-api-production-deploy.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
     mapping: COMMON_OPERATION_MAPPING,
   }),
   Object.freeze({
     id: "backup",
     provider: "bodeul-db-backup-production",
-    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-migration-production'",
+    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-migration-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/postgres-production-backup-restore.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
     mapping: COMMON_OPERATION_MAPPING,
   }),
   Object.freeze({
@@ -285,6 +285,11 @@ export function isExpectedAuditProvider(provider) {
     condition: AUDIT_PROVIDER_CONDITION,
     mapping: {"google.subject": "assertion.sub"},
   });
+}
+
+export function isExpectedOperationalProvider(provider, id) {
+  const contract = OPERATION_WIF.find((candidate) => candidate.id === id);
+  return Boolean(contract) && isExpectedProvider(provider, contract);
 }
 
 export function hasExactProjectLocalRoles(policy, member, expectedRoles) {
@@ -432,7 +437,7 @@ async function auditWorkloadIdentity(client, checks) {
           `https://iam.googleapis.com/v1/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/providers/${contract.provider}`,
         );
         return result(
-          isExpectedProvider(provider, contract),
+          isExpectedOperationalProvider(provider, contract.id),
           `${contract.id} provider가 현재 workflow 계약과 일치합니다.`,
           `${contract.id} provider가 현재 workflow 계약과 다릅니다.`,
         );
@@ -494,7 +499,7 @@ async function auditIam(client, checks) {
       account: FIXED.serviceAccounts.deploy,
       bindings: [{
         role: "roles/iam.workloadIdentityUser",
-        members: [`principalSet://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/attribute.environment/core-api-production`],
+        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/Bodeul:environment:core-api-production`],
       }],
     },
     {
@@ -510,7 +515,7 @@ async function auditIam(client, checks) {
       account: FIXED.serviceAccounts.backup,
       bindings: [{
         role: "roles/iam.workloadIdentityUser",
-        members: [`principalSet://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/attribute.environment/core-api-migration-production`],
+        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/Bodeul:environment:core-api-migration-production`],
       }],
     },
     {

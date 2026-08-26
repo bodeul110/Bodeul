@@ -10,6 +10,7 @@ import {
   hasExactProjectLocalRoles,
   isExpectedAuditProvider,
   isExpectedCloudRunImage,
+  isExpectedOperationalProvider,
   makeCheck,
   renderMarkdown,
   sanitizeText,
@@ -130,6 +131,29 @@ test("WIF provider 조건은 허용 조건 전체가 정확히 일치해야 한�
   assert.equal(isExpectedAuditProvider({...provider, disabled: true}), false);
   assert.equal(isExpectedAuditProvider({...provider, state: "DELETED"}), false);
   assert.equal(isExpectedAuditProvider({...provider, oidc: {...provider.oidc, issuerUri: "https://example.com"}}), false);
+});
+
+test("운영 WIF provider는 정확한 workflow와 불변 저장소 식별자를 요구한다", () => {
+  const provider = {
+    state: "ACTIVE",
+    oidc: {issuerUri: "https://token.actions.githubusercontent.com"},
+    attributeMapping: {
+      "google.subject": "assertion.sub",
+      "attribute.repository": "assertion.repository",
+      "attribute.repository_owner": "assertion.repository_owner",
+      "attribute.ref": "assertion.ref",
+      "attribute.environment": "assertion.environment",
+      "attribute.actor": "assertion.actor",
+      "attribute.workflow": "assertion.workflow",
+    },
+    attributeCondition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/core-api-production-deploy.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
+  };
+  assert.equal(isExpectedOperationalProvider(provider, "deploy"), true);
+  assert.equal(isExpectedOperationalProvider({
+    ...provider,
+    attributeCondition: "assertion.repository == 'bodeul110/Bodeul' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production'",
+  }, "deploy"), false);
+  assert.equal(isExpectedOperationalProvider(provider, "unknown"), false);
 });
 
 test("project-local 역할은 조건 없는 정확한 집합만 허용한다", () => {
