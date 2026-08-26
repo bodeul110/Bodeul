@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "cloudRun": "absent",
+  "kakaoSecret": "metadata-only",
+  "firestorePitr": "deferred",
+  "firebaseStorageUbla": "deferred",
+  "appCheck": "unverified"
+}
