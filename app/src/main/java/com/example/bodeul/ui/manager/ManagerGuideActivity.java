@@ -238,6 +238,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 viewModel.toastMessageHandled();
             }
         });
+        viewModel.getReportSubmittedEvent().observe(this, eventMillis -> {
+            if (eventMillis == null) {
+                return;
+            }
+            viewModel.reportSubmittedEventHandled();
+            Toast.makeText(this, "동행 리포트를 제출했습니다.", Toast.LENGTH_SHORT).show();
+            openManagerHome();
+        });
 
         if (savedInstanceState == null) {
             // Note: viewModel.reload() will be called in onStart()

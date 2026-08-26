@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
+import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SupportInquiry;
 import com.example.bodeul.domain.model.SupportInquiryCategory;
 
@@ -116,7 +117,7 @@ public interface ManagerRepository {
             MedicationComparisonDecision medicationComparisonDecision,
             String medicationComparisonNote,
             String nextVisitAt,
-            RepositoryCallback<ManagerDashboard> callback
+            RepositoryCallback<SessionReport> callback
     );
 
     void getSupportInquiries(

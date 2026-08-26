@@ -627,7 +627,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             MedicationComparisonDecision medicationComparisonDecision,
             String medicationComparisonNote,
             String nextVisitAt,
-            RepositoryCallback<ManagerDashboard> callback
+            RepositoryCallback<SessionReport> callback
     ) {
         // 由ы룷????μ? sessionReports ?앹꽦怨??몄뀡 醫낅즺 泥섎━瑜??④퍡 諛섏쁺?댁빞 ?쒕떎.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
@@ -674,7 +674,18 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 );
 
                 batch.commit()
-                        .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
+                        .addOnSuccessListener(unused -> callback.onSuccess(new SessionReport(
+                                reportReference.getId(),
+                                session.getId(),
+                                summary,
+                                treatmentNotes,
+                                medicationNotes,
+                                medicationName,
+                                medicationChangeSummary,
+                                medicationScheduleNote,
+                                medicationComparisonDecision,
+                                medicationComparisonNote,
+                                nextVisitAt)))
                         .addOnFailureListener(exception ->
                                 callback.onError("由ы룷?몃? ??ν븯吏 紐삵뻽?듬땲??"));
             }

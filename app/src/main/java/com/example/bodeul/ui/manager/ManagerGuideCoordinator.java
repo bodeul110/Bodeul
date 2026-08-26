@@ -83,12 +83,12 @@ public final class ManagerGuideCoordinator {
                 report == null ? "" : report.getMedicationComparisonNote(),
                 report == null ? "" : report.getNextVisitAt(),
                 buildAdvanceButtonLabel(focusStep, advanceDecision),
-                isPrimaryActionEnabled(focusStep, session, advanceDecision),
+                isPrimaryActionEnabled(focusStep, advanceDecision),
                 context.getString(report == null
                         ? R.string.guide_report_submit
                         : R.string.guide_report_update),
                 session.isLiveLocationSharingActive(),
-                true
+                isStepInputEnabled(advanceDecision)
         );
     }
 
@@ -323,7 +323,7 @@ public final class ManagerGuideCoordinator {
             ManagerGuideProgressPolicy.Decision decision
     ) {
         if (isReportCompletionStep(focusStep)
-                && decision.getState() != ManagerGuideProgressPolicy.State.COMPLETED) {
+                && decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP) {
             return context.getString(R.string.guide_action_journal_complete);
         }
         switch (decision.getState()) {
@@ -343,19 +343,22 @@ public final class ManagerGuideCoordinator {
         }
     }
 
-    private boolean isPrimaryActionEnabled(
+    static boolean isPrimaryActionEnabled(
             GuideStep focusStep,
-            CompanionSession session,
             ManagerGuideProgressPolicy.Decision decision
     ) {
         if (isReportCompletionStep(focusStep)) {
-            return session.getStatus() != SessionStatus.COMPLETED
-                    && session.getStatus() != SessionStatus.CANCELED;
+            return decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP;
         }
         return decision.isAdvanceEnabled();
     }
 
-    private boolean isReportCompletionStep(GuideStep step) {
+    static boolean isStepInputEnabled(ManagerGuideProgressPolicy.Decision decision) {
+        return decision.getState() == ManagerGuideProgressPolicy.State.ADVANCE
+                || decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP;
+    }
+
+    private static boolean isReportCompletionStep(GuideStep step) {
         if (step == null) {
             return false;
         }

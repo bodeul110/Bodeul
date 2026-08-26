@@ -97,6 +97,38 @@ public class ManagerGuideCoordinatorPolicyTest {
         assertFalse(ManagerGuideCoordinator.shouldShowPharmacyRouteAction(unknownAtSameOrder));
     }
 
+    @Test
+    public void reportCompletionAction_requiresValidatedLastStepDecision() {
+        GuideStep journal = new GuideStep(
+                "MANAGER_JOURNAL",
+                13,
+                "매니저 일지",
+                "동행 기록을 마무리합니다.");
+
+        CompanionSession lastStep = createSession(13);
+        lastStep.applyServerGuideProgress(
+                "MANAGER_JOURNAL",
+                true,
+                false,
+                "LAST_STEP_REACHED");
+        ManagerGuideProgressPolicy.Decision lastStepDecision =
+                ManagerGuideProgressPolicy.resolve(lastStep, 13);
+
+        CompanionSession contractMismatch = createSession(13);
+        contractMismatch.applyServerGuideProgress(
+                "",
+                true,
+                false,
+                "STEP_CONTRACT_MISMATCH");
+        ManagerGuideProgressPolicy.Decision mismatchDecision =
+                ManagerGuideProgressPolicy.resolve(contractMismatch, 13);
+
+        assertTrue(ManagerGuideCoordinator.isPrimaryActionEnabled(journal, lastStepDecision));
+        assertTrue(ManagerGuideCoordinator.isStepInputEnabled(lastStepDecision));
+        assertFalse(ManagerGuideCoordinator.isPrimaryActionEnabled(journal, mismatchDecision));
+        assertFalse(ManagerGuideCoordinator.isStepInputEnabled(mismatchDecision));
+    }
+
     private CompanionSession createSession(int currentStepOrder) {
         return new CompanionSession(
                 "session-id",

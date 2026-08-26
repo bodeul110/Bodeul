@@ -13,6 +13,7 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
+import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
@@ -70,6 +71,11 @@ public class ManagerGuideViewModel extends ViewModel {
     private final MutableLiveData<String> _toastMessage = new MutableLiveData<>();
     public LiveData<String> getToastMessage() {
         return _toastMessage;
+    }
+
+    private final MutableLiveData<Long> _reportSubmittedEvent = new MutableLiveData<>();
+    public LiveData<Long> getReportSubmittedEvent() {
+        return _reportSubmittedEvent;
     }
 
     private final AuthRepository authRepository;
@@ -424,11 +430,10 @@ public class ManagerGuideViewModel extends ViewModel {
                 medicationComparisonDecision,
                 medicationComparisonNote,
                 nextVisit,
-                new RepositoryCallback<ManagerDashboard>() {
+                new RepositoryCallback<SessionReport>() {
                     @Override
-                    public void onSuccess(ManagerDashboard result) {
-                        _toastMessage.setValue("동행 리포트를 제출했습니다.");
-                        bindDashboard(result);
+                    public void onSuccess(SessionReport result) {
+                        _reportSubmittedEvent.setValue(System.currentTimeMillis());
                     }
 
                     @Override
@@ -541,6 +546,10 @@ public class ManagerGuideViewModel extends ViewModel {
 
     public void toastMessageHandled() {
         _toastMessage.setValue(null);
+    }
+
+    public void reportSubmittedEventHandled() {
+        _reportSubmittedEvent.setValue(null);
     }
 
     private static class PendingLocationUpdate {
