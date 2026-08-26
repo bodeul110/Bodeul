@@ -8,7 +8,8 @@
 - 마지막 production 백업·격리 복원 성공 기록은 2026-07-19이다.
 - 최신 백업을 만들기 위해 실행한 [run 32953973126](https://github.com/bodeul110/Bodeul/actions/runs/32953973126)은 dump 시작 전에 production Supabase pooler가 등록된 tenant/user를 찾지 못해 실패했다.
 - 실패 실행에서는 dump 생성, GCS 업로드와 Flyway migration이 수행되지 않았다.
-- 문서에 기록된 production project endpoint는 DNS에서 확인되지 않았고 같은 환경의 개발 project endpoint는 정상 해석됐다. production project가 일시 중지·삭제·교체됐거나 GitHub Environment 연결 정보가 오래된 상태일 수 있어 dashboard 확인 전에는 원인을 확정하지 않는다.
+- 문서에 기록된 production project endpoint는 DNS에서 확인되지 않았고 같은 환경의 개발 project endpoint는 정상 해석됐다.
+- Supabase가 2026-07-25 프로젝트 소유자에게 보낸 알림에서 Free project가 7일 비활성으로 자동 일시 중지됐음을 확인했다. 삭제나 교체가 아니며 원래 조직에서 90일 안에 재개할 수 있다.
 - [읽기 전용 사전 점검 run 32958462879](https://github.com/bodeul110/Bodeul/actions/runs/32958462879)은 project, commit, Environment 설정과 JDBC 대상 형식 검증을 통과한 뒤 실제 JDBC 연결 또는 첫 조회에서 실패했다.
 - 따라서 저장된 URL·사용자명 형식과 기대 project ref의 일치는 확인됐지만 production DB의 가용성, Flyway version과 데이터 건수는 확인되지 않았다.
 
@@ -32,4 +33,4 @@
 
 ## 차단 상태
 
-Production Supabase dashboard에서 project의 실제 상태와 ref, 접근 권한과 자격 증명 변경 여부를 확인한다. 확인 결과에 따라 `MIGRATION_DB_*`를 복구하거나 교체한 뒤 읽기 전용 사전 점검, 최신 백업과 격리 복원을 순서대로 통과하기 전에는 V14·V15 production migration을 실행하지 않는다.
+원래 소유 조직 계정으로 Production Supabase project를 재개한 뒤 ref, 접근 권한과 custom login 자격 증명을 확인한다. 필요한 경우에만 `MIGRATION_DB_*`를 교체하고, 읽기 전용 사전 점검, 최신 백업과 격리 복원을 순서대로 통과하기 전에는 V14·V15 production migration을 실행하지 않는다.
