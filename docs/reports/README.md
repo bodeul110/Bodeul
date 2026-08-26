@@ -4,7 +4,7 @@
 
 ## 최신 점검
 
-- [Production DB migration 사전 점검 준비 (2026-08-26)](production-db-migration-readiness-2026-08-26.md)
+- [Production DB migration 사전 점검 준비 및 실행 결과 (2026-08-26)](production-db-migration-readiness-2026-08-26.md)
 - [Issue 348 Firestore 사용자 문서 부분 영향도 (2026-08-26)](issue-348-firestore-inventory-2026-08-26.md)
 - [Issue 348 계정 삭제 영향도 1단계 (2026-08-25)](issue-348-account-deletion-readiness-2026-08-25.md)
 - [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](notion-policy-legal-alignment-2026-08-25.md)
