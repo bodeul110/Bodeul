@@ -151,7 +151,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - `core-api/deploy/cloud-run/set-production-secrets.ps1`에 production 전용 secret version 입력 경계를 준비했다.
 - `core-api-production`에는 production GCP/Firebase 식별자와 DB Secret Manager version을 등록했다. Kakao production secret version은 비어 있어 첫 배포는 계속 fail-closed다.
 - `core-api-migration-production`에는 production migration 자격 증명을 등록했다. run `29669867122`에서 V13까지 적용했고, run `29670197027`에서 최종 dump의 격리 복원과 manifest 일치를 확인했다.
-- production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo와 삭제 방지를 사용하고 App Check는 아직 강제하지 않는다.
+- production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo, 삭제 방지와 7일 PITR version 보존을 사용하고 App Check는 아직 강제하지 않는다.
 - production Firebase Storage는 bucket 수준 Public Access Prevention을 강제했다. UBLA는 조직 정책 아래 즉시 되돌릴 수 없으므로 개발 버킷의 업로드·미리보기·삭제 실검증 전까지 보류한다.
 - production Supabase는 빈 데이터 상태로 Flyway V13, `bodeul` schema, 최소 권한 role, 업무·이력 테이블 13개와 RLS 정책 33개를 갖는다. 공개 role table grant와 Security Advisor 경고는 0건이다.
 - production Supabase 조직은 현재 Free다. 2026-11-16까지 Pro로 전환하고 spend cap과 일일 7일 백업을 확인한다.

@@ -69,7 +69,8 @@ jobs:
         run: |
           $scripts = @(
             "core-api/deploy/cloud-run/setup-production-infrastructure-auditor.ps1",
-            "core-api/deploy/cloud-run/harden-production-operational-wif.ps1"
+            "core-api/deploy/cloud-run/harden-production-operational-wif.ps1",
+            "tools/gcp/enable-production-firestore-pitr.ps1"
           )
           foreach ($script in $scripts) {
             $tokens = $null
