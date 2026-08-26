@@ -7,6 +7,10 @@ on:
         description: 확인을 위해 production project ID를 입력하세요.
         required: true
         type: string
+      confirm_database_project_ref:
+        description: Production Environment의 Supabase project ref를 다시 입력하세요.
+        required: true
+        type: string
       confirm_commit:
         description: 실행할 master commit SHA 40자를 입력하세요.
         required: true
@@ -35,6 +39,7 @@ jobs:
         shell: bash
         env:
           CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          CONFIRM_DATABASE_PROJECT_REF: ${{ inputs.confirm_database_project_ref }}
           CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           DB_BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
@@ -43,6 +48,7 @@ jobs:
           MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
           MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+          PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
         run: |
           set -euo pipefail
 
@@ -53,6 +59,16 @@ jobs:
 
           if [ "$CONFIRM_PROJECT" != "$GCP_PROJECT_ID" ] || [ "$GCP_PROJECT_ID" != "bodeul-prod-110" ]; then
             echo "입력한 project ID가 production 대상과 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+          if [[ ! "$PRODUCTION_SUPABASE_PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "Production Environment의 Supabase 프로젝트 확인값이 유효하지 않습니다." >&2
+            exit 1
+          fi
+
+          if [ "$CONFIRM_DATABASE_PROJECT_REF" != "$PRODUCTION_SUPABASE_PROJECT_REF" ]; then
+            echo "Supabase 프로젝트 확인값이 일치하지 않습니다." >&2
             exit 1
           fi
 
@@ -75,6 +91,28 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Java 21 설정
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Gradle Wrapper 검증
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Production DB 연결 대상 검증
+        working-directory: core-api
+        env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+        run: ./gradlew verifyDatabaseConnectionTarget --console=plain
 
       - name: Node.js 22 설정
         uses: actions/setup-node@v7
