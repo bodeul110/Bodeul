@@ -15,6 +15,9 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bodeul.MainActivity;
@@ -118,6 +121,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         managerGuideStatePanel = findViewById(R.id.managerGuideStatePanel);
         managerGuideContentContainer = findViewById(R.id.managerGuideContentContainer);
         managerGuideBottomAction = findViewById(R.id.managerGuideBottomAction);
+        configureBottomActionInsets();
         inputGuideLocationSummary = findViewById(R.id.inputGuideLocationSummary);
         inputGuardianUpdate = findViewById(R.id.inputGuardianUpdate);
         inputGuidePhotoNote = findViewById(R.id.inputGuidePhotoNote);
@@ -427,6 +431,27 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 currentCoordinateResult = new HospitalMapCoordinateResult(null, null);
             }
         });
+    }
+
+    private void configureBottomActionInsets() {
+        int initialLeftPadding = managerGuideBottomAction.getPaddingLeft();
+        int initialTopPadding = managerGuideBottomAction.getPaddingTop();
+        int initialRightPadding = managerGuideBottomAction.getPaddingRight();
+        int initialBottomPadding = managerGuideBottomAction.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(managerGuideBottomAction, (view, windowInsets) -> {
+            Insets navigationInsets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.navigationBars()
+            );
+            view.setPadding(
+                    initialLeftPadding,
+                    initialTopPadding,
+                    initialRightPadding,
+                    initialBottomPadding + navigationInsets.bottom
+            );
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(managerGuideBottomAction);
     }
 
     private void renderHospitalAndPharmacyMarkers(HospitalMapCoordinateResult result) {
