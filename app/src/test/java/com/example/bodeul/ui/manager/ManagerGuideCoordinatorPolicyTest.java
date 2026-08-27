@@ -17,6 +17,29 @@ import java.util.Collections;
 import java.util.List;
 
 public class ManagerGuideCoordinatorPolicyTest {
+    private static final List<String> PRODUCT_GUIDE_STEP_CODES = Arrays.asList(
+            "MEETING_CONFIRMATION",
+            "HOSPITAL_ROUTE",
+            "RECEPTION_QUEUE",
+            "VITALS_CHECK",
+            "PRE_CONSULTATION",
+            "CONSULTATION_SUPPORT",
+            "CONSULTATION_SUMMARY",
+            "PAYMENT_EVIDENCE",
+            "PHARMACY_ROUTE",
+            "PRESCRIPTION_DOCUMENTS",
+            "MEDICATION_CONFIRMATION",
+            "CARE_COMPLETION",
+            "MANAGER_JOURNAL");
+    private static final List<String> LEGACY_GUIDE_STEP_CODES = Arrays.asList(
+            "LEGACY_CORE_PATIENT_CONTACT",
+            "LEGACY_CORE_RECEPTION_PREPARATION",
+            "LEGACY_CORE_RECEPTION",
+            "LEGACY_CORE_CONSULTATION",
+            "LEGACY_CORE_PAYMENT",
+            "LEGACY_CORE_PHARMACY",
+            "LEGACY_CORE_RETURN_AND_CLOSE");
+
     @Test
     public void progressPolicy_usesServerAdvanceDecision() {
         CompanionSession session = createSession(2);
@@ -191,13 +214,98 @@ public class ManagerGuideCoordinatorPolicyTest {
                 .hasReportSection());
     }
 
+    @Test
+    public void fullSnapshots_restoreEveryStepAndUseActualLastStepForReport() {
+        for (int stepCount : Arrays.asList(7, 13, 14)) {
+            List<GuideStep> steps = createTransitionSteps(stepCount);
+            for (int currentOrder = 0; currentOrder <= stepCount; currentOrder++) {
+                String currentCode = currentOrder == 0
+                        ? ""
+                        : steps.get(currentOrder - 1).getCode();
+                boolean canAdvance = currentOrder < stepCount;
+                String blockedReason = canAdvance ? "" : "LAST_STEP_REACHED";
+                CompanionSession restored = createSession(currentOrder);
+                restored.applyServerGuideProgress(
+                        currentCode,
+                        true,
+                        canAdvance,
+                        blockedReason);
+
+                GuideStep focus = ManagerGuideFocusResolver.resolve(steps, restored);
+                ManagerGuideProgressPolicy.Decision decision =
+                        ManagerGuideProgressPolicy.resolve(restored, stepCount);
+                ManagerGuidePrimaryAction action =
+                        ManagerGuideCoordinator.resolvePrimaryAction(decision);
+
+                assertSame(
+                        steps.get(Math.max(1, currentOrder) - 1),
+                        focus);
+                assertEquals(
+                        canAdvance
+                                ? ManagerGuidePrimaryAction.ADVANCE
+                                : ManagerGuidePrimaryAction.SUBMIT_REPORT,
+                        action);
+                assertTrue(ManagerGuideCoordinator.isPrimaryActionEnabled(decision));
+                assertEquals(
+                        !canAdvance,
+                        ManagerGuideCoordinator.resolveSectionVisibility(focus, action)
+                                .hasReportSection());
+            }
+
+            GuideStep lastStep = steps.get(stepCount - 1);
+            CompanionSession completed = createSession(stepCount, SessionStatus.COMPLETED);
+            completed.applyServerGuideProgress(
+                    lastStep.getCode(),
+                    true,
+                    false,
+                    "SESSION_TERMINAL");
+            ManagerGuideProgressPolicy.Decision completedDecision =
+                    ManagerGuideProgressPolicy.resolve(completed, stepCount);
+
+            assertSame(lastStep, ManagerGuideFocusResolver.resolve(steps, completed));
+            assertEquals(
+                    ManagerGuideProgressPolicy.State.COMPLETED,
+                    completedDecision.getState());
+            assertEquals(
+                    ManagerGuidePrimaryAction.NONE,
+                    ManagerGuideCoordinator.resolvePrimaryAction(completedDecision));
+            assertFalse(ManagerGuideCoordinator.isPrimaryActionEnabled(completedDecision));
+            assertFalse(ManagerGuideCoordinator.resolveSectionVisibility(
+                    lastStep,
+                    ManagerGuidePrimaryAction.NONE).hasReportSection());
+        }
+    }
+
+    private List<GuideStep> createTransitionSteps(int stepCount) {
+        List<String> codes = stepCount == 7
+                ? LEGACY_GUIDE_STEP_CODES
+                : new ArrayList<>(PRODUCT_GUIDE_STEP_CODES);
+        if (stepCount == 14) {
+            codes.add("HOSPITAL_EXTENSION");
+        }
+        List<GuideStep> steps = new ArrayList<>();
+        for (int index = 0; index < codes.size(); index++) {
+            int order = index + 1;
+            steps.add(new GuideStep(
+                    codes.get(index),
+                    order,
+                    "단계 " + order,
+                    "설명 " + order));
+        }
+        return steps;
+    }
+
     private CompanionSession createSession(int currentStepOrder) {
+        return createSession(currentStepOrder, SessionStatus.MEETING);
+    }
+
+    private CompanionSession createSession(int currentStepOrder, SessionStatus status) {
         return new CompanionSession(
                 "session-id",
                 "appointment-id",
                 "manager-id",
                 currentStepOrder,
-                SessionStatus.MEETING,
+                status,
                 "",
                 "",
                 "",
