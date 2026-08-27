@@ -288,6 +288,7 @@ class DefaultCompanionSessionServiceTests {
 
     @Test
     void reportCompletesSessionAndPreservesFreeTextNextVisit() {
+        repository.session = Optional.of(session("RETURNING", 5, 5, 3));
         var command = new CompanionSessionService.SubmitReportCommand(
                 3,
                 "진료 동행 완료",
@@ -305,6 +306,44 @@ class DefaultCompanionSessionServiceTests {
         assertThat(report.summary()).isEqualTo("진료 동행 완료");
         assertThat(report.nextVisitAt()).isEqualTo("의사 안내 후 예약");
         assertThat(repository.lastReport.nextVisitAt()).isNull();
+    }
+
+    @Test
+    void reportRejectsSessionWithoutValidatedLastStepContract() {
+        var command = new CompanionSessionService.SubmitReportCommand(
+                3,
+                "진료 동행 완료",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "");
+        var unsupportedSnapshot = new CompanionSessionRepository.GuideSnapshotRecord(
+                UUID.randomUUID(),
+                1L,
+                0,
+                "LEGACY_HOSPITAL_GUIDE_V0",
+                true,
+                List.of(new CompanionSessionRepository.GuideStepRecord(
+                        null,
+                        1,
+                        "기존 마지막 단계",
+                        "코드 없는 기존 가이드")));
+        repository.session = Optional.of(session(
+                "RETURNING",
+                1,
+                1,
+                3,
+                unsupportedSnapshot));
+
+        assertThatThrownBy(() -> service.submitReport(manager(), SESSION_ID, command))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+        assertThat(repository.lastReport).isNull();
     }
 
     @Test

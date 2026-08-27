@@ -63,9 +63,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean liveLocationActivationInFlight;
     private boolean activityVisible;
     private boolean pharmacySearchNavigationInProgress;
+    private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
 
     private View managerGuideStatePanel;
     private View managerGuideContentContainer;
+    private View managerGuideBottomAction;
     private TextInputEditText inputGuideLocationSummary;
     private TextInputEditText inputGuardianUpdate;
     private TextInputEditText inputGuidePhotoNote;
@@ -115,6 +117,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
         managerGuideStatePanel = findViewById(R.id.managerGuideStatePanel);
         managerGuideContentContainer = findViewById(R.id.managerGuideContentContainer);
+        managerGuideBottomAction = findViewById(R.id.managerGuideBottomAction);
         inputGuideLocationSummary = findViewById(R.id.inputGuideLocationSummary);
         inputGuardianUpdate = findViewById(R.id.inputGuardianUpdate);
         inputGuidePhotoNote = findViewById(R.id.inputGuidePhotoNote);
@@ -149,6 +152,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.textGuideFocusPreviewLabel),
                 findViewById(R.id.textGuideFocusPreviewBody),
                 findViewById(R.id.viewGuideFocusPreview),
+                new ManagerGuideStepSectionsBinder(this, findViewById(android.R.id.content)),
                 findViewById(R.id.textGuideLiveLocationStatus),
                 findViewById(R.id.textGuideLiveLocationHistory),
                 inputGuideLocationSummary,
@@ -184,7 +188,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> viewModel.advanceStep());
+        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
@@ -193,17 +197,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonTogglePrescriptionCollected).setOnClickListener(view -> viewModel.togglePrescriptionCollected());
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> viewModel.togglePharmacyCompleted());
         findViewById(R.id.buttonToggleMedicationGuidanceCompleted).setOnClickListener(view -> viewModel.toggleMedicationGuidanceCompleted());
-        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> viewModel.submitReport(
-                valueOf(inputReportSummary),
-                valueOf(inputReportTreatment),
-                valueOf(inputMedicationNote),
-                valueOf(inputReportMedicationName),
-                valueOf(inputReportMedicationChangeSummary),
-                valueOf(inputReportMedicationScheduleNote),
-                resolveMedicationComparisonDecision(),
-                valueOf(inputReportMedicationComparisonNote),
-                valueOf(inputNextVisit)
-        ));
+        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> {
+            if (currentPrimaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
+                submitCurrentReport();
+            }
+        });
+
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
@@ -238,6 +237,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 viewModel.toastMessageHandled();
             }
         });
+        viewModel.getReportSubmittedEvent().observe(this, eventMillis -> {
+            if (eventMillis == null) {
+                return;
+            }
+            viewModel.reportSubmittedEventHandled();
+            Toast.makeText(this, "동행 리포트를 제출했습니다.", Toast.LENGTH_SHORT).show();
+            openManagerHome();
+        });
 
         if (savedInstanceState == null) {
             // Note: viewModel.reload() will be called in onStart()
@@ -253,7 +260,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
 
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
+            currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             managerGuideContentContainer.setVisibility(View.GONE);
+            managerGuideBottomAction.setVisibility(View.GONE);
             switch (state.statePanelType) {
                 case PERMISSION:
                     showPermissionState();
@@ -275,11 +284,15 @@ public class ManagerGuideActivity extends AppCompatActivity {
             StatePanelHelper.hide(managerGuideStatePanel);
             if (state.screenModel != null) {
                 managerGuideContentContainer.setVisibility(View.VISIBLE);
+                managerGuideBottomAction.setVisibility(View.VISIBLE);
                 managerGuideDashboardBinder.bindScreen(state.screenModel);
+                currentPrimaryAction = state.screenModel.getPrimaryAction();
                 currentDashboard = state.dashboard;
                 updateMapMarker();
             } else {
+                currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 managerGuideContentContainer.setVisibility(View.GONE);
+                managerGuideBottomAction.setVisibility(View.GONE);
             }
         }
 
@@ -288,6 +301,30 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private String valueOf(TextInputEditText input) {
         return input.getText() == null ? "" : input.getText().toString().trim();
+    }
+
+    private void submitCurrentReport() {
+        viewModel.submitReport(
+                valueOf(inputReportSummary),
+                valueOf(inputReportTreatment),
+                valueOf(inputMedicationNote),
+                valueOf(inputReportMedicationName),
+                valueOf(inputReportMedicationChangeSummary),
+                valueOf(inputReportMedicationScheduleNote),
+                resolveMedicationComparisonDecision(),
+                valueOf(inputReportMedicationComparisonNote),
+                valueOf(inputNextVisit)
+        );
+    }
+
+    private void performPrimaryAction() {
+        if (currentPrimaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
+            submitCurrentReport();
+            return;
+        }
+        if (currentPrimaryAction == ManagerGuidePrimaryAction.ADVANCE) {
+            viewModel.advanceStep();
+        }
     }
 
     @Nullable
@@ -671,7 +708,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.state_permission_title, getString(R.string.guide_title)),
                 getString(R.string.state_permission_body),
                 getString(R.string.state_action_open_home),
-                view -> openHome(),
+                view -> openGeneralHome(),
                 getString(R.string.state_action_open_login),
                 view -> openRoleSelection()
         );
@@ -697,7 +734,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.companion_chat_empty_title),
                 getString(R.string.companion_chat_empty_session_body),
                 getString(R.string.state_action_open_home),
-                view -> openHome(),
+                view -> openManagerHome(),
                 null,
                 null
         );
@@ -716,7 +753,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.state_action_retry),
                 view -> viewModel.loadDashboard(),
                 getString(R.string.state_action_open_home),
-                view -> openHome()
+                view -> openManagerHome()
         );
     }
 
@@ -742,10 +779,18 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 secondaryListener
         );
         managerGuideContentContainer.setVisibility(View.GONE);
+        managerGuideBottomAction.setVisibility(View.GONE);
     }
 
-    private void openHome() {
+    private void openGeneralHome() {
         startActivity(new Intent(this, MainActivity.class));
+        finish();
+    }
+
+    private void openManagerHome() {
+        Intent intent = new Intent(this, ManagerActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
         finish();
     }
 

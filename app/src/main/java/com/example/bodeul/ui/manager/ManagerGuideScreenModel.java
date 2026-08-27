@@ -22,6 +22,8 @@ public final class ManagerGuideScreenModel {
     private final HospitalMapPreviewModel hospitalMapPreviewModel;
     private final List<ManagerGuideStageModel> stages;
     private final ManagerGuideFocusModel focusModel;
+    private final ManagerGuideSectionVisibility sectionVisibility;
+    private final String currentStepCode;
     private final String liveLocationStatus;
     private final String liveLocationHistory;
     private final String locationSummary;
@@ -43,6 +45,7 @@ public final class ManagerGuideScreenModel {
     private final String reportMedicationComparisonNote;
     private final String nextVisitAt;
     private final String advanceButtonLabel;
+    private final ManagerGuidePrimaryAction primaryAction;
     private final boolean advanceEnabled;
     private final String reportButtonLabel;
     private final boolean liveLocationSharingActive;
@@ -60,6 +63,8 @@ public final class ManagerGuideScreenModel {
             HospitalMapPreviewModel hospitalMapPreviewModel,
             List<ManagerGuideStageModel> stages,
             ManagerGuideFocusModel focusModel,
+            ManagerGuideSectionVisibility sectionVisibility,
+            String currentStepCode,
             String liveLocationStatus,
             String liveLocationHistory,
             String locationSummary,
@@ -80,6 +85,7 @@ public final class ManagerGuideScreenModel {
             String reportMedicationComparisonNote,
             String nextVisitAt,
             String advanceButtonLabel,
+            ManagerGuidePrimaryAction primaryAction,
             boolean advanceEnabled,
             String reportButtonLabel,
             boolean liveLocationSharingActive,
@@ -96,6 +102,8 @@ public final class ManagerGuideScreenModel {
         this.hospitalMapPreviewModel = hospitalMapPreviewModel;
         this.stages = stages;
         this.focusModel = focusModel;
+        this.sectionVisibility = sectionVisibility;
+        this.currentStepCode = currentStepCode;
         this.liveLocationStatus = liveLocationStatus;
         this.liveLocationHistory = liveLocationHistory;
         this.locationSummary = locationSummary;
@@ -116,6 +124,7 @@ public final class ManagerGuideScreenModel {
         this.reportMedicationComparisonNote = reportMedicationComparisonNote;
         this.nextVisitAt = nextVisitAt;
         this.advanceButtonLabel = advanceButtonLabel;
+        this.primaryAction = primaryAction;
         this.advanceEnabled = advanceEnabled;
         this.reportButtonLabel = reportButtonLabel;
         this.liveLocationSharingActive = liveLocationSharingActive;
@@ -164,6 +173,14 @@ public final class ManagerGuideScreenModel {
 
     public ManagerGuideFocusModel getFocusModel() {
         return focusModel;
+    }
+
+    ManagerGuideSectionVisibility getSectionVisibility() {
+        return sectionVisibility;
+    }
+
+    String getCurrentStepCode() {
+        return currentStepCode;
     }
 
     public String getLiveLocationStatus() {
@@ -245,6 +262,10 @@ public final class ManagerGuideScreenModel {
 
     public String getAdvanceButtonLabel() {
         return advanceButtonLabel;
+    }
+
+    ManagerGuidePrimaryAction getPrimaryAction() {
+        return primaryAction;
     }
 
     public boolean isAdvanceEnabled() {

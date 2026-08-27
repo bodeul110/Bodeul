@@ -359,7 +359,7 @@ public class MockManagerRepository implements ManagerRepository {
             MedicationComparisonDecision medicationComparisonDecision,
             String medicationComparisonNote,
             String nextVisitAt,
-            RepositoryCallback<ManagerDashboard> callback
+            RepositoryCallback<SessionReport> callback
     ) {
         ManagerDashboard dashboard = managerStore.saveSessionReport(
                 managerUserId,
@@ -377,7 +377,12 @@ public class MockManagerRepository implements ManagerRepository {
             callback.onError("리포트를 저장하지 못했습니다.");
             return;
         }
-        callback.onSuccess(dashboard);
+        SessionReport report = dashboard.getSessionReport();
+        if (report == null) {
+            callback.onError("저장된 리포트를 불러오지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(report);
     }
 
     @Override

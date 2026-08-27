@@ -385,7 +385,7 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             MedicationComparisonDecision medicationComparisonDecision,
             String medicationComparisonNote,
             String nextVisitAt,
-            RepositoryCallback<ManagerDashboard> callback
+            RepositoryCallback<SessionReport> callback
     ) {
         withDashboard(managerUserId, callback, dashboard -> sessionClient.submitReport(
                 dashboard.getSession().getId(),
@@ -398,17 +398,9 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 medicationComparisonDecision,
                 medicationComparisonNote,
                 nextVisitAt,
-                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
-                    @Override
-                    public void onSuccess(CoreApiCompanionSessionClient.ReportSnapshot result) {
-                        getManagerDashboard(managerUserId, callback);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        callback.onError(message);
-                    }
-                }));
+                new CoreApiManagerReportCompletionCallback(
+                        dashboard.getSession().getId(),
+                        callback)));
     }
 
     @Override
@@ -461,9 +453,9 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 refreshCallback(managerUserId, callback)));
     }
 
-    private void withDashboard(
+    private <T> void withDashboard(
             String managerUserId,
-            RepositoryCallback<ManagerDashboard> callback,
+            RepositoryCallback<T> callback,
             DashboardOperation operation
     ) {
         getManagerDashboard(managerUserId, new RepositoryCallback<ManagerDashboard>() {

@@ -1038,7 +1038,7 @@ final class CoreApiCompanionSessionClient {
         private final String medicationComparisonNote;
         private final String nextVisitAt;
 
-        private ReportSnapshot(
+        ReportSnapshot(
                 String coreId,
                 String legacyFirestoreId,
                 String companionSessionId,

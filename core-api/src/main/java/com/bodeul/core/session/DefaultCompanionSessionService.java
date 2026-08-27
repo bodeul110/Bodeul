@@ -174,6 +174,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         SessionRecord existing = findSession(sessionId);
         requireManagerAssignment(appUser, existing);
         requireMutable(existing, command.version());
+        if (!LAST_STEP_REACHED.equals(progressState(existing).blockedReason())) {
+            throw CompanionSessionException.stateConflict();
+        }
 
         String summary = normalizeRequired(command.summary(), 2_000, "동행 요약");
         String medicationDecision = normalizeCode(command.medicationComparisonDecisionCode());
