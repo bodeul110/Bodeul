@@ -2,7 +2,7 @@
 
 ## 작업 목적
 
-Production PostgreSQL에 Flyway V14·V15를 적용하기 전에 연결 대상, 현재 schema 버전, 실패 이력과 영향 건수를 쓰기 없이 확인한다.
+Production PostgreSQL migration 전후에 연결 대상, 현재 schema 버전, 실패 이력과 영향 건수를 쓰기 없이 확인한다.
 
 ## 선택한 방식
 
@@ -67,6 +67,11 @@ preview migration은 `confirm_database_project_ref`와 production target 검증�
 ## 현재 검증 상태
 
 - mock 단위 테스트와 Core API 전체 검증으로 `--target-only` 인자 제한과 비밀번호 없는 실행 설정, direct·pooler 판별, 다른 project 차단, 비정상 입력 차단, 읽기 전용 트랜잭션, rollback, version별 query와 열 계약을 확인한다.
-- [run 32958462879](https://github.com/bodeul110/Bodeul/actions/runs/32958462879)에서 실제 Production Environment로 workflow를 호출했다. project·commit·Environment 설정과 JDBC 대상 형식은 통과했지만 실제 JDBC 연결 또는 첫 조회에서 실패했다.
-- Production Supabase project는 2026-07-25 Free plan 비활성 기준으로 자동 일시 중지됐다. 원래 소유 조직 계정에서 project를 재개하고 ref, 접근 권한과 custom login 자격 증명을 확인한 뒤 이 workflow가 통과하기 전까지 V14·V15 적용은 차단한다.
-- 사전 점검 통과 후에도 별도의 최신 백업과 격리 복원 증적 없이는 production migration workflow를 실행하지 않는다.
+- 2026-08-26 Production Supabase project를 재개하고 `ACTIVE_HEALTHY` 상태를 확인했다.
+- [migration 전 run 32980526711](https://github.com/bodeul110/Bodeul/actions/runs/32980526711)은 Flyway V13, 실패 이력과 V14 backfill 후보 0건을 확인했다.
+- 최신 backup·restore 성공 뒤 [migration run 32981200371](https://github.com/bodeul110/Bodeul/actions/runs/32981200371)에서 V14·V15와 계정 삭제 영향도 계약 검증을 통과했다.
+- [migration 후 run 32981484159](https://github.com/bodeul110/Bodeul/actions/runs/32981484159)은 Flyway V15와 실패 이력 0건을 확인했다.
+- [migration 후 backup·restore run 32981633994](https://github.com/bodeul110/Bodeul/actions/runs/32981633994)에서 새 V15 복구 지점을 격리 복원한 뒤 비공개 GCS에 보관했다.
+- 이후 migration에도 사전 점검과 최신 backup·restore 증적 없이는 production migration workflow를 실행하지 않는다.
+
+상세 결과는 [Production DB V15 migration·복원 검증](../reports/production-db-migration-readiness-2026-08-26.md)을 따른다.

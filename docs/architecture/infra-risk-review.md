@@ -1,6 +1,6 @@
 # 인프라 리스크와 보완 계획
 
-기준일: 2026-08-25
+기준일: 2026-08-26
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -19,7 +19,7 @@
 | 권한 기준 분기 | 인증은 Firebase이고 Core API·관리자 관계형 요청의 최종 role은 PostgreSQL `app_users.role`이다. Firebase 유지 기능은 Firestore·Storage Rules role을 사용한다. | Firebase UID를 공통 키로 유지하고 각 요청 경계가 해당 저장소의 role을 확인한다. |
 | 실시간 운영 | 개발 위치·채팅은 PostgreSQL 영속 저장과 Supabase private Broadcast로 전환했다. | production 부하, 재연결, FCM 실패율과 durable retry 필요성을 확인한다. |
 | DB 연결 고갈 | Cloud Run과 Vercel이 같은 DB를 사용한다. | Core pool 2, Admin pool 1, runtime role connection limit 5와 최대 인스턴스 2를 유지한다. |
-| App Check | 개발 Android valid 검증은 완료했지만 release enforcement가 남았다. | release Play Integrity와 관리자 웹 provider를 확인한 뒤 observe에서 enforce로 전환한다. |
+| App Check | 개발 Android valid 검증과 관리자 웹 Production client·서버 `observe` 배포를 완료했다. release Play Integrity와 인증된 Web `VALID`·enforcement는 남았다. | release Play Integrity와 Android·Web 실제 요청을 확인한 뒤 서비스별 observe에서 enforce로 전환한다. |
 | 민감 데이터 보관 | V13, Core 첨부와 개발 Firestore 전환 문서·매니저 증빙 fixture APPLY·cleanup을 완료했다. Notion의 보관기간끼리 충돌하고 production 쓰기 권한은 비활성 상태다. | 보관기간 충돌, 개인정보 처리방침과 위치기반서비스 이용약관을 먼저 승인한 뒤 production 격리 fixture를 검증한다. |
 | 복구 | production PostgreSQL 격리 복원은 완료했다. | Cloud Run·Vercel rollback을 리허설하고 분기별 DB 복원을 반복한다. |
 | 비용 | GCP budget은 있으나 Supabase와 Vercel은 아직 무료 등급이다. | 월 150,000 KRW 한도 안에서 2026-11-16까지 Supabase/Vercel Pro로 전환한다. |
@@ -56,7 +56,7 @@ Realtime 이벤트는 누락, 중복 또는 순서 변경이 발생할 수 있�
 
 ## 백업과 비용
 
-- production PostgreSQL 격리 복원은 2026-07-18에 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력까지 검증했다.
+- production PostgreSQL은 2026-08-26 Flyway V15 적용 전후 dump를 PostgreSQL 17에 격리 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력까지 검증했다.
 - 실제 사용자 데이터 전에는 Supabase Pro의 일일 7일 백업을 활성화한다.
 - 외부 logical dump는 GCS에 4주 순환 보관하고 분기마다 복원한다.
 - Supabase spend cap을 유지하고 초기에는 PITR과 Log Drain을 구매하지 않는다.

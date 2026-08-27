@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 런북
 
-기준일: 2026-08-25
+기준일: 2026-08-26
 
 ## 목적
 
@@ -12,7 +12,7 @@
 
 | 범위 | 개발 | production | 남은 작업 |
 | --- | --- | --- | --- |
-| Supabase PostgreSQL | `bodeul-dev`, Tokyo, V1~V13·runtime role·Realtime 검증 | `bodeul-prod`, Tokyo, V1~V13·최소 권한·격리 복원 검증 | 실제 사용자 데이터 전 Pro 전환 |
+| Supabase PostgreSQL | `bodeul-dev`, Tokyo, V1~V15·runtime role·Realtime 검증 | `bodeul-prod`, Tokyo, V1~V15·최소 권한·migration 전후 격리 복원 검증 | 실제 사용자 데이터 전 Pro 전환 |
 | Spring Core API | Cloud Run preview, WIF·Secret Manager·DB·Kakao 개발 연동 검증 | Artifact Registry·WIF·DB secret 준비 | Kakao 운영 키, 첫 revision, smoke·rollback |
 | 관리자 Next.js | Vercel Preview에서 Firebase token·관리자 DB role 401·403·200 검증 | Production 환경 사용 예정 | SELECT-only DB 값, Firebase·App Check, smoke·rollback |
 | Firebase | `bodeul-dev` Auth·FCM·App Check·Storage | `bodeul-prod-110` 분리와 결제·기본 리소스 준비 | release App Check와 운영 키·도메인 검증 |
