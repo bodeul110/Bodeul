@@ -45,6 +45,7 @@ public final class ManagerGuideScreenModel {
     private final String reportMedicationComparisonNote;
     private final String nextVisitAt;
     private final String advanceButtonLabel;
+    private final ManagerGuidePrimaryAction primaryAction;
     private final boolean advanceEnabled;
     private final String reportButtonLabel;
     private final boolean liveLocationSharingActive;
@@ -84,6 +85,7 @@ public final class ManagerGuideScreenModel {
             String reportMedicationComparisonNote,
             String nextVisitAt,
             String advanceButtonLabel,
+            ManagerGuidePrimaryAction primaryAction,
             boolean advanceEnabled,
             String reportButtonLabel,
             boolean liveLocationSharingActive,
@@ -122,6 +124,7 @@ public final class ManagerGuideScreenModel {
         this.reportMedicationComparisonNote = reportMedicationComparisonNote;
         this.nextVisitAt = nextVisitAt;
         this.advanceButtonLabel = advanceButtonLabel;
+        this.primaryAction = primaryAction;
         this.advanceEnabled = advanceEnabled;
         this.reportButtonLabel = reportButtonLabel;
         this.liveLocationSharingActive = liveLocationSharingActive;
@@ -259,6 +262,10 @@ public final class ManagerGuideScreenModel {
 
     public String getAdvanceButtonLabel() {
         return advanceButtonLabel;
+    }
+
+    ManagerGuidePrimaryAction getPrimaryAction() {
+        return primaryAction;
     }
 
     public boolean isAdvanceEnabled() {

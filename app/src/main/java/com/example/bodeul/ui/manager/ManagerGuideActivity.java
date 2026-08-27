@@ -63,6 +63,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean liveLocationActivationInFlight;
     private boolean activityVisible;
     private boolean pharmacySearchNavigationInProgress;
+    private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
 
     private View managerGuideStatePanel;
     private View managerGuideContentContainer;
@@ -187,13 +188,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> {
-            if (isReportCompletionStep()) {
-                submitCurrentReport();
-                return;
-            }
-            viewModel.advanceStep();
-        });
+        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
@@ -202,7 +197,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonTogglePrescriptionCollected).setOnClickListener(view -> viewModel.togglePrescriptionCollected());
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> viewModel.togglePharmacyCompleted());
         findViewById(R.id.buttonToggleMedicationGuidanceCompleted).setOnClickListener(view -> viewModel.toggleMedicationGuidanceCompleted());
-        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> submitCurrentReport());
+        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> {
+            if (currentPrimaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
+                submitCurrentReport();
+            }
+        });
 
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
@@ -261,6 +260,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
 
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
+            currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             managerGuideContentContainer.setVisibility(View.GONE);
             managerGuideBottomAction.setVisibility(View.GONE);
             switch (state.statePanelType) {
@@ -286,9 +286,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 managerGuideContentContainer.setVisibility(View.VISIBLE);
                 managerGuideBottomAction.setVisibility(View.VISIBLE);
                 managerGuideDashboardBinder.bindScreen(state.screenModel);
+                currentPrimaryAction = state.screenModel.getPrimaryAction();
                 currentDashboard = state.dashboard;
                 updateMapMarker();
             } else {
+                currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 managerGuideContentContainer.setVisibility(View.GONE);
                 managerGuideBottomAction.setVisibility(View.GONE);
             }
@@ -315,19 +317,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
     }
 
-    private boolean isReportCompletionStep() {
-        if (currentDashboard == null || currentDashboard.getSession() == null) {
-            return false;
+    private void performPrimaryAction() {
+        if (currentPrimaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
+            submitCurrentReport();
+            return;
         }
-        String code = currentDashboard.getSession().getCurrentStepCode();
-        if ("MANAGER_JOURNAL".equals(code)
-                || "LEGACY_CORE_RETURN_AND_CLOSE".equals(code)) {
-            return true;
+        if (currentPrimaryAction == ManagerGuidePrimaryAction.ADVANCE) {
+            viewModel.advanceStep();
         }
-        int totalSteps = currentDashboard.getHospitalGuide().getSteps().size();
-        return (code == null || code.trim().isEmpty())
-                && totalSteps > 0
-                && currentDashboard.getSession().getCurrentStepOrder() >= totalSteps;
     }
 
     @Nullable

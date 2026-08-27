@@ -48,6 +48,12 @@ public final class ManagerGuideCoordinator {
                 ManagerGuideProgressPolicy.resolve(
                         session,
                         dashboard.getHospitalGuide().getSteps().size());
+        ManagerGuidePrimaryAction primaryAction = resolvePrimaryAction(advanceDecision);
+        ManagerGuideSectionVisibility sectionVisibility =
+                ManagerGuideSectionVisibility.forStep(focusStep);
+        if (primaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
+            sectionVisibility = sectionVisibility.withReportSection();
+        }
 
         return new ManagerGuideScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
@@ -61,7 +67,7 @@ public final class ManagerGuideCoordinator {
                 buildHospitalMapPreviewModel(dashboard),
                 stages,
                 createFocusModel(focusStep, session, advanceDecision),
-                ManagerGuideSectionVisibility.forStep(focusStep),
+                sectionVisibility,
                 focusStep.getCode(),
                 CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
                 CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
@@ -82,8 +88,9 @@ public final class ManagerGuideCoordinator {
                 report == null ? null : report.getMedicationComparisonDecision(),
                 report == null ? "" : report.getMedicationComparisonNote(),
                 report == null ? "" : report.getNextVisitAt(),
-                buildAdvanceButtonLabel(focusStep, advanceDecision),
-                isPrimaryActionEnabled(focusStep, advanceDecision),
+                buildAdvanceButtonLabel(focusStep, advanceDecision, primaryAction),
+                primaryAction,
+                isPrimaryActionEnabled(advanceDecision),
                 context.getString(report == null
                         ? R.string.guide_report_submit
                         : R.string.guide_report_update),
@@ -134,6 +141,7 @@ public final class ManagerGuideCoordinator {
                 "",
                 "",
                 context.getString(R.string.guide_button_waiting),
+                ManagerGuidePrimaryAction.NONE,
                 false,
                 context.getString(R.string.guide_report_submit),
                 false,
@@ -320,10 +328,10 @@ public final class ManagerGuideCoordinator {
 
     private String buildAdvanceButtonLabel(
             GuideStep focusStep,
-            ManagerGuideProgressPolicy.Decision decision
+            ManagerGuideProgressPolicy.Decision decision,
+            ManagerGuidePrimaryAction primaryAction
     ) {
-        if (isReportCompletionStep(focusStep)
-                && decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP) {
+        if (primaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
             return context.getString(R.string.guide_action_journal_complete);
         }
         switch (decision.getState()) {
@@ -343,29 +351,26 @@ public final class ManagerGuideCoordinator {
         }
     }
 
-    static boolean isPrimaryActionEnabled(
-            GuideStep focusStep,
+    static ManagerGuidePrimaryAction resolvePrimaryAction(
             ManagerGuideProgressPolicy.Decision decision
     ) {
-        if (isReportCompletionStep(focusStep)) {
-            return decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP;
+        switch (decision.getState()) {
+            case ADVANCE:
+                return ManagerGuidePrimaryAction.ADVANCE;
+            case LAST_STEP:
+                return ManagerGuidePrimaryAction.SUBMIT_REPORT;
+            default:
+                return ManagerGuidePrimaryAction.NONE;
         }
-        return decision.isAdvanceEnabled();
+    }
+
+    static boolean isPrimaryActionEnabled(ManagerGuideProgressPolicy.Decision decision) {
+        return resolvePrimaryAction(decision) != ManagerGuidePrimaryAction.NONE;
     }
 
     static boolean isStepInputEnabled(ManagerGuideProgressPolicy.Decision decision) {
         return decision.getState() == ManagerGuideProgressPolicy.State.ADVANCE
                 || decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP;
-    }
-
-    private static boolean isReportCompletionStep(GuideStep step) {
-        if (step == null) {
-            return false;
-        }
-        String code = step.getCode() == null ? "" : step.getCode().trim();
-        return "MANAGER_JOURNAL".equals(code)
-                || "LEGACY_CORE_RETURN_AND_CLOSE".equals(code)
-                || (code.isEmpty() && step.getOrder() == 7);
     }
 
     private String buildStepActionLabel(GuideStep step) {

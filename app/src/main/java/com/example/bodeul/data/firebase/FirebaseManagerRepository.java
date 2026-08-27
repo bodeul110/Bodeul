@@ -629,13 +629,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
             String nextVisitAt,
             RepositoryCallback<SessionReport> callback
     ) {
-        // 由ы룷????μ? sessionReports ?앹꽦怨??몄뀡 醫낅즺 泥섎━瑜??④퍡 諛섏쁺?댁빞 ?쒕떎.
+        // 리포트 저장은 sessionReports 생성과 세션 종료 처리를 함께 반영해야 한다.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
                 CompanionSession session = toSession(sessionSnapshot);
                 if (session == null) {
-                    callback.onError("?몄뀡 ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
+                    callback.onError("세션 정보를 찾지 못했습니다.");
                     return;
                 }
 
@@ -655,7 +655,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 reportDocument.put("nextVisitAt", nextVisitAt);
                 reportDocument.put("createdAt", FieldValue.serverTimestamp());
 
-                // 由ы룷????κ낵 ?몄뀡 醫낅즺 泥섎━瑜?諛곗튂濡?臾띠뼱 ??踰덉뿉 諛섏쁺?쒕떎.
+                // 리포트 저장과 세션 종료 처리를 배치로 묶어 한 번에 반영한다.
                 WriteBatch batch = firestore.batch();
                 DocumentReference reportReference = firestore.collection("sessionReports")
                         .document("report-" + session.getId());
@@ -687,7 +687,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                 medicationComparisonNote,
                                 nextVisitAt)))
                         .addOnFailureListener(exception ->
-                                callback.onError("由ы룷?몃? ??ν븯吏 紐삵뻽?듬땲??"));
+                                callback.onError("리포트를 저장하지 못했습니다."));
             }
 
             @Override

@@ -64,6 +64,18 @@ public class ManagerGuideSectionVisibilityTest {
         assertFalse(preparing.isMapVisible());
     }
 
+    @Test
+    public void withReportSection_keepsUnknownStepFallbackAndAddsCompletionForm() {
+        ManagerGuideSectionVisibility extension = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("HOSPITAL_EXTENSION", 14, "병원별 추가 단계", ""))
+                .withReportSection();
+
+        assertTrue(extension.isFieldNoteVisible());
+        assertTrue(extension.isReportSummaryVisible());
+        assertTrue(extension.isReportMedicationVisible());
+        assertTrue(extension.isNextVisitVisible());
+    }
+
     private void assertCommonFieldNoteOnly(ManagerGuideSectionVisibility visibility) {
         assertTrue(visibility.isFieldNoteVisible());
         assertFalse(visibility.isMapVisible());

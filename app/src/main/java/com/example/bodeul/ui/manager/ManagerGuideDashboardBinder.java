@@ -259,7 +259,11 @@ public final class ManagerGuideDashboardBinder {
         buttonTogglePrescriptionCollected.setEnabled(inputsEnabled);
         buttonTogglePharmacyCompleted.setEnabled(inputsEnabled);
         buttonToggleMedicationGuidanceCompleted.setEnabled(inputsEnabled);
-        buttonSubmitReport.setEnabled(inputsEnabled);
+        buttonSubmitReport.setEnabled(
+                inputsEnabled
+                        && screenModel.getPrimaryAction()
+                        == ManagerGuidePrimaryAction.SUBMIT_REPORT
+        );
 
         buttonAdvanceGuide.setText(screenModel.getAdvanceButtonLabel());
         buttonAdvanceGuide.setEnabled(screenModel.isAdvanceEnabled());

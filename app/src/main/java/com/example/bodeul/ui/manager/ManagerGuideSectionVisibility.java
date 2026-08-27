@@ -135,6 +135,19 @@ final class ManagerGuideSectionVisibility {
     }
 
     static ManagerGuideSectionVisibility hidden() { return only(); }
+    ManagerGuideSectionVisibility withReportSection() {
+        return of(
+                mapVisible,
+                locationVisible,
+                guardianVisible,
+                fieldNoteVisible,
+                medicationNoteVisible,
+                pharmacyVisible,
+                true,
+                true,
+                true
+        );
+    }
     boolean isMapVisible() { return mapVisible; }
     boolean isLocationVisible() { return locationVisible; }
     boolean isGuardianVisible() { return guardianVisible; }
