@@ -1,6 +1,15 @@
 import java.util.Properties
 import javax.inject.Inject
+import org.gradle.api.DefaultTask
+import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedComponentResult
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
 import org.gradle.api.configuration.BuildFeatures
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
 
 plugins {
     alias(libs.plugins.android.application)
@@ -89,6 +98,55 @@ data class ReleaseSigningSettings(
 abstract class BuildFeaturesAccessor @Inject constructor(
     val buildFeatures: BuildFeatures
 )
+
+abstract class VerifyReleaseAppCheckClasspath : DefaultTask() {
+    @get:Input
+    abstract val rootComponent: Property<ResolvedComponentResult>
+
+    @TaskAction
+    fun verifyProviderBoundary() {
+        val pending = ArrayDeque<ResolvedComponentResult>()
+        val visited = mutableSetOf<ComponentIdentifier>()
+        val modules = mutableSetOf<String>()
+        val unresolved = mutableListOf<String>()
+        pending.add(rootComponent.get())
+
+        while (pending.isNotEmpty()) {
+            val component = pending.removeFirst()
+            if (!visited.add(component.id)) {
+                continue
+            }
+
+            (component.id as? ModuleComponentIdentifier)?.let { identifier ->
+                modules.add("${identifier.group}:${identifier.module}")
+            }
+
+            component.dependencies.forEach { dependency ->
+                when (dependency) {
+                    is ResolvedDependencyResult -> pending.add(dependency.selected)
+                    is UnresolvedDependencyResult -> unresolved.add(dependency.attempted.displayName)
+                }
+            }
+        }
+
+        if (unresolved.isNotEmpty()) {
+            throw GradleException(
+                "릴리스 런타임 의존성 일부를 해석하지 못했습니다: ${unresolved.distinct().joinToString(", ")}"
+            )
+        }
+
+        val debugProvider = "com.google.firebase:firebase-appcheck-debug"
+        val playIntegrityProvider = "com.google.firebase:firebase-appcheck-playintegrity"
+        if (debugProvider in modules) {
+            throw GradleException("릴리스 런타임에 Firebase App Check debug provider가 포함되어 있습니다.")
+        }
+        if (playIntegrityProvider !in modules) {
+            throw GradleException("릴리스 런타임에 Firebase App Check Play Integrity provider가 없습니다.")
+        }
+
+        logger.lifecycle("릴리스 App Check provider 의존성 경계를 확인했습니다.")
+    }
+}
 
 val releaseArtifactRequested = gradle.startParameter.taskNames.any(::isReleaseArtifactTaskName)
 if (releaseArtifactRequested && gradle.startParameter.excludedTaskNames.isNotEmpty()) {
@@ -273,4 +331,24 @@ dependencies {
     testImplementation(libs.json.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.espresso.core)
+}
+
+val verifyReleaseAppCheckClasspath = tasks.register<VerifyReleaseAppCheckClasspath>(
+    "verifyReleaseAppCheckClasspath"
+) {
+    group = "verification"
+    description = "릴리스 런타임에 Play Integrity만 포함되고 App Check debug provider가 없는지 확인합니다."
+}
+
+configurations.configureEach {
+    if (name == "releaseRuntimeClasspath") {
+        val releaseRootComponent = incoming.resolutionResult.rootComponent
+        verifyReleaseAppCheckClasspath.configure {
+            rootComponent.set(releaseRootComponent)
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseAppCheckClasspath)
 }
