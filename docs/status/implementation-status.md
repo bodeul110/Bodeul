@@ -89,7 +89,7 @@
 - 매니저 self-accept 여부와 시스템 이벤트형 동행방 제품 결정
 - production Kakao 키, Cloud Run·Vercel 운영 자격 증명, App Check 강제와 rollback 검증
 - Notion 보관기간·위치·매칭·채팅·서류 정책 충돌 해소
-- 탈퇴·삭제 실행, 법정 보존 분리와 백업 삭제 재적용 구현. PostgreSQL과 Firestore 사용자·지원 문서의 읽기 전용 부분 영향도만 완료
+- 탈퇴·삭제 실행, 법정 보존 분리와 백업 삭제 재적용 구현. PostgreSQL과 Firestore 사용자·지원·예약·세션 필드별 직접 참조의 읽기 전용 부분 영향도만 완료
 - production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 승인된 약관 대조
 
 ## 4. 검증 기준
@@ -107,6 +107,7 @@
 - 과거 전체 점검과 문서 정리는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)과 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 보관한다.
 - 위치 이력 운영 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)에 둔다.
 - 계정 삭제의 현재 읽기 전용 경계는 [계정 탈퇴·삭제 준비 상태](../operations/account-deletion-readiness.md)에 둔다.
+- 최신 Firestore 역할별 직접 참조 검증은 [Issue 348 Firestore 예약·세션 직접 참조 영향도](../reports/issue-348-firestore-participant-inventory-2026-08-27.md)에 둔다.
 
 ## 6. 누적 변경 이력
 

@@ -12,7 +12,18 @@ public interface FirebaseAccountDeletionImpactRepository {
             long managerDocumentMetadataCount,
             long managerDocumentReferenceCount,
             long clientSupportRequestCount,
-            long supportInquiryCount) {
+            long supportInquiryCount,
+            FirestoreDirectReferenceImpact directReferences) {
+    }
+
+    record FirestoreDirectReferenceImpact(
+            long appointmentRequestPatientCount,
+            long appointmentRequestGuardianCount,
+            long appointmentRequestManagerCount,
+            long appointmentRequestRequesterCount,
+            long companionSessionPatientCount,
+            long companionSessionGuardianCount,
+            long companionSessionManagerCount) {
     }
 
     final class SourceAccessException extends RuntimeException {

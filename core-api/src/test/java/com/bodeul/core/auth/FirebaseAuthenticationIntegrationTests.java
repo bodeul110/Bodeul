@@ -171,6 +171,16 @@ class FirebaseAuthenticationIntegrationTests {
                 .andExpect(jsonPath("$.sources[1].counts.notificationTokenEntryMismatches").value(3))
                 .andExpect(jsonPath("$.sources[1].counts.clientSupportRequests").value(4))
                 .andExpect(jsonPath("$.sources[1].counts.supportInquiries").value(1))
+                .andExpect(jsonPath("$.sources[1].counts.appointmentRequestsAsPatient").value(11))
+                .andExpect(jsonPath("$.sources[1].counts.appointmentRequestsAsGuardian").value(12))
+                .andExpect(jsonPath("$.sources[1].counts.appointmentRequestsAsManager").value(13))
+                .andExpect(jsonPath("$.sources[1].counts.appointmentRequestsAsRequester").value(14))
+                .andExpect(jsonPath("$.sources[1].counts.companionSessionsAsPatient").value(15))
+                .andExpect(jsonPath("$.sources[1].counts.companionSessionsAsGuardian").value(16))
+                .andExpect(jsonPath("$.sources[1].counts.companionSessionsAsManager").value(17))
+                .andExpect(jsonPath("$.sources[1].counts.appointmentRequests").doesNotExist())
+                .andExpect(jsonPath("$.sources[1].counts.companionSessions").doesNotExist())
+                .andExpect(jsonPath("$.sources[1].counts.directParticipantTotal").doesNotExist())
                 .andExpect(jsonPath("$.observationCodes").isEmpty())
                 .andExpect(jsonPath("$.blockerCodes[0]").value("SOURCE_UNAVAILABLE"))
                 .andExpect(jsonPath("$.blockerCodes[1]").value("INVENTORY_INCOMPLETE"))
@@ -405,7 +415,17 @@ class FirebaseAuthenticationIntegrationTests {
         @Override
         public FirestoreImpact inspect(String firebaseUid) {
             lastFirebaseUid = firebaseUid;
-            return new FirestoreImpact(1, 2, 2, 3, 0, 0, 4, 1);
+            return new FirestoreImpact(
+                    1,
+                    2,
+                    2,
+                    3,
+                    0,
+                    0,
+                    4,
+                    1,
+                    new FirestoreDirectReferenceImpact(
+                            11, 12, 13, 14, 15, 16, 17));
         }
 
         void reset() {
