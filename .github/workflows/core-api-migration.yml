@@ -19,6 +19,11 @@ on:
         required: false
         default: ""
         type: string
+      confirm_database_project_ref:
+        description: production 적용 시 Environment의 Supabase project ref를 다시 입력하세요.
+        required: false
+        default: ""
+        type: string
       backup_reference:
         description: production 적용 시 복원 가능한 백업 증적 URL 또는 ID를 입력하세요.
         required: false
@@ -94,7 +99,9 @@ jobs:
         shell: bash
         env:
           MIGRATION_CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+          MIGRATION_CONFIRM_DATABASE_PROJECT_REF: ${{ inputs.confirm_database_project_ref }}
           MIGRATION_BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
           COMPANION_SESSION_SEED_SHA256: ${{ inputs.companion_session_seed_sha256 }}
           RETENTION_FIXTURE_ACTION: ${{ inputs.retention_fixture_action }}
           RETENTION_FIXTURE_CONFIRM_PROJECT: ${{ inputs.confirm_retention_fixture_project }}
@@ -116,6 +123,16 @@ jobs:
 
             if [ "$MIGRATION_CONFIRM_COMMIT" != "$GITHUB_SHA" ]; then
               echo "입력한 commit SHA와 workflow 실행 commit이 일치하지 않습니다." >&2
+              exit 1
+            fi
+
+            if [[ ! "$PRODUCTION_SUPABASE_PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+              echo "Production Environment의 Supabase 프로젝트 확인값이 유효하지 않습니다." >&2
+              exit 1
+            fi
+
+            if [ "$MIGRATION_CONFIRM_DATABASE_PROJECT_REF" != "$PRODUCTION_SUPABASE_PROJECT_REF" ]; then
+              echo "Supabase 프로젝트 확인값이 일치하지 않습니다." >&2
               exit 1
             fi
 
@@ -222,12 +239,27 @@ jobs:
       - name: Core API 검증
         run: ./gradlew check --console=plain
 
+      - name: Production DB 연결 대상 검증
+        if: inputs.target == 'production'
+        env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+        run: ./gradlew verifyDatabaseConnectionTarget --console=plain
+
       - name: Flyway migration 실행
         env:
           MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
           MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
           MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
         run: ./gradlew migrateDatabase --console=plain
+
+      - name: 계정 삭제 영향도 DB 계약 검증
+        env:
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: ./gradlew verifyAccountDeletionInventory --console=plain
 
       - name: 동행 세션 백필 파일 준비
         if: inputs.apply_companion_session_seed

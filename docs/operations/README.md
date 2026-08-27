@@ -23,6 +23,7 @@
 - [PostgreSQL 운영 전환 런북](postgres-operational-transition-runbook.md)
   - Supabase, Cloud Run, GitHub Environment, API 서버 전환 준비 절차
 - [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)
+- [Production 인프라 읽기 전용 점검](production-infrastructure-audit.md)
   - Core API 컨테이너, WIF, Secret Manager, 배포와 rollback 절차
 - [Core API 가이드 실기기 fixture](core-api-guide-device-fixture.md)
   - preview 13단계 가이드의 setup, status, cleanup과 실기기 검증 기준
@@ -30,6 +31,8 @@
   - 관리자 웹 배포 방식, 비용 리스크, App Check, 인덱스, 백업/복원, Functions, 운영 명령어
 - [Production 인프라 기본값](production-infrastructure-defaults.md)
   - 운영 프로젝트·서비스 이름, Tokyo 리전, 배포·권한·백업 기준과 사람 결정 항목
+- [Production DB migration 사전 점검](production-database-migration-readiness.md)
+  - 운영 Supabase 연결 대상, Flyway version과 V14·V15 영향 건수의 읽기 전용 확인 절차
 - [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)
   - 2026-12-15 목표 일정, 월 비용 한도, 도메인별 전환 순서와 Go/No-Go 기준
 - [비용과 쿼터 모니터링](cost-monitoring.md)

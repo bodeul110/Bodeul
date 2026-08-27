@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/health", "/health/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/me",
+                                "/api/account/deletion-readiness",
                                 "/api/places/**",
                                 "/api/appointments/**",
                                 "/api/companion-sessions/**").authenticated()

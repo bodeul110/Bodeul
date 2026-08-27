@@ -1,6 +1,6 @@
 # 구현 상태
 
-기준: 2026-08-22
+기준: 2026-08-26
 
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
@@ -38,6 +38,8 @@
 - 백그라운드 위치 서비스와 카카오 지도 기반 위치 공유
 - 위치 권한 / 로그인 / 불러오기 실패 상태 패널 표시
 
+실시간 위치와 이동경로는 코드와 개발 검증에는 존재하지만 최신 MVP 기획 방향에서는 제외 대상이다. production 기능으로 승인된 상태가 아니며, 상봉번호와 위치 미수집 흐름이 확정되면 별도 변경에서 권한 요청·서비스·화면을 정리해야 한다.
+
 ### 관리자 앱 (레거시 운영 화면)
 
 - 기존 Firestore 운영 데이터 조회. 수동 매칭 쓰기는 차단됐으며 실제 배정은 별도 관리자 웹 서버 API를 사용
@@ -55,6 +57,7 @@
 - 승인 / 반려 저장, 검토 메모 저장
 - 목록 기본 마스킹, 상세 모달에서만 원문 확인
 - 15분 유휴 세션 자동 로그아웃
+- Production reCAPTCHA Enterprise client와 `X-Firebase-AppCheck` 전달, Next.js 서버 `observe` 검증. 인증된 `VALID` 요청과 `enforce`는 미완료
 
 ### 알림 / 서버 / 운영 도구
 
@@ -85,8 +88,9 @@
 - 환자→보호자 정보공유 동의·철회와 대리권 감사 정책
 - 매니저 self-accept 여부와 시스템 이벤트형 동행방 제품 결정
 - production Kakao 키, Cloud Run·Vercel 운영 자격 증명, App Check 강제와 rollback 검증
-- 개발 Firestore 전환 문서·매니저 증빙 fixture 파기 APPLY
-- production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 법률 문서 대조
+- Notion 보관기간·위치·매칭·채팅·서류 정책 충돌 해소
+- 탈퇴·삭제 실행, 법정 보존 분리와 백업 삭제 재적용 구현. PostgreSQL 영향도 읽기 전용 1단계만 완료
+- production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 승인된 약관 대조
 
 ## 4. 검증 기준
 
@@ -99,9 +103,10 @@
 
 - Firestore 쿼리와 인덱스 운영 점검 결과는 [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](../reports/firestore-query-index-review-2026-06-26.md)에 둔다.
 - 2026-06-20 이후 장문 점검과 실기기 확인 기록은 `../reports/` 아래 성격별 보고서에 둔다.
-- 최신 제품·디자인 문서 정합성은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 기준으로 본다.
+- 최신 정책·법률 상태는 [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](../reports/notion-policy-legal-alignment-2026-08-25.md), 화면 기준은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 본다.
 - 과거 전체 점검과 문서 정리는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)과 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 보관한다.
 - 위치 이력 운영 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)에 둔다.
+- 계정 삭제의 현재 읽기 전용 경계는 [계정 탈퇴·삭제 준비 상태](../operations/account-deletion-readiness.md)에 둔다.
 
 ## 6. 누적 변경 이력
 
@@ -3289,6 +3294,7 @@
 - Tokyo Firestore, 기본 Storage bucket, Email/Password Auth, Android·Web 앱과 저장소 Rules release를 준비했다.
 - Cloud Run production Artifact Registry, WIF provider, deploy/runtime 서비스 계정과 DB Secret Manager version을 만들었다.
 - Tokyo Supabase `bodeul-prod`에 서버 전용 role·schema bootstrap과 Flyway V1~V3를 적용했다.
+- `bodeul-prod` Free project는 2026-07-25 비활성으로 자동 일시 중지됐다. 원래 소유 조직에서 재개하고 읽기 전용 점검과 최신 백업·격리 복원을 다시 통과하기 전까지 production migration과 배포를 차단한다.
 - GitHub production 배포·migration Environment를 실제 식별자와 분리된 secret으로 연결했다.
 - Windows에서 `gcloud.ps1`이 실행 파일로 선택되던 secret 입력 스크립트를 `gcloud.cmd` 우선으로 수정했다.
 
@@ -3719,3 +3725,100 @@
 - `git diff --check`
 - 변경 파일의 Notion 비공개 URL·페이지 ID와 계정 정보 미포함 확인
 - 문서 전용 변경이므로 Android·Core API 빌드는 수행하지 않음
+
+## 150. 2026-08-25 Android 릴리스 서명 fail-closed 경계
+
+### 구현과 운영 설정
+
+- 팀 소유 릴리스 키가 확정되기 전에도 unsigned 릴리스 산출물이 만들어지지 않도록 Gradle 검증을 추가했다.
+- 키 저장소 경로와 alias는 추적되지 않는 로컬 설정·Gradle 속성·환경변수로 받고, 두 암호는 환경변수로만 받는다.
+- 릴리스 산출물 작업은 `validateReleaseSigning`을 선행하고 누락·부분 입력·키 저장소 파일 부재 시 실패한다.
+- 비밀값을 Gradle 구성 캐시에 남기지 않도록 릴리스 작업에는 `--no-configuration-cache`를 요구한다.
+- Android 키 저장소 확장자를 Git 추적에서 제외하고 [릴리스 서명 운영 계약](../operations/android-release-signing.md)을 추가했다.
+
+### 검증
+
+- `assembleDebug` 성공과 구성 캐시 저장 확인
+- 구성 캐시 활성 릴리스 작업 차단
+- 릴리스 서명 전체 누락·부분 입력·키 저장소 파일 부재 차단
+- 축약 릴리스 작업명과 `-x vRS` 축약 제외 시도에서도 unsigned 산출물 생성 차단
+- 기존 로컬 debug keystore를 비배포용으로만 사용해 서명 구성 성공 경로 확인
+- 실패 출력에 테스트 입력값과 암호 sentinel이 포함되지 않음을 확인
+- `assembleRelease --no-configuration-cache` 실패 후 신규 APK·AAB가 생성되지 않음을 확인
+
+### 남은 범위
+
+- 팀 소유 release keystore, alias, 암호 보관 주체와 오프라인 백업 위치 확정
+- Firebase와 Kakao에 release SHA-256 등록
+- Google Play Console과 Firebase Play Integrity 연결
+- ARM release 후보의 App Check `VALID`와 rollback 검증
+
+## 151. 2026-08-26 Production 인프라 감사와 운영 WIF 강화
+
+### 구현과 운영 설정
+
+- metadata 전용 감사 서비스 계정과 exact-subject WIF provider를 분리하고, GitHub Environment 승인 뒤에만 수동 감사가 실행되도록 구성했다.
+- Core API 배포와 DB 백업 provider를 불변 저장소·소유자 ID, `master`, 정확한 Environment·workflow·`workflow_dispatch` 조건으로 제한했다.
+- 배포·백업 서비스 계정 impersonation을 Environment 전체 principalSet에서 각 exact subject 하나로 축소했다.
+- Firebase Storage Public Access Prevention을 bucket 수준으로 강제하고, Storage Rules를 현재 저장소 ruleset과 일치시켰다.
+- Firestore PITR을 활성화하고 version 보존 기간을 7일로 확정했다.
+- Firebase Storage UBLA는 개발 버킷 canary 전까지 `deferred`로 유지했다.
+
+### 검증
+
+- 감사 도구 단위 테스트 11개, PowerShell 구문, GitHub Actions YAML 검사 통과
+- 관리자 단기 토큰 기반 Production metadata baseline 33개 전체 통과
+- [Production Infrastructure Audit run 32971183897](https://github.com/bodeul110/Bodeul/actions/runs/32971183897)에서 exact WIF 인증, PITR 상태와 baseline 감사 성공
+- 감사·배포·런타임·백업·보존 서비스 계정의 사용자 관리 key 0개 확인
+- 적용에 사용한 임시 project binding 3개 회수와 권한 하나짜리 임시 custom role 삭제 확인
+- 관리자 권한 없이 PITR 스크립트를 재실행해 활성 상태와 `604800s` 보존을 다시 확인
+
+### 남은 범위
+
+- Kakao REST API production Secret version과 첫 Cloud Run production revision
+- Android·Web App Check provider와 enforcement 실검증
+- 개발 버킷 canary 후 Firebase Storage UBLA
+
+## 152. 2026-08-26 Production PostgreSQL V15 migration·복원
+
+### 구현과 운영 설정
+
+- 자동 일시 중지됐던 `bodeul-prod` Supabase project를 재개하고 `ACTIVE_HEALTHY` 상태를 확인했다.
+- 보호된 production workflow가 project ref, JDBC 최종 대상, migration login과 `master` commit을 다시 확인하도록 유지했다.
+- Flyway V14 guide snapshot 고정과 V15 계정 삭제 영향도 DB 계약을 적용했다.
+- migration 전후 logical dump를 각각 격리 PostgreSQL 17에 복원한 경우에만 비공개 GCS에 업로드했다.
+
+### 검증
+
+- migration 전 readiness run `32980526711`: Flyway V13, 실패 이력과 V14 backfill 후보 0건
+- migration 전 backup·restore run `32980749558`: 격리 복원과 manifest 일치
+- migration run `32981200371`: V14·V15 적용과 `verifyAccountDeletionInventory` 통과
+- migration 후 readiness run `32981484159`: Flyway V15, 실패 이력과 업무 데이터 0건
+- migration 후 backup·restore run `32981633994`: 최신 V15 복구 지점 검증·외부 보관
+- Supabase Security Advisor 경고 0건. 미사용 인덱스 INFO는 실제 쿼리 통계가 쌓일 때까지 유지
+
+### 남은 범위
+
+- 실제 사용자 데이터 투입 전 Supabase Pro, 일일 백업과 spend cap 확인
+- Kakao production Secret과 첫 Cloud Run revision, smoke·rollback 검증
+- 정책·약관 승인 뒤 production 자동 파기 fixture와 쓰기 전환 검증
+
+## 153. 2026-08-26 관리자 웹 Production App Check 관찰 배포
+
+### 구현과 운영 설정
+
+- 별도 `bodeul-admin-web` 저장소 PR #37에서 reCAPTCHA Enterprise provider와 `X-Firebase-AppCheck` 전달을 반영했다.
+- Next.js 서버에 `off`, `observe`, `enforce` 모드와 허용 Web App ID 검증을 추가했다.
+- Vercel Production은 client 활성화와 서버 `observe`로 배포해 App Check 실패를 기록하되 아직 요청을 차단하지 않는다.
+
+### 검증
+
+- 관리자 웹 test 32개, lint, TypeScript 검사, Next.js·Vite rollback build 통과
+- 병합 commit의 Build·CodeQL과 Vercel Production 배포 성공
+- canonical 운영 주소 루트 200, 무인증 관리자 API 401, Tokyo 함수 배치 확인
+
+### 남은 범위
+
+- 인증된 관리자 계정으로 주요 흐름과 App Check `VALID` 요청 확인
+- 관찰 결과 확인 뒤 `enforce` 전환과 rollback 실검증
+- 개발 Web provider와 Preview debug token 분리

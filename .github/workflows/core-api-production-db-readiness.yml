@@ -1,0 +1,121 @@
+name: Core API Production DB Migration Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_project:
+        description: 확인을 위해 bodeul-prod-110을 입력하세요.
+        required: true
+        type: string
+      confirm_database_project_ref:
+        description: Production Environment에 등록된 Supabase project ref를 다시 입력하세요.
+        required: true
+        type: string
+      confirm_commit:
+        description: 현재 master commit SHA 40자를 입력하세요.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-api-migration-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify-production-database-readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: core-api-migration-production
+
+    defaults:
+      run:
+        working-directory: core-api
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: 대상 확인
+        shell: bash
+        env:
+          CONFIRM_PROJECT: ${{ inputs.confirm_project }}
+          CONFIRM_DATABASE_PROJECT_REF: ${{ inputs.confirm_database_project_ref }}
+          CONFIRM_COMMIT: ${{ inputs.confirm_commit }}
+          PRODUCTION_SUPABASE_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+            echo "운영 DB 사전 점검은 master 브랜치에서만 실행할 수 있습니다." >&2
+            exit 1
+          fi
+          if [ "$CONFIRM_PROJECT" != "bodeul-prod-110" ]; then
+            echo "운영 프로젝트 확인값이 일치하지 않습니다." >&2
+            exit 1
+          fi
+          if [[ ! "$PRODUCTION_SUPABASE_PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "Production Environment의 Supabase 프로젝트 확인값이 유효하지 않습니다." >&2
+            exit 1
+          fi
+          if [ "$CONFIRM_DATABASE_PROJECT_REF" != "$PRODUCTION_SUPABASE_PROJECT_REF" ]; then
+            echo "Supabase 프로젝트 확인값이 일치하지 않습니다." >&2
+            exit 1
+          fi
+          if [[ ! "$CONFIRM_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "현재 master commit SHA 40자를 입력해야 합니다." >&2
+            exit 1
+          fi
+          if [ "$CONFIRM_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "입력한 commit SHA와 workflow 실행 commit이 일치하지 않습니다." >&2
+            exit 1
+          fi
+
+      - name: migration secret 확인
+        shell: bash
+        env:
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: |
+          if [ -z "$MIGRATION_DB_JDBC_URL" ] || [ -z "$MIGRATION_DB_USERNAME" ] || [ -z "$MIGRATION_DB_PASSWORD" ]; then
+            echo "production migration Environment secret이 준비되지 않았습니다." >&2
+            exit 1
+          fi
+
+      - name: Java 21 설정
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Gradle Wrapper 검증
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: 운영 DB migration 사전 점검
+        env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.PRODUCTION_SUPABASE_PROJECT_REF }}
+          MIGRATION_DB_JDBC_URL: ${{ secrets.MIGRATION_DB_JDBC_URL }}
+          MIGRATION_DB_USERNAME: ${{ secrets.MIGRATION_DB_USERNAME }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+        run: ./gradlew verifyDatabaseMigrationReadiness --console=plain
+
+      - name: 점검 경계 기록
+        shell: bash
+        run: |
+          {
+            echo "## Core API Production DB Migration Readiness"
+            echo
+            echo "- Project: bodeul-prod-110"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Transaction: read-only, always rollback"
+            echo "- Flyway migration: not executed"
+            echo "- Backup or WIF operation: not executed"
+          } >> "${GITHUB_STEP_SUMMARY}"

@@ -1,6 +1,6 @@
 # Spring Core API Cloud Run 인프라 런북
 
-기준일: 2026-07-19
+기준일: 2026-08-26
 
 이 문서는 `core-api/`를 Google Cloud Run에 배포하고 Supabase PostgreSQL, Firebase Auth, Kakao 서버 API를 연결하는 개발 환경 기준을 정한다. 실제 secret 값은 저장소와 공개 GitHub 대화에 남기지 않는다.
 
@@ -11,6 +11,7 @@
 - 두 서버는 서로를 경유하지 않고 같은 Supabase PostgreSQL에 서로 다른 runtime role로 접근한다.
 - OCI Free Tier 계정 잠금으로 중단된 Spring preview는 Cloud Run으로 교체한다.
 - Cloudflare는 도메인이 생긴 뒤 DNS, WAF, DDoS 방어 계층으로 검토하며 Spring 실행 환경으로 사용하지 않는다.
+- Kakao가 호출 허용 IP를 필수로 요구하지 않는 동안 Cloud Run 기본 동적 outbound를 유지하고 VPC·Cloud NAT를 추가하지 않는다.
 
 Cloud Run은 현재 Spring 애플리케이션을 컨테이너로 유지하고, 요청이 없을 때 인스턴스를 0으로 줄일 수 있다. Firebase와 같은 Google Cloud 프로젝트의 서비스 계정 ADC를 사용할 수 있어 장기 서비스 계정 JSON 파일도 필요하지 않다. 단점은 첫 요청의 cold start와 결제 계정 등록이 필요하다는 점이다.
 
@@ -27,7 +28,7 @@ Cloud Run은 현재 Spring 애플리케이션을 컨테이너로 유지하고, �
 - Kakao Local REST Secret 버전 `1`과 인증된 장소 검색 실호출은 Issue #158 검증 기록에서 확인했다.
 - Android App Check header 전달과 Spring `off/observe/enforce` 검증을 구현했다. preview는 Android 실기기 `valid`를 확인했지만 release Play Integrity와 rollback 검증 전까지 `observe`로 운용한다.
 - 채팅·읽음·위치 Core API와 Supabase private Realtime 전환을 배포했다. 최신 리비전 `bodeul-core-api-preview-00014-wnr`에서 실제 세션, FCM 실기기 알림과 10개 동시 연결을 검증했다.
-- production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 생성했다. Artifact Registry, WIF, deploy/runtime 서비스 계정과 DB Secret Manager version을 준비했고 Flyway V1~V13 적용과 격리 복원을 완료했다. Cloud Run 서비스는 Kakao production Secret version을 기다리는 첫 승인 배포 전 상태다.
+- production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 생성했다. Artifact Registry, WIF, deploy/runtime 서비스 계정과 DB Secret Manager version을 준비했다. 2026-08-26 Supabase project를 재개하고 Flyway V15, 읽기 전용 상태 점검과 migration 전후 격리 복원을 완료했다. Cloud Run 서비스는 Kakao production Secret version을 기다리는 첫 승인 배포 전 상태다.
 
 실제 revision, image digest, 응답과 로그 검사 결과는 [Issue 156 Cloud Run preview 검증 기록](../reports/issue-156-core-api-cloud-run-preview-2026-07-16.md)에 정리한다.
 
@@ -72,6 +73,7 @@ production은 다음 식별자를 사용한다.
 | Request timeout | 60초 | 모바일 첨부 업로드 허용. 외부 API 호출은 애플리케이션 내부 timeout으로 제한 |
 | Port | Cloud Run `PORT`, 기본 8080 | 플랫폼 계약 준수 |
 | 실행 사용자 | distroless `nonroot` | 컨테이너 root 실행 방지 |
+| Kakao outbound | 기본 동적 IP | 호출 허용 IP가 선택 사항인 MVP에서 NAT 상시 비용과 운영 대상을 추가하지 않음 |
 
 컨테이너 파일 시스템은 영속 저장소로 사용하지 않는다. 파일 원본은 Firebase Storage에, 운영 데이터는 PostgreSQL에 둔다.
 
@@ -347,11 +349,25 @@ gcloud run services add-iam-policy-binding bodeul-core-api `
 6. 최신 revision에 트래픽 100%를 보낸다.
 7. `/health` 200과 `/api/auth/me` 무인증 401을 검사한다.
 
-production은 자동 배포하지 않는다. `.github/workflows/core-api-production-deploy.yml`은 GitHub Environment 승인을 거친 수동 `workflow_dispatch`만 허용하고 DB migration과 앱 배포를 분리한다. `master`, 40자 commit SHA, 서비스명, production project·리전·계정·WIF·secret version 형식을 모두 확인한 뒤에만 인증을 시작한다.
+production은 자동 배포하지 않는다. `.github/workflows/core-api-production-deploy.yml`은 GitHub Environment 승인을 거친 수동 `workflow_dispatch`만 허용하고 DB migration과 앱 배포를 분리한다. `master`, 40자 commit SHA, 서비스명, production project·리전·계정·WIF·secret version 형식을 모두 확인한 뒤에만 인증을 시작한다. 기존 production 서비스에 VPC connector나 Direct VPC egress가 연결돼 있으면 현재 `dynamic` 정책과 다르므로 image 빌드 전에 중단한다.
 
 DB migration은 `.github/workflows/core-api-migration.yml`의 `production` target을 사용한다. `master`의 실제 commit SHA와 복원 가능한 백업 증적 URL 또는 ID가 모두 있어야 `core-api-migration-production` Environment 승인으로 넘어간다. workflow는 Core API 검사를 통과한 뒤 Flyway를 실행하고 target, commit, 백업 참조를 job summary에 남긴다.
 
 초기 production은 1 vCPU, 1 GiB, 최소 인스턴스 0, 최대 인스턴스 2, concurrency 8과 인스턴스당 DB pool 2를 사용한다. 배포 뒤 `/health` 200과 무인증 auth/place search 401을 확인한다. smoke test가 실패하고 직전 정상 revision이 있으면 workflow가 트래픽을 직전 revision 100%로 자동 복구한다. 최초 배포처럼 직전 revision이 없으면 실패 상태를 유지하고 운영자가 원인을 확인한다.
+
+### Kakao 고정 outbound 전환 조건
+
+현재 배포 workflow는 `kakao-egress=dynamic` label을 남기고 VPC 관련 설정을 넣지 않는다. Kakao 호출 허용 IP는 production 키 등록과 별개이며 초기 배포의 필수 조건이 아니다.
+
+고정 outbound는 다음 순서로 별도 변경한다.
+
+1. Kakao 계약·정책 또는 보안 검토에서 호출 허용 IP가 필요한 근거와 비용 승인을 기록한다.
+2. `asia-northeast1`에 Direct VPC egress, Cloud NAT와 reserved external IP를 구성한다.
+3. Cloud Run의 모든 outbound를 VPC로 보내고 실제 출발 IP, Supabase 연결과 Kakao 장소 검색을 확인한다.
+4. 확인된 IP를 Kakao REST 키의 호출 허용 IP에 등록하고 인증된 검색, timeout·429·fallback을 다시 검증한다.
+5. rollback할 때는 Kakao 호출 허용 IP를 먼저 해제한 뒤 Cloud Run과 NAT 설정을 되돌린다.
+
+이 전환 PR에서는 production workflow의 동적 outbound 중단 검사를 고정 egress 검증으로 교체하고, Cloud NAT·외부 IP 시간 비용과 처리량 비용을 비용 문서에 추가한다.
 
 ## Rollback
 
@@ -381,6 +397,7 @@ DB migration은 배포 workflow와 분리돼 있으므로 애플리케이션 rol
 - 정상, 만료, 변조, 다른 Firebase project token 응답
 - DB role 조회와 secret/token 로그 비노출
 - 인증된 `GET /api/places/search` 200과 Kakao 콘솔 쿼터 반영
+- Cloud Run revision의 `kakao-egress` label과 VPC 연결 부재 또는 승인된 고정 outbound IP
 - 임시 Firebase 사용자와 PostgreSQL 역할 행 정리
 - cold start 시간과 정상 기동 여부
 - 직전 revision rollback 결과

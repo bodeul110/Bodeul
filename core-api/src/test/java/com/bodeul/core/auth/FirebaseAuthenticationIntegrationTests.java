@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.List;
 import java.util.UUID;
 
+import com.bodeul.core.account.FirebaseAccountDeletionImpactRepository;
 import com.bodeul.core.place.PlaceSearchCategory;
 import com.bodeul.core.place.PlaceSearchResult;
 import com.bodeul.core.place.PlaceSearchService;
@@ -25,6 +26,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -51,17 +53,28 @@ class FirebaseAuthenticationIntegrationTests {
     @Autowired
     private MutablePlaceSearchService placeSearchService;
 
+    @Autowired
+    private MutableFirebaseAccountDeletionImpactRepository firebaseImpactRepository;
+
     @BeforeEach
     void resetFakes() {
         tokenVerifier.reset();
         appCheckTokenVerifier.reset();
         appUserRepository.reset();
         placeSearchService.reset();
+        firebaseImpactRepository.reset();
     }
 
     @Test
     void missingAuthorizationReturns401() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("missing_authorization"));
+    }
+
+    @Test
+    void missingAuthorizationForAccountDeletionReadinessReturns401() throws Exception {
+        mockMvc.perform(get("/api/account/deletion-readiness"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("missing_authorization"));
     }
@@ -137,6 +150,34 @@ class FirebaseAuthenticationIntegrationTests {
 
         assertThat(tokenVerifier.lastToken).isEqualTo(rawToken);
         assertThat(appUserRepository.lastFirebaseUid).isEqualTo("firebase-user-1");
+    }
+
+    @Test
+    void accountDeletionReadinessIsReadOnlyAndFailsClosedWhenSourcesAreIncomplete() throws Exception {
+        mockMvc.perform(get("/api/account/deletion-readiness")
+                        .queryParam("firebaseUid", "other-firebase-user")
+                        .header("Authorization", "Bearer valid-firebase-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.readOnly").value(true))
+                .andExpect(jsonPath("$.deletionExecuted").value(false))
+                .andExpect(jsonPath("$.decision").value("NOT_EVALUATED"))
+                .andExpect(jsonPath("$.complete").value(false))
+                .andExpect(jsonPath("$.sources[0].source").value("POSTGRESQL"))
+                .andExpect(jsonPath("$.sources[0].status").value("ERROR"))
+                .andExpect(jsonPath("$.sources[1].source").value("FIRESTORE"))
+                .andExpect(jsonPath("$.sources[1].status").value("PARTIAL"))
+                .andExpect(jsonPath("$.sources[1].counts.userDocuments").value(1))
+                .andExpect(jsonPath("$.sources[1].counts.notificationTokens").value(2))
+                .andExpect(jsonPath("$.sources[1].counts.notificationTokenEntryMismatches").value(3))
+                .andExpect(jsonPath("$.observationCodes").isEmpty())
+                .andExpect(jsonPath("$.blockerCodes[0]").value("SOURCE_UNAVAILABLE"))
+                .andExpect(jsonPath("$.blockerCodes[1]").value("INVENTORY_INCOMPLETE"))
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(content().string(not(containsString(APP_USER_ID.toString()))))
+                .andExpect(content().string(not(containsString("firebase-user-1"))))
+                .andExpect(content().string(not(containsString("other-firebase-user"))));
+
+        assertThat(firebaseImpactRepository.lastFirebaseUid).isEqualTo("firebase-user-1");
     }
 
     @Test
@@ -260,6 +301,12 @@ class FirebaseAuthenticationIntegrationTests {
         MutablePlaceSearchService mutablePlaceSearchService() {
             return new MutablePlaceSearchService();
         }
+
+        @Bean
+        @Primary
+        MutableFirebaseAccountDeletionImpactRepository mutableFirebaseAccountDeletionImpactRepository() {
+            return new MutableFirebaseAccountDeletionImpactRepository();
+        }
     }
 
     static class MutableFirebaseTokenVerifier implements FirebaseTokenVerifier {
@@ -346,6 +393,21 @@ class FirebaseAuthenticationIntegrationTests {
             lastUserId = null;
             lastQuery = null;
             lastCategory = null;
+        }
+    }
+
+    static class MutableFirebaseAccountDeletionImpactRepository
+            implements FirebaseAccountDeletionImpactRepository {
+        private String lastFirebaseUid;
+
+        @Override
+        public FirestoreImpact inspectUserDocument(String firebaseUid) {
+            lastFirebaseUid = firebaseUid;
+            return new FirestoreImpact(1, 2, 2, 3, 0, 0);
+        }
+
+        void reset() {
+            lastFirebaseUid = null;
         }
     }
 }

@@ -4,6 +4,11 @@
 
 ## 최신 점검
 
+- [Production 인프라 감사 및 운영 WIF 강화 (2026-08-26)](production-infrastructure-audit-2026-08-26.md)
+- [Production DB migration 사전 점검 준비 및 실행 결과 (2026-08-26)](production-db-migration-readiness-2026-08-26.md)
+- [Issue 348 Firestore 사용자 문서 부분 영향도 (2026-08-26)](issue-348-firestore-inventory-2026-08-26.md)
+- [Issue 348 계정 삭제 영향도 1단계 (2026-08-25)](issue-348-account-deletion-readiness-2026-08-25.md)
+- [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](notion-policy-legal-alignment-2026-08-25.md)
 - [Notion·Figma 문서 정합성 점검 (2026-08-22)](notion-figma-document-alignment-2026-08-22.md)
 - [Issue 251 Core-only 세션 첨부 경계 (2026-07-28)](issue-251-core-session-attachments-2026-07-28.md)
 - [Production PostgreSQL V13 migration·복원 검증 (2026-07-19)](postgres-production-v13-migration-restore-2026-07-19.md)

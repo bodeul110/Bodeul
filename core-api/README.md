@@ -9,6 +9,7 @@
 - Gradle Wrapper
 - 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
+- 삭제 실행 없이 본인 계정의 PostgreSQL 연관 건수와 Firestore 사용자 문서 부분 점검 상태를 확인하는 `GET /api/account/deletion-readiness`
 - 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
 - 환자·보호자 예약 생성·수정·취소와 배정 매니저 조회를 처리하는 `/api/appointments`
 - 참여자·배정 매니저의 동행 조회와 매니저 진행·리포트를 처리하는 `/api/companion-sessions`
@@ -73,6 +74,12 @@ Cloud Run에서는 전용 runtime 서비스 계정의 Application Default Creden
 
 첫 범위는 Firebase Admin SDK의 기본 `verifyIdToken`을 사용하므로 token 폐기 여부를 추가 조회하지 않는다. ID token 만료 전 즉시 차단이 필요하면 PostgreSQL 역할을 제거하고, 계정 폐기 확인을 매 요청에 적용할지는 네트워크 비용과 캐시 전략을 정한 뒤 별도 반영한다.
 
+## 계정 삭제 영향도 점검
+
+`GET /api/account/deletion-readiness`는 인증된 principal의 내부 UUID와 Firebase UID만 사용해 PostgreSQL 연관 데이터 건수, `users/{firebaseUid}` 문서 한 건의 부분 집계와 객관적인 기술 차단 코드를 조회한다. 요청에서 사용자 ID를 받지 않으며 응답에는 Firebase UID, token, metadata key, 레코드 ID, 이름, 연락처, 본문, 좌표, 파일명과 Storage 경로를 포함하지 않는다. 응답은 캐시하지 않는다.
+
+이 API는 삭제 가능 여부를 승인하거나 데이터를 삭제하지 않는다. `readOnly=true`, `deletionExecuted=false`, `decision=NOT_EVALUATED`, `complete=false`가 현재 고정 계약이다. Firestore 사용자 문서의 FCM token·매니저 증빙 참조 건수 점검은 성공해도 `PARTIAL`이며, 다른 Firestore 연관 문서, Storage, Firebase Auth와 백업은 `NOT_EVALUATED`로 남는다. 실제 탈퇴 기능으로 사용하면 안 되며 자세한 구현 경계는 [계정 탈퇴·삭제 준비 상태](../docs/operations/account-deletion-readiness.md)를 따른다.
+
 ## Kakao Local 장소 검색
 
 `GET /api/places/search`는 `query`와 `category=HOSPITAL|PHARMACY`를 받고 Kakao Local 결과 중 이름과 좌표만 반환한다. Firebase 인증과 PostgreSQL 역할 확인을 통과해야 하며, 사용자별 분당 60회 제한과 6시간·최대 1,000건 서버 캐시를 적용한다.
@@ -132,6 +139,8 @@ $env:MIGRATION_DB_PASSWORD = "<migration-password>"
 
 runtime 서버에는 `MIGRATION_DB_*` 값을 주입하지 않는다.
 GitHub에서는 `Core API DB Migration` workflow를 수동 실행하고 대상 Environment의 승인을 거친다.
+
+V15 이후 migration workflow는 Flyway 적용 뒤 `verifyAccountDeletionInventory`를 실행한다. 이 task는 합성 UUID만 사용해 함수 반환 열과 0건 결과를 확인하고 실제 Core/Admin 서비스 역할의 스키마·함수 권한, 공개 역할 차단과 Core 서비스의 배정 감사 원문 조회 거부를 읽기 전용 트랜잭션에서 검증한다.
 
 개발 DB의 동행 세션 백필은 `applyCompanionSessionSeed` task를 사용한다. 이 실행기는 `companion_sessions`, `session_reports`, `appointment_follow_ups`의 순서가 맞는 제한된 upsert만 허용하며 DDL, DELETE, 다른 schema 참조를 거부한다. GitHub workflow에서는 생성 SQL을 일회성 Environment secret으로 전달하고 입력 SHA-256이 일치할 때만 실행한 뒤 임시 파일과 secret을 삭제한다.
 
