@@ -22,6 +22,28 @@ class DefaultCompanionSessionServiceTests {
     private static final UUID PATIENT_ID = UUID.fromString("ac43f31b-5709-40b5-987e-449e9ed3baf8");
     private static final UUID GUARDIAN_ID = UUID.fromString("6b82d10f-8f20-4a77-b9b4-055a346b689d");
     private static final UUID MANAGER_ID = UUID.fromString("fdb39fea-f2da-408e-bf46-77dbf2265a73");
+    private static final List<String> PRODUCT_GUIDE_STEP_CODES = List.of(
+            "MEETING_CONFIRMATION",
+            "HOSPITAL_ROUTE",
+            "RECEPTION_QUEUE",
+            "VITALS_CHECK",
+            "PRE_CONSULTATION",
+            "CONSULTATION_SUPPORT",
+            "CONSULTATION_SUMMARY",
+            "PAYMENT_EVIDENCE",
+            "PHARMACY_ROUTE",
+            "PRESCRIPTION_DOCUMENTS",
+            "MEDICATION_CONFIRMATION",
+            "CARE_COMPLETION",
+            "MANAGER_JOURNAL");
+    private static final List<String> LEGACY_GUIDE_STEP_CODES = List.of(
+            "LEGACY_CORE_PATIENT_CONTACT",
+            "LEGACY_CORE_RECEPTION_PREPARATION",
+            "LEGACY_CORE_RECEPTION",
+            "LEGACY_CORE_CONSULTATION",
+            "LEGACY_CORE_PAYMENT",
+            "LEGACY_CORE_PHARMACY",
+            "LEGACY_CORE_RETURN_AND_CLOSE");
 
     private FakeCompanionSessionRepository repository;
     private DefaultCompanionSessionService service;
@@ -149,6 +171,82 @@ class DefaultCompanionSessionServiceTests {
         var fourteenStep = service.getSession(manager(), SESSION_ID);
         assertThat(fourteenStep.steps()).hasSize(14);
         assertThat(fourteenStep.canAdvance()).isTrue();
+    }
+
+    @Test
+    void sevenThirteenAndFourteenStepSnapshotsAdvanceToReportCompletion() {
+        for (int stepCount : List.of(7, 13, 14)) {
+            repository.session = Optional.of(session(
+                    "READY",
+                    0,
+                    stepCount,
+                    3,
+                    transitionSnapshot(stepCount)));
+            repository.report = null;
+            repository.lastReport = null;
+            repository.advanceCount = 0;
+
+            assertReportSubmissionBlocked(3);
+
+            for (int expectedOrder = 1; expectedOrder <= stepCount; expectedOrder++) {
+                var beforeAdvance = service.getSession(manager(), SESSION_ID);
+                assertThat(beforeAdvance.currentStepOrder()).isEqualTo(expectedOrder - 1);
+                assertThat(beforeAdvance.canAdvance()).isTrue();
+
+                var advanced = service.advanceSession(
+                        manager(),
+                        SESSION_ID,
+                        beforeAdvance.version());
+                String expectedCode = transitionStepCodes(stepCount).get(expectedOrder - 1);
+
+                assertThat(advanced.currentStepOrder()).isEqualTo(expectedOrder);
+                assertThat(advanced.currentStepCode()).isEqualTo(expectedCode);
+                assertThat(advanced.version()).isEqualTo(3 + expectedOrder);
+                if (expectedOrder < stepCount) {
+                    assertThat(advanced.canAdvance()).isTrue();
+                    assertThat(advanced.blockedReason()).isNull();
+                } else {
+                    assertThat(advanced.canAdvance()).isFalse();
+                    assertThat(advanced.blockedReason()).isEqualTo("LAST_STEP_REACHED");
+                }
+
+                var reloaded = service.getSession(manager(), SESSION_ID);
+                assertThat(reloaded.currentStepOrder()).isEqualTo(expectedOrder);
+                assertThat(reloaded.currentStepCode()).isEqualTo(expectedCode);
+                assertThat(reloaded.version()).isEqualTo(advanced.version());
+                assertThat(reloaded.canAdvance()).isEqualTo(advanced.canAdvance());
+                assertThat(reloaded.blockedReason()).isEqualTo(advanced.blockedReason());
+                if (expectedOrder < stepCount) {
+                    assertReportSubmissionBlocked(reloaded.version());
+                    assertThat(repository.lastReport).isNull();
+                }
+            }
+
+            var lastStep = service.getSession(manager(), SESSION_ID);
+            assertThatThrownBy(() -> service.advanceSession(
+                    manager(),
+                    SESSION_ID,
+                    lastStep.version()))
+                    .isInstanceOf(CompanionSessionException.class)
+                    .extracting(exception -> ((CompanionSessionException) exception).error())
+                    .isEqualTo("companion_session_state_conflict");
+            assertThat(repository.advanceCount).isEqualTo(stepCount);
+
+            var report = service.submitReport(
+                    manager(),
+                    SESSION_ID,
+                    reportCommand(lastStep.version()));
+            assertThat(report.summary()).isEqualTo("전체 단계 회귀 검증 완료");
+            assertThat(repository.lastReport).isNotNull();
+
+            var completed = service.getSession(manager(), SESSION_ID);
+            assertThat(completed.currentStatus()).isEqualTo("COMPLETED");
+            assertThat(completed.currentStepOrder()).isEqualTo(stepCount);
+            assertThat(completed.currentStepCode())
+                    .isEqualTo(transitionStepCodes(stepCount).get(stepCount - 1));
+            assertThat(completed.canAdvance()).isFalse();
+            assertThat(completed.blockedReason()).isEqualTo("SESSION_TERMINAL");
+        }
     }
 
     @Test
@@ -451,6 +549,64 @@ class DefaultCompanionSessionServiceTests {
                 steps);
     }
 
+    private CompanionSessionRepository.GuideSnapshotRecord transitionSnapshot(int stepCount) {
+        List<CompanionSessionRepository.GuideStepRecord> steps = new ArrayList<>();
+        List<String> codes = transitionStepCodes(stepCount);
+        for (int index = 0; index < codes.size(); index++) {
+            int order = index + 1;
+            steps.add(new CompanionSessionRepository.GuideStepRecord(
+                    codes.get(index),
+                    order,
+                    "단계 " + order,
+                    "설명 " + order));
+        }
+        if (stepCount == 7) {
+            return new CompanionSessionRepository.GuideSnapshotRecord(
+                    null,
+                    null,
+                    null,
+                    "LEGACY_CORE_7_V1",
+                    true,
+                    steps);
+        }
+        return hospitalGuideSnapshot(steps);
+    }
+
+    private List<String> transitionStepCodes(int stepCount) {
+        if (stepCount == 7) {
+            return LEGACY_GUIDE_STEP_CODES;
+        }
+        List<String> codes = new ArrayList<>(PRODUCT_GUIDE_STEP_CODES);
+        if (stepCount == 14) {
+            codes.add("HOSPITAL_EXTENSION");
+        }
+        return codes;
+    }
+
+    private CompanionSessionService.SubmitReportCommand reportCommand(long version) {
+        return new CompanionSessionService.SubmitReportCommand(
+                version,
+                "전체 단계 회귀 검증 완료",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "");
+    }
+
+    private void assertReportSubmissionBlocked(long version) {
+        assertThatThrownBy(() -> service.submitReport(
+                manager(),
+                SESSION_ID,
+                reportCommand(version)))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+    }
+
     private List<CompanionSessionRepository.GuideStepRecord> guideSteps(int count) {
         return new ArrayList<>(IntStream.rangeClosed(1, count)
                 .mapToObj(order -> new CompanionSessionRepository.GuideStepRecord(
@@ -474,7 +630,16 @@ class DefaultCompanionSessionServiceTests {
 
         @Override
         public Optional<SessionRecord> findById(UUID sessionId) {
-            return session.filter(value -> value.id().equals(sessionId));
+            return session
+                    .filter(value -> value.id().equals(sessionId))
+                    .map(current -> copy(
+                            current,
+                            current.currentStepOrder(),
+                            current.currentStatus(),
+                            current.guardianUpdate(),
+                            current.prescriptionCollected(),
+                            current.locationAlertStage(),
+                            current.version()));
         }
 
         @Override
@@ -511,8 +676,18 @@ class DefaultCompanionSessionServiceTests {
                 UUID managerUserId,
                 long expectedVersion,
                 UUID appointmentRequestId) {
+            if (session.isEmpty()) {
+                return Optional.empty();
+            }
+            SessionRecord current = session.get();
+            if (!current.id().equals(sessionId)
+                    || !current.managerUserId().equals(managerUserId)
+                    || !current.appointmentRequestId().equals(appointmentRequestId)
+                    || current.version() != expectedVersion
+                    || current.currentStepOrder() >= current.totalStepCount()) {
+                return Optional.empty();
+            }
             advanceCount++;
-            SessionRecord current = session.orElseThrow();
             session = Optional.of(copy(
                     current,
                     current.currentStepOrder() + 1,
@@ -531,8 +706,18 @@ class DefaultCompanionSessionServiceTests {
                 long expectedVersion,
                 UUID appointmentRequestId,
                 ReportMutation reportMutation) {
+            if (session.isEmpty()) {
+                return Optional.empty();
+            }
+            SessionRecord current = session.get();
+            if (!current.id().equals(sessionId)
+                    || !current.managerUserId().equals(managerUserId)
+                    || !current.appointmentRequestId().equals(appointmentRequestId)
+                    || current.version() != expectedVersion
+                    || current.currentStepOrder() != current.totalStepCount()) {
+                return Optional.empty();
+            }
             lastReport = reportMutation;
-            SessionRecord current = session.orElseThrow();
             session = Optional.of(copy(
                     current,
                     current.currentStepOrder(),
