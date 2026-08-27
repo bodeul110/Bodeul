@@ -205,6 +205,10 @@ jobs:
           mkdir -p app
           printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
 
+      - name: Android 릴리스 App Check provider 경계 확인
+        if: steps.scope.outputs.android == 'true'
+        run: ./gradlew :app:verifyReleaseAppCheckClasspath --console=plain
+
       - name: .firebaserc 복원
         if: steps.scope.outputs.firebase_tools == 'true' && env.FIREBASERC_JSON != ''
         shell: bash

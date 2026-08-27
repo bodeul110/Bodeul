@@ -94,6 +94,13 @@ npm.cmd --prefix tools/firebase run capture:app -- --preset manager-guide --seri
 - 기존 로컬 debug keystore는 비배포용 성공 경로 확인에만 사용했고 릴리스 산출물은 만들지 않았다.
 - 실제 키는 생성하지 않았고 입력값과 인증서 정보도 기록하지 않았다.
 
+## 2026-08-27 릴리스 App Check 의존성 경계 보완
+
+- PR CI와 모든 release 산출물 경로가 실제 `releaseRuntimeClasspath`를 해석해 Play Integrity provider 포함 여부를 확인한다.
+- release runtime에 App Check debug provider가 섞이거나 Play Integrity provider가 빠지면 빌드 전에 실패한다.
+- 일반 debug 빌드에는 연결하지 않아 로컬 개발 흐름과 구성 캐시 비용에 영향을 주지 않는다.
+- 이 검증은 의존성 구성을 확인하는 사전 회귀 방지이며, 서명된 release 앱의 Play Integrity `VALID` 실기기 증거를 대신하지 않는다.
+
 ## 남은 범위
 
 - 팀 소유 release keystore, alias와 암호 보관 주체를 확정한다.
