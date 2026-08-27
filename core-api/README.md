@@ -9,7 +9,7 @@
 - Gradle Wrapper
 - 공개 `GET /health`
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
-- 삭제 실행 없이 본인 계정의 PostgreSQL 연관 건수와 Firestore 사용자 문서 부분 점검 상태를 확인하는 `GET /api/account/deletion-readiness`
+- 삭제 실행 없이 본인 계정의 PostgreSQL 연관 건수와 Firestore 사용자·지원 문서 부분 점검 상태를 확인하는 `GET /api/account/deletion-readiness`
 - 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
 - 환자·보호자 예약 생성·수정·취소와 배정 매니저 조회를 처리하는 `/api/appointments`
 - 참여자·배정 매니저의 동행 조회와 매니저 진행·리포트를 처리하는 `/api/companion-sessions`
@@ -76,9 +76,9 @@ Cloud Run에서는 전용 runtime 서비스 계정의 Application Default Creden
 
 ## 계정 삭제 영향도 점검
 
-`GET /api/account/deletion-readiness`는 인증된 principal의 내부 UUID와 Firebase UID만 사용해 PostgreSQL 연관 데이터 건수, `users/{firebaseUid}` 문서 한 건의 부분 집계와 객관적인 기술 차단 코드를 조회한다. 요청에서 사용자 ID를 받지 않으며 응답에는 Firebase UID, token, metadata key, 레코드 ID, 이름, 연락처, 본문, 좌표, 파일명과 Storage 경로를 포함하지 않는다. 응답은 캐시하지 않는다.
+`GET /api/account/deletion-readiness`는 인증된 principal의 내부 UUID와 Firebase UID만 사용해 PostgreSQL 연관 데이터 건수, `users/{firebaseUid}` 문서 한 건과 본인 지원 문의의 부분 집계를 조회한다. 지원 문의는 `clientSupportRequests.userId`와 `supportInquiries.managerUserId`의 aggregation count만 사용해 문서 ID와 원문을 읽지 않는다. 요청에서 사용자 ID를 받지 않으며 응답에는 Firebase UID, token, metadata key, 레코드 ID, 이름, 연락처, 본문, 좌표, 파일명과 Storage 경로를 포함하지 않는다. 응답은 캐시하지 않는다.
 
-이 API는 삭제 가능 여부를 승인하거나 데이터를 삭제하지 않는다. `readOnly=true`, `deletionExecuted=false`, `decision=NOT_EVALUATED`, `complete=false`가 현재 고정 계약이다. Firestore 사용자 문서의 FCM token·매니저 증빙 참조 건수 점검은 성공해도 `PARTIAL`이며, 다른 Firestore 연관 문서, Storage, Firebase Auth와 백업은 `NOT_EVALUATED`로 남는다. 실제 탈퇴 기능으로 사용하면 안 되며 자세한 구현 경계는 [계정 탈퇴·삭제 준비 상태](../docs/operations/account-deletion-readiness.md)를 따른다.
+이 API는 삭제 가능 여부를 승인하거나 데이터를 삭제하지 않는다. `readOnly=true`, `deletionExecuted=false`, `decision=NOT_EVALUATED`, `complete=false`가 현재 고정 계약이다. Firestore 사용자 문서와 직접 사용자 키가 있는 두 지원 컬렉션의 점검이 성공해도 `PARTIAL`이며, 전환 잔존·간접 연관 Firestore 문서, Storage, Firebase Auth와 백업은 미점검으로 남는다. 실제 탈퇴 기능으로 사용하면 안 되며 자세한 구현 경계는 [계정 탈퇴·삭제 준비 상태](../docs/operations/account-deletion-readiness.md)를 따른다.
 
 ## Kakao Local 장소 검색
 

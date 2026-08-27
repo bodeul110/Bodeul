@@ -2,7 +2,7 @@ package com.bodeul.core.account;
 
 public interface FirebaseAccountDeletionImpactRepository {
 
-    FirestoreImpact inspectUserDocument(String firebaseUid);
+    FirestoreImpact inspect(String firebaseUid);
 
     record FirestoreImpact(
             long userDocumentCount,
@@ -10,7 +10,9 @@ public interface FirebaseAccountDeletionImpactRepository {
             long notificationTokenEntryCount,
             long notificationTokenEntryMismatchCount,
             long managerDocumentMetadataCount,
-            long managerDocumentReferenceCount) {
+            long managerDocumentReferenceCount,
+            long clientSupportRequestCount,
+            long supportInquiryCount) {
     }
 
     final class SourceAccessException extends RuntimeException {

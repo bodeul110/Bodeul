@@ -169,6 +169,8 @@ class FirebaseAuthenticationIntegrationTests {
                 .andExpect(jsonPath("$.sources[1].counts.userDocuments").value(1))
                 .andExpect(jsonPath("$.sources[1].counts.notificationTokens").value(2))
                 .andExpect(jsonPath("$.sources[1].counts.notificationTokenEntryMismatches").value(3))
+                .andExpect(jsonPath("$.sources[1].counts.clientSupportRequests").value(4))
+                .andExpect(jsonPath("$.sources[1].counts.supportInquiries").value(1))
                 .andExpect(jsonPath("$.observationCodes").isEmpty())
                 .andExpect(jsonPath("$.blockerCodes[0]").value("SOURCE_UNAVAILABLE"))
                 .andExpect(jsonPath("$.blockerCodes[1]").value("INVENTORY_INCOMPLETE"))
@@ -401,9 +403,9 @@ class FirebaseAuthenticationIntegrationTests {
         private String lastFirebaseUid;
 
         @Override
-        public FirestoreImpact inspectUserDocument(String firebaseUid) {
+        public FirestoreImpact inspect(String firebaseUid) {
             lastFirebaseUid = firebaseUid;
-            return new FirestoreImpact(1, 2, 2, 3, 0, 0);
+            return new FirestoreImpact(1, 2, 2, 3, 0, 0, 4, 1);
         }
 
         void reset() {

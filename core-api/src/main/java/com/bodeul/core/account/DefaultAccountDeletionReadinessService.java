@@ -57,7 +57,7 @@ class DefaultAccountDeletionReadinessService implements AccountDeletionReadiness
 
         final FirebaseAccountDeletionImpactRepository.FirestoreImpact impact;
         try {
-            impact = firebaseImpactRepository.orElseThrow().inspectUserDocument(firebaseUid);
+            impact = firebaseImpactRepository.orElseThrow().inspect(firebaseUid);
         } catch (FirebaseAccountDeletionImpactRepository.SourceAccessException exception) {
             blockerCodes.add(BlockerCode.SOURCE_UNAVAILABLE);
             return new SourceInventory(Source.FIRESTORE, SourceStatus.ERROR, Map.of());
@@ -73,7 +73,9 @@ class DefaultAccountDeletionReadinessService implements AccountDeletionReadiness
                         "notificationTokenEntryMismatches",
                         impact.notificationTokenEntryMismatchCount(),
                         "managerDocumentMetadataEntries", impact.managerDocumentMetadataCount(),
-                        "managerDocumentReferences", impact.managerDocumentReferenceCount()));
+                        "managerDocumentReferences", impact.managerDocumentReferenceCount(),
+                        "clientSupportRequests", impact.clientSupportRequestCount(),
+                        "supportInquiries", impact.supportInquiryCount()));
     }
 
     private SourceInventory inspectPostgres(

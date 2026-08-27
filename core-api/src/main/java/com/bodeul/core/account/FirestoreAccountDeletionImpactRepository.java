@@ -1,6 +1,7 @@
 package com.bodeul.core.account;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
@@ -8,9 +9,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
+import com.google.api.core.ApiFuture;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.AggregateQuerySnapshot;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.firebase.FirebaseApp;
@@ -27,6 +31,11 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
 
     private static final String FIREBASE_APP_NAME = "bodeul-core-account-inventory";
     private static final int FIRESTORE_OPERATION_TIMEOUT_SECONDS = 12;
+    private static final String USERS_COLLECTION = "users";
+    private static final String CLIENT_SUPPORT_REQUESTS_COLLECTION = "clientSupportRequests";
+    private static final String CLIENT_SUPPORT_REQUEST_USER_FIELD = "userId";
+    private static final String SUPPORT_INQUIRIES_COLLECTION = "supportInquiries";
+    private static final String SUPPORT_INQUIRY_MANAGER_FIELD = "managerUserId";
     private static final List<String> LEGACY_MANAGER_DOCUMENT_PATH_FIELDS = List.of(
             "managerIdCardStoragePath",
             "managerLicenseStoragePath",
@@ -47,28 +56,60 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
     }
 
     @Override
-    public FirestoreImpact inspectUserDocument(String firebaseUid) {
-        try {
-            DocumentSnapshot snapshot = requireFirestore()
-                    .collection("users")
-                    .document(firebaseUid)
-                    .get()
-                    .get(FIRESTORE_OPERATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!snapshot.exists()) {
-                return new FirestoreImpact(0, 0, 0, 0, 0, 0);
-            }
+    public FirestoreImpact inspect(String firebaseUid) {
+        if (firebaseUid == null || firebaseUid.isBlank()) {
+            throw new SourceAccessException(
+                    new IllegalArgumentException("인증 principal의 Firebase UID가 비어 있습니다."));
+        }
 
-            Map<String, Object> data = snapshot.getData();
-            if (data == null) {
-                return new FirestoreImpact(1, 0, 0, 0, 0, 0);
-            }
-            return summarize(data);
+        List<ApiFuture<?>> operations = new ArrayList<>();
+        try {
+            Firestore currentFirestore = requireFirestore();
+            long deadlineNanos = System.nanoTime()
+                    + TimeUnit.SECONDS.toNanos(FIRESTORE_OPERATION_TIMEOUT_SECONDS);
+
+            ApiFuture<DocumentSnapshot> userDocumentFuture = currentFirestore
+                    .collection(USERS_COLLECTION)
+                    .document(firebaseUid)
+                    .get();
+            operations.add(userDocumentFuture);
+            ApiFuture<AggregateQuerySnapshot> clientSupportCountFuture = currentFirestore
+                    .collection(CLIENT_SUPPORT_REQUESTS_COLLECTION)
+                    .whereEqualTo(CLIENT_SUPPORT_REQUEST_USER_FIELD, firebaseUid)
+                    .count()
+                    .get();
+            operations.add(clientSupportCountFuture);
+            ApiFuture<AggregateQuerySnapshot> supportInquiryCountFuture = currentFirestore
+                    .collection(SUPPORT_INQUIRIES_COLLECTION)
+                    .whereEqualTo(SUPPORT_INQUIRY_MANAGER_FIELD, firebaseUid)
+                    .count()
+                    .get();
+            operations.add(supportInquiryCountFuture);
+
+            DocumentSnapshot userDocument = await(userDocumentFuture, deadlineNanos);
+            long clientSupportRequestCount = await(clientSupportCountFuture, deadlineNanos).getCount();
+            long supportInquiryCount = await(supportInquiryCountFuture, deadlineNanos).getCount();
+            return summarize(userDocument, clientSupportRequestCount, supportInquiryCount);
         } catch (InterruptedException exception) {
+            cancel(operations);
             Thread.currentThread().interrupt();
             throw new SourceAccessException(exception);
         } catch (Exception exception) {
+            cancel(operations);
             throw new SourceAccessException(exception);
         }
+    }
+
+    private <T> T await(ApiFuture<T> future, long deadlineNanos) throws Exception {
+        long remainingNanos = deadlineNanos - System.nanoTime();
+        if (remainingNanos <= 0) {
+            throw new TimeoutException("Firestore 계정 영향도 조회 시간이 초과됐습니다.");
+        }
+        return future.get(remainingNanos, TimeUnit.NANOSECONDS);
+    }
+
+    private void cancel(List<ApiFuture<?>> operations) {
+        operations.forEach(operation -> operation.cancel(true));
     }
 
     private Firestore requireFirestore() throws Exception {
@@ -104,7 +145,22 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
         }
     }
 
-    private FirestoreImpact summarize(Map<String, Object> data) {
+    private FirestoreImpact summarize(
+            DocumentSnapshot snapshot,
+            long clientSupportRequestCount,
+            long supportInquiryCount) {
+        if (!snapshot.exists()) {
+            return new FirestoreImpact(
+                    0, 0, 0, 0, 0, 0,
+                    clientSupportRequestCount, supportInquiryCount);
+        }
+
+        Map<String, Object> data = snapshot.getData();
+        if (data == null) {
+            return new FirestoreImpact(
+                    1, 0, 0, 0, 0, 0,
+                    clientSupportRequestCount, supportInquiryCount);
+        }
         NotificationTokenInventory tokenInventory = summarizeNotificationTokens(data);
         Map<?, ?> documentMetadata = asMap(data.get("managerDocumentFiles"));
         return new FirestoreImpact(
@@ -113,7 +169,9 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
                 tokenInventory.entryCount(),
                 tokenInventory.mismatchCount(),
                 documentMetadata.size(),
-                countManagerDocumentReferences(data, documentMetadata));
+                countManagerDocumentReferences(data, documentMetadata),
+                clientSupportRequestCount,
+                supportInquiryCount);
     }
 
     private NotificationTokenInventory summarizeNotificationTokens(Map<String, Object> data) {
