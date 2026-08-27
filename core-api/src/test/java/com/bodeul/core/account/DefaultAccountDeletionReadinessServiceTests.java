@@ -42,6 +42,22 @@ class DefaultAccountDeletionReadinessServiceTests {
         assertThat(result.sources().get(1).status())
                 .isEqualTo(AccountDeletionReadinessService.SourceStatus.PARTIAL);
         assertThat(result.sources().get(1).counts())
+                .containsOnlyKeys(
+                        "userDocuments",
+                        "notificationTokens",
+                        "notificationTokenEntries",
+                        "notificationTokenEntryMismatches",
+                        "managerDocumentMetadataEntries",
+                        "managerDocumentReferences",
+                        "clientSupportRequests",
+                        "supportInquiries",
+                        "appointmentRequestsAsPatient",
+                        "appointmentRequestsAsGuardian",
+                        "appointmentRequestsAsManager",
+                        "appointmentRequestsAsRequester",
+                        "companionSessionsAsPatient",
+                        "companionSessionsAsGuardian",
+                        "companionSessionsAsManager")
                 .containsEntry("userDocuments", 1L)
                 .containsEntry("notificationTokens", 2L)
                 .containsEntry("notificationTokenEntries", 2L)
@@ -49,7 +65,18 @@ class DefaultAccountDeletionReadinessServiceTests {
                 .containsEntry("managerDocumentMetadataEntries", 3L)
                 .containsEntry("managerDocumentReferences", 3L)
                 .containsEntry("clientSupportRequests", 4L)
-                .containsEntry("supportInquiries", 1L);
+                .containsEntry("supportInquiries", 1L)
+                .containsEntry("appointmentRequestsAsPatient", 11L)
+                .containsEntry("appointmentRequestsAsGuardian", 12L)
+                .containsEntry("appointmentRequestsAsManager", 13L)
+                .containsEntry("appointmentRequestsAsRequester", 14L)
+                .containsEntry("companionSessionsAsPatient", 15L)
+                .containsEntry("companionSessionsAsGuardian", 16L)
+                .containsEntry("companionSessionsAsManager", 17L)
+                .doesNotContainKeys(
+                        "appointmentRequests",
+                        "companionSessions",
+                        "directParticipantTotal");
         assertThat(result.observationCodes()).containsExactly(
                 AccountDeletionReadinessService.ObservationCode.ACTIVE_APPOINTMENT_PRESENT,
                 AccountDeletionReadinessService.ObservationCode.ACTIVE_SESSION_PRESENT);
@@ -154,7 +181,17 @@ class DefaultAccountDeletionReadinessServiceTests {
     }
 
     private FirebaseAccountDeletionImpactRepository.FirestoreImpact firestoreImpact() {
-        return new FirebaseAccountDeletionImpactRepository.FirestoreImpact(1, 2, 2, 4, 3, 3, 4, 1);
+        return new FirebaseAccountDeletionImpactRepository.FirestoreImpact(
+                1,
+                2,
+                2,
+                4,
+                3,
+                3,
+                4,
+                1,
+                new FirebaseAccountDeletionImpactRepository.FirestoreDirectReferenceImpact(
+                        11, 12, 13, 14, 15, 16, 17));
     }
 
     private AccountDeletionImpactRepository.PostgreSqlImpact impact(

@@ -36,6 +36,15 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
     private static final String CLIENT_SUPPORT_REQUEST_USER_FIELD = "userId";
     private static final String SUPPORT_INQUIRIES_COLLECTION = "supportInquiries";
     private static final String SUPPORT_INQUIRY_MANAGER_FIELD = "managerUserId";
+    private static final String APPOINTMENT_REQUESTS_COLLECTION = "appointmentRequests";
+    private static final String APPOINTMENT_REQUEST_PATIENT_FIELD = "patientUserId";
+    private static final String APPOINTMENT_REQUEST_GUARDIAN_FIELD = "guardianUserId";
+    private static final String APPOINTMENT_REQUEST_MANAGER_FIELD = "managerUserId";
+    private static final String APPOINTMENT_REQUEST_REQUESTER_FIELD = "requesterUserId";
+    private static final String COMPANION_SESSIONS_COLLECTION = "companionSessions";
+    private static final String COMPANION_SESSION_PATIENT_FIELD = "patientUserId";
+    private static final String COMPANION_SESSION_GUARDIAN_FIELD = "guardianUserId";
+    private static final String COMPANION_SESSION_MANAGER_FIELD = "managerUserId";
     private static final List<String> LEGACY_MANAGER_DOCUMENT_PATH_FIELDS = List.of(
             "managerIdCardStoragePath",
             "managerLicenseStoragePath",
@@ -73,23 +82,77 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
                     .document(firebaseUid)
                     .get();
             operations.add(userDocumentFuture);
-            ApiFuture<AggregateQuerySnapshot> clientSupportCountFuture = currentFirestore
-                    .collection(CLIENT_SUPPORT_REQUESTS_COLLECTION)
-                    .whereEqualTo(CLIENT_SUPPORT_REQUEST_USER_FIELD, firebaseUid)
-                    .count()
-                    .get();
-            operations.add(clientSupportCountFuture);
-            ApiFuture<AggregateQuerySnapshot> supportInquiryCountFuture = currentFirestore
-                    .collection(SUPPORT_INQUIRIES_COLLECTION)
-                    .whereEqualTo(SUPPORT_INQUIRY_MANAGER_FIELD, firebaseUid)
-                    .count()
-                    .get();
-            operations.add(supportInquiryCountFuture);
+            ApiFuture<AggregateQuerySnapshot> clientSupportCountFuture = startCount(
+                    currentFirestore,
+                    CLIENT_SUPPORT_REQUESTS_COLLECTION,
+                    CLIENT_SUPPORT_REQUEST_USER_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> supportInquiryCountFuture = startCount(
+                    currentFirestore,
+                    SUPPORT_INQUIRIES_COLLECTION,
+                    SUPPORT_INQUIRY_MANAGER_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> appointmentPatientCountFuture = startCount(
+                    currentFirestore,
+                    APPOINTMENT_REQUESTS_COLLECTION,
+                    APPOINTMENT_REQUEST_PATIENT_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> appointmentGuardianCountFuture = startCount(
+                    currentFirestore,
+                    APPOINTMENT_REQUESTS_COLLECTION,
+                    APPOINTMENT_REQUEST_GUARDIAN_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> appointmentManagerCountFuture = startCount(
+                    currentFirestore,
+                    APPOINTMENT_REQUESTS_COLLECTION,
+                    APPOINTMENT_REQUEST_MANAGER_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> appointmentRequesterCountFuture = startCount(
+                    currentFirestore,
+                    APPOINTMENT_REQUESTS_COLLECTION,
+                    APPOINTMENT_REQUEST_REQUESTER_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> companionPatientCountFuture = startCount(
+                    currentFirestore,
+                    COMPANION_SESSIONS_COLLECTION,
+                    COMPANION_SESSION_PATIENT_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> companionGuardianCountFuture = startCount(
+                    currentFirestore,
+                    COMPANION_SESSIONS_COLLECTION,
+                    COMPANION_SESSION_GUARDIAN_FIELD,
+                    firebaseUid,
+                    operations);
+            ApiFuture<AggregateQuerySnapshot> companionManagerCountFuture = startCount(
+                    currentFirestore,
+                    COMPANION_SESSIONS_COLLECTION,
+                    COMPANION_SESSION_MANAGER_FIELD,
+                    firebaseUid,
+                    operations);
 
             DocumentSnapshot userDocument = await(userDocumentFuture, deadlineNanos);
             long clientSupportRequestCount = await(clientSupportCountFuture, deadlineNanos).getCount();
             long supportInquiryCount = await(supportInquiryCountFuture, deadlineNanos).getCount();
-            return summarize(userDocument, clientSupportRequestCount, supportInquiryCount);
+            FirestoreDirectReferenceImpact directReferences = new FirestoreDirectReferenceImpact(
+                    await(appointmentPatientCountFuture, deadlineNanos).getCount(),
+                    await(appointmentGuardianCountFuture, deadlineNanos).getCount(),
+                    await(appointmentManagerCountFuture, deadlineNanos).getCount(),
+                    await(appointmentRequesterCountFuture, deadlineNanos).getCount(),
+                    await(companionPatientCountFuture, deadlineNanos).getCount(),
+                    await(companionGuardianCountFuture, deadlineNanos).getCount(),
+                    await(companionManagerCountFuture, deadlineNanos).getCount());
+            return summarize(
+                    userDocument,
+                    clientSupportRequestCount,
+                    supportInquiryCount,
+                    directReferences);
         } catch (InterruptedException exception) {
             cancel(operations);
             Thread.currentThread().interrupt();
@@ -98,6 +161,21 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
             cancel(operations);
             throw new SourceAccessException(exception);
         }
+    }
+
+    private ApiFuture<AggregateQuerySnapshot> startCount(
+            Firestore currentFirestore,
+            String collection,
+            String field,
+            String firebaseUid,
+            List<ApiFuture<?>> operations) {
+        ApiFuture<AggregateQuerySnapshot> future = currentFirestore
+                .collection(collection)
+                .whereEqualTo(field, firebaseUid)
+                .count()
+                .get();
+        operations.add(future);
+        return future;
     }
 
     private <T> T await(ApiFuture<T> future, long deadlineNanos) throws Exception {
@@ -148,18 +226,19 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
     private FirestoreImpact summarize(
             DocumentSnapshot snapshot,
             long clientSupportRequestCount,
-            long supportInquiryCount) {
+            long supportInquiryCount,
+            FirestoreDirectReferenceImpact directReferences) {
         if (!snapshot.exists()) {
             return new FirestoreImpact(
                     0, 0, 0, 0, 0, 0,
-                    clientSupportRequestCount, supportInquiryCount);
+                    clientSupportRequestCount, supportInquiryCount, directReferences);
         }
 
         Map<String, Object> data = snapshot.getData();
         if (data == null) {
             return new FirestoreImpact(
                     1, 0, 0, 0, 0, 0,
-                    clientSupportRequestCount, supportInquiryCount);
+                    clientSupportRequestCount, supportInquiryCount, directReferences);
         }
         NotificationTokenInventory tokenInventory = summarizeNotificationTokens(data);
         Map<?, ?> documentMetadata = asMap(data.get("managerDocumentFiles"));
@@ -171,7 +250,8 @@ class FirestoreAccountDeletionImpactRepository implements FirebaseAccountDeletio
                 documentMetadata.size(),
                 countManagerDocumentReferences(data, documentMetadata),
                 clientSupportRequestCount,
-                supportInquiryCount);
+                supportInquiryCount,
+                directReferences);
     }
 
     private NotificationTokenInventory summarizeNotificationTokens(Map<String, Object> data) {

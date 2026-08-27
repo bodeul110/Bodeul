@@ -66,16 +66,40 @@ class DefaultAccountDeletionReadinessService implements AccountDeletionReadiness
         return new SourceInventory(
                 Source.FIRESTORE,
                 SourceStatus.PARTIAL,
-                Map.of(
-                        "userDocuments", impact.userDocumentCount(),
-                        "notificationTokens", impact.notificationTokenCount(),
-                        "notificationTokenEntries", impact.notificationTokenEntryCount(),
-                        "notificationTokenEntryMismatches",
-                        impact.notificationTokenEntryMismatchCount(),
-                        "managerDocumentMetadataEntries", impact.managerDocumentMetadataCount(),
-                        "managerDocumentReferences", impact.managerDocumentReferenceCount(),
-                        "clientSupportRequests", impact.clientSupportRequestCount(),
-                        "supportInquiries", impact.supportInquiryCount()));
+                Map.ofEntries(
+                        Map.entry("userDocuments", impact.userDocumentCount()),
+                        Map.entry("notificationTokens", impact.notificationTokenCount()),
+                        Map.entry("notificationTokenEntries", impact.notificationTokenEntryCount()),
+                        Map.entry(
+                                "notificationTokenEntryMismatches",
+                                impact.notificationTokenEntryMismatchCount()),
+                        Map.entry(
+                                "managerDocumentMetadataEntries",
+                                impact.managerDocumentMetadataCount()),
+                        Map.entry("managerDocumentReferences", impact.managerDocumentReferenceCount()),
+                        Map.entry("clientSupportRequests", impact.clientSupportRequestCount()),
+                        Map.entry("supportInquiries", impact.supportInquiryCount()),
+                        Map.entry(
+                                "appointmentRequestsAsPatient",
+                                impact.directReferences().appointmentRequestPatientCount()),
+                        Map.entry(
+                                "appointmentRequestsAsGuardian",
+                                impact.directReferences().appointmentRequestGuardianCount()),
+                        Map.entry(
+                                "appointmentRequestsAsManager",
+                                impact.directReferences().appointmentRequestManagerCount()),
+                        Map.entry(
+                                "appointmentRequestsAsRequester",
+                                impact.directReferences().appointmentRequestRequesterCount()),
+                        Map.entry(
+                                "companionSessionsAsPatient",
+                                impact.directReferences().companionSessionPatientCount()),
+                        Map.entry(
+                                "companionSessionsAsGuardian",
+                                impact.directReferences().companionSessionGuardianCount()),
+                        Map.entry(
+                                "companionSessionsAsManager",
+                                impact.directReferences().companionSessionManagerCount())));
     }
 
     private SourceInventory inspectPostgres(
