@@ -47,7 +47,9 @@ class DefaultAccountDeletionReadinessServiceTests {
                 .containsEntry("notificationTokenEntries", 2L)
                 .containsEntry("notificationTokenEntryMismatches", 4L)
                 .containsEntry("managerDocumentMetadataEntries", 3L)
-                .containsEntry("managerDocumentReferences", 3L);
+                .containsEntry("managerDocumentReferences", 3L)
+                .containsEntry("clientSupportRequests", 4L)
+                .containsEntry("supportInquiries", 1L);
         assertThat(result.observationCodes()).containsExactly(
                 AccountDeletionReadinessService.ObservationCode.ACTIVE_APPOINTMENT_PRESENT,
                 AccountDeletionReadinessService.ObservationCode.ACTIVE_SESSION_PRESENT);
@@ -152,7 +154,7 @@ class DefaultAccountDeletionReadinessServiceTests {
     }
 
     private FirebaseAccountDeletionImpactRepository.FirestoreImpact firestoreImpact() {
-        return new FirebaseAccountDeletionImpactRepository.FirestoreImpact(1, 2, 2, 4, 3, 3);
+        return new FirebaseAccountDeletionImpactRepository.FirestoreImpact(1, 2, 2, 4, 3, 3, 4, 1);
     }
 
     private AccountDeletionImpactRepository.PostgreSqlImpact impact(

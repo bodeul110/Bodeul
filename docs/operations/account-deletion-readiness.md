@@ -1,6 +1,6 @@
 # 계정 탈퇴·삭제 준비 상태
 
-기준일: 2026-08-26
+기준일: 2026-08-27
 
 ## 작업 목적
 
@@ -25,18 +25,22 @@
 | 출처 | 현재 상태 | 확인 범위 |
 | --- | --- | --- |
 | PostgreSQL | 집계 성공 시 `COMPLETE`, 연결·함수 오류 시 `ERROR` | 프로필, 예약, 세션, 리포트, 후속 처리, 배정 감사, 채팅, 첨부 메타데이터, 읽음과 위치 건수 |
-| Firestore | 본인 사용자 문서 조회 성공 시 `PARTIAL`, 구성·SDK 오류 시 `ERROR` | `users/{firebaseUid}` 정확 조회 1회와 그 문서의 FCM token·매니저 증빙 참조 메타데이터 건수만 확인 |
+| Firestore | 본인 사용자·지원 문서 집계 성공 시 `PARTIAL`, 일부 조회라도 실패하면 `ERROR` | `users/{firebaseUid}` 정확 조회와 `clientSupportRequests.userId`, `supportInquiries.managerUserId` aggregation count 확인 |
 | Firebase Storage | `NOT_EVALUATED` | 첨부·증빙 원본은 아직 미점검 |
 | Firebase Auth | `NOT_EVALUATED` | 최근 재인증, token 폐기와 Auth 사용자 삭제는 아직 미점검 |
 | 백업 | `NOT_EVALUATED` | 삭제 재적용 목록과 복원 후 재활성화 방지는 아직 미점검 |
 
-PostgreSQL 출처가 `COMPLETE`이고 Firestore 출처가 `PARTIAL`이어도 전체 탈퇴 준비가 완료된 것은 아니다. Firestore의 다른 연관 문서, Storage, Firebase Auth와 백업이 남아 있으므로 `INVENTORY_INCOMPLETE`는 항상 포함한다.
+PostgreSQL 출처가 `COMPLETE`이고 Firestore 출처가 `PARTIAL`이어도 전체 탈퇴 준비가 완료된 것은 아니다. Firestore의 전환 잔존·간접 연관 문서, Storage, Firebase Auth와 백업이 남아 있으므로 `INVENTORY_INCOMPLETE`는 항상 포함한다.
 
 ## Firestore 부분 점검 경계
 
-Core API는 요청에서 Firebase UID를 받지 않고 인증된 `AppUser`에 저장된 Firebase UID만 사용한다. 컬렉션 조회나 연관 문서 검색 없이 `users/{firebaseUid}` 문서 한 건만 정확 조회한다.
+Core API는 요청에서 Firebase UID를 받지 않고 인증된 `AppUser`에 저장된 Firebase UID만 사용한다. UID가 비어 있으면 Firestore에 접근하기 전에 오류로 닫는다. `users/{firebaseUid}` 문서는 정확 조회하고, 이용자 문의는 `clientSupportRequests.userId == firebaseUid`, 매니저 문의는 `supportInquiries.managerUserId == firebaseUid` 조건의 aggregation count만 실행한다.
 
-응답에는 사용자 문서 존재 건수, 정규화한 FCM token 수, token 메타데이터 항목·불일치 수, 매니저 증빙 메타데이터 항목 수와 중복 제거된 증빙 경로 참조 수만 포함한다. UID, token, 메타데이터 키, 파일명, Storage 경로와 사용자 문서 원문은 응답이나 로그에 넣지 않는다. 이 단계는 Storage 객체 존재 여부, Firebase Auth 사용자, 지원·심사·전환 잔존 문서와 백업을 확인하지 않으므로 성공해도 `COMPLETE`가 아닌 `PARTIAL`이다.
+응답에는 사용자 문서 존재 건수, 정규화한 FCM token 수, token 메타데이터 항목·불일치 수, 매니저 증빙 메타데이터·경로 참조 수와 두 지원 컬렉션의 문서 건수만 포함한다. aggregation query는 문서 ID, 문의 제목·본문·답변과 다른 필드를 Core API로 가져오지 않는다. UID, token, 메타데이터 키, 파일명, Storage 경로와 사용자 문서 원문은 응답이나 로그에 넣지 않는다.
+
+사용자 문서 조회와 두 aggregation query는 동시에 시작하고 전체 12초 제한을 공유한다. 하나라도 권한, 인덱스, quota, timeout 또는 SDK 오류로 실패하면 성공한 일부 건수를 반환하지 않고 Firestore 출처 전체를 `ERROR`, 빈 counts와 `SOURCE_UNAVAILABLE`로 처리한다. 이 단계는 owner 필드가 없거나 잘못된 legacy 문서, 예약·세션 전환 잔존과 관리자 파생 문서, Storage 객체, Firebase Auth 사용자와 백업을 확인하지 않으므로 성공해도 `COMPLETE`가 아닌 `PARTIAL`이다.
+
+Firebase Admin SDK는 `firestore.rules`가 아니라 런타임 서비스 계정의 IAM으로 조회한다. 모의 SDK 테스트는 쿼리·응답 계약만 검증하며, 개발 Cloud Run 서비스 계정의 aggregation query 권한과 실제 비식별 fixture는 별도 실호출 전까지 미검증이다.
 
 `notificationTokens` 건수는 문자열만 trim한 뒤 빈 값과 중복을 제외해 계산한다. token metadata map key는 Android 저장 계약과 같은 token UTF-8의 Base64 URL·padding 제거 값으로 검증한다. `notificationTokenEntryMismatches`는 아래 다섯 범주의 합계다.
 
@@ -73,7 +77,7 @@ Flyway V15의 `bodeul.account_deletion_postgres_inventory(uuid)` 함수가 집�
 
 ## 선택한 방식과 대안
 
-현재 MVP 규모에서는 실제 삭제 orchestration보다 원문을 노출하지 않는 영향도 API를 먼저 두는 편이 부분 실패와 과삭제 위험을 줄인다. Core runtime에 여러 테이블의 추가 권한을 부여하는 방식은 배정 감사 원문까지 노출하므로 제외하고, 집계 전용 함수 실행 권한만 부여했다. Firestore도 전체 컬렉션을 한 번에 조회하지 않고 인증 principal의 사용자 문서 한 건부터 확인해 읽기 비용과 개인정보 노출 범위를 제한했다.
+현재 MVP 규모에서는 실제 삭제 orchestration보다 원문을 노출하지 않는 영향도 API를 먼저 두는 편이 부분 실패와 과삭제 위험을 줄인다. Core runtime에 여러 테이블의 추가 권한을 부여하는 방식은 배정 감사 원문까지 노출하므로 제외하고, 집계 전용 함수 실행 권한만 부여했다. Firestore도 전체 컬렉션을 읽지 않고 사용자 문서는 exact get, 지원 문서는 aggregation count로 제한해 읽기 비용과 개인정보 노출 범위를 줄였다.
 
 클라이언트가 사용자 ID를 보내게 하는 방식은 다른 계정의 존재와 건수를 조회할 위험이 있어 제외했다. 실제 삭제 API와 `canDelete` 같은 승인값도 정책이 확정되지 않은 상태에서 클라이언트가 삭제 가능으로 오해할 수 있어 이번 범위에 넣지 않았다.
 
@@ -82,15 +86,17 @@ Flyway V15의 `bodeul.account_deletion_postgres_inventory(uuid)` 함수가 집�
 - 인증이 없으면 401이며 다른 사용자 ID를 지정할 입력이 없다.
 - 응답은 읽기 전용·미판정·미완료 상태를 유지하고 민감 식별자를 포함하지 않는다.
 - PostgreSQL 연결 또는 함수 오류는 `SOURCE_UNAVAILABLE`로 닫힌다.
-- Firestore는 인증 principal의 Firebase UID로 `users` 문서 한 건만 읽고, 구성·SDK 오류는 원문 없이 `ERROR`와 `SOURCE_UNAVAILABLE`로 닫힌다.
-- Firestore 집계 결과는 UID, token, 파일명, Storage 경로와 원문 없이 건수만 반환하며 성공해도 `PARTIAL`을 유지한다.
+- Firestore는 인증 principal의 Firebase UID로 사용자 문서를 정확 조회하고, 두 지원 컬렉션은 허용된 owner 필드의 aggregation count만 실행한다.
+- 사용자 문서 또는 지원 집계 중 하나라도 실패하면 원문 없이 `ERROR`, 빈 counts와 `SOURCE_UNAVAILABLE`로 닫힌다.
+- Firestore 집계 결과는 UID, token, 문서 ID, 문의 원문, 파일명과 Storage 경로 없이 건수만 반환하며 성공해도 `PARTIAL`을 유지한다.
 - migration은 집계 함수 외 DML 권한을 추가하지 않고 rollback은 해당 함수만 제거한다.
 - 개발·운영 migration workflow는 Flyway 적용 뒤 함수 소유·고정 경로, 실제 Core/Admin 서비스 역할의 최소 실행 권한, Core 서비스의 배정 감사 원문 차단과 합성 UUID 0건 결과를 읽기 전용 트랜잭션에서 확인한다.
 - Core API 전체 테스트를 통과해야 한다.
 
 ## 남은 범위
 
-- Firestore의 지원·심사·전환 잔존 연관 문서, Storage, Firebase Auth와 백업 영향도 점검기
+- Firestore 예약·세션 전환 잔존과 관리자 파생·간접 연관 문서, Storage, Firebase Auth와 백업 영향도 점검기
+- 개발 Cloud Run 서비스 계정과 비식별 fixture를 사용한 Firestore aggregation 실호출
 - 최근 재인증과 token 폐기 확인
 - 법정 보존자료 분리, tombstone·비식별화와 FK 처리 방식
 - legal hold 존재 여부를 사용자에게 공개할지에 대한 정책·법률 확인
