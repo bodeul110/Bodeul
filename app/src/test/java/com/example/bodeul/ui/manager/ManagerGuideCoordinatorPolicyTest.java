@@ -132,7 +132,7 @@ public class ManagerGuideCoordinatorPolicyTest {
     }
 
     @Test
-    public void additiveSnapshot_routesJournalToAdvanceAndActualLastStepToReport() {
+    public void additiveSnapshot_screenModelHidesJournalReportUntilActualLastStep() {
         GuideStep journal = new GuideStep(
                 "MANAGER_JOURNAL",
                 13,
@@ -165,6 +165,10 @@ public class ManagerGuideCoordinatorPolicyTest {
                 ManagerGuidePrimaryAction.ADVANCE,
                 ManagerGuideCoordinator.resolvePrimaryAction(journalDecision));
         assertTrue(ManagerGuideCoordinator.isPrimaryActionEnabled(journalDecision));
+        assertFalse(ManagerGuideCoordinator.resolveSectionVisibility(
+                journalFocus,
+                ManagerGuideCoordinator.resolvePrimaryAction(journalDecision))
+                .hasReportSection());
 
         CompanionSession extensionSession = createSession(14);
         extensionSession.applyServerGuideProgress(
@@ -181,8 +185,9 @@ public class ManagerGuideCoordinatorPolicyTest {
                 ManagerGuidePrimaryAction.SUBMIT_REPORT,
                 ManagerGuideCoordinator.resolvePrimaryAction(extensionDecision));
         assertTrue(ManagerGuideCoordinator.isPrimaryActionEnabled(extensionDecision));
-        assertTrue(ManagerGuideSectionVisibility.forStep(extensionFocus)
-                .withReportSection()
+        assertTrue(ManagerGuideCoordinator.resolveSectionVisibility(
+                extensionFocus,
+                ManagerGuideCoordinator.resolvePrimaryAction(extensionDecision))
                 .hasReportSection());
     }
 

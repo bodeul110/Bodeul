@@ -68,7 +68,8 @@ final class ManagerGuideSectionVisibility {
             case "CARE_COMPLETION":
                 return of(false, false, true, false, false, false, false, false, false);
             case "MANAGER_JOURNAL":
-                return of(false, false, false, false, false, false, true, true, true);
+                // 리포트 입력은 서버가 LAST_STEP으로 판정한 경우에만 화면 모델에서 추가한다.
+                return only();
             case "LEGACY_CORE_PATIENT_CONTACT":
                 return of(true, true, false, false, false, false, false, false, false);
             case "LEGACY_CORE_RECEPTION_PREPARATION":
@@ -80,7 +81,7 @@ final class ManagerGuideSectionVisibility {
             case "LEGACY_CORE_PHARMACY":
                 return of(true, false, false, false, true, true, false, false, false);
             case "LEGACY_CORE_RETURN_AND_CLOSE":
-                return of(false, false, true, false, false, false, true, true, true);
+                return of(false, false, true, false, false, false, false, false, false);
             default:
                 // 유효하지만 아직 모르는 서버 단계는 순번으로 의미를 추정하지 않는다.
                 return commonFieldNote();
@@ -103,7 +104,7 @@ final class ManagerGuideSectionVisibility {
             case 6:
                 return of(true, false, false, false, true, true, false, false, false);
             case 7:
-                return of(false, false, true, false, false, false, true, true, true);
+                return of(false, false, true, false, false, false, false, false, false);
             default:
                 return commonFieldNote();
         }

@@ -26,9 +26,7 @@ public class ManagerGuideSectionVisibilityTest {
         assertTrue(medication.isPharmacyVisible());
         assertFalse(medication.hasReportSection());
 
-        assertTrue(journal.isReportSummaryVisible());
-        assertTrue(journal.isReportMedicationVisible());
-        assertTrue(journal.isNextVisitVisible());
+        assertFalse(journal.hasReportSection());
     }
 
     @Test
@@ -52,7 +50,7 @@ public class ManagerGuideSectionVisibilityTest {
         assertTrue(legacyFirst.isMapVisible());
         assertTrue(legacyFirst.isLocationVisible());
         assertTrue(legacyFinal.isGuardianVisible());
-        assertTrue(legacyFinal.hasReportSection());
+        assertFalse(legacyFinal.hasReportSection());
     }
 
     @Test

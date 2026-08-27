@@ -50,10 +50,7 @@ public final class ManagerGuideCoordinator {
                         dashboard.getHospitalGuide().getSteps().size());
         ManagerGuidePrimaryAction primaryAction = resolvePrimaryAction(advanceDecision);
         ManagerGuideSectionVisibility sectionVisibility =
-                ManagerGuideSectionVisibility.forStep(focusStep);
-        if (primaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
-            sectionVisibility = sectionVisibility.withReportSection();
-        }
+                resolveSectionVisibility(focusStep, primaryAction);
 
         return new ManagerGuideScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
@@ -362,6 +359,18 @@ public final class ManagerGuideCoordinator {
             default:
                 return ManagerGuidePrimaryAction.NONE;
         }
+    }
+
+    static ManagerGuideSectionVisibility resolveSectionVisibility(
+            GuideStep focusStep,
+            ManagerGuidePrimaryAction primaryAction
+    ) {
+        ManagerGuideSectionVisibility visibility =
+                ManagerGuideSectionVisibility.forStep(focusStep);
+        if (primaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
+            return visibility.withReportSection();
+        }
+        return visibility;
     }
 
     static boolean isPrimaryActionEnabled(ManagerGuideProgressPolicy.Decision decision) {
