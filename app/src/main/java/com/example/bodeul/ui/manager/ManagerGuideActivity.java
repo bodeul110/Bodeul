@@ -444,9 +444,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     WindowInsetsCompat.Type.navigationBars()
             );
             view.setPadding(
-                    initialLeftPadding,
+                    initialLeftPadding + navigationInsets.left,
                     initialTopPadding,
-                    initialRightPadding,
+                    initialRightPadding + navigationInsets.right,
                     initialBottomPadding + navigationInsets.bottom
             );
             return windowInsets;
