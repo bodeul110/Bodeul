@@ -104,6 +104,8 @@ V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약
 
 `/api/companion-sessions`는 환자·보호자에게 연결된 세션과 리포트를 읽기 전용으로 제공하고, 배정된 매니저에게만 현장 메모·단계·리포트 쓰기를 허용한다. 모든 쓰기는 응답의 `version`을 요구한다. 단계 목록과 진행 한계는 V14가 세션 생성 시 고정한 `guide_steps_snapshot`에서 계산하며 이후 병원 가이드 수정의 영향을 받지 않는다. 응답은 기존 필드와 함께 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 제공한다.
 
+V16의 진료 전 확인값 저장은 롤링 배포 호환을 위해 서버 진행 차단과 분리한다. `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT`의 기본값은 `false`이며, 이 상태에서는 구버전 앱도 기존처럼 진행할 수 있다. V16 migration과 Core API를 먼저 배포하고 새 Android의 저장·재진입을 검증한 뒤 별도 승인을 받아 `true`로 바꾼다. 설정을 켜면 서비스의 `STEP_INPUT_REQUIRED` 판정과 repository의 동시 진행 방지 SQL 조건이 함께 적용된다.
+
 리포트 저장은 예약과 세션을 함께 `COMPLETED`로 바꾸며, 매칭된 예약 취소는 활성 세션을 함께 `CANCELED`로 바꾼다. 어느 한쪽 갱신이라도 실패하면 Spring transaction 전체를 rollback한다.
 
 ## 연결 원칙

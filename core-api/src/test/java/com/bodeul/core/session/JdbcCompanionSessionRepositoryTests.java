@@ -37,7 +37,10 @@ class JdbcCompanionSessionRepositoryTests {
     @BeforeEach
     void setUp() {
         jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
-        repository = new JdbcCompanionSessionRepository(jdbcTemplate, new ObjectMapper());
+        repository = new JdbcCompanionSessionRepository(
+                jdbcTemplate,
+                new ObjectMapper(),
+                properties(false));
     }
 
     @Test
@@ -106,9 +109,10 @@ class JdbcCompanionSessionRepositoryTests {
         repository.advance(SESSION_ID, MANAGER_ID, 3, APPOINTMENT_ID);
 
         var sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        var parameters = org.mockito.ArgumentCaptor.forClass(MapSqlParameterSource.class);
         verify(jdbcTemplate, times(2)).update(
                 sql.capture(),
-                any(MapSqlParameterSource.class));
+                parameters.capture());
         assertThat(sql.getAllValues().get(1))
                 .contains("version = :expectedVersion")
                 .contains("current_status not in ('COMPLETED', 'CANCELED')")
@@ -117,8 +121,33 @@ class JdbcCompanionSessionRepositoryTests {
                 .contains("guide_snapshot_source = 'HOSPITAL_GUIDE_STEP_CODE_V1'")
                 .contains("guide_snapshot_source = 'LEGACY_CORE_7_V1'")
                 .contains("bodeul.is_valid_guide_steps_v1(guide_steps_snapshot)")
+                .contains("not :preConsultationEnforcement")
                 .contains("<> 'PRE_CONSULTATION'")
                 .contains("or pre_consultation_confirmed");
+        assertThat(parameters.getAllValues().get(1).getValue("preConsultationEnforcement"))
+                .isEqualTo(false);
+    }
+
+    @Test
+    void enabledPreConsultationEnforcementIsBoundToRaceSafeAdvanceGuard() {
+        repository = new JdbcCompanionSessionRepository(
+                jdbcTemplate,
+                new ObjectMapper(),
+                properties(true));
+        when(jdbcTemplate.update(anyString(), any(MapSqlParameterSource.class)))
+                .thenReturn(1, 0);
+
+        repository.advance(SESSION_ID, MANAGER_ID, 3, APPOINTMENT_ID);
+
+        var sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        var parameters = org.mockito.ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbcTemplate, times(2)).update(sql.capture(), parameters.capture());
+        assertThat(sql.getAllValues().get(1))
+                .contains("not :preConsultationEnforcement")
+                .contains("<> 'PRE_CONSULTATION'")
+                .contains("or pre_consultation_confirmed");
+        assertThat(parameters.getAllValues().get(1).getValue("preConsultationEnforcement"))
+                .isEqualTo(true);
     }
 
     private ResultSet resultSetWithSnapshot(String snapshotJson, Long revision) throws Exception {
@@ -137,6 +166,12 @@ class JdbcCompanionSessionRepositoryTests {
         when(resultSet.getInt("total_step_count")).thenReturn(snapshotJson.equals("[]") ? 0 : 14);
         when(resultSet.getString("current_status")).thenReturn("READY");
         return resultSet;
+    }
+
+    private CompanionSessionProperties properties(boolean preConsultationEnforcement) {
+        CompanionSessionProperties properties = new CompanionSessionProperties();
+        properties.setPreConsultationEnforcement(preConsultationEnforcement);
+        return properties;
     }
 
     private String snapshotJson(int count) throws Exception {

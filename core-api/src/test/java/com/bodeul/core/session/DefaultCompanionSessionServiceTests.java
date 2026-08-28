@@ -54,7 +54,7 @@ class DefaultCompanionSessionServiceTests {
         repository = new FakeCompanionSessionRepository();
         events = new ArrayList<>();
         repository.session = Optional.of(session("IN_TREATMENT", 2, 5, 3));
-        service = new DefaultCompanionSessionService(repository, events::add);
+        service = new DefaultCompanionSessionService(repository, events::add, properties(false));
     }
 
     @Test
@@ -124,7 +124,7 @@ class DefaultCompanionSessionServiceTests {
     }
 
     @Test
-    void preConsultationRequiresPersistedConfirmationBeforeAdvance() {
+    void disabledPreConsultationEnforcementAllowsExistingAppToAdvance() {
         List<CompanionSessionRepository.GuideStepRecord> steps = guideSteps(3);
         steps.set(1, new CompanionSessionRepository.GuideStepRecord(
                 "PRE_CONSULTATION",
@@ -139,18 +139,48 @@ class DefaultCompanionSessionServiceTests {
                 hospitalGuideSnapshot(steps),
                 false));
 
-        var blocked = service.getSession(manager(), SESSION_ID);
+        var current = service.getSession(manager(), SESSION_ID);
+
+        assertThat(current.preConsultationConfirmed()).isFalse();
+        assertThat(current.canAdvance()).isTrue();
+        assertThat(current.blockedReason()).isNull();
+
+        var advanced = service.advanceSession(manager(), SESSION_ID, 3);
+
+        assertThat(advanced.currentStepOrder()).isEqualTo(3);
+        assertThat(repository.advanceCount).isEqualTo(1);
+    }
+
+    @Test
+    void enabledPreConsultationEnforcementRequiresPersistedConfirmationBeforeAdvance() {
+        List<CompanionSessionRepository.GuideStepRecord> steps = guideSteps(3);
+        steps.set(1, new CompanionSessionRepository.GuideStepRecord(
+                "PRE_CONSULTATION",
+                2,
+                "진료 전 확인",
+                "증상과 질문을 확인합니다."));
+        repository.session = Optional.of(session(
+                "WAITING",
+                2,
+                3,
+                3,
+                hospitalGuideSnapshot(steps),
+                false));
+        DefaultCompanionSessionService enforcedService =
+                new DefaultCompanionSessionService(repository, events::add, properties(true));
+
+        var blocked = enforcedService.getSession(manager(), SESSION_ID);
 
         assertThat(blocked.preConsultationConfirmed()).isFalse();
         assertThat(blocked.canAdvance()).isFalse();
         assertThat(blocked.blockedReason()).isEqualTo("STEP_INPUT_REQUIRED");
-        assertThatThrownBy(() -> service.advanceSession(manager(), SESSION_ID, 3))
+        assertThatThrownBy(() -> enforcedService.advanceSession(manager(), SESSION_ID, 3))
                 .isInstanceOf(CompanionSessionException.class)
                 .extracting(exception -> ((CompanionSessionException) exception).error())
                 .isEqualTo("companion_session_state_conflict");
         assertThat(repository.advanceCount).isZero();
 
-        var confirmed = service.updateSession(
+        var confirmed = enforcedService.updateSession(
                 manager(),
                 SESSION_ID,
                 new CompanionSessionService.UpdateSessionCommand(
@@ -171,7 +201,7 @@ class DefaultCompanionSessionServiceTests {
         assertThat(confirmed.canAdvance()).isTrue();
         assertThat(confirmed.blockedReason()).isNull();
 
-        var advanced = service.advanceSession(manager(), SESSION_ID, confirmed.version());
+        var advanced = enforcedService.advanceSession(manager(), SESSION_ID, confirmed.version());
         assertThat(advanced.currentStepOrder()).isEqualTo(3);
         assertThat(repository.advanceCount).isEqualTo(1);
     }
@@ -185,6 +215,12 @@ class DefaultCompanionSessionServiceTests {
                 .isInstanceOf(CompanionSessionException.class)
                 .extracting(exception -> ((CompanionSessionException) exception).error())
                 .isEqualTo("invalid_companion_session_request");
+    }
+
+    private CompanionSessionProperties properties(boolean preConsultationEnforcement) {
+        CompanionSessionProperties properties = new CompanionSessionProperties();
+        properties.setPreConsultationEnforcement(preConsultationEnforcement);
+        return properties;
     }
 
     @Test

@@ -50,12 +50,15 @@ class DefaultCompanionSessionService implements CompanionSessionService {
 
     private final CompanionSessionRepository sessionRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final boolean preConsultationEnforcement;
 
     DefaultCompanionSessionService(
             CompanionSessionRepository sessionRepository,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            CompanionSessionProperties properties) {
         this.sessionRepository = sessionRepository;
         this.eventPublisher = eventPublisher;
+        this.preConsultationEnforcement = properties.isPreConsultationEnforcement();
     }
 
     @Override
@@ -393,7 +396,8 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         if (contractBlock != null) {
             return new ProgressState(null, false, contractBlock);
         }
-        if (PRE_CONSULTATION.equals(currentStepCode)
+        if (preConsultationEnforcement
+                && PRE_CONSULTATION.equals(currentStepCode)
                 && !session.preConsultationConfirmed()) {
             return new ProgressState(currentStepCode, false, STEP_INPUT_REQUIRED);
         }

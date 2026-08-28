@@ -281,8 +281,9 @@ Kakao 키만 회전할 때는 DB 자격 증명을 다시 입력하지 않고 대
 - `KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION=1`
 - `FIREBASE_PROJECT_ID=bodeul-dev`
 - `FIREBASE_PROJECT_NUMBER=533563500316`
+- `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=false`
 
-`FIREBASE_PROJECT_NUMBER`는 token issuer와 audience를 제한하기 위한 공개 project 식별자이며 secret으로 저장하지 않는다. 배포 workflow가 `BODEUL_APP_CHECK_MODE=observe`를 Cloud Run 환경변수로 주입한다.
+`FIREBASE_PROJECT_NUMBER`는 token issuer와 audience를 제한하기 위한 공개 project 식별자이며 secret으로 저장하지 않는다. 배포 workflow가 `BODEUL_APP_CHECK_MODE=observe`를 Cloud Run 환경변수로 주입한다. 진료 전 확인 서버 차단은 Android 보급 전이므로 `false`를 유지한다.
 
 `OCI_REGION`, `CORE_API_SERVICE_NAME` 같은 OCI 변수는 제거한다. `core-api-production`에는 실제 GCP/Firebase 식별자와 DB secret version만 등록했고 Kakao version은 비워 뒀다. `core-api-migration-production`에는 별도 production migration 자격 증명을 등록했다.
 
@@ -304,8 +305,21 @@ production 리소스 생성 후 다음 값만 등록한다. DB URL과 비밀번�
 - `FIREBASE_PROJECT_ID=bodeul-prod-110`
 - `FIREBASE_PROJECT_NUMBER=649312328770`
 - `BODEUL_APP_CHECK_MODE=observe`
+- `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=false`
 
 첫 release 요청이 정상 App Check 판정을 받고 rollback을 재현한 뒤 `BODEUL_APP_CHECK_MODE=enforce`로 변경한다. DB version을 포함한 공개 Variables는 등록했지만 `KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION`이 없으므로 production workflow는 인증 전에 fail-closed다.
+
+### 진료 전 확인 점진적 적용
+
+`BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT`는 V16 schema 적용 여부가 아니라 미확인 세션의 서버 진행 차단 여부만 제어한다. Core API가 열을 항상 조회하고 PATCH하므로 설정이 `false`여도 V16 migration은 먼저 필요하다.
+
+1. V16 migration과 검증 SQL을 적용한다.
+2. preview와 production GitHub Environment의 값을 `false`로 둔 채 Core API를 배포한다.
+3. 확인 상태 저장·해제·재진입을 지원하는 Android를 보급하고 실제 기기에서 검증한다.
+4. 구버전 잔존율과 rollback 경로를 확인하고 별도 승인을 받는다.
+5. preview를 `true`로 바꾸어 `STEP_INPUT_REQUIRED`와 동시 advance 차단을 검증한 뒤 production 전환을 별도로 승인한다.
+
+문제가 생기면 값을 `false`로 되돌려 Core API를 다시 배포한다. DB 열은 상태 저장과 롤링 호환에 계속 필요하므로 애플리케이션보다 먼저 rollback하지 않는다. 이번 구현 시점에는 preview와 production 모두 서버 차단을 켜지 않는다.
 
 ## 최초 서비스 공개
 

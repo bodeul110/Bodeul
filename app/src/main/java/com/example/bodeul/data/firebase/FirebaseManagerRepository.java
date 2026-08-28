@@ -328,9 +328,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             boolean preConsultationConfirmed,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("preConsultationConfirmed", preConsultationConfirmed);
-        updateSessionFields(managerUserId, updates, callback);
+        callback.onError("진료 전 확인 저장에는 Core API 연결이 필요합니다.");
     }
 
     @Override

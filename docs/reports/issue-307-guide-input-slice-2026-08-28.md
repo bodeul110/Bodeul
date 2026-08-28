@@ -16,7 +16,7 @@
 
 ### 선택한 방식
 
-PostgreSQL 세션에 `pre_consultation_confirmed`를 저장하고, Core API가 현재 단계 코드와 저장값을 함께 검사해 미확인 상태를 `STEP_INPUT_REQUIRED`로 반환한다. Android는 체크 상태를 저장·해제하고 서버 재조회 결과를 다시 표시한다.
+PostgreSQL 세션에 `pre_consultation_confirmed`를 저장하고 Android가 체크 상태를 저장·해제한 뒤 서버 재조회 결과를 다시 표시한다. Core API의 `STEP_INPUT_REQUIRED` 판정과 동시 진행 차단은 `bodeul.session.pre-consultation-enforcement` 설정 뒤에 두고 기본값을 `false`로 유지한다.
 
 ### 대안
 
@@ -24,21 +24,21 @@ Android 로컬 상태만으로 버튼을 막거나, 기존 자유 메모의 비�
 
 ### 선택 이유
 
-로컬 상태는 앱 재시작과 다른 기기 재진입을 견디지 못하고, 자유 메모는 승인된 `필수 확인`과 의미가 다르다. 현재 세션 source of truth인 PostgreSQL과 Core API가 진행 조건을 판정해야 동시 요청에서도 같은 결과를 보장할 수 있다.
+로컬 상태는 앱 재시작과 다른 기기 재진입을 견디지 못하고, 자유 메모는 승인된 `필수 확인`과 의미가 다르다. 확인값은 현재 세션 source of truth인 PostgreSQL에 저장한다. 다만 구버전 앱이 확인값을 보낼 수 없으므로 서버 차단은 Android 보급과 검증 뒤 별도 승인으로 켜야 한다.
 
 ### 리스크
 
-- V16 migration, Core API, Android 순서로 배포해야 구버전 서버와 새 앱의 계약 불일치를 피할 수 있다.
+- V16 migration과 Core API를 서버 차단 `false` 상태로 먼저 배포하고 Android를 보급·검증한 뒤, 별도 승인으로 서버 차단을 켜야 한다. 이번 변경에서는 설정을 켜지 않는다.
 - 현재 확인값은 전체 확인 여부 한 개만 저장한다. 항목별 체크 이력이나 확인 시각이 필요해지면 별도 계약이 필요하다.
 - 개발 DB와 실제 기기에서의 재진입 검증은 이 코드 검증과 별도로 수행해야 한다.
 
 ## 구현한 내용
 
 - V16 migration, rollback, verification SQL과 runtime role의 열 단위 UPDATE 권한을 추가했다.
-- Core API PATCH 응답과 진행 판정에 확인 상태를 연결하고, 현재 단계가 `PRE_CONSULTATION`일 때만 상태를 수정하도록 제한했다.
-- repository advance SQL에도 확인 조건을 넣어 조회 뒤 동시 요청으로 우회하지 못하게 했다.
-- Android Core API, Firebase 호환 경로와 Mock 저장소가 확인 상태를 저장·복원한다.
-- 가이드 5 화면에 되돌릴 수 있는 확인 체크를 추가하고, 미확인 안내와 비활성 진행 버튼을 표시한다.
+- Core API PATCH 응답에 확인 상태를 연결하고, 현재 단계가 `PRE_CONSULTATION`일 때만 상태를 수정하도록 제한했다.
+- Core API 진행 판정과 repository advance SQL의 확인 조건을 같은 기본 비활성 설정으로 감쌌다. 설정을 켠 뒤에는 조회와 쓰기 사이 동시 요청도 SQL에서 다시 확인한다.
+- Android Core API 경로와 개발용 Mock 저장소가 확인 상태를 저장·복원한다. Firebase mapper는 기존 문서의 확인값을 읽을 수 있지만 Rules가 세션 직접 수정을 거부하므로 Firebase 저장은 지원하지 않고 Core API 필요 오류를 반환한다.
+- 가이드 5 화면에 되돌릴 수 있는 확인 체크를 추가하고, 미확인 안내와 비활성 진행 버튼을 표시한다. 체크 변경 요청을 보내는 즉시 체크와 진행 버튼을 비활성화해 저장 중 이전 진행 상태를 누르지 못하게 했다.
 - 선택 현장 메모는 빈 문자열 저장을 허용해 이전 값을 지울 수 있고, 숫자 `0`으로 대체하지 않는다.
 
 ## 함께 확인한 승인 범위
@@ -52,15 +52,20 @@ Android 로컬 상태만으로 버튼을 막거나, 기존 자유 메모의 비�
 ## 검증
 
 - Core API 동행 세션 대상 테스트: 통과
+- 서버 차단 기본 `false`와 명시적 `true`, SQL guard 파라미터, 설정 binding 테스트: 통과
+- V16 migration contract 테스트: 통과
 - 전체 Core API `check`: 통과
-- Android `ManagerGuideCoordinatorPolicyTest`, `CoreApiCompanionSessionClientTest`: 통과
+- Android `ManagerGuideCoordinatorPolicyTest`, `CoreApiCompanionSessionClientTest`, Firebase 직접 쓰기 거부 테스트: 통과
 - Android 전체 `testDebugUnitTest`: 통과
 - Android `assembleDebug`: 통과
+- Core API preview·production workflow YAML 파싱: 통과
 - 실제 개발 DB V16 적용과 실기기 재진입: 미실행
+- production 서버 진행 차단: 기본값 `false`, 활성화하지 않음
 
 ## 남은 범위
 
 - #307은 가이드 2·3·6·8·10·12·13의 정책이 남아 있어 닫지 않는다.
+- 배포는 V16 migration, Core API(`BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=false`), Android 보급·검증 순서로 진행한다. 서버 차단을 `true`로 바꾸는 작업은 별도 승인과 구버전 잔존율 확인 뒤 수행한다.
 - 가이드 10은 파일 저장·권한·보존 계약을 먼저 확정한다.
 - 가이드 13은 전용 일지 필드, 필수 여부와 최종 완료 전이를 함께 확정한다.
 - 사고·중단, 결제 증빙, `CARE_ENDED`와 `COMPLETED`는 별도 승인 전 구현하지 않는다.

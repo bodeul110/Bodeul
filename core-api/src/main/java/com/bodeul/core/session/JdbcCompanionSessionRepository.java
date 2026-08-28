@@ -89,13 +89,16 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final RowMapper<SessionRecord> sessionMapper;
+    private final boolean preConsultationEnforcement;
 
     JdbcCompanionSessionRepository(
             NamedParameterJdbcTemplate jdbcTemplate,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            CompanionSessionProperties properties) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.sessionMapper = (resultSet, rowNumber) -> mapSession(resultSet);
+        this.preConsultationEnforcement = properties.isPreConsultationEnforcement();
     }
 
     @Override
@@ -241,7 +244,8 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                   )
                   and bodeul.is_valid_guide_steps_v1(guide_steps_snapshot)
                   and (
-                      current_step_order = 0
+                      not :preConsultationEnforcement
+                      or current_step_order = 0
                       or guide_steps_snapshot -> (current_step_order - 1) ->> 'code'
                           <> 'PRE_CONSULTATION'
                       or pre_consultation_confirmed
@@ -250,7 +254,8 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
         int updated = jdbcTemplate.update(sql, new MapSqlParameterSource()
                 .addValue("sessionId", sessionId)
                 .addValue("managerUserId", managerUserId)
-                .addValue("expectedVersion", expectedVersion));
+                .addValue("expectedVersion", expectedVersion)
+                .addValue("preConsultationEnforcement", preConsultationEnforcement));
         return updated == 1 ? findById(sessionId) : Optional.empty();
     }
 

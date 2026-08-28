@@ -2,7 +2,7 @@
 
 기준일: 2026-08-28
 
-상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 5의 필수 확인은 Flyway V16, Core API 진행 차단과 Android 확인·재진입 UI로 구현했다. 가이드 9의 카카오맵 외부 검색을 분리했으며, 나머지 전용 입력 화면과 단계 이벤트는 아직 적용하지 않았다.
+상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 5의 필수 확인은 Flyway V16과 Android 확인·재진입 UI로 준비했다. Core API 진행 차단은 구버전 앱 호환을 위해 기본 비활성 설정 뒤에 있으며 아직 운영에서 켜지 않는다. 가이드 9의 카카오맵 외부 검색을 분리했으며, 나머지 전용 입력 화면과 단계 이벤트는 아직 적용하지 않았다.
 
 ## 검증 기준
 
@@ -175,7 +175,7 @@ PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `c
 | 2 | `location_summary`와 위치 이력은 있으나 Route·checkpoint 없음 | 위치 기록과 범용 메모만 제공 | 지도·외부 카카오맵은 있으나 2개 Route 진행 상태 없음 | 로비·진료과 checkpoint와 다음 단계 제한 |
 | 3 | 전용 대기번호 필드 없음 | `guardian_update`에 자유 메모만 가능 | 대기번호 형식·저장 UI 없음 | 문자열 대기번호와 보호자 표시 계약 |
 | 4 | 구조화된 기초 측정 필드 없음 | 범용 메모 외 검증 없음 | 단계별 측정 폼 없음 | 측정 항목·단위와 선택 입력 계약 |
-| 5 | V16 `pre_consultation_confirmed`가 확인 상태를 저장 | 미확인 시 `STEP_INPUT_REQUIRED`로 `/advance`를 차단하고 확인 상태 변경을 현재 단계에서만 허용 | 확인 체크를 저장·해제할 수 있고 재조회·재진입 때 서버 값을 복원 | 확인 항목 자체의 구조화가 필요해지면 별도 checklist 계약으로 확장 |
+| 5 | V16 `pre_consultation_confirmed`가 확인 상태를 저장 | 확인 상태 변경은 현재 단계에서만 허용한다. `bodeul.session.pre-consultation-enforcement=true`일 때만 미확인 상태를 `STEP_INPUT_REQUIRED`로 반환하고 `/advance` SQL도 다시 차단한다. 기본값은 `false`다. | 확인 체크를 Core API로 저장·해제하고 재조회·재진입 때 서버 값을 복원한다. 새 앱은 서버 차단이 꺼져 있어도 화면에서 미확인 진행을 막는다. | Android 보급·검증과 별도 승인 뒤 서버 설정을 켠다. 확인 항목 자체의 구조화가 필요해지면 별도 checklist 계약으로 확장 |
 | 6 | `guardian_update`, `field_photo_note`만 있음 | PATCH 메모는 가능하나 진료 완료 이벤트 없음 | 공통 메모 입력을 제공 | 진료 완료와 요약 작성 시작 경계 |
 | 7 | `session_reports.summary`, `treatment_notes`가 있음 | 리포트 PUT이 세션 최종 완료까지 함께 처리 | 요약 입력은 있으나 중간 확정 단계와 분리되지 않음 | 중간 요약 저장과 최종 완료 분리 |
 | 8 | `PAYMENT` 상태 외 결제 증빙 전용 행·경로 없음 | 전용 upload·metadata API 없음 | 전용 증빙 업로드 화면 없음 | 용도별 Storage 경로·인가·파기와 metadata |
@@ -214,12 +214,12 @@ Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 아�
 | `SESSION_TERMINAL` | 세션이 `COMPLETED` 또는 `CANCELED`라 더 진행할 수 없음 |
 | `GUIDE_NOT_READY` | snapshot이 없거나 비어 있고, 가이드를 찾지 못했거나 legacy 원본이 미확정임 |
 | `STEP_CONTRACT_MISMATCH` | 코드 계약을 지원하지 않거나 order·code·현재 순번이 snapshot과 일치하지 않음 |
-| `STEP_INPUT_REQUIRED` | `PRE_CONSULTATION`에서 필수 확인을 저장하지 않아 다음 단계로 진행할 수 없음 |
+| `STEP_INPUT_REQUIRED` | 서버 진행 차단 설정이 켜진 상태에서 `PRE_CONSULTATION` 필수 확인을 저장하지 않아 다음 단계로 진행할 수 없음 |
 | `LAST_STEP_REACHED` | 현재 순번이 snapshot의 마지막 단계임 |
 
 진행 가능한 경우 `blockedReason`은 `null`이다. `currentStepOrder=0`은 가이드 진입 전이므로 `currentStepCode=null`이고, `1..N`은 `steps[order-1].code`와 일치해야 한다. 유효한 형식의 unknown code는 일반 단계로 보존하며 차단 사유로 사용하지 않는다.
 
-Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에 없는 이벤트를 로컬 완료로 간주하지 않는다.
+Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에 없는 이벤트를 로컬 완료로 간주하지 않는다. 새 Android는 서버 진행 차단 설정이 꺼진 롤링 배포 기간에도 `PRE_CONSULTATION` 미확인 상태를 로컬 정책으로 차단한다. 서버 설정을 켜기 전까지 구버전 앱의 진행은 호환을 위해 허용된다.
 
 ## 단계 수와 알 수 없는 코드 처리
 

@@ -77,6 +77,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputGuardianUpdate;
     private TextInputEditText inputGuidePhotoNote;
     private MaterialCheckBox checkGuidePreConsultationConfirmed;
+    private MaterialButton buttonAdvanceGuide;
     private TextInputEditText inputMedicationNote;
     private TextInputEditText inputPharmacySummary;
     private TextInputEditText inputReportSummary;
@@ -130,6 +131,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         inputGuidePhotoNote = findViewById(R.id.inputGuidePhotoNote);
         checkGuidePreConsultationConfirmed = findViewById(
                 R.id.checkGuidePreConsultationConfirmed);
+        buttonAdvanceGuide = findViewById(R.id.buttonAdvanceGuide);
         inputMedicationNote = findViewById(R.id.inputMedicationNote);
         inputPharmacySummary = findViewById(R.id.inputPharmacySummary);
         inputReportSummary = findViewById(R.id.inputReportSummary);
@@ -182,7 +184,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.radioMedicationComparisonRecheck),
                 inputReportMedicationComparisonNote,
                 inputNextVisit,
-                (MaterialButton) findViewById(R.id.buttonAdvanceGuide),
+                buttonAdvanceGuide,
                 (MaterialButton) findViewById(R.id.buttonSaveLocationSummary),
                 (MaterialButton) findViewById(R.id.buttonShareCurrentLocation),
                 (MaterialButton) findViewById(R.id.buttonStartLiveLocationSharing),
@@ -198,12 +200,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> performPrimaryAction());
+        buttonAdvanceGuide.setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
         checkGuidePreConsultationConfirmed.setOnCheckedChangeListener((button, checked) -> {
             if (!bindingPreConsultationConfirmation) {
+                checkGuidePreConsultationConfirmed.setEnabled(false);
+                buttonAdvanceGuide.setEnabled(false);
                 viewModel.updatePreConsultationConfirmed(checked);
             }
         });
