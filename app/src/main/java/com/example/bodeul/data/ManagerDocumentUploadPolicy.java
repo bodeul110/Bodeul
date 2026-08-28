@@ -25,8 +25,9 @@ public final class ManagerDocumentUploadPolicy {
         }
 
         String contentType = resolveContentType(resolver, fileUri);
-        if (!isAllowedContentType(contentType)) {
-            return "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.";
+        String contentTypeError = validateContentType(contentType);
+        if (contentTypeError != null) {
+            return contentTypeError;
         }
 
         UploadFileSizePolicy.Result sizeResult = UploadFileSizePolicy.validate(
@@ -34,6 +35,20 @@ public final class ManagerDocumentUploadPolicy {
                 fileUri,
                 MAX_FILE_SIZE_BYTES
         );
+        return validateFileSize(sizeResult);
+    }
+
+    @Nullable
+    static String validateContentType(@Nullable String contentType) {
+        if (!isAllowedContentType(normalizeText(contentType))) {
+            return "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.";
+        }
+
+        return null;
+    }
+
+    @Nullable
+    static String validateFileSize(UploadFileSizePolicy.Result sizeResult) {
         if (sizeResult.isTooLarge()) {
             return "원본 서류는 10MB 이하 파일만 업로드할 수 있습니다.";
         }
@@ -75,7 +90,7 @@ public final class ManagerDocumentUploadPolicy {
     }
 
     private static boolean isAllowedContentType(String contentType) {
-        if (TextUtils.isEmpty(contentType)) {
+        if (contentType == null || contentType.isEmpty()) {
             return false;
         }
         return "application/pdf".equals(contentType)
