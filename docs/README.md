@@ -1,6 +1,6 @@
 # 문서 홈
 
-기준일: 2026-08-25
+기준일: 2026-08-28
 
 이 문서는 현재 저장소 문서의 단일 진입점이다. `docs/` 루트에는 이 색인만 두고 실제 문서는 주제별 하위 디렉터리에 둔다.
 
@@ -18,13 +18,13 @@
 
 | 작업 | 먼저 볼 문서 |
 | --- | --- |
-| 기능 추가·범위 판단 | [MVP 범위](planning/mvp-scope.md), [Notion 제품 기준 정합성](planning/notion-product-alignment.md) |
+| 기능 추가·범위 판단 | [MVP 범위](planning/mvp-scope.md), [MVP 임시 정책값 결정 경계](planning/mvp-policy-default-boundary.md), [Notion 제품 기준 정합성](planning/notion-product-alignment.md) |
 | Android 화면 수정 | [Figma 현행 화면 지도](design/figma-current-screen-map.md), [화면 개편 목표](planning/screen-restructure-target.md) |
 | API·DB 변경 | [목표 인프라 구조](architecture/target-infrastructure.md), [데이터 및 API 문서](architecture/data-api.md) |
 | 인프라·배포 | [인프라 개요](architecture/infrastructure.md), [Production 인프라 기본값](operations/production-infrastructure-defaults.md) |
 | Firebase 운영 | [Firebase 설정](operations/firebase/setup.md), [운영 문서](operations/README.md) |
 | 보안·권한 | [보안 문서](security/README.md), [데이터 보관 및 파기 정책](operations/data-retention-policy.md) |
-| 기획·법률 정책 확인 | [Notion 제품 기준 정합성](planning/notion-product-alignment.md), [2026-08-25 정책·법률 점검](reports/notion-policy-legal-alignment-2026-08-25.md) |
+| 기획·법률 정책 확인 | [Notion 제품 기준 정합성](planning/notion-product-alignment.md), [MVP 임시 정책값 결정 경계](planning/mvp-policy-default-boundary.md), [2026-08-25 정책·법률 점검](reports/notion-policy-legal-alignment-2026-08-25.md) |
 | 검증 결과 확인 | [현재 구현 상태](status/implementation-status.md), [보고서](reports/README.md) |
 
 ## 카테고리

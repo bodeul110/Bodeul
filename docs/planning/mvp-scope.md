@@ -1,11 +1,12 @@
 # MVP 범위
 
-기준일: 2026-08-25
+기준일: 2026-08-28
 
 ## 기준
 
 - 기준 분리: [기획·디자인·구현 기준](source-of-truth.md)
 - 제품 판단: [Notion 제품 기준 정합성](notion-product-alignment.md)
+- 미확정 기본값: [MVP 임시 정책값 결정 경계](mvp-policy-default-boundary.md)
 - 화면 흐름: [화면 개편 목표](screen-restructure-target.md)
 - 디자인: [Figma 현행 화면 지도](../design/figma-current-screen-map.md)
 - 실제 구현: [현재 구현 상태](../status/implementation-status.md)
@@ -98,3 +99,5 @@ Figma의 13개 가이드 화면은 목표 화면 구조다. 실제 단계 수는
 - 화면 작업은 Figma node를 지정하되 정책·기술 계약은 별도 문서에서 확인한다.
 - 구현 완료는 자동화 검사, 배포 또는 실기기 검증 수준을 함께 기록한다.
 - 미결 정책은 [Notion 제품 기준 정합성](notion-product-alignment.md)에서 추적한다.
+- 되돌릴 수 있고 local/dev/preview의 합성 데이터에만 영향을 주는 값은 `MVP 임시값`으로 기록하고 구현을 진행한다.
+- 실제 사용자 데이터, 권한, 금전, 법정 의무에 영향을 주는 항목은 임시값으로 우회하지 않고 출시 전 게이트를 유지한다.
