@@ -15,7 +15,7 @@ class PreConsultationConfirmationMigrationContractTests {
     @Test
     void migrationAddsPersistentConfirmationWithNarrowRuntimeWriteGrant() throws IOException {
         String sql = new ClassPathResource(
-                "db/migration/V16__require_pre_consultation_confirmation.sql"
+                "db/migration/V16__add_pre_consultation_confirmation.sql"
         ).getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(sql)
