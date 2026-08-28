@@ -18,7 +18,7 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * 예약 접수 전에 결제 승인 또는 현장 결제 확정을 마무리하는 화면이다.
+ * 예약 접수 전에 MVP 결제 시뮬레이션 또는 현장 결제 안내를 확인하는 화면이다.
  */
 public class BookingPaymentApprovalActivity extends AppCompatActivity {
     private static final String EXTRA_PAYMENT_STATUS = "paymentStatus";
@@ -44,10 +44,16 @@ public class BookingPaymentApprovalActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(status)) {
             return null;
         }
+        if ("SIMULATED".equals(status)) {
+            return BookingPaymentApproval.simulated(provider);
+        }
         if ("DEFERRED".equals(status)) {
             return BookingPaymentApproval.deferred(provider, approvedAt);
         }
-        return BookingPaymentApproval.authorized(provider, approvalCode, approvedAt);
+        if ("AUTHORIZED".equals(status)) {
+            return BookingPaymentApproval.authorized(provider, approvalCode, approvedAt);
+        }
+        return null;
     }
 
     @Override
@@ -94,20 +100,16 @@ public class BookingPaymentApprovalActivity extends AppCompatActivity {
         Intent resultIntent = new Intent();
         resultIntent.putExtra(
                 EXTRA_PAYMENT_STATUS,
-                screenModel.isDeferredPayment() ? "DEFERRED" : "AUTHORIZED"
+                screenModel.isDeferredPayment() ? "DEFERRED" : "SIMULATED"
         );
         resultIntent.putExtra(EXTRA_PAYMENT_PROVIDER, screenModel.getProviderLabel());
-        resultIntent.putExtra(EXTRA_PAYMENT_APPROVAL_CODE, buildApprovalCode(screenModel.isDeferredPayment()));
-        resultIntent.putExtra(EXTRA_PAYMENT_APPROVED_AT, currentApprovedAt());
+        resultIntent.putExtra(EXTRA_PAYMENT_APPROVAL_CODE, "");
+        resultIntent.putExtra(
+                EXTRA_PAYMENT_APPROVED_AT,
+                screenModel.isDeferredPayment() ? currentApprovedAt() : ""
+        );
         setResult(RESULT_OK, resultIntent);
         finish();
-    }
-
-    private String buildApprovalCode(boolean deferredPayment) {
-        if (deferredPayment) {
-            return "";
-        }
-        return "BODEUL-" + System.currentTimeMillis();
     }
 
     private String currentApprovedAt() {

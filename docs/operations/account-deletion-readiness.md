@@ -54,7 +54,7 @@ Core API는 요청에서 Firebase UID를 받지 않고 인증된 `AppUser`에 �
 
 사용자 문서 조회와 아홉 aggregation query는 모두 먼저 시작하고 전체 12초 제한을 공유한다. 하나라도 권한, 인덱스, quota, timeout 또는 SDK 오류로 실패하면 시작된 작업을 모두 취소하고 성공한 일부 건수도 반환하지 않는다. Firestore 출처 전체를 `ERROR`, 빈 counts와 `SOURCE_UNAVAILABLE`로 처리한다. 이 단계는 UID 필드가 없거나 잘못된 legacy 문서, `sessionId`·`requestId`로만 연결되는 리포트·후속 처리·관리자 파생 문서, Storage 객체, Firebase Auth 사용자와 백업을 확인하지 않으므로 성공해도 `COMPLETE`가 아닌 `PARTIAL`이다.
 
-Firebase Admin SDK는 `firestore.rules`가 아니라 런타임 서비스 계정의 IAM으로 조회한다. 모의 SDK 테스트는 쿼리·응답 계약만 검증하며, 개발 Cloud Run 서비스 계정의 aggregation query 권한과 실제 비식별 fixture는 별도 실호출 전까지 미검증이다.
+Firebase Admin SDK는 `firestore.rules`가 아니라 런타임 서비스 계정의 IAM으로 조회한다. 모의 SDK 테스트는 각 query의 실패·timeout·취소 계약을 검증하고, 격리 Firestore Emulator 테스트는 합성 UID 문서의 실제 aggregation count와 타 UID 격리, Firestore source 장애 시 `ERROR`·빈 counts를 검증한다. Emulator는 IAM을 재현하지 않으므로 개발 Cloud Run 서비스 계정의 aggregation query 권한은 별도 실호출 전까지 미검증이다.
 
 `notificationTokens` 건수는 문자열만 trim한 뒤 빈 값과 중복을 제외해 계산한다. token metadata map key는 Android 저장 계약과 같은 token UTF-8의 Base64 URL·padding 제거 값으로 검증한다. `notificationTokenEntryMismatches`는 아래 다섯 범주의 합계다.
 
@@ -106,6 +106,7 @@ Flyway V15의 `bodeul.account_deletion_postgres_inventory(uuid)` 함수가 집�
 - 역할별 건수는 서로 독립적으로 유지하고 예약·세션 문서 총계나 역할 합계를 만들지 않는다.
 - 사용자 문서 또는 집계 중 하나라도 실패하면 원문 없이 `ERROR`, 빈 counts와 `SOURCE_UNAVAILABLE`로 닫힌다.
 - Firestore 집계 결과는 UID, token, 문서 ID, 문의 원문, 파일명과 Storage 경로 없이 건수만 반환하며 성공해도 `PARTIAL`을 유지한다.
+- `npm --prefix tools/firebase run test:core-api-firestore-emulator`는 `demo-` project의 로컬 Firestore Emulator에서만 합성 fixture를 사용하고 운영·개발 Firebase에는 접근하지 않는다.
 - migration은 집계 함수 외 DML 권한을 추가하지 않고 rollback은 해당 함수만 제거한다.
 - 개발·운영 migration workflow는 Flyway 적용 뒤 함수 소유·고정 경로, 실제 Core/Admin 서비스 역할의 최소 실행 권한, Core 서비스의 배정 감사 원문 차단과 합성 UUID 0건 결과를 읽기 전용 트랜잭션에서 확인한다.
 - Core API 전체 테스트를 통과해야 한다.
@@ -113,7 +114,7 @@ Flyway V15의 `bodeul.account_deletion_postgres_inventory(uuid)` 함수가 집�
 ## 남은 범위
 
 - Firestore 예약·세션의 legacy 필드 누락, 관리자 파생·간접 연관 문서, Storage, Firebase Auth와 백업 영향도 점검기
-- 개발 Cloud Run 서비스 계정과 비식별 fixture를 사용한 Firestore aggregation 실호출
+- 개발 Cloud Run 서비스 계정의 IAM을 사용한 비식별 fixture Firestore aggregation 실호출
 - 최근 재인증과 token 폐기 확인
 - 법정 보존자료 분리, tombstone·비식별화와 FK 처리 방식
 - legal hold 존재 여부를 사용자에게 공개할지에 대한 정책·법률 확인
