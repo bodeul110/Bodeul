@@ -1,6 +1,6 @@
 # 디자인 문서
 
-기준일: 2026-08-22
+기준일: 2026-08-28
 
 Figma 원본의 현재 화면 구조, 구현에 적용할 수 있는 시각 기준과 불일치를 관리한다.
 
@@ -8,6 +8,8 @@ Figma 원본의 현재 화면 구조, 구현에 적용할 수 있는 시각 기�
 
 - [Figma 현행 화면 지도](figma-current-screen-map.md)
   - `Page 2(460:2)`의 38개 화면, prototype 흐름, 관찰된 시각 기준과 불일치
+- [환자·보호자 공통 하단 내비게이션](client-bottom-navigation.md)
+  - 홈, 일정·이력, 동행방, 내 정보 탭과 서버 인가 소비 경계
 - [디자인 참조 정리](../../design_refs/README.md)
   - Figma 원본과 로컬 export 사용 원칙
 - [화면 개편 목표](../planning/screen-restructure-target.md)

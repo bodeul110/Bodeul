@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 305 환자·보호자 공통 하단 내비게이션 구현 (2026-08-28)](issue-305-client-bottom-navigation-2026-08-28.md)
 - [Issue 371 MVP 결제 시뮬레이션 정리 (2026-08-28)](issue-371-mvp-payment-simulation-2026-08-28.md)
 - [Issue 315 로컬 공고번호 fixture 검증 (2026-08-28)](issue-315-local-public-code-fixture-2026-08-28.md)
 - [MVP 임시 정책값 경계 점검 (2026-08-28)](notion-policy-team-response-alignment-2026-08-28.md)

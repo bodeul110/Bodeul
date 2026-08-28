@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_screen_glow">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="112dp">
+
+            <ImageView
+                android:layout_width="94dp"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/bodeul_logo_full" />
+
+            <include
+                android:id="@+id/clientProfileStatePanel"
+                layout="@layout/include_state_panel" />
+
+            <LinearLayout
+                android:id="@+id/clientProfileContentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/textClientProfileTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="30sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textClientProfileSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="@color/bodeul_text_secondary"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    app:cardBackgroundColor="@color/bodeul_primary"
+                    app:cardCornerRadius="28dp"
+                    app:cardElevation="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="22dp">
+
+                        <TextView
+                            android:id="@+id/textClientProfileHeroTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/white"
+                            android:textSize="23sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/textClientProfileHeroBody"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="@color/white"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="26dp"
+                    android:text="@string/client_profile_account_section"
+                    android:textColor="@color/bodeul_text_primary"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/client_profile_account_helper"
+                    android:textColor="@color/bodeul_text_secondary"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    app:cardBackgroundColor="@color/bodeul_surface"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="@color/bodeul_outline"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/client_profile_line_role"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/textClientProfileRole"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="16dp"
+                            android:background="@color/bodeul_outline" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/client_profile_line_name"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/textClientProfileName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="16dp"
+                            android:background="@color/bodeul_outline" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/client_profile_line_email"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/textClientProfileEmail"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="15sp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginBottom="16dp"
+                            android:background="@color/bodeul_outline" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/client_profile_line_phone"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/textClientProfilePhone"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonClientProfileHealth"
+                    style="@style/BodeulOutlinedButton"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/client_profile_action_health" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonClientProfileSignOut"
+                    style="@style/BodeulOutlinedButton"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/client_profile_action_sign_out" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <ProgressBar
+        android:id="@+id/progressClientProfile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center" />
+
+    <include layout="@layout/include_client_bottom_navigation" />
+</FrameLayout>
