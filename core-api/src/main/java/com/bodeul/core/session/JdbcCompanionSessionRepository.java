@@ -47,6 +47,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 session.field_photo_note,
                 session.medication_note,
                 session.pharmacy_summary,
+                session.pre_consultation_confirmed,
                 session.prescription_collected,
                 session.pharmacy_completed,
                 session.medication_guidance_completed,
@@ -88,13 +89,16 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final RowMapper<SessionRecord> sessionMapper;
+    private final boolean preConsultationEnforcement;
 
     JdbcCompanionSessionRepository(
             NamedParameterJdbcTemplate jdbcTemplate,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            CompanionSessionProperties properties) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.sessionMapper = (resultSet, rowNumber) -> mapSession(resultSet);
+        this.preConsultationEnforcement = properties.isPreConsultationEnforcement();
     }
 
     @Override
@@ -140,6 +144,10 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                     field_photo_note = coalesce(:fieldPhotoNote, field_photo_note),
                     medication_note = coalesce(:medicationNote, medication_note),
                     pharmacy_summary = coalesce(:pharmacySummary, pharmacy_summary),
+                    pre_consultation_confirmed = coalesce(
+                        :preConsultationConfirmed,
+                        pre_consultation_confirmed
+                    ),
                     prescription_collected = coalesce(:prescriptionCollected, prescription_collected),
                     pharmacy_completed = coalesce(:pharmacyCompleted, pharmacy_completed),
                     medication_guidance_completed = coalesce(
@@ -179,6 +187,10 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 .addValue("fieldPhotoNote", patch.fieldPhotoNote(), Types.VARCHAR)
                 .addValue("medicationNote", patch.medicationNote(), Types.VARCHAR)
                 .addValue("pharmacySummary", patch.pharmacySummary(), Types.VARCHAR)
+                .addValue(
+                        "preConsultationConfirmed",
+                        patch.preConsultationConfirmed(),
+                        Types.BOOLEAN)
                 .addValue("prescriptionCollected", patch.prescriptionCollected(), Types.BOOLEAN)
                 .addValue("pharmacyCompleted", patch.pharmacyCompleted(), Types.BOOLEAN)
                 .addValue(
@@ -231,11 +243,19 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                       or guide_snapshot_source = 'LEGACY_CORE_7_V1'
                   )
                   and bodeul.is_valid_guide_steps_v1(guide_steps_snapshot)
+                  and (
+                      not :preConsultationEnforcement
+                      or current_step_order = 0
+                      or guide_steps_snapshot -> (current_step_order - 1) ->> 'code'
+                          <> 'PRE_CONSULTATION'
+                      or pre_consultation_confirmed
+                  )
                 """;
         int updated = jdbcTemplate.update(sql, new MapSqlParameterSource()
                 .addValue("sessionId", sessionId)
                 .addValue("managerUserId", managerUserId)
-                .addValue("expectedVersion", expectedVersion));
+                .addValue("expectedVersion", expectedVersion)
+                .addValue("preConsultationEnforcement", preConsultationEnforcement));
         return updated == 1 ? findById(sessionId) : Optional.empty();
     }
 
@@ -406,6 +426,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 resultSet.getString("field_photo_note"),
                 resultSet.getString("medication_note"),
                 resultSet.getString("pharmacy_summary"),
+                resultSet.getBoolean("pre_consultation_confirmed"),
                 resultSet.getBoolean("prescription_collected"),
                 resultSet.getBoolean("pharmacy_completed"),
                 resultSet.getBoolean("medication_guidance_completed"),

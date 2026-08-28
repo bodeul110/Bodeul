@@ -36,6 +36,7 @@ jobs:
       KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION: ${{ vars.KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION }}
       FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
       FIREBASE_PROJECT_NUMBER: ${{ vars.FIREBASE_PROJECT_NUMBER }}
+      BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT: ${{ vars.BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT || 'false' }}
 
     steps:
       - name: 저장소 체크아웃
@@ -100,6 +101,11 @@ jobs:
               exit 1
             fi
           done
+
+          if [[ "${BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT}" != "false" && "${BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT}" != "true" ]]; then
+            echo "진료 전 확인 서버 차단 설정은 false 또는 true여야 합니다." >&2
+            exit 1
+          fi
 
           registry="${GCP_REGION}-docker.pkg.dev"
           image="${registry}/${GCP_PROJECT_ID}/${CLOUD_RUN_ARTIFACT_REPOSITORY}/bodeul-core-api"
@@ -171,6 +177,7 @@ jobs:
             FIREBASE_PROJECT_ID=${{ env.FIREBASE_PROJECT_ID }}
             FIREBASE_PROJECT_NUMBER=${{ env.FIREBASE_PROJECT_NUMBER }}
             BODEUL_APP_CHECK_MODE=observe
+            BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=${{ env.BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT }}
             CORE_DB_POOL_MAX=5
           env_vars_update_strategy: overwrite
           secrets: |-

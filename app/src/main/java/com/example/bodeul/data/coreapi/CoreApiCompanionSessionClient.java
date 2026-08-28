@@ -590,6 +590,7 @@ final class CoreApiCompanionSessionClient {
                 optText(item, "fieldPhotoNote"),
                 optText(item, "medicationNote"),
                 optText(item, "pharmacySummary"),
+                item.optBoolean("preConsultationConfirmed", false),
                 item.optBoolean("prescriptionCollected", false),
                 item.optBoolean("pharmacyCompleted", false),
                 item.optBoolean("medicationGuidanceCompleted", false),
@@ -812,6 +813,7 @@ final class CoreApiCompanionSessionClient {
         private final String fieldPhotoNote;
         private final String medicationNote;
         private final String pharmacySummary;
+        private final boolean preConsultationConfirmed;
         private final boolean prescriptionCollected;
         private final boolean pharmacyCompleted;
         private final boolean medicationGuidanceCompleted;
@@ -842,6 +844,7 @@ final class CoreApiCompanionSessionClient {
                 String fieldPhotoNote,
                 String medicationNote,
                 String pharmacySummary,
+                boolean preConsultationConfirmed,
                 boolean prescriptionCollected,
                 boolean pharmacyCompleted,
                 boolean medicationGuidanceCompleted,
@@ -871,6 +874,7 @@ final class CoreApiCompanionSessionClient {
             this.fieldPhotoNote = fieldPhotoNote;
             this.medicationNote = medicationNote;
             this.pharmacySummary = pharmacySummary;
+            this.preConsultationConfirmed = preConsultationConfirmed;
             this.prescriptionCollected = prescriptionCollected;
             this.pharmacyCompleted = pharmacyCompleted;
             this.medicationGuidanceCompleted = medicationGuidanceCompleted;
@@ -953,6 +957,7 @@ final class CoreApiCompanionSessionClient {
                 result.setPharmacyCompleted(pharmacyCompleted);
             }
             result.setPrescriptionCollected(prescriptionCollected);
+            result.setPreConsultationConfirmed(preConsultationConfirmed);
             result.setMedicationGuidanceCompleted(medicationGuidanceCompleted);
             result.setRealtimeSessionId(coreId);
             result.updateLiveLocationSharing(

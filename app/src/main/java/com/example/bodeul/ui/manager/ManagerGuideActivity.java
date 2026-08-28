@@ -38,6 +38,7 @@ import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.textfield.TextInputEditText;
 
 import com.kakao.vectormap.KakaoMap;
@@ -66,6 +67,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean liveLocationActivationInFlight;
     private boolean activityVisible;
     private boolean pharmacySearchNavigationInProgress;
+    private boolean bindingPreConsultationConfirmation;
     private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
 
     private View managerGuideStatePanel;
@@ -74,6 +76,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private TextInputEditText inputGuideLocationSummary;
     private TextInputEditText inputGuardianUpdate;
     private TextInputEditText inputGuidePhotoNote;
+    private MaterialCheckBox checkGuidePreConsultationConfirmed;
+    private MaterialButton buttonAdvanceGuide;
     private TextInputEditText inputMedicationNote;
     private TextInputEditText inputPharmacySummary;
     private TextInputEditText inputReportSummary;
@@ -125,6 +129,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
         inputGuideLocationSummary = findViewById(R.id.inputGuideLocationSummary);
         inputGuardianUpdate = findViewById(R.id.inputGuardianUpdate);
         inputGuidePhotoNote = findViewById(R.id.inputGuidePhotoNote);
+        checkGuidePreConsultationConfirmed = findViewById(
+                R.id.checkGuidePreConsultationConfirmed);
+        buttonAdvanceGuide = findViewById(R.id.buttonAdvanceGuide);
         inputMedicationNote = findViewById(R.id.inputMedicationNote);
         inputPharmacySummary = findViewById(R.id.inputPharmacySummary);
         inputReportSummary = findViewById(R.id.inputReportSummary);
@@ -162,6 +169,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 inputGuideLocationSummary,
                 inputGuardianUpdate,
                 inputGuidePhotoNote,
+                checkGuidePreConsultationConfirmed,
                 inputMedicationNote,
                 inputPharmacySummary,
                 findViewById(R.id.textGuidePharmacyProgressSummary),
@@ -176,7 +184,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.radioMedicationComparisonRecheck),
                 inputReportMedicationComparisonNote,
                 inputNextVisit,
-                (MaterialButton) findViewById(R.id.buttonAdvanceGuide),
+                buttonAdvanceGuide,
                 (MaterialButton) findViewById(R.id.buttonSaveLocationSummary),
                 (MaterialButton) findViewById(R.id.buttonShareCurrentLocation),
                 (MaterialButton) findViewById(R.id.buttonStartLiveLocationSharing),
@@ -192,10 +200,17 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonAdvanceGuide).setOnClickListener(view -> performPrimaryAction());
+        buttonAdvanceGuide.setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
+        checkGuidePreConsultationConfirmed.setOnCheckedChangeListener((button, checked) -> {
+            if (!bindingPreConsultationConfirmation) {
+                checkGuidePreConsultationConfirmed.setEnabled(false);
+                buttonAdvanceGuide.setEnabled(false);
+                viewModel.updatePreConsultationConfirmed(checked);
+            }
+        });
         findViewById(R.id.buttonSaveMedicationNote).setOnClickListener(view -> viewModel.saveMedicationNote(valueOf(inputMedicationNote)));
         findViewById(R.id.buttonSavePharmacySummary).setOnClickListener(view -> viewModel.savePharmacySummary(valueOf(inputPharmacySummary)));
         findViewById(R.id.buttonTogglePrescriptionCollected).setOnClickListener(view -> viewModel.togglePrescriptionCollected());
@@ -289,7 +304,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
             if (state.screenModel != null) {
                 managerGuideContentContainer.setVisibility(View.VISIBLE);
                 managerGuideBottomAction.setVisibility(View.VISIBLE);
-                managerGuideDashboardBinder.bindScreen(state.screenModel);
+                bindingPreConsultationConfirmation = true;
+                try {
+                    managerGuideDashboardBinder.bindScreen(state.screenModel);
+                } finally {
+                    bindingPreConsultationConfirmation = false;
+                }
                 currentPrimaryAction = state.screenModel.getPrimaryAction();
                 currentDashboard = state.dashboard;
                 updateMapMarker();

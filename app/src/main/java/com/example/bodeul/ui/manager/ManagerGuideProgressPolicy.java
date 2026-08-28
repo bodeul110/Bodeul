@@ -13,6 +13,7 @@ final class ManagerGuideProgressPolicy {
         LAST_STEP,
         GUIDE_NOT_READY,
         CONTRACT_MISMATCH,
+        INPUT_REQUIRED,
         BLOCKED
     }
 
@@ -20,8 +21,15 @@ final class ManagerGuideProgressPolicy {
     }
 
     static Decision resolve(CompanionSession session, int totalSteps) {
+        return resolve(session, totalSteps, session.getCurrentStepCode());
+    }
+
+    static Decision resolve(CompanionSession session, int totalSteps, String focusStepCode) {
         if (session.hasServerAdvanceDecision()) {
             if (session.isServerAdvanceAllowed()) {
+                if (requiresPreConsultationConfirmation(session, focusStepCode)) {
+                    return new Decision(false, State.INPUT_REQUIRED);
+                }
                 return new Decision(true, State.ADVANCE);
             }
             switch (session.getAdvanceBlockedReason()) {
@@ -33,6 +41,8 @@ final class ManagerGuideProgressPolicy {
                     return new Decision(false, State.GUIDE_NOT_READY);
                 case "STEP_CONTRACT_MISMATCH":
                     return new Decision(false, State.CONTRACT_MISMATCH);
+                case "STEP_INPUT_REQUIRED":
+                    return new Decision(false, State.INPUT_REQUIRED);
                 default:
                     return new Decision(false, State.BLOCKED);
             }
@@ -48,7 +58,18 @@ final class ManagerGuideProgressPolicy {
         if (session.getCurrentStepOrder() >= totalSteps) {
             return new Decision(false, State.LAST_STEP);
         }
+        if (requiresPreConsultationConfirmation(session, focusStepCode)) {
+            return new Decision(false, State.INPUT_REQUIRED);
+        }
         return new Decision(true, State.ADVANCE);
+    }
+
+    private static boolean requiresPreConsultationConfirmation(
+            CompanionSession session,
+            String focusStepCode
+    ) {
+        return "PRE_CONSULTATION".equals(focusStepCode == null ? "" : focusStepCode.trim())
+                && !session.isPreConsultationConfirmed();
     }
 
     static final class Decision {

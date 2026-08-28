@@ -75,6 +75,9 @@ final class FirebaseCompanionSessionMapper {
         session.setMedicationGuidanceCompleted(
                 Boolean.TRUE.equals(documentSnapshot.getBoolean("medicationGuidanceCompleted"))
         );
+        session.setPreConsultationConfirmed(
+                Boolean.TRUE.equals(documentSnapshot.getBoolean("preConsultationConfirmed"))
+        );
         session.setLocationAlertStage(
                 CompanionLocationAlertStage.fromValue(documentSnapshot.getString("locationAlertStage"))
         );

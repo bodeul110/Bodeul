@@ -85,6 +85,29 @@ public class ManagerGuideCoordinatorPolicyTest {
     }
 
     @Test
+    public void progressPolicy_requiresPreConsultationConfirmationBeforeAdvance() {
+        CompanionSession session = createSession(5);
+        session.applyServerGuideProgress("PRE_CONSULTATION", true, true, "");
+
+        ManagerGuideProgressPolicy.Decision blocked =
+                ManagerGuideProgressPolicy.resolve(session, 13, "PRE_CONSULTATION");
+
+        assertFalse(blocked.isAdvanceEnabled());
+        assertEquals(ManagerGuideProgressPolicy.State.INPUT_REQUIRED, blocked.getState());
+        assertEquals(
+                ManagerGuidePrimaryAction.NONE,
+                ManagerGuideCoordinator.resolvePrimaryAction(blocked));
+        assertTrue(ManagerGuideCoordinator.isStepInputEnabled(blocked));
+
+        session.setPreConsultationConfirmed(true);
+        ManagerGuideProgressPolicy.Decision confirmed =
+                ManagerGuideProgressPolicy.resolve(session, 13, "PRE_CONSULTATION");
+
+        assertTrue(confirmed.isAdvanceEnabled());
+        assertEquals(ManagerGuideProgressPolicy.State.ADVANCE, confirmed.getState());
+    }
+
+    @Test
     public void focusResolver_restoresUnknownCurrentCodeAfterReload() {
         GuideStep first = new GuideStep("MEETING_CONFIRMATION", 1, "상봉 확인", "설명 1");
         GuideStep extension = new GuideStep(
@@ -225,6 +248,9 @@ public class ManagerGuideCoordinatorPolicyTest {
                 boolean canAdvance = currentOrder < stepCount;
                 String blockedReason = canAdvance ? "" : "LAST_STEP_REACHED";
                 CompanionSession restored = createSession(currentOrder);
+                if ("PRE_CONSULTATION".equals(currentCode)) {
+                    restored.setPreConsultationConfirmed(true);
+                }
                 restored.applyServerGuideProgress(
                         currentCode,
                         true,
