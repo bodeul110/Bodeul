@@ -22,6 +22,7 @@
     "postgres:sessions:rollback": "node build-session-postgres-seed-sql.js --rollback",
     "compare:hospital-guides": "node compare-hospital-guides-api.js",
     "capture:app": "node capture-app-navigation-evidence.js",
+    "fixture:public-codes": "node generate-local-public-code-fixture.js",
     "diff:state": "node diff-firestore-state.js",
     "report:ops": "node generate-operations-report.js",
     "workflow:ops": "node run-operations-workflow.js",
