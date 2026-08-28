@@ -35,8 +35,12 @@ import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.firebase.CompanionChatPushContract;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationBinder;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationRouter;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationTab;
 import com.example.bodeul.util.DocumentPreviewLauncher;
 import com.example.bodeul.util.StatePanelHelper;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
@@ -57,6 +61,7 @@ public class CompanionChatActivity extends AppCompatActivity {
     private View statePanel;
     private View contentContainer;
     private ProgressBar progressBar;
+    private BottomNavigationView bottomNavigation;
     private TextInputEditText inputMessage;
     private String requestId;
     private boolean chatRefreshReceiverRegistered;
@@ -145,6 +150,17 @@ public class CompanionChatActivity extends AppCompatActivity {
         findViewById(R.id.buttonBackCompanionChat).setOnClickListener(view -> finish());
         findViewById(R.id.buttonCompanionChatSend).setOnClickListener(view -> sendMessage());
         findViewById(R.id.buttonCompanionChatAttach).setOnClickListener(view -> openAttachmentPicker());
+        bottomNavigation = findViewById(R.id.clientBottomNavigation);
+        bottomNavigation.setVisibility(View.GONE);
+        ClientBottomNavigationBinder.bind(
+                bottomNavigation,
+                ClientBottomNavigationTab.COMPANION_ROOM,
+                tab -> ClientBottomNavigationRouter.open(
+                        this,
+                        ClientBottomNavigationTab.COMPANION_ROOM,
+                        tab
+                )
+        );
         contentContainer.setVisibility(View.GONE);
 
         viewModel.getUiState().observe(this, this::handleUiState);
@@ -187,6 +203,7 @@ public class CompanionChatActivity extends AppCompatActivity {
         }
 
         progressBar.setVisibility(state.isLoading ? View.VISIBLE : View.GONE);
+        bottomNavigation.setVisibility(state.showClientNavigation ? View.VISIBLE : View.GONE);
 
         if (state.requireProfileCompletion) {
             openProfileCompletion();
@@ -447,8 +464,8 @@ public class CompanionChatActivity extends AppCompatActivity {
         showBlockingState(
                 StatePanelHelper.Tone.INFO,
                 getString(R.string.state_badge_notice),
-                getString(R.string.companion_chat_empty_title),
-                getString(R.string.companion_chat_empty_session_body),
+                getString(R.string.client_companion_room_empty_title),
+                getString(R.string.client_companion_room_empty_body),
                 getString(R.string.state_action_open_home),
                 view -> openHome(),
                 null,

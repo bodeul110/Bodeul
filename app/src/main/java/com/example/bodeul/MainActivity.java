@@ -24,10 +24,15 @@ import com.example.bodeul.ui.home.ClientHomeCoordinator;
 import com.example.bodeul.ui.home.ClientHomeDashboard;
 import com.example.bodeul.ui.home.ClientHomeDashboardBinder;
 import com.example.bodeul.ui.home.ClientHomeNoticeProvider;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationBinder;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationRouter;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationTab;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationVisibility;
 import com.example.bodeul.ui.report.GuardianReportActivity;
 import com.example.bodeul.ui.support.ClientSupportActivity;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.example.bodeul.util.StatePanelHelper;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 /**
  * 환자와 보호자가 서비스 신청, 진행 현황, 안내 정보를 한곳에서 보는 메인 홈 화면이다.
@@ -40,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private View homeContentContainer;
     private ProgressBar progressHome;
     private TextView textHomeMode;
+    private BottomNavigationView bottomNavigation;
     private ClientHomeDashboard currentDashboard;
 
     @Override
@@ -95,6 +101,17 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.buttonOpenRecent).setOnClickListener(view -> openRecentAction());
         findViewById(R.id.buttonHomeSignOut).setOnClickListener(view -> signOut());
         dashboardBinder.setOnSupportBannerClickListener(view -> openSupport());
+        bottomNavigation = findViewById(R.id.clientBottomNavigation);
+        bottomNavigation.setVisibility(View.GONE);
+        ClientBottomNavigationBinder.bind(
+                bottomNavigation,
+                ClientBottomNavigationTab.HOME,
+                tab -> ClientBottomNavigationRouter.open(
+                        this,
+                        ClientBottomNavigationTab.HOME,
+                        tab
+                )
+        );
 
         EnvironmentModeBadgeHelper.bind(
                 textHomeMode,
@@ -115,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void reloadHome() {
         setLoading(true);
+        bottomNavigation.setVisibility(View.GONE);
         hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
@@ -127,11 +145,12 @@ public class MainActivity extends AppCompatActivity {
                     redirectToRoleHome(result);
                     return;
                 }
-                if (result.getRole() != UserRole.PATIENT && result.getRole() != UserRole.GUARDIAN) {
+                if (!ClientBottomNavigationVisibility.isVisibleFor(result.getRole())) {
                     setLoading(false);
                     showPermissionState();
                     return;
                 }
+                bottomNavigation.setVisibility(View.VISIBLE);
                 loadDashboard(result);
             }
 

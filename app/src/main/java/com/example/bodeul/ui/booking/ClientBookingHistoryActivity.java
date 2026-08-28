@@ -16,11 +16,15 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.User;
-import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationBinder;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationRouter;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationTab;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationVisibility;
 import com.example.bodeul.util.StatePanelHelper;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.List;
@@ -36,6 +40,7 @@ public class ClientBookingHistoryActivity extends AppCompatActivity {
     private View statePanel;
     private View contentContainer;
     private ProgressBar progressBar;
+    private BottomNavigationView bottomNavigation;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -68,6 +73,17 @@ public class ClientBookingHistoryActivity extends AppCompatActivity {
         findViewById(R.id.buttonClientBookingHistoryManage).setOnClickListener(view ->
                 startActivity(new Intent(this, BookingActivity.class))
         );
+        bottomNavigation = findViewById(R.id.clientBottomNavigation);
+        bottomNavigation.setVisibility(View.GONE);
+        ClientBottomNavigationBinder.bind(
+                bottomNavigation,
+                ClientBottomNavigationTab.SCHEDULE_HISTORY,
+                tab -> ClientBottomNavigationRouter.open(
+                        this,
+                        ClientBottomNavigationTab.SCHEDULE_HISTORY,
+                        tab
+                )
+        );
         contentContainer.setVisibility(View.GONE);
     }
 
@@ -79,6 +95,7 @@ public class ClientBookingHistoryActivity extends AppCompatActivity {
 
     private void reload() {
         setLoading(true);
+        bottomNavigation.setVisibility(View.GONE);
         hideBlockingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
@@ -87,11 +104,12 @@ public class ClientBookingHistoryActivity extends AppCompatActivity {
                     openProfileCompletion();
                     return;
                 }
-                if (result.getRole() != UserRole.PATIENT && result.getRole() != UserRole.GUARDIAN) {
+                if (!ClientBottomNavigationVisibility.isVisibleFor(result.getRole())) {
                     setLoading(false);
                     showPermissionState();
                     return;
                 }
+                bottomNavigation.setVisibility(View.VISIBLE);
                 loadRequests(result);
             }
 
