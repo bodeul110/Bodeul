@@ -7,8 +7,9 @@
 - `홈 / 일정·이력 / 동행방 / 내 정보` 공통 하단 탭과 화면별 초기 선택 상태를 추가했다.
 - 홈, 예약 이력, 동행방과 새 내 정보 화면을 최상위 탭으로 연결했다.
 - 내 정보 화면은 Firebase Auth 저장소가 반환한 현재 사용자의 역할·이름·이메일·연락처만 표시한다.
-- 동행방을 예약 상세 밖에서 열면 기존 예약 목록 API의 응답 중 `MATCHED` 또는 `IN_PROGRESS` 요청만 선택한다.
+- 동행방을 예약 상세 밖에서 열면 기존 예약 목록 API의 응답에서 `IN_PROGRESS` 요청을 우선하고, 없을 때만 `MATCHED` 요청을 선택한다.
 - 참여 가능한 동행방이 없으면 오류 대신 빈 상태와 홈 이동을 표시한다.
+- 홈이 아닌 최상위 Activity에서 다른 탭으로 이동하면 현재 Activity를 종료해 단독 실행 화면으로 뒤로가기가 되돌아가는 경로를 막았다.
 
 ## 변경된 범위
 
@@ -28,7 +29,8 @@ API, DB migration, Firebase Rules, 정보공유 동의와 역할 권한은 변�
 ## 검증
 
 - `ClientBottomNavigationVisibilityTest`: 환자·보호자에게만 공통 탭이 표시되고 매니저·관리자는 제외됨을 확인
-- `ClientCompanionRoomEntryStateTest`: 서버 응답에 현재 참여 예약 ID가 없거나 ID가 비어 있을 때 빈 상태가 됨을 확인
+- `ClientCompanionRoomEntryStateTest`: 미래 `MATCHED`가 먼저여도 `IN_PROGRESS`를 선택하고, 복수·빈 예약 ID를 건너뛰며, 대상이 없을 때 빈 상태가 됨을 확인
+- `ClientBottomNavigationStackPolicyTest`: 홈은 다른 탭 아래에 남기고, 홈이 아닌 현재 화면은 홈을 포함한 다른 탭 이동 시 종료함을 확인
 - `.\gradlew.bat testDebugUnitTest --console=plain`
 - `.\gradlew.bat assembleDebug --console=plain`
 - `git diff --check`

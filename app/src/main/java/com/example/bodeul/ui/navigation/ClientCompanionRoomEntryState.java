@@ -26,16 +26,33 @@ public final class ClientCompanionRoomEntryState {
         if (requests == null || requests.isEmpty()) {
             return new ClientCompanionRoomEntryState(null);
         }
+        String inProgressRequestId = findFirstUsableRequestId(
+                requests,
+                AppointmentStatus.IN_PROGRESS
+        );
+        if (inProgressRequestId != null) {
+            return new ClientCompanionRoomEntryState(inProgressRequestId);
+        }
+        return new ClientCompanionRoomEntryState(findFirstUsableRequestId(
+                requests,
+                AppointmentStatus.MATCHED
+        ));
+    }
+
+    @Nullable
+    private static String findFirstUsableRequestId(
+            @NonNull List<AppointmentRequest> requests,
+            @NonNull AppointmentStatus targetStatus
+    ) {
         for (AppointmentRequest request : requests) {
             if (request == null || request.getId() == null || request.getId().trim().isEmpty()) {
                 continue;
             }
-            if (request.getStatus() == AppointmentStatus.MATCHED
-                    || request.getStatus() == AppointmentStatus.IN_PROGRESS) {
-                return new ClientCompanionRoomEntryState(request.getId());
+            if (request.getStatus() == targetStatus) {
+                return request.getId();
             }
         }
-        return new ClientCompanionRoomEntryState(null);
+        return null;
     }
 
     public boolean isEmpty() {

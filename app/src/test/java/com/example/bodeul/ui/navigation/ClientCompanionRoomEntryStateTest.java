@@ -15,12 +15,39 @@ import java.util.Collections;
 
 public class ClientCompanionRoomEntryStateTest {
     @Test
-    public void fromAuthorizedRequests_usesFirstSessionCapableRequestId() {
+    public void fromAuthorizedRequests_prefersInProgressOverEarlierMatchedRequest() {
         ClientCompanionRoomEntryState state = ClientCompanionRoomEntryState.fromAuthorizedRequests(
                 Arrays.asList(
-                        request("completed", AppointmentStatus.COMPLETED),
-                        request("matched", AppointmentStatus.MATCHED),
+                        request("future-matched", AppointmentStatus.MATCHED),
                         request("in-progress", AppointmentStatus.IN_PROGRESS)
+                )
+        );
+
+        assertFalse(state.isEmpty());
+        assertEquals("in-progress", state.getRequestId());
+    }
+
+    @Test
+    public void fromAuthorizedRequests_usesFirstUsableInProgressId() {
+        ClientCompanionRoomEntryState state = ClientCompanionRoomEntryState.fromAuthorizedRequests(
+                Arrays.asList(
+                        request("", AppointmentStatus.IN_PROGRESS),
+                        request("active", AppointmentStatus.IN_PROGRESS),
+                        request("matched", AppointmentStatus.MATCHED)
+                )
+        );
+
+        assertFalse(state.isEmpty());
+        assertEquals("active", state.getRequestId());
+    }
+
+    @Test
+    public void fromAuthorizedRequests_usesMatchedOnlyWhenNoUsableInProgressIdExists() {
+        ClientCompanionRoomEntryState state = ClientCompanionRoomEntryState.fromAuthorizedRequests(
+                Arrays.asList(
+                        request("   ", AppointmentStatus.IN_PROGRESS),
+                        request("", AppointmentStatus.MATCHED),
+                        request("matched", AppointmentStatus.MATCHED)
                 )
         );
 

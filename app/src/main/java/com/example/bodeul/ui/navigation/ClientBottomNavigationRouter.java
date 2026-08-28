@@ -45,8 +45,7 @@ public final class ClientBottomNavigationRouter {
         }
 
         activity.startActivity(intent);
-        if (currentTab != ClientBottomNavigationTab.HOME
-                && destinationTab != ClientBottomNavigationTab.HOME) {
+        if (ClientBottomNavigationStackPolicy.shouldFinishCurrent(currentTab, destinationTab)) {
             activity.finish();
         }
     }
