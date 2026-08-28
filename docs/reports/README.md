@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [MVP 임시 정책값 경계 점검 (2026-08-28)](notion-policy-team-response-alignment-2026-08-28.md)
 - [Issue 348 Firestore 예약·세션 직접 참조 영향도 (2026-08-27)](issue-348-firestore-participant-inventory-2026-08-27.md)
 - [Issue 348 Firestore 지원 문서 부분 영향도 (2026-08-27)](issue-348-firestore-support-inventory-2026-08-27.md)
 - [Production 인프라 감사 및 운영 WIF 강화 (2026-08-26)](production-infrastructure-audit-2026-08-26.md)
