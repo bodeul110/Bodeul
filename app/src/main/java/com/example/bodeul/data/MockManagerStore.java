@@ -209,6 +209,19 @@ public final class MockManagerStore {
     }
 
     @Nullable
+    public ManagerDashboard updatePreConsultationConfirmed(
+            String managerUserId,
+            boolean preConsultationConfirmed
+    ) {
+        CompanionSession session = repository.getPrimaryManagerSession(managerUserId);
+        if (session == null) {
+            return null;
+        }
+        session.setPreConsultationConfirmed(preConsultationConfirmed);
+        return getManagerDashboard(managerUserId);
+    }
+
+    @Nullable
     public ManagerDashboard updatePrescriptionCollected(
             String managerUserId,
             boolean prescriptionCollected

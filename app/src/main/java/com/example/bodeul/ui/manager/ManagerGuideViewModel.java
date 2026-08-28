@@ -235,14 +235,12 @@ public class ManagerGuideViewModel extends ViewModel {
 
     public void saveFieldPhotoNote(String note) {
         if (currentUser == null) return;
-        if (TextUtils.isEmpty(note)) {
-            _toastMessage.setValue("내용을 입력해 주세요.");
-            return;
-        }
         managerRepository.saveFieldPhotoNote(currentUser.getId(), note, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
-                _toastMessage.setValue("현장 메모를 저장했습니다.");
+                _toastMessage.setValue(TextUtils.isEmpty(note)
+                        ? "현장 메모를 비웠습니다."
+                        : "현장 메모를 저장했습니다.");
                 bindDashboard(result);
             }
 
@@ -251,6 +249,28 @@ public class ManagerGuideViewModel extends ViewModel {
                 _toastMessage.setValue(message);
             }
         });
+    }
+
+    public void updatePreConsultationConfirmed(boolean confirmed) {
+        if (currentUser == null) return;
+        managerRepository.updatePreConsultationConfirmed(
+                currentUser.getId(),
+                confirmed,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        _toastMessage.setValue(confirmed
+                                ? "진료 전 확인을 완료했습니다."
+                                : "진료 전 확인을 해제했습니다.");
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        _toastMessage.setValue(message);
+                        loadDashboard();
+                    }
+                });
     }
 
     public void saveMedicationNote(String note) {

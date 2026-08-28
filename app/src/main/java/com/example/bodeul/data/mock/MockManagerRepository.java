@@ -175,6 +175,22 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void updatePreConsultationConfirmed(
+            String managerUserId,
+            boolean preConsultationConfirmed,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = managerStore.updatePreConsultationConfirmed(
+                managerUserId,
+                preConsultationConfirmed);
+        if (dashboard == null) {
+            callback.onError("진료 전 확인 상태를 저장하지 못했습니다.");
+            return;
+        }
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
     public void updatePharmacyCompleted(String managerUserId, boolean pharmacyCompleted, RepositoryCallback<ManagerDashboard> callback) {
         ManagerDashboard dashboard = managerStore.updatePharmacyCompleted(managerUserId, pharmacyCompleted);
         if (dashboard == null) {

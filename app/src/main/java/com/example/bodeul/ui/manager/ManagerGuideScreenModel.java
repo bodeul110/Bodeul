@@ -29,6 +29,7 @@ public final class ManagerGuideScreenModel {
     private final String locationSummary;
     private final String guardianUpdate;
     private final String fieldPhotoNote;
+    private final boolean preConsultationConfirmed;
     private final String medicationNote;
     private final String pharmacySummary;
     private final String pharmacyProgressSummary;
@@ -70,6 +71,7 @@ public final class ManagerGuideScreenModel {
             String locationSummary,
             String guardianUpdate,
             String fieldPhotoNote,
+            boolean preConsultationConfirmed,
             String medicationNote,
             String pharmacySummary,
             String pharmacyProgressSummary,
@@ -109,6 +111,7 @@ public final class ManagerGuideScreenModel {
         this.locationSummary = locationSummary;
         this.guardianUpdate = guardianUpdate;
         this.fieldPhotoNote = fieldPhotoNote;
+        this.preConsultationConfirmed = preConsultationConfirmed;
         this.medicationNote = medicationNote;
         this.pharmacySummary = pharmacySummary;
         this.pharmacyProgressSummary = pharmacyProgressSummary;
@@ -201,6 +204,10 @@ public final class ManagerGuideScreenModel {
 
     public String getFieldPhotoNote() {
         return fieldPhotoNote;
+    }
+
+    public boolean isPreConsultationConfirmed() {
+        return preConsultationConfirmed;
     }
 
     public String getMedicationNote() {

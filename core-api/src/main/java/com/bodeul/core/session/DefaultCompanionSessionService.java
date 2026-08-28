@@ -40,7 +40,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     private static final String SESSION_TERMINAL = "SESSION_TERMINAL";
     private static final String GUIDE_NOT_READY = "GUIDE_NOT_READY";
     private static final String STEP_CONTRACT_MISMATCH = "STEP_CONTRACT_MISMATCH";
+    private static final String STEP_INPUT_REQUIRED = "STEP_INPUT_REQUIRED";
     private static final String LAST_STEP_REACHED = "LAST_STEP_REACHED";
+    private static final String PRE_CONSULTATION = "PRE_CONSULTATION";
     private static final Set<String> MEDICATION_DECISIONS = Set.of(
             "", "MATCHED", "CHANGED", "RECHECK_REQUIRED");
     private static final Set<String> LOCATION_ALERT_STAGES = Set.of(
@@ -92,6 +94,11 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         SessionRecord existing = findSession(sessionId);
         requireManagerAssignment(appUser, existing);
         requireMutable(existing, command.version());
+        if (command.preConsultationConfirmed() != null
+                && !PRE_CONSULTATION.equals(currentStepCode(existing))) {
+            throw CompanionSessionException.invalidRequest(
+                    "진료 전 확인 상태는 진료 준비 단계에서만 변경할 수 있습니다.");
+        }
 
         SessionPatch patch = new SessionPatch(
                 normalizeOptional(command.guardianUpdate(), 1_000, "보호자 공유 내용"),
@@ -99,6 +106,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 normalizeOptional(command.fieldPhotoNote(), 2_000, "현장 확인 메모"),
                 normalizeOptional(command.medicationNote(), 4_000, "복약 메모"),
                 normalizeOptional(command.pharmacySummary(), 2_000, "약국 처리 요약"),
+                command.preConsultationConfirmed(),
                 command.prescriptionCollected(),
                 command.pharmacyCompleted(),
                 command.medicationGuidanceCompleted(),
@@ -261,6 +269,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 && command.fieldPhotoNote() == null
                 && command.medicationNote() == null
                 && command.pharmacySummary() == null
+                && command.preConsultationConfirmed() == null
                 && command.prescriptionCollected() == null
                 && command.pharmacyCompleted() == null
                 && command.medicationGuidanceCompleted() == null
@@ -354,6 +363,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 session.fieldPhotoNote(),
                 session.medicationNote(),
                 session.pharmacySummary(),
+                session.preConsultationConfirmed(),
                 session.prescriptionCollected(),
                 session.pharmacyCompleted(),
                 session.medicationGuidanceCompleted(),
@@ -375,9 +385,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
 
     private ProgressState progressState(SessionRecord session) {
         String contractBlock = guideContractBlock(session);
-        String currentStepCode = contractBlock == null && session.currentStepOrder() > 0
-                ? session.guideSnapshot().steps().get(session.currentStepOrder() - 1).code()
-                : null;
+        String currentStepCode = contractBlock == null ? currentStepCode(session) : null;
 
         if (TERMINAL_STATUSES.contains(session.currentStatus())) {
             return new ProgressState(currentStepCode, false, SESSION_TERMINAL);
@@ -385,10 +393,21 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         if (contractBlock != null) {
             return new ProgressState(null, false, contractBlock);
         }
+        if (PRE_CONSULTATION.equals(currentStepCode)
+                && !session.preConsultationConfirmed()) {
+            return new ProgressState(currentStepCode, false, STEP_INPUT_REQUIRED);
+        }
         if (session.currentStepOrder() == session.totalStepCount()) {
             return new ProgressState(currentStepCode, false, LAST_STEP_REACHED);
         }
         return new ProgressState(currentStepCode, true, null);
+    }
+
+    private String currentStepCode(SessionRecord session) {
+        if (guideContractBlock(session) != null || session.currentStepOrder() <= 0) {
+            return null;
+        }
+        return session.guideSnapshot().steps().get(session.currentStepOrder() - 1).code();
     }
 
     private String guideContractBlock(SessionRecord session) {

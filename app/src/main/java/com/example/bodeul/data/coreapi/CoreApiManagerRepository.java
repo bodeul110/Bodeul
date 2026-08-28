@@ -252,6 +252,19 @@ public final class CoreApiManagerRepository implements ManagerRepository {
     }
 
     @Override
+    public void updatePreConsultationConfirmed(
+            String managerUserId,
+            boolean preConsultationConfirmed,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        updateSessionBoolean(
+                managerUserId,
+                "preConsultationConfirmed",
+                preConsultationConfirmed,
+                callback);
+    }
+
+    @Override
     public void updatePrescriptionCollected(
             String managerUserId,
             boolean prescriptionCollected,
@@ -663,6 +676,8 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 return context.getString(R.string.guide_empty_steps_server);
             case "STEP_CONTRACT_MISMATCH":
                 return context.getString(R.string.guide_blocked_contract_mismatch);
+            case "STEP_INPUT_REQUIRED":
+                return context.getString(R.string.guide_blocked_input_required);
             case "LAST_STEP_REACHED":
                 return context.getString(R.string.guide_blocked_last_step);
             case "SESSION_TERMINAL":

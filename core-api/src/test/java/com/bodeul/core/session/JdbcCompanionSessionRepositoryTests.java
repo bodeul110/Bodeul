@@ -116,7 +116,9 @@ class JdbcCompanionSessionRepositoryTests {
                 .contains("current_step_order < jsonb_array_length(guide_steps_snapshot)")
                 .contains("guide_snapshot_source = 'HOSPITAL_GUIDE_STEP_CODE_V1'")
                 .contains("guide_snapshot_source = 'LEGACY_CORE_7_V1'")
-                .contains("bodeul.is_valid_guide_steps_v1(guide_steps_snapshot)");
+                .contains("bodeul.is_valid_guide_steps_v1(guide_steps_snapshot)")
+                .contains("<> 'PRE_CONSULTATION'")
+                .contains("or pre_consultation_confirmed");
     }
 
     private ResultSet resultSetWithSnapshot(String snapshotJson, Long revision) throws Exception {

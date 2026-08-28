@@ -30,6 +30,7 @@ public class CompanionSession {
     private String fieldPhotoNote;
     private String medicationNote;
     private String pharmacySummary;
+    private boolean preConsultationConfirmed;
     private boolean prescriptionCollected;
     private boolean pharmacyCompleted;
     private boolean medicationGuidanceCompleted;
@@ -433,6 +434,14 @@ public class CompanionSession {
 
     public void setPharmacySummary(String pharmacySummary) {
         this.pharmacySummary = pharmacySummary;
+    }
+
+    public boolean isPreConsultationConfirmed() {
+        return preConsultationConfirmed;
+    }
+
+    public void setPreConsultationConfirmed(boolean preConsultationConfirmed) {
+        this.preConsultationConfirmed = preConsultationConfirmed;
     }
 
     public boolean isPrescriptionCollected() {

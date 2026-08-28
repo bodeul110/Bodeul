@@ -231,6 +231,7 @@ class DefaultCompanionRealtimeServiceTests {
                 false,
                 false,
                 false,
+                false,
                 null,
                 "none",
                 null,

@@ -1,15 +1,15 @@
 # 동행 가이드 13개 화면과 단계 계약
 
-기준일: 2026-08-23
+기준일: 2026-08-28
 
-상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 9의 카카오맵 외부 검색을 분리했으며, 나머지 전용 입력 화면, 단계 이벤트와 필수 입력 정책은 아직 적용하지 않았다.
+상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 5의 필수 확인은 Flyway V16, Core API 진행 차단과 Android 확인·재진입 UI로 구현했다. 가이드 9의 카카오맵 외부 검색을 분리했으며, 나머지 전용 입력 화면과 단계 이벤트는 아직 적용하지 않았다.
 
 ## 검증 기준
 
 - Figma `보들 가이드`의 `Page 2(460:2)`와 가이드 1~13 node는 PR #295 당시 마지막으로 실조회한 결과를 사용한다.
-- Notion 화면별 상세 명세 v2.2는 2026-08-22 14:41 KST 편집본을 다시 확인한 저장소 정합성 기록을 사용한다.
+- Notion `개발 정책 관련 내용`의 2026-08-28 갱신본과 GitHub #307의 2026-08-28 OWNER 댓글을 확인했다. 두 근거 모두 가이드 5 필수 확인을 바로 구현 가능한 기존 계약으로 분류한다.
 - 이번 문서 작성에서는 Figma MCP Starter 호출 한도로 원본을 다시 열지 못했다. 따라서 node와 화면 내용은 마지막 검증 스냅샷이며 이후 변경이 없다고 단정하지 않는다.
-- 구현 상태는 PostgreSQL Flyway V2·V5·V8·V10~V12, Spring Core API와 Android `master` 코드를 기준으로 다시 대조했다.
+- 구현 상태는 PostgreSQL Flyway V2·V5·V8·V10~V16, Spring Core API와 Android 현재 변경 코드를 기준으로 다시 대조했다.
 
 ## 판단 기록
 
@@ -124,8 +124,8 @@ Android가 단계 제목이나 순번으로 13개 화면을 추정하거나, 서
 | 1 | `846:1056` | `MEETING_CONFIRMATION` | 매니저와 환자의 상봉을 확인하고 동행 시작 시점을 남긴다. | 별도 입력 없음. `상봉 완료` 시각을 서버가 기록한다. | `MEETING_CONFIRMED` |
 | 2 | `941:549` | `HOSPITAL_ROUTE` | `혜화역 3번 출구 → 병원 로비 → 신경과` 이동을 한 화면에서 안내한다. | Route 1의 `로비 도착`, Route 2의 `진료과 도착`. 로비 도착만으로 다음 단계로 진행하지 않는다. | `ARRIVED_LOBBY`, `ARRIVED_DEPARTMENT` |
 | 3 | `846:1309` | `RECEPTION_QUEUE` | 접수 상태와 대기번호를 기록해 보호자 진행 화면에 공유한다. | 영문·숫자 혼합 대기번호 입력, `대기번호 저장` 또는 다음 단계 CTA. | `QUEUE_UPDATED` |
-| 4 | `846:1384` | `VITALS_CHECK` | 병원에서 확인한 기초 측정값을 기록한다. | 측정값 입력과 다음 단계 CTA. 측정값이 없어도 진행 가능한 목표이며 필수·건너뛰기 표현은 #307에서 확정한다. | `VITALS_RECORDED` 후보 |
-| 5 | `846:1521` | `PRE_CONSULTATION` | 증상, 질문과 전달 사항을 진료 전에 다시 확인한다. | 확인 또는 메모 보완 후 `진료 준비 완료`. 전용 서버 입력 계약은 미정이다. | 별도 이벤트 없음 |
+| 4 | `846:1384` | `VITALS_CHECK` | 병원에서 확인한 기초 측정값을 기록한다. | 측정값은 선택 입력이며 빈 값을 숫자 `0`으로 저장하지 않는다. 구조화된 측정 필드와 단위는 후속 계약이다. | `VITALS_RECORDED` 후보 |
+| 5 | `846:1521` | `PRE_CONSULTATION` | 증상, 질문과 전달 사항을 진료 전에 다시 확인한다. | 메모는 선택이고 확인 체크는 필수다. 확인 상태를 서버에 저장한 뒤에만 `진료 준비 완료`로 진행한다. | 별도 이벤트 없음 |
 | 6 | `846:2386` | `CONSULTATION_SUPPORT` | 진료 중 핵심 안내와 결과를 현장 기록으로 남긴다. | 진료 메모 입력 후 `진료 완료`. 녹음·STT·AI 요약은 현재 범위가 아니다. | `CONSULT_COMPLETED` |
 | 7 | `846:1653` | `CONSULTATION_SUMMARY` | 진료 요약을 검토하고 수납 전 공유 내용을 확정한다. | 진료 요약 확인·수정 후 `요약 저장`. 최종 리포트 완료와는 구분한다. | `CONSULT_SUMMARY_READY` |
 | 8 | `846:1737` | `PAYMENT_EVIDENCE` | 수납 완료와 결제 증빙을 기록한다. | 결제 증빙 업로드와 `수납 완료`. 최소 장수·파일 형식·용량·교체·보관은 #307에서 확정한다. | `PAYMENT_COMPLETED` |
@@ -175,7 +175,7 @@ PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `c
 | 2 | `location_summary`와 위치 이력은 있으나 Route·checkpoint 없음 | 위치 기록과 범용 메모만 제공 | 지도·외부 카카오맵은 있으나 2개 Route 진행 상태 없음 | 로비·진료과 checkpoint와 다음 단계 제한 |
 | 3 | 전용 대기번호 필드 없음 | `guardian_update`에 자유 메모만 가능 | 대기번호 형식·저장 UI 없음 | 문자열 대기번호와 보호자 표시 계약 |
 | 4 | 구조화된 기초 측정 필드 없음 | 범용 메모 외 검증 없음 | 단계별 측정 폼 없음 | 측정 항목·단위와 선택 입력 계약 |
-| 5 | 전용 문진 준비 필드 없음 | 범용 메모만 가능 | 공통 가이드 설명만 표시 | 확인 상태와 선택 메모 범위 |
+| 5 | V16 `pre_consultation_confirmed`가 확인 상태를 저장 | 미확인 시 `STEP_INPUT_REQUIRED`로 `/advance`를 차단하고 확인 상태 변경을 현재 단계에서만 허용 | 확인 체크를 저장·해제할 수 있고 재조회·재진입 때 서버 값을 복원 | 확인 항목 자체의 구조화가 필요해지면 별도 checklist 계약으로 확장 |
 | 6 | `guardian_update`, `field_photo_note`만 있음 | PATCH 메모는 가능하나 진료 완료 이벤트 없음 | 공통 메모 입력을 제공 | 진료 완료와 요약 작성 시작 경계 |
 | 7 | `session_reports.summary`, `treatment_notes`가 있음 | 리포트 PUT이 세션 최종 완료까지 함께 처리 | 요약 입력은 있으나 중간 확정 단계와 분리되지 않음 | 중간 요약 저장과 최종 완료 분리 |
 | 8 | `PAYMENT` 상태 외 결제 증빙 전용 행·경로 없음 | 전용 upload·metadata API 없음 | 전용 증빙 업로드 화면 없음 | 용도별 Storage 경로·인가·파기와 metadata |
@@ -214,6 +214,7 @@ Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 아�
 | `SESSION_TERMINAL` | 세션이 `COMPLETED` 또는 `CANCELED`라 더 진행할 수 없음 |
 | `GUIDE_NOT_READY` | snapshot이 없거나 비어 있고, 가이드를 찾지 못했거나 legacy 원본이 미확정임 |
 | `STEP_CONTRACT_MISMATCH` | 코드 계약을 지원하지 않거나 order·code·현재 순번이 snapshot과 일치하지 않음 |
+| `STEP_INPUT_REQUIRED` | `PRE_CONSULTATION`에서 필수 확인을 저장하지 않아 다음 단계로 진행할 수 없음 |
 | `LAST_STEP_REACHED` | 현재 순번이 snapshot의 마지막 단계임 |
 
 진행 가능한 경우 `blockedReason`은 `null`이다. `currentStepOrder=0`은 가이드 진입 전이므로 `currentStepCode=null`이고, `1..N`은 `steps[order-1].code`와 일치해야 한다. 유효한 형식의 unknown code는 일반 단계로 보존하며 차단 사유로 사용하지 않는다.
@@ -244,7 +245,7 @@ Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에
 
 | 이슈 | 결정 전 확정하지 않을 값 |
 | --- | --- |
-| #307 | 가이드 4 측정값, 가이드 8 결제 증빙, 가이드 10 처방 이미지, 가이드 13 일지의 필수·건너뛰기·파일 제한·완료 시점 |
+| #307 | 가이드 2·3·6·8·12의 생략·중단·완료 조건, 가이드 10의 최소 장수·파일·저장·교체 정책, 가이드 13의 필수 여부와 완료 시점 |
 | #299 | `MATCHED`, 상봉, 단계 진행, 동행 종료와 최종 완료 중 어떤 이벤트를 누구에게 FCM·앱 내 알림으로 보낼지 |
 
 ## 후속 구현 분리 기준
@@ -255,11 +256,11 @@ Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 
 | --- | --- | --- |
 | PostgreSQL migration | 코드 포함 가이드 schema 검증, 세션 guide version·snapshot, 이벤트 멱등성, `care_ended_at`, 정책 확정 뒤 전용 증빙·일지 필드 | migration 연속 적용·rollback, 기존 7단계 row 보존, 권한 테스트 |
 | Core API | 상세 가이드 응답, `currentStepCode`, `canAdvance`와 snapshot 범위·version 진행 차단은 #324에서 구현했다. checkpoint·완료 전이와 멱등 이벤트는 후속 범위다. | 서비스·repository·HTTP 계약 테스트, 역할별 200·403·409 검증 |
-| Android | stepCode 공통 화면 registry, 일반 unknown 화면과 snapshot 재조회 복구는 #325에서 구현했다. `PHARMACY_ROUTE`의 카카오맵 외부 이동은 #314에서 분리했다. 나머지 전용 UI와 입력은 후속 범위다. | parser·registry·진행 정책 단위 테스트, 0·1·7·13·13초과·unknown fixture, 외부 앱 설치·미설치·복귀 실기기 검증 |
+| Android | stepCode 공통 화면 registry, 일반 unknown 화면과 snapshot 재조회 복구는 #325에서 구현했다. `PRE_CONSULTATION`의 필수 확인 저장·해제·복원과 `PHARMACY_ROUTE`의 카카오맵 외부 이동을 분리 구현했다. 나머지 전용 UI와 입력은 후속 범위다. | parser·registry·진행 정책 단위 테스트, 0·1·7·13·13초과·unknown fixture, 가이드 5 재진입과 외부 앱 설치·미설치·복귀 실기기 검증 |
 
 ## 현재 제외 범위
 
-- 13개 전용 입력 화면과 단계별 완료 상태 전이는 변경하지 않았다.
+- 가이드 5 필수 확인 외의 전용 입력 화면과 단계별 완료 상태 전이는 변경하지 않았다.
 - `stepCode` 초안을 운영 데이터에 seed하지 않았다.
 - 미확정 입력을 필수로 표시하거나 새로운 보호자 알림을 발송하지 않았다.
 - Figma 원본을 이번 작업에서 최신으로 재검증했다고 표시하지 않았다.

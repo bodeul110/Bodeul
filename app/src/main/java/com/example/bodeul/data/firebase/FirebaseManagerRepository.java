@@ -289,7 +289,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updates)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("?ㅼ떆媛??꾩튂 怨듭쑀 ?곹깭瑜???ν븯吏 紐삵뻽?듬땲??"));
+                                callback.onError("실시간 위치 공유 상태를 저장하지 못했습니다."));
             }
 
             @Override
@@ -301,25 +301,36 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void saveLocationSummary(String managerUserId, String locationSummary, RepositoryCallback<ManagerDashboard> callback) {
-        // ?꾩튂 怨듭쑀 硫붾え???몄뀡 臾몄꽌??蹂꾨룄 ?꾨뱶????ν븳??
+        // 위치 공유 메모를 세션 문서의 별도 필드에 저장한다.
         updateSessionField(managerUserId, "locationSummary", locationSummary, callback);
     }
 
     @Override
     public void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback) {
-        // ?꾩옣 ?ъ쭊?대굹 ?쒕쪟 ?뺤씤 硫붾え瑜??ㅼ쓬 ?붾㈃?먯꽌???ъ궗?⑺븷 ???덇쾶 ??ν븳??
+        // 현장 사진이나 서류 확인 메모를 다음 화면에서도 재사용할 수 있게 저장한다.
         updateSessionField(managerUserId, "fieldPhotoNote", fieldPhotoNote, callback);
     }
 
     @Override
     public void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback) {
-        // ??硫붾え??媛숈? ?몄뀡 臾몄꽌 ?덉뿉 ??ν빐 由ы룷???묒꽦 ?꾩뿉 ?꾩쟻?쒕떎.
+        // 복약 메모를 같은 세션 문서에 저장해 리포트 작성 전에 누적한다.
         updateSessionField(managerUserId, "medicationNote", medicationNote, callback);
     }
 
     @Override
     public void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback) {
         updateSessionField(managerUserId, "pharmacySummary", pharmacySummary, callback);
+    }
+
+    @Override
+    public void updatePreConsultationConfirmed(
+            String managerUserId,
+            boolean preConsultationConfirmed,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("preConsultationConfirmed", preConsultationConfirmed);
+        updateSessionFields(managerUserId, updates, callback);
     }
 
     @Override
@@ -1753,5 +1764,3 @@ public class FirebaseManagerRepository implements ManagerRepository {
         return SessionStatus.PAYMENT;
     }
 }
-
-

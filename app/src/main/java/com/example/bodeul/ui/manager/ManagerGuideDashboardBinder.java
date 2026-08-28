@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.ui.booking.BookingLocationMapView;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -48,6 +49,7 @@ public final class ManagerGuideDashboardBinder {
     private final TextInputEditText inputGuideLocationSummary;
     private final TextInputEditText inputGuardianUpdate;
     private final TextInputEditText inputGuidePhotoNote;
+    private final MaterialCheckBox checkGuidePreConsultationConfirmed;
     private final TextInputEditText inputMedicationNote;
     private final TextInputEditText inputPharmacySummary;
     private final TextView textGuidePharmacyProgressSummary;
@@ -102,6 +104,7 @@ public final class ManagerGuideDashboardBinder {
             TextInputEditText inputGuideLocationSummary,
             TextInputEditText inputGuardianUpdate,
             TextInputEditText inputGuidePhotoNote,
+            MaterialCheckBox checkGuidePreConsultationConfirmed,
             TextInputEditText inputMedicationNote,
             TextInputEditText inputPharmacySummary,
             TextView textGuidePharmacyProgressSummary,
@@ -155,6 +158,7 @@ public final class ManagerGuideDashboardBinder {
         this.inputGuideLocationSummary = inputGuideLocationSummary;
         this.inputGuardianUpdate = inputGuardianUpdate;
         this.inputGuidePhotoNote = inputGuidePhotoNote;
+        this.checkGuidePreConsultationConfirmed = checkGuidePreConsultationConfirmed;
         this.inputMedicationNote = inputMedicationNote;
         this.inputPharmacySummary = inputPharmacySummary;
         this.textGuidePharmacyProgressSummary = textGuidePharmacyProgressSummary;
@@ -207,6 +211,11 @@ public final class ManagerGuideDashboardBinder {
         setTextIfDifferent(inputGuideLocationSummary, screenModel.getLocationSummary());
         setTextIfDifferent(inputGuardianUpdate, screenModel.getGuardianUpdate());
         setTextIfDifferent(inputGuidePhotoNote, screenModel.getFieldPhotoNote());
+        if (checkGuidePreConsultationConfirmed.isChecked()
+                != screenModel.isPreConsultationConfirmed()) {
+            checkGuidePreConsultationConfirmed.setChecked(
+                    screenModel.isPreConsultationConfirmed());
+        }
         setTextIfDifferent(inputMedicationNote, screenModel.getMedicationNote());
         setTextIfDifferent(inputPharmacySummary, screenModel.getPharmacySummary());
         textGuidePharmacyProgressSummary.setText(screenModel.getPharmacyProgressSummary());
@@ -232,6 +241,7 @@ public final class ManagerGuideDashboardBinder {
         inputGuideLocationSummary.setEnabled(inputsEnabled);
         inputGuardianUpdate.setEnabled(inputsEnabled);
         inputGuidePhotoNote.setEnabled(inputsEnabled);
+        checkGuidePreConsultationConfirmed.setEnabled(inputsEnabled);
         inputMedicationNote.setEnabled(inputsEnabled);
         inputPharmacySummary.setEnabled(inputsEnabled);
         inputReportSummary.setEnabled(inputsEnabled);

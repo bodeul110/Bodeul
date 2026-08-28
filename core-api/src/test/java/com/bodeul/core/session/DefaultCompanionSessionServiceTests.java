@@ -82,7 +82,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void patientCannotUpdateManagerFields() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                3, "대기 중입니다.", null, null, null, null, null, null, null, null, null);
+                3, "대기 중입니다.", null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateSession(
                 user(PATIENT_ID, AppUserRole.PATIENT), SESSION_ID, command))
@@ -94,7 +94,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void assignedManagerUpdatesOnlyProvidedFields() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                3, "진료실 입장", null, null, null, null, true, null, null, null, null);
+                3, "진료실 입장", null, null, null, null, null, true, null, null, null, null);
 
         var result = service.updateSession(manager(), SESSION_ID, command);
 
@@ -106,7 +106,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void staleVersionIsRejectedBeforeWrite() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                2, "변경", null, null, null, null, null, null, null, null, null);
+                2, "변경", null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
                 .isInstanceOf(CompanionSessionException.class)
@@ -121,6 +121,70 @@ class DefaultCompanionSessionServiceTests {
         assertThat(result.currentStepOrder()).isEqualTo(3);
         assertThat(result.currentStepCode()).isEqualTo("STEP_3");
         assertThat(repository.advanceCount).isEqualTo(1);
+    }
+
+    @Test
+    void preConsultationRequiresPersistedConfirmationBeforeAdvance() {
+        List<CompanionSessionRepository.GuideStepRecord> steps = guideSteps(3);
+        steps.set(1, new CompanionSessionRepository.GuideStepRecord(
+                "PRE_CONSULTATION",
+                2,
+                "진료 전 확인",
+                "증상과 질문을 확인합니다."));
+        repository.session = Optional.of(session(
+                "WAITING",
+                2,
+                3,
+                3,
+                hospitalGuideSnapshot(steps),
+                false));
+
+        var blocked = service.getSession(manager(), SESSION_ID);
+
+        assertThat(blocked.preConsultationConfirmed()).isFalse();
+        assertThat(blocked.canAdvance()).isFalse();
+        assertThat(blocked.blockedReason()).isEqualTo("STEP_INPUT_REQUIRED");
+        assertThatThrownBy(() -> service.advanceSession(manager(), SESSION_ID, 3))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+        assertThat(repository.advanceCount).isZero();
+
+        var confirmed = service.updateSession(
+                manager(),
+                SESSION_ID,
+                new CompanionSessionService.UpdateSessionCommand(
+                        3,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        true,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null));
+
+        assertThat(confirmed.preConsultationConfirmed()).isTrue();
+        assertThat(confirmed.canAdvance()).isTrue();
+        assertThat(confirmed.blockedReason()).isNull();
+
+        var advanced = service.advanceSession(manager(), SESSION_ID, confirmed.version());
+        assertThat(advanced.currentStepOrder()).isEqualTo(3);
+        assertThat(repository.advanceCount).isEqualTo(1);
+    }
+
+    @Test
+    void preConsultationConfirmationCannotBeWrittenFromAnotherStep() {
+        var command = new CompanionSessionService.UpdateSessionCommand(
+                3, null, null, null, null, null, true, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("invalid_companion_session_request");
     }
 
     @Test
@@ -181,7 +245,8 @@ class DefaultCompanionSessionServiceTests {
                     0,
                     stepCount,
                     3,
-                    transitionSnapshot(stepCount)));
+                    transitionSnapshot(stepCount),
+                    stepCount >= 13));
             repository.report = null;
             repository.lastReport = null;
             repository.advanceCount = 0;
@@ -448,7 +513,7 @@ class DefaultCompanionSessionServiceTests {
     void terminalSessionRejectsFurtherWrites() {
         repository.session = Optional.of(session("COMPLETED", 5, 5, 4));
         var command = new CompanionSessionService.UpdateSessionCommand(
-                4, "변경", null, null, null, null, null, null, null, null, null);
+                4, "변경", null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
                 .isInstanceOf(CompanionSessionException.class)
@@ -464,7 +529,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void invalidLocationAlertStageIsRejected() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                3, null, null, null, null, null, null, null, null, null, "unexpected");
+                3, null, null, null, null, null, null, null, null, null, null, "unexpected");
 
         assertThatThrownBy(() -> service.updateSession(manager(), SESSION_ID, command))
                 .isInstanceOf(CompanionSessionException.class)
@@ -475,7 +540,7 @@ class DefaultCompanionSessionServiceTests {
     @Test
     void changedLocationAlertPublishesParticipantNotificationAfterWrite() {
         var command = new CompanionSessionService.UpdateSessionCommand(
-                3, null, null, null, null, null, null, null, null, null, "hospital_near");
+                3, null, null, null, null, null, null, null, null, null, null, "hospital_near");
 
         service.updateSession(manager(), SESSION_ID, command);
 
@@ -509,6 +574,16 @@ class DefaultCompanionSessionServiceTests {
             int totalSteps,
             long version,
             CompanionSessionRepository.GuideSnapshotRecord guideSnapshot) {
+        return session(status, step, totalSteps, version, guideSnapshot, false);
+    }
+
+    private CompanionSessionRepository.SessionRecord session(
+            String status,
+            int step,
+            int totalSteps,
+            long version,
+            CompanionSessionRepository.GuideSnapshotRecord guideSnapshot,
+            boolean preConsultationConfirmed) {
         return new CompanionSessionRepository.SessionRecord(
                 SESSION_ID,
                 "legacy-session",
@@ -525,6 +600,7 @@ class DefaultCompanionSessionServiceTests {
                 "",
                 "",
                 "",
+                preConsultationConfirmed,
                 false,
                 false,
                 false,
@@ -637,6 +713,7 @@ class DefaultCompanionSessionServiceTests {
                             current.currentStepOrder(),
                             current.currentStatus(),
                             current.guardianUpdate(),
+                            current.preConsultationConfirmed(),
                             current.prescriptionCollected(),
                             current.locationAlertStage(),
                             current.version()));
@@ -662,6 +739,9 @@ class DefaultCompanionSessionServiceTests {
                     current.currentStepOrder(),
                     current.currentStatus(),
                     patch.guardianUpdate() == null ? current.guardianUpdate() : patch.guardianUpdate(),
+                    patch.preConsultationConfirmed() == null
+                            ? current.preConsultationConfirmed()
+                            : patch.preConsultationConfirmed(),
                     Boolean.TRUE.equals(patch.prescriptionCollected()) || current.prescriptionCollected(),
                     patch.locationAlertStage() == null
                             ? current.locationAlertStage()
@@ -693,6 +773,7 @@ class DefaultCompanionSessionServiceTests {
                     current.currentStepOrder() + 1,
                     "IN_TREATMENT",
                     current.guardianUpdate(),
+                    current.preConsultationConfirmed(),
                     current.prescriptionCollected(),
                     current.locationAlertStage(),
                     current.version() + 1));
@@ -723,6 +804,7 @@ class DefaultCompanionSessionServiceTests {
                     current.currentStepOrder(),
                     "COMPLETED",
                     current.guardianUpdate(),
+                    current.preConsultationConfirmed(),
                     current.prescriptionCollected(),
                     current.locationAlertStage(),
                     current.version() + 1));
@@ -749,6 +831,7 @@ class DefaultCompanionSessionServiceTests {
                 int step,
                 String status,
                 String guardianUpdate,
+                boolean preConsultationConfirmed,
                 boolean prescriptionCollected,
                 String locationAlertStage,
                 long version) {
@@ -768,6 +851,7 @@ class DefaultCompanionSessionServiceTests {
                     current.fieldPhotoNote(),
                     current.medicationNote(),
                     current.pharmacySummary(),
+                    preConsultationConfirmed,
                     prescriptionCollected,
                     current.pharmacyCompleted(),
                     current.medicationGuidanceCompleted(),

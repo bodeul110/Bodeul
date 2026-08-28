@@ -128,6 +128,7 @@ public class CoreApiCompanionSessionClientTest {
         fixture.put("currentStepCode", "UNLISTED_EXTENSION");
         fixture.put("canAdvance", false);
         fixture.put("blockedReason", "LAST_STEP_REACHED");
+        fixture.put("preConsultationConfirmed", true);
 
         CoreApiCompanionSessionClient.SessionSnapshot snapshot =
                 CoreApiCompanionSessionClient.parseSessionSnapshot(fixture);
@@ -143,6 +144,7 @@ public class CoreApiCompanionSessionClientTest {
         assertTrue(session.hasServerAdvanceDecision());
         assertFalse(session.isServerAdvanceAllowed());
         assertEquals("LAST_STEP_REACHED", session.getAdvanceBlockedReason());
+        assertTrue(session.isPreConsultationConfirmed());
     }
 
     @Test
@@ -230,6 +232,7 @@ public class CoreApiCompanionSessionClientTest {
                 .put("fieldPhotoNote", "")
                 .put("medicationNote", "")
                 .put("pharmacySummary", "")
+                .put("preConsultationConfirmed", false)
                 .put("prescriptionCollected", false)
                 .put("pharmacyCompleted", false)
                 .put("medicationGuidanceCompleted", false)

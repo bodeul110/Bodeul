@@ -94,6 +94,7 @@ final class FirebaseAdminRequestStore {
         sessionDocument.put("fieldPhotoNote", "");
         sessionDocument.put("medicationNote", "");
         sessionDocument.put("pharmacySummary", "");
+        sessionDocument.put("preConsultationConfirmed", false);
         sessionDocument.put("prescriptionCollected", false);
         sessionDocument.put("pharmacyCompleted", false);
         sessionDocument.put("medicationGuidanceCompleted", false);

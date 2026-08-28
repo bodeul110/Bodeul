@@ -56,6 +56,26 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/groupGuidePreConsultationConfirmation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/checkGuidePreConsultationConfirmed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:buttonTint="@color/bodeul_primary"
+                android:minHeight="48dp"
+                android:text="@string/guide_pre_consultation_confirm"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/groupGuideMedicationNote"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -105,6 +105,7 @@ class CompanionSessionApiIntegrationTests {
                                 {
                                   "version": 3,
                                   "guardianUpdate": "진료 대기 중",
+                                  "preConsultationConfirmed": true,
                                   "prescriptionCollected": true
                                 }
                                 """))
@@ -114,6 +115,7 @@ class CompanionSessionApiIntegrationTests {
         assertThat(sessionService.lastSessionId).isEqualTo(SESSION_ID);
         assertThat(sessionService.lastUpdate.version()).isEqualTo(3);
         assertThat(sessionService.lastUpdate.guardianUpdate()).isEqualTo("진료 대기 중");
+        assertThat(sessionService.lastUpdate.preConsultationConfirmed()).isTrue();
         assertThat(sessionService.lastUpdate.prescriptionCollected()).isTrue();
     }
 
@@ -209,6 +211,7 @@ class CompanionSessionApiIntegrationTests {
                 "",
                 "",
                 "",
+                false,
                 false,
                 false,
                 false,

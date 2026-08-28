@@ -47,7 +47,8 @@ public final class ManagerGuideCoordinator {
         ManagerGuideProgressPolicy.Decision advanceDecision =
                 ManagerGuideProgressPolicy.resolve(
                         session,
-                        dashboard.getHospitalGuide().getSteps().size());
+                        dashboard.getHospitalGuide().getSteps().size(),
+                        focusStep.getCode());
         ManagerGuidePrimaryAction primaryAction = resolvePrimaryAction(advanceDecision);
         ManagerGuideSectionVisibility sectionVisibility =
                 resolveSectionVisibility(focusStep, primaryAction);
@@ -71,6 +72,7 @@ public final class ManagerGuideCoordinator {
                 session.getLocationSummary(),
                 session.getGuardianUpdate(),
                 session.getFieldPhotoNote(),
+                session.isPreConsultationConfirmed(),
                 session.getMedicationNote(),
                 session.getPharmacySummary(),
                 PharmacyProgressDisplayHelper.buildStepSummary(context, session),
@@ -123,6 +125,7 @@ public final class ManagerGuideCoordinator {
                 "",
                 "",
                 "",
+                false,
                 "",
                 "",
                 context.getString(R.string.pharmacy_progress_step_summary_pending),
@@ -340,6 +343,8 @@ public final class ManagerGuideCoordinator {
                 return context.getString(R.string.guide_button_preparing);
             case CONTRACT_MISMATCH:
                 return context.getString(R.string.guide_button_review_required);
+            case INPUT_REQUIRED:
+                return context.getString(R.string.guide_button_input_required);
             case BLOCKED:
                 return context.getString(R.string.guide_button_blocked);
             case ADVANCE:
@@ -379,7 +384,8 @@ public final class ManagerGuideCoordinator {
 
     static boolean isStepInputEnabled(ManagerGuideProgressPolicy.Decision decision) {
         return decision.getState() == ManagerGuideProgressPolicy.State.ADVANCE
-                || decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP;
+                || decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP
+                || decision.getState() == ManagerGuideProgressPolicy.State.INPUT_REQUIRED;
     }
 
     private String buildStepActionLabel(GuideStep step) {
@@ -417,6 +423,7 @@ public final class ManagerGuideCoordinator {
     private boolean shouldShowBlockedGuidance(ManagerGuideProgressPolicy.Decision decision) {
         return decision.getState() == ManagerGuideProgressPolicy.State.GUIDE_NOT_READY
                 || decision.getState() == ManagerGuideProgressPolicy.State.CONTRACT_MISMATCH
+                || decision.getState() == ManagerGuideProgressPolicy.State.INPUT_REQUIRED
                 || decision.getState() == ManagerGuideProgressPolicy.State.BLOCKED;
     }
 
@@ -424,6 +431,8 @@ public final class ManagerGuideCoordinator {
         switch (decision.getState()) {
             case CONTRACT_MISMATCH:
                 return context.getString(R.string.guide_blocked_contract_mismatch);
+            case INPUT_REQUIRED:
+                return context.getString(R.string.guide_blocked_input_required);
             case BLOCKED:
                 return context.getString(R.string.guide_blocked_unknown);
             case GUIDE_NOT_READY:

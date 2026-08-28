@@ -59,6 +59,12 @@ public interface ManagerRepository {
 
     void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback);
 
+    void updatePreConsultationConfirmed(
+            String managerUserId,
+            boolean preConsultationConfirmed,
+            RepositoryCallback<ManagerDashboard> callback
+    );
+
     void updatePrescriptionCollected(
             String managerUserId,
             boolean prescriptionCollected,
