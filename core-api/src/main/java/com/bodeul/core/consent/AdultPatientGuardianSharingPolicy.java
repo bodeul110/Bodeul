@@ -85,12 +85,14 @@ public final class AdultPatientGuardianSharingPolicy {
             AppUserRole requesterRole,
             UUID patientUserId,
             InformationScope scope,
+            String currentPolicyVersion,
             Instant requestedAt) {
         Objects.requireNonNull(candidate, "동의 조회 결과가 필요합니다.");
         Objects.requireNonNull(requesterUserId, "요청자 식별자가 필요합니다.");
         Objects.requireNonNull(requesterRole, "요청자 역할이 필요합니다.");
         Objects.requireNonNull(patientUserId, "환자 식별자가 필요합니다.");
         Objects.requireNonNull(scope, "정보 범위가 필요합니다.");
+        String normalizedCurrentPolicyVersion = normalizePolicyVersion(currentPolicyVersion);
         Objects.requireNonNull(requestedAt, "조회 시각이 필요합니다.");
 
         if (candidate.isEmpty()) {
@@ -106,6 +108,9 @@ public final class AdultPatientGuardianSharingPolicy {
         }
         if (!grant.guardianUserId().equals(requesterUserId)) {
             return Decision.denied(DecisionReason.GUARDIAN_MISMATCH);
+        }
+        if (!grant.policyVersion().equals(normalizedCurrentPolicyVersion)) {
+            return Decision.denied(DecisionReason.POLICY_VERSION_MISMATCH);
         }
         if (!grant.scopes().contains(scope)) {
             return Decision.denied(DecisionReason.SCOPE_NOT_GRANTED);
@@ -155,6 +160,7 @@ public final class AdultPatientGuardianSharingPolicy {
         REQUESTER_NOT_GUARDIAN,
         PATIENT_MISMATCH,
         GUARDIAN_MISMATCH,
+        POLICY_VERSION_MISMATCH,
         SCOPE_NOT_GRANTED,
         NOT_YET_ACTIVE,
         EXPIRED,

@@ -10,7 +10,8 @@
 
 - 예약, 위치, 채팅, 첨부, 리포트 정보 범위를 분리했다.
 - 환자 본인만 지정 보호자에게 범위와 기간이 명시된 동의를 만들 수 있게 했다.
-- 미동의, 역할·대상·범위 불일치, 시작 전, 만료와 철회를 기본 거부하는 판정을 추가했다.
+- 판정 시 현재 정책 버전을 명시적으로 받고 저장된 동의 버전과 다르면 별도 사유로 거부한다.
+- 미동의, 역할·대상·정책 버전·범위 불일치, 시작 전, 만료와 철회를 기본 거부하는 판정을 추가했다.
 - 환자 본인 철회와 중복 철회의 안정적인 처리를 단위 테스트로 고정했다.
 
 ## 변경된 범위
@@ -23,13 +24,13 @@ PostgreSQL, Core API endpoint, Android, Firebase Rules와 production 권한은 �
 
 ## 검증
 
-- `AdultPatientGuardianSharingPolicyTests` 7개 통과
-- `core-api` 전체 `check`: 264개 테스트 통과, 실패·오류·건너뜀 0개
+- `AdultPatientGuardianSharingPolicyTests` 9개 통과
+- `core-api` 전체 `check`: 274개 테스트 통과, 실패·오류·건너뜀 0개
 - `git diff --check`
 
 ## 남은 범위
 
-- 성인 여부 확인 근거, 동의 기간 선택지와 감사 증적 형식 확정
+- 성인 여부 확인 근거, 동의 기간 선택지, 현재 정책 버전 공급 경계와 감사 증적 형식 확정
 - PostgreSQL migration과 저장소 구현
 - 환자 전용 부여·철회 API와 Android 화면
 - 정보 범위별 기존 조회 API 인가 연결과 회귀 검증

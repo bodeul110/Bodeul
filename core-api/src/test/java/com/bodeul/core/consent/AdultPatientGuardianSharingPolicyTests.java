@@ -15,6 +15,7 @@ import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.Decision
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.GUARDIAN_MISMATCH;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.NOT_YET_ACTIVE;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.PATIENT_MISMATCH;
+import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.POLICY_VERSION_MISMATCH;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.REQUESTER_NOT_GUARDIAN;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.REVOKED;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.SCOPE_NOT_GRANTED;
@@ -31,6 +32,7 @@ class AdultPatientGuardianSharingPolicyTests {
     private static final UUID OTHER_USER_ID = UUID.fromString("c56e5a24-c8c1-45e5-8991-d72068691ca7");
     private static final Instant GRANTED_AT = Instant.parse("2026-08-28T10:00:00Z");
     private static final Instant EXPIRES_AT = GRANTED_AT.plus(30, ChronoUnit.DAYS);
+    private static final String CURRENT_POLICY_VERSION = "test-policy-v1";
 
     @Test
     void patientCreatesExplicitScopedGrant() {
@@ -130,6 +132,7 @@ class AdultPatientGuardianSharingPolicyTests {
                 AppUserRole.GUARDIAN,
                 PATIENT_ID,
                 REPORT,
+                CURRENT_POLICY_VERSION,
                 GRANTED_AT.plusSeconds(1));
         var wrongRole = evaluate(grant(), GUARDIAN_ID, AppUserRole.PATIENT, PATIENT_ID, REPORT,
                 GRANTED_AT.plusSeconds(1));
@@ -142,6 +145,35 @@ class AdultPatientGuardianSharingPolicyTests {
         assertThat(wrongRole.reason()).isEqualTo(REQUESTER_NOT_GUARDIAN);
         assertThat(wrongPatient.reason()).isEqualTo(PATIENT_MISMATCH);
         assertThat(wrongGuardian.reason()).isEqualTo(GUARDIAN_MISMATCH);
+    }
+
+    @Test
+    void grantPolicyVersionMustMatchCurrentPolicyVersion() {
+        var mismatch = AdultPatientGuardianSharingPolicy.evaluate(
+                Optional.of(grant()),
+                GUARDIAN_ID,
+                AppUserRole.GUARDIAN,
+                PATIENT_ID,
+                REPORT,
+                "test-policy-v2",
+                GRANTED_AT.plusSeconds(1));
+
+        assertThat(mismatch.allowed()).isFalse();
+        assertThat(mismatch.reason()).isEqualTo(POLICY_VERSION_MISMATCH);
+    }
+
+    @Test
+    void evaluationRequiresCurrentPolicyVersion() {
+        assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.evaluate(
+                Optional.of(grant()),
+                GUARDIAN_ID,
+                AppUserRole.GUARDIAN,
+                PATIENT_ID,
+                REPORT,
+                "  ",
+                GRANTED_AT.plusSeconds(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("동의 정책 버전이 필요합니다.");
     }
 
     @Test
@@ -197,7 +229,7 @@ class AdultPatientGuardianSharingPolicyTests {
                 Set.of(APPOINTMENT, REPORT),
                 GRANTED_AT,
                 EXPIRES_AT,
-                "test-policy-v1");
+                CURRENT_POLICY_VERSION);
     }
 
     private AdultPatientGuardianSharingPolicy.Decision evaluate(
@@ -213,6 +245,7 @@ class AdultPatientGuardianSharingPolicyTests {
                 requesterRole,
                 patientUserId,
                 scope,
+                CURRENT_POLICY_VERSION,
                 requestedAt);
     }
 }
