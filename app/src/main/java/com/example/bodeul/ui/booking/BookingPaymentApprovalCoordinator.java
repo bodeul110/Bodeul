@@ -6,7 +6,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
 
 /**
- * 결제 승인 화면에 필요한 안내 문구와 표시 값을 만든다.
+ * MVP 결제 확인 화면에 필요한 안내 문구와 표시 값을 만든다.
  */
 public final class BookingPaymentApprovalCoordinator {
     private final Context context;
@@ -58,12 +58,12 @@ public final class BookingPaymentApprovalCoordinator {
     private String resolveProviderLabel(BookingPaymentMethod paymentMethod) {
         switch (paymentMethod) {
             case EASY_PAY:
-                return context.getString(R.string.booking_payment_provider_easy_pay);
+                return context.getString(R.string.booking_payment_provider_easy_pay_simulation);
             case ON_SITE:
                 return context.getString(R.string.booking_payment_provider_on_site);
             case CARD:
             default:
-                return context.getString(R.string.booking_payment_provider_card);
+                return context.getString(R.string.booking_payment_provider_card_simulation);
         }
     }
 }
