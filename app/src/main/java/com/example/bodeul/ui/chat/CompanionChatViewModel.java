@@ -13,12 +13,15 @@ import com.example.bodeul.data.CompanionChatAttachmentUploader;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
+import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
+import com.example.bodeul.ui.navigation.ClientCompanionRoomEntryState;
+import com.example.bodeul.ui.navigation.ClientBottomNavigationVisibility;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,35 +45,63 @@ public class CompanionChatViewModel extends ViewModel {
         @Nullable
         public final String errorMessage;
         public final boolean requireProfileCompletion;
+        public final boolean showClientNavigation;
 
         public UiState(
                 boolean isLoading,
                 @Nullable CompanionChatScreenModel screenModel,
                 StatePanelType statePanelType,
                 @Nullable String errorMessage,
-                boolean requireProfileCompletion
+                boolean requireProfileCompletion,
+                boolean showClientNavigation
         ) {
             this.isLoading = isLoading;
             this.screenModel = screenModel;
             this.statePanelType = statePanelType;
             this.errorMessage = errorMessage;
             this.requireProfileCompletion = requireProfileCompletion;
+            this.showClientNavigation = showClientNavigation;
         }
 
         public static UiState loading() {
-            return new UiState(true, null, StatePanelType.NONE, null, false);
+            return new UiState(true, null, StatePanelType.NONE, null, false, false);
         }
 
-        public static UiState screen(CompanionChatScreenModel screenModel) {
-            return new UiState(false, screenModel, StatePanelType.NONE, null, false);
+        public static UiState screen(
+                CompanionChatScreenModel screenModel,
+                boolean showClientNavigation
+        ) {
+            return new UiState(
+                    false,
+                    screenModel,
+                    StatePanelType.NONE,
+                    null,
+                    false,
+                    showClientNavigation
+            );
         }
 
         public static UiState panel(StatePanelType type, @Nullable String errorMessage) {
-            return new UiState(false, null, type, errorMessage, false);
+            return panel(type, errorMessage, false);
+        }
+
+        public static UiState panel(
+                StatePanelType type,
+                @Nullable String errorMessage,
+                boolean showClientNavigation
+        ) {
+            return new UiState(
+                    false,
+                    null,
+                    type,
+                    errorMessage,
+                    false,
+                    showClientNavigation
+            );
         }
 
         public static UiState profileCompletion() {
-            return new UiState(false, null, StatePanelType.NONE, null, true);
+            return new UiState(false, null, StatePanelType.NONE, null, true, false);
         }
     }
 
@@ -140,12 +171,9 @@ public class CompanionChatViewModel extends ViewModel {
                     loadManagerDashboard(result);
                     return;
                 }
-                if (result.getRole() == UserRole.PATIENT || result.getRole() == UserRole.GUARDIAN) {
+                if (ClientBottomNavigationVisibility.isVisibleFor(result.getRole())) {
                     if (TextUtils.isEmpty(requestId)) {
-                        uiState.setValue(UiState.panel(
-                                StatePanelType.LOAD_ERROR,
-                                "예약 정보를 확인하지 못했습니다."
-                        ));
+                        loadClientNavigationTarget(result);
                         return;
                     }
                     loadBookingDetail(result);
@@ -157,6 +185,29 @@ public class CompanionChatViewModel extends ViewModel {
             @Override
             public void onError(String message) {
                 uiState.setValue(UiState.panel(StatePanelType.AUTH, null));
+            }
+        });
+    }
+
+    private void loadClientNavigationTarget(User user) {
+        bookingRepository.getMyAppointmentRequests(user, new RepositoryCallback<List<AppointmentRequest>>() {
+            @Override
+            public void onSuccess(List<AppointmentRequest> result) {
+                ClientCompanionRoomEntryState entryState =
+                        ClientCompanionRoomEntryState.fromAuthorizedRequests(result);
+                if (entryState.isEmpty()) {
+                    currentSessionId = "";
+                    uiState.setValue(UiState.panel(StatePanelType.EMPTY, null, true));
+                    return;
+                }
+                requestId = entryState.getRequestId();
+                loadBookingDetail(user);
+            }
+
+            @Override
+            public void onError(String message) {
+                currentSessionId = "";
+                uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message, true));
             }
         });
     }
@@ -204,14 +255,14 @@ public class CompanionChatViewModel extends ViewModel {
                         user,
                         result,
                         bookingRepository.isFirebaseBacked()
-                )));
+                ), true));
                 bookingRepository.markCompanionChatRead(user, requestId);
             }
 
             @Override
             public void onError(String message) {
                 currentSessionId = "";
-                uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message));
+                uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message, true));
             }
         });
     }
@@ -228,7 +279,7 @@ public class CompanionChatViewModel extends ViewModel {
                         user,
                         result,
                         managerRepository.isFirebaseBacked()
-                )));
+                ), false));
                 managerRepository.markCompanionChatRead(user.getId());
             }
 
@@ -323,7 +374,7 @@ public class CompanionChatViewModel extends ViewModel {
                                     currentUser,
                                     result,
                                     managerRepository.isFirebaseBacked()
-                            )));
+                            ), false));
                             messageSentEvent.setValue(System.currentTimeMillis());
                         }
 
@@ -350,7 +401,7 @@ public class CompanionChatViewModel extends ViewModel {
                                 currentUser,
                                 result,
                                 bookingRepository.isFirebaseBacked()
-                        )));
+                        ), true));
                         messageSentEvent.setValue(System.currentTimeMillis());
                     }
 
@@ -370,7 +421,8 @@ public class CompanionChatViewModel extends ViewModel {
                 currentState == null ? null : currentState.screenModel,
                 StatePanelType.NONE,
                 null,
-                false
+                false,
+                currentState != null && currentState.showClientNavigation
         ));
     }
 
@@ -381,7 +433,8 @@ public class CompanionChatViewModel extends ViewModel {
                 currentState == null ? null : currentState.screenModel,
                 StatePanelType.NONE,
                 null,
-                false
+                false,
+                currentState != null && currentState.showClientNavigation
         ));
     }
 

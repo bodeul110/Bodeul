@@ -1,28 +1,41 @@
 package com.example.bodeul.domain.model;
 
 /**
- * 결제 승인 단계에서 확정된 승인 결과를 예약 요청에 함께 보관한다.
+ * 예약 접수 전 결제 단계의 사용자 확인 결과를 보관한다.
  */
 public final class BookingPaymentApproval {
     private final BookingPaymentStatus status;
     private final String providerLabel;
     private final String approvalCode;
     private final String approvedAt;
+    private final boolean submissionConfirmed;
 
     private BookingPaymentApproval(
             BookingPaymentStatus status,
             String providerLabel,
             String approvalCode,
-            String approvedAt
+            String approvedAt,
+            boolean submissionConfirmed
     ) {
         this.status = status == null ? BookingPaymentStatus.PENDING : status;
         this.providerLabel = normalize(providerLabel);
         this.approvalCode = normalize(approvalCode);
         this.approvedAt = normalize(approvedAt);
+        this.submissionConfirmed = submissionConfirmed;
     }
 
     public static BookingPaymentApproval empty() {
-        return new BookingPaymentApproval(BookingPaymentStatus.PENDING, "", "", "");
+        return new BookingPaymentApproval(BookingPaymentStatus.PENDING, "", "", "", false);
+    }
+
+    public static BookingPaymentApproval simulated(String providerLabel) {
+        return new BookingPaymentApproval(
+                BookingPaymentStatus.PENDING,
+                providerLabel,
+                "",
+                "",
+                true
+        );
     }
 
     public static BookingPaymentApproval authorized(String providerLabel, String approvalCode, String approvedAt) {
@@ -30,7 +43,8 @@ public final class BookingPaymentApproval {
                 BookingPaymentStatus.AUTHORIZED,
                 providerLabel,
                 approvalCode,
-                approvedAt
+                approvedAt,
+                true
         );
     }
 
@@ -39,7 +53,8 @@ public final class BookingPaymentApproval {
                 BookingPaymentStatus.DEFERRED,
                 providerLabel,
                 "",
-                approvedAt
+                approvedAt,
+                true
         );
     }
 
@@ -60,7 +75,7 @@ public final class BookingPaymentApproval {
     }
 
     public boolean isCompleted() {
-        return status == BookingPaymentStatus.AUTHORIZED || status == BookingPaymentStatus.DEFERRED;
+        return submissionConfirmed;
     }
 
     private static String normalize(String value) {

@@ -37,6 +37,31 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
+tasks.named<Test>("test") {
+	useJUnitPlatform {
+		excludeTags("firestore-emulator")
+	}
+}
+
+tasks.register<Test>("firestoreEmulatorTest") {
+	group = "verification"
+	description = "격리 Firestore Emulator에서 계정 삭제 영향도 aggregation 계약을 검증합니다."
+	testClassesDirs = sourceSets["test"].output.classesDirs
+	classpath = sourceSets["test"].runtimeClasspath
+	outputs.upToDateWhen { false }
+	useJUnitPlatform {
+		includeTags("firestore-emulator")
+	}
+	doFirst {
+		val emulatorHost = System.getenv("FIRESTORE_EMULATOR_HOST")
+			?: throw GradleException("FIRESTORE_EMULATOR_HOST가 설정된 격리 환경에서만 실행할 수 있습니다.")
+		val localEmulator = Regex("^(localhost|127\\.0\\.0\\.1):[0-9]{1,5}$")
+		if (!localEmulator.matches(emulatorHost)) {
+			throw GradleException("Firestore Emulator는 localhost 또는 127.0.0.1만 허용합니다.")
+		}
+	}
+}
+
 tasks.register<JavaExec>("migrateDatabase") {
 	group = "application"
 	description = "migration profile로 Flyway를 실행한 뒤 종료합니다."
