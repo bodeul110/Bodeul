@@ -157,9 +157,9 @@ select count(*) = 0 as consented_guardian_broadcast_denied from realtime.message
 reset role;
 update bodeul.guardian_sharing_consents
 set revoked_by_user_id = patient_user_id,
-    revoked_at = now(),
+    revoked_at = statement_timestamp(),
     version = version + 1,
-    updated_at = now()
+    updated_at = statement_timestamp()
 where id = '40000000-0000-0000-0000-000000000001';
 
 set local role authenticated;
