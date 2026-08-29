@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Issue 374 성인 환자·보호자 정보공유 판정 계약 (2026-08-28)](issue-374-adult-patient-guardian-sharing-contract-2026-08-28.md)
 - [Issue 307 승인 입력 범위 구현 기록 (2026-08-28)](issue-307-guide-input-slice-2026-08-28.md)
 - [Issue 305 환자·보호자 공통 하단 내비게이션 구현 (2026-08-28)](issue-305-client-bottom-navigation-2026-08-28.md)
 - [Issue 371 MVP 결제 시뮬레이션 정리 (2026-08-28)](issue-371-mvp-payment-simulation-2026-08-28.md)
