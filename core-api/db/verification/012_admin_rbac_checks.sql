@@ -102,15 +102,19 @@ declare
     v_super_two constant uuid := '00000000-0000-0000-0000-000000003492';
     v_operations constant uuid := '00000000-0000-0000-0000-000000003493';
     v_developer constant uuid := '00000000-0000-0000-0000-000000003494';
+    v_patient constant uuid := '00000000-0000-0000-0000-000000003490';
     v_first_grant uuid;
     v_second_grant uuid;
     v_audit_id uuid;
     v_retry_audit_id uuid;
     v_operation_id constant uuid := '00000000-0000-0000-0000-000000003499';
-    v_revoked_actor_operation_id constant uuid := '00000000-0000-0000-0000-000000003498';
-    v_snapshot_scope_operation_id constant uuid := '00000000-0000-0000-0000-000000003497';
-    v_invalid_snapshot_operation_id constant uuid := '00000000-0000-0000-0000-000000003496';
-    v_invalid_snapshot_hash_operation_id constant uuid := '00000000-0000-0000-0000-000000003495';
+    v_manager_review_operation_id constant uuid := '00000000-0000-0000-0000-000000003498';
+    v_metadata_scope_operation_id constant uuid := '00000000-0000-0000-0000-000000003497';
+    v_invalid_metadata_role_operation_id constant uuid := '00000000-0000-0000-0000-000000003496';
+    v_invalid_metadata_hash_operation_id constant uuid := '00000000-0000-0000-0000-000000003495';
+    v_patient_manager_review_operation_id constant uuid := '00000000-0000-0000-0000-000000003489';
+    v_mismatched_manager_review_operation_id constant uuid := '00000000-0000-0000-0000-000000003488';
+    v_missing_metadata_role_operation_id constant uuid := '00000000-0000-0000-0000-000000003487';
     v_retention_job_id uuid;
     v_legacy_retention_job_id uuid;
     v_legacy_retention_counts jsonb;
@@ -123,7 +127,8 @@ begin
         (v_super_one, 'verify-admin-rbac-super-one', 'ADMIN'),
         (v_super_two, 'verify-admin-rbac-super-two', 'ADMIN'),
         (v_operations, 'verify-admin-rbac-operations', 'ADMIN'),
-        (v_developer, 'verify-admin-rbac-developer', 'ADMIN');
+        (v_developer, 'verify-admin-rbac-developer', 'ADMIN'),
+        (v_patient, 'verify-admin-rbac-patient', 'PATIENT');
 
     insert into bodeul.admin_role_assignments (
         admin_user_id, admin_role, granted_by_admin_user_id, grant_reason
@@ -173,79 +178,126 @@ begin
         raise exception '같은 감사 작업 ID의 다른 내용 재사용이 거부되지 않았습니다.';
     end if;
 
-    perform bodeul.revoke_admin_role_assignment(
-        v_operations, v_super_one, '검증용 운영 관리자 역할 회수입니다.'
-    );
-    perform bodeul.set_admin_role_assignment(
-        v_operations, 'DEVELOPER', v_super_one, '검증용 개발 관리자 역할 재부여입니다.'
-    );
     v_audit_id := bodeul.record_admin_access_audit(
-        v_operations, 'UPDATE', 'MANAGER_REVIEW', 'revoked-actor-review',
+        v_operations, 'UPDATE', 'MANAGER_REVIEW', 'active-operations-review',
         '', 'ALLOWED', jsonb_build_object(
             'status', 'APPROVED',
-            'operationId', v_revoked_actor_operation_id,
+            'operationId', v_manager_review_operation_id,
             'actorAdminRole', 'OPERATIONS',
             'payloadHash', repeat('a', 64)
-        ), v_revoked_actor_operation_id
+        ), v_manager_review_operation_id
     );
     if not exists (
         select 1
         from bodeul.admin_access_audits audit
         where audit.id = v_audit_id
           and audit.actor_admin_role = 'OPERATIONS'
-          and audit.operation_id = v_revoked_actor_operation_id
+          and audit.operation_id = v_manager_review_operation_id
     ) then
-        raise exception '역할 회수 뒤 심사 outbox 감사를 당시 역할로 기록하지 못했습니다.';
+        raise exception '현재 OPERATIONS 역할의 심사 outbox 감사를 기록하지 못했습니다.';
     end if;
 
     v_rejected := false;
     begin
         perform bodeul.record_admin_access_audit(
-            v_operations, 'RAW_VIEW', 'MANAGER_DOCUMENT', 'snapshot-scope-check',
-            '검증용 snapshot 범위 제한 확인 사유입니다.', 'ALLOWED', jsonb_build_object(
-                'actorAdminRole', 'SUPER_ADMIN'
-            ), v_snapshot_scope_operation_id
+            v_patient, 'UPDATE', 'MANAGER_REVIEW', 'patient-review',
+            '', 'ALLOWED', jsonb_build_object(
+                'status', 'APPROVED',
+                'operationId', v_patient_manager_review_operation_id,
+                'actorAdminRole', 'OPERATIONS',
+                'payloadHash', repeat('b', 64)
+            ), v_patient_manager_review_operation_id
         );
     exception
         when sqlstate '42501' then v_rejected := true;
     end;
     if not v_rejected then
-        raise exception '심사 outbox 역할 snapshot이 다른 민감 감사에 적용되었습니다.';
+        raise exception 'PATIENT 계정의 심사 outbox 감사가 거부되지 않았습니다.';
     end if;
 
     v_rejected := false;
     begin
         perform bodeul.record_admin_access_audit(
-            v_operations, 'UPDATE', 'MANAGER_REVIEW', 'invalid-snapshot-role',
+            v_operations, 'UPDATE', 'MANAGER_REVIEW', 'mismatched-role-review',
             '', 'ALLOWED', jsonb_build_object(
                 'status', 'APPROVED',
-                'operationId', v_invalid_snapshot_operation_id,
+                'operationId', v_mismatched_manager_review_operation_id,
+                'actorAdminRole', 'SUPER_ADMIN',
+                'payloadHash', repeat('c', 64)
+            ), v_mismatched_manager_review_operation_id
+        );
+    exception
+        when sqlstate '42501' then v_rejected := true;
+    end;
+    if not v_rejected then
+        raise exception '현재 DB 역할과 불일치한 심사 outbox 역할이 거부되지 않았습니다.';
+    end if;
+
+    v_rejected := false;
+    begin
+        perform bodeul.record_admin_access_audit(
+            v_developer, 'RAW_VIEW', 'MANAGER_DOCUMENT', 'metadata-scope-check',
+            '검증용 metadata 범위 제한 확인 사유입니다.', 'ALLOWED', jsonb_build_object(
+                'actorAdminRole', 'SUPER_ADMIN'
+            ), v_metadata_scope_operation_id
+        );
+    exception
+        when sqlstate '42501' then v_rejected := true;
+    end;
+    if not v_rejected then
+        raise exception '심사 outbox 역할 metadata가 다른 민감 감사에 적용되었습니다.';
+    end if;
+
+    v_rejected := false;
+    begin
+        perform bodeul.record_admin_access_audit(
+            v_operations, 'UPDATE', 'MANAGER_REVIEW', 'invalid-metadata-role',
+            '', 'ALLOWED', jsonb_build_object(
+                'status', 'APPROVED',
+                'operationId', v_invalid_metadata_role_operation_id,
                 'actorAdminRole', 'DEVELOPER',
                 'payloadHash', repeat('b', 64)
-            ), v_invalid_snapshot_operation_id
+            ), v_invalid_metadata_role_operation_id
         );
     exception
         when sqlstate '22023' then v_rejected := true;
     end;
     if not v_rejected then
-        raise exception '개발 관리자 역할 snapshot이 심사 성공 감사에 허용되었습니다.';
+        raise exception '개발 관리자 역할 metadata가 심사 성공 감사에 허용되었습니다.';
     end if;
 
     v_rejected := false;
     begin
         perform bodeul.record_admin_access_audit(
-            v_operations, 'UPDATE', 'MANAGER_REVIEW', 'invalid-snapshot-hash',
+            v_operations, 'UPDATE', 'MANAGER_REVIEW', 'invalid-metadata-hash',
             '', 'ALLOWED', jsonb_build_object(
                 'status', 'APPROVED',
-                'operationId', v_invalid_snapshot_hash_operation_id,
+                'operationId', v_invalid_metadata_hash_operation_id,
                 'actorAdminRole', 'OPERATIONS'
-            ), v_invalid_snapshot_hash_operation_id
+            ), v_invalid_metadata_hash_operation_id
         );
     exception
         when sqlstate '22023' then v_rejected := true;
     end;
     if not v_rejected then
-        raise exception 'payload hash가 없는 심사 역할 snapshot이 허용되었습니다.';
+        raise exception 'payload hash가 없는 심사 outbox metadata가 허용되었습니다.';
+    end if;
+
+    v_rejected := false;
+    begin
+        perform bodeul.record_admin_access_audit(
+            v_operations, 'UPDATE', 'MANAGER_REVIEW', 'missing-metadata-role',
+            '', 'ALLOWED', jsonb_build_object(
+                'status', 'APPROVED',
+                'operationId', v_missing_metadata_role_operation_id,
+                'payloadHash', repeat('d', 64)
+            ), v_missing_metadata_role_operation_id
+        );
+    exception
+        when sqlstate '22023' then v_rejected := true;
+    end;
+    if not v_rejected then
+        raise exception '관리자 역할이 없는 심사 outbox 감사가 거부되지 않았습니다.';
     end if;
 
     v_rejected := false;

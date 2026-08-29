@@ -90,6 +90,15 @@ migrate_database bodeul_admin_rbac
 psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
     --file db/verification/012_admin_rbac_checks.sql
 psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/verification/014_admin_rbac_rollback_failure_fixture.sql
+if psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/rollback/V20__remove_admin_rbac_and_access_audit.sql; then
+    echo "의존 객체가 있는 V20 롤백이 예상과 달리 성공했습니다." >&2
+    exit 1
+fi
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/verification/015_admin_rbac_rollback_atomicity_checks.sql
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
     --file db/rollback/V20__remove_admin_rbac_and_access_audit.sql
 psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
     --file db/verification/013_admin_rbac_rollback_checks.sql

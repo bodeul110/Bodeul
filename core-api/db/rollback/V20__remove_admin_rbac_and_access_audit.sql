@@ -1,3 +1,6 @@
+begin;
+set local role bodeul_migration;
+
 do $$
 begin
     if exists (select 1 from bodeul.admin_access_audits)
@@ -242,3 +245,5 @@ drop function bodeul.resolve_admin_authorization(text);
 drop table bodeul.admin_access_audits;
 drop table bodeul.admin_break_glass_grants;
 drop table bodeul.admin_role_assignments;
+
+commit;

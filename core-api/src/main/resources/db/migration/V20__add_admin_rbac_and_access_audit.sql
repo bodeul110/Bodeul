@@ -185,6 +185,7 @@ as $$
 declare
     v_admin_role text;
     v_outbox_admin_role text;
+    v_is_manager_review_outbox boolean;
     v_break_glass_grant_id uuid;
     v_audit_id uuid;
     v_existing bodeul.admin_access_audits%rowtype;
@@ -209,34 +210,39 @@ begin
         end if;
     end if;
 
-    v_outbox_admin_role := nullif(p_metadata ->> 'actorAdminRole', '');
-    if p_operation_id is not null
+    v_is_manager_review_outbox := p_operation_id is not null
             and p_action = 'UPDATE'
             and p_resource_type = 'MANAGER_REVIEW'
-            and p_outcome = 'ALLOWED'
-            and v_outbox_admin_role is not null then
+            and p_outcome = 'ALLOWED';
+
+    select assignment.admin_role
+    into v_admin_role
+    from bodeul.admin_role_assignments assignment
+    join bodeul.app_users app_user on app_user.id = assignment.admin_user_id
+    where assignment.admin_user_id = p_actor_admin_user_id
+      and assignment.revoked_at is null
+      and app_user.role = 'ADMIN'
+    for share of assignment, app_user;
+
+    if v_admin_role is null then
+        raise exception '활성 관리자 세부 역할이 필요합니다.' using errcode = '42501';
+    end if;
+
+    if v_is_manager_review_outbox then
+        v_outbox_admin_role := nullif(p_metadata ->> 'actorAdminRole', '');
+        if v_outbox_admin_role is null then
+            raise exception '심사 감사의 관리자 역할이 필요합니다.' using errcode = '22023';
+        end if;
         if v_outbox_admin_role not in ('SUPER_ADMIN', 'OPERATIONS') then
             raise exception '심사 감사의 관리자 역할이 올바르지 않습니다.' using errcode = '22023';
         end if;
         if coalesce(p_metadata ->> 'payloadHash', '') !~ '^[0-9a-f]{64}$' then
             raise exception '심사 감사의 payload hash가 올바르지 않습니다.' using errcode = '22023';
         end if;
-
-        -- Firestore transaction에서 만든 immutable operation outbox의 당시 역할 snapshot이다.
-        -- 이 함수는 bodeul_admin_runtime만 호출하며, 예외 범위를 심사 성공 감사로 제한한다.
-        v_admin_role := v_outbox_admin_role;
-    else
-        select assignment.admin_role
-        into v_admin_role
-        from bodeul.admin_role_assignments assignment
-        join bodeul.app_users app_user on app_user.id = assignment.admin_user_id
-        where assignment.admin_user_id = p_actor_admin_user_id
-          and assignment.revoked_at is null
-          and app_user.role = 'ADMIN';
-    end if;
-
-    if v_admin_role is null then
-        raise exception '활성 관리자 세부 역할이 필요합니다.' using errcode = '42501';
+        if v_outbox_admin_role is distinct from v_admin_role then
+            raise exception '심사 감사의 관리자 역할이 현재 활성 역할과 일치하지 않습니다.'
+                using errcode = '42501';
+        end if;
     end if;
 
     if p_outcome = 'ALLOWED'

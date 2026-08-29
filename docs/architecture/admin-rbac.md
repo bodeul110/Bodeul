@@ -49,12 +49,12 @@ Firebase와 `app_users.role == ADMIN`만으로 모든 관리자 기능을 허용
 ## 리스크와 전환 조건
 
 - V20은 기존 ADMIN을 자동으로 세부 역할에 넣지 않는다. 개발 DB에서 최초 `SUPER_ADMIN`을 명시적으로 bootstrap하기 전에는 새 관리자 API가 403을 반환한다.
-- 매니저 심사 outbox는 서버가 인증한 당시 관리자 세부 역할을 immutable 작업 payload에 함께 저장한다. DB는 `operation_id`와 64자 `payloadHash`가 있는 `MANAGER_REVIEW`의 `UPDATE / ALLOWED` 감사에서만 `SUPER_ADMIN` 또는 `OPERATIONS` snapshot을 허용하므로, 심사 직후 역할이 회수·변경되어도 당시 권한 맥락으로 재처리할 수 있다. 그 밖의 감사는 현재 활성 역할을 계속 요구한다.
+- 매니저 심사 outbox는 서버가 인증한 관리자 세부 역할을 immutable 작업 payload에 함께 저장한다. DB는 `operation_id`와 64자 `payloadHash`가 있는 `MANAGER_REVIEW`의 `UPDATE / ALLOWED` 감사에서도 actor가 현재 `ADMIN`이고 활성 역할이 `SUPER_ADMIN` 또는 `OPERATIONS`이며, payload의 `actorAdminRole`과 정확히 일치할 때만 기록한다. outbox가 대기하는 동안 역할이 회수되거나 변경되면 자동 전달은 fail-closed로 실패한다. 당시 역할 snapshot만으로 우회 재생하지 않으며, 운영자가 역할 변경 경위와 심사 결과를 확인한 뒤 별도 보정 절차를 결정해야 한다.
 - DB 역할과 Firebase Rules 사이에 별도 권한 복제본을 만들지 않는다. Android의 기존 `FirebaseAdminRepository`는 Firebase 연동 모드에서 ADMIN 본인 확인 뒤 대시보드 요청 전에 중단하고 별도 관리자 웹 안내만 표시한다. Mock 데모 모드는 유지한다. 이 차단이 포함된 Android 앱과 이번 Rules는 같은 릴리스 게이트에서 적용하며, 구버전 앱이 남아 있는 동안 Rules만 단독 배포하지 않는다.
 - 인라인 미리보기 데이터는 사용자 기기에 도달하므로 완전한 복사 방지는 불가능하다. 사유, 짧은 응답 수명, `no-store`, 감사와 워터마크를 함께 사용한다.
 - break-glass 재발급 전 ID는 최신 권한을 가리키지 않는다. 회수 함수는 요청한 ID의 활성·미만료 행만 잠그고 종료하며, 실제 PostgreSQL 검증 SQL은 교체된 이전 ID의 회수가 `false`이고 최신 권한이 유지되는지 확인한다.
 - production 역할 배정, MFA 확인과 자격 증명 활성화는 출시 게이트 #134 전에는 수행하지 않는다.
-- V20 롤백은 역할 배정, break-glass, 감사 이력이 하나라도 있거나 관리자 감사 파기 집계가 0이 아닌 실행 기록이 있으면 중단한다. 실제 롤백은 먼저 감사·권한·집계 증적을 내보내고 Functions를 호환 버전으로 되돌린 뒤, 승인된 별도 정리 절차로 해당 행을 비운 경우에만 실행한다. 롤백 뒤 구 Functions 계약은 기존 20개 키를 받고, 순차 배포 중 남은 22개 키 payload는 관리자 감사 두 값이 모두 0일 때만 받는다. 0이 아닌 값은 저장 열이 없어 유실될 수 있으므로 명시적으로 거부한다.
+- V20 롤백은 migration role의 단일 트랜잭션으로 실행하며, 중간 객체 변경이나 삭제가 실패하면 전체를 되돌린다. 역할 배정, break-glass, 감사 이력이 하나라도 있거나 관리자 감사 파기 집계가 0이 아닌 실행 기록이 있으면 시작 단계에서 중단한다. 실제 롤백은 먼저 감사·권한·집계 증적을 내보내고 Functions를 호환 버전으로 되돌린 뒤, 승인된 별도 정리 절차로 해당 행을 비운 경우에만 실행한다. 롤백 뒤 구 Functions 계약은 기존 20개 키를 받고, 순차 배포 중 남은 22개 키 payload는 관리자 감사 두 값이 모두 0일 때만 받는다. 0이 아닌 값은 저장 열이 없어 유실될 수 있으므로 명시적으로 거부한다.
 
 ## 초기 역할 bootstrap
 
