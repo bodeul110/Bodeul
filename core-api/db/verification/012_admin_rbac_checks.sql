@@ -135,10 +135,10 @@ begin
 
     if not exists (
         select 1
-        from bodeul.resolve_admin_authorization('verify-admin-rbac-operations') authorization
-        where authorization.app_user_id = v_operations
-          and authorization.app_role = 'ADMIN'
-          and authorization.admin_role = 'OPERATIONS'
+        from bodeul.resolve_admin_authorization('verify-admin-rbac-operations') resolved_auth
+        where resolved_auth.app_user_id = v_operations
+          and resolved_auth.app_role = 'ADMIN'
+          and resolved_auth.admin_role = 'OPERATIONS'
     ) then
         raise exception '관리자 세부 역할 조회 결과가 올바르지 않습니다.';
     end if;
