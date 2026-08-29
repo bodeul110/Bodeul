@@ -40,6 +40,8 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 | `PUT` | `/api/appointments/{id}/guardian-sharing-consent` | 성인 환자 본인의 범위별 동의 생성·갱신 | 200 |
 | `DELETE` | `/api/appointments/{id}/guardian-sharing-consent` | 성인 환자 본인의 즉시 철회 | 200 |
 
+예약 응답의 `publicCode`는 `BD-`와 영문 대문자·숫자 6자리로 구성한다. Core API가 생성할 때 발급하며, 목록·상세 조회자가 신청자 또는 배정 매니저인 경우에만 반환한다. 연결 참여자가 신청자가 아니면 빈 값으로 가린다. 코드는 표시용 식별자이고 내부 UUID나 인가 관계를 대체하지 않는다. 상세 계약은 [예약 공개 코드 계약](appointment-public-code.md)을 따른다.
+
 모든 경로는 Firebase ID token이 필요하며 응답에 `Cache-Control: no-store`를 사용한다. 타인 예약은 403, 없는 예약은 404, 허용되지 않은 상태 전이와 오래된 `version`은 409를 반환한다.
 
 ## 서버 소유 값

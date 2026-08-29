@@ -35,6 +35,7 @@ public class AppointmentRequest {
     private final String paymentApprovalCode;
     private final String paymentApprovedAt;
     private final String paymentProviderLabel;
+    private String publicCode = "";
     private AppointmentStatus status;
     private String managerUserId;
     private String managerName = "";
@@ -609,6 +610,14 @@ public class AppointmentRequest {
 
     public String getPaymentProviderLabel() {
         return paymentProviderLabel;
+    }
+
+    public String getPublicCode() {
+        return publicCode;
+    }
+
+    public void setPublicCode(String publicCode) {
+        this.publicCode = valueOrEmpty(publicCode);
     }
 
     public AppointmentStatus getStatus() {

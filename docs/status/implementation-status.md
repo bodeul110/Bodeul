@@ -3844,15 +3844,23 @@
 
 - 최신 변경을 포함한 Core API 전체 `check`, Android 전체 `testDebugUnitTest`와 `assembleDebug`: 성공
 - Firebase Rules 에뮬레이터 테스트: 7/7 성공
-- V18 migration·rollback 계약과 `CARE_ENDED` 역할별 접근 테스트: Core API 전체 검사에서 성공. 실제 PostgreSQL 17 실행은 PR `migration-contract` 대기
+- V18 migration·rollback 계약과 `CARE_ENDED` 역할별 접근 테스트: Core API 전체 검사와 disposable PostgreSQL 17 `migration-contract`에서 성공
 - Core API·Preview·Production workflow YAML 파싱, 전체 diff와 migration 검증 셸 문법 검사: 성공
 
 ### 남은 범위
 
-- 새 커밋의 disposable PostgreSQL CI에서 V18 적용·rollback, runtime role, `CARE_ENDED` TTL·동의 재부여·Realtime 회수와 동시 쓰기 차단 실검증
 - maintenance 상태에서 V18 schema rollback과 bootstrap 006 rollback을 연속 실행하는 운영 절차 확인
 - Preview Core API·Android 배포 후 실기기 중복 종료, 재진입, 첨부와 리포트 실패 재시도 검증
 - #222 가이드 첨부 원본 만료·orphan 정리 연결
 - 새 앱 보급과 별도 승인 뒤 Preview 완료 강제 설정 검증. Production 활성화는 출시 게이트에서 별도 결정
 
 상세 근거는 [이슈 307 정상 동행 종료·완료 구현 기록](../reports/issue-307-companion-completion-2026-08-29.md)에 정리했다.
+
+## 155. 2026-08-29 예약 공개 코드 계약
+
+- Flyway V19에 `appointment_requests.public_code` 형식·unique·변경 금지 제약과 기존 예약 backfill을 추가했다.
+- Core API가 `SecureRandom` 기반 `BD-` + 6자리 코드를 생성하고 unique 충돌을 최대 5회 재시도하도록 구현했다.
+- 신청자와 배정 매니저의 기존 예약 인가 응답에만 `publicCode`를 포함하고 Android 신청자 예약 상세·매니저 가이드에 표시했다. 신청자가 아닌 연결 참여자의 응답에서는 빈 값으로 가린다.
+- PostgreSQL에는 관리자별 분당 10회 제한과 평문을 남기지 않는 감사 기록을 포함한 정확 검색 함수를 준비했다. 관리자 웹 route와 화면은 별도 PR #43에서 검토 중이다.
+- Firestore `reservationCodes`는 추가하지 않았으며 PostgreSQL `appointment_requests`를 계속 예약 업무 원본으로 유지한다.
+- production DB migration과 실제 배포는 수행하지 않았다.

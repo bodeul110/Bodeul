@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,26 @@ class DefaultAppointmentServiceTests {
         assertThat(created.finalPrice()).isEqualTo(96_000);
         assertThat(created.paymentStatusCode()).isEqualTo("PENDING");
         assertThat(created.status()).isEqualTo("REQUESTED");
+        assertThat(created.publicCode()).matches("^BD-[A-Z0-9]{6}$");
+    }
+
+    @Test
+    void publicCodeCollisionIsRetriedWithANewCode() {
+        var codes = new ArrayDeque<>(List.of("BD-COLLID", "BD-UNIQUE"));
+        appointmentRepository.publicCodeCollisionsRemaining = 1;
+        service = new DefaultAppointmentService(
+                appointmentRepository,
+                profileRepository,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                codes::removeFirst);
+
+        var created = service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(UUID.randomUUID(), draft()));
+
+        assertThat(created.publicCode()).isEqualTo("BD-UNIQUE");
+        assertThat(appointmentRepository.insertCount).isEqualTo(2);
     }
 
     @Test
@@ -116,6 +137,7 @@ class DefaultAppointmentServiceTests {
 
         var appointment = service.getAppointment(patient(), APPOINTMENT_ID);
 
+        assertThat(appointment.publicCode()).isEqualTo("BD-LEGACY");
         assertThat(appointment.managerUserId()).isEqualTo(MANAGER_ID);
         assertThat(appointment.managerName()).isEqualTo("매니저 사용자");
         assertThat(appointment.managerEmail()).isEqualTo("manager@example.com");
@@ -161,6 +183,40 @@ class DefaultAppointmentServiceTests {
         assertThat(appointment.patientConditionSummary()).isEqualTo("휠체어 이동 지원 필요");
         assertThat(appointment.medicationSummary()).isEqualTo("아침 약 복용");
         assertThat(appointment.mobilitySupportCode()).isEqualTo("INDEPENDENT");
+    }
+
+    @Test
+    void linkedParticipantCannotReadRequesterPublicCode() {
+        appointmentRepository.current = Optional.of(existingAppointment("REQUESTED", 0));
+
+        var appointment = service.getAppointment(guardian(), APPOINTMENT_ID);
+        var listedAppointment = service.getMyAppointments(guardian()).getFirst();
+
+        assertThat(appointment.publicCode()).isEmpty();
+        assertThat(listedAppointment.publicCode()).isEmpty();
+    }
+
+    @Test
+    void assignedManagerCanReadPublicCode() {
+        appointmentRepository.current = Optional.of(existingAppointment("MATCHED", 1, MANAGER_ID));
+
+        var appointment = service.getAppointment(manager(), APPOINTMENT_ID);
+
+        assertThat(appointment.publicCode()).isEqualTo("BD-LEGACY");
+    }
+
+    @Test
+    void unassignedManagerCannotReadAppointmentOrPublicCode() {
+        appointmentRepository.current = Optional.of(existingAppointment("MATCHED", 1, MANAGER_ID));
+        var unassignedManager = new AppUserRepository.AppUser(
+                UUID.randomUUID(),
+                "unassigned-manager-firebase-uid",
+                AppUserRole.MANAGER);
+
+        assertThatThrownBy(() -> service.getAppointment(unassignedManager, APPOINTMENT_ID))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("appointment_permission_denied");
     }
 
     @Test
@@ -540,6 +596,10 @@ class DefaultAppointmentServiceTests {
         return new AppUserRepository.AppUser(PATIENT_ID, "patient-firebase-uid", AppUserRole.PATIENT);
     }
 
+    private AppUserRepository.AppUser guardian() {
+        return new AppUserRepository.AppUser(GUARDIAN_ID, "guardian-firebase-uid", AppUserRole.GUARDIAN);
+    }
+
     private AppUserRepository.AppUser manager() {
         return new AppUserRepository.AppUser(MANAGER_ID, "manager-firebase-uid", AppUserRole.MANAGER);
     }
@@ -573,6 +633,7 @@ class DefaultAppointmentServiceTests {
         return new AppointmentRecord(
                 APPOINTMENT_ID,
                 "legacy-firestore-id",
+                "BD-LEGACY",
                 PATIENT_ID,
                 GUARDIAN_ID,
                 managerUserId,
@@ -613,6 +674,7 @@ class DefaultAppointmentServiceTests {
         private Optional<AppointmentFollowUpRecord> followUp = Optional.empty();
         private final Map<String, AppointmentRecord> byClientRequest = new HashMap<>();
         private int insertCount;
+        private int publicCodeCollisionsRemaining;
         private boolean sessionCanceled;
         private boolean careEnded;
 
@@ -639,9 +701,13 @@ class DefaultAppointmentServiceTests {
         }
 
         @Override
-        public Optional<AppointmentRecord> insert(AppointmentMutation mutation) {
+        public Optional<AppointmentRecord> insert(AppointmentMutation mutation, String publicCode) {
             insertCount++;
-            AppointmentRecord inserted = fromMutation(mutation, "REQUESTED", 0);
+            if (publicCodeCollisionsRemaining > 0) {
+                publicCodeCollisionsRemaining--;
+                return Optional.empty();
+            }
+            AppointmentRecord inserted = fromMutation(mutation, publicCode, "REQUESTED", 0);
             current = Optional.of(inserted);
             byClientRequest.put(
                     mutation.requesterUserId() + ":" + mutation.clientRequestId(),
@@ -657,7 +723,11 @@ class DefaultAppointmentServiceTests {
             if (current.isEmpty() || current.get().version() != expectedVersion) {
                 return Optional.empty();
             }
-            AppointmentRecord updated = fromMutation(mutation, "REQUESTED", expectedVersion + 1);
+            AppointmentRecord updated = fromMutation(
+                    mutation,
+                    current.get().publicCode(),
+                    "REQUESTED",
+                    expectedVersion + 1);
             current = Optional.of(updated);
             return current;
         }
@@ -671,6 +741,7 @@ class DefaultAppointmentServiceTests {
             current = Optional.of(new AppointmentRecord(
                     appointment.id(),
                     appointment.firestoreId(),
+                    appointment.publicCode(),
                     appointment.patientUserId(),
                     appointment.guardianUserId(),
                     appointment.managerUserId(),
@@ -776,11 +847,13 @@ class DefaultAppointmentServiceTests {
 
         private AppointmentRecord fromMutation(
                 AppointmentMutation mutation,
+                String publicCode,
                 String status,
                 long version) {
             return new AppointmentRecord(
                     APPOINTMENT_ID,
                     null,
+                    publicCode,
                     mutation.patientUserId(),
                     mutation.guardianUserId(),
                     null,

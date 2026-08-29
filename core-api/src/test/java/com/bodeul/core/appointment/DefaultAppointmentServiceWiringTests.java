@@ -22,6 +22,7 @@ class DefaultAppointmentServiceWiringTests {
             context.registerBean(
                     GuardianSharingConsentAccess.class,
                     () -> mock(GuardianSharingConsentAccess.class));
+            context.registerBean(AppointmentPublicCodeGenerator.class);
             context.register(DefaultAppointmentService.class);
 
             context.refresh();
