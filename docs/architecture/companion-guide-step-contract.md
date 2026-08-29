@@ -1,8 +1,8 @@
 # 동행 가이드 13개 화면과 단계 계약
 
-기준일: 2026-08-28
+기준일: 2026-08-29
 
-상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 5의 필수 확인은 Flyway V16과 Android 확인·재진입 UI로 준비했다. Core API 진행 차단은 구버전 앱 호환을 위해 기본 비활성 설정 뒤에 있으며 아직 운영에서 켜지 않는다. 가이드 9의 카카오맵 외부 검색을 분리했으며, 나머지 전용 입력 화면과 단계 이벤트는 아직 적용하지 않았다.
+상태: PostgreSQL `stepCode` 검증과 세션 snapshot 계약은 Flyway V14로 구현했고, Core API 상세 응답과 Android 공통 화면 registry가 이를 소비한다. 가이드 5의 필수 확인은 Flyway V16과 Android 확인·재진입 UI로 준비했으며 서버 차단은 기본 비활성이다. 이번 V18 변경은 가이드 8 선택 결제 증빙, 가이드 10 선택 이미지, 가이드 12 `CARE_ENDED`, 가이드 13 선택 일지와 리포트 재시도 상태를 코드에 구현했다. V18 DB 적용, Core API·Android 배포와 실기기 검증은 아직 수행하지 않았다.
 
 ## 검증 기준
 
@@ -34,8 +34,8 @@ Figma의 13개 화면, PostgreSQL 병원 가이드의 데이터 기반 단계 �
 ### 리스크
 
 - 실행 중인 세션에 가이드 버전이나 단계 스냅샷이 없어서 관리자 가이드 수정이 과거 세션의 총 단계 수를 바꿀 수 있다.
-- 결제 증빙, 처방 이미지와 매니저 일지는 필수 여부·파일 제한·보관 정책이 미정이다.
-- `CARE_ENDED`와 최종 `COMPLETED`를 나누려면 DB, API, Android 상태 전이를 함께 변경해야 한다.
+- Firebase Storage 객체와 PostgreSQL 메타데이터 저장 사이의 보상 삭제가 실패하면 #222 정리 작업이 회수해야 한다.
+- V18 적용 전 서버나 앱을 먼저 배포하면 새 열·상태를 읽지 못하므로 DB → 서버 → 앱 순서를 지켜야 한다.
 
 ## V14 구현 판단
 
@@ -110,7 +110,7 @@ Android가 단계 제목이나 순번으로 13개 화면을 추정하거나, 서
 | `stepCode` | 단계의 업무 의미 | 대문자 스네이크 케이스를 사용하고 한번 배포한 의미를 재사용하지 않는다. 화면 번호나 배열 위치를 코드에 넣지 않는다. |
 | `order` | 가이드 안의 표시·진행 순서 | 같은 가이드 버전 안에서 1부터 시작하는 고유 양수다. 업무 의미 식별자로 사용하지 않는다. |
 | `eventCode` | 서버가 확정한 상태 변화 | 상태 변경과 멱등 이벤트 레코드는 같은 DB 트랜잭션에서 기록한다. Realtime·FCM 같은 외부 발행만 커밋 성공 뒤 처리한다. 알림 범위는 #299가 확정하기 전 임의로 확대하지 않는다. |
-| `inputContract` | 단계에서 받는 값과 검증 | 형식·최대값은 기술 계약에 둘 수 있지만 필수·건너뛰기 여부는 #307 결정을 따른다. |
+| `inputContract` | 단계에서 받는 값과 검증 | 형식·최대값과 필수·선택 여부를 서버와 Android가 같은 규칙으로 적용한다. #307에서는 가이드 8·10 첨부와 가이드 13 일지를 선택 입력으로 확정했다. |
 | `guideRevision` | 세션에 고정된 가이드 개정 | 새 세션 생성 시 고정한다. 진행 중 세션은 최신 관리자 가이드로 자동 치환하지 않는다. |
 
 `MATCHED`는 가이드 1의 완료 이벤트가 아니라 동행 가이드 진입 전 예약 배정 이벤트다.
@@ -128,12 +128,12 @@ Android가 단계 제목이나 순번으로 13개 화면을 추정하거나, 서
 | 5 | `846:1521` | `PRE_CONSULTATION` | 증상, 질문과 전달 사항을 진료 전에 다시 확인한다. | 메모는 선택이고 확인 체크는 필수다. 확인 상태를 서버에 저장한 뒤에만 `진료 준비 완료`로 진행한다. | 별도 이벤트 없음 |
 | 6 | `846:2386` | `CONSULTATION_SUPPORT` | 진료 중 핵심 안내와 결과를 현장 기록으로 남긴다. | 진료 메모 입력 후 `진료 완료`. 녹음·STT·AI 요약은 현재 범위가 아니다. | `CONSULT_COMPLETED` |
 | 7 | `846:1653` | `CONSULTATION_SUMMARY` | 진료 요약을 검토하고 수납 전 공유 내용을 확정한다. | 진료 요약 확인·수정 후 `요약 저장`. 최종 리포트 완료와는 구분한다. | `CONSULT_SUMMARY_READY` |
-| 8 | `846:1737` | `PAYMENT_EVIDENCE` | 수납 완료와 결제 증빙을 기록한다. | 결제 증빙 업로드와 `수납 완료`. 최소 장수·파일 형식·용량·교체·보관은 #307에서 확정한다. | `PAYMENT_COMPLETED` |
+| 8 | `846:1737` | `PAYMENT_EVIDENCE` | 수납 완료와 결제 증빙을 기록한다. | 첨부는 선택이다. 등록하면 JPEG·PNG·PDF 중 1개, 파일당 10 MiB 이하이며 다시 선택하거나 삭제할 수 있다. 실제 PG 결제는 범위가 아니다. | `PAYMENT_COMPLETED` 후보 |
 | 9 | `846:1819` | `PHARMACY_ROUTE` | 처방전 기준 약국 이동을 돕는다. | `카카오맵에서 약국 찾기`를 누르면 카카오맵 장소 검색으로 외부 이동한다. 앱을 열 수 없으면 모바일 웹, 웹도 열 수 없으면 설치 화면으로 연결한다. | 별도 이벤트 없음 |
-| 10 | `846:2507` | `PRESCRIPTION_DOCUMENTS` | 처방 관련 이미지 자료를 등록한다. | 최대 3장 업로드 후 `저장`. 최소 1장 여부와 파일 정책은 #307에서 확정한다. | 별도 이벤트 없음 |
+| 10 | `846:2507` | `PRESCRIPTION_DOCUMENTS` | 처방 관련 이미지 자료를 등록한다. | 첨부는 선택이다. 등록하면 JPEG·PNG 이미지 1~3장, 파일당 10 MiB 이하이며 다시 선택하거나 모두 삭제할 수 있다. OCR은 범위가 아니다. | 별도 이벤트 없음 |
 | 11 | `846:1916` | `MEDICATION_CONFIRMATION` | 처방전, 약 수령과 복약 안내 완료 여부를 확인한다. | 처방전 수령·약국 완료·복약 안내 상태와 메모를 저장한다. | 별도 이벤트 없음 |
-| 12 | `857:7252` | `CARE_COMPLETION` | 환자 상태와 인계 내용을 최종 확인하고 실제 동행을 종료한다. | `동행 종료` 시 `careEndedAt` 기록. 최종 일지 작성 전 재진입 규칙은 #307에서 확정한다. | `CARE_ENDED` |
-| 13 | `846:2576` | `MANAGER_JOURNAL` | 최대 300자 매니저 일지를 작성하고 최종 완료·후기 진입으로 연결한다. | 일지 입력 후 `작성 완료`. 빈 값 허용 여부는 #307에서 확정한다. | `REPORT_READY`와 세션 `COMPLETED`를 같은 커밋에서 확정 |
+| 12 | `857:7252` | `CARE_COMPLETION` | 환자 상태와 인계 내용을 최종 확인하고 실제 동행을 종료한다. | `동행 종료`의 최초 서버 시각을 `care_ended_at`에 한 번만 기록하고 `CARE_ENDED`로 전환한다. 중복 요청과 재진입은 같은 시각을 반환한다. 사고·긴급상황은 #297로 분리한다. | 세션 상태 `CARE_ENDED` |
+| 13 | `846:2576` | `MANAGER_JOURNAL` | 최대 300자 매니저 일지를 작성하고 최종 완료·후기 진입으로 연결한다. | 일지는 선택이며 빈 값도 허용한다. 제출 시 세션을 먼저 `COMPLETED`로 확정하고 리포트 저장은 `PENDING`·`READY`·`FAILED`로 별도 추적해 실패 후 재시도한다. | 세션 `COMPLETED`, 리포트 `READY` |
 
 ## 가이드 9 카카오맵 외부 이동 결정
 
@@ -167,7 +167,7 @@ Android가 단계 제목이나 순번으로 13개 화면을 추정하거나, 서
 
 ## 현재 구현 차이
 
-PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `completed_at`과 V14의 가이드 ID·revision·단계 snapshot이 있다. Core API는 snapshot의 상세 단계와 진행 가능 여부를 반환하며, 단계 상태는 1=`MEETING`, 2=`WAITING`, 3~4=`IN_TREATMENT`, 5 이상=`PAYMENT`로 계속 압축한다. Android Core 경로는 상세 단계와 서버 진행 판정을 사용하고, `steps` 키가 없는 구버전 응답에만 7단계 `HospitalGuideFallbackFactory`를 사용한다. 공통 ScrollView에는 위치·보호자·현장·복약·리포트 입력이 단계와 관계없이 함께 노출된다.
+V18 코드 기준 PostgreSQL `companion_sessions`는 `care_ended_at`, `manager_journal`, 리포트 생성 상태를 갖고, `companion_session_artifacts`가 Storage 객체 메타데이터를 보관한다. Core API는 snapshot 단계와 진행 판정에 종료·리포트 재시도 상태와 첨부 메타데이터를 함께 반환한다. Android Core 경로는 현재 `stepCode`에 맞는 작업 영역만 표시하며, `steps` 키가 없는 구버전 응답에만 7단계 fallback을 사용한다.
 
 | # | PostgreSQL 현재 값 | Core API 현재 동작 | Android 현재 동작 | 필요한 후속 계약 |
 | ---: | --- | --- | --- | --- |
@@ -177,19 +177,19 @@ PostgreSQL `companion_sessions`에는 `current_step_order`, `current_status`, `c
 | 4 | 구조화된 기초 측정 필드 없음 | 범용 메모 외 검증 없음 | 단계별 측정 폼 없음 | 측정 항목·단위와 선택 입력 계약 |
 | 5 | V16 `pre_consultation_confirmed`가 확인 상태를 저장 | 확인 상태 변경은 현재 단계에서만 허용한다. `bodeul.session.pre-consultation-enforcement=true`일 때만 미확인 상태를 `STEP_INPUT_REQUIRED`로 반환하고 `/advance` SQL도 다시 차단한다. 기본값은 `false`다. | 확인 체크를 Core API로 저장·해제하고 재조회·재진입 때 서버 값을 복원한다. 새 앱은 서버 차단이 꺼져 있어도 화면에서 미확인 진행을 막는다. | Android 보급·검증과 별도 승인 뒤 서버 설정을 켠다. 확인 항목 자체의 구조화가 필요해지면 별도 checklist 계약으로 확장 |
 | 6 | `guardian_update`, `field_photo_note`만 있음 | PATCH 메모는 가능하나 진료 완료 이벤트 없음 | 공통 메모 입력을 제공 | 진료 완료와 요약 작성 시작 경계 |
-| 7 | `session_reports.summary`, `treatment_notes`가 있음 | 리포트 PUT이 세션 최종 완료까지 함께 처리 | 요약 입력은 있으나 중간 확정 단계와 분리되지 않음 | 중간 요약 저장과 최종 완료 분리 |
-| 8 | `PAYMENT` 상태 외 결제 증빙 전용 행·경로 없음 | 전용 upload·metadata API 없음 | 전용 증빙 업로드 화면 없음 | 용도별 Storage 경로·인가·파기와 metadata |
+| 7 | `session_reports.summary`, `treatment_notes`가 있음 | V18에서도 최종 리포트 입력으로 유지하며 중간 요약 전용 저장은 아직 없음 | 공통 메모 입력은 있으나 중간 확정 단계와 분리되지 않음 | 중간 요약 저장이 제품 요구가 되면 별도 필드·API로 분리 |
+| 8 | V18 `PAYMENT_EVIDENCE` 메타데이터 행, 요청 UUID와 파일 제한 | 배정 매니저만 현재 단계에서 1개 교체·삭제 가능, 참여자는 인증 다운로드 가능 | JPEG·PNG·PDF 1개 선택·재선택·삭제, 미첨부 진행 허용 | V18 적용 뒤 Storage 실업로드와 만료 정리 검증 |
 | 9 | `pharmacy_summary`, `pharmacy_completed`가 있음 | Kakao Local 검색은 예약·내장 지도 후보 조회에 유지 | `PHARMACY_ROUTE`에서만 카카오맵 장소 검색 CTA를 표시하고 외부 이동만으로 단계를 진행하지 않음 | 외부 앱 설치·미설치·복귀 실기기 회귀 검증 |
-| 10 | 처방 이미지 전용 행·경로 없음. 채팅 첨부는 단계와 연결되지 않음 | 전용 다건 업로드·장수 검증 없음 | 전용 최대 3장 등록 화면 없음 | 처방 자료 Storage·metadata·교체·파기 |
+| 10 | V18 `PRESCRIPTION_IMAGE` 메타데이터 행 | 현재 단계에서 JPEG·PNG 1~3장 교체·삭제를 검증 | 이미지 1~3장 선택·재선택·삭제, 미첨부 진행 허용 | 실기기 다중 선택·프로세스 재진입 검증 |
 | 11 | `prescription_collected`, `pharmacy_completed`, `medication_guidance_completed`, 메모 필드가 있음 | PATCH로 상태와 메모 저장 가능 | 공통 가이드 화면에서 각 상태를 수정 가능 | stepCode에 따른 노출과 완료 판정 연결 |
-| 12 | `completed_at`만 있고 `care_ended_at`, `CARE_ENDED` 없음 | 리포트 PUT 성공 때 바로 `COMPLETED` 처리 | 동행 종료와 최종 일지 완료를 구분하지 않음 | 종료 시각·상태·재진입의 원자적 전이 |
-| 13 | 리포트 필드는 있으나 `manager_journal`, `journal_written_at` 없음 | 300자 검증과 일지 전용 저장 없음 | 전용 일지 화면·길이 검증 없음 | 일지 저장 뒤 최종 완료와 후기 진입 |
+| 12 | V18 `care_ended_at`, `CARE_ENDED` | `/care-end`가 배정·버전·현재 코드 확인 뒤 최초 시각 보존 | `CARE_COMPLETION` CTA를 동행 종료 요청으로 분리 | V18 적용 뒤 중복 탭·재시작 실기기 검증 |
+| 13 | V18 `manager_journal` 최대 300자와 리포트 상태 | 일지 선택 제출로 세션 완료를 먼저 확정하고 리포트 실패를 `FAILED`로 기록 | 선택 일지 300자 제한, 실패 세션 재진입·다시 저장 | 구버전 앱 보급 확인 뒤 완료 강제 flag 승인 |
 
-채팅 첨부의 이미지·PDF 최대 10 MiB, 메시지당 3개 정책을 결제 증빙이나 처방 이미지 정책으로 자동 재사용하지 않는다. 용도, 열람자와 보관 기간이 다르므로 #307 결정 뒤 별도 계약으로 연결한다.
+원본은 기존 서버 전용 Firebase Storage 경계에 두고 PostgreSQL에는 경로·파일명·형식·크기만 저장한다. 결제 증빙은 JPEG·PNG·PDF 1개, 처방 이미지는 JPEG·PNG 3개까지로 용도별 정책을 분리한다. 앱 사전 검증 뒤 서버가 파일 시그니처와 10 MiB 제한을 다시 확인한다.
 
-현재 PostgreSQL에는 제품 단계 이벤트 테이블이 없다. Realtime은 `chat.changed`, `read-receipt.changed`, `location.changed` 갱신 신호만 발행하고, FCM은 직접 채팅과 병원·약국 근접 위치 알림만 처리한다. `MATCHED`, `MEETING_CONFIRMED`, `ARRIVED_*`, `QUEUE_UPDATED`, `CARE_ENDED`, `REPORT_READY`를 구현된 이벤트로 간주하지 않는다.
+현재 PostgreSQL에는 제품 단계 이벤트 테이블이 없다. `CARE_ENDED`와 리포트 상태는 세션 행의 멱등 상태 전이이며 별도 알림 이벤트가 아니다. Realtime·FCM 범위를 이번 작업에서 확대하지 않는다.
 
-현재 리포트 제출은 마지막 단계 도달 여부를 확인하지 않고 유효한 매니저·버전·요약이면 세션과 예약을 `COMPLETED`로 바꿀 수 있다. 단계 계약을 추가할 때 최종 완료의 서버 전제 조건도 함께 고정해야 한다.
+새 앱은 `CARE_COMPLETION`에서 `/care-end`를 호출한 뒤 `MANAGER_JOURNAL`에서 완료한다. 구버전 앱의 마지막 단계 직접 완료는 롤링 호환을 위해 `BODEUL_SESSION_COMPLETION_ENFORCEMENT=false`인 동안만 허용하며, 이번 작업에서 preview·production 값을 켜지 않는다.
 
 ## 목표 API 최소 응답
 
@@ -203,6 +203,9 @@ Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 아�
 | `steps[].inputContract` | 입력 종류, 형식, 최대값과 정책 확정 뒤 필수 여부 |
 | `currentStepCode`, `currentStepOrder` | 현재 의미와 순서의 일치 검증 |
 | `canAdvance`, `blockedReason` | 서버가 판정한 진행 가능 여부와 사용자 안내 |
+| `careEndedAt`, `managerJournal` | 실제 동행 종료 최초 시각과 선택 일지 재진입 복구 |
+| `reportGenerationStatus`, `reportGenerationAttempts`, `reportGenerationLastError` | 세션 완료와 분리한 리포트 생성 실패·재시도 상태 |
+| `artifacts[]` | 결제 증빙·처방 이미지의 인증된 메타데이터 표시 |
 | `completedEvents[]` | checkpoint와 중복 요청 복구를 위한 커밋 완료 상태 |
 
 `completedEvents[]`와 단계별 `inputContract`는 아직 응답하지 않는다. #324 범위에서는 `steps[].code`, `order`, `title`, `description`, `currentStepCode`, `canAdvance`, `blockedReason`까지만 고정했다.
@@ -216,6 +219,8 @@ Core API는 Android가 제목을 해석해 화면을 선택하지 않도록 아�
 | `STEP_CONTRACT_MISMATCH` | 코드 계약을 지원하지 않거나 order·code·현재 순번이 snapshot과 일치하지 않음 |
 | `STEP_INPUT_REQUIRED` | 서버 진행 차단 설정이 켜진 상태에서 `PRE_CONSULTATION` 필수 확인을 저장하지 않아 다음 단계로 진행할 수 없음 |
 | `LAST_STEP_REACHED` | 현재 순번이 snapshot의 마지막 단계임 |
+| `CARE_ENDED_PENDING_COMPLETION` | 실제 동행은 종료됐고 선택 일지 제출 화면으로 재진입해야 함 |
+| `REPORT_RETRY_REQUIRED` | 세션 완료는 유지하면서 실패·중단된 리포트 저장만 다시 시도해야 함 |
 
 진행 가능한 경우 `blockedReason`은 `null`이다. `currentStepOrder=0`은 가이드 진입 전이므로 `currentStepCode=null`이고, `1..N`은 `steps[order-1].code`와 일치해야 한다. 유효한 형식의 unknown code는 일반 단계로 보존하며 차단 사유로 사용하지 않는다.
 
@@ -228,7 +233,7 @@ Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에
 | 가이드 없음 또는 0단계 | Core API는 빈 `steps`, `canAdvance=false`, `GUIDE_NOT_READY`를 반환한다. Android는 `가이드 준비 중`을 표시하고 advance 요청을 보내지 않는다. | 운영 가이드 준비 상태의 담당자 안내와 재시도 UX는 별도 운영 정책으로 보완한다. |
 | 1단계 | Core API는 진입 전 order 0에서 진행을 허용하고 order 1에서 `LAST_STEP_REACHED`를 반환한다. | 한 단계의 전용 CTA와 종료·리포트 전이는 별도 상태 계약으로 연결한다. |
 | 7단계 | `LEGACY_CORE_7_V1` snapshot의 7개 코드·제목·설명을 Android까지 그대로 보존한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 자동 추정하지 않고 차단한다. | 전용 입력 화면은 만들지 않고 기존 공통 화면을 유지한다. |
-| 13단계 | Core API와 Android가 13개 상세 단계를 자르지 않고 표시하며 알려진 코드를 공통 표시 유형에 연결한다. | 코드별 전용 입력 UI와 완료 조건은 #307 결정 뒤 구현한다. |
+| 13단계 | Core API와 Android가 13개 상세 단계를 자르지 않고 표시하며 알려진 코드를 공통 표시 유형에 연결한다. 가이드 8·10의 선택 첨부, 12의 동행 종료, 13의 선택 일지·완료 재시도 계약은 V18 코드로 준비했다. | 나머지 코드별 입력은 각 단계의 제품 요구가 확정될 때 별도 계약으로 추가한다. |
 | 13단계 초과 | 전체 배열을 보존하고 추가 코드는 일반 제목·설명 화면으로 표시하며 `canAdvance`를 따른다. | 서버가 새 코드를 정식 제품 코드로 확정하면 registry 표시 유형을 추가한다. |
 | 알 수 없는 `stepCode` 또는 순서 | 유효한 unknown code는 일반 화면으로 보존한다. order 불연속·중복 code·현재 순번 범위 오류는 `STEP_CONTRACT_MISMATCH` 안내와 함께 진행을 차단한다. | unknown 코드에는 코드 전용 입력을 노출하지 않는다. |
 
@@ -239,30 +244,32 @@ Android는 `canAdvance=false`를 우회해 순서를 올리지 않고, 서버에
 3. 기존 7단계 세션은 완료될 때까지 생성 당시 실제 표시 기준을 legacy snapshot으로 유지한다. Core API 경로는 서버 snapshot, Firebase 경로는 세션에서 참조하던 저장 가이드 배열을 우선하며, 출처를 판별할 수 없는 경우 운영 확인 대상으로 분리한다. 순번이나 제목 유사도만 보고 13개 코드로 추정 변환하지 않는다.
 4. `currentStepOrder`와 `currentStepCode`가 불일치하면 자동 보정하지 않고 진행을 막아 운영 확인 대상으로 보낸다.
 5. 동일 이벤트 재요청은 세션·단계·이벤트 기준으로 멱등 처리한다.
-6. `CARE_ENDED` 이후 최종 작성 화면 재진입, 수정 허용과 타임아웃은 #307 결정 전 구현값으로 고정하지 않는다.
+6. `CARE_ENDED` 이후에는 운영 메모와 첨부를 수정하지 않고 선택 일지 제출만 허용한다. 완료된 리포트가 `FAILED` 또는 `PENDING`이면 같은 세션으로 재진입해 리포트만 다시 저장한다.
 
-## 미결 정책
+## 남은 정책
 
 | 이슈 | 결정 전 확정하지 않을 값 |
 | --- | --- |
-| #307 | 가이드 2·3·6·8·12의 생략·중단·완료 조건, 가이드 10의 최소 장수·파일·저장·교체 정책, 가이드 13의 필수 여부와 완료 시점 |
 | #299 | `MATCHED`, 상봉, 단계 진행, 동행 종료와 최종 완료 중 어떤 이벤트를 누구에게 FCM·앱 내 알림으로 보낼지 |
+| #297 | 사고·긴급상황의 중단·인계·지원 상태. 정상 `CARE_ENDED`나 `COMPLETED`로 합치지 않는다. |
 
-## 후속 구현 분리 기준
+## 적용·검증 분리 기준
 
-Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 이슈에서 다시 정의하지 않는다.
+코드 구현 이후에도 다음 세 범위를 분리해 검증한다. migration 적용과 애플리케이션 배포는 같은 작업으로 묶지 않는다.
 
 | 범위 | 포함할 변경 | 완료 증거 |
 | --- | --- | --- |
-| PostgreSQL migration | 코드 포함 가이드 schema 검증, 세션 guide version·snapshot, 이벤트 멱등성, `care_ended_at`, 정책 확정 뒤 전용 증빙·일지 필드 | migration 연속 적용·rollback, 기존 7단계 row 보존, 권한 테스트 |
-| Core API | 상세 가이드 응답, `currentStepCode`, `canAdvance`와 snapshot 범위·version 진행 차단은 #324에서 구현했다. checkpoint·완료 전이와 멱등 이벤트는 후속 범위다. | 서비스·repository·HTTP 계약 테스트, 역할별 200·403·409 검증 |
-| Android | stepCode 공통 화면 registry, 일반 unknown 화면과 snapshot 재조회 복구는 #325에서 구현했다. `PRE_CONSULTATION`의 필수 확인 저장·해제·복원과 `PHARMACY_ROUTE`의 카카오맵 외부 이동을 분리 구현했다. 나머지 전용 UI와 입력은 후속 범위다. | parser·registry·진행 정책 단위 테스트, 0·1·7·13·13초과·unknown fixture, 가이드 5 재진입과 외부 앱 설치·미설치·복귀 실기기 검증 |
+| PostgreSQL migration | V18 종료·완료·리포트 상태와 첨부 메타데이터 | 코드 계약 테스트를 통과했다. 이후 개발 DB 연속 적용·rollback, 기존 완료 row backfill과 runtime role을 검증한다. |
+| Core API | `/care-end`, 선택 일지 완료, 리포트 실패·재시도, 용도별 첨부 교체·삭제·다운로드 | 서비스·HTTP 테스트를 통과한 뒤 개발 환경에서 역할별 200·403·409·503을 검증한다. |
+| Android | 종료 CTA, 선택 일지 300자, 재시도 화면, 가이드 8·10 SAF 선택·삭제 | 단위 테스트 뒤 실기기 중복 탭·다중 선택·재시작·네트워크 실패를 검증한다. |
 
 ## 현재 제외 범위
 
-- 가이드 5 필수 확인 외의 전용 입력 화면과 단계별 완료 상태 전이는 변경하지 않았다.
+- 실제 PG, 녹음·STT·AI 요약과 OCR은 구현하지 않았다.
+- 사고·긴급상황을 정상 완료 상태에 포함하지 않았다.
 - `stepCode` 초안을 운영 데이터에 seed하지 않았다.
-- 미확정 입력을 필수로 표시하거나 새로운 보호자 알림을 발송하지 않았다.
+- 새 보호자 알림을 발송하지 않았다.
+- V18을 개발·production DB에 적용하거나 완료 강제 flag를 활성화하지 않았다.
 - Figma 원본을 이번 작업에서 최신으로 재검증했다고 표시하지 않았다.
 
 ## 관련 문서와 이슈
@@ -273,6 +280,6 @@ Parent #301 아래에서 다음 세 범위로 나누면 같은 계약을 여러 
 - [화면 재구성 목표](../planning/screen-restructure-target.md)
 - #301 동행 가이드 1~13 화면과 DB 단계 이벤트 정규화
 - #306 Figma 동행 가이드 13개 화면과 단계 계약표 작성
-- #307 동행 단계 필수 입력·건너뛰기·완료 시점 확정
+- #307 동행 단계 선택 입력·종료·완료 경계 구현
 - #299 알림 이벤트 정책
 - #314 가이드 9 Kakao 지도 경로 정렬: 본 문서의 외부 이동 계약과 Android CTA에 반영

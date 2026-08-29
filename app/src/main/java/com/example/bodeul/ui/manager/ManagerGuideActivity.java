@@ -3,7 +3,9 @@ package com.example.bodeul.ui.manager;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.InputFilter;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -13,6 +15,8 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -23,6 +27,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
+import com.example.bodeul.data.CompanionSessionArtifactUploadPolicy;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
@@ -31,6 +36,7 @@ import com.example.bodeul.data.map.HospitalMapCoordinateResult;
 import com.example.bodeul.data.map.KakaoLocalPlaceSearchClient;
 import com.example.bodeul.data.map.KakaoPlaceCoordinate;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.CompanionSessionArtifact;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
@@ -40,6 +46,11 @@ import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.textfield.TextInputEditText;
+
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import com.kakao.vectormap.KakaoMap;
 import com.kakao.vectormap.KakaoMapReadyCallback;
@@ -68,6 +79,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean activityVisible;
     private boolean pharmacySearchNavigationInProgress;
     private boolean bindingPreConsultationConfirmation;
+    private boolean mutationInFlight;
     private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
 
     private View managerGuideStatePanel;
@@ -88,6 +100,13 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private RadioGroup groupReportMedicationComparisonDecision;
     private TextInputEditText inputReportMedicationComparisonNote;
     private TextInputEditText inputNextVisit;
+    private TextView textGuideSessionArtifactTitle;
+    private TextView textGuideSessionArtifactStatus;
+    private MaterialButton buttonSelectGuideSessionArtifact;
+    private MaterialButton buttonClearGuideSessionArtifact;
+    private MaterialButton buttonSubmitReport;
+    private ActivityResultLauncher<String[]> paymentEvidencePicker;
+    private ActivityResultLauncher<String[]> prescriptionImagePicker;
 
     private MapView mapView;
     private KakaoMap kakaoMap;
@@ -106,6 +125,38 @@ public class ManagerGuideActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_guide);
 
+        paymentEvidencePicker = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                uri -> {
+                    if (uri != null) {
+                        preserveReadPermission(uri);
+                        viewModel.replaceSessionArtifacts(
+                                CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE,
+                                List.of(uri));
+                    }
+                });
+        prescriptionImagePicker = registerForActivityResult(
+                new ActivityResultContracts.OpenMultipleDocuments(),
+                uris -> {
+                    if (uris == null || uris.isEmpty()) {
+                        return;
+                    }
+                    if (uris.size() > 3) {
+                        Toast.makeText(
+                                this,
+                                R.string.guide_artifact_prescription_limit,
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    List<Uri> selected = new ArrayList<>(uris);
+                    for (Uri uri : selected) {
+                        preserveReadPermission(uri);
+                    }
+                    viewModel.replaceSessionArtifacts(
+                            CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE,
+                            selected);
+                });
+
         AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
         ManagerRepository managerRepository = ServiceLocator.provideManagerRepository(this);
         placeSearchClient = new KakaoLocalPlaceSearchClient(this);
@@ -115,6 +166,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         ManagerGuideViewModel.Factory factory = new ManagerGuideViewModel.Factory(
+                this,
                 authRepository,
                 managerRepository,
                 coordinator,
@@ -135,6 +187,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         inputMedicationNote = findViewById(R.id.inputMedicationNote);
         inputPharmacySummary = findViewById(R.id.inputPharmacySummary);
         inputReportSummary = findViewById(R.id.inputReportSummary);
+        inputReportSummary.setFilters(new InputFilter[]{new InputFilter.LengthFilter(300)});
         inputReportTreatment = findViewById(R.id.inputReportTreatment);
         inputReportMedicationName = findViewById(R.id.inputReportMedicationName);
         inputReportMedicationChangeSummary = findViewById(R.id.inputReportMedicationChangeSummary);
@@ -142,6 +195,13 @@ public class ManagerGuideActivity extends AppCompatActivity {
         groupReportMedicationComparisonDecision = findViewById(R.id.groupReportMedicationComparisonDecision);
         inputReportMedicationComparisonNote = findViewById(R.id.inputReportMedicationComparisonNote);
         inputNextVisit = findViewById(R.id.inputNextVisit);
+        textGuideSessionArtifactTitle = findViewById(R.id.textGuideSessionArtifactTitle);
+        textGuideSessionArtifactStatus = findViewById(R.id.textGuideSessionArtifactStatus);
+        buttonSelectGuideSessionArtifact = findViewById(
+                R.id.buttonSelectGuideSessionArtifact);
+        buttonClearGuideSessionArtifact = findViewById(
+                R.id.buttonClearGuideSessionArtifact);
+        buttonSubmitReport = findViewById(R.id.buttonSubmitReport);
 
         managerGuideDashboardBinder = new ManagerGuideDashboardBinder(
                 LayoutInflater.from(this),
@@ -204,6 +264,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
+        buttonSelectGuideSessionArtifact.setOnClickListener(view -> selectCurrentStepArtifact());
+        buttonClearGuideSessionArtifact.setOnClickListener(view -> clearCurrentStepArtifact());
         checkGuidePreConsultationConfirmed.setOnCheckedChangeListener((button, checked) -> {
             if (!bindingPreConsultationConfirmation) {
                 checkGuidePreConsultationConfirmed.setEnabled(false);
@@ -216,7 +278,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonTogglePrescriptionCollected).setOnClickListener(view -> viewModel.togglePrescriptionCollected());
         findViewById(R.id.buttonTogglePharmacyCompleted).setOnClickListener(view -> viewModel.togglePharmacyCompleted());
         findViewById(R.id.buttonToggleMedicationGuidanceCompleted).setOnClickListener(view -> viewModel.toggleMedicationGuidanceCompleted());
-        findViewById(R.id.buttonSubmitReport).setOnClickListener(view -> {
+        buttonSubmitReport.setOnClickListener(view -> {
             if (currentPrimaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
                 submitCurrentReport();
             }
@@ -264,6 +326,17 @@ public class ManagerGuideActivity extends AppCompatActivity {
             Toast.makeText(this, "동행 리포트를 제출했습니다.", Toast.LENGTH_SHORT).show();
             openManagerHome();
         });
+        viewModel.getMutationInFlight().observe(this, inFlight -> {
+            mutationInFlight = Boolean.TRUE.equals(inFlight);
+            if (mutationInFlight) {
+                disableMutationActions();
+                return;
+            }
+            ManagerGuideViewModel.UiState state = viewModel.getUiState().getValue();
+            if (state != null && state.screenModel != null) {
+                handleUiState(state);
+            }
+        });
 
         if (savedInstanceState == null) {
             // Note: viewModel.reload() will be called in onStart()
@@ -304,14 +377,19 @@ public class ManagerGuideActivity extends AppCompatActivity {
             if (state.screenModel != null) {
                 managerGuideContentContainer.setVisibility(View.VISIBLE);
                 managerGuideBottomAction.setVisibility(View.VISIBLE);
+                currentDashboard = state.dashboard;
                 bindingPreConsultationConfirmation = true;
                 try {
                     managerGuideDashboardBinder.bindScreen(state.screenModel);
+                    applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
                 }
                 currentPrimaryAction = state.screenModel.getPrimaryAction();
-                currentDashboard = state.dashboard;
+                bindSessionArtifactSection(state.screenModel.isInputsEnabled());
+                if (mutationInFlight) {
+                    disableMutationActions();
+                }
                 updateMapMarker();
             } else {
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
@@ -341,6 +419,41 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
     }
 
+    private void applyReportDraft() {
+        String sessionId = currentDashboard == null || currentDashboard.getSession() == null
+                ? ""
+                : currentDashboard.getSession().getId();
+        ManagerGuideViewModel.ReportDraft draft = viewModel.getReportDraft(sessionId);
+        if (draft == null) {
+            return;
+        }
+        inputReportSummary.setText(draft.summary);
+        inputReportTreatment.setText(draft.treatment);
+        inputMedicationNote.setText(draft.medication);
+        inputReportMedicationName.setText(draft.medicationName);
+        inputReportMedicationChangeSummary.setText(draft.medicationChangeSummary);
+        inputReportMedicationScheduleNote.setText(draft.medicationScheduleNote);
+        inputReportMedicationComparisonNote.setText(draft.medicationComparisonNote);
+        inputNextVisit.setText(draft.nextVisit);
+        if (draft.medicationComparisonDecision == null) {
+            groupReportMedicationComparisonDecision.clearCheck();
+        } else {
+            int radioId = switch (draft.medicationComparisonDecision) {
+                case MATCHED -> R.id.radioMedicationComparisonMatched;
+                case CHANGED -> R.id.radioMedicationComparisonChanged;
+                case RECHECK_REQUIRED -> R.id.radioMedicationComparisonRecheck;
+            };
+            groupReportMedicationComparisonDecision.check(radioId);
+        }
+    }
+
+    private void disableMutationActions() {
+        buttonAdvanceGuide.setEnabled(false);
+        buttonSubmitReport.setEnabled(false);
+        buttonSelectGuideSessionArtifact.setEnabled(false);
+        buttonClearGuideSessionArtifact.setEnabled(false);
+    }
+
     private void performPrimaryAction() {
         if (currentPrimaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
             submitCurrentReport();
@@ -348,6 +461,74 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
         if (currentPrimaryAction == ManagerGuidePrimaryAction.ADVANCE) {
             viewModel.advanceStep();
+            return;
+        }
+        if (currentPrimaryAction == ManagerGuidePrimaryAction.END_CARE) {
+            viewModel.advanceStep();
+        }
+    }
+
+    private void selectCurrentStepArtifact() {
+        String purpose = currentArtifactPurpose();
+        if (CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE.equals(purpose)) {
+            paymentEvidencePicker.launch(new String[]{"image/jpeg", "image/png", "application/pdf"});
+        } else if (CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE.equals(purpose)) {
+            prescriptionImagePicker.launch(new String[]{"image/jpeg", "image/png"});
+        }
+    }
+
+    private void clearCurrentStepArtifact() {
+        String purpose = currentArtifactPurpose();
+        if (!purpose.isEmpty()) {
+            viewModel.clearSessionArtifacts(purpose);
+        }
+    }
+
+    private void bindSessionArtifactSection(boolean inputsEnabled) {
+        if (currentDashboard == null || currentDashboard.getSession() == null) {
+            return;
+        }
+        String purpose = currentArtifactPurpose();
+        if (purpose.isEmpty()) {
+            return;
+        }
+        boolean payment = CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE.equals(purpose);
+        textGuideSessionArtifactTitle.setText(payment
+                ? R.string.guide_artifact_payment_title
+                : R.string.guide_artifact_prescription_title);
+        List<CompanionSessionArtifact> artifacts = currentDashboard.getSession().getArtifacts(purpose);
+        textGuideSessionArtifactStatus.setText(artifacts.isEmpty()
+                ? getString(R.string.guide_artifact_empty)
+                : getString(R.string.guide_artifact_count, artifacts.size()));
+        buttonSelectGuideSessionArtifact.setText(artifacts.isEmpty()
+                ? R.string.guide_artifact_select
+                : R.string.guide_artifact_replace);
+        buttonSelectGuideSessionArtifact.setEnabled(inputsEnabled && !mutationInFlight);
+        buttonClearGuideSessionArtifact.setEnabled(
+                inputsEnabled && !mutationInFlight && !artifacts.isEmpty());
+    }
+
+    private String currentArtifactPurpose() {
+        if (currentDashboard == null || currentDashboard.getSession() == null) {
+            return "";
+        }
+        String stepCode = currentDashboard.getSession().getCurrentStepCode();
+        if ("PAYMENT_EVIDENCE".equals(stepCode)) {
+            return CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE;
+        }
+        if ("PRESCRIPTION_DOCUMENTS".equals(stepCode)) {
+            return CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE;
+        }
+        return "";
+    }
+
+    private void preserveReadPermission(Uri uri) {
+        try {
+            getContentResolver().takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {
+            // 공급자가 영구 권한을 제공하지 않아도 현재 업로드는 계속 진행한다.
         }
     }
 

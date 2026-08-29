@@ -381,6 +381,7 @@
     <string name="guardian_report_session_waiting">접수 또는 대기 중</string>
     <string name="guardian_report_session_treatment">진료 또는 검사 중</string>
     <string name="guardian_report_session_payment">수납 및 약 수령 중</string>
+    <string name="guardian_report_session_care_ended">동행 종료·일지 작성 중</string>
     <string name="guardian_report_session_canceled">동행 취소</string>
     <string name="guardian_report_session_completed">동행 종료</string>
     <string name="admin_subtitle">미배정 요청을 매니저에게 수동 배정하고, 병원과 진료과별 동행 가이드를 최소 단위로 직접 관리합니다.</string>
@@ -546,6 +547,7 @@
     <string name="guide_action_medication_complete">복약 안내 확인</string>
     <string name="guide_action_care_complete">동행 종료</string>
     <string name="guide_action_journal_complete">작성 완료</string>
+    <string name="guide_action_report_retry">최종 리포트 다시 저장</string>
     <string name="guide_current_actions_title">현재 단계에서 할 일</string>
     <string name="guide_current_actions_helper">필요한 내용을 확인하거나 저장한 뒤 하단 버튼으로 다음 단계로 이동하세요.</string>
     <string name="guide_field_reception_title">접수 및 대기 기록</string>
@@ -561,6 +563,14 @@
     <string name="guide_field_payment_hint">수납 완료 여부와 증빙 자료 확인 내용을 입력해 주세요.</string>
     <string name="guide_field_prescription_title">처방 자료 확인</string>
     <string name="guide_field_prescription_hint">처방전과 약 관련 자료를 확인한 내용을 입력해 주세요.</string>
+    <string name="guide_artifact_payment_title">결제 증빙 (선택 · 1개)</string>
+    <string name="guide_artifact_prescription_title">처방 이미지 (선택 · 최대 3개)</string>
+    <string name="guide_artifact_empty">등록된 파일이 없습니다. 첨부하지 않고 다음 단계로 이동할 수 있습니다.</string>
+    <string name="guide_artifact_count">등록된 파일 %1$d개</string>
+    <string name="guide_artifact_prescription_limit">처방 이미지는 최대 3개까지 선택할 수 있습니다.</string>
+    <string name="guide_artifact_select">파일 선택</string>
+    <string name="guide_artifact_replace">다시 선택</string>
+    <string name="guide_artifact_clear">등록 파일 삭제</string>
     <string name="guide_guardian_section">보호자 공유 메시지</string>
     <string name="guide_guardian_hint">예: 환자분을 만나 병원에 도착했습니다.</string>
     <string name="guide_guardian_save">상황 공유 저장</string>
@@ -610,7 +620,7 @@
     <string name="medication_compare_schedule_added">추가 %1$s</string>
     <string name="medication_compare_schedule_missing">빠짐 %1$s</string>
     <string name="guide_report_section">진료 리포트</string>
-    <string name="guide_report_summary_hint">진료 요약</string>
+    <string name="guide_report_summary_hint">매니저 일지</string>
     <string name="guide_report_treatment_hint">진료 메모</string>
     <string name="guide_report_next_visit_hint">다음 방문 일정</string>
     <string name="guide_report_submit">진료 리포트 전송</string>
@@ -626,7 +636,7 @@
     <string name="guide_steps_helper">안내와 필요한 작업을 확인한 뒤 하단 버튼으로 완료해 주세요.</string>
     <string name="guide_actions_title">현장 기록</string>
     <string name="guide_actions_helper">위치, 보호자 공유, 사진, 복약과 약국 메모를 단계별로 정리하세요.</string>
-    <string name="guide_report_hint_label">필수</string>
+    <string name="guide_report_hint_label">선택 · 최대 300자</string>
     <string name="guide_hero_title_format">%1$s 환자 동행</string>
     <string name="guide_hero_title_empty">현재 동행 중인 일정이 없습니다.</string>
     <string name="guide_hero_body_format">%1$s · %2$s\n예약 %3$s\n만남 장소 %4$s\n보호자 %5$s</string>
@@ -1435,6 +1445,7 @@
     <string name="companion_chat_status_waiting">대기 중</string>
     <string name="companion_chat_status_treatment">진료 진행</string>
     <string name="companion_chat_status_payment">약국/결제 진행</string>
+    <string name="companion_chat_status_care_ended">동행 종료·기록 정리 중</string>
     <string name="companion_chat_status_completed">동행 완료</string>
     <string name="companion_chat_status_canceled">동행 취소</string>
     <string name="companion_chat_push_title_fallback">안심 채팅 새 메시지가 도착했습니다</string>

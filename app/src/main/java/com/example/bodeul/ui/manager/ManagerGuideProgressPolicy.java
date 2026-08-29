@@ -11,6 +11,7 @@ final class ManagerGuideProgressPolicy {
         ADVANCE,
         COMPLETED,
         LAST_STEP,
+        REPORT_RETRY,
         GUIDE_NOT_READY,
         CONTRACT_MISMATCH,
         INPUT_REQUIRED,
@@ -36,7 +37,10 @@ final class ManagerGuideProgressPolicy {
                 case "SESSION_TERMINAL":
                     return new Decision(false, State.COMPLETED);
                 case "LAST_STEP_REACHED":
+                case "CARE_ENDED_PENDING_COMPLETION":
                     return new Decision(false, State.LAST_STEP);
+                case "REPORT_RETRY_REQUIRED":
+                    return new Decision(false, State.REPORT_RETRY);
                 case "GUIDE_NOT_READY":
                     return new Decision(false, State.GUIDE_NOT_READY);
                 case "STEP_CONTRACT_MISMATCH":
@@ -50,6 +54,11 @@ final class ManagerGuideProgressPolicy {
 
         if (session.getStatus() == SessionStatus.COMPLETED
                 || session.getStatus() == SessionStatus.CANCELED) {
+            if (session.getStatus() == SessionStatus.COMPLETED
+                    && ("FAILED".equals(session.getReportGenerationStatus())
+                    || "PENDING".equals(session.getReportGenerationStatus()))) {
+                return new Decision(false, State.REPORT_RETRY);
+            }
             return new Decision(false, State.COMPLETED);
         }
         if (totalSteps <= 0) {

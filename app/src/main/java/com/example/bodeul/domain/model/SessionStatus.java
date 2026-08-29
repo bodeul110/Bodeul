@@ -14,6 +14,8 @@ public enum SessionStatus {
     IN_TREATMENT,
     // 수납이나 후속 행정 처리를 하는 상태다.
     PAYMENT,
+    // 환자 인계까지 끝났지만 매니저의 최종 기록은 아직 확정하지 않은 상태다.
+    CARE_ENDED,
     // 매칭 이후 일정이 취소되어 더 이상 진행하지 않는 상태다.
     CANCELED,
     // 전체 동행 절차가 완료된 상태다.

@@ -1,5 +1,7 @@
 package com.example.bodeul.data.mock;
 
+import android.net.Uri;
+
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.MockManagerStore;
@@ -10,6 +12,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.CompanionSessionArtifact;
 import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
@@ -232,6 +235,80 @@ public class MockManagerRepository implements ManagerRepository {
             return;
         }
         callback.onSuccess(dashboard);
+    }
+
+    @Override
+    public void replaceSessionArtifacts(
+            String managerUserId,
+            String purpose,
+            String clientRequestId,
+            List<Uri> fileUris,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = managerStore.getManagerDashboard(managerUserId);
+        if (dashboard == null || dashboard.getSession() == null) {
+            callback.onError("동행 첨부를 저장할 세션이 없습니다.");
+            return;
+        }
+        CompanionSession session = dashboard.getSession();
+        List<CompanionSessionArtifact> artifacts = new ArrayList<>();
+        for (CompanionSessionArtifact artifact : session.getArtifacts()) {
+            if (!purpose.equals(artifact.getPurpose())) {
+                artifacts.add(artifact);
+            }
+        }
+        long createdAt = System.currentTimeMillis();
+        for (int index = 0; index < fileUris.size(); index++) {
+            Uri uri = fileUris.get(index);
+            String fileName = uri == null || uri.getLastPathSegment() == null
+                    ? "동행 첨부 " + (index + 1)
+                    : uri.getLastPathSegment();
+            artifacts.add(new CompanionSessionArtifact(
+                    "mock-artifact-" + createdAt + "-" + index,
+                    purpose,
+                    fileName,
+                    "image/jpeg",
+                    0L,
+                    createdAt));
+        }
+        replaceMockArtifacts(session, artifacts);
+        callback.onSuccess(dashboard);
+    }
+
+    @Override
+    public void clearSessionArtifacts(
+            String managerUserId,
+            String purpose,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard dashboard = managerStore.getManagerDashboard(managerUserId);
+        if (dashboard == null || dashboard.getSession() == null) {
+            callback.onError("동행 첨부를 삭제할 세션이 없습니다.");
+            return;
+        }
+        CompanionSession session = dashboard.getSession();
+        List<CompanionSessionArtifact> artifacts = new ArrayList<>();
+        for (CompanionSessionArtifact artifact : session.getArtifacts()) {
+            if (!purpose.equals(artifact.getPurpose())) {
+                artifacts.add(artifact);
+            }
+        }
+        replaceMockArtifacts(session, artifacts);
+        callback.onSuccess(dashboard);
+    }
+
+    private void replaceMockArtifacts(
+            CompanionSession session,
+            List<CompanionSessionArtifact> artifacts
+    ) {
+        session.applyCompletionState(
+                session.getCareEndedAtMillis(),
+                session.getManagerJournal(),
+                session.getReportGenerationStatus(),
+                session.getReportGenerationAttempts(),
+                session.getReportGenerationLastError(),
+                session.getReportGenerationUpdatedAtMillis(),
+                artifacts);
     }
 
     @Override

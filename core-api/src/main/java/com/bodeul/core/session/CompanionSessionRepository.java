@@ -27,12 +27,43 @@ interface CompanionSessionRepository {
             long expectedVersion,
             UUID appointmentRequestId);
 
-    Optional<CompletionRecord> completeWithReport(
+    default Optional<SessionRecord> endCare(
             UUID sessionId,
             UUID managerUserId,
             long expectedVersion,
             UUID appointmentRequestId,
-            ReportMutation report);
+            boolean exposeCareEndedStatus) {
+        return Optional.empty();
+    }
+
+    default Optional<SessionRecord> finalizeSession(
+            UUID sessionId,
+            UUID managerUserId,
+            long expectedVersion,
+            UUID appointmentRequestId,
+            String managerJournal,
+            boolean allowLegacyCompletion) {
+        return Optional.empty();
+    }
+
+    default ReportRecord saveReportAndMarkReady(
+            UUID sessionId,
+            ReportMutation report) {
+        throw new UnsupportedOperationException("리포트 저장을 구현해야 합니다.");
+    }
+
+    default void markReportGenerationFailed(UUID sessionId, String errorMessage) {
+    }
+
+    @Deprecated
+    default Optional<CompletionRecord> completeWithReport(
+            UUID sessionId,
+            UUID managerUserId,
+            long expectedVersion,
+            UUID appointmentRequestId,
+            ReportMutation report) {
+        return Optional.empty();
+    }
 
     record SessionPatch(
             String guardianUpdate,
@@ -88,7 +119,79 @@ interface CompanionSessionRepository {
             long version,
             Instant startedAt,
             Instant completedAt,
-            Instant canceledAt) {
+            Instant canceledAt,
+            Instant careEndedAt,
+            String managerJournal,
+            String reportGenerationStatus,
+            int reportGenerationAttempts,
+            String reportGenerationLastError,
+            Instant reportGenerationUpdatedAt,
+            List<ArtifactRecord> artifacts) {
+
+        public SessionRecord(
+                UUID id,
+                String firestoreId,
+                UUID appointmentRequestId,
+                UUID managerUserId,
+                UUID patientUserId,
+                UUID guardianUserId,
+                int currentStepOrder,
+                int totalStepCount,
+                GuideSnapshotRecord guideSnapshot,
+                String currentStatus,
+                String guardianUpdate,
+                String locationSummary,
+                String fieldPhotoNote,
+                String medicationNote,
+                String pharmacySummary,
+                boolean preConsultationConfirmed,
+                boolean prescriptionCollected,
+                boolean pharmacyCompleted,
+                boolean medicationGuidanceCompleted,
+                boolean liveLocationSharingActive,
+                Instant liveLocationSharingStartedAt,
+                String locationAlertStage,
+                Instant locationAlertSentAt,
+                long version,
+                Instant startedAt,
+                Instant completedAt,
+                Instant canceledAt) {
+            this(
+                    id,
+                    firestoreId,
+                    appointmentRequestId,
+                    managerUserId,
+                    patientUserId,
+                    guardianUserId,
+                    currentStepOrder,
+                    totalStepCount,
+                    guideSnapshot,
+                    currentStatus,
+                    guardianUpdate,
+                    locationSummary,
+                    fieldPhotoNote,
+                    medicationNote,
+                    pharmacySummary,
+                    preConsultationConfirmed,
+                    prescriptionCollected,
+                    pharmacyCompleted,
+                    medicationGuidanceCompleted,
+                    liveLocationSharingActive,
+                    liveLocationSharingStartedAt,
+                    locationAlertStage,
+                    locationAlertSentAt,
+                    version,
+                    startedAt,
+                    completedAt,
+                    canceledAt,
+                    null,
+                    "",
+                    "NOT_REQUESTED",
+                    0,
+                    "",
+                    null,
+                    List.of());
+        }
     }
 
     record GuideSnapshotRecord(
@@ -111,6 +214,15 @@ interface CompanionSessionRepository {
             String description) {
     }
 
+    record ArtifactRecord(
+            UUID id,
+            String purpose,
+            String fileName,
+            String contentType,
+            long sizeBytes,
+            Instant createdAt) {
+    }
+
     record ReportRecord(
             UUID id,
             String firestoreId,
@@ -128,6 +240,8 @@ interface CompanionSessionRepository {
             long version) {
     }
 
+    @Deprecated
     record CompletionRecord(SessionRecord session, ReportRecord report) {
     }
+
 }

@@ -178,6 +178,56 @@ public class ManagerGuideCoordinatorPolicyTest {
     }
 
     @Test
+    public void careCompletionAndReportRetry_useDifferentPrimaryActions() {
+        CompanionSession careCompletion = createSession(12);
+        careCompletion.applyServerGuideProgress(
+                "CARE_COMPLETION",
+                true,
+                true,
+                "");
+        ManagerGuideProgressPolicy.Decision careDecision =
+                ManagerGuideProgressPolicy.resolve(careCompletion, 13, "CARE_COMPLETION");
+
+        CompanionSession careEnded = createSession(13, SessionStatus.CARE_ENDED);
+        careEnded.applyServerGuideProgress(
+                "MANAGER_JOURNAL",
+                true,
+                false,
+                "CARE_ENDED_PENDING_COMPLETION");
+        ManagerGuideProgressPolicy.Decision journalDecision =
+                ManagerGuideProgressPolicy.resolve(careEnded, 13, "MANAGER_JOURNAL");
+
+        CompanionSession reportFailed = createSession(13, SessionStatus.COMPLETED);
+        reportFailed.applyCompletionState(
+                1L,
+                "",
+                "FAILED",
+                1,
+                "REPORT_WRITE_FAILED",
+                2L,
+                List.of());
+        reportFailed.applyServerGuideProgress(
+                "MANAGER_JOURNAL",
+                true,
+                false,
+                "REPORT_RETRY_REQUIRED");
+        ManagerGuideProgressPolicy.Decision retryDecision =
+                ManagerGuideProgressPolicy.resolve(reportFailed, 13, "MANAGER_JOURNAL");
+
+        assertEquals(
+                ManagerGuidePrimaryAction.END_CARE,
+                ManagerGuideCoordinator.resolvePrimaryAction(careDecision, "CARE_COMPLETION"));
+        assertEquals(
+                ManagerGuidePrimaryAction.SUBMIT_REPORT,
+                ManagerGuideCoordinator.resolvePrimaryAction(journalDecision, "MANAGER_JOURNAL"));
+        assertEquals(ManagerGuideProgressPolicy.State.REPORT_RETRY, retryDecision.getState());
+        assertEquals(
+                ManagerGuidePrimaryAction.SUBMIT_REPORT,
+                ManagerGuideCoordinator.resolvePrimaryAction(retryDecision, "MANAGER_JOURNAL"));
+        assertTrue(ManagerGuideCoordinator.isStepInputEnabled(retryDecision));
+    }
+
+    @Test
     public void additiveSnapshot_screenModelHidesJournalReportUntilActualLastStep() {
         GuideStep journal = new GuideStep(
                 "MANAGER_JOURNAL",

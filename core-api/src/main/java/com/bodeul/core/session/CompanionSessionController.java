@@ -61,6 +61,15 @@ class CompanionSessionController {
         return noStore(sessionService.advanceSession(appUser, sessionId, version));
     }
 
+    @PostMapping("/{sessionId}/care-end")
+    ResponseEntity<CompanionSessionService.SessionView> endCare(
+            @AuthenticationPrincipal AppUserRepository.AppUser appUser,
+            @PathVariable UUID sessionId,
+            @RequestBody VersionRequest request) {
+        long version = request == null || request.version() == null ? -1 : request.version();
+        return noStore(sessionService.endCare(appUser, sessionId, version));
+    }
+
     @GetMapping("/{sessionId}/report")
     ResponseEntity<CompanionSessionService.ReportView> getReport(
             @AuthenticationPrincipal AppUserRepository.AppUser appUser,
@@ -132,7 +141,8 @@ class CompanionSessionController {
             String medicationScheduleNote,
             String medicationComparisonDecisionCode,
             String medicationComparisonNote,
-            String nextVisitAt) {
+            String nextVisitAt,
+            String managerJournal) {
 
         CompanionSessionService.SubmitReportCommand toCommand() {
             return new CompanionSessionService.SubmitReportCommand(
@@ -145,7 +155,8 @@ class CompanionSessionController {
                     medicationScheduleNote,
                     medicationComparisonDecisionCode,
                     medicationComparisonNote,
-                    nextVisitAt);
+                    nextVisitAt,
+                    managerJournal);
         }
     }
 }

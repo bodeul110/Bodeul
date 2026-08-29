@@ -18,6 +18,7 @@ final class ManagerGuideStepSectionsBinder {
     private final View groupGuardian;
     private final View cardNotes;
     private final View groupFieldNote;
+    private final View groupSessionArtifact;
     private final View groupPreConsultationConfirmation;
     private final View groupMedicationNote;
     private final View groupPharmacy;
@@ -38,6 +39,7 @@ final class ManagerGuideStepSectionsBinder {
         groupGuardian = root.findViewById(R.id.groupGuideGuardian);
         cardNotes = root.findViewById(R.id.cardGuideNotesActions);
         groupFieldNote = root.findViewById(R.id.groupGuideFieldNote);
+        groupSessionArtifact = root.findViewById(R.id.groupGuideSessionArtifact);
         groupPreConsultationConfirmation = root.findViewById(
                 R.id.groupGuidePreConsultationConfirmation);
         groupMedicationNote = root.findViewById(R.id.groupGuideMedicationNote);
@@ -57,6 +59,10 @@ final class ManagerGuideStepSectionsBinder {
         setVisible(groupGuardian, visibility.isGuardianVisible());
         setVisible(cardNotes, visibility.hasNotesSection());
         setVisible(groupFieldNote, visibility.isFieldNoteVisible());
+        setVisible(
+                groupSessionArtifact,
+                "PAYMENT_EVIDENCE".equals(stepCode)
+                        || "PRESCRIPTION_DOCUMENTS".equals(stepCode));
         setVisible(
                 groupPreConsultationConfirmation,
                 "PRE_CONSULTATION".equals(stepCode == null ? "" : stepCode.trim()));

@@ -27,4 +27,22 @@ class CompanionSessionPropertiesTests {
                                 .isPreConsultationEnforcement())
                         .isTrue());
     }
+
+    @Test
+    void completionEnforcementDefaultsToFalse() {
+        contextRunner.run(context -> assertThat(
+                context.getBean(CompanionSessionProperties.class)
+                        .isCompletionEnforcement())
+                .isFalse());
+    }
+
+    @Test
+    void completionEnforcementCanBeEnabledExplicitly() {
+        contextRunner
+                .withPropertyValues("bodeul.session.completion-enforcement=true")
+                .run(context -> assertThat(
+                        context.getBean(CompanionSessionProperties.class)
+                                .isCompletionEnforcement())
+                        .isTrue());
+    }
 }

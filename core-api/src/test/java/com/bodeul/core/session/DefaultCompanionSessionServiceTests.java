@@ -522,6 +522,172 @@ class DefaultCompanionSessionServiceTests {
     }
 
     @Test
+    void careEndIsIdempotentAndPreservesFirstServerTimestamp() {
+        repository.session = Optional.of(session(
+                "IN_TREATMENT",
+                12,
+                13,
+                3,
+                transitionSnapshot(13)));
+
+        var first = service.endCare(manager(), SESSION_ID, 3);
+        var retried = service.endCare(manager(), SESSION_ID, 3);
+
+        assertThat(first.currentStatus()).isEqualTo("IN_TREATMENT");
+        assertThat(first.currentStepCode()).isEqualTo("MANAGER_JOURNAL");
+        assertThat(first.careEndedAt()).isNotBlank();
+        assertThat(retried.careEndedAt()).isEqualTo(first.careEndedAt());
+        assertThat(retried.version()).isEqualTo(first.version());
+        assertThat(retried.blockedReason()).isEqualTo("CARE_ENDED_PENDING_COMPLETION");
+    }
+
+    @Test
+    void completionEnforcementExposesCareEndedOnlyAfterMixedVersionWindow() {
+        repository.session = Optional.of(session(
+                "IN_TREATMENT",
+                12,
+                13,
+                3,
+                transitionSnapshot(13)));
+        CompanionSessionProperties enforcedProperties = properties(false);
+        enforcedProperties.setCompletionEnforcement(true);
+        DefaultCompanionSessionService enforcedService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                enforcedProperties,
+                consentAccess);
+
+        var result = enforcedService.endCare(manager(), SESSION_ID, 3);
+
+        assertThat(result.currentStatus()).isEqualTo("CARE_ENDED");
+        assertThat(result.blockedReason()).isEqualTo("CARE_ENDED_PENDING_COMPLETION");
+    }
+
+    @Test
+    void disabledCompletionEnforcementMapsExistingCareEndedToLegacyStatus() {
+        repository.session = Optional.of(repository.copyCompletion(
+                session("IN_TREATMENT", 12, 13, 4, transitionSnapshot(13)),
+                13,
+                "CARE_ENDED",
+                5,
+                Instant.parse("2026-07-18T00:59:00Z"),
+                null,
+                "",
+                "NOT_REQUESTED",
+                0,
+                ""));
+
+        var result = service.getSession(manager(), SESSION_ID);
+
+        assertThat(result.currentStatus()).isEqualTo("PAYMENT");
+        assertThat(result.blockedReason()).isEqualTo("CARE_ENDED_PENDING_COMPLETION");
+    }
+
+    @Test
+    void reportFailureKeepsCompletedSessionAndRetryDoesNotMoveCareEndTimestamp() {
+        repository.session = Optional.of(session(
+                "IN_TREATMENT",
+                12,
+                13,
+                3,
+                transitionSnapshot(13)));
+        var careEnded = service.endCare(manager(), SESSION_ID, 3);
+        repository.failNextReportWrite = true;
+
+        assertThatThrownBy(() -> service.submitReport(
+                manager(),
+                SESSION_ID,
+                reportCommand(careEnded.version())))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_report_generation_failed");
+
+        var failed = service.getSession(manager(), SESSION_ID);
+        assertThat(failed.currentStatus()).isEqualTo("COMPLETED");
+        assertThat(failed.reportGenerationStatus()).isEqualTo("FAILED");
+        assertThat(failed.blockedReason()).isEqualTo("REPORT_RETRY_REQUIRED");
+        assertThat(failed.careEndedAt()).isEqualTo(careEnded.careEndedAt());
+
+        var report = service.submitReport(
+                manager(),
+                SESSION_ID,
+                reportCommand(careEnded.version()));
+        var completed = service.getSession(manager(), SESSION_ID);
+
+        assertThat(report.summary()).isEqualTo("전체 단계 회귀 검증 완료");
+        assertThat(completed.reportGenerationStatus()).isEqualTo("READY");
+        assertThat(completed.blockedReason()).isEqualTo("SESSION_TERMINAL");
+        assertThat(completed.careEndedAt()).isEqualTo(careEnded.careEndedAt());
+        assertThat(completed.reportGenerationAttempts()).isEqualTo(2);
+    }
+
+    @Test
+    void managerJournalIsOptionalAndLimitedToThreeHundredCharacters() {
+        repository.session = Optional.of(session(
+                "IN_TREATMENT",
+                12,
+                13,
+                3,
+                transitionSnapshot(13)));
+        var careEnded = service.endCare(manager(), SESSION_ID, 3);
+        var blankJournal = new CompanionSessionService.SubmitReportCommand(
+                careEnded.version(), "", "", "", "", "", "", "", "", "", "");
+
+        assertThat(service.submitReport(manager(), SESSION_ID, blankJournal).summary()).isEmpty();
+
+        repository.session = Optional.of(session(
+                "IN_TREATMENT",
+                12,
+                13,
+                3,
+                transitionSnapshot(13)));
+        careEnded = service.endCare(manager(), SESSION_ID, 3);
+        long version = careEnded.version();
+        var tooLong = new CompanionSessionService.SubmitReportCommand(
+                version,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "가".repeat(301));
+
+        assertThatThrownBy(() -> service.submitReport(manager(), SESSION_ID, tooLong))
+                .isInstanceOf(CompanionSessionException.class)
+                .hasMessageContaining("300자 이하");
+    }
+
+    @Test
+    void completionEnforcementBlocksLegacyDirectCompletionWithoutCareEnd() {
+        repository.session = Optional.of(session(
+                "IN_TREATMENT",
+                13,
+                13,
+                3,
+                transitionSnapshot(13)));
+        CompanionSessionProperties enforcedProperties = properties(false);
+        enforcedProperties.setCompletionEnforcement(true);
+        DefaultCompanionSessionService enforcedService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                enforcedProperties,
+                consentAccess);
+
+        assertThatThrownBy(() -> enforcedService.submitReport(
+                manager(),
+                SESSION_ID,
+                reportCommand(3)))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+        assertThat(repository.lastReport).isNull();
+    }
+
+    @Test
     void reportRejectsSessionWithoutValidatedLastStepContract() {
         var command = new CompanionSessionService.SubmitReportCommand(
                 3,
@@ -590,6 +756,27 @@ class DefaultCompanionSessionServiceTests {
                 .isInstanceOf(CompanionSessionException.class)
                 .extracting(exception -> ((CompanionSessionException) exception).error())
                 .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
+    void guardianSessionArtifactsFollowConsentAndWithdrawal() {
+        repository.session = Optional.of(withArtifact(repository.session.orElseThrow()));
+        boolean[] attachmentAllowed = {false};
+        var scopedService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
+                        scope != InformationScope.ATTACHMENT || attachmentAllowed[0]);
+        AppUserRepository.AppUser guardian = user(GUARDIAN_ID, AppUserRole.GUARDIAN);
+
+        assertThat(scopedService.getSession(guardian, SESSION_ID).artifacts()).isEmpty();
+
+        attachmentAllowed[0] = true;
+        assertThat(scopedService.getSession(guardian, SESSION_ID).artifacts()).hasSize(1);
+
+        attachmentAllowed[0] = false;
+        assertThat(scopedService.getSession(guardian, SESSION_ID).artifacts()).isEmpty();
     }
 
     @Test
@@ -694,8 +881,36 @@ class DefaultCompanionSessionServiceTests {
                 null,
                 version,
                 Instant.parse("2026-07-18T00:00:00Z"),
+                "COMPLETED".equals(status) ? Instant.parse("2026-07-18T01:00:00Z") : null,
                 null,
-                null);
+                "COMPLETED".equals(status) ? Instant.parse("2026-07-18T00:59:00Z") : null,
+                "",
+                "COMPLETED".equals(status) ? "READY" : "NOT_REQUESTED",
+                "COMPLETED".equals(status) ? 1 : 0,
+                "",
+                "COMPLETED".equals(status) ? Instant.parse("2026-07-18T01:00:00Z") : null,
+                List.of());
+    }
+
+    private CompanionSessionRepository.SessionRecord withArtifact(
+            CompanionSessionRepository.SessionRecord current) {
+        return new CompanionSessionRepository.SessionRecord(
+                current.id(), current.firestoreId(), current.appointmentRequestId(),
+                current.managerUserId(), current.patientUserId(), current.guardianUserId(),
+                current.currentStepOrder(), current.totalStepCount(), current.guideSnapshot(),
+                current.currentStatus(), current.guardianUpdate(), current.locationSummary(),
+                current.fieldPhotoNote(), current.medicationNote(), current.pharmacySummary(),
+                current.preConsultationConfirmed(), current.prescriptionCollected(),
+                current.pharmacyCompleted(), current.medicationGuidanceCompleted(),
+                current.liveLocationSharingActive(), current.liveLocationSharingStartedAt(),
+                current.locationAlertStage(), current.locationAlertSentAt(), current.version(),
+                current.startedAt(), current.completedAt(), current.canceledAt(),
+                current.careEndedAt(), current.managerJournal(),
+                current.reportGenerationStatus(), current.reportGenerationAttempts(),
+                current.reportGenerationLastError(), current.reportGenerationUpdatedAt(),
+                List.of(new CompanionSessionRepository.ArtifactRecord(
+                        UUID.randomUUID(), "PAYMENT_EVIDENCE", "영수증.pdf",
+                        "application/pdf", 10L, Instant.parse("2026-07-18T00:00:00Z"))));
     }
 
     private CompanionSessionRepository.GuideSnapshotRecord hospitalGuideSnapshot(
@@ -782,6 +997,7 @@ class DefaultCompanionSessionServiceTests {
         private ReportRecord report;
         private ReportMutation lastReport;
         private int advanceCount;
+        private boolean failNextReportWrite;
 
         @Override
         public List<SessionRecord> findAllForUser(UUID userId, AppUserRole role) {
@@ -865,6 +1081,144 @@ class DefaultCompanionSessionServiceTests {
         }
 
         @Override
+        public Optional<SessionRecord> endCare(
+                UUID sessionId,
+                UUID managerUserId,
+                long expectedVersion,
+                UUID appointmentRequestId,
+                boolean exposeCareEndedStatus) {
+            if (session.isEmpty()) {
+                return Optional.empty();
+            }
+            SessionRecord current = session.get();
+            if (!current.id().equals(sessionId)
+                    || !current.managerUserId().equals(managerUserId)
+                    || !current.appointmentRequestId().equals(appointmentRequestId)) {
+                return Optional.empty();
+            }
+            if (current.careEndedAt() != null
+                    && !"CANCELED".equals(current.currentStatus())) {
+                return session;
+            }
+            if (current.version() != expectedVersion
+                    || !"CARE_COMPLETION".equals(
+                    current.guideSnapshot().steps().get(current.currentStepOrder() - 1).code())) {
+                return Optional.empty();
+            }
+            session = Optional.of(copyCompletion(
+                    current,
+                    current.currentStepOrder() + 1,
+                    exposeCareEndedStatus ? "CARE_ENDED" : current.currentStatus(),
+                    current.version() + 1,
+                    Instant.parse("2026-07-18T00:59:00Z"),
+                    null,
+                    current.managerJournal(),
+                    "NOT_REQUESTED",
+                    current.reportGenerationAttempts(),
+                    ""));
+            return session;
+        }
+
+        @Override
+        public Optional<SessionRecord> finalizeSession(
+                UUID sessionId,
+                UUID managerUserId,
+                long expectedVersion,
+                UUID appointmentRequestId,
+                String managerJournal,
+                boolean allowLegacyCompletion) {
+            if (session.isEmpty()) {
+                return Optional.empty();
+            }
+            SessionRecord current = session.get();
+            boolean allowedState = "CARE_ENDED".equals(current.currentStatus())
+                    || (allowLegacyCompletion
+                    && current.currentStepOrder() == current.totalStepCount()
+                    && !"COMPLETED".equals(current.currentStatus())
+                    && !"CANCELED".equals(current.currentStatus()));
+            if (!current.id().equals(sessionId)
+                    || !current.managerUserId().equals(managerUserId)
+                    || !current.appointmentRequestId().equals(appointmentRequestId)
+                    || current.version() != expectedVersion
+                    || !allowedState) {
+                return Optional.empty();
+            }
+            session = Optional.of(copyCompletion(
+                    current,
+                    current.currentStepOrder(),
+                    "COMPLETED",
+                    current.version() + 1,
+                    current.careEndedAt() == null
+                            ? Instant.parse("2026-07-18T00:59:00Z")
+                            : current.careEndedAt(),
+                    Instant.parse("2026-07-18T01:00:00Z"),
+                    managerJournal,
+                    "PENDING",
+                    current.reportGenerationAttempts(),
+                    ""));
+            return session;
+        }
+
+        @Override
+        public ReportRecord saveReportAndMarkReady(UUID sessionId, ReportMutation reportMutation) {
+            if (session.isEmpty() || !session.get().id().equals(sessionId)) {
+                throw new IllegalStateException("완료 세션이 없습니다.");
+            }
+            if (failNextReportWrite) {
+                failNextReportWrite = false;
+                throw new IllegalStateException("리포트 저장 실패");
+            }
+            lastReport = reportMutation;
+            report = new ReportRecord(
+                    UUID.randomUUID(),
+                    null,
+                    sessionId,
+                    reportMutation.summary(),
+                    reportMutation.treatmentNotes(),
+                    reportMutation.medicationNotes(),
+                    reportMutation.medicationName(),
+                    reportMutation.medicationChangeSummary(),
+                    reportMutation.medicationScheduleNote(),
+                    reportMutation.medicationComparisonDecisionCode(),
+                    reportMutation.medicationComparisonNote(),
+                    reportMutation.nextVisitAt(),
+                    reportMutation.nextVisitNote(),
+                    0);
+            SessionRecord current = session.get();
+            session = Optional.of(copyCompletion(
+                    current,
+                    current.currentStepOrder(),
+                    current.currentStatus(),
+                    current.version(),
+                    current.careEndedAt(),
+                    current.completedAt(),
+                    current.managerJournal(),
+                    "READY",
+                    current.reportGenerationAttempts() + 1,
+                    ""));
+            return report;
+        }
+
+        @Override
+        public void markReportGenerationFailed(UUID sessionId, String errorMessage) {
+            if (session.isEmpty() || !session.get().id().equals(sessionId)) {
+                return;
+            }
+            SessionRecord current = session.get();
+            session = Optional.of(copyCompletion(
+                    current,
+                    current.currentStepOrder(),
+                    current.currentStatus(),
+                    current.version(),
+                    current.careEndedAt(),
+                    current.completedAt(),
+                    current.managerJournal(),
+                    "FAILED",
+                    current.reportGenerationAttempts() + 1,
+                    errorMessage));
+        }
+
+        @Override
         public Optional<CompletionRecord> completeWithReport(
                 UUID sessionId,
                 UUID managerUserId,
@@ -945,9 +1299,63 @@ class DefaultCompanionSessionServiceTests {
                     current.locationAlertSentAt(),
                     version,
                     current.startedAt(),
-                    "COMPLETED".equals(status) ? Instant.parse("2026-08-29T08:00:00Z")
-                            : current.completedAt(),
-                    current.canceledAt());
+                    current.completedAt(),
+                    current.canceledAt(),
+                    current.careEndedAt(),
+                    current.managerJournal(),
+                    current.reportGenerationStatus(),
+                    current.reportGenerationAttempts(),
+                    current.reportGenerationLastError(),
+                    current.reportGenerationUpdatedAt(),
+                    current.artifacts());
+        }
+
+        private SessionRecord copyCompletion(
+                SessionRecord current,
+                int step,
+                String status,
+                long version,
+                Instant careEndedAt,
+                Instant completedAt,
+                String managerJournal,
+                String reportStatus,
+                int reportAttempts,
+                String reportError) {
+            return new SessionRecord(
+                    current.id(),
+                    current.firestoreId(),
+                    current.appointmentRequestId(),
+                    current.managerUserId(),
+                    current.patientUserId(),
+                    current.guardianUserId(),
+                    step,
+                    current.totalStepCount(),
+                    current.guideSnapshot(),
+                    status,
+                    current.guardianUpdate(),
+                    current.locationSummary(),
+                    current.fieldPhotoNote(),
+                    current.medicationNote(),
+                    current.pharmacySummary(),
+                    current.preConsultationConfirmed(),
+                    current.prescriptionCollected(),
+                    current.pharmacyCompleted(),
+                    current.medicationGuidanceCompleted(),
+                    false,
+                    null,
+                    current.locationAlertStage(),
+                    current.locationAlertSentAt(),
+                    version,
+                    current.startedAt(),
+                    completedAt,
+                    current.canceledAt(),
+                    careEndedAt,
+                    managerJournal,
+                    reportStatus,
+                    reportAttempts,
+                    reportError,
+                    Instant.parse("2026-07-18T01:00:00Z"),
+                    current.artifacts());
         }
     }
 

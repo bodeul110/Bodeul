@@ -115,7 +115,7 @@ class JdbcCompanionSessionRepositoryTests {
                 parameters.capture());
         assertThat(sql.getAllValues().get(1))
                 .contains("version = :expectedVersion")
-                .contains("current_status not in ('COMPLETED', 'CANCELED')")
+                .contains("current_status not in ('CARE_ENDED', 'COMPLETED', 'CANCELED')")
                 .contains("guide_steps_snapshot is not null")
                 .contains("current_step_order < jsonb_array_length(guide_steps_snapshot)")
                 .contains("guide_snapshot_source = 'HOSPITAL_GUIDE_STEP_CODE_V1'")
@@ -148,6 +148,26 @@ class JdbcCompanionSessionRepositoryTests {
                 .contains("or pre_consultation_confirmed");
         assertThat(parameters.getAllValues().get(1).getValue("preConsultationEnforcement"))
                 .isEqualTo(true);
+    }
+
+    @Test
+    void failedCareEndDoesNotChangeAppointmentStatus() {
+        when(jdbcTemplate.update(anyString(), any(MapSqlParameterSource.class)))
+                .thenReturn(0);
+        doReturn(List.of()).when(jdbcTemplate).query(
+                anyString(),
+                any(MapSqlParameterSource.class),
+                org.mockito.ArgumentMatchers
+                        .<RowMapper<CompanionSessionRepository.SessionRecord>>any());
+
+        assertThat(repository.endCare(SESSION_ID, MANAGER_ID, 3, APPOINTMENT_ID, true))
+                .isEmpty();
+
+        var sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sql.capture(), any(MapSqlParameterSource.class));
+        assertThat(sql.getValue())
+                .contains("when :exposeCareEndedStatus then 'CARE_ENDED'")
+                .contains("version = :expectedVersion");
     }
 
     private ResultSet resultSetWithSnapshot(String snapshotJson, Long revision) throws Exception {

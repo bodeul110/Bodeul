@@ -3825,3 +3825,27 @@
 - 인증된 관리자 계정으로 주요 흐름과 App Check `VALID` 요청 확인
 - 관찰 결과 확인 뒤 `enforce` 전환과 rollback 실검증
 - 개발 Web provider와 Preview debug token 분리
+
+## 154. 2026-08-29 정상 동행 종료·완료 경계 구현
+
+### 구현과 운영 설정
+
+- 가이드 12 실제 동행 종료 `CARE_ENDED`와 가이드 13 업무 완료 `COMPLETED`를 분리하고 최초 서버 종료 시각을 보존했다.
+- 선택 매니저 일지를 최대 300자로 제한하고 세션 완료와 리포트 `PENDING`·`READY`·`FAILED` 상태를 분리해 실패 세션 재진입과 재시도를 지원했다.
+- 가이드 8 선택 결제 증빙 0~1개와 가이드 10 선택 처방 이미지 0~3개를 Core API 서버 중계로 추가했다.
+- 완료 강제 설정은 Preview·Production 워크플로가 전달할 수 있게 준비했지만 기본값 `false`를 유지했고 실제 Environment 값 변경이나 배포는 하지 않았다.
+
+### 검증
+
+- Core API 전체 `check`, Android 전체 `testDebugUnitTest`와 `assembleDebug` 성공
+- V18 migration 순서·기존 완료 행 backfill·rollback 계약 테스트 통과
+- Preview·Production workflow YAML 파싱과 `git diff --check` 통과
+
+### 남은 범위
+
+- 개발 DB V18 적용·rollback과 runtime role 실검증
+- Preview Core API·Android 배포 후 실기기 중복 종료, 재진입, 첨부와 리포트 실패 재시도 검증
+- #222 가이드 첨부 원본 만료·orphan 정리 연결
+- 새 앱 보급과 별도 승인 뒤 Preview 완료 강제 설정 검증. Production 활성화는 출시 게이트에서 별도 결정
+
+상세 근거는 [이슈 307 정상 동행 종료·완료 구현 기록](../reports/issue-307-companion-completion-2026-08-29.md)에 정리했다.

@@ -251,6 +251,8 @@ public final class CompanionChatCoordinator {
                 return context.getString(R.string.companion_chat_status_treatment);
             case PAYMENT:
                 return context.getString(R.string.companion_chat_status_payment);
+            case CARE_ENDED:
+                return context.getString(R.string.companion_chat_status_care_ended);
             case COMPLETED:
                 return context.getString(R.string.companion_chat_status_completed);
             case CANCELED:

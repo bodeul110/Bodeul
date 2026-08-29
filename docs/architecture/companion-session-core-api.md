@@ -2,7 +2,7 @@
 
 기준일: 2026-07-19
 
-최종 갱신: 2026-08-22
+최종 갱신: 2026-08-29
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -21,6 +21,9 @@
 - 앱과 서버의 동시 수정을 검출할 수 있도록 세션·리포트·후속 처리에 `version`을 둔다.
 - Core API는 세션 조회·현장 메모·단계 전환·리포트·예약 후속 처리 endpoint를 소유하고, Android가 PostgreSQL에 직접 연결하지 않는다.
 - 진행 단계는 세션 생성 시 V14가 고정한 `guide_steps_snapshot`에서 계산한다. 이후 `hospital_guides` 수정은 진행 중 세션 응답과 진행 한계를 바꾸지 않는다.
+- 가이드 12의 실제 동행 종료는 `CARE_ENDED`, 가이드 13의 업무 완료는 `COMPLETED`로 분리한다. 최초 종료 시각은 서버가 한 번만 기록하고 중복 요청에는 같은 값을 반환한다.
+- 가이드 8 결제 증빙과 가이드 10 처방 이미지는 원본과 SHA-256 객체 메타데이터를 Firebase Storage에, 용도·경로·크기·재시도 식별자는 PostgreSQL `companion_session_artifacts`에 저장한다.
+- 세션 완료와 리포트 저장 성공을 하나의 원자적 결과로 취급하지 않는다. 세션을 먼저 `COMPLETED`로 확정하고 리포트 저장 상태를 `PENDING`, `READY`, `FAILED`로 별도 추적한다.
 
 ## 대안
 
@@ -46,6 +49,7 @@
 | `companion_chat_attachments` | 채팅 첨부 배열 | 메시지 N:1 | Firebase Storage 경로와 만료 상태 |
 | `companion_chat_read_receipts` | 역할별 읽음 시각 | 세션·사용자 1:1 | 마지막 읽은 메시지와 시각 |
 | `companion_session_locations` | 최신 좌표·위치 이력 | 세션 N:1 | 진행 중 최신·최근 10건 위치 |
+| `companion_session_artifacts` | 신규 | 세션 N:1 | 가이드 8 결제 증빙과 가이드 10 처방 이미지 메타데이터·중복 요청 제거 |
 
 `nextVisitAt`에는 날짜와 자유 텍스트가 혼재한다. PostgreSQL에서는 정규화 가능한 시각을 `next_visit_at`에, 원문을 `next_visit_note`에 보관해 기존 데이터를 잃지 않는다.
 
@@ -54,8 +58,11 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 ## 채팅·위치 저장 계약
 
 - 채팅 본문은 세션별 행으로 저장하고 `client_message_id`로 네트워크 재시도의 중복 저장을 막는다.
-- 첨부 원본은 Firebase Storage에 두되 경로, MIME, 크기와 파기 상태는 PostgreSQL에서 인가한다. Android는 Storage에 직접 쓰지 않고 Core API의 multipart endpoint로 전송한다. Core API는 참여 관계를 확인한 뒤 런타임 서비스 계정으로 저장하며, 다운로드 때도 참여 관계와 만료 상태를 다시 확인한다.
-- 허용 형식은 파일 시그니처가 일치하는 JPEG, PNG, PDF이고 파일당 최대 10 MiB, 메시지당 최대 3개다. 저장 경로는 세션 ID, 재시도 식별자와 SHA-256으로 결정해 같은 요청 재시도에서 객체가 중복되지 않게 한다.
+- 첨부 원본은 Firebase Storage에 두되 경로, MIME, 크기와 파기 상태는 PostgreSQL에서 인가한다. Android는 Storage에 직접 쓰지 않고 Core API의 multipart endpoint로 전송한다. Core API는 참여 관계를 확인한 뒤 런타임 서비스 계정으로 저장하며, 다운로드 때도 참여 관계를 다시 확인한다.
+- 채팅 첨부는 파일 시그니처가 일치하는 JPEG, PNG, PDF, 파일당 최대 10 MiB, 메시지당 최대 3개다. 저장 경로는 세션 ID, 재시도 식별자와 SHA-256으로 결정한다.
+- 가이드 첨부는 현재 단계에서만 배정 매니저가 교체·삭제할 수 있다. `PAYMENT_EVIDENCE`는 JPEG·PNG·PDF 중 최대 1개, `PRESCRIPTION_IMAGE`는 JPEG·PNG 최대 3개이며 파일당 최대 10 MiB다. `client_request_id`와 payload fingerprint는 별도 operation ledger에 남겨 교체·삭제 뒤의 지연 재시도도 다시 적용하지 않으며, 같은 UUID의 다른 내용은 충돌로 거부한다.
+- PostgreSQL에 원본 SHA-256을 함께 저장하고 인증 다운로드 때 실제 바이트를 다시 해시한다. 크기 또는 SHA-256이 다르면 손상된 원본으로 보고 반환하지 않는다.
+- `CARE_ENDED` 이후에는 가이드 첨부와 운영 메모를 수정하지 않는다. 환자와 배정 매니저는 참여 관계를, 보호자는 참여 관계와 현재 `ATTACHMENT` 동의를 모두 통과한 경우에만 원본을 내려받을 수 있다. 동의가 없거나 철회되면 세션 응답의 첨부 목록도 비운다.
 - 읽음 위치는 `(companion_session_id, user_id)` 한 행으로 관리하고 같은 세션 메시지만 참조할 수 있다.
 - 위치는 배정된 매니저와 진행 가능한 세션을 확인하는 `record_companion_location` 함수만 기록한다. 15분보다 오래됐거나 5분보다 미래인 좌표는 거부하고 세션별 최근 10건만 유지한다.
 - 세션 완료·취소 전이는 채팅 180일, 첨부 30일, 정밀 위치 24시간 뒤로 `expires_at`을 예약한다. 실제 삭제와 Storage 정리는 #222 일일 job이 수행한다.
@@ -67,8 +74,9 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | --- | --- | --- |
 | `REQUESTED` | 없음 | 관리자 배정 |
 | `MATCHED` | `READY` | 시작 전 취소 또는 동행 시작 |
-| `IN_PROGRESS` | `MEETING`~`PAYMENT` | 매니저 진행 단계와 현장 메모 갱신 |
-| `COMPLETED` | `COMPLETED` | 리포트·후속 처리 조회 |
+| `IN_PROGRESS` | `MEETING`~`PAYMENT` | 매니저 진행 단계, 현장 메모와 현재 단계의 선택 첨부 갱신 |
+| `IN_PROGRESS` | `CARE_ENDED` | 실제 동행은 종료됐고 선택 일지·최종 완료만 허용 |
+| `COMPLETED` | `COMPLETED` | 리포트 상태가 `READY`면 조회, `FAILED`·`PENDING`이면 저장만 재시도 |
 | `CANCELED` | `CANCELED` | 읽기 전용 |
 
 상태 전이 API는 서버에서 현재 상태와 `version`을 확인하고 예약과 세션을 같은 DB 트랜잭션으로 갱신한다.
@@ -82,7 +90,11 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | `PATCH /api/companion-sessions/{id}` | 배정 매니저 | 현장 메모·약국 진행 상태를 `version` 조건으로 부분 갱신 |
 | `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 고정 snapshot의 코드·순서·현재 범위와 `version`을 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
 | `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 보호자는 별도 `REPORT` 동의 필수 |
-| `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 리포트 upsert, 예약·세션 `COMPLETED`를 한 트랜잭션으로 반영 |
+| `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 선택 일지를 검증하고 세션 완료를 먼저 확정한 뒤 리포트 상태를 별도 저장·재시도 |
+| `POST /api/companion-sessions/{id}/care-end` | 배정 매니저 | 현재 코드 `CARE_COMPLETION`과 `version`을 확인하고 최초 서버 시각을 보존한 채 `CARE_ENDED`로 전환 |
+| `PUT /api/companion-sessions/{id}/artifacts` | 배정 매니저 | 현재 가이드 8·10에서 용도별 파일 전체를 멱등 교체 |
+| `DELETE /api/companion-sessions/{id}/artifacts?purpose=...` | 배정 매니저 | 현재 단계의 해당 용도 메타데이터를 지우고 Storage 원본을 정리 |
+| `GET /api/companion-sessions/{id}/artifacts/{artifactId}` | 환자·보호자·배정 매니저 | 보호자는 `ATTACHMENT` 동의가 있을 때만 원본 반환 |
 | `GET /api/companion-sessions/{id}/realtime` | 환자·보호자·배정 매니저 | 보호자는 `CHAT` 또는 `LOCATION` 중 허용 범위만 조회 |
 | `POST /api/companion-sessions/{id}/messages` JSON | 환자·보호자·배정 매니저 | 보호자는 `CHAT`, 첨부 metadata가 있으면 `ATTACHMENT`도 필수 |
 | `POST /api/companion-sessions/{id}/messages` multipart | 환자·보호자·배정 매니저 | 보호자는 `CHAT`과 `ATTACHMENT` 동의 뒤 서버 중계 업로드 |
@@ -96,10 +108,10 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 
 ## 권한 경계
 
-| role | V5~V8 권한 |
+| role | V5~V18 권한 |
 | --- | --- |
-| `bodeul_core_runtime` | 세션·리포트·후속 처리·채팅·첨부·읽음·위치 SELECT, 지정 컬럼 DML, 위치 기록 함수 EXECUTE |
-| `bodeul_admin_runtime` | 세션·리포트·후속 처리·배정 감사·채팅·첨부·읽음·위치 SELECT, 배정 함수 EXECUTE |
+| `bodeul_core_runtime` | 세션·리포트·후속 처리·채팅·가이드 첨부·읽음·위치 SELECT, 지정 컬럼 DML, 위치 기록 함수 EXECUTE |
+| `bodeul_admin_runtime` | 세션·리포트·후속 처리·배정 감사·채팅·가이드 첨부·읽음·위치 SELECT, 배정 함수 EXECUTE |
 | `anon`, `authenticated`, `service_role`, `public` | 업무 테이블과 서버 전용 함수 권한 없음 |
 | `bodeul_migration` | Flyway DDL과 Firestore 백필 |
 
@@ -109,6 +121,8 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 
 - 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
+- 새 Android는 `CARE_COMPLETION`에서 `/care-end`를 호출하고, `CARE_ENDED`에서 선택 일지를 제출한다. 리포트가 `FAILED` 또는 `PENDING`이면 완료 세션을 다시 열어 리포트 저장만 재시도한다.
+- 가이드 8은 결제 증빙 JPEG·PNG·PDF 1개, 가이드 10은 JPEG·PNG 0~3개를 Android Storage Access Framework로 선택하며 미첨부 진행을 허용한다.
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
 - 채팅, 첨부 원본·metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 첨부 미리보기는 인증된 API 응답을 앱 전용 단기 캐시에 저장한 뒤 `FileProvider` URI로 연다. 환자·매니저 화면은 private Broadcast를 변경 신호로 받고 Core API snapshot으로 복구한다. 보호자 화면은 연결 권한 캐시로 철회 즉시성을 보장할 수 없어 Broadcast를 구독하지 않고 Core API polling만 사용한다.
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 남고, 관계만 있는 보호자의 직접 읽기도 거부한다.
@@ -124,7 +138,7 @@ npm --prefix tools/firebase run postgres:sessions:rollback -- --file backups/<�
 npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 파일>.json
 ```
 
-적용 전 `check`, transaction rollback SQL, 적용 SQL 순서로 검증한다. 생성 SQL은 개인정보를 포함하므로 `tools/firebase/reports/`의 Git 제외 경로에만 둔다. V5 DDL rollback은 `core-api/db/rollback/V5__drop_companion_session_operational_schema.sql`을 사용한다.
+적용 전 `check`, transaction rollback SQL, 적용 SQL 순서로 검증한다. 생성 SQL은 개인정보를 포함하므로 `tools/firebase/reports/`의 Git 제외 경로에만 둔다. V5 DDL rollback은 `core-api/db/rollback/V5__drop_companion_session_operational_schema.sql`, V18 종료·완료 분리 rollback은 `core-api/db/rollback/V18__merge_companion_care_completion.sql`을 사용한다. V18 rollback은 첨부 또는 operation ledger 행이 하나라도 있으면 fail-closed로 중단한다. 먼저 첨부의 `storage_path`, 세션 ID와 용도, operation ledger의 요청 UUID·fingerprint·revision을 접근 제한된 운영 산출물로 export하고, 해당 Storage 원본 삭제를 확인한 뒤 두 테이블의 행을 지워야 한다. 그 후에만 rollback SQL을 다시 실행하며, `CARE_ENDED`는 기존 마지막 진행 상태인 `PAYMENT`로 되돌린다.
 
 개발 DB 적용은 `Core API DB Migration` workflow의 `apply_companion_session_seed=true` 입력을 사용한다. 적용 SQL은 `core-api-migration-preview`의 일회성 `COMPANION_SESSION_SEED_SQL_BASE64` secret으로 전달하고, `companion_session_seed_sha256` 입력과 실제 파일 해시가 일치해야 한다. workflow 종료를 확인한 즉시 일회성 secret을 삭제한다.
 
@@ -134,6 +148,10 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 
 - 개발 환경은 Core API와 관리자 서버가 PostgreSQL을 사용하고 Android의 대응 Firestore 쓰기를 중지해 전환 조건을 충족했다. production은 같은 migration과 역할별 종단 검증을 통과해야 전환 완료로 본다.
 - Core API snapshot 응답은 V14 열을 전제로 하므로 V14 migration을 먼저 적용한 뒤 API를 배포한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 의미를 추정하지 않고 진행을 차단하므로, 신규 배정 전에 운영 가이드를 코드 계약 v1으로 승격해야 한다.
+- V18 코드가 새 열을 항상 읽으므로 DB migration을 Core API 배포보다 먼저 적용한다. 기존 `COMPLETED` 행은 리포트가 있으면 `READY`, 없으면 `FAILED`로 backfill하고 `care_ended_at`은 기존 완료·갱신·시작 시각 순으로 보존한다.
+- 구버전 Android의 마지막 단계 직접 완료는 `BODEUL_SESSION_COMPLETION_ENFORCEMENT=false` 동안만 허용한다. 이 혼합 버전 기간의 돌봄 종료는 `care_ended_at`과 단계만 저장하고 기존 `current_status` 문자열을 유지해 구버전 enum 파서를 깨뜨리지 않는다. 플래그를 켠 뒤에만 `CARE_ENDED`를 DB와 응답에 노출한다.
+- 사고·긴급상황은 #297의 별도 중단·지원 상태 계약 대상이며 정상 `CARE_ENDED`나 `COMPLETED`로 합치지 않는다.
+- 가이드 첨부 교체가 DB 반영 전에 실패하면 생성한 Storage 객체를 즉시 삭제하지 않고 orphan으로 남긴다. 동시 요청의 승자 객체를 지우지 않는 fail-safe이며, 최종 orphan 회수와 보존 만료는 #222에서 커밋된 DB 참조 집합을 기준으로 처리해야 한다.
 - 기존 배정의 관리자 actor는 Firestore에 없으므로 감사 기록을 추정해 만들지 않는다. 전환 이후 배정부터 기록한다.
 - 기존 Firestore 세션 문서는 rollback 비교 자료로 남아 있으므로 운영 화면이 이를 업무 원본으로 다시 사용하지 않는지 회귀 검증한다.
 - 개발 DB 백필 후 row/FK/상태 비교, 관리자 Preview 배정, 실기기 동행 완료와 rollback을 모두 통과해야 production migration 대상으로 승격한다.
@@ -142,4 +160,4 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - Android 실기기에서는 매니저 홈, 과거 이력, 보호자 리포트와 예약 상세가 PostgreSQL 세션 상태를 표시했다. 관리자 웹 PR #23의 Vercel Preview는 같은 개발 DB에서 배정 성공 201과 예약 `MATCHED`, 세션 `READY`, 감사 1건을 확인했다. Preview 리비전 `00012-tqv`에서는 Firestore 예약·세션 문서가 0건인 임시 Core-only 배정을 매니저 홈, 보호자 리포트, 환자 예약 상세에서 모두 확인했다. 관련 API 요청은 모두 200이고 App Check 판정은 `valid`였다.
 - 개발 Rules emulator에서 예약·세션·리포트·후속 처리와 기존 세션 채팅·위치의 클라이언트 업무 쓰기 거부를 7개 시나리오로 검증했다. Android 관리자 앱의 Firestore 직접 배정은 더 이상 운영 경로가 아니며 별도 관리자 웹 서버 API를 사용한다.
 - 개발 DB V12 migration run `29650223504`, Cloud Run Preview deploy run `29651623086`과 개발 Firestore Rules 배포를 완료했다. 실제 세션의 채팅·읽음·위치·재연결, FCM 실기기 알림과 private Realtime 10개 동시 연결·10/10 Broadcast 수신을 확인했다.
-- Core-only 첨부는 서버 중계 방식을 선택했다. 현재 30 MiB 이하 요청을 Core API 메모리에서 검증하므로 MVP 규모에는 적합하지만, 첨부 트래픽이나 파일 크기가 커지면 짧은 수명의 서명 URL과 완료 확인 API로 전환한다. Storage 저장 뒤 DB 저장이 실패한 경우 보상 삭제를 시도하며, 삭제 자체가 실패한 객체는 #222의 일일 정리 작업이 최종 회수해야 한다.
+- Core-only 첨부는 서버 중계 방식을 선택했다. 현재 30 MiB 이하 요청을 Core API 메모리에서 검증하므로 MVP 규모에는 적합하지만, 첨부 트래픽이나 파일 크기가 커지면 짧은 수명의 서명 URL과 완료 확인 API로 전환한다. Storage 저장 뒤 DB 저장이 실패한 객체는 즉시 보상 삭제하지 않고 #222의 일일 정리 작업이 커밋된 참조와 대조해 회수한다.

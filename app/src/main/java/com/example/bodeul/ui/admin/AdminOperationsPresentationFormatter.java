@@ -57,6 +57,8 @@ public final class AdminOperationsPresentationFormatter {
                 return context.getString(R.string.guardian_report_session_treatment);
             case PAYMENT:
                 return context.getString(R.string.guardian_report_session_payment);
+            case CARE_ENDED:
+                return context.getString(R.string.guardian_report_session_care_ended);
             case CANCELED:
                 return context.getString(R.string.guardian_report_session_canceled);
             case COMPLETED:
