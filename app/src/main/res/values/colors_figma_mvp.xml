@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="figma_mvp_primary">#1958B7</color>
+    <color name="figma_mvp_primary_end">#3C72D1</color>
+    <color name="figma_mvp_background">#F7F9FC</color>
+    <color name="figma_mvp_surface">#FFFFFFFF</color>
+    <color name="figma_mvp_input">#ECEEF1</color>
+    <color name="figma_mvp_divider">#E0E3E6</color>
+    <color name="figma_mvp_text_primary">#191C1E</color>
+    <color name="figma_mvp_text_secondary">#424752</color>
+    <color name="figma_mvp_text_tertiary">#737784</color>
+    <color name="figma_mvp_text_disabled">#C3C6D4</color>
+    <color name="figma_mvp_manager_icon_background">#D8E2FF</color>
+    <color name="figma_mvp_patient_icon_background">#FEB64C</color>
+    <color name="figma_mvp_kakao">#FEE500</color>
+    <color name="figma_mvp_naver">#03C75A</color>
+</resources>

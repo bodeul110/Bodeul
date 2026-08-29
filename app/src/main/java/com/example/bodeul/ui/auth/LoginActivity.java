@@ -15,6 +15,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.core.graphics.Insets;
 import androidx.core.view.OneShotPreDrawListener;
@@ -77,13 +78,11 @@ public class LoginActivity extends AppCompatActivity {
     private Chip chipRoleManager;
     private Chip chipRolePatient;
     private Chip chipRoleGuardian;
-    private MaterialButton buttonSubmit;
+    private AppCompatButton buttonSubmit;
     private AppCompatImageButton buttonSocialKakao;
     private AppCompatImageButton buttonSocialGoogle;
     private MaterialButton buttonSocialNaver;
     private ProgressBar progressBar;
-    private AuthSummaryCardBinder summaryCardBinder;
-    private LoginSummaryFormatter summaryFormatter;
 
     public static Intent createIntent(Context context, UserRole roleHint) {
         Intent intent = new Intent(context, LoginActivity.class);
@@ -130,9 +129,6 @@ public class LoginActivity extends AppCompatActivity {
         buttonSocialGoogle = findViewById(R.id.buttonSocialGoogle);
         buttonSocialNaver = findViewById(R.id.buttonSocialNaver);
         progressBar = findViewById(R.id.progressAuth);
-        summaryCardBinder = new AuthSummaryCardBinder(findViewById(R.id.layoutLoginSummaryCard));
-        summaryFormatter = new LoginSummaryFormatter(this);
-
         configureImeInsets();
         configureRoleChips();
         restoreScreenState(savedInstanceState);
@@ -151,10 +147,10 @@ public class LoginActivity extends AppCompatActivity {
         buttonSocialKakao.setOnClickListener(view -> submitKakaoAuth());
         buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
         buttonSocialNaver.setOnClickListener(view -> submitNaverAuth());
+        findViewById(R.id.buttonLoginBack).setOnClickListener(view -> finish());
 
         View.OnClickListener roleListener = view -> {
             applyDemoCredentials();
-            bindSummaryCard();
         };
         chipRoleManager.setOnClickListener(roleListener);
         chipRolePatient.setOnClickListener(roleListener);
@@ -288,10 +284,13 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         // 로그인과 회원가입 모드에 따라 필요한 입력 필드만 노출한다.
-        textLoginTitle.setText(getLoginTitleResId());
+        textLoginTitle.setText(registerMode ? R.string.register_button : getLoginTitleResId());
+        textLoginTitle.setVisibility(
+                registerMode || isAdminRoleHint() ? View.VISIBLE : View.GONE
+        );
         textLoginSubtitle.setText(registerMode
                 ? R.string.login_subtitle_register
-                : R.string.login_subtitle);
+                : R.string.figma_login_tagline);
 
         buttonSubmit.setText(registerMode ? R.string.register_button : R.string.login_button);
         textSwitchMode.setText(registerMode
@@ -302,7 +301,6 @@ public class LoginActivity extends AppCompatActivity {
         layoutPhone.setVisibility(registerMode ? View.VISIBLE : View.GONE);
         textForgotPassword.setVisibility(registerMode ? View.GONE : View.VISIBLE);
         bindSocialAccess();
-        bindSummaryCard();
         updateVerificationResendState();
     }
 
@@ -597,19 +595,11 @@ public class LoginActivity extends AppCompatActivity {
         return R.string.demo_banner_general;
     }
 
-    private void bindSummaryCard() {
-        UserRole selectedRole = getSelectedRole();
-        if (selectedRole == null) {
-            selectedRole = roleHint == UserRole.GUARDIAN ? UserRole.GUARDIAN : UserRole.PATIENT;
-        }
-        summaryCardBinder.render(summaryFormatter.format(roleHint, selectedRole, registerMode));
-    }
-
     private void bindSocialAccess() {
         int visibility = isAdminRoleHint() ? View.GONE : View.VISIBLE;
         layoutSocialDivider.setVisibility(visibility);
         layoutSocialButtons.setVisibility(visibility);
-        textSocialHelper.setVisibility(visibility);
+        textSocialHelper.setVisibility(View.GONE);
         buttonSocialNaver.setVisibility(
                 visibility == View.VISIBLE && isNaverLoginEnabled() ? View.VISIBLE : View.GONE
         );

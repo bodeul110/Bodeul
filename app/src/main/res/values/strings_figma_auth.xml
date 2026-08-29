@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="figma_role_select_subtitle">보들 서비스 이용을 위해 사용자의 유형을\n선택해 주세요.</string>
+    <string name="figma_role_manager_description">보들이 도와드립니다.\n환자분들의 든든한 매니저가 되어주세요.</string>
+    <string name="figma_role_patient_description">병원동행서비스 예약이 필요하신가요?</string>
+    <string name="figma_role_manager_action">신청하기</string>
+    <string name="figma_role_patient_action">시작하기</string>
+    <string name="figma_login_tagline">보들은 도움을 기다리고 있습니다.</string>
+    <string name="figma_login_back_content_description">뒤로</string>
+    <string name="figma_login_email_placeholder" translatable="false">example@bodeul.com</string>
+    <string name="figma_login_password_placeholder" translatable="false">••••••••</string>
+    <string name="figma_login_social_divider">간편 로그인</string>
+    <string name="figma_login_copyright" translatable="false">© 2026 Bodeul Hospital Accompaniment Service. All rights\nreserved.</string>
+    <string name="figma_permission_title">권한 안내</string>
+    <string name="figma_permission_description">보들 서비스를 원활하게 이용하기 위해\n다음의 접근 권한을 안내합니다.</string>
+    <string name="figma_permission_confirm">확인</string>
+</resources>

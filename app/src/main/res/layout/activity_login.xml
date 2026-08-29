@@ -4,53 +4,57 @@
     android:id="@+id/scrollLogin"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_screen_glow"
+    android:background="@color/figma_mvp_background"
+    android:clipToPadding="false"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
+        android:minHeight="884dp"
         android:orientation="vertical"
-        android:paddingStart="28dp"
-        android:paddingTop="36dp"
-        android:paddingEnd="28dp"
-        android:paddingBottom="28dp">
+        android:paddingStart="32dp"
+        android:paddingTop="64dp"
+        android:paddingEnd="32dp"
+        android:paddingBottom="24dp">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/buttonLoginBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/figma_login_back_content_description"
+            android:padding="16dp"
+            app:srcCompat="@drawable/figma_login_back" />
 
         <ImageView
-            android:layout_width="160dp"
-            android:layout_height="wrap_content"
-            android:adjustViewBounds="true"
+            android:layout_width="210dp"
+            android:layout_height="149dp"
             android:contentDescription="@string/app_name"
-            android:src="@drawable/bodeul_logo_full" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/bodeul_logo_figma" />
 
         <TextView
             android:id="@+id/textLoginTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:gravity="center"
-            android:textColor="@color/bodeul_primary"
-            android:textSize="33sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/pretendard_bold"
+            android:includeFontPadding="false"
+            android:textColor="@color/figma_mvp_text_primary"
+            android:textSize="24sp"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/textLoginSubtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
             android:gravity="center"
-            android:lineSpacingExtra="4dp"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <include
-            android:id="@+id/layoutLoginSummaryCard"
-            layout="@layout/view_auth_summary_card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp" />
+            android:fontFamily="@font/pretendard_semibold"
+            android:includeFontPadding="false"
+            android:textColor="@color/figma_mvp_text_secondary"
+            android:textSize="18sp" />
 
         <TextView
             android:id="@+id/textDemoBanner"
@@ -58,12 +62,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:background="@drawable/bg_surface_pill"
+            android:fontFamily="@font/pretendard_medium"
             android:lineSpacingExtra="3dp"
             android:paddingStart="16dp"
             android:paddingTop="12dp"
             android:paddingEnd="16dp"
             android:paddingBottom="12dp"
-            android:textColor="@color/bodeul_primary"
+            android:textColor="@color/figma_mvp_primary"
             android:textSize="13sp"
             android:visibility="gone" />
 
@@ -71,7 +76,8 @@
             android:id="@+id/roleChipGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
             app:selectionRequired="true"
             app:singleSelection="true">
 
@@ -80,12 +86,13 @@
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/pretendard_medium"
                 android:text="@string/login_role_manager"
-                android:textColor="@color/bodeul_text_primary"
+                android:textColor="@color/figma_mvp_text_primary"
                 app:checkedIconVisible="false"
-                app:chipBackgroundColor="@color/bodeul_surface_alt"
+                app:chipBackgroundColor="@color/figma_mvp_input"
                 app:chipCornerRadius="22dp"
-                app:chipStrokeColor="@color/bodeul_outline"
+                app:chipStrokeColor="@color/figma_mvp_divider"
                 app:chipStrokeWidth="1dp" />
 
             <com.google.android.material.chip.Chip
@@ -93,12 +100,13 @@
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/pretendard_medium"
                 android:text="@string/login_role_patient"
-                android:textColor="@color/bodeul_text_primary"
+                android:textColor="@color/figma_mvp_text_primary"
                 app:checkedIconVisible="false"
-                app:chipBackgroundColor="@color/bodeul_surface_alt"
+                app:chipBackgroundColor="@color/figma_mvp_input"
                 app:chipCornerRadius="22dp"
-                app:chipStrokeColor="@color/bodeul_outline"
+                app:chipStrokeColor="@color/figma_mvp_divider"
                 app:chipStrokeWidth="1dp" />
 
             <com.google.android.material.chip.Chip
@@ -106,21 +114,22 @@
                 style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="@font/pretendard_medium"
                 android:text="@string/login_role_guardian"
-                android:textColor="@color/bodeul_text_primary"
+                android:textColor="@color/figma_mvp_text_primary"
                 app:checkedIconVisible="false"
-                app:chipBackgroundColor="@color/bodeul_surface_alt"
+                app:chipBackgroundColor="@color/figma_mvp_input"
                 app:chipCornerRadius="22dp"
-                app:chipStrokeColor="@color/bodeul_outline"
+                app:chipStrokeColor="@color/figma_mvp_divider"
                 app:chipStrokeWidth="1dp" />
         </com.google.android.material.chip.ChipGroup>
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/layoutName"
-            style="@style/BodeulFilledInput"
+            style="@style/BodeulFigmaFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="32dp"
             android:hint="@string/login_name_hint"
             android:visibility="gone">
 
@@ -128,15 +137,18 @@
                 android:id="@+id/inputName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textPersonName" />
+                android:fontFamily="@font/pretendard_medium"
+                android:inputType="textPersonName"
+                android:textColor="@color/figma_mvp_text_primary"
+                android:textSize="16sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/layoutPhone"
-            style="@style/BodeulFilledInput"
+            style="@style/BodeulFigmaFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="16dp"
             android:hint="@string/login_phone_hint"
             android:visibility="gone">
 
@@ -144,48 +156,38 @@
                 android:id="@+id/inputPhone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="phone" />
+                android:fontFamily="@font/pretendard_medium"
+                android:inputType="phone"
+                android:textColor="@color/figma_mvp_text_primary"
+                android:textSize="16sp" />
         </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:text="@string/login_email_or_id_hint"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/layoutEmail"
-            style="@style/BodeulFilledInput"
+            style="@style/BodeulFigmaFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="@string/login_email_hint">
+            android:layout_marginTop="40dp"
+            android:hint="@string/login_email_or_id_hint">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/inputEmail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textEmailAddress" />
+                android:fontFamily="@font/pretendard_medium"
+                android:hint="@string/figma_login_email_placeholder"
+                android:inputType="textEmailAddress"
+                android:textColor="@color/figma_mvp_text_primary"
+                android:textColorHint="@color/figma_mvp_text_disabled"
+                android:textSize="16sp" />
         </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="@string/login_password_hint"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/layoutPassword"
-            style="@style/BodeulFilledInput"
+            style="@style/BodeulFigmaFilledInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:hint="@string/login_password_hint"
             app:endIconMode="password_toggle">
 
@@ -193,43 +195,84 @@
                 android:id="@+id/inputPassword"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textPassword" />
+                android:fontFamily="@font/pretendard_medium"
+                android:hint="@string/figma_login_password_placeholder"
+                android:inputType="textPassword"
+                android:textColor="@color/figma_mvp_text_primary"
+                android:textColorHint="@color/figma_mvp_text_disabled"
+                android:textSize="16sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/buttonSubmitAuth"
-            style="@style/BodeulHomeButton"
-            android:layout_marginTop="22dp" />
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_figma_primary_button"
+            android:elevation="4dp"
+            android:fontFamily="@font/pretendard_semibold"
+            android:gravity="center"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="18sp" />
 
         <ProgressBar
             android:id="@+id/progressAuth"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="12dp"
             android:visibility="gone"
-            app:indicatorColor="@color/bodeul_primary" />
+            app:indicatorColor="@color/figma_mvp_primary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:id="@+id/textForgotPassword"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/pretendard_semibold"
+                android:gravity="center_vertical|start"
+                android:text="@string/forgot_password"
+                android:textColor="@color/figma_mvp_text_secondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/textSwitchMode"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/pretendard_semibold"
+                android:gravity="center_vertical|end"
+                android:textColor="@color/figma_mvp_text_secondary"
+                android:textSize="14sp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/textResendVerification"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
+            android:layout_height="48dp"
+            android:fontFamily="@font/pretendard_semibold"
             android:gravity="center"
-            android:minHeight="48dp"
-            android:minWidth="48dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:text="@string/resend_verification_email"
-            android:textColor="@color/bodeul_primary"
+            android:textColor="@color/figma_mvp_primary"
             android:textSize="13sp"
-            android:textStyle="bold"
             android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/layoutSocialDivider"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -237,111 +280,74 @@
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1"
-                android:background="@color/bodeul_outline" />
+                android:background="@color/figma_mvp_divider" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="14dp"
-                android:layout_marginEnd="14dp"
-                android:text="@string/social_login_divider"
-                android:textColor="@color/bodeul_text_secondary"
-                android:textSize="13sp" />
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:fontFamily="@font/pretendard_semibold"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.1"
+                android:text="@string/figma_login_social_divider"
+                android:textColor="@color/figma_mvp_text_disabled"
+                android:textSize="12sp" />
 
             <View
                 android:layout_width="0dp"
                 android:layout_height="1dp"
                 android:layout_weight="1"
-                android:background="@color/bodeul_outline" />
+                android:background="@color/figma_mvp_divider" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/layoutSocialButtons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="24dp"
             android:gravity="center_horizontal"
-            android:orientation="vertical">
+            android:orientation="horizontal">
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/buttonSocialKakao"
-                android:layout_width="252dp"
+                android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_figma_social_kakao"
                 android:contentDescription="@string/social_login_kakao_content_description"
-                android:foreground="?attr/selectableItemBackground"
-                android:padding="0dp"
-                android:scaleType="fitCenter"
-                app:srcCompat="@drawable/kakao_login_button" />
+                android:elevation="2dp"
+                android:padding="18dp"
+                app:srcCompat="@drawable/figma_kakao_mark" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/buttonSocialGoogle"
-                android:layout_width="252dp"
+                android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:layout_marginTop="12dp"
-                android:background="@android:color/transparent"
+                android:layout_marginStart="24dp"
+                android:background="@drawable/bg_figma_social_google"
                 android:contentDescription="@string/social_login_google_content_description"
-                android:foreground="?attr/selectableItemBackground"
-                android:padding="0dp"
-                android:scaleType="fitCenter"
-                app:srcCompat="@drawable/google_sign_in_button" />
+                android:elevation="2dp"
+                android:padding="16dp"
+                app:srcCompat="@drawable/figma_google_mark" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonSocialNaver"
-                android:layout_width="70dp"
-                android:layout_height="70dp"
-                android:layout_marginTop="12dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="24dp"
+                android:fontFamily="@font/pretendard_bold"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:padding="0dp"
                 android:text="@string/social_login_naver_short"
                 android:textColor="@color/white"
-                android:textSize="24sp"
-                android:textStyle="bold"
+                android:textSize="20sp"
                 android:visibility="gone"
-                app:backgroundTint="#16C45B"
-                app:cornerRadius="35dp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/textForgotPassword"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:minHeight="48dp"
-                android:minWidth="48dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:text="@string/forgot_password"
-                android:textColor="@color/bodeul_text_secondary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:text="@string/common_inline_divider_dot"
-                android:textColor="@color/bodeul_outline"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/textSwitchMode"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:minHeight="48dp"
-                android:minWidth="48dp"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:textColor="@color/bodeul_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                app:backgroundTint="@color/figma_mvp_naver"
+                app:cornerRadius="28dp" />
         </LinearLayout>
 
         <TextView
@@ -352,16 +358,20 @@
             android:gravity="center"
             android:lineSpacingExtra="4dp"
             android:text="@string/social_login_helper"
-            android:textColor="@color/bodeul_text_secondary"
-            android:textSize="12sp" />
+            android:textColor="@color/figma_mvp_text_tertiary"
+            android:textSize="12sp"
+            android:visibility="gone" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
+            android:layout_marginTop="80dp"
+            android:fontFamily="@font/pretendard_medium"
             android:gravity="center"
-            android:text="@string/copyright_footer"
-            android:textColor="@color/bodeul_outline"
-            android:textSize="11sp" />
+            android:includeFontPadding="false"
+            android:lineSpacingExtra="2dp"
+            android:text="@string/figma_login_copyright"
+            android:textColor="@color/figma_mvp_text_disabled"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

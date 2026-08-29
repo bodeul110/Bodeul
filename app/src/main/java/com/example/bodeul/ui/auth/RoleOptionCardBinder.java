@@ -32,15 +32,15 @@ public final class RoleOptionCardBinder {
     }
 
     public void render(boolean selected) {
-        cardView.setStrokeWidth(dpToPx(selected ? 2 : 1));
+        cardView.setStrokeWidth(dpToPx(selected ? 2 : 0));
         cardView.setStrokeColor(ContextCompat.getColor(
                 context,
-                selected ? R.color.bodeul_primary : R.color.bodeul_outline
+                selected ? R.color.figma_mvp_primary : android.R.color.transparent
         ));
         selectedBadge.setVisibility(selected ? View.VISIBLE : View.INVISIBLE);
         actionView.setTextColor(ContextCompat.getColor(
                 context,
-                selected ? R.color.bodeul_primary : R.color.bodeul_text_secondary
+                R.color.figma_mvp_primary
         ));
     }
 
