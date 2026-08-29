@@ -537,11 +537,11 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 progress.canAdvance(),
                 progress.blockedReason(),
                 format(session.careEndedAt()),
-                session.managerJournal(),
-                session.reportGenerationStatus(),
-                session.reportGenerationAttempts(),
-                session.reportGenerationLastError(),
-                format(session.reportGenerationUpdatedAt()),
+                reportAllowed ? session.managerJournal() : "",
+                reportAllowed ? session.reportGenerationStatus() : "",
+                reportAllowed ? session.reportGenerationAttempts() : 0,
+                reportAllowed ? session.reportGenerationLastError() : "",
+                reportAllowed ? format(session.reportGenerationUpdatedAt()) : "",
                 (attachmentAllowed ? session.artifacts() : List.<CompanionSessionRepository.ArtifactRecord>of()).stream()
                         .map(artifact -> new ArtifactView(
                                 artifact.id(),

@@ -780,6 +780,49 @@ class DefaultCompanionSessionServiceTests {
     }
 
     @Test
+    void guardianAppointmentConsentDoesNotExposeReportCompletionDetails() {
+        repository.session = Optional.of(completionMetadata(repository.session.orElseThrow()));
+        var appointmentOnlyService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
+                        scope == InformationScope.APPOINTMENT);
+
+        var view = appointmentOnlyService.getSession(
+                user(GUARDIAN_ID, AppUserRole.GUARDIAN), SESSION_ID);
+
+        assertThat(view.managerJournal()).isEmpty();
+        assertThat(view.reportGenerationStatus()).isEmpty();
+        assertThat(view.reportGenerationAttempts()).isZero();
+        assertThat(view.reportGenerationLastError()).isEmpty();
+        assertThat(view.reportGenerationUpdatedAt()).isEmpty();
+    }
+
+    @Test
+    void reportConsentExposesCompletionDetailsWithoutChangingPatientAndManagerAccess() {
+        repository.session = Optional.of(completionMetadata(repository.session.orElseThrow()));
+        var reportService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
+                        scope == InformationScope.APPOINTMENT || scope == InformationScope.REPORT);
+
+        var guardianView = reportService.getSession(
+                user(GUARDIAN_ID, AppUserRole.GUARDIAN), SESSION_ID);
+        var patientView = reportService.getSession(
+                user(PATIENT_ID, AppUserRole.PATIENT), SESSION_ID);
+        var managerView = reportService.getSession(manager(), SESSION_ID);
+
+        assertThat(guardianView.managerJournal()).isEqualTo("민감한 매니저 일지");
+        assertThat(guardianView.reportGenerationStatus()).isEqualTo("FAILED");
+        assertThat(guardianView.reportGenerationLastError()).isEqualTo("REPORT_WRITE_FAILED");
+        assertThat(patientView.managerJournal()).isEqualTo("민감한 매니저 일지");
+        assertThat(managerView.managerJournal()).isEqualTo("민감한 매니저 일지");
+    }
+
+    @Test
     void invalidLocationAlertStageIsRejected() {
         var command = new CompanionSessionService.UpdateSessionCommand(
                 3, null, null, null, null, null, null, null, null, null, null, "unexpected");
@@ -911,6 +954,23 @@ class DefaultCompanionSessionServiceTests {
                 List.of(new CompanionSessionRepository.ArtifactRecord(
                         UUID.randomUUID(), "PAYMENT_EVIDENCE", "영수증.pdf",
                         "application/pdf", 10L, Instant.parse("2026-07-18T00:00:00Z"))));
+    }
+
+    private CompanionSessionRepository.SessionRecord completionMetadata(
+            CompanionSessionRepository.SessionRecord current) {
+        return new CompanionSessionRepository.SessionRecord(
+                current.id(), current.firestoreId(), current.appointmentRequestId(),
+                current.managerUserId(), current.patientUserId(), current.guardianUserId(),
+                current.currentStepOrder(), current.totalStepCount(), current.guideSnapshot(),
+                current.currentStatus(), current.guardianUpdate(), current.locationSummary(),
+                current.fieldPhotoNote(), current.medicationNote(), current.pharmacySummary(),
+                current.preConsultationConfirmed(), current.prescriptionCollected(),
+                current.pharmacyCompleted(), current.medicationGuidanceCompleted(),
+                current.liveLocationSharingActive(), current.liveLocationSharingStartedAt(),
+                current.locationAlertStage(), current.locationAlertSentAt(), current.version(),
+                current.startedAt(), current.completedAt(), current.canceledAt(),
+                current.careEndedAt(), "민감한 매니저 일지", "FAILED", 2,
+                "REPORT_WRITE_FAILED", Instant.parse("2026-07-18T01:00:00Z"), current.artifacts());
     }
 
     private CompanionSessionRepository.GuideSnapshotRecord hospitalGuideSnapshot(
