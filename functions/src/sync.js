@@ -15,6 +15,11 @@ const APPOINTMENT_REQUEST_SYNC_OPTIONS = {
 const REMINDER_SCAN_STATUSES = new Set(["REQUESTED", "MATCHED"]);
 const REMINDER_SKIPPED_STATE = "SKIPPED";
 const REMINDER_CLEANUP_STATES = new Set(["PENDING", "PROCESSING", "FAILED"]);
+const MANAGER_DOCUMENT_SUBMISSION_SOURCE_STATUSES = new Set([
+  "NOT_SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+]);
 
 const syncLinkedAppointmentParticipants = onDocumentWritten(
     USER_LINK_SYNC_OPTIONS,
@@ -66,6 +71,93 @@ const cleanupAppointmentReminderJobs = onDocumentWritten(
       }
     },
 );
+
+const recordManagerDocumentSubmission = onDocumentWritten(
+    USER_LINK_SYNC_OPTIONS,
+    async (event) => {
+      if (!event.data?.before?.exists || !event.data?.after?.exists) {
+        return;
+      }
+
+      const submissionEvent = resolveManagerDocumentSubmissionEvent(
+          event.data.before.data(),
+          event.data.after.data(),
+          event.params?.userId,
+          event.id,
+          event.data.after.get("managerDocumentUpdatedAt"),
+      );
+      if (!submissionEvent) {
+        return;
+      }
+
+      const recorded = await appendManagerDocumentSubmissionHistory(
+          getFirestore(),
+          event.data.after.ref,
+          submissionEvent,
+      );
+      if (recorded) {
+        logger.info("매니저 서류 제출 이력을 기록했습니다.", {
+          managerUserId: submissionEvent.actorUserId,
+          submissionEventId: submissionEvent.eventId,
+        });
+      }
+    },
+);
+
+function resolveManagerDocumentSubmissionEvent(
+    beforeData,
+    afterData,
+    managerUserId,
+    eventId,
+    happenedAt,
+) {
+  if (sanitizeText(afterData?.role) !== "MANAGER") {
+    return null;
+  }
+  const beforeStatus = sanitizeText(beforeData?.managerDocumentStatus) || "NOT_SUBMITTED";
+  const afterStatus = sanitizeText(afterData?.managerDocumentStatus);
+  if (!MANAGER_DOCUMENT_SUBMISSION_SOURCE_STATUSES.has(beforeStatus) ||
+      afterStatus !== "PENDING_REVIEW") {
+    return null;
+  }
+
+  const normalizedUserId = sanitizeText(managerUserId);
+  const normalizedEventId = sanitizeText(eventId);
+  if (!normalizedUserId || !normalizedEventId) {
+    return null;
+  }
+
+  return {
+    eventId: normalizedEventId,
+    eventType: "SUBMITTED",
+    happenedAt: happenedAt instanceof Timestamp ? happenedAt : Timestamp.now(),
+    actorUserId: normalizedUserId,
+    actorName: "매니저 본인",
+    summary: sanitizeText(afterData?.managerDocumentSummary),
+    reviewNote: "",
+  };
+}
+
+async function appendManagerDocumentSubmissionHistory(firestore, documentReference, submissionEvent) {
+  return firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(documentReference);
+    if (!snapshot.exists) {
+      return false;
+    }
+
+    const currentHistory = Array.isArray(snapshot.get("managerDocumentHistory"))
+        ? snapshot.get("managerDocumentHistory")
+        : [];
+    if (currentHistory.some((entry) => entry?.eventId === submissionEvent.eventId)) {
+      return false;
+    }
+
+    transaction.update(documentReference, {
+      managerDocumentHistory: FieldValue.arrayUnion(submissionEvent),
+    });
+    return true;
+  });
+}
 
 function toLinkableUserProfile(documentSnapshot) {
   const role = sanitizeText(documentSnapshot.get("role"));
@@ -358,4 +450,7 @@ function sanitizeText(value) {
 module.exports = {
   syncLinkedAppointmentParticipants,
   cleanupAppointmentReminderJobs,
+  recordManagerDocumentSubmission,
+  resolveManagerDocumentSubmissionEvent,
+  appendManagerDocumentSubmissionHistory,
 };

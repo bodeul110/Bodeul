@@ -268,6 +268,24 @@ function testCases(testEnv) {
             userDocument("ADMIN", "new-admin"),
         ));
         await assertSucceeds(setDoc(
+            doc(firestoreFor(testEnv, "new-manager-user"), "users", "new-manager-user"),
+            {
+              ...userDocument("MANAGER", "new-manager"),
+              managerDocumentStatus: "NOT_SUBMITTED",
+            },
+        ));
+        await assertFails(setDoc(
+            doc(firestoreFor(testEnv, "malicious-manager-user"), "users", "malicious-manager-user"),
+            {
+              ...userDocument("MANAGER", "malicious-manager"),
+              managerDocumentStatus: "APPROVED",
+              managerDocumentReviewNote: "자가 승인",
+              managerDocumentReviewedByAdminUserId: "malicious-manager-user",
+              managerDocumentHistory: [{ status: "APPROVED" }],
+              managerDocumentLegalHoldUntil: 4_000_000_000_000,
+            },
+        ));
+        await assertSucceeds(setDoc(
             doc(firestoreFor(testEnv, users.guardian), "users", users.guardian),
             {
               notificationTokens: ["guardian-device-token"],
@@ -365,13 +383,41 @@ function testCases(testEnv) {
               managerDocumentUpdatedAt: 102,
             },
         ));
-        await assertFails(updateDoc(
+        await assertSucceeds(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
               managerDocumentSummary: "",
               "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/replaced.pdf",
               managerDocumentStatus: "NOT_SUBMITTED",
               managerDocumentUpdatedAt: 103,
+            },
+        ));
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await updateDoc(doc(context.firestore(), "users", users.manager), {
+            managerDocumentStatus: "NOT_SUBMITTED",
+            managerDocumentSummary: "",
+          });
+        });
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/draft.pdf",
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentUpdatedAt: 104,
+            },
+        ));
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await updateDoc(doc(context.firestore(), "users", users.manager), {
+            managerDocumentStatus: "APPROVED",
+            managerDocumentSummary: "승인된 제출 요약",
+          });
+        });
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/reviewed.pdf",
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentUpdatedAt: 105,
             },
         ));
       },

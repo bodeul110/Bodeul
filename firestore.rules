@@ -142,6 +142,40 @@ service cloud.firestore {
           && request.resource.data.managerDocumentSummary == '';
     }
 
+    function managerDocumentIsInitialDraft() {
+      return managerDocumentFileSubmissionChanged()
+          && (
+            !resource.data.keys().hasAny(['managerDocumentStatus'])
+            || resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+          )
+          && (
+            !request.resource.data.keys().hasAny(['managerDocumentSummary'])
+            || request.resource.data.managerDocumentSummary == ''
+          );
+    }
+
+    function managerDocumentServerFieldsAreAbsent(data) {
+      return !data.keys().hasAny([
+        'managerDocumentReviewNote',
+        'managerDocumentReviewedAt',
+        'managerDocumentReviewedByName',
+        'managerDocumentReviewedByAdminUserId',
+        'managerDocumentHistory',
+        'managerDocumentLegalHoldUntil',
+        'managerDocumentLegalHoldReason',
+        'managerDocumentLegalHoldByAdminUserId'
+      ]);
+    }
+
+    function managerDocumentCreateIsSafe() {
+      return managerDocumentServerFieldsAreAbsent(request.resource.data)
+          && (
+            request.resource.data.role != 'MANAGER'
+            || !request.resource.data.keys().hasAny(['managerDocumentStatus'])
+            || request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+          );
+    }
+
     function managerDocumentReviewFieldsAreUnchanged() {
       return !affectedAny([
         'managerDocumentReviewNote',
@@ -165,7 +199,10 @@ service cloud.firestore {
                 request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
                 || (
                   request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
-                  && managerDocumentSummaryWasCleared()
+                  && (
+                    managerDocumentSummaryWasCleared()
+                    || managerDocumentIsInitialDraft()
+                  )
                 )
               )
             )
@@ -181,7 +218,8 @@ service cloud.firestore {
       allow get: if canGetUser(userId);
       allow list: if isAdmin();
       allow create: if isSelf(userId)
-          && isClientCreatableRole(request.resource.data.role);
+          && isClientCreatableRole(request.resource.data.role)
+          && managerDocumentCreateIsSafe();
       allow update: if isAdmin()
           || (
             isSelf(userId)

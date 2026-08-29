@@ -551,32 +551,54 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return;
         }
 
-        long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
-                ? documentFileMetadata.getUploadedAtMillis()
-                : System.currentTimeMillis();
-        Map<String, Object> updates = new HashMap<>();
-        String fileKeyPrefix = "managerDocumentFiles." + documentFileMetadata.getFileType().getStorageKey();
-        updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
-        updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
-        updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
-        updates.put(fileKeyPrefix + ".previewUri", documentFileMetadata.getPreviewUri());
-        updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
-        updates.put(
-                "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
-                documentFileMetadata.getFullPath()
-        );
-        String legacyPathKey = resolveLegacyDocumentStoragePathKey(documentFileMetadata.getFileType());
-        if (legacyPathKey != null) {
-            updates.put(legacyPathKey, documentFileMetadata.getFullPath());
-        }
-        putManagerDocumentSubmissionState(updates);
-
         firestore.collection("users")
                 .document(managerUserId)
-                .update(updates)
-                .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (!documentSnapshot.exists()) {
+                        callback.onError("매니저 정보를 찾지 못했습니다.");
+                        return;
+                    }
+
+                    long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
+                            ? documentFileMetadata.getUploadedAtMillis()
+                            : System.currentTimeMillis();
+                    Map<String, Object> updates = new HashMap<>();
+                    String fileKeyPrefix = "managerDocumentFiles."
+                            + documentFileMetadata.getFileType().getStorageKey();
+                    updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
+                    updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
+                    updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
+                    updates.put(fileKeyPrefix + ".previewUri", documentFileMetadata.getPreviewUri());
+                    updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
+                    updates.put(
+                            "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
+                            documentFileMetadata.getFullPath()
+                    );
+                    String legacyPathKey = resolveLegacyDocumentStoragePathKey(
+                            documentFileMetadata.getFileType()
+                    );
+                    if (legacyPathKey != null) {
+                        updates.put(legacyPathKey, documentFileMetadata.getFullPath());
+                    }
+                    ManagerDocumentStatus currentStatus = resolveManagerDocumentStatus(
+                            documentSnapshot.getString("managerDocumentStatus"),
+                            documentSnapshot.getString("managerDocumentSummary")
+                    );
+                    putManagerDocumentDraftState(
+                            updates,
+                            currentStatus,
+                            normalizeText(documentSnapshot.getString("managerDocumentSummary"))
+                    );
+
+                    documentSnapshot.getReference()
+                            .update(updates)
+                            .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("원본 서류 파일 초안을 저장하지 못했습니다."));
+                })
                 .addOnFailureListener(exception ->
-                        callback.onError("원본 서류 파일 초안을 저장하지 못했습니다."));
+                        callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -1604,6 +1626,22 @@ public class FirebaseManagerRepository implements ManagerRepository {
         updates.put(
                 "managerDocumentStatus",
                 normalizedSummary.isEmpty()
+                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
+                        : ManagerDocumentStatus.PENDING_REVIEW.name()
+        );
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+    }
+
+    static void putManagerDocumentDraftState(
+            Map<String, Object> updates,
+            ManagerDocumentStatus currentStatus,
+            String normalizedSummary
+    ) {
+        boolean isInitialDraft = currentStatus == ManagerDocumentStatus.NOT_SUBMITTED
+                && normalizedSummary.isEmpty();
+        updates.put(
+                "managerDocumentStatus",
+                isInitialDraft
                         ? ManagerDocumentStatus.NOT_SUBMITTED.name()
                         : ManagerDocumentStatus.PENDING_REVIEW.name()
         );

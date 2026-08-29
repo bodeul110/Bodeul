@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentStatus;
 
 import org.junit.Test;
 
@@ -49,6 +50,32 @@ public class FirebaseManagerRepositoryTest {
         Map<String, Object> updates = new HashMap<>();
 
         FirebaseManagerRepository.putManagerDocumentSummaryState(updates, "자격 증빙 제출");
+
+        assertEquals("PENDING_REVIEW", updates.get("managerDocumentStatus"));
+    }
+
+    @Test
+    public void initialDraftFileKeepsNotSubmittedStatus() {
+        Map<String, Object> updates = new HashMap<>();
+
+        FirebaseManagerRepository.putManagerDocumentDraftState(
+                updates,
+                ManagerDocumentStatus.NOT_SUBMITTED,
+                ""
+        );
+
+        assertEquals("NOT_SUBMITTED", updates.get("managerDocumentStatus"));
+    }
+
+    @Test
+    public void replacingReviewedFileRequestsReview() {
+        Map<String, Object> updates = new HashMap<>();
+
+        FirebaseManagerRepository.putManagerDocumentDraftState(
+                updates,
+                ManagerDocumentStatus.APPROVED,
+                "기존 제출 요약"
+        );
 
         assertEquals("PENDING_REVIEW", updates.get("managerDocumentStatus"));
     }

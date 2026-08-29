@@ -704,6 +704,8 @@
   - 레거시 호환 경로: `managerIdCardStoragePath`, `managerLicenseStoragePath`, `managerCriminalRecordStoragePath`
 - 업로드 또는 요약 변경 후 앱은 제출 메타데이터, `managerDocumentStatus=PENDING_REVIEW`, `managerDocumentUpdatedAt`만 원자적으로 갱신한다.
 - `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentReviewedByAdminUserId`, `managerDocumentHistory`, legal hold 필드는 서버 심사 전용이다. 매니저 앱은 과거 값을 지우거나 덧붙이지 않으며, `PENDING_REVIEW` 화면에서는 과거 심사 결과를 현재 판정으로 표시하지 않는다.
+- 신규 등록 중 요약이 없는 파일 초안은 `NOT_SUBMITTED`를 유지한다. 승인·반려된 서류의 파일을 교체하면 즉시 `PENDING_REVIEW`가 되어야 한다.
+- `NOT_SUBMITTED`, `APPROVED`, `REJECTED`에서 `PENDING_REVIEW`로 전환된 제출 이력은 Functions가 매니저 사용자 ID를 행위자로 확정해 기록한다. Functions 이벤트 ID로 중복 실행을 제거하며 클라이언트는 `managerDocumentHistory`를 쓰지 않는다.
 - Storage 원본은 타임스탬프를 포함한 고유 경로에 한 번만 생성한다. 브라우저 클라이언트의 overwrite/delete는 거부하고, 보존 기간에 따른 삭제는 Admin SDK를 사용하는 서버 작업에서 수행한다.
 - 업로드 전제 조건은 `managerDocumentSummary`가 비어 있지 않은 상태다. 요약이 없으면 앱과 저장소 모두 업로드 메타데이터 저장을 거부한다.
 
