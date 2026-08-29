@@ -457,24 +457,15 @@ public class FirebaseManagerRepository implements ManagerRepository {
         String normalizedSummary = normalizeText(documentSummary);
         Map<String, Object> updates = new HashMap<>();
         updates.put("managerDocumentSummary", normalizedSummary);
-        updates.put(
-                "managerDocumentStatus",
-                normalizedSummary.isEmpty()
-                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
-                        : ManagerDocumentStatus.PENDING_REVIEW.name()
-        );
-        updates.put("managerDocumentReviewNote", "");
-        updates.put("managerDocumentReviewedByName", "");
-        updates.put("managerDocumentReviewedAt", FieldValue.delete());
-        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+        putManagerDocumentSummaryState(updates, normalizedSummary);
 
         firestore.collection("users")
                 .document(managerUserId)
                 .update(updates)
                 .addOnSuccessListener(unused ->
-                        onManagerDocumentSummarySaved(managerUserId, normalizedSummary, callback))
+                        onManagerDocumentSummarySaved(managerUserId, callback))
                 .addOnFailureListener(exception ->
-                        callback.onError("?쒕쪟 ?깅줉 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
+                        callback.onError("서류 등록 정보를 저장하지 못했습니다."));
 
         boolean shouldUseLegacyPath = false;
         if (shouldUseLegacyPath) {
@@ -496,7 +487,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
-            callback.onError("?낅줈?쒗븳 ?쒕쪟 ?뚯씪 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
             return;
         }
 
@@ -506,30 +497,19 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                        callback.onError("留ㅻ땲? 怨꾩젙???뺤씤?섏? 紐삵뻽?듬땲??");
+                        callback.onError("매니저 계정을 확인하지 못했습니다.");
                         return;
                     }
 
                     String documentSummary = normalizeText(documentSnapshot.getString("managerDocumentSummary"));
                     if (documentSummary.isEmpty()) {
-                        callback.onError("?쒕쪟 ?붿빟??癒쇱? ??ν븳 ???먮낯 ?뚯씪???щ젮二쇱꽭??");
+                        callback.onError("서류 요약을 먼저 저장한 뒤 원본 파일을 올려 주세요.");
                         return;
                     }
 
                     long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
                             ? documentFileMetadata.getUploadedAtMillis()
                             : System.currentTimeMillis();
-                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
-                            toManagerDocumentHistory(documentSnapshot),
-                            new ManagerDocumentHistoryEntry(
-                                    ManagerDocumentHistoryEventType.SUBMITTED,
-                                    uploadedAtMillis,
-                                    normalizeText(manager.getName()),
-                                    documentSummary,
-                                    ""
-                            )
-                    );
-
                     Map<String, Object> updates = new HashMap<>();
                     String fileKeyPrefix = "managerDocumentFiles."
                             + documentFileMetadata.getFileType().getStorageKey();
@@ -548,21 +528,16 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     if (legacyPathKey != null) {
                         updates.put(legacyPathKey, documentFileMetadata.getFullPath());
                     }
-                    updates.put("managerDocumentStatus", ManagerDocumentStatus.PENDING_REVIEW.name());
-                    updates.put("managerDocumentReviewNote", "");
-                    updates.put("managerDocumentReviewedByName", "");
-                    updates.put("managerDocumentReviewedAt", FieldValue.delete());
-                    updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
-                    updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
+                    putManagerDocumentSubmissionState(updates);
 
                     documentSnapshot.getReference()
                             .update(updates)
                             .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
                             .addOnFailureListener(exception ->
-                                    callback.onError("?먮낯 ?쒕쪟 ?뚯씪 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
+                                    callback.onError("원본 서류 파일 정보를 저장하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? ?쒕쪟 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -572,7 +547,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
-            callback.onError("?낅줈?쒗븳 ?쒕쪟 ?뚯씪 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
             return;
         }
 
@@ -594,18 +569,14 @@ public class FirebaseManagerRepository implements ManagerRepository {
         if (legacyPathKey != null) {
             updates.put(legacyPathKey, documentFileMetadata.getFullPath());
         }
-        updates.put("managerDocumentStatus", ManagerDocumentStatus.NOT_SUBMITTED.name());
-        updates.put("managerDocumentReviewNote", "");
-        updates.put("managerDocumentReviewedByName", "");
-        updates.put("managerDocumentReviewedAt", FieldValue.delete());
-        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+        putManagerDocumentSubmissionState(updates);
 
         firestore.collection("users")
                 .document(managerUserId)
                 .update(updates)
                 .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
                 .addOnFailureListener(exception ->
-                        callback.onError("?먮낯 ?쒕쪟 ?뚯씪 珥덉븞????ν븯吏 紐삵뻽?듬땲??"));
+                        callback.onError("원본 서류 파일 초안을 저장하지 못했습니다."));
     }
 
     @Override
@@ -860,42 +831,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     private void onManagerDocumentSummarySaved(
             String managerUserId,
-            String normalizedSummary,
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
-        if (normalizedSummary.isEmpty()) {
-            getManagerHomeProfile(managerUserId, callback);
-            return;
-        }
-
-        firestore.collection("users")
-                .document(managerUserId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (!documentSnapshot.exists()) {
-                        callback.onError("users 而щ젆?섏뿉??留ㅻ땲? ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
-                        return;
-                    }
-
-                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
-                            toManagerDocumentHistory(documentSnapshot),
-                            new ManagerDocumentHistoryEntry(
-                                    ManagerDocumentHistoryEventType.SUBMITTED,
-                                    System.currentTimeMillis(),
-                                    normalizeText(documentSnapshot.getString("name")),
-                                    normalizedSummary,
-                                    ""
-                            )
-                    );
-
-                    documentSnapshot.getReference()
-                            .update("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries))
-                            .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
-                            .addOnFailureListener(exception ->
-                                    callback.onError("??뺤첒 野꺜??????????館釉?쭪? 筌륁궢六??щ빍??"));
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("??뺤첒 野꺜??????????館釉??袁④에 ?類ｋ궖???븍뜄???? 筌륁궢六??щ빍??"));
+        getManagerHomeProfile(managerUserId, callback);
     }
 
     private void loadManagerHistoryDetailsSequentially(
@@ -1655,6 +1593,21 @@ public class FirebaseManagerRepository implements ManagerRepository {
             return "managerCriminalRecordStoragePath";
         }
         return null;
+    }
+
+    static void putManagerDocumentSubmissionState(Map<String, Object> updates) {
+        updates.put("managerDocumentStatus", ManagerDocumentStatus.PENDING_REVIEW.name());
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+    }
+
+    static void putManagerDocumentSummaryState(Map<String, Object> updates, String normalizedSummary) {
+        updates.put(
+                "managerDocumentStatus",
+                normalizedSummary.isEmpty()
+                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
+                        : ManagerDocumentStatus.PENDING_REVIEW.name()
+        );
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
     }
 
     private String resolveFileNameFromPath(String fullPath) {

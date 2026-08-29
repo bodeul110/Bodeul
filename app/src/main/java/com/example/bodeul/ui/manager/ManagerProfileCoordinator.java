@@ -48,7 +48,7 @@ public final class ManagerProfileCoordinator {
                 createDocumentFileCards(profile),
                 createAccountLines(currentUser),
                 createDocumentLines(profile),
-                formatter.buildDocumentReviewNote(profile.getDocumentReviewNote()),
+                formatter.buildDocumentReviewNote(profile),
                 formatter.buildDocumentTimelineText(profile),
                 createHistoryItems(overview, currentUser)
         );

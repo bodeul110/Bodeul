@@ -113,17 +113,67 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
 
-    function managerDocumentStatusUpdateIsSafe() {
-      return !affectedAny(['managerDocumentStatus'])
-          || (
-            request.resource.data.keys().hasAll(['managerDocumentStatus'])
-            && request.resource.data.managerDocumentStatus != 'APPROVED'
-            && request.resource.data.managerDocumentStatus != 'REJECTED'
-          );
+    function managerDocumentSubmissionChanged() {
+      return affectedAny([
+        'managerDocumentSummary',
+        'managerDocumentFiles',
+        'managerDocumentFilePaths',
+        'managerIdCardStoragePath',
+        'managerLicenseStoragePath',
+        'managerCriminalRecordStoragePath',
+        'managerDocumentUpdatedAt'
+      ]);
     }
 
-    function managerDocumentLegalHoldUpdateIsSafe() {
-      return !affectedAny(['managerDocumentLegalHoldUntil']);
+    function managerDocumentFileSubmissionChanged() {
+      return affectedAny([
+        'managerDocumentFiles',
+        'managerDocumentFilePaths',
+        'managerIdCardStoragePath',
+        'managerLicenseStoragePath',
+        'managerCriminalRecordStoragePath'
+      ]);
+    }
+
+    function managerDocumentSummaryWasCleared() {
+      return affectedAny(['managerDocumentSummary'])
+          && !managerDocumentFileSubmissionChanged()
+          && request.resource.data.keys().hasAll(['managerDocumentSummary'])
+          && request.resource.data.managerDocumentSummary == '';
+    }
+
+    function managerDocumentReviewFieldsAreUnchanged() {
+      return !affectedAny([
+        'managerDocumentReviewNote',
+        'managerDocumentReviewedAt',
+        'managerDocumentReviewedByName',
+        'managerDocumentReviewedByAdminUserId',
+        'managerDocumentHistory',
+        'managerDocumentLegalHoldUntil',
+        'managerDocumentLegalHoldReason',
+        'managerDocumentLegalHoldByAdminUserId'
+      ]);
+    }
+
+    function managerDocumentSubmissionUpdateIsSafe() {
+      return managerDocumentReviewFieldsAreUnchanged()
+          && (
+            (
+              managerDocumentSubmissionChanged()
+              && request.resource.data.keys().hasAll(['managerDocumentStatus'])
+              && (
+                request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
+                || (
+                  request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+                  && managerDocumentSummaryWasCleared()
+                )
+              )
+            )
+            || (
+              !managerDocumentSubmissionChanged()
+              && !affectedAny(['managerDocumentStatus'])
+            )
+          );
     }
 
     match /users/{userId} {
@@ -136,8 +186,7 @@ service cloud.firestore {
           || (
             isSelf(userId)
             && request.resource.data.role == resource.data.role
-            && managerDocumentStatusUpdateIsSafe()
-            && managerDocumentLegalHoldUpdateIsSafe()
+            && managerDocumentSubmissionUpdateIsSafe()
           );
       allow delete: if isAdmin();
     }

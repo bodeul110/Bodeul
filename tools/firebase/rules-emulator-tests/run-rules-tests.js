@@ -20,6 +20,7 @@ const {
   where,
 } = require("firebase/firestore");
 const {
+  deleteObject,
   getBytes,
   ref,
   uploadBytes,
@@ -293,9 +294,9 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             { managerDocumentStatus: "APPROVED" },
         ));
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
-            { managerDocumentStatus: "PENDING" },
+            { managerDocumentStatus: "PENDING_REVIEW" },
         ));
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
@@ -304,6 +305,74 @@ function testCases(testEnv) {
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.admin), "users", users.manager),
             { managerDocumentLegalHoldUntil: 4_000_000_000_000 },
+        ));
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await updateDoc(doc(context.firestore(), "users", users.manager), {
+            managerDocumentStatus: "APPROVED",
+            managerDocumentSummary: "승인된 제출 요약",
+            managerDocumentReviewNote: "관리자 확인 완료",
+            managerDocumentReviewedAt: 100,
+            managerDocumentReviewedByName: "관리자",
+            managerDocumentReviewedByAdminUserId: users.admin,
+            managerDocumentHistory: [{ status: "APPROVED", occurredAt: 100 }],
+            managerDocumentLegalHoldUntil: 4_000_000_000_000,
+            managerDocumentFiles: {
+              idCard: { fullPath: "manager-documents/manager-user/idCard/seed.pdf" },
+            },
+            managerDocumentFilePaths: {
+              idCard: "manager-documents/manager-user/idCard/seed.pdf",
+            },
+            managerDocumentUpdatedAt: 100,
+          });
+        });
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              managerDocumentStatus: "PENDING_REVIEW",
+              managerDocumentReviewNote: "",
+              managerDocumentReviewedAt: 101,
+            },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              managerDocumentSummary: "바꾼 제출 요약",
+              managerDocumentStatus: "APPROVED",
+              managerDocumentUpdatedAt: 101,
+            },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/replaced.pdf",
+              managerDocumentStatus: "APPROVED",
+              managerDocumentUpdatedAt: 101,
+            },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              managerDocumentSummary: "재제출 요약",
+              managerDocumentStatus: "PENDING_REVIEW",
+              managerDocumentUpdatedAt: 101,
+            },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              managerDocumentSummary: "",
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentUpdatedAt: 102,
+            },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              managerDocumentSummary: "",
+              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/replaced.pdf",
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentUpdatedAt: 103,
+            },
         ));
       },
     },
@@ -518,10 +587,19 @@ function testCases(testEnv) {
             "manager-documents/manager-user/idCard/seed.pdf",
         )));
         await assertSucceeds(uploadBytes(
-            ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/license/upload.pdf"),
+            ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/license/1760000000000-upload.pdf"),
             new Uint8Array([4, 5, 6]),
             { contentType: "application/pdf" },
         ));
+        await assertFails(uploadBytes(
+            ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/idCard/seed.pdf"),
+            new Uint8Array([7, 8, 9]),
+            { contentType: "application/pdf" },
+        ));
+        await assertFails(deleteObject(ref(
+            storageFor(testEnv, users.manager),
+            "manager-documents/manager-user/idCard/seed.pdf",
+        )));
         await assertFails(uploadBytes(
             ref(storageFor(testEnv, users.otherManager), "manager-documents/manager-user/license/other.pdf"),
             new Uint8Array([4, 5, 6]),

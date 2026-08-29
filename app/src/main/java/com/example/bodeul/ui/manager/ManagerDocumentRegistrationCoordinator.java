@@ -48,11 +48,12 @@ public final class ManagerDocumentRegistrationCoordinator {
                 formatter.toDocumentStatusLabel(status),
                 buildStatusBody(profile, allRequiredUploaded),
                 createDocumentItems(profile),
-                !TextUtils.isEmpty(profile.getDocumentReviewNote()),
+                ManagerHomePresentationFormatter.shouldShowReviewDecision(status)
+                        && !TextUtils.isEmpty(profile.getDocumentReviewNote()),
                 status == ManagerDocumentStatus.REJECTED
                         ? context.getString(R.string.manager_document_registration_review_rejected_title)
                         : context.getString(R.string.manager_document_registration_review_title),
-                formatter.buildDocumentReviewNote(profile.getDocumentReviewNote()),
+                formatter.buildDocumentReviewNote(profile),
                 buildRequestButtonText(status, allRequiredUploaded),
                 canRequestReview(profile)
         );

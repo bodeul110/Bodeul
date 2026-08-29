@@ -41,7 +41,8 @@ public final class ManagerHomePresentationFormatter {
 
     public String buildDocumentStatusText(ManagerHomeProfile profile) {
         String statusLabel = toDocumentStatusLabel(profile.getDocumentStatus());
-        if (TextUtils.isEmpty(profile.getDocumentReviewNote())) {
+        if (!shouldShowReviewDecision(profile.getDocumentStatus())
+                || TextUtils.isEmpty(profile.getDocumentReviewNote())) {
             return context.getString(R.string.manager_action_docs_status_plain, statusLabel);
         }
         return context.getString(
@@ -56,6 +57,13 @@ public final class ManagerHomePresentationFormatter {
             return context.getString(R.string.manager_profile_review_note_empty);
         }
         return summarizeCardText(reviewNote);
+    }
+
+    public String buildDocumentReviewNote(ManagerHomeProfile profile) {
+        if (!shouldShowReviewDecision(profile.getDocumentStatus())) {
+            return context.getString(R.string.manager_profile_review_note_empty);
+        }
+        return buildDocumentReviewNote(profile.getDocumentReviewNote());
     }
 
     public String buildDocumentFileSummary(ManagerHomeProfile profile) {
@@ -91,6 +99,9 @@ public final class ManagerHomePresentationFormatter {
     }
 
     public String buildDocumentTimelineText(ManagerHomeProfile profile) {
+        if (!shouldShowReviewDecision(profile.getDocumentStatus())) {
+            return context.getString(R.string.manager_profile_timeline_pending);
+        }
         if (profile.getDocumentUpdatedAtMillis() <= 0L
                 && profile.getDocumentReviewedAtMillis() <= 0L
                 && TextUtils.isEmpty(profile.getDocumentReviewedByName())) {
@@ -106,6 +117,10 @@ public final class ManagerHomePresentationFormatter {
                 formatTimestamp(profile.getDocumentReviewedAtMillis()),
                 reviewedBy
         );
+    }
+
+    static boolean shouldShowReviewDecision(ManagerDocumentStatus status) {
+        return status == ManagerDocumentStatus.APPROVED || status == ManagerDocumentStatus.REJECTED;
     }
 
     public String formatTimestamp(long timestampMillis) {

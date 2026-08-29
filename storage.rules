@@ -64,7 +64,10 @@ service firebase.storage {
 
     match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
       allow read: if isManager() && isSelf(managerUserId);
-      allow write: if isManager()
+      // 원본 증빙은 고유 경로에 한 번만 생성하고 교체·삭제는 서버 보존 절차에서만 수행한다.
+      allow write: if resource == null
+          && request.resource != null
+          && isManager()
           && isSelf(managerUserId)
           && isAllowedDocumentKey(documentKey)
           && isAllowedDocumentContentType()
