@@ -69,6 +69,7 @@ const RETENTION_COUNT_KEYS = [
   "firestoreLegalHoldSkips",
   "managerDocumentCandidates",
   "managerDocumentLegalHoldSkips",
+  "adminAuditCandidates",
   "messagesRedacted",
   "attachmentsDeleted",
   "attachmentDeleteFailures",
@@ -79,6 +80,7 @@ const RETENTION_COUNT_KEYS = [
   "firestoreLocationsCleared",
   "managerDocumentsDeleted",
   "managerDocumentDeleteFailures",
+  "adminAuditsDeleted",
 ];
 
 class PostgresRetentionRepository {
@@ -105,12 +107,18 @@ class PostgresRetentionRepository {
       select *
       from bodeul.preview_expired_companion_data(${asOf.toISOString()}::timestamptz)
     `;
+    const adminAuditRows = await this.sql`
+      select bodeul.preview_expired_admin_access_audits(
+        ${asOf.toISOString()}::timestamptz
+      ) as candidate_count
+    `;
     const row = rows[0] || {};
     return {
       messageCandidates: toCount(row.message_candidates),
       attachmentCandidates: toCount(row.attachment_candidates),
       locationCandidates: toCount(row.location_candidates),
       legalHoldSkips: toCount(row.legal_hold_skips),
+      adminAuditCandidates: toCount(adminAuditRows[0]?.candidate_count),
     };
   }
 
@@ -152,6 +160,16 @@ class PostgresRetentionRepository {
       messagesRedacted: toCount(row.messages_redacted),
       locationsDeleted: toCount(row.locations_deleted),
     };
+  }
+
+  async purgeAdminAudits(asOf, limit) {
+    const rows = await this.sql`
+      select bodeul.purge_expired_admin_access_audits(
+        ${asOf.toISOString()}::timestamptz,
+        ${limit}
+      ) as deleted_count
+    `;
+    return toCount(rows[0]?.deleted_count);
   }
 
   async finishJob(jobId, status, finishedAt, summary, failureStage = null) {
@@ -199,6 +217,8 @@ class PostgresRetentionRepository {
       managerDocumentsDeleted: toCount(row.manager_documents_deleted),
       managerDocumentDeleteFailures: toCount(row.manager_document_delete_failures),
       legalHoldSkips: toCount(row.legal_hold_skips),
+      adminAuditCandidates: toCount(row.admin_audit_candidates),
+      adminAuditsDeleted: toCount(row.admin_audits_deleted),
     };
   }
 
@@ -461,6 +481,7 @@ async function runRetentionJob({
     summary.postgresAttachmentCandidates = postgresPreview.attachmentCandidates;
     summary.postgresLocationCandidates = postgresPreview.locationCandidates;
     summary.postgresLegalHoldSkips = postgresPreview.legalHoldSkips;
+    summary.adminAuditCandidates = postgresPreview.adminAuditCandidates;
 
     failureStage = "PREVIEW_FIRESTORE";
     const firestorePreview = await legacyStore.preview(asOf);
@@ -495,6 +516,13 @@ async function runRetentionJob({
       const purged = await database.purgeCompanionRecords(asOf, POSTGRES_BATCH_SIZE);
       summary.messagesRedacted = purged.messagesRedacted;
       summary.locationsDeleted = purged.locationsDeleted;
+
+      failureStage = "PURGE_ADMIN_AUDITS";
+      let deletedAdminAudits;
+      do {
+        deletedAdminAudits = await database.purgeAdminAudits(asOf, POSTGRES_BATCH_SIZE);
+        summary.adminAuditsDeleted += deletedAdminAudits;
+      } while (deletedAdminAudits === POSTGRES_BATCH_SIZE);
 
       failureStage = "PURGE_FIRESTORE";
       for (const session of firestorePreview.sessions) {
@@ -819,6 +847,8 @@ function emptyRetentionSummary(mode, asOf) {
     firestoreLocationsCleared: 0,
     managerDocumentsDeleted: 0,
     managerDocumentDeleteFailures: 0,
+    adminAuditCandidates: 0,
+    adminAuditsDeleted: 0,
   };
 }
 

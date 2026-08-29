@@ -435,6 +435,13 @@ public class AdminActivity extends AppCompatActivity {
                 }
 
                 currentUser = result;
+                if (!AdminDashboardAccessPolicy.canLoadLegacyDashboard(
+                        adminRepository.isFirebaseBacked()
+                )) {
+                    setLoading(false);
+                    showExternalAdminWebState();
+                    return;
+                }
                 hideBlockingState();
                 loadDashboard();
             }
@@ -1019,6 +1026,19 @@ public class AdminActivity extends AppCompatActivity {
                 getString(R.string.state_auth_body),
                 getString(R.string.state_action_open_login),
                 view -> openRoleSelection(),
+                null,
+                null
+        );
+    }
+
+    private void showExternalAdminWebState() {
+        showBlockingState(
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.state_badge_notice),
+                getString(R.string.admin_external_web_only_title),
+                getString(R.string.admin_external_web_only_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
                 null,
                 null
         );

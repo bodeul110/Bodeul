@@ -387,6 +387,8 @@
     <string name="admin_subtitle">미배정 요청을 매니저에게 수동 배정하고, 병원과 진료과별 동행 가이드를 최소 단위로 직접 관리합니다.</string>
     <string name="admin_mode_demo">데모 데이터 기반</string>
     <string name="admin_mode_firebase">Firebase 연동 모드</string>
+    <string name="admin_external_web_only_title">관리자 업무는 별도 관리자 웹에서 처리합니다.</string>
+    <string name="admin_external_web_only_body">Firebase 연동 모드에서는 Android 관리자 화면에서 운영 데이터를 조회하거나 변경할 수 없습니다.</string>
     <string name="admin_greeting">%1$s 관리자님</string>
     <string name="admin_summary">미배정 요청 %1$d건, 운영 중 요청 %2$d건, 등록된 가이드 %3$d건을 확인 중입니다.</string>
     <string name="admin_dashboard_badge">운영 대시보드</string>

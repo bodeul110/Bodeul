@@ -18,7 +18,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return currentRole() == 'ADMIN';
+      // 관리자 업무는 PostgreSQL 세부 역할을 확인하는 Next.js 서버 route만 수행한다.
+      // Firestore Rules는 PostgreSQL을 조회할 수 없으므로 ADMIN 브라우저 권한을 fail-closed로 둔다.
+      return false;
     }
 
     function isManager() {
@@ -125,7 +127,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // 사용자 문서는 본인과 관리자만 직접 읽고, 교차 프로필 참조는 Functions 중계를 사용한다.
+      // 사용자 문서는 본인만 직접 읽고, 관리자·교차 프로필 참조는 서버 중계를 사용한다.
       allow get: if canGetUser(userId);
       allow list: if isAdmin();
       allow create: if isSelf(userId)

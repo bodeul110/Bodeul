@@ -13,7 +13,8 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return currentRole() == 'ADMIN';
+      // 관리자 원본 미리보기는 세부 역할과 사유를 감사하는 서버 route만 사용한다.
+      return false;
     }
 
     function isManager() {
@@ -62,7 +63,7 @@ service firebase.storage {
     }
 
     match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
-      allow read: if isAdmin() || (isManager() && isSelf(managerUserId));
+      allow read: if isManager() && isSelf(managerUserId);
       allow write: if isManager()
           && isSelf(managerUserId)
           && isAllowedDocumentKey(documentKey)

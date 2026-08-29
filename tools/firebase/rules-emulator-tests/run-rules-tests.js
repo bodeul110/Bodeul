@@ -250,13 +250,13 @@ function storageFor(testEnv, uid) {
 function testCases(testEnv) {
   return [
     {
-      name: "users 문서는 본인/관리자만 읽고 사용자가 ADMIN 역할로 가입할 수 없다",
+      name: "users 문서는 본인만 읽고 브라우저 ADMIN 접근과 역할 위조를 차단한다",
       run: async () => {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "users", users.patient)));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.patient), "users", users.guardian)));
-        await assertSucceeds(getDocs(collection(firestoreFor(testEnv, users.admin), "users")));
+        await assertFails(getDocs(collection(firestoreFor(testEnv, users.admin), "users")));
         await assertFails(getDocs(collection(firestoreFor(testEnv, users.manager), "users")));
         await assertSucceeds(setDoc(
             doc(firestoreFor(testEnv, "new-patient-user"), "users", "new-patient-user"),
@@ -301,7 +301,7 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             { managerDocumentLegalHoldUntil: 4_000_000_000_000 },
         ));
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.admin), "users", users.manager),
             { managerDocumentLegalHoldUntil: 4_000_000_000_000 },
         ));
@@ -451,7 +451,7 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.admin), "appointmentFollowUps", "request-created-by-admin"),
             { requestId: "request-main", reviewRatingCode: "SATISFIED", updatedAt: 2 },
         ));
-        await assertSucceeds(setDoc(
+        await assertFails(setDoc(
             doc(firestoreFor(testEnv, users.admin), "adminSettlementRecords", "request-main"),
             { status: "PENDING", createdAt: 1 },
         ));
@@ -459,7 +459,7 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.manager), "adminSettlementRecords", "request-main"),
             { status: "PENDING", createdAt: 1 },
         ));
-        await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.admin), "appointmentReminderJobs", "job-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.admin), "appointmentReminderJobs", "job-main")));
         await assertFails(setDoc(
             doc(firestoreFor(testEnv, users.admin), "appointmentReminderJobs", "job-created-by-admin"),
             { state: "PENDING" },
@@ -467,7 +467,7 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "관리자 전용 컬렉션은 관리자만 읽고 쓸 수 있다",
+      name: "관리자 전용 컬렉션은 브라우저에서 역할과 무관하게 접근할 수 없다",
       run: async () => {
         await seedFirestore(testEnv);
 
@@ -478,29 +478,29 @@ function testCases(testEnv) {
           const adminReference = doc(adminDb, collectionName, documentId);
           const managerReference = doc(managerDb, collectionName, documentId);
 
-          await assertSucceeds(setDoc(adminReference, {
+          await assertFails(setDoc(adminReference, {
             createdAt: 1,
             status: "PENDING",
           }));
-          await assertSucceeds(getDoc(adminReference));
+          await assertFails(getDoc(adminReference));
           await assertFails(getDoc(managerReference));
           await assertFails(setDoc(managerReference, {
             createdAt: 2,
             status: "PENDING",
           }));
-          await assertSucceeds(updateDoc(adminReference, {
+          await assertFails(updateDoc(adminReference, {
             status: "DONE",
           }));
           await assertFails(updateDoc(managerReference, {
             status: "DONE",
           }));
-          await assertSucceeds(deleteDoc(adminReference));
+          await assertFails(deleteDoc(adminReference));
           await assertFails(deleteDoc(managerReference));
         }
       },
     },
     {
-      name: "manager-documents Storage 경로는 매니저 본인과 관리자 읽기만 허용한다",
+      name: "manager-documents Storage 경로는 매니저 본인만 읽고 브라우저 ADMIN 접근을 차단한다",
       run: async () => {
         await seedFirestore(testEnv);
         await seedStorage(testEnv);
@@ -509,7 +509,7 @@ function testCases(testEnv) {
             storageFor(testEnv, users.manager),
             "manager-documents/manager-user/idCard/seed.pdf",
         )));
-        await assertSucceeds(getBytes(ref(
+        await assertFails(getBytes(ref(
             storageFor(testEnv, users.admin),
             "manager-documents/manager-user/idCard/seed.pdf",
         )));
@@ -549,7 +549,7 @@ function testCases(testEnv) {
             storageFor(testEnv, users.patient),
             "companion-chat-attachments/session-main/seed.png",
         )));
-        await assertSucceeds(getBytes(ref(
+        await assertFails(getBytes(ref(
             storageFor(testEnv, users.admin),
             "companion-chat-attachments/session-main/seed.png",
         )));

@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   FirebaseLegacyCompanionStore,
+  PostgresRetentionRepository,
   evaluateManagerDocument,
   evaluateLegacyCompanionSession,
   isAllowedChatAttachmentPath,
@@ -40,6 +41,8 @@ test("DB 집계 payload는 계약 키만 남기고 안전한 정수로 정규화
     mode: "DRY_RUN",
     asOf: "2026-07-19T00:00:00.000Z",
     postgresMessageCandidates: "3",
+    adminAuditCandidates: "5",
+    adminAuditsDeleted: "2",
     attachmentsDeleted: -1,
     unexpected: 100,
   });
@@ -47,9 +50,29 @@ test("DB 집계 payload는 계약 키만 남기고 안전한 정수로 정규화
   assert.equal(counts.postgresMessageCandidates, 3);
   assert.equal(counts.attachmentsDeleted, 0);
   assert.equal(counts.managerDocumentDeleteFailures, 0);
+  assert.equal(counts.adminAuditCandidates, 5);
+  assert.equal(counts.adminAuditsDeleted, 2);
   assert.equal(Object.hasOwn(counts, "mode"), false);
   assert.equal(Object.hasOwn(counts, "unexpected"), false);
-  assert.equal(Object.keys(counts).length, 20);
+  assert.equal(Object.keys(counts).length, 22);
+});
+
+test("월간 보고는 관리자 감사 후보·삭제 집계를 함께 반환한다", async () => {
+  const repository = Object.create(PostgresRetentionRepository.prototype);
+  repository.sql = async () => [{
+    run_count: "2",
+    failed_run_count: "1",
+    admin_audit_candidates: "15",
+    admin_audits_deleted: "12",
+  }];
+
+  const summary = await repository.monthlySummary(new Date("2026-07-01T00:00:00.000Z"));
+
+  assert.equal(summary.month, "2026-07");
+  assert.equal(summary.runCount, 2);
+  assert.equal(summary.failedRunCount, 1);
+  assert.equal(summary.adminAuditCandidates, 15);
+  assert.equal(summary.adminAuditsDeleted, 12);
 });
 
 test("정기 파기는 true를 명시한 환경에서만 활성화한다", () => {
@@ -75,6 +98,7 @@ function createDatabase(overrides = {}) {
         attachmentCandidates: 1,
         locationCandidates: 3,
         legalHoldSkips: 4,
+        adminAuditCandidates: 5,
       };
     },
     async claimAttachments() {
@@ -88,6 +112,10 @@ function createDatabase(overrides = {}) {
     async purgeCompanionRecords() {
       calls.push("purgeCompanionRecords");
       return {messagesRedacted: 2, locationsDeleted: 3};
+    },
+    async purgeAdminAudits() {
+      calls.push("purgeAdminAudits");
+      return 5;
     },
     async finishJob() {
       calls.push("finish");
@@ -171,7 +199,43 @@ test("dry-run은 후보 수만 기록하고 삭제 함수를 호출하지 않는
   assert.equal(summary.postgresAttachmentCandidates, 1);
   assert.equal(summary.postgresLocationCandidates, 3);
   assert.equal(summary.postgresLegalHoldSkips, 4);
+  assert.equal(summary.adminAuditCandidates, 5);
+  assert.equal(summary.adminAuditsDeleted, 0);
   assert.deepEqual(database.calls, ["begin", "preview", "finish"]);
+});
+
+test("관리자 감사기록은 1년 경과 후보만 500건 단위로 끝까지 파기한다", async () => {
+  const batches = [500, 2];
+  const database = createDatabase({
+    async preview() {
+      return {
+        messageCandidates: 0,
+        attachmentCandidates: 0,
+        locationCandidates: 0,
+        legalHoldSkips: 0,
+        adminAuditCandidates: 502,
+      };
+    },
+    async purgeAdminAudits() {
+      return batches.shift() ?? 0;
+    },
+  });
+
+  const summary = await runRetentionJob({
+    database,
+    legacyStore: createLegacyStore(),
+    managerStore: createManagerStore(),
+    storage: {
+      async deleteChatAttachment() {},
+      async deleteManagerDocument() {},
+    },
+    apply: true,
+    now: new Date("2026-07-18T00:00:00.000Z"),
+  });
+
+  assert.equal(summary.adminAuditCandidates, 502);
+  assert.equal(summary.adminAuditsDeleted, 502);
+  assert.equal(batches.length, 0);
 });
 
 test("PostgreSQL 첨부 일부 삭제 실패는 참조를 유지하고 다음 실행에서 재시도한다", async () => {
