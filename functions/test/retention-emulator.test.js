@@ -70,7 +70,8 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     ));
 
     const finishes = [];
-    const database = createDatabase(finishes);
+    const adminAuditPurges = [];
+    const database = createDatabase(finishes, adminAuditPurges);
     const failedOnce = new Set();
     const storage = {
       async deleteChatAttachment(storagePath) {
@@ -106,6 +107,8 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     assert.equal(firstSummary.managerDocumentDeleteFailures, 1);
     assert.equal(firstSummary.firestoreLegalHoldSkips, 3);
     assert.equal(firstSummary.managerDocumentLegalHoldSkips, 1);
+    assert.equal(firstSummary.adminAuditCandidates, 1);
+    assert.equal(firstSummary.adminAuditsDeleted, 1);
 
     const expiredSessionAfterFirst = await documentData(
         firestore,
@@ -166,6 +169,8 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     assert.equal(secondSummary.managerDocumentDeleteFailures, 0);
     assert.equal(secondSummary.firestoreLegalHoldSkips, 3);
     assert.equal(secondSummary.managerDocumentLegalHoldSkips, 1);
+    assert.equal(secondSummary.adminAuditCandidates, 1);
+    assert.equal(secondSummary.adminAuditsDeleted, 1);
 
     const expiredSessionAfterSecond = await documentData(
         firestore,
@@ -193,6 +198,10 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     assert.equal(await fileExists(bucket, paths.managerRetry), false);
     await assertHeldData(firestore, bucket, paths);
     assert.deepEqual(finishes.map((finish) => finish.status), ["COMPLETED", "COMPLETED"]);
+    assert.deepEqual(adminAuditPurges, [
+      {asOf: "2026-07-18T00:00:00.000Z", limit: 500},
+      {asOf: "2026-07-19T00:00:00.000Z", limit: 500},
+    ]);
   } finally {
     await clearFirestore();
     await deleteApp(app);
@@ -351,7 +360,7 @@ async function seedFirestore(firestore, {paths, expiredAt, heldUntil}) {
   await batch.commit();
 }
 
-function createDatabase(finishes) {
+function createDatabase(finishes, adminAuditPurges) {
   let jobCount = 0;
   return {
     async beginJob() {
@@ -364,6 +373,7 @@ function createDatabase(finishes) {
         attachmentCandidates: 0,
         locationCandidates: 0,
         legalHoldSkips: 0,
+        adminAuditCandidates: 1,
       };
     },
     async claimAttachments() {
@@ -371,6 +381,10 @@ function createDatabase(finishes) {
     },
     async purgeCompanionRecords() {
       return {messagesRedacted: 0, locationsDeleted: 0};
+    },
+    async purgeAdminAudits(asOf, limit) {
+      adminAuditPurges.push({asOf: asOf.toISOString(), limit});
+      return 1;
     },
     async finishJob(_jobId, status, _finishedAt, summary, failureStage) {
       finishes.push({status, failureStage: failureStage || null, summary: {...summary}});

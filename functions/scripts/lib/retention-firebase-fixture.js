@@ -559,6 +559,7 @@ function createFixtureDatabase(profile = DEVELOPMENT_PROFILE) {
         attachmentCandidates: 0,
         locationCandidates: 0,
         legalHoldSkips: 0,
+        adminAuditCandidates: 0,
       };
     },
     async claimAttachments() {
@@ -566,6 +567,9 @@ function createFixtureDatabase(profile = DEVELOPMENT_PROFILE) {
     },
     async purgeCompanionRecords() {
       return {messagesRedacted: 0, locationsDeleted: 0};
+    },
+    async purgeAdminAudits() {
+      return 0;
     },
     async finishJob() {
       return true;
@@ -585,6 +589,7 @@ function assertExpectedSummary(summary, apply) {
     firestoreLegalHoldSkips: 3,
     managerDocumentCandidates: 1,
     managerDocumentLegalHoldSkips: 1,
+    adminAuditCandidates: 0,
     messagesRedacted: 0,
     attachmentsDeleted: 0,
     attachmentDeleteFailures: 0,
@@ -595,6 +600,7 @@ function assertExpectedSummary(summary, apply) {
     firestoreLocationsCleared: apply ? 1 : 0,
     managerDocumentsDeleted: apply ? 1 : 0,
     managerDocumentDeleteFailures: 0,
+    adminAuditsDeleted: 0,
   };
   for (const [key, value] of Object.entries(expected)) {
     if (summary[key] !== value) {

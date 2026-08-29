@@ -112,6 +112,26 @@ values
     ('00000000-0000-0000-0000-000000000202', 'guide-check-manager', 'MANAGER', '검증 매니저'),
     ('00000000-0000-0000-0000-000000000203', 'guide-check-admin', 'ADMIN', '검증 관리자');
 
+do $$
+begin
+    if to_regclass('bodeul.admin_role_assignments') is not null then
+        execute $statement$
+            insert into bodeul.admin_role_assignments (
+                admin_user_id,
+                admin_role,
+                granted_by_admin_user_id,
+                grant_reason
+            ) values (
+                '00000000-0000-0000-0000-000000000203',
+                'OPERATIONS',
+                null,
+                '동행 가이드 검증 fixture'
+            )
+        $statement$;
+    end if;
+end;
+$$;
+
 insert into bodeul.hospital_guides (
     id,
     hospital_name,
