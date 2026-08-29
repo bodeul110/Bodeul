@@ -59,7 +59,7 @@ class DefaultCompanionAttachmentService implements CompanionAttachmentService {
             throw CompanionSessionException.invalidRequest("첨부 파일은 메시지당 3개까지 등록할 수 있습니다.");
         }
 
-        realtimeService.validateMessageWrite(appUser, sessionId);
+        realtimeService.validateAttachmentWrite(appUser, sessionId);
         validateAttachments(sessionId, files);
         List<CompanionRealtimeService.AttachmentCommand> attachmentCommands = new ArrayList<>();
         List<String> createdStoragePaths = new ArrayList<>();

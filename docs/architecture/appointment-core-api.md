@@ -2,6 +2,8 @@
 
 기준일: 2026-07-19
 
+최종 갱신: 2026-08-29
+
 ## 작업 목적
 
 Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring Core API와 PostgreSQL의 단일 쓰기 경로로 옮긴다.
@@ -29,11 +31,14 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 
 | 메서드 | 경로 | 용도 | 성공 응답 |
 | --- | --- | --- | ---: |
-| `GET` | `/api/appointments` | 로그인 사용자가 환자 또는 보호자로 연결된 예약 목록 | 200 |
-| `GET` | `/api/appointments/{id}` | 예약 상세 | 200 |
-| `POST` | `/api/appointments` | 예약 생성 | 201 |
-| `PUT` | `/api/appointments/{id}` | `REQUESTED` 예약 수정 | 200 |
-| `POST` | `/api/appointments/{id}/cancel` | `REQUESTED` 예약 취소 | 200 |
+| `GET` | `/api/appointments` | 환자·배정 매니저 예약 목록. 보호자는 유효한 `APPOINTMENT` 동의가 있는 예약만 포함 | 200 |
+| `GET` | `/api/appointments/{id}` | 예약 상세. 보호자는 `APPOINTMENT` 동의 필수 | 200 |
+| `POST` | `/api/appointments` | 환자 예약 생성. 보호자 신규 생성은 환자 프로필 조회 전에 거부 | 201 / 403 |
+| `PUT` | `/api/appointments/{id}` | `REQUESTED` 예약 수정. 보호자는 `APPOINTMENT` 동의 필수 | 200 |
+| `POST` | `/api/appointments/{id}/cancel` | `REQUESTED` 예약 취소. 보호자는 `APPOINTMENT` 동의 필수 | 200 |
+| `GET` | `/api/appointments/{id}/guardian-sharing-consent` | 해당 환자·지정 보호자의 동의 상태 조회 | 200 |
+| `PUT` | `/api/appointments/{id}/guardian-sharing-consent` | 성인 환자 본인의 범위별 동의 생성·갱신 | 200 |
+| `DELETE` | `/api/appointments/{id}/guardian-sharing-consent` | 성인 환자 본인의 즉시 철회 | 200 |
 
 모든 경로는 Firebase ID token이 필요하며 응답에 `Cache-Control: no-store`를 사용한다. 타인 예약은 403, 없는 예약은 404, 허용되지 않은 상태 전이와 오래된 `version`은 409를 반환한다.
 
@@ -54,6 +59,7 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 - `app_users.name`, `email`, `phone`은 현재 사용자 스냅샷과 연결 계정 조회에 사용한다.
 - V4 적용 시 기존 예약의 최신 스냅샷으로 참여 사용자 프로필을 우선 채운다.
 - 전체 환자·보호자 프로필 백필이 끝나지 않은 사용자의 예약 생성은 409로 차단한다.
+- V17은 예약별 보호자 정보공유 현재 상태·감사 이벤트·현재 정책 설정을 추가한다. 보호자 관계는 `APPOINTMENT` 열람 근거가 아니며 정책 버전 불일치, 만료와 철회는 모두 기본 거부한다.
 
 ## 단계 경계
 
@@ -66,6 +72,7 @@ Android의 환자·보호자 예약 기본 경로는 다음 방식으로 전환�
 3. PostgreSQL에서 새로 만든 예약은 Firestore 문서를 만들지 않으며 매칭 전 기본 상세만 표시한다.
 4. Core API 오류가 나도 Firestore 예약 쓰기로 자동 대체하지 않는다.
 5. 수정·취소 직전에 API 상세를 다시 읽어 최신 `version`으로 낙관적 잠금을 수행한다.
+6. 보호자 화면은 예약 관계만으로 열리지 않으며 환자가 부여한 `APPOINTMENT` 범위를 Core API가 확인한다. 후기·정산·긴급 지원은 별도 `REPORT` 범위를 요구한다.
 
 개발 환경에서는 V4~V12 적용, preview 배포, 실제 Firebase ID token 기반 역할별 API와 Android 예약·매칭·동행·채팅·위치 흐름을 확인했다. Firestore 신규 예약·세션·채팅·위치 쓰기는 차단했다. production 사용자 트래픽 전환은 별도 Go/No-Go와 migration 검증 뒤 수행한다.
 
@@ -76,3 +83,4 @@ Android의 환자·보호자 예약 기본 경로는 다음 방식으로 전환�
 - 실제 결제 승인 서버가 없으므로 카드·간편 결제 완료를 운영 사실로 간주하면 안 된다.
 - 기존 Firestore 예약·세션 문서는 rollback 비교 자료이므로 앱이나 운영 도구가 이를 업무 원본으로 다시 쓰지 않도록 회귀 검증해야 한다.
 - source of truth 전환 뒤에는 Firestore 이중 쓰기로 rollback하지 않고 PostgreSQL 백업 또는 검증된 보정 절차를 사용한다.
+- 보호자의 신규 예약 생성은 환자 연락처나 프로필을 조회하기 전에 403으로 차단한다. 환자 본인이 예약을 만든 뒤 `APPOINTMENT` 공유 동의를 부여해야 한다. 의사결정 능력 제한·법정대리인 예약 경로는 이번 MVP에 포함하지 않는다.

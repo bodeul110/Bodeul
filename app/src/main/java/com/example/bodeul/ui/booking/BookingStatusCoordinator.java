@@ -444,34 +444,42 @@ public final class BookingStatusCoordinator {
 
     @Nullable
     private BookingStatusActionModel buildPrimaryAction(User currentUser, AppointmentStatus status) {
+        BookingStatusActionModel action;
         switch (status) {
             case REQUESTED:
-                return new BookingStatusActionModel(
+                action = new BookingStatusActionModel(
                         BookingStatusActionType.EDIT,
                         context.getString(R.string.booking_status_action_edit)
                 );
+                break;
             case MATCHED:
-                return new BookingStatusActionModel(
+                action = new BookingStatusActionModel(
                         BookingStatusActionType.REFRESH,
                         context.getString(R.string.booking_status_action_refresh)
                 );
+                break;
             case IN_PROGRESS:
-                return new BookingStatusActionModel(
+                action = new BookingStatusActionModel(
                         BookingStatusActionType.OPEN_LIVE_TRACKING,
                         context.getString(R.string.booking_status_action_open_live_tracking)
                 );
+                break;
             case COMPLETED:
-                return new BookingStatusActionModel(
+                action = new BookingStatusActionModel(
                         BookingStatusActionType.OPEN_FOLLOW_UP,
                         context.getString(R.string.booking_status_action_open_follow_up)
                 );
+                break;
             case CANCELED:
             default:
-                return new BookingStatusActionModel(
+                action = new BookingStatusActionModel(
                         BookingStatusActionType.OPEN_BOOKING,
                         context.getString(R.string.booking_status_action_open_booking)
                 );
+                break;
         }
+        return BookingMutationPolicy.isStatusActionAllowed(
+                currentUser.getRole(), action.getActionType()) ? action : null;
     }
 
     @Nullable
@@ -479,10 +487,14 @@ public final class BookingStatusCoordinator {
         switch (status) {
             case REQUESTED:
             case MATCHED:
-                return new BookingStatusActionModel(
+                BookingStatusActionModel cancelAction = new BookingStatusActionModel(
                         BookingStatusActionType.CANCEL,
                         context.getString(R.string.booking_status_action_cancel)
                 );
+                return BookingMutationPolicy.isStatusActionAllowed(
+                        currentUser.getRole(), cancelAction.getActionType())
+                        ? cancelAction
+                        : null;
             case IN_PROGRESS:
                 if (currentUser.getRole() == UserRole.GUARDIAN) {
                     return new BookingStatusActionModel(

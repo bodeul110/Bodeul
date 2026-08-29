@@ -122,6 +122,9 @@
             android:name=".ui.booking.BookingStatusActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.booking.GuardianSharingConsentActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.booking.BookingActivity"
             android:exported="false" />
         <activity

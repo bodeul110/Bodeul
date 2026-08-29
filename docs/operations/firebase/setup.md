@@ -271,6 +271,8 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 
 현재는 `Cloud Functions`가 세 단계로 동작한다.
 
+> 보호자 발송 안전 경계: Firebase Admin SDK는 Firestore·Storage Rules를 우회한다. 기존 Functions에는 PostgreSQL 예약별 동의를 발송 직전에 확인할 최소권한 연결이 없으므로 채팅·위치·예약 리마인더의 보호자 발송은 fail-closed로 중단한다. 환자·매니저 발송만 유지하며, 보호자 알림은 Core API 동의 판정을 사용하는 dispatcher를 별도로 구현한 뒤 다시 연다.
+
 1. 매일 오전 9시에 `appointmentRequests`를 읽고 `appointmentReminderJobs` 작업 문서를 생성
 2. 10분마다 `appointmentReminderJobs`를 읽고 재검증 후 발송 또는 시뮬레이션 처리
 3. `appointmentRequests`가 취소 / 삭제 / 일정 변경되면 남아 있는 알림 작업을 즉시 `SKIPPED` 처리
@@ -286,7 +288,7 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
   "state": "PENDING",
   "reminderDateKey": "2026-04-19",
   "appointmentDateKey": "2026-04-22",
-  "recipientUserIds": ["patient-uid", "guardian-uid"],
+  "recipientUserIds": ["patient-uid"],
   "messagePreview": "서울안과병원 안과 예약이 3일 남았습니다. 보호자 연락처, 만남 장소, 이동 경로를 다시 확인해 주세요."
 }
 ```
@@ -521,9 +523,10 @@ bodeulCoreApiBaseUrl=https://다른_개발_Core_API_주소
 - Android에는 `kakaoRestApiKey`를 두지 않는다. Core API 실패 시 로컬 병원 목록 또는 기본 지도 안내를 사용한다.
 
 ## 안심 채팅 첨부 제한
-- 허용 형식: `application/pdf`, `image/*`
+- 허용 형식: 파일 시그니처와 MIME이 일치하는 PDF, JPEG, PNG
 - 최대 크기: `10MB`
-- Storage 경로: `companion-chat-attachments/{sessionId}/{timestamp-fileName}`
+- Storage 경로: `companion-chat-attachments/{sessionId}/{clientMessageId}/{index-sha256.ext}`
 - 첨부 메타데이터 원본: PostgreSQL `bodeul.companion_chat_attachments`
-- 기존 세션의 Storage 권한 판정: legacy `companionSessions/{sessionId}` 참여자 문서
-- Firestore 보조 문서가 없는 Core-only 세션은 현재 Firebase Storage 첨부 업로드를 지원하지 않는다. 운영 전 서버 중계 업로드 또는 짧은 수명의 서명 URL로 권한 경계를 옮겨야 한다.
+- Android 업로드·다운로드: Core API 서버 중계. 클라이언트가 Storage 객체 URL을 직접 사용하지 않는다.
+- 보호자 권한 판정: 예약별 PostgreSQL `CHAT`과 `ATTACHMENT` 동의를 모두 확인한다.
+- Storage Rules의 legacy 직접 접근은 관계만 있는 보호자에게 허용하지 않는다. 환자·매니저·관리자 기존 경계도 운영 앱의 주 경로로 사용하지 않는다.

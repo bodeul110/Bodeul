@@ -308,12 +308,12 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "appointmentRequests는 참여자만 읽고 모든 클라이언트 쓰기를 거부한다",
+      name: "appointmentRequests는 환자·매니저만 읽고 관계만 있는 보호자는 거부한다",
       run: async () => {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "appointmentRequests", "request-main")));
-        await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.guardian), "appointmentRequests", "request-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.guardian), "appointmentRequests", "request-main")));
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.manager), "appointmentRequests", "request-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.outsider), "appointmentRequests", "request-main")));
         await assertFails(setDoc(
@@ -338,12 +338,13 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "companionSessions는 참여자만 읽고 모든 클라이언트 쓰기를 차단한다",
+      name: "companionSessions는 보호자 관계를 동의로 보지 않고 직접 읽기를 차단한다",
       run: async () => {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main")));
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "companionSessions", "session-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.guardian), "companionSessions", "session-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.outsider), "companionSessions", "session-main")));
         await assertFails(getDocs(query(
             collection(firestoreFor(testEnv, users.patient), "companionSessions"),
@@ -354,7 +355,7 @@ function testCases(testEnv) {
             where("appointmentRequestId", "==", "request-main"),
             where("patientUserId", "==", users.patient),
         )));
-        await assertSucceeds(getDocs(query(
+        await assertFails(getDocs(query(
             collection(firestoreFor(testEnv, users.guardian), "companionSessions"),
             where("appointmentRequestId", "==", "request-main"),
             where("guardianUserId", "==", users.guardian),
@@ -410,6 +411,7 @@ function testCases(testEnv) {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "sessionReports", "report-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.guardian), "sessionReports", "report-main")));
         await assertFails(setDoc(
             doc(firestoreFor(testEnv, users.manager), "sessionReports", "report-created-by-manager"),
             { sessionId: "session-main", summary: "매니저 작성", createdAt: 2 },
@@ -424,6 +426,9 @@ function testCases(testEnv) {
         ));
         await assertSucceeds(getDoc(
             doc(firestoreFor(testEnv, users.patient), "appointmentFollowUps", "request-main"),
+        ));
+        await assertFails(getDoc(
+            doc(firestoreFor(testEnv, users.guardian), "appointmentFollowUps", "request-main"),
         ));
         await assertFails(getDoc(
             doc(firestoreFor(testEnv, users.outsider), "appointmentFollowUps", "request-main"),
@@ -525,7 +530,7 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "companion-chat-attachments Storage 경로는 세션 참여자만 읽고 쓸 수 있다",
+      name: "companion-chat-attachments는 관계만 있는 보호자의 직접 접근을 거부한다",
       run: async () => {
         await seedFirestore(testEnv);
         await seedStorage(testEnv);
@@ -542,7 +547,11 @@ function testCases(testEnv) {
             storageFor(testEnv, users.outsider),
             "companion-chat-attachments/session-main/seed.png",
         )));
-        await assertSucceeds(uploadBytes(
+        await assertFails(getBytes(ref(
+            storageFor(testEnv, users.guardian),
+            "companion-chat-attachments/session-main/seed.png",
+        )));
+        await assertFails(uploadBytes(
             ref(storageFor(testEnv, users.guardian), "companion-chat-attachments/session-main/guardian.png"),
             new Uint8Array([7, 8, 9]),
             { contentType: "image/png" },

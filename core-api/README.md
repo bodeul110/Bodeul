@@ -11,7 +11,8 @@
 - Firebase ID token과 PostgreSQL `app_users.role`을 연결하는 `GET /api/auth/me`
 - 삭제 실행 없이 본인 계정의 PostgreSQL 연관 건수와 Firestore 사용자·지원 문서 부분 점검 상태를 확인하는 `GET /api/account/deletion-readiness`
 - 인증된 사용자의 병원·약국 검색을 대행하는 `GET /api/places/search`
-- 환자·보호자 예약 생성·수정·취소와 배정 매니저 조회를 처리하는 `/api/appointments`
+- 환자 예약 생성·수정·취소, 보호자 동의 범위 내 최소 조회와 배정 매니저 조회를 처리하는 `/api/appointments`
+- 성인 환자의 예약별 보호자 정보공유 동의·조회·철회를 처리하는 `/api/appointments/{id}/guardian-sharing-consent`
 - 참여자·배정 매니저의 동행 조회와 매니저 진행·리포트를 처리하는 `/api/companion-sessions`
 - 명시적으로 허용하지 않은 경로는 기본 차단
 - `local` profile에서는 DB 없이 기동
@@ -94,15 +95,23 @@ Cloud Run preview에서는 `bodeul-core-api-preview-kakao-local-rest-api-key`, p
 
 ## 예약 API
 
-`/api/appointments`는 PostgreSQL UUID로 예약을 식별한다. 환자·보호자는 생성·수정·취소를 사용할 수 있고, 배정 매니저는 본인 예약만 조회할 수 있다. 생성은 `clientRequestId`로 중복을 막고 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
+`/api/appointments`는 PostgreSQL UUID로 예약을 식별한다. 환자는 본인 예약을, 배정 매니저는 본인 배정 예약을 조회한다. 보호자는 환자가 해당 예약에 부여한 `APPOINTMENT` 동의가 있어야 목록·상세를 사용할 수 있고, 응답도 일정·병원·상태만 남긴 최소 형태다. 정보공유 동의는 업무 대리 권한이 아니므로 보호자의 예약 생성·수정·취소는 프로필이나 예약을 조회하기 전에 403으로 차단한다. 생성은 `clientRequestId`로 중복을 막고 환자 수정·취소는 응답의 `version`을 다시 보내야 한다. 가격과 최초 결제 상태는 서버가 계산하며 클라이언트 가격·승인값을 받지 않는다.
 
-`GET /api/appointments/{id}/follow-up`은 연결된 환자·보호자·배정 매니저에게 후기·정산·긴급 지원 기록을 제공한다. `PATCH /api/appointments/{id}/follow-up`은 완료 예약의 환자·보호자만 사용할 수 있고 최신 후속 기록의 `version`과 변경할 필드만 받는다.
+`GET /api/appointments/{id}/follow-up`은 환자와 배정 매니저에게 후기·정산·긴급 지원 기록을 제공한다. 보호자는 별도 `REPORT` 동의가 있어야 읽을 수 있다. `PATCH /api/appointments/{id}/follow-up`은 완료 예약의 환자만 사용할 수 있고 최신 후속 기록의 `version`과 변경할 필드만 받는다. 보호자 쓰기는 별도 대리권 정책이 없는 MVP에서 403으로 차단한다.
 
-V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. V8은 채팅·첨부 메타데이터·읽음 위치·최근 위치 이력을 정규화하고 Core runtime의 최소 DML, 위치 기록 함수와 종료 시 보관 만료 예약을 추가한다. V9은 읽음 위치의 복합 외래키를 덮는 인덱스를 추가한다. V14는 배정 시점의 병원 가이드 ID·revision·단계 배열을 세션에 고정하고 이후 변경을 막는다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md)을 따른다.
+V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약 INSERT·UPDATE 권한을 추가한다. V5 migration은 동행 세션·리포트·후속 처리와 관리자 배정 함수를 추가한다. V6는 Core runtime에 세션 진행 컬럼 UPDATE와 리포트 지정 컬럼 INSERT·UPDATE만 허용하고, V7은 후속 처리 지정 컬럼 INSERT·UPDATE만 허용한다. V8은 채팅·첨부 메타데이터·읽음 위치·최근 위치 이력을 정규화하고 Core runtime의 최소 DML, 위치 기록 함수와 종료 시 보관 만료 예약을 추가한다. V9은 읽음 위치의 복합 외래키를 덮는 인덱스를 추가한다. V14는 배정 시점의 병원 가이드 ID·revision·단계 배열을 세션에 고정하고 이후 변경을 막는다. V17은 예약별 보호자 동의 현재 상태, 추가 전용 감사 이벤트와 정책 설정을 추가한다. 자세한 계약은 [예약 Core API 전환 계약](../docs/architecture/appointment-core-api.md), [매칭·동행·리포트 PostgreSQL 전환 계약](../docs/architecture/companion-session-core-api.md), [성인 환자·보호자 정보공유 동의 계약](../docs/architecture/adult-patient-guardian-sharing-consent.md)을 따른다.
+
+## 보호자 정보공유 동의
+
+해당 예약의 환자만 `PUT`과 `DELETE /api/appointments/{id}/guardian-sharing-consent`를 사용할 수 있다. `PUT`은 `adultPatientConfirmed=true`와 `APPOINTMENT`, `CHAT`, `ATTACHMENT`, `REPORT`, `LOCATION` 중 하나 이상의 범위를 받는다. 지정 보호자는 `GET`으로 현재 동의 상태를 확인할 수 있지만 관계만으로 업무 데이터 열람권을 얻지는 않는다.
+
+현재 정책 버전과 위치 기능 플래그는 `guardian_sharing_consent_settings`가 단일 원본이다. 저장된 정책 버전이 다르거나 동의가 없고, 확정 만료·철회됐거나 요청 범위가 없으면 기본 거부한다. `ATTACHMENT`는 `CHAT` 없이 선택할 수 없고, `LOCATION`은 DB 플래그 기본값이 `false`라 동의 생성과 위치 공개가 모두 차단된다. 진행 중 동의는 임시 만료 상태로 두고 실제 예약 취소 또는 동행 완료 시각에서 7일 뒤로 만료를 확정한다.
+
+성인 확인은 현재 프로필에 생년 원본이 없어 환자의 자기선언 시각을 저장하는 MVP 경계다. 의사결정 능력 제한과 법정대리인 흐름은 구현하지 않는다.
 
 ## 동행 세션 API
 
-`/api/companion-sessions`는 환자·보호자에게 연결된 세션과 리포트를 읽기 전용으로 제공하고, 배정된 매니저에게만 현장 메모·단계·리포트 쓰기를 허용한다. 모든 쓰기는 응답의 `version`을 요구한다. 단계 목록과 진행 한계는 V14가 세션 생성 시 고정한 `guide_steps_snapshot`에서 계산하며 이후 병원 가이드 수정의 영향을 받지 않는다. 응답은 기존 필드와 함께 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 제공한다.
+`/api/companion-sessions`는 환자에게 본인 세션을, 보호자에게 `APPOINTMENT` 동의가 있는 세션을 읽기 전용으로 제공하고, 배정된 매니저에게만 현장 메모·단계·리포트 쓰기를 허용한다. 보호자 응답은 `CHAT`, `ATTACHMENT`, `REPORT`, `LOCATION` 범위별로 필드를 숨기며 알림 대상도 같은 범위를 확인한다. 모든 쓰기는 응답의 `version`을 요구한다. 단계 목록과 진행 한계는 V14가 세션 생성 시 고정한 `guide_steps_snapshot`에서 계산하며 이후 병원 가이드 수정의 영향을 받지 않는다. 응답은 기존 필드와 함께 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 제공한다.
 
 V16의 진료 전 확인값 저장은 롤링 배포 호환을 위해 서버 진행 차단과 분리한다. `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT`의 기본값은 `false`이며, 이 상태에서는 구버전 앱도 기존처럼 진행할 수 있다. V16 migration과 Core API를 먼저 배포하고 새 Android의 저장·재진입을 검증한 뒤 별도 승인을 받아 `true`로 바꾼다. 설정을 켜면 서비스의 `STEP_INPUT_REQUIRED` 판정과 repository의 동시 진행 방지 SQL 조건이 함께 적용된다.
 
@@ -128,6 +137,8 @@ V16의 진료 전 확인값 저장은 롤링 배포 호환을 위해 서버 진�
 - `public` schema 신규 객체의 Data API 자동 노출 차단
 
 bootstrap은 개발 DB에서 `postgres` 권한으로 먼저 적용한다. 각 bootstrap 파일은 명시적 트랜잭션으로 권한 role 전환과 default privilege 변경을 묶으며, 오류 시 전체 파일을 rollback한다. 비밀번호는 SQL 파일에 추가하지 않고 보안 경로에서 별도로 설정한 뒤 각 로그인 role을 활성화한다.
+
+V17 적용 뒤에는 `db/verification/012_guardian_sharing_consent_checks.sql`을 읽기 전용으로 실행하고, postgres 권한으로 `db/bootstrap/005_guardian_sharing_realtime_authorization.sql`을 적용한다. 이어 `db/verification/004_companion_realtime_authorization_scenarios.sql`로 보호자가 동의 여부와 무관하게 Broadcast에서 거부되고 환자·매니저만 허용되는지 확인한다. 보호자는 매 요청 동의를 판정하는 Core API polling만 사용한다.
 
 Flyway는 runtime profile에서 실행하지 않는다. migration 전용 자격 증명을 준비한 환경에서만 다음처럼 실행한다. migration profile은 연결 직후 `SET ROLE bodeul_migration`을 실행해 history와 업무 객체의 소유자를 로그인 계정이 아닌 migration 권한 role로 통일한다.
 

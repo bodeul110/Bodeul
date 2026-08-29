@@ -28,6 +28,8 @@ interface AppointmentRepository {
 
     boolean cancelActiveSession(UUID appointmentId);
 
+    Optional<Instant> findCancellationBoundary(UUID appointmentId);
+
     Optional<AppointmentFollowUpRecord> findFollowUpByAppointmentId(UUID appointmentId);
 
     Optional<AppointmentFollowUpRecord> insertFollowUp(AppointmentFollowUpMutation mutation);

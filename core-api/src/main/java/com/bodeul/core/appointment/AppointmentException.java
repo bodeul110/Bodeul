@@ -34,6 +34,20 @@ final class AppointmentException extends RuntimeException {
                 "환자 또는 보호자 계정으로 접근해 주세요.");
     }
 
+    static AppointmentException guardianCreationNotSupported() {
+        return new AppointmentException(
+                HttpStatus.FORBIDDEN,
+                "guardian_appointment_creation_not_supported",
+                "보호자 계정에서는 새 예약을 만들 수 없습니다. 환자 본인이 예약한 뒤 정보공유 동의를 요청해 주세요.");
+    }
+
+    static AppointmentException guardianMutationNotSupported() {
+        return new AppointmentException(
+                HttpStatus.FORBIDDEN,
+                "guardian_appointment_mutation_not_supported",
+                "정보공유 동의는 예약 업무 대리 권한이 아닙니다. 예약 변경은 환자 본인에게 요청해 주세요.");
+    }
+
     static AppointmentException readRoleNotSupported() {
         return new AppointmentException(
                 HttpStatus.FORBIDDEN,

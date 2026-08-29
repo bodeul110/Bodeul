@@ -344,6 +344,13 @@ public class BookingActivity extends AppCompatActivity {
             showAuthState();
             return;
         }
+        BookingMutationPolicy.Operation operation = editingRequest == null
+                ? BookingMutationPolicy.Operation.CREATE
+                : BookingMutationPolicy.Operation.UPDATE;
+        if (!BookingMutationPolicy.isAllowed(currentUser.getRole(), operation)) {
+            showGuardianMutationBlockedDialog();
+            return;
+        }
 
         BookingRequestDraft bookingRequestDraft = formBinder.buildDraft();
         if (bookingRequestDraft == null) {
@@ -362,12 +369,22 @@ public class BookingActivity extends AppCompatActivity {
             showAuthState();
             return;
         }
+        BookingMutationPolicy.Operation operation = editingRequest == null
+                ? BookingMutationPolicy.Operation.CREATE
+                : BookingMutationPolicy.Operation.UPDATE;
+        if (!BookingMutationPolicy.isAllowed(currentUser.getRole(), operation)) {
+            showGuardianMutationBlockedDialog();
+            return;
+        }
         setLoading(true);
         if (editingRequest == null) {
-            bookingRepository.createAppointmentRequest(
-                    currentUser,
-                    bookingRequestDraft,
-                    new RepositoryCallback<AppointmentRequest>() {
+            BookingMutationPolicy.runIfAllowed(
+                    currentUser.getRole(),
+                    BookingMutationPolicy.Operation.CREATE,
+                    () -> bookingRepository.createAppointmentRequest(
+                            currentUser,
+                            bookingRequestDraft,
+                            new RepositoryCallback<AppointmentRequest>() {
                         @Override
                         public void onSuccess(AppointmentRequest result) {
                             editingRequest = null;
@@ -381,16 +398,19 @@ public class BookingActivity extends AppCompatActivity {
                             setLoading(false);
                             Toast.makeText(BookingActivity.this, message, Toast.LENGTH_LONG).show();
                         }
-                    }
-            );
+                            }
+                    ));
             return;
         }
 
-        bookingRepository.updateAppointmentRequest(
-                currentUser,
-                editingRequest.getId(),
-                bookingRequestDraft,
-                new RepositoryCallback<AppointmentRequest>() {
+        BookingMutationPolicy.runIfAllowed(
+                currentUser.getRole(),
+                BookingMutationPolicy.Operation.UPDATE,
+                () -> bookingRepository.updateAppointmentRequest(
+                        currentUser,
+                        editingRequest.getId(),
+                        bookingRequestDraft,
+                        new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest result) {
                         editingRequest = null;
@@ -404,12 +424,17 @@ public class BookingActivity extends AppCompatActivity {
                         setLoading(false);
                         Toast.makeText(BookingActivity.this, message, Toast.LENGTH_LONG).show();
                     }
-                }
-        );
+                        }
+                ));
     }
 
     private void startEditingRequest(AppointmentRequest request) {
         if (currentUser == null) {
+            return;
+        }
+        if (!BookingMutationPolicy.isAllowed(
+                currentUser.getRole(), BookingMutationPolicy.Operation.UPDATE)) {
+            showGuardianMutationBlockedDialog();
             return;
         }
         editingRequest = request;
@@ -428,6 +453,11 @@ public class BookingActivity extends AppCompatActivity {
     }
 
     private void cancelRequest(AppointmentRequest request) {
+        if (currentUser == null || !BookingMutationPolicy.isAllowed(
+                currentUser.getRole(), BookingMutationPolicy.Operation.CANCEL)) {
+            showGuardianMutationBlockedDialog();
+            return;
+        }
         int bodyResId = request.getStatus() == AppointmentStatus.MATCHED
                 ? R.string.booking_cancel_dialog_body_matched
                 : R.string.booking_cancel_dialog_body_requested;
@@ -445,12 +475,20 @@ public class BookingActivity extends AppCompatActivity {
             showAuthState();
             return;
         }
+        if (!BookingMutationPolicy.isAllowed(
+                currentUser.getRole(), BookingMutationPolicy.Operation.CANCEL)) {
+            showGuardianMutationBlockedDialog();
+            return;
+        }
 
         setLoading(true);
-        bookingRepository.cancelAppointmentRequest(
-                currentUser,
-                request.getId(),
-                new RepositoryCallback<AppointmentRequest>() {
+        BookingMutationPolicy.runIfAllowed(
+                currentUser.getRole(),
+                BookingMutationPolicy.Operation.CANCEL,
+                () -> bookingRepository.cancelAppointmentRequest(
+                        currentUser,
+                        request.getId(),
+                        new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest result) {
                         if (editingRequest != null && TextUtils.equals(editingRequest.getId(), request.getId())) {
@@ -466,8 +504,16 @@ public class BookingActivity extends AppCompatActivity {
                         setLoading(false);
                         Toast.makeText(BookingActivity.this, message, Toast.LENGTH_LONG).show();
                     }
-                }
-        );
+                        }
+                ));
+    }
+
+    private void showGuardianMutationBlockedDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.booking_guardian_creation_blocked_title)
+                .setMessage(R.string.booking_guardian_creation_blocked_body)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     private boolean supportsBookingRole(UserRole role) {

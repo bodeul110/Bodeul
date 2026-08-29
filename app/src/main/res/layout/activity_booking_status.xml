@@ -415,9 +415,16 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonBookingStatusGuardianSharingConsent"
+                style="@style/BodeulOutlinedButton"
+                android:layout_marginTop="20dp"
+                android:text="@string/guardian_sharing_consent_open"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonBookingStatusPrimary"
                 style="@style/BodeulHomeButton"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="10dp"
                 android:text="@string/booking_status_action_refresh" />
 
             <com.google.android.material.button.MaterialButton

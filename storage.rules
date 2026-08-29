@@ -37,7 +37,6 @@ service firebase.storage {
             isAdmin()
             || sessionDoc(sessionId).data.managerUserId == request.auth.uid
             || sessionDoc(sessionId).data.patientUserId == request.auth.uid
-            || sessionDoc(sessionId).data.guardianUserId == request.auth.uid
           );
     }
 
@@ -88,6 +87,7 @@ service firebase.storage {
     }
 
     match /companion-chat-attachments/{sessionId}/{fileName} {
+      // 보호자는 PostgreSQL 동의를 조회하는 Core API를 거쳐야 하므로 관계만으로 직접 접근할 수 없다.
       allow read: if isSessionParticipant(sessionId);
       allow write: if isSessionParticipant(sessionId)
           && isAllowedChatAttachmentContentType()

@@ -12,6 +12,8 @@ import java.util.stream.Stream;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope;
+import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import com.bodeul.core.session.CompanionRealtimeRepository.AttachmentMutation;
 import com.bodeul.core.session.CompanionRealtimeRepository.AttachmentRecord;
 import com.bodeul.core.session.CompanionRealtimeRepository.ChatMessageRecord;
@@ -40,14 +42,17 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     private final CompanionSessionRepository sessionRepository;
     private final CompanionRealtimeRepository realtimeRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final GuardianSharingConsentAccess consentAccess;
 
     DefaultCompanionRealtimeService(
             CompanionSessionRepository sessionRepository,
             CompanionRealtimeRepository realtimeRepository,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            GuardianSharingConsentAccess consentAccess) {
         this.sessionRepository = sessionRepository;
         this.realtimeRepository = realtimeRepository;
         this.eventPublisher = eventPublisher;
+        this.consentAccess = consentAccess;
     }
 
     @Override
@@ -55,23 +60,36 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     public RealtimeSnapshotView getSnapshot(
             AppUserRepository.AppUser appUser,
             UUID sessionId) {
-        SessionRecord session = requireReadableSession(appUser, sessionId);
-        List<LocationView> locations = isTerminal(session)
+        SessionRecord session = requireParticipantSession(appUser, sessionId);
+        Set<InformationScope> allowedScopes = allowedScopes(appUser, session);
+        boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT);
+        boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT);
+        boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION);
+        if (!chatAllowed && !locationAllowed) {
+            throw CompanionSessionException.permissionDenied();
+        }
+        List<LocationView> locations = !locationAllowed || isTerminal(session)
                 ? List.of()
                 : realtimeRepository.findRecentLocations(sessionId, LOCATION_LIMIT)
                         .stream()
                         .map(this::toView)
                         .toList();
         return new RealtimeSnapshotView(
-                realtimeTopic(sessionId),
-                realtimeRepository.findRecentMessages(sessionId, MESSAGE_LIMIT)
+                consentAccess.canReceiveCombinedRealtimeTopic(
+                        appUser,
+                        session.appointmentRequestId(),
+                        session.patientUserId(),
+                        session.guardianUserId())
+                        ? realtimeTopic(sessionId)
+                        : "",
+                chatAllowed ? realtimeRepository.findRecentMessages(sessionId, MESSAGE_LIMIT)
                         .stream()
-                        .map(this::toView)
-                        .toList(),
-                realtimeRepository.findReadReceipts(sessionId)
+                        .map(message -> toView(message, attachmentAllowed))
+                        .toList() : List.of(),
+                chatAllowed ? realtimeRepository.findReadReceipts(sessionId)
                         .stream()
                         .map(receipt -> toView(receipt, participantRole(receipt.userId(), session)))
-                        .toList(),
+                        .toList() : List.of(),
                 locations);
     }
 
@@ -82,6 +100,11 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             UUID sessionId,
             PostMessageCommand command) {
         SessionRecord session = requireMessageWrite(appUser, sessionId);
+        if (command != null
+                && command.attachments() != null
+                && !command.attachments().isEmpty()) {
+            requireScope(appUser, session, InformationScope.ATTACHMENT);
+        }
         MessageMutation mutation = normalizeMessage(appUser, session, command);
         CompanionRealtimeRepository.MessageSaveResult saved = realtimeRepository.saveMessage(mutation);
         if (!messageMatches(saved.message(), mutation)) {
@@ -93,9 +116,12 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                     session.appointmentRequestId(),
                     saved.message().senderRole(),
                     saved.message().sentAt(),
-                    recipientUserIds(session, saved.message().senderUserId())));
+                    recipientUserIds(
+                            session,
+                            saved.message().senderUserId(),
+                            InformationScope.CHAT)));
         }
-        return toView(saved.message());
+        return toView(saved.message(), true);
     }
 
     @Override
@@ -108,11 +134,22 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
 
     @Override
     @Transactional(readOnly = true)
+    public void validateAttachmentWrite(
+            AppUserRepository.AppUser appUser,
+            UUID sessionId) {
+        SessionRecord session = requireMessageWrite(appUser, sessionId);
+        requireScope(appUser, session, InformationScope.ATTACHMENT);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public AttachmentView getAttachment(
             AppUserRepository.AppUser appUser,
             UUID sessionId,
             UUID attachmentId) {
-        requireReadableSession(appUser, sessionId);
+        SessionRecord session = requireParticipantSession(appUser, sessionId);
+        requireScope(appUser, session, InformationScope.CHAT);
+        requireScope(appUser, session, InformationScope.ATTACHMENT);
         if (attachmentId == null) {
             throw CompanionSessionException.invalidRequest("첨부 파일 ID가 필요합니다.");
         }
@@ -127,7 +164,8 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             AppUserRepository.AppUser appUser,
             UUID sessionId,
             UUID lastReadMessageId) {
-        requireReadableSession(appUser, sessionId);
+        SessionRecord session = requireParticipantSession(appUser, sessionId);
+        requireScope(appUser, session, InformationScope.CHAT);
         if (lastReadMessageId == null) {
             throw CompanionSessionException.invalidRequest("마지막으로 읽은 메시지 ID가 필요합니다.");
         }
@@ -267,7 +305,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                 capturedAt);
     }
 
-    private SessionRecord requireReadableSession(
+    private SessionRecord requireParticipantSession(
             AppUserRepository.AppUser appUser,
             UUID sessionId) {
         requireReadableRole(appUser);
@@ -279,7 +317,8 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     private SessionRecord requireMessageWrite(
             AppUserRepository.AppUser appUser,
             UUID sessionId) {
-        SessionRecord session = requireReadableSession(appUser, sessionId);
+        SessionRecord session = requireParticipantSession(appUser, sessionId);
+        requireScope(appUser, session, InformationScope.CHAT);
         requireActive(session);
         return session;
     }
@@ -317,6 +356,25 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         if (!appUser.id().equals(allowedUserId)) {
             throw CompanionSessionException.permissionDenied();
         }
+    }
+
+    private void requireScope(
+            AppUserRepository.AppUser appUser,
+            SessionRecord session,
+            InformationScope scope) {
+        if (!allowedScopes(appUser, session).contains(scope)) {
+            throw CompanionSessionException.permissionDenied();
+        }
+    }
+
+    private Set<InformationScope> allowedScopes(
+            AppUserRepository.AppUser appUser,
+            SessionRecord session) {
+        return consentAccess.allowedScopes(
+                appUser,
+                session.appointmentRequestId(),
+                session.patientUserId(),
+                session.guardianUserId());
     }
 
     private void requireActive(SessionRecord session) {
@@ -365,7 +423,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         return savedAttachments.equals(requestedAttachments);
     }
 
-    private ChatMessageView toView(ChatMessageRecord message) {
+    private ChatMessageView toView(ChatMessageRecord message, boolean attachmentsAllowed) {
         return new ChatMessageView(
                 message.id(),
                 message.clientMessageId(),
@@ -373,9 +431,9 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                 message.senderRole(),
                 message.body(),
                 format(message.sentAt()),
-                message.attachments().stream()
+                attachmentsAllowed ? message.attachments().stream()
                         .map(attachment -> toView(message.sessionId(), attachment))
-                        .toList());
+                        .toList() : List.of());
     }
 
     private AttachmentView toView(UUID sessionId, AttachmentRecord attachment) {
@@ -410,15 +468,38 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         throw CompanionSessionException.permissionDenied();
     }
 
-    private List<UUID> recipientUserIds(SessionRecord session, UUID senderUserId) {
+    private List<UUID> recipientUserIds(
+            SessionRecord session,
+            UUID senderUserId,
+            InformationScope guardianScope) {
         return Stream.of(
                         session.patientUserId(),
                         session.guardianUserId(),
                         session.managerUserId())
                 .filter(Objects::nonNull)
                 .filter(userId -> !userId.equals(senderUserId))
+                .filter(userId -> !userId.equals(session.guardianUserId())
+                        || guardianHasScope(session, guardianScope))
                 .distinct()
                 .toList();
+    }
+
+    private boolean guardianHasScope(
+            SessionRecord session,
+            InformationScope scope) {
+        if (session.guardianUserId() == null) {
+            return false;
+        }
+        AppUserRepository.AppUser guardian = new AppUserRepository.AppUser(
+                session.guardianUserId(),
+                "",
+                AppUserRole.GUARDIAN);
+        return consentAccess.isAllowed(
+                guardian,
+                session.appointmentRequestId(),
+                session.patientUserId(),
+                session.guardianUserId(),
+                scope);
     }
 
     private LocationView toView(LocationRecord location) {

@@ -10,6 +10,7 @@ import com.bodeul.core.auth.AppUserRole;
 import org.junit.jupiter.api.Test;
 
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.ALLOWED;
+import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.APPOINTMENT_MISMATCH;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.EXPIRED;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.GRANT_MISSING;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.GUARDIAN_MISMATCH;
@@ -20,6 +21,7 @@ import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.Decision
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.REVOKED;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.DecisionReason.SCOPE_NOT_GRANTED;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope.APPOINTMENT;
+import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope.ATTACHMENT;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope.CHAT;
 import static com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope.REPORT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +32,7 @@ class AdultPatientGuardianSharingPolicyTests {
     private static final UUID PATIENT_ID = UUID.fromString("13aff496-9fd7-4d37-89ef-cd71582e16c9");
     private static final UUID GUARDIAN_ID = UUID.fromString("b99a3e7a-4819-4c70-846d-620f548bf4e1");
     private static final UUID OTHER_USER_ID = UUID.fromString("c56e5a24-c8c1-45e5-8991-d72068691ca7");
+    private static final UUID APPOINTMENT_ID = UUID.fromString("92b1b160-e805-4c22-b5b4-d6427259e446");
     private static final Instant GRANTED_AT = Instant.parse("2026-08-28T10:00:00Z");
     private static final Instant EXPIRES_AT = GRANTED_AT.plus(30, ChronoUnit.DAYS);
     private static final String CURRENT_POLICY_VERSION = "test-policy-v1";
@@ -53,6 +56,7 @@ class AdultPatientGuardianSharingPolicyTests {
         assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.grantByPatient(
                 OTHER_USER_ID,
                 AppUserRole.PATIENT,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
@@ -65,6 +69,21 @@ class AdultPatientGuardianSharingPolicyTests {
         assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.grantByPatient(
                 PATIENT_ID,
                 AppUserRole.PATIENT,
+                APPOINTMENT_ID,
+                PATIENT_ID,
+                GUARDIAN_ID,
+                AppUserRole.GUARDIAN,
+                Set.of(ATTACHMENT),
+                GRANTED_AT,
+                EXPIRES_AT,
+                "p0-01"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("채팅 공유 동의");
+
+        assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.grantByPatient(
+                PATIENT_ID,
+                AppUserRole.PATIENT,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 GUARDIAN_ID,
                 AppUserRole.PATIENT,
@@ -77,6 +96,7 @@ class AdultPatientGuardianSharingPolicyTests {
         assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.grantByPatient(
                 PATIENT_ID,
                 AppUserRole.PATIENT,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
@@ -89,6 +109,7 @@ class AdultPatientGuardianSharingPolicyTests {
         assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.grantByPatient(
                 PATIENT_ID,
                 AppUserRole.PATIENT,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
@@ -101,6 +122,7 @@ class AdultPatientGuardianSharingPolicyTests {
         assertThatThrownBy(() -> AdultPatientGuardianSharingPolicy.grantByPatient(
                 PATIENT_ID,
                 AppUserRole.PATIENT,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
@@ -130,11 +152,21 @@ class AdultPatientGuardianSharingPolicyTests {
                 Optional.empty(),
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 REPORT,
                 CURRENT_POLICY_VERSION,
                 GRANTED_AT.plusSeconds(1));
         var wrongRole = evaluate(grant(), GUARDIAN_ID, AppUserRole.PATIENT, PATIENT_ID, REPORT,
+                GRANTED_AT.plusSeconds(1));
+        var wrongAppointment = AdultPatientGuardianSharingPolicy.evaluate(
+                Optional.of(grant()),
+                GUARDIAN_ID,
+                AppUserRole.GUARDIAN,
+                UUID.randomUUID(),
+                PATIENT_ID,
+                REPORT,
+                CURRENT_POLICY_VERSION,
                 GRANTED_AT.plusSeconds(1));
         var wrongPatient = evaluate(grant(), GUARDIAN_ID, AppUserRole.GUARDIAN, OTHER_USER_ID, REPORT,
                 GRANTED_AT.plusSeconds(1));
@@ -143,6 +175,7 @@ class AdultPatientGuardianSharingPolicyTests {
 
         assertThat(missing.reason()).isEqualTo(GRANT_MISSING);
         assertThat(wrongRole.reason()).isEqualTo(REQUESTER_NOT_GUARDIAN);
+        assertThat(wrongAppointment.reason()).isEqualTo(APPOINTMENT_MISMATCH);
         assertThat(wrongPatient.reason()).isEqualTo(PATIENT_MISMATCH);
         assertThat(wrongGuardian.reason()).isEqualTo(GUARDIAN_MISMATCH);
     }
@@ -153,6 +186,7 @@ class AdultPatientGuardianSharingPolicyTests {
                 Optional.of(grant()),
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 REPORT,
                 "test-policy-v2",
@@ -168,6 +202,7 @@ class AdultPatientGuardianSharingPolicyTests {
                 Optional.of(grant()),
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 REPORT,
                 "  ",
@@ -223,6 +258,7 @@ class AdultPatientGuardianSharingPolicyTests {
         return AdultPatientGuardianSharingPolicy.grantByPatient(
                 PATIENT_ID,
                 AppUserRole.PATIENT,
+                APPOINTMENT_ID,
                 PATIENT_ID,
                 GUARDIAN_ID,
                 AppUserRole.GUARDIAN,
@@ -243,6 +279,7 @@ class AdultPatientGuardianSharingPolicyTests {
                 Optional.of(grant),
                 requesterUserId,
                 requesterRole,
+                APPOINTMENT_ID,
                 patientUserId,
                 scope,
                 CURRENT_POLICY_VERSION,

@@ -1,5 +1,6 @@
 package com.bodeul.core.appointment;
 
+import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -18,6 +19,9 @@ class DefaultAppointmentServiceWiringTests {
             context.registerBean(
                     AppUserProfileRepository.class,
                     () -> mock(AppUserProfileRepository.class));
+            context.registerBean(
+                    GuardianSharingConsentAccess.class,
+                    () -> mock(GuardianSharingConsentAccess.class));
             context.register(DefaultAppointmentService.class);
 
             context.refresh();

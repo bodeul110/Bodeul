@@ -61,7 +61,6 @@ service cloud.firestore {
           && (
             isAdmin()
             || appointmentDoc(appointmentRequestId).data.patientUserId == request.auth.uid
-            || appointmentDoc(appointmentRequestId).data.guardianUserId == request.auth.uid
             || appointmentDoc(appointmentRequestId).data.managerUserId == request.auth.uid
           );
     }
@@ -81,7 +80,6 @@ service cloud.firestore {
             isAdmin()
             || sessionDoc(sessionId).data.managerUserId == request.auth.uid
             || sessionDoc(sessionId).data.patientUserId == request.auth.uid
-            || sessionDoc(sessionId).data.guardianUserId == request.auth.uid
           );
     }
 
@@ -95,7 +93,6 @@ service cloud.firestore {
           && (
             isAdmin()
             || resource.data.patientUserId == request.auth.uid
-            || resource.data.guardianUserId == request.auth.uid
             || resource.data.managerUserId == request.auth.uid
           );
     }
@@ -106,7 +103,6 @@ service cloud.firestore {
             isAdmin()
             || resource.data.managerUserId == request.auth.uid
             || resource.data.patientUserId == request.auth.uid
-            || resource.data.guardianUserId == request.auth.uid
           );
     }
 
@@ -155,7 +151,7 @@ service cloud.firestore {
     }
 
     match /appointmentRequests/{appointmentRequestId} {
-      // 매니저 대시보드와 후속 화면에서 참조가 많아 개발 중에는 로그인 사용자 읽기를 허용한다.
+      // 보호자 동의는 PostgreSQL/Core API에서만 판정하므로 관계만 있는 보호자의 직접 읽기는 거부한다.
       allow read: if canReadAppointmentRequest();
 
       // 예약 원본은 PostgreSQL이며 Firestore는 전환 기간의 읽기 전용 비교 자료로만 유지한다.
@@ -165,7 +161,7 @@ service cloud.firestore {
     }
 
     match /companionSessions/{sessionId} {
-      // 세션 조회는 쿼리 기반으로 이루어져 개발 중에는 로그인 사용자 읽기를 허용한다.
+      // 보호자는 Core API의 범위별 동의 판정을 거쳐야 하므로 기존 비교 문서를 직접 읽지 않는다.
       allow read: if canReadCompanionSession();
 
       // 세션과 채팅·위치·읽음 원본은 PostgreSQL이며 기존 문서는 전환 비교용 읽기만 허용한다.
@@ -181,7 +177,7 @@ service cloud.firestore {
     }
 
     match /sessionReports/{reportId} {
-      // 리포트도 화면 결합도가 높아 개발 단계에서는 로그인 사용자 읽기를 허용한다.
+      // 리포트 보호자 열람은 Core API의 REPORT 동의 범위에서만 허용한다.
       allow read: if canReadSessionReport();
 
       // 리포트 원본은 PostgreSQL이며 Firestore는 읽기 전용 비교 자료로만 유지한다.

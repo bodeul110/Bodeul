@@ -324,6 +324,11 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
         if (detail.getSession() == null) {
             return;
         }
+        if (user.getRole() == UserRole.GUARDIAN) {
+            realtimeSubscriber.stop();
+            subscribedSessionId = "";
+            return;
+        }
         String sessionId = detail.getSession().getRealtimeSessionId();
         if (sessionId.equals(subscribedSessionId)) {
             return;
