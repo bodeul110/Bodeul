@@ -87,11 +87,11 @@ psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --command "update bodeul.companion_sessions set manager_journal = 'baseline 변조' where id = '30000000-0000-0000-0000-000000000001'"
 expect_rollback_failure "baseline 이후 변경"
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
-    --command "update bodeul.companion_sessions set manager_journal = '' where id = '30000000-0000-0000-0000-000000000001'"
+    --command "update bodeul.companion_sessions as session set current_status = 'COMPLETED', completed_at = baseline.expected_completed_at, care_ended_at = baseline.expected_care_ended_at, manager_journal = '', report_generation_status = baseline.expected_report_generation_status, report_generation_attempts = baseline.expected_report_generation_attempts, report_generation_last_error = baseline.expected_report_generation_last_error, report_generation_updated_at = baseline.expected_report_generation_updated_at from bodeul.companion_completion_v18_baseline as baseline where session.id = baseline.companion_session_id and session.id = '30000000-0000-0000-0000-000000000001'"
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --command "update bodeul.companion_sessions set current_status = 'PAYMENT', care_ended_at = null, manager_journal = '', report_generation_status = 'NOT_REQUESTED', report_generation_attempts = 0, report_generation_last_error = '', report_generation_updated_at = null where id = '30000000-0000-0000-0000-000000000001'"
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --command "delete from bodeul.companion_completion_v18_baseline where companion_session_id = '30000000-0000-0000-0000-000000000001'"
-psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
-    --command "update bodeul.companion_sessions set care_ended_at = null, manager_journal = '', report_generation_status = 'NOT_REQUESTED', report_generation_attempts = 0, report_generation_last_error = '', report_generation_updated_at = null where id = '30000000-0000-0000-0000-000000000001'"
 
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --command "update bodeul.companion_sessions set care_ended_at = now() where id = '30000000-0000-0000-0000-000000000001'"
@@ -115,7 +115,7 @@ psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --command "update bodeul.companion_sessions set current_status = 'CARE_ENDED', care_ended_at = now(), report_generation_updated_at = null where id = '30000000-0000-0000-0000-000000000001'"
 expect_rollback_failure "CARE_ENDED"
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
-    --command "update bodeul.companion_sessions set current_status = 'COMPLETED', care_ended_at = null where id = '30000000-0000-0000-0000-000000000001'"
+    --command "update bodeul.companion_sessions set current_status = 'PAYMENT', care_ended_at = null where id = '30000000-0000-0000-0000-000000000001'"
 
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/rollback/V18__merge_companion_care_completion.sql
