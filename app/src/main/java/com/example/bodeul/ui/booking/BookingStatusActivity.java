@@ -47,6 +47,7 @@ public class BookingStatusActivity extends AppCompatActivity {
     private ProgressBar progressBookingStatus;
     private MaterialButton buttonPrimary;
     private MaterialButton buttonSecondary;
+    private MaterialButton buttonGuardianSharingConsent;
 
     private User currentUser;
     private AppointmentRequestDetail currentDetail;
@@ -79,6 +80,8 @@ public class BookingStatusActivity extends AppCompatActivity {
         progressBookingStatus = findViewById(R.id.progressBookingStatus);
         buttonPrimary = findViewById(R.id.buttonBookingStatusPrimary);
         buttonSecondary = findViewById(R.id.buttonBookingStatusSecondary);
+        buttonGuardianSharingConsent = findViewById(
+                R.id.buttonBookingStatusGuardianSharingConsent);
 
         bookingStatusBinder = new BookingStatusBinder(
                 this,
@@ -110,6 +113,7 @@ public class BookingStatusActivity extends AppCompatActivity {
         buttonSecondary.setOnClickListener(view -> handleAction(
                 currentScreenModel == null ? null : currentScreenModel.getSecondaryAction()
         ));
+        buttonGuardianSharingConsent.setOnClickListener(view -> openGuardianSharingConsent());
         bookingStatusContentContainer.setVisibility(View.GONE);
     }
 
@@ -206,6 +210,10 @@ public class BookingStatusActivity extends AppCompatActivity {
                 followUpRecord
         );
         bookingStatusBinder.bindScreen(currentScreenModel);
+        buttonGuardianSharingConsent.setVisibility(
+                currentUser != null && currentUser.getRole() == UserRole.PATIENT
+                        ? View.VISIBLE
+                        : View.GONE);
         bookingStatusContentContainer.setVisibility(View.VISIBLE);
         hideBlockingState();
         setLoading(false);
@@ -213,6 +221,11 @@ public class BookingStatusActivity extends AppCompatActivity {
 
     private void handleAction(@Nullable BookingStatusActionModel actionModel) {
         if (actionModel == null || currentDetail == null) {
+            return;
+        }
+        if (currentUser == null || !BookingMutationPolicy.isStatusActionAllowed(
+                currentUser.getRole(), actionModel.getActionType())) {
+            showGuardianMutationBlockedDialog();
             return;
         }
         switch (actionModel.getActionType()) {
@@ -264,11 +277,20 @@ public class BookingStatusActivity extends AppCompatActivity {
             return;
         }
 
+        if (!BookingMutationPolicy.isAllowed(
+                currentUser.getRole(), BookingMutationPolicy.Operation.CANCEL)) {
+            showGuardianMutationBlockedDialog();
+            return;
+        }
+
         setLoading(true);
-        bookingRepository.cancelAppointmentRequest(
-                currentUser,
-                currentDetail.getAppointmentRequest().getId(),
-                new RepositoryCallback<AppointmentRequest>() {
+        BookingMutationPolicy.runIfAllowed(
+                currentUser.getRole(),
+                BookingMutationPolicy.Operation.CANCEL,
+                () -> bookingRepository.cancelAppointmentRequest(
+                        currentUser,
+                        currentDetail.getAppointmentRequest().getId(),
+                        new RepositoryCallback<AppointmentRequest>() {
                     @Override
                     public void onSuccess(AppointmentRequest result) {
                         setLoading(false);
@@ -280,8 +302,16 @@ public class BookingStatusActivity extends AppCompatActivity {
                         setLoading(false);
                         showLoadErrorState(message);
                     }
-                }
-        );
+                        }
+                ));
+    }
+
+    private void showGuardianMutationBlockedDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.booking_guardian_creation_blocked_title)
+                .setMessage(R.string.booking_guardian_creation_blocked_body)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     private void openGuardianReport() {
@@ -312,10 +342,22 @@ public class BookingStatusActivity extends AppCompatActivity {
         startActivity(new Intent(this, BookingActivity.class));
     }
 
+    private void openGuardianSharingConsent() {
+        if (currentDetail == null || currentUser == null
+                || currentUser.getRole() != UserRole.PATIENT) {
+            return;
+        }
+        startActivity(GuardianSharingConsentActivity.createIntent(
+                this,
+                currentDetail.getAppointmentRequest().getId()
+        ));
+    }
+
     private void setLoading(boolean loading) {
         progressBookingStatus.setVisibility(loading ? View.VISIBLE : View.GONE);
         buttonPrimary.setEnabled(!loading);
         buttonSecondary.setEnabled(!loading);
+        buttonGuardianSharingConsent.setEnabled(!loading);
     }
 
     private void showPermissionState() {

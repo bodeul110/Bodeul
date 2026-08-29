@@ -20,6 +20,7 @@ public final class AdultPatientGuardianSharingPolicy {
     public static Grant grantByPatient(
             UUID actorUserId,
             AppUserRole actorRole,
+            UUID appointmentRequestId,
             UUID patientUserId,
             UUID guardianUserId,
             AppUserRole guardianRole,
@@ -28,6 +29,7 @@ public final class AdultPatientGuardianSharingPolicy {
             Instant expiresAt,
             String policyVersion) {
         requirePatientActor(actorUserId, actorRole, patientUserId);
+        Objects.requireNonNull(appointmentRequestId, "예약 식별자가 필요합니다.");
         Objects.requireNonNull(guardianUserId, "보호자 식별자가 필요합니다.");
         if (guardianRole != AppUserRole.GUARDIAN) {
             throw new IllegalArgumentException("보호자 역할 계정만 정보공유 대상으로 지정할 수 있습니다.");
@@ -38,6 +40,7 @@ public final class AdultPatientGuardianSharingPolicy {
 
         return new Grant(
                 UUID.randomUUID(),
+                appointmentRequestId,
                 patientUserId,
                 guardianUserId,
                 scopes,
@@ -67,6 +70,7 @@ public final class AdultPatientGuardianSharingPolicy {
 
         return new Grant(
                 grant.id(),
+                grant.appointmentRequestId(),
                 grant.patientUserId(),
                 grant.guardianUserId(),
                 grant.scopes(),
@@ -83,6 +87,7 @@ public final class AdultPatientGuardianSharingPolicy {
             Optional<Grant> candidate,
             UUID requesterUserId,
             AppUserRole requesterRole,
+            UUID appointmentRequestId,
             UUID patientUserId,
             InformationScope scope,
             String currentPolicyVersion,
@@ -90,6 +95,7 @@ public final class AdultPatientGuardianSharingPolicy {
         Objects.requireNonNull(candidate, "동의 조회 결과가 필요합니다.");
         Objects.requireNonNull(requesterUserId, "요청자 식별자가 필요합니다.");
         Objects.requireNonNull(requesterRole, "요청자 역할이 필요합니다.");
+        Objects.requireNonNull(appointmentRequestId, "예약 식별자가 필요합니다.");
         Objects.requireNonNull(patientUserId, "환자 식별자가 필요합니다.");
         Objects.requireNonNull(scope, "정보 범위가 필요합니다.");
         String normalizedCurrentPolicyVersion = normalizePolicyVersion(currentPolicyVersion);
@@ -102,6 +108,9 @@ public final class AdultPatientGuardianSharingPolicy {
         Grant grant = candidate.orElseThrow();
         if (requesterRole != AppUserRole.GUARDIAN) {
             return Decision.denied(DecisionReason.REQUESTER_NOT_GUARDIAN);
+        }
+        if (!grant.appointmentRequestId().equals(appointmentRequestId)) {
+            return Decision.denied(DecisionReason.APPOINTMENT_MISMATCH);
         }
         if (!grant.patientUserId().equals(patientUserId)) {
             return Decision.denied(DecisionReason.PATIENT_MISMATCH);
@@ -158,6 +167,7 @@ public final class AdultPatientGuardianSharingPolicy {
         ALLOWED,
         GRANT_MISSING,
         REQUESTER_NOT_GUARDIAN,
+        APPOINTMENT_MISMATCH,
         PATIENT_MISMATCH,
         GUARDIAN_MISMATCH,
         POLICY_VERSION_MISMATCH,
@@ -187,6 +197,7 @@ public final class AdultPatientGuardianSharingPolicy {
 
     public record Grant(
             UUID id,
+            UUID appointmentRequestId,
             UUID patientUserId,
             UUID guardianUserId,
             Set<InformationScope> scopes,
@@ -200,6 +211,7 @@ public final class AdultPatientGuardianSharingPolicy {
 
         public Grant {
             Objects.requireNonNull(id, "동의 식별자가 필요합니다.");
+            Objects.requireNonNull(appointmentRequestId, "예약 식별자가 필요합니다.");
             Objects.requireNonNull(patientUserId, "환자 식별자가 필요합니다.");
             Objects.requireNonNull(guardianUserId, "보호자 식별자가 필요합니다.");
             if (patientUserId.equals(guardianUserId)) {
@@ -209,6 +221,10 @@ public final class AdultPatientGuardianSharingPolicy {
             scopes = Set.copyOf(scopes);
             if (scopes.isEmpty()) {
                 throw new IllegalArgumentException("하나 이상의 정보 범위를 선택해야 합니다.");
+            }
+            if (scopes.contains(InformationScope.ATTACHMENT)
+                    && !scopes.contains(InformationScope.CHAT)) {
+                throw new IllegalArgumentException("첨부 파일 공유에는 채팅 공유 동의가 함께 필요합니다.");
             }
             policyVersion = normalizePolicyVersion(policyVersion);
             Objects.requireNonNull(grantedByUserId, "동의 행위자 식별자가 필요합니다.");

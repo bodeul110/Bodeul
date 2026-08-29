@@ -42,6 +42,7 @@ public final class BookingFollowUpCoordinator {
             AppointmentFollowUpRecord followUpRecord
     ) {
         AppointmentRequest request = detail.getAppointmentRequest();
+        boolean writable = currentUser.getRole() == UserRole.PATIENT;
         AppointmentFollowUpReviewRating effectiveRating = selectedRating != null
                 ? selectedRating
                 : followUpRecord.getReviewRating();
@@ -62,13 +63,13 @@ public final class BookingFollowUpCoordinator {
                 context.getString(followUpRecord.hasSavedReview()
                         ? R.string.booking_follow_up_review_action_update
                         : R.string.booking_follow_up_review_action_save),
-                selectedRating != null,
+                writable && selectedRating != null,
                 createSettlementLines(detail, followUpRecord),
                 buildSettlementSavedState(followUpRecord),
                 context.getString(R.string.booking_follow_up_settlement_action_confirm),
-                true,
+                writable,
                 context.getString(R.string.booking_follow_up_settlement_action_help),
-                true,
+                writable,
                 context.getString(R.string.booking_follow_up_emergency_title),
                 buildEmergencyBody(detail),
                 createEmergencyLines(currentUser, detail),

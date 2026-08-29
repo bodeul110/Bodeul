@@ -9,6 +9,8 @@ import java.util.stream.IntStream;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope;
+import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -48,13 +50,19 @@ class DefaultCompanionSessionServiceTests {
     private FakeCompanionSessionRepository repository;
     private DefaultCompanionSessionService service;
     private List<Object> events;
+    private RecordingConsentAccess consentAccess;
 
     @BeforeEach
     void setUp() {
         repository = new FakeCompanionSessionRepository();
         events = new ArrayList<>();
+        consentAccess = new RecordingConsentAccess();
         repository.session = Optional.of(session("IN_TREATMENT", 2, 5, 3));
-        service = new DefaultCompanionSessionService(repository, events::add, properties(false));
+        service = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                properties(false),
+                consentAccess);
     }
 
     @Test
@@ -167,7 +175,11 @@ class DefaultCompanionSessionServiceTests {
                 hospitalGuideSnapshot(steps),
                 false));
         DefaultCompanionSessionService enforcedService =
-                new DefaultCompanionSessionService(repository, events::add, properties(true));
+                new DefaultCompanionSessionService(
+                        repository,
+                        events::add,
+                        properties(true),
+                        (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true);
 
         var blocked = enforcedService.getSession(manager(), SESSION_ID);
 
@@ -339,6 +351,8 @@ class DefaultCompanionSessionServiceTests {
                     reportCommand(lastStep.version()));
             assertThat(report.summary()).isEqualTo("전체 단계 회귀 검증 완료");
             assertThat(repository.lastReport).isNotNull();
+            assertThat(consentAccess.finalizedAppointmentId).isEqualTo(APPOINTMENT_ID);
+            assertThat(consentAccess.careEndedAt).isNotNull();
 
             var completed = service.getSession(manager(), SESSION_ID);
             assertThat(completed.currentStatus()).isEqualTo("COMPLETED");
@@ -563,6 +577,22 @@ class DefaultCompanionSessionServiceTests {
     }
 
     @Test
+    void guardianRelationshipWithoutAppointmentConsentIsRejected() {
+        var failClosedService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> false);
+
+        assertThatThrownBy(() -> failClosedService.getSession(
+                user(GUARDIAN_ID, AppUserRole.GUARDIAN),
+                SESSION_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
     void invalidLocationAlertStageIsRejected() {
         var command = new CompanionSessionService.UpdateSessionCommand(
                 3, null, null, null, null, null, null, null, null, null, null, "unexpected");
@@ -586,6 +616,24 @@ class DefaultCompanionSessionServiceTests {
                     assertThat(event.alertStage()).isEqualTo("hospital_near");
                     assertThat(event.recipientUserIds()).containsExactly(PATIENT_ID, GUARDIAN_ID);
                 });
+    }
+
+    @Test
+    void locationAlertDoesNotTargetRelatedGuardianWithoutLocationConsent() {
+        var failClosedService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> false);
+        var command = new CompanionSessionService.UpdateSessionCommand(
+                3, null, null, null, null, null, null, null, null, null, null, "hospital_near");
+
+        failClosedService.updateSession(manager(), SESSION_ID, command);
+
+        assertThat(events)
+                .singleElement()
+                .isInstanceOfSatisfying(CompanionLocationAlertChangedEvent.class, event ->
+                        assertThat(event.recipientUserIds()).containsExactly(PATIENT_ID));
     }
 
     private AppUserRepository.AppUser manager() {
@@ -897,8 +945,32 @@ class DefaultCompanionSessionServiceTests {
                     current.locationAlertSentAt(),
                     version,
                     current.startedAt(),
-                    current.completedAt(),
+                    "COMPLETED".equals(status) ? Instant.parse("2026-08-29T08:00:00Z")
+                            : current.completedAt(),
                     current.canceledAt());
+        }
+    }
+
+    private static final class RecordingConsentAccess implements GuardianSharingConsentAccess {
+        private UUID finalizedAppointmentId;
+        private Instant careEndedAt;
+
+        @Override
+        public boolean isAllowed(
+                AppUserRepository.AppUser appUser,
+                UUID appointmentRequestId,
+                UUID patientUserId,
+                UUID guardianUserId,
+                InformationScope scope) {
+            return true;
+        }
+
+        @Override
+        public void finalizeExpiryAfterCareBoundary(
+                UUID appointmentRequestId,
+                Instant careEndedAt) {
+            this.finalizedAppointmentId = appointmentRequestId;
+            this.careEndedAt = careEndedAt;
         }
     }
 }

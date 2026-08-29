@@ -1,5 +1,7 @@
 package com.example.bodeul.ui.chat;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
@@ -28,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class CompanionChatViewModel extends ViewModel {
+    private static final long GUARDIAN_POLL_INTERVAL_MILLIS = 15_000L;
 
     public enum StatePanelType {
         NONE,
@@ -115,6 +118,19 @@ public class CompanionChatViewModel extends ViewModel {
     private final CompanionChatAttachmentUploader attachmentUploader;
     private final CompanionChatCoordinator coordinator;
     private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
+    private final Handler pollingHandler = new Handler(Looper.getMainLooper());
+    private final Runnable guardianPolling = new Runnable() {
+        @Override
+        public void run() {
+            User user = currentUser;
+            if (user == null
+                    || user.getRole() != UserRole.GUARDIAN
+                    || TextUtils.isEmpty(requestId)) {
+                return;
+            }
+            loadBookingDetail(user);
+        }
+    };
 
     @Nullable
     private User currentUser;
@@ -263,6 +279,7 @@ public class CompanionChatViewModel extends ViewModel {
             public void onError(String message) {
                 currentSessionId = "";
                 uiState.setValue(UiState.panel(StatePanelType.LOAD_ERROR, message, true));
+                scheduleGuardianPolling();
             }
         });
     }
@@ -439,11 +456,28 @@ public class CompanionChatViewModel extends ViewModel {
     }
 
     private void ensureRealtimeSubscription(String realtimeSessionId) {
+        User user = currentUser;
+        if (user != null && user.getRole() == UserRole.GUARDIAN) {
+            realtimeSubscriber.stop();
+            subscribedSessionId = "";
+            scheduleGuardianPolling();
+            return;
+        }
+        pollingHandler.removeCallbacks(guardianPolling);
         if (TextUtils.isEmpty(realtimeSessionId) || realtimeSessionId.equals(subscribedSessionId)) {
             return;
         }
         subscribedSessionId = realtimeSessionId;
         realtimeSubscriber.subscribe(realtimeSessionId, this::refreshFromRealtime);
+    }
+
+    private void scheduleGuardianPolling() {
+        User user = currentUser;
+        if (user == null || user.getRole() != UserRole.GUARDIAN) {
+            return;
+        }
+        pollingHandler.removeCallbacks(guardianPolling);
+        pollingHandler.postDelayed(guardianPolling, GUARDIAN_POLL_INTERVAL_MILLIS);
     }
 
     private void refreshFromRealtime() {
@@ -460,6 +494,7 @@ public class CompanionChatViewModel extends ViewModel {
 
     @Override
     protected void onCleared() {
+        pollingHandler.removeCallbacks(guardianPolling);
         realtimeSubscriber.stop();
         super.onCleared();
     }

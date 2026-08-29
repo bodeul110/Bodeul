@@ -14,6 +14,7 @@ import com.example.bodeul.data.coreapi.CoreApiBookingRepository;
 import com.example.bodeul.data.coreapi.CoreApiCompanionChatAttachmentPreviewResolver;
 import com.example.bodeul.data.coreapi.CoreApiCompanionChatAttachmentUploader;
 import com.example.bodeul.data.coreapi.CoreApiGuardianReportRepository;
+import com.example.bodeul.data.coreapi.CoreApiGuardianSharingConsentRepository;
 import com.example.bodeul.data.coreapi.CoreApiManagerRepository;
 import com.example.bodeul.data.mock.MockAdminRepository;
 import com.example.bodeul.data.mock.MockAuthRepository;
@@ -21,6 +22,7 @@ import com.example.bodeul.data.mock.MockCompanionChatAttachmentPreviewResolver;
 import com.example.bodeul.data.mock.MockCompanionChatAttachmentUploader;
 import com.example.bodeul.data.mock.MockBookingRepository;
 import com.example.bodeul.data.mock.MockGuardianReportRepository;
+import com.example.bodeul.data.mock.MockGuardianSharingConsentRepository;
 import com.example.bodeul.data.mock.MockManagerDocumentPreviewResolver;
 import com.example.bodeul.data.mock.MockManagerDocumentStorageUploader;
 import com.example.bodeul.data.mock.MockManagerRepository;
@@ -39,6 +41,7 @@ public final class ServiceLocator {
     private static AuthRepository authRepository;
     private static BookingRepository bookingRepository;
     private static GuardianReportRepository guardianReportRepository;
+    private static GuardianSharingConsentRepository guardianSharingConsentRepository;
     private static ClientSupportRepository clientSupportRepository;
     private static NotificationTokenRegistrar notificationTokenRegistrar;
     private static ManagerRepository managerRepository;
@@ -169,6 +172,20 @@ public final class ServiceLocator {
             }
         }
         return guardianReportRepository;
+    }
+
+    public static synchronized GuardianSharingConsentRepository provideGuardianSharingConsentRepository(
+            Context context
+    ) {
+        if (guardianSharingConsentRepository == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                guardianSharingConsentRepository = new CoreApiGuardianSharingConsentRepository(
+                        context.getApplicationContext());
+            } else {
+                guardianSharingConsentRepository = new MockGuardianSharingConsentRepository();
+            }
+        }
+        return guardianSharingConsentRepository;
     }
 
     public static synchronized ClientSupportRepository provideClientSupportRepository(Context context) {

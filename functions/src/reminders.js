@@ -2,6 +2,10 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {
+  canUsePatientRequesterPhoneFallback,
+  resolveLegacyReminderRecipientUserIds,
+} = require("./guardian-delivery-policy");
 
 const HTTP_FUNCTIONS_OPTIONS = {
   region: "asia-northeast3",
@@ -220,7 +224,7 @@ async function deliverReminderJob(firestore, reminderJob, source) {
       return REMINDER_SKIPPED_STATE;
     }
 
-    const recipientPhones = await resolveRecipientPhones(firestore, reminderJob, appointmentData);
+    const recipientPhones = await resolveRecipientPhones(firestore, appointmentData);
     if (recipientPhones.length === 0) {
       await markReminderJobSkipped(firestore, reminderJob.id, "recipient_phone_missing");
       return REMINDER_SKIPPED_STATE;
@@ -293,13 +297,8 @@ function resolveReminderSkipReason(reminderJob, appointmentData, now) {
   return "";
 }
 
-async function resolveRecipientPhones(firestore, reminderJob, appointmentData) {
-  const candidateUserIds = Array.from(new Set([
-    ...toStringArray(reminderJob.recipientUserIds),
-    sanitizeText(appointmentData.patientUserId),
-    sanitizeText(appointmentData.guardianUserId),
-    sanitizeText(appointmentData.requesterUserId),
-  ].filter(Boolean)));
+async function resolveRecipientPhones(firestore, appointmentData) {
+  const candidateUserIds = resolveLegacyReminderRecipientUserIds(appointmentData);
 
   const phoneNumbers = new Set();
   await Promise.all(candidateUserIds.map(async (userId) => {
@@ -313,7 +312,9 @@ async function resolveRecipientPhones(firestore, reminderJob, appointmentData) {
     }
   }));
 
-  const fallbackRequesterPhone = normalizePhoneNumber(appointmentData.requesterPhone);
+  const fallbackRequesterPhone = canUsePatientRequesterPhoneFallback(appointmentData)
+    ? normalizePhoneNumber(appointmentData.requesterPhone)
+    : "";
   if (phoneNumbers.size === 0 && fallbackRequesterPhone) {
     phoneNumbers.add(fallbackRequesterPhone);
   }
@@ -541,11 +542,7 @@ function buildReminderJobDocument({
 }
 
 function buildRecipientUserIds(appointmentData) {
-  return Array.from(new Set([
-    sanitizeText(appointmentData.patientUserId),
-    sanitizeText(appointmentData.guardianUserId),
-    sanitizeText(appointmentData.requesterUserId),
-  ].filter(Boolean)));
+  return resolveLegacyReminderRecipientUserIds(appointmentData);
 }
 
 function buildReminderMessagePreview(stageKey, appointmentData, appointmentDate) {

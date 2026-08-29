@@ -102,3 +102,24 @@
 
 - `users` 직접 읽기는 이제 본인과 관리자만 가능하다.
 - 향후 타 사용자 프로필을 더 노출해야 하는 화면이 생기면 Firestore 규칙을 다시 넓히지 말고, 같은 방식으로 요청 문서 스냅샷 또는 Functions 중계를 추가하는 쪽으로 가야 한다.
+
+## 2026-08-29 보호자 동의 경계 정리
+
+### 반영한 내용
+
+- 예약·세션·리포트·후속 처리의 운영 원본이 PostgreSQL로 전환된 상태에서 기존 Firestore 문서를 보호자 관계만으로 읽지 못하게 했다.
+- `appointmentRequests`, `companionSessions`, `sessionReports`, `appointmentFollowUps`의 보호자 직접 읽기를 거부했다.
+- `companion-chat-attachments` Storage 경로의 보호자 직접 읽기·쓰기를 거부했다.
+- 보호자는 Spring Core API가 PostgreSQL의 예약별 `APPOINTMENT`, `CHAT`, `ATTACHMENT`, `REPORT`, `LOCATION` 동의를 판정한 결과만 사용한다.
+- 사용자 본인 프로필과 본인 지원 문의 규칙은 기존 최소권한을 유지하며 보호자 관계를 교차 프로필 열람 근거로 사용하지 않는다.
+
+### 검증
+
+- Rules emulator에서 관계만 있는 보호자의 예약·세션·리포트·후속 처리 읽기 실패를 확인했다.
+- Rules emulator에서 관계만 있는 보호자의 채팅 첨부 읽기·쓰기 실패를 확인했다.
+- 환자·배정 매니저·관리자의 기존 허용 경계와 모든 클라이언트 업무 쓰기 차단을 함께 확인했다.
+
+### 남은 범위
+
+- Rules 배포 전후 실제 보호자 계정으로 직접 접근 거부와 Core API 동의 후 정상 조회를 함께 확인해야 한다.
+- 이번 변경은 개발·production Firebase에 배포하지 않았다.

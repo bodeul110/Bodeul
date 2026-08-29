@@ -89,8 +89,8 @@ public final class BookingRequestCardBinder {
 
         cardView.setStrokeColor(ContextCompat.getColor(context, resolveStatusStrokeColor(request.getStatus())));
         requestView.setOnClickListener(view -> actionListener.onOpenRequest(request));
-        boolean editable = canEditRequest(request);
-        boolean cancelable = canCancelRequest(request);
+        boolean editable = canEditRequest(request, currentUserRole);
+        boolean cancelable = canCancelRequest(request, currentUserRole);
         if (editable || cancelable) {
             actionsView.setVisibility(View.VISIBLE);
             editButton.setVisibility(editable ? View.VISIBLE : View.GONE);
@@ -172,13 +172,15 @@ public final class BookingRequestCardBinder {
         );
     }
 
-    private boolean canEditRequest(AppointmentRequest request) {
-        return request.getStatus() == AppointmentStatus.REQUESTED;
+    private boolean canEditRequest(AppointmentRequest request, UserRole currentUserRole) {
+        return currentUserRole == UserRole.PATIENT
+                && request.getStatus() == AppointmentStatus.REQUESTED;
     }
 
-    private boolean canCancelRequest(AppointmentRequest request) {
-        return request.getStatus() == AppointmentStatus.REQUESTED
-                || request.getStatus() == AppointmentStatus.MATCHED;
+    private boolean canCancelRequest(AppointmentRequest request, UserRole currentUserRole) {
+        return currentUserRole == UserRole.PATIENT
+                && (request.getStatus() == AppointmentStatus.REQUESTED
+                || request.getStatus() == AppointmentStatus.MATCHED);
     }
 
     private void updateRequestActionMargins(

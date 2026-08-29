@@ -156,6 +156,9 @@ public class BookingFollowUpActivity extends AppCompatActivity
 
     @Override
     public void onSelectRating(AppointmentFollowUpReviewRating rating) {
+        if (!canMutateFollowUp()) {
+            return;
+        }
         selectedRating = rating;
         bindScreen(currentFollowUpRecord);
     }
@@ -262,7 +265,7 @@ public class BookingFollowUpActivity extends AppCompatActivity
     }
 
     private void saveReviewSelection() {
-        if (TextUtils.isEmpty(requestId) || selectedRating == null || currentUser == null) {
+        if (TextUtils.isEmpty(requestId) || selectedRating == null || !canMutateFollowUp()) {
             return;
         }
         setLoading(true);
@@ -293,7 +296,7 @@ public class BookingFollowUpActivity extends AppCompatActivity
     }
 
     private void saveSettlementSelection(AppointmentFollowUpSettlementStatus status) {
-        if (TextUtils.isEmpty(requestId) || currentUser == null || currentDetail == null) {
+        if (TextUtils.isEmpty(requestId) || currentDetail == null || !canMutateFollowUp()) {
             return;
         }
         setLoading(true);
@@ -351,7 +354,7 @@ public class BookingFollowUpActivity extends AppCompatActivity
     }
 
     private void recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus escalationStatus) {
-        if (TextUtils.isEmpty(requestId) || currentUser == null) {
+        if (TextUtils.isEmpty(requestId) || !canMutateFollowUp()) {
             return;
         }
         bookingRepository.saveAppointmentFollowUpSupportEscalation(
@@ -474,12 +477,17 @@ public class BookingFollowUpActivity extends AppCompatActivity
 
     private void setLoading(boolean loading) {
         progressBookingFollowUp.setVisibility(loading ? View.VISIBLE : View.GONE);
-        buttonReviewSave.setEnabled(!loading && selectedRating != null);
-        buttonSettlementConfirm.setEnabled(!loading);
-        buttonSettlementHelp.setEnabled(!loading);
+        boolean writable = !loading && canMutateFollowUp();
+        buttonReviewSave.setEnabled(writable && selectedRating != null);
+        buttonSettlementConfirm.setEnabled(writable);
+        buttonSettlementHelp.setEnabled(writable);
         buttonCallManager.setEnabled(!loading && currentDetail != null
                 && currentDetail.getManager() != null
                 && !TextUtils.isEmpty(currentDetail.getManager().getPhone()));
+    }
+
+    private boolean canMutateFollowUp() {
+        return currentUser != null && currentUser.getRole() == UserRole.PATIENT;
     }
 
     private void showUnavailableState() {

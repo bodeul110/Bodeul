@@ -77,22 +77,22 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 
 | endpoint | 읽기·쓰기 주체 | 처리 |
 | --- | --- | --- |
-| `GET /api/companion-sessions` | 환자·보호자·매니저 | 본인 참여 또는 본인 배정 세션 최대 100건 |
-| `GET /api/companion-sessions/{id}` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 세션 조회 |
+| `GET /api/companion-sessions` | 환자·보호자·매니저 | 보호자는 `APPOINTMENT` 동의가 있는 세션만 포함 |
+| `GET /api/companion-sessions/{id}` | 환자·보호자·매니저 | 보호자는 `APPOINTMENT` 동의 후 범위별 필드 마스킹 |
 | `PATCH /api/companion-sessions/{id}` | 배정 매니저 | 현장 메모·약국 진행 상태를 `version` 조건으로 부분 갱신 |
 | `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 고정 snapshot의 코드·순서·현재 범위와 `version`을 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
-| `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 참여자·배정 관계 확인 후 리포트 조회 |
+| `GET /api/companion-sessions/{id}/report` | 환자·보호자·매니저 | 보호자는 별도 `REPORT` 동의 필수 |
 | `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 리포트 upsert, 예약·세션 `COMPLETED`를 한 트랜잭션으로 반영 |
-| `GET /api/companion-sessions/{id}/realtime` | 환자·보호자·배정 매니저 | 최근 채팅·읽음과 진행 중 위치 snapshot 조회, Realtime 재연결 복구 |
-| `POST /api/companion-sessions/{id}/messages` JSON | 환자·보호자·배정 매니저 | 첨부 없는 메시지 또는 기존 Storage 객체의 metadata를 재시도 중복 없이 저장 |
-| `POST /api/companion-sessions/{id}/messages` multipart | 환자·보호자·배정 매니저 | 참여 관계 확인, 첨부 원본 저장과 메시지 metadata 저장. DB 실패 시 이번 요청이 생성한 객체를 보상 삭제 |
-| `GET /api/companion-sessions/{id}/attachments/{attachmentId}` | 환자·보호자·배정 매니저 | 참여 관계와 PostgreSQL 만료·삭제 상태를 확인한 뒤 `no-store`로 원본 반환 |
-| `PUT /api/companion-sessions/{id}/read-receipt` | 환자·보호자·배정 매니저 | 같은 세션 메시지 기준으로 읽음 위치를 앞으로만 갱신 |
+| `GET /api/companion-sessions/{id}/realtime` | 환자·보호자·배정 매니저 | 보호자는 `CHAT` 또는 `LOCATION` 중 허용 범위만 조회 |
+| `POST /api/companion-sessions/{id}/messages` JSON | 환자·보호자·배정 매니저 | 보호자는 `CHAT`, 첨부 metadata가 있으면 `ATTACHMENT`도 필수 |
+| `POST /api/companion-sessions/{id}/messages` multipart | 환자·보호자·배정 매니저 | 보호자는 `CHAT`과 `ATTACHMENT` 동의 뒤 서버 중계 업로드 |
+| `GET /api/companion-sessions/{id}/attachments/{attachmentId}` | 환자·보호자·배정 매니저 | 보호자는 `CHAT`·`ATTACHMENT`, 만료·삭제 상태를 모두 확인 |
+| `PUT /api/companion-sessions/{id}/read-receipt` | 환자·보호자·배정 매니저 | 보호자는 `CHAT` 동의 필수 |
 | `POST /api/companion-sessions/{id}/locations` | 배정 매니저 | 좌표·수집 시각·진행 상태 검증 후 최근 위치 기록 |
-| `GET /api/appointments/{id}/follow-up` | 환자·보호자·배정 매니저 | 예약 참여 관계 확인 후 후기·정산·긴급 지원 기록 조회. 미생성 상태는 `version=0`인 빈 응답 반환 |
-| `PATCH /api/appointments/{id}/follow-up` | 환자·보호자 | 완료 예약만 허용하고 `version` 조건으로 제공된 후속 필드만 생성·갱신 |
+| `GET /api/appointments/{id}/follow-up` | 환자·보호자·배정 매니저 | 보호자는 별도 `REPORT` 동의 필수 |
+| `PATCH /api/appointments/{id}/follow-up` | 환자·보호자 | 보호자는 `REPORT` 동의, 완료 상태와 `version` 필수 |
 
-환자·보호자의 예약 취소는 `REQUESTED`와 `MATCHED`에서만 허용한다. `MATCHED` 취소는 예약을 먼저 잠근 뒤 활성 세션을 `CANCELED`로 바꾸며, 세션 갱신이 실패하면 전체 트랜잭션을 rollback한다. 매니저는 배정된 예약 상세를 읽을 수 있지만 환자용 예약 생성·수정·취소 API는 사용할 수 없다.
+환자 본인의 예약 취소는 `REQUESTED`와 `MATCHED`에서만 허용한다. `MATCHED` 취소는 예약을 먼저 잠근 뒤 활성 세션을 `CANCELED`로 바꾸며, 세션 갱신이 실패하면 전체 트랜잭션을 rollback한다. 정보공유 동의는 대리권이 아니므로 보호자는 예약을 취소할 수 없다. 매니저는 배정된 예약 상세를 읽을 수 있지만 환자용 예약 생성·수정·취소 API는 사용할 수 없다.
 
 ## 권한 경계
 
@@ -110,8 +110,8 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - 예약·세션 진행·현장 메모·약국 상태·세션 리포트·예약 후속 처리는 Core API 응답을 화면 원본으로 사용한다.
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
-- 채팅, 첨부 원본·metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 첨부 미리보기는 인증된 API 응답을 앱 전용 단기 캐시에 저장한 뒤 `FileProvider` URI로 연다. 화면은 private Broadcast를 변경 신호로 받고 진입·재연결·이벤트 수신 때 Core API snapshot으로 복구한다.
-- Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 읽는다.
+- 채팅, 첨부 원본·metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 첨부 미리보기는 인증된 API 응답을 앱 전용 단기 캐시에 저장한 뒤 `FileProvider` URI로 연다. 환자·매니저 화면은 private Broadcast를 변경 신호로 받고 Core API snapshot으로 복구한다. 보호자 화면은 연결 권한 캐시로 철회 즉시성을 보장할 수 없어 Broadcast를 구독하지 않고 Core API polling만 사용한다.
+- Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 남고, 관계만 있는 보호자의 직접 읽기도 거부한다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
 - Core API는 세션에 고정된 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 반환한다. Android Core 경로는 이 snapshot을 Manager·Booking·Guardian 화면 원본으로 사용하고, `steps` 키가 없는 구버전 응답에만 기존 fallback을 사용한다.

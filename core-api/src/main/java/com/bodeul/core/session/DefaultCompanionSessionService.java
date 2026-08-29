@@ -17,6 +17,8 @@ import java.util.stream.Stream;
 
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope;
+import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import com.bodeul.core.session.CompanionSessionRepository.GuideSnapshotRecord;
 import com.bodeul.core.session.CompanionSessionRepository.GuideStepRecord;
 import com.bodeul.core.session.CompanionSessionRepository.ReportMutation;
@@ -50,14 +52,17 @@ class DefaultCompanionSessionService implements CompanionSessionService {
 
     private final CompanionSessionRepository sessionRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final GuardianSharingConsentAccess consentAccess;
     private final boolean preConsultationEnforcement;
 
     DefaultCompanionSessionService(
             CompanionSessionRepository sessionRepository,
             ApplicationEventPublisher eventPublisher,
-            CompanionSessionProperties properties) {
+            CompanionSessionProperties properties,
+            GuardianSharingConsentAccess consentAccess) {
         this.sessionRepository = sessionRepository;
         this.eventPublisher = eventPublisher;
+        this.consentAccess = consentAccess;
         this.preConsultationEnforcement = properties.isPreConsultationEnforcement();
     }
 
@@ -67,7 +72,8 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         requireReadableRole(appUser);
         return sessionRepository.findAllForUser(appUser.id(), appUser.role())
                 .stream()
-                .map(this::toView)
+                .filter(session -> canRead(appUser, session, InformationScope.APPOINTMENT))
+                .map(session -> toView(appUser, session))
                 .toList();
     }
 
@@ -76,8 +82,8 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     public SessionView getSession(AppUserRepository.AppUser appUser, UUID sessionId) {
         requireReadableRole(appUser);
         SessionRecord session = findSession(sessionId);
-        requireReader(appUser, session);
-        return toView(session);
+        requireReader(appUser, session, InformationScope.APPOINTMENT);
+        return toView(appUser, session);
     }
 
     @Override
@@ -125,12 +131,16 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                     updated.id(),
                     updated.appointmentRequestId(),
                     updated.locationAlertStage(),
-                    Stream.of(updated.patientUserId(), updated.guardianUserId())
+                    Stream.of(
+                                    updated.patientUserId(),
+                                    guardianHasScope(updated, InformationScope.LOCATION)
+                                            ? updated.guardianUserId()
+                                            : null)
                             .filter(Objects::nonNull)
                             .distinct()
                             .toList()));
         }
-        return toView(updated);
+        return toView(appUser, updated);
     }
 
     @Override
@@ -156,7 +166,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                         appUser.id(),
                         version,
                         existing.appointmentRequestId())
-                .map(this::toView)
+                .map(session -> toView(appUser, session))
                 .orElseThrow(CompanionSessionException::versionConflict);
     }
 
@@ -165,7 +175,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     public ReportView getReport(AppUserRepository.AppUser appUser, UUID sessionId) {
         requireReadableRole(appUser);
         SessionRecord session = findSession(sessionId);
-        requireReader(appUser, session);
+        requireReader(appUser, session, InformationScope.REPORT);
         return sessionRepository.findReportBySessionId(sessionId)
                 .map(this::toView)
                 .orElseThrow(CompanionSessionException::reportNotFound);
@@ -204,14 +214,17 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 parseNextVisitAt(nextVisitNote),
                 nextVisitNote);
 
-        return sessionRepository.completeWithReport(
+        CompanionSessionRepository.CompletionRecord completion = sessionRepository.completeWithReport(
                         sessionId,
                         appUser.id(),
                         command.version(),
                         existing.appointmentRequestId(),
                         report)
-                .map(completion -> toView(completion.report()))
                 .orElseThrow(CompanionSessionException::versionConflict);
+        consentAccess.finalizeExpiryAfterCareBoundary(
+                existing.appointmentRequestId(),
+                completion.session().completedAt());
+        return toView(completion.report());
     }
 
     private SessionRecord findSession(UUID sessionId) {
@@ -237,7 +250,10 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         }
     }
 
-    private void requireReader(AppUserRepository.AppUser appUser, SessionRecord session) {
+    private void requireReader(
+            AppUserRepository.AppUser appUser,
+            SessionRecord session,
+            InformationScope scope) {
         UUID allowedUserId = switch (appUser.role()) {
             case PATIENT -> session.patientUserId();
             case GUARDIAN -> session.guardianUserId();
@@ -247,6 +263,40 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         if (!appUser.id().equals(allowedUserId)) {
             throw CompanionSessionException.permissionDenied();
         }
+        if (!canRead(appUser, session, scope)) {
+            throw CompanionSessionException.permissionDenied();
+        }
+    }
+
+    private boolean canRead(
+            AppUserRepository.AppUser appUser,
+            SessionRecord session,
+            InformationScope scope) {
+        return appUser.role() != AppUserRole.GUARDIAN
+                || consentAccess.isAllowed(
+                appUser,
+                session.appointmentRequestId(),
+                session.patientUserId(),
+                session.guardianUserId(),
+                scope);
+    }
+
+    private boolean guardianHasScope(
+            SessionRecord session,
+            InformationScope scope) {
+        if (session.guardianUserId() == null) {
+            return false;
+        }
+        AppUserRepository.AppUser guardian = new AppUserRepository.AppUser(
+                session.guardianUserId(),
+                "",
+                AppUserRole.GUARDIAN);
+        return consentAccess.isAllowed(
+                guardian,
+                session.appointmentRequestId(),
+                session.patientUserId(),
+                session.guardianUserId(),
+                scope);
     }
 
     private void requireManagerAssignment(
@@ -341,7 +391,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         }
     }
 
-    private SessionView toView(SessionRecord session) {
+    private SessionView toView(
+            AppUserRepository.AppUser appUser,
+            SessionRecord session) {
         GuideSnapshotRecord snapshot = session.guideSnapshot();
         List<CompanionSessionService.GuideStepView> steps = snapshot == null
                 ? List.of()
@@ -353,6 +405,17 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                                 step.description()))
                         .toList();
         ProgressState progress = progressState(session);
+        Set<InformationScope> allowedScopes = appUser.role() == AppUserRole.GUARDIAN
+                ? consentAccess.allowedScopes(
+                appUser,
+                session.appointmentRequestId(),
+                session.patientUserId(),
+                session.guardianUserId())
+                : Set.of(InformationScope.values());
+        boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT);
+        boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION);
+        boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT);
+        boolean reportAllowed = allowedScopes.contains(InformationScope.REPORT);
         return new SessionView(
                 session.id(),
                 session.firestoreId() == null ? "" : session.firestoreId(),
@@ -361,19 +424,19 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 session.currentStepOrder(),
                 session.totalStepCount(),
                 session.currentStatus(),
-                session.guardianUpdate(),
-                session.locationSummary(),
-                session.fieldPhotoNote(),
-                session.medicationNote(),
-                session.pharmacySummary(),
-                session.preConsultationConfirmed(),
-                session.prescriptionCollected(),
-                session.pharmacyCompleted(),
-                session.medicationGuidanceCompleted(),
-                session.liveLocationSharingActive(),
-                format(session.liveLocationSharingStartedAt()),
-                session.locationAlertStage(),
-                format(session.locationAlertSentAt()),
+                chatAllowed ? session.guardianUpdate() : "",
+                locationAllowed ? session.locationSummary() : "",
+                attachmentAllowed ? session.fieldPhotoNote() : "",
+                reportAllowed ? session.medicationNote() : "",
+                reportAllowed ? session.pharmacySummary() : "",
+                reportAllowed && session.preConsultationConfirmed(),
+                reportAllowed && session.prescriptionCollected(),
+                reportAllowed && session.pharmacyCompleted(),
+                reportAllowed && session.medicationGuidanceCompleted(),
+                locationAllowed && session.liveLocationSharingActive(),
+                locationAllowed ? format(session.liveLocationSharingStartedAt()) : "",
+                locationAllowed ? session.locationAlertStage() : "",
+                locationAllowed ? format(session.locationAlertSentAt()) : "",
                 session.version(),
                 format(session.startedAt()),
                 format(session.completedAt()),

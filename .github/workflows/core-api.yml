@@ -149,3 +149,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: bash db/verification/verify_companion_guide_snapshot_migration.sh
+
+      - name: 보호자 동의 V17 적용과 안전 rollback 검증
+        env:
+          PGPASSWORD: postgres
+        run: bash db/verification/verify_guardian_sharing_consent_migration.sh

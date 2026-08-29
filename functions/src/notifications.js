@@ -3,6 +3,10 @@ const {onSchedule} = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const {FieldPath, FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {getMessaging} = require("firebase-admin/messaging");
+const {
+  resolveLegacyChatRecipientUserIds,
+  resolveLegacyLocationRecipientUserIds,
+} = require("./guardian-delivery-policy");
 
 const CLIENT_SUPPORT_NOTIFICATION_OPTIONS = {
   region: "asia-northeast3",
@@ -552,22 +556,7 @@ function toCompanionChatAttachmentArray(rawAttachments, rawAttachment) {
 }
 
 function resolveCompanionChatRecipientUserIds(senderRole, requestData, managerUserId) {
-  const patientUserId = sanitizeText(requestData?.patientUserId);
-  const guardianUserId = sanitizeText(requestData?.guardianUserId);
-  const normalizedSenderRole = sanitizeText(senderRole);
-  const recipientUserIds = [];
-
-  if (normalizedSenderRole !== "PATIENT" && patientUserId) {
-    recipientUserIds.push(patientUserId);
-  }
-  if (normalizedSenderRole !== "GUARDIAN" && guardianUserId) {
-    recipientUserIds.push(guardianUserId);
-  }
-  if (normalizedSenderRole !== "MANAGER" && managerUserId) {
-    recipientUserIds.push(managerUserId);
-  }
-
-  return Array.from(new Set(recipientUserIds));
+  return resolveLegacyChatRecipientUserIds(senderRole, requestData, managerUserId);
 }
 
 function resolveCompanionChatNotificationTitle(senderRole) {
@@ -622,10 +611,7 @@ function shouldNotifyCompanionLocationAlert(beforeData, afterData) {
 }
 
 function resolveCompanionLocationRecipientUserIds(requestData) {
-  return Array.from(new Set([
-    sanitizeText(requestData?.patientUserId),
-    sanitizeText(requestData?.guardianUserId),
-  ].filter(Boolean)));
+  return resolveLegacyLocationRecipientUserIds(requestData);
 }
 
 function resolveCompanionLocationAlertTitle(alertStage) {

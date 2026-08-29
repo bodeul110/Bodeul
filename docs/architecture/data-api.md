@@ -61,8 +61,8 @@
 
 - `patientUserId`, `guardianUserId`는 아직 계정이 연결되지 않았으면 빈 문자열일 수 있다.
 - 대신 `patientName/Phone/Email`, `guardianName/Phone/Email`에는 신청 시점 입력값 또는 연결된 계정 정보가 항상 남도록 설계한다.
-- 요청을 만든 환자 / 보호자는 `REQUESTED` 상태에서만 병원, 일정, 만남 장소, 연결 대상 정보를 수정할 수 있다.
-- 요청 취소는 `REQUESTED`, `MATCHED` 상태에서만 가능하다.
+- 이 항목은 초기 Firestore 구현 이력이다. 현재 Core API 운영 경로에서는 환자 본인만 `REQUESTED` 상태의 병원, 일정, 만남 장소, 연결 대상 정보를 수정할 수 있다.
+- 현재 Core API 운영 경로의 요청 취소는 환자 본인만 `REQUESTED`, `MATCHED` 상태에서 가능하다. 보호자 정보공유 동의는 수정·취소 대리권을 부여하지 않는다.
 - `MATCHED` 상태 요청을 취소하면 연결된 `companionSessions.currentStatus`도 `CANCELED`로 함께 갱신한다.
 - `users` 문서가 생성되거나 연락처가 바뀌면 서버 트리거가 미연결 요청을 다시 찾아 `patientUserId` 또는 `guardianUserId`를 자동으로 채운다.
 - 예약이 취소 / 삭제되거나 `appointmentAt`이 바뀌면 서버 트리거가 남아 있는 리마인더 작업을 `SKIPPED`로 정리한다.
@@ -459,10 +459,10 @@
 위 2026-04-23 항목은 초기 Firestore 구현 이력이다. 현재 Core API 모드의 운영 원본은 `bodeul.appointment_follow_ups`이며 Android는 `appointmentFollowUps/{requestId}`를 더 이상 조회하거나 저장하지 않는다.
 
 - `GET /api/appointments/{appointmentId}/follow-up`
-  - 환자·보호자·배정 매니저가 연결 관계를 통과한 예약만 조회한다.
+  - 환자·배정 매니저가 연결 관계를 통과한 예약을 조회한다. 보호자는 연결 관계와 별도로 유효한 `REPORT` 동의가 있어야 한다.
   - 아직 저장된 값이 없으면 각 상태가 빈 문자열이고 `version=0`인 응답을 반환한다.
 - `PATCH /api/appointments/{appointmentId}/follow-up`
-  - 환자·보호자만 사용할 수 있고 예약 상태가 `COMPLETED`여야 한다.
+  - 환자 본인만 사용할 수 있고 예약 상태가 `COMPLETED`여야 한다. 보호자 정보공유 동의는 후속 기록 저장 대리권을 부여하지 않는다.
   - `version`과 함께 `reviewRatingCode`, `settlementFollowUpStatus`·`settlementFollowUpNote`, `supportEscalationStatus` 중 저장할 필드만 보낸다.
   - 다른 요청이 먼저 저장해 version이 달라지면 `409 appointment_version_conflict`를 반환한다.
 - Core API는 Firebase ID token, App Check, PostgreSQL 사용자 role과 예약 참여 관계를 검증한 뒤 지정 열만 갱신한다.

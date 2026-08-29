@@ -23,6 +23,8 @@ import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpReco
 import com.bodeul.core.appointment.AppointmentRepository.ParticipantSnapshot;
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope;
+import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -46,21 +48,25 @@ class DefaultAppointmentService implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final AppUserProfileRepository profileRepository;
+    private final GuardianSharingConsentAccess consentAccess;
     private final Clock clock;
 
     @Autowired
     DefaultAppointmentService(
             AppointmentRepository appointmentRepository,
-            AppUserProfileRepository profileRepository) {
-        this(appointmentRepository, profileRepository, Clock.systemUTC());
+            AppUserProfileRepository profileRepository,
+            GuardianSharingConsentAccess consentAccess) {
+        this(appointmentRepository, profileRepository, consentAccess, Clock.systemUTC());
     }
 
     DefaultAppointmentService(
             AppointmentRepository appointmentRepository,
             AppUserProfileRepository profileRepository,
+            GuardianSharingConsentAccess consentAccess,
             Clock clock) {
         this.appointmentRepository = appointmentRepository;
         this.profileRepository = profileRepository;
+        this.consentAccess = consentAccess;
         this.clock = clock;
     }
 
@@ -70,7 +76,8 @@ class DefaultAppointmentService implements AppointmentService {
         requireReadableRole(appUser);
         return appointmentRepository.findAllForParticipant(appUser.id(), appUser.role())
                 .stream()
-                .map(this::toView)
+                .filter(appointment -> guardianCanReadAppointment(appUser, appointment))
+                .map(appointment -> toView(appUser, appointment))
                 .toList();
     }
 
@@ -82,7 +89,7 @@ class DefaultAppointmentService implements AppointmentService {
         requireReadableRole(appUser);
         AppointmentRecord appointment = findAppointment(appointmentId);
         requireReader(appUser, appointment);
-        return toView(appointment);
+        return toView(appUser, appointment);
     }
 
     @Override
@@ -91,6 +98,9 @@ class DefaultAppointmentService implements AppointmentService {
             AppUserRepository.AppUser appUser,
             CreateAppointmentCommand command) {
         requireSupportedRole(appUser);
+        if (appUser.role() == AppUserRole.GUARDIAN) {
+            throw AppointmentException.guardianCreationNotSupported();
+        }
         if (command == null || command.clientRequestId() == null) {
             throw AppointmentException.invalidRequest("중복 생성 방지용 clientRequestId가 필요합니다.");
         }
@@ -100,7 +110,7 @@ class DefaultAppointmentService implements AppointmentService {
                 appUser.id(),
                 command.clientRequestId());
         if (existing.isPresent()) {
-            return toView(existing.get());
+            return toView(appUser, existing.get());
         }
 
         ParticipantPair participants = resolveParticipants(appUser, draft);
@@ -116,7 +126,7 @@ class DefaultAppointmentService implements AppointmentService {
         return appointmentRepository.insert(mutation)
                 .or(() -> appointmentRepository.findByClientRequestId(
                         appUser.id(), command.clientRequestId()))
-                .map(this::toView)
+                .map(appointment -> toView(appUser, appointment))
                 .orElseThrow(AppointmentException::versionConflict);
     }
 
@@ -127,6 +137,9 @@ class DefaultAppointmentService implements AppointmentService {
             UUID appointmentId,
             UpdateAppointmentCommand command) {
         requireSupportedRole(appUser);
+        if (appUser.role() == AppUserRole.GUARDIAN) {
+            throw AppointmentException.guardianMutationNotSupported();
+        }
         if (command == null || command.version() < 0) {
             throw AppointmentException.invalidRequest("예약 버전이 필요합니다.");
         }
@@ -157,7 +170,7 @@ class DefaultAppointmentService implements AppointmentService {
                 requester);
 
         return appointmentRepository.update(appointmentId, command.version(), mutation)
-                .map(this::toView)
+                .map(appointment -> toView(appUser, appointment))
                 .orElseThrow(AppointmentException::versionConflict);
     }
 
@@ -168,6 +181,9 @@ class DefaultAppointmentService implements AppointmentService {
             UUID appointmentId,
             long version) {
         requireSupportedRole(appUser);
+        if (appUser.role() == AppUserRole.GUARDIAN) {
+            throw AppointmentException.guardianMutationNotSupported();
+        }
         if (version < 0) {
             throw AppointmentException.invalidRequest("예약 버전이 필요합니다.");
         }
@@ -187,7 +203,10 @@ class DefaultAppointmentService implements AppointmentService {
                 && !appointmentRepository.cancelActiveSession(appointmentId)) {
             throw AppointmentException.stateConflict();
         }
-        return toView(canceled);
+        Instant cancellationBoundary = appointmentRepository.findCancellationBoundary(appointmentId)
+                .orElseThrow(AppointmentException::stateConflict);
+        consentAccess.finalizeExpiryAfterCareBoundary(appointmentId, cancellationBoundary);
+        return toView(appUser, canceled);
     }
 
     @Override
@@ -197,7 +216,8 @@ class DefaultAppointmentService implements AppointmentService {
             UUID appointmentId) {
         requireReadableRole(appUser);
         AppointmentRecord appointment = findAppointment(appointmentId);
-        requireReader(appUser, appointment);
+        requireParticipantRelationshipOrAssignedManager(appUser, appointment);
+        requireGuardianScope(appUser, appointment, InformationScope.REPORT);
         return appointmentRepository.findFollowUpByAppointmentId(appointmentId)
                 .map(this::toFollowUpView)
                 .orElseGet(() -> emptyFollowUpView(appointmentId));
@@ -210,11 +230,15 @@ class DefaultAppointmentService implements AppointmentService {
             UUID appointmentId,
             UpdateAppointmentFollowUpCommand command) {
         requireSupportedRole(appUser);
+        if (appUser.role() == AppUserRole.GUARDIAN) {
+            throw AppointmentException.guardianMutationNotSupported();
+        }
         if (command == null || command.version() < 0) {
             throw AppointmentException.invalidRequest("후속 기록 버전이 필요합니다.");
         }
         AppointmentRecord appointment = findAppointment(appointmentId);
-        requireParticipant(appUser, appointment);
+        requireParticipantRelationship(appUser, appointment);
+        requireGuardianScope(appUser, appointment, InformationScope.REPORT);
         if (!"COMPLETED".equals(appointment.status())) {
             throw AppointmentException.stateConflict();
         }
@@ -293,10 +317,58 @@ class DefaultAppointmentService implements AppointmentService {
     private void requireParticipant(
             AppUserRepository.AppUser appUser,
             AppointmentRecord appointment) {
+        requireParticipantRelationship(appUser, appointment);
+        if (!guardianCanReadAppointment(appUser, appointment)) {
+            throw AppointmentException.permissionDenied();
+        }
+    }
+
+    private void requireParticipantRelationshipOrAssignedManager(
+            AppUserRepository.AppUser appUser,
+            AppointmentRecord appointment) {
+        if (appUser.role() == AppUserRole.MANAGER) {
+            if (!appUser.id().equals(appointment.managerUserId())) {
+                throw AppointmentException.permissionDenied();
+            }
+            return;
+        }
+        requireParticipantRelationship(appUser, appointment);
+    }
+
+    private void requireParticipantRelationship(
+            AppUserRepository.AppUser appUser,
+            AppointmentRecord appointment) {
         UUID participantId = appUser.role() == AppUserRole.PATIENT
                 ? appointment.patientUserId()
                 : appointment.guardianUserId();
         if (!appUser.id().equals(participantId)) {
+            throw AppointmentException.permissionDenied();
+        }
+    }
+
+    private boolean guardianCanReadAppointment(
+            AppUserRepository.AppUser appUser,
+            AppointmentRecord appointment) {
+        return appUser.role() != AppUserRole.GUARDIAN
+                || consentAccess.isAllowed(
+                appUser,
+                appointment.id(),
+                appointment.patientUserId(),
+                appointment.guardianUserId(),
+                InformationScope.APPOINTMENT);
+    }
+
+    private void requireGuardianScope(
+            AppUserRepository.AppUser appUser,
+            AppointmentRecord appointment,
+            InformationScope scope) {
+        if (appUser.role() == AppUserRole.GUARDIAN
+                && !consentAccess.isAllowed(
+                appUser,
+                appointment.id(),
+                appointment.patientUserId(),
+                appointment.guardianUserId(),
+                scope)) {
             throw AppointmentException.permissionDenied();
         }
     }
@@ -527,50 +599,53 @@ class DefaultAppointmentService implements AppointmentService {
                 "ON_SITE".equals(draft.paymentMethodCode()) ? "DEFERRED" : "PENDING");
     }
 
-    private AppointmentView toView(AppointmentRecord appointment) {
-        AppUserProfile manager = appointment.managerUserId() == null
+    private AppointmentView toView(
+            AppUserRepository.AppUser appUser,
+            AppointmentRecord appointment) {
+        boolean guardianView = appUser.role() == AppUserRole.GUARDIAN;
+        AppUserProfile manager = guardianView || appointment.managerUserId() == null
                 ? null
                 : profileRepository.findById(appointment.managerUserId()).orElse(null);
         return new AppointmentView(
                 appointment.id(),
-                nullToEmpty(appointment.firestoreId()),
-                appointment.patientUserId(),
-                appointment.guardianUserId(),
-                appointment.managerUserId(),
-                manager == null ? "" : manager.name(),
-                manager == null ? "" : manager.phone(),
-                manager == null ? "" : manager.email(),
-                appointment.patient().name(),
-                appointment.patient().phone(),
-                appointment.patient().email(),
-                appointment.guardian().name(),
-                appointment.guardian().phone(),
-                appointment.guardian().email(),
+                guardianView ? "" : nullToEmpty(appointment.firestoreId()),
+                guardianView ? null : appointment.patientUserId(),
+                guardianView ? null : appointment.guardianUserId(),
+                guardianView ? null : appointment.managerUserId(),
+                guardianView || manager == null ? "" : manager.name(),
+                guardianView || manager == null ? "" : manager.phone(),
+                guardianView || manager == null ? "" : manager.email(),
+                guardianView ? "" : appointment.patient().name(),
+                guardianView ? "" : appointment.patient().phone(),
+                guardianView ? "" : appointment.patient().email(),
+                guardianView ? "" : appointment.guardian().name(),
+                guardianView ? "" : appointment.guardian().phone(),
+                guardianView ? "" : appointment.guardian().email(),
                 appointment.hospitalName(),
                 appointment.departmentName(),
                 appointment.hospitalLatitude(),
                 appointment.hospitalLongitude(),
                 APPOINTMENT_FORMATTER.format(appointment.appointmentAt().atZone(SEOUL)),
-                appointment.meetingPlace(),
-                appointment.specialNotes(),
-                appointment.patientConditionSummary(),
-                appointment.medicationSummary(),
-                appointment.mobilitySupportCode(),
-                appointment.tripTypeCode(),
-                appointment.managerGenderPreferenceCode(),
+                guardianView ? "" : appointment.meetingPlace(),
+                guardianView ? "" : appointment.specialNotes(),
+                guardianView ? "" : appointment.patientConditionSummary(),
+                guardianView ? "" : appointment.medicationSummary(),
+                guardianView ? "" : appointment.mobilitySupportCode(),
+                guardianView ? "" : appointment.tripTypeCode(),
+                guardianView ? "" : appointment.managerGenderPreferenceCode(),
                 appointment.status(),
-                appointment.basePrice(),
-                appointment.optionSurchargePrice(),
-                appointment.couponDiscountPrice(),
-                appointment.finalPrice(),
-                appointment.paymentMethodCode(),
-                appointment.couponCode(),
-                appointment.paymentStatusCode(),
-                appointment.paymentApprovalCode(),
-                appointment.paymentApprovedAt() == null
+                guardianView ? 0 : appointment.basePrice(),
+                guardianView ? 0 : appointment.optionSurchargePrice(),
+                guardianView ? 0 : appointment.couponDiscountPrice(),
+                guardianView ? 0 : appointment.finalPrice(),
+                guardianView ? "" : appointment.paymentMethodCode(),
+                guardianView ? "" : appointment.couponCode(),
+                guardianView ? "" : appointment.paymentStatusCode(),
+                guardianView ? "" : appointment.paymentApprovalCode(),
+                guardianView || appointment.paymentApprovedAt() == null
                         ? ""
                         : appointment.paymentApprovedAt().toString(),
-                appointment.paymentProviderLabel(),
+                guardianView ? "" : appointment.paymentProviderLabel(),
                 appointment.version());
     }
 

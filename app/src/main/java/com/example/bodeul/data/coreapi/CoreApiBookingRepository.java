@@ -104,7 +104,7 @@ public final class CoreApiBookingRepository implements BookingRepository {
                     return;
                 }
                 String legacyId = appointmentClient.getKnownLegacyFirestoreId(request.getId());
-                if (legacyId.isEmpty()) {
+                if (legacyId.isEmpty() || currentUser.getRole() == UserRole.GUARDIAN) {
                     AppointmentRequestDetail coreOnlyDetail = toCoreOnlyDetail(request);
                     latestLegacyDetail.set(coreOnlyDetail);
                     enrichWithCoreSession(request, coreOnlyDetail, callback);

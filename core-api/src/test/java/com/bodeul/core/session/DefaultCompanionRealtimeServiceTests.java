@@ -38,7 +38,8 @@ class DefaultCompanionRealtimeServiceTests {
         service = new DefaultCompanionRealtimeService(
                 sessionRepository,
                 realtimeRepository,
-                events::add);
+                events::add,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true);
     }
 
     @Test
@@ -99,6 +100,29 @@ class DefaultCompanionRealtimeServiceTests {
                     assertThat(event.sessionId()).isEqualTo(SESSION_ID);
                     assertThat(event.recipientUserIds()).containsExactly(GUARDIAN_ID, MANAGER_ID);
                 });
+    }
+
+    @Test
+    void chatNotificationDoesNotTargetRelatedGuardianWithoutChatConsent() {
+        var failClosedService = new DefaultCompanionRealtimeService(
+                sessionRepository,
+                realtimeRepository,
+                events::add,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
+                        appUser.role() != AppUserRole.GUARDIAN);
+
+        failClosedService.postMessage(
+                patient(),
+                SESSION_ID,
+                new CompanionRealtimeService.PostMessageCommand(
+                        UUID.randomUUID(),
+                        "확인 메시지",
+                        List.of()));
+
+        assertThat(events)
+                .singleElement()
+                .isInstanceOfSatisfying(CompanionChatMessageCreatedEvent.class, event ->
+                        assertThat(event.recipientUserIds()).containsExactly(MANAGER_ID));
     }
 
     @Test
@@ -190,6 +214,48 @@ class DefaultCompanionRealtimeServiceTests {
                 .isEqualTo("companion_chat_attachment_not_found");
     }
 
+    @Test
+    void guardianRelationshipWithoutChatOrLocationConsentIsDenied() {
+        var failClosedService = new DefaultCompanionRealtimeService(
+                sessionRepository,
+                realtimeRepository,
+                events::add,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> false);
+
+        assertThatThrownBy(() -> failClosedService.getSnapshot(guardian(), SESSION_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
+    void chatOnlyGuardianGetsPollingDataWithoutLocationTopicOrAttachmentMetadata() {
+        realtimeRepository.messages = List.of(new CompanionRealtimeRepository.ChatMessageRecord(
+                MESSAGE_ID,
+                SESSION_ID,
+                UUID.randomUUID(),
+                PATIENT_ID,
+                "PATIENT",
+                "확인 메시지",
+                Instant.parse("2026-07-18T00:10:00Z"),
+                List.of(attachment())));
+        realtimeRepository.locations = List.of(location());
+        var chatOnlyService = new DefaultCompanionRealtimeService(
+                sessionRepository,
+                realtimeRepository,
+                events::add,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
+                        scope == com.bodeul.core.consent.AdultPatientGuardianSharingPolicy
+                                .InformationScope.CHAT);
+
+        var snapshot = chatOnlyService.getSnapshot(guardian(), SESSION_ID);
+
+        assertThat(snapshot.realtimeTopic()).isEmpty();
+        assertThat(snapshot.messages()).singleElement()
+                .satisfies(message -> assertThat(message.attachments()).isEmpty());
+        assertThat(snapshot.locations()).isEmpty();
+    }
+
     private CompanionRealtimeService.PostLocationCommand locationCommand() {
         return new CompanionRealtimeService.PostLocationCommand(
                 UUID.randomUUID(),
@@ -204,6 +270,10 @@ class DefaultCompanionRealtimeServiceTests {
 
     private AppUserRepository.AppUser manager() {
         return user(MANAGER_ID, AppUserRole.MANAGER);
+    }
+
+    private AppUserRepository.AppUser guardian() {
+        return user(GUARDIAN_ID, AppUserRole.GUARDIAN);
     }
 
     private AppUserRepository.AppUser user(UUID id, AppUserRole role) {

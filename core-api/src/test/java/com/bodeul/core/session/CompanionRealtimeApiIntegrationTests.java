@@ -255,6 +255,13 @@ class CompanionRealtimeApiIntegrationTests {
         }
 
         @Override
+        public void validateAttachmentWrite(
+                AppUserRepository.AppUser appUser,
+                UUID sessionId) {
+            validateMessageWrite(appUser, sessionId);
+        }
+
+        @Override
         public AttachmentView getAttachment(
                 AppUserRepository.AppUser appUser,
                 UUID sessionId,

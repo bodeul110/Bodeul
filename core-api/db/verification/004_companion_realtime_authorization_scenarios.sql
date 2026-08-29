@@ -98,10 +98,85 @@ select set_config(
     '{"sub":"realtime-guardian","role":"authenticated","aud":"bodeul-dev","iss":"https://securetoken.google.com/bodeul-dev"}',
     true
 );
-select count(*) = 1 as guardian_allowed from realtime.messages \gset
-\if :guardian_allowed
+select count(*) = 0 as guardian_without_consent_denied from realtime.messages \gset
+\if :guardian_without_consent_denied
 \else
-    \echo '보호자 Realtime 구독 허용 검증 실패'
+    \echo '미동의 보호자 Realtime 구독 거부 검증 실패'
+    \quit 1
+\endif
+
+reset role;
+
+update bodeul.guardian_sharing_consent_settings
+set location_sharing_enabled = true,
+    updated_at = now()
+where singleton;
+
+insert into bodeul.guardian_sharing_consents (
+    id,
+    appointment_request_id,
+    patient_user_id,
+    guardian_user_id,
+    scopes,
+    policy_version,
+    granted_by_user_id,
+    adult_self_declared_at,
+    granted_at,
+    expires_at
+) values (
+    '40000000-0000-0000-0000-000000000001',
+    '20000000-0000-0000-0000-000000000001',
+    '10000000-0000-0000-0000-000000000001',
+    '10000000-0000-0000-0000-000000000002',
+    '["CHAT", "LOCATION"]'::jsonb,
+    'adult-guardian-sharing-v1',
+    '10000000-0000-0000-0000-000000000001',
+    statement_timestamp(),
+    statement_timestamp(),
+    statement_timestamp() + interval '1 day'
+);
+
+set local role authenticated;
+select set_config(
+    'realtime.topic',
+    'companion-session:30000000-0000-0000-0000-000000000001',
+    true
+);
+select set_config(
+    'request.jwt.claims',
+    '{"sub":"realtime-guardian","role":"authenticated","aud":"bodeul-dev","iss":"https://securetoken.google.com/bodeul-dev"}',
+    true
+);
+select count(*) = 0 as consented_guardian_broadcast_denied from realtime.messages \gset
+\if :consented_guardian_broadcast_denied
+\else
+    \echo '동의한 보호자 Broadcast 구독 차단 검증 실패'
+    \quit 1
+\endif
+
+reset role;
+update bodeul.guardian_sharing_consents
+set revoked_by_user_id = patient_user_id,
+    revoked_at = statement_timestamp(),
+    version = version + 1,
+    updated_at = statement_timestamp()
+where id = '40000000-0000-0000-0000-000000000001';
+
+set local role authenticated;
+select set_config(
+    'realtime.topic',
+    'companion-session:30000000-0000-0000-0000-000000000001',
+    true
+);
+select set_config(
+    'request.jwt.claims',
+    '{"sub":"realtime-guardian","role":"authenticated","aud":"bodeul-dev","iss":"https://securetoken.google.com/bodeul-dev"}',
+    true
+);
+select count(*) = 0 as revoked_guardian_denied from realtime.messages \gset
+\if :revoked_guardian_denied
+\else
+    \echo '철회된 보호자 Realtime 구독 거부 검증 실패'
     \quit 1
 \endif
 

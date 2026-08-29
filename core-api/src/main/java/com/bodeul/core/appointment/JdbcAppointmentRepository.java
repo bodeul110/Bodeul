@@ -277,7 +277,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     updated_at = now(),
                     version = version + 1
                 where id = :appointmentId
-                  and status = 'REQUESTED'
+                  and status in ('REQUESTED', 'MATCHED')
                   and version = :expectedVersion
                 returning
                 """ + RETURNING_COLUMNS;
@@ -302,6 +302,24 @@ class JdbcAppointmentRepository implements AppointmentRepository {
         return jdbcTemplate.update(
                 sql,
                 new MapSqlParameterSource("appointmentId", appointmentId)) == 1;
+    }
+
+    @Override
+    public Optional<Instant> findCancellationBoundary(UUID appointmentId) {
+        String sql = """
+                select coalesce(session.canceled_at, appointment.updated_at) as care_ended_at
+                from bodeul.appointment_requests appointment
+                left join bodeul.companion_sessions session
+                  on session.appointment_request_id = appointment.id
+                where appointment.id = :appointmentId
+                  and appointment.status = 'CANCELED'
+                """;
+        return jdbcTemplate.query(
+                        sql,
+                        new MapSqlParameterSource("appointmentId", appointmentId),
+                        (resultSet, rowNumber) -> resultSet.getTimestamp("care_ended_at").toInstant())
+                .stream()
+                .findFirst();
     }
 
     @Override

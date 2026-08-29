@@ -17,6 +17,8 @@ import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpMuta
 import com.bodeul.core.appointment.AppointmentRepository.AppointmentFollowUpRecord;
 import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
+import com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScope;
+import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -61,6 +63,7 @@ class DefaultAppointmentServiceTests {
         service = new DefaultAppointmentService(
                 appointmentRepository,
                 profileRepository,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -135,6 +138,74 @@ class DefaultAppointmentServiceTests {
     }
 
     @Test
+    void guardianCannotCreateAppointmentOrResolvePatientProfile() {
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+
+        assertThatThrownBy(() -> service.createAppointment(
+                guardian,
+                new AppointmentService.CreateAppointmentCommand(UUID.randomUUID(), draft())))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("guardian_appointment_creation_not_supported");
+        assertThat(appointmentRepository.insertCount).isZero();
+        assertThat(profileRepository.lookupCount).isZero();
+    }
+
+    @Test
+    void guardianAppointmentViewContainsOnlyScheduleAndHospitalFields() {
+        appointmentRepository.current = Optional.of(existingAppointment("REQUESTED", 0));
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+
+        var view = service.getAppointment(guardian, APPOINTMENT_ID);
+
+        assertThat(view.hospitalName()).isEqualTo("서울대학교병원");
+        assertThat(view.departmentName()).isEqualTo("내과");
+        assertThat(view.appointmentAt()).isNotBlank();
+        assertThat(view.meetingPlace()).isEmpty();
+        assertThat(view.status()).isEqualTo("REQUESTED");
+        assertThat(view.legacyFirestoreId()).isEmpty();
+        assertThat(view.patientUserId()).isNull();
+        assertThat(view.guardianUserId()).isNull();
+        assertThat(view.managerUserId()).isNull();
+        assertThat(view.patientName()).isEmpty();
+        assertThat(view.patientPhone()).isEmpty();
+        assertThat(view.patientEmail()).isEmpty();
+        assertThat(view.guardianName()).isEmpty();
+        assertThat(view.managerName()).isEmpty();
+        assertThat(view.specialNotes()).isEmpty();
+        assertThat(view.patientConditionSummary()).isEmpty();
+        assertThat(view.medicationSummary()).isEmpty();
+        assertThat(view.paymentMethodCode()).isEmpty();
+        assertThat(view.couponCode()).isEmpty();
+        assertThat(view.paymentApprovalCode()).isEmpty();
+        assertThat(view.finalPrice()).isZero();
+        assertThat(profileRepository.lookupCount).isZero();
+    }
+
+    @Test
+    void guardianCannotUpdateAppointmentOrResolveProfiles() {
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+
+        assertThatThrownBy(() -> service.updateAppointment(
+                guardian,
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentCommand(0, draft())))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("guardian_appointment_mutation_not_supported");
+        assertThat(profileRepository.lookupCount).isZero();
+    }
+
+    @Test
     void participantFromAnotherAppointmentIsRejected() {
         appointmentRepository.current = Optional.of(existingAppointment("REQUESTED", 0));
         var otherPatient = new AppUserRepository.AppUser(
@@ -143,6 +214,25 @@ class DefaultAppointmentServiceTests {
                 AppUserRole.PATIENT);
 
         assertThatThrownBy(() -> service.getAppointment(otherPatient, APPOINTMENT_ID))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("appointment_permission_denied");
+    }
+
+    @Test
+    void guardianRelationshipWithoutExplicitConsentIsRejected() {
+        appointmentRepository.current = Optional.of(existingAppointment("REQUESTED", 0));
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+        var failClosedService = new DefaultAppointmentService(
+                appointmentRepository,
+                profileRepository,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> false,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> failClosedService.getAppointment(guardian, APPOINTMENT_ID))
                 .isInstanceOf(AppointmentException.class)
                 .extracting(exception -> ((AppointmentException) exception).error())
                 .isEqualTo("appointment_permission_denied");
@@ -162,7 +252,7 @@ class DefaultAppointmentServiceTests {
     }
 
     @Test
-    void linkedParticipantCannotRemoveTheOriginalRequester() {
+    void guardianUpdateIsRejectedBeforeParticipantRelinking() {
         appointmentRepository.current = Optional.of(existingAppointment("REQUESTED", 0));
         var guardian = new AppUserRepository.AppUser(
                 GUARDIAN_ID,
@@ -193,7 +283,30 @@ class DefaultAppointmentServiceTests {
                 new AppointmentService.UpdateAppointmentCommand(0, differentPatient)))
                 .isInstanceOf(AppointmentException.class)
                 .extracting(exception -> ((AppointmentException) exception).error())
-                .isEqualTo("appointment_requester_link_conflict");
+                .isEqualTo("guardian_appointment_mutation_not_supported");
+    }
+
+    @Test
+    void guardianCannotCancelAppointmentEvenWithAppointmentScope() {
+        appointmentRepository.current = Optional.of(existingAppointment("MATCHED", 1));
+        RecordingConsentAccess consentAccess = new RecordingConsentAccess();
+        var guardianService = new DefaultAppointmentService(
+                appointmentRepository,
+                profileRepository,
+                consentAccess,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+
+        assertThatThrownBy(() -> guardianService.cancelAppointment(guardian, APPOINTMENT_ID, 1))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("guardian_appointment_mutation_not_supported");
+        assertThat(appointmentRepository.current.orElseThrow().status()).isEqualTo("MATCHED");
+        assertThat(appointmentRepository.sessionCanceled).isFalse();
+        assertThat(consentAccess.finalizedAppointmentId).isNull();
     }
 
     @Test
@@ -209,11 +322,19 @@ class DefaultAppointmentServiceTests {
     @Test
     void requestedAppointmentCanBeCanceled() {
         appointmentRepository.current = Optional.of(existingAppointment("REQUESTED", 4));
+        RecordingConsentAccess consentAccess = new RecordingConsentAccess();
+        var cancellationService = new DefaultAppointmentService(
+                appointmentRepository,
+                profileRepository,
+                consentAccess,
+                Clock.fixed(NOW, ZoneOffset.UTC));
 
-        var canceled = service.cancelAppointment(patient(), APPOINTMENT_ID, 4);
+        var canceled = cancellationService.cancelAppointment(patient(), APPOINTMENT_ID, 4);
 
         assertThat(canceled.status()).isEqualTo("CANCELED");
         assertThat(canceled.version()).isEqualTo(5);
+        assertThat(consentAccess.finalizedAppointmentId).isEqualTo(APPOINTMENT_ID);
+        assertThat(consentAccess.careEndedAt).isEqualTo(NOW);
     }
 
     @Test
@@ -274,6 +395,29 @@ class DefaultAppointmentServiceTests {
     }
 
     @Test
+    void guardianNeedsReportScopeInAdditionToAppointmentForFollowUp() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+        var appointmentOnlyService = new DefaultAppointmentService(
+                appointmentRepository,
+                profileRepository,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
+                        scope == com.bodeul.core.consent.AdultPatientGuardianSharingPolicy
+                                .InformationScope.APPOINTMENT,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+
+        assertThatThrownBy(() -> appointmentOnlyService.getAppointmentFollowUp(
+                guardian,
+                APPOINTMENT_ID))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("appointment_permission_denied");
+    }
+
+    @Test
     void participantSavesFollowUpActionsWithOptimisticVersion() {
         appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
 
@@ -292,6 +436,25 @@ class DefaultAppointmentServiceTests {
         assertThat(settlement.settlementFollowUpStatus()).isEqualTo("NEEDS_HELP");
         assertThat(settlement.settlementFollowUpNote()).isEqualTo("결제 내역 확인 요청");
         assertThat(settlement.version()).isEqualTo(2);
+    }
+
+    @Test
+    void guardianCannotWriteFollowUpEvenWithReportScope() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+        var guardian = new AppUserRepository.AppUser(
+                GUARDIAN_ID,
+                "guardian-firebase-uid",
+                AppUserRole.GUARDIAN);
+
+        assertThatThrownBy(() -> service.updateAppointmentFollowUp(
+                guardian,
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        0, "excellent", null, null, null)))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("guardian_appointment_mutation_not_supported");
+        assertThat(appointmentRepository.followUp).isEmpty();
     }
 
     @Test
@@ -498,6 +661,13 @@ class DefaultAppointmentServiceTests {
         }
 
         @Override
+        public Optional<Instant> findCancellationBoundary(UUID appointmentId) {
+            return current.filter(appointment -> appointment.id().equals(appointmentId))
+                    .filter(appointment -> "CANCELED".equals(appointment.status()))
+                    .map(appointment -> NOW);
+        }
+
+        @Override
         public Optional<AppointmentFollowUpRecord> findFollowUpByAppointmentId(UUID appointmentId) {
             return followUp.filter(value -> value.appointmentId().equals(appointmentId));
         }
@@ -596,6 +766,7 @@ class DefaultAppointmentServiceTests {
 
     private static final class FakeAppUserProfileRepository implements AppUserProfileRepository {
         private final Map<UUID, AppUserProfile> profiles = new HashMap<>();
+        private int lookupCount;
 
         void add(AppUserProfile profile) {
             profiles.put(profile.id(), profile);
@@ -603,16 +774,19 @@ class DefaultAppointmentServiceTests {
 
         @Override
         public Optional<AppUserProfile> findById(UUID userId) {
+            lookupCount++;
             return Optional.ofNullable(profiles.get(userId));
         }
 
         @Override
         public List<AppUserProfile> findByEmail(AppUserRole role, String email) {
+            lookupCount++;
             return matching(role, email, true);
         }
 
         @Override
         public List<AppUserProfile> findByPhone(AppUserRole role, String phone) {
+            lookupCount++;
             return matching(role, phone, false);
         }
 
@@ -625,6 +799,29 @@ class DefaultAppointmentServiceTests {
                 }
             }
             return matches;
+        }
+    }
+
+    private static final class RecordingConsentAccess implements GuardianSharingConsentAccess {
+        private UUID finalizedAppointmentId;
+        private Instant careEndedAt;
+
+        @Override
+        public boolean isAllowed(
+                AppUserRepository.AppUser appUser,
+                UUID appointmentRequestId,
+                UUID patientUserId,
+                UUID guardianUserId,
+                InformationScope scope) {
+            return true;
+        }
+
+        @Override
+        public void finalizeExpiryAfterCareBoundary(
+                UUID appointmentRequestId,
+                Instant careEndedAt) {
+            this.finalizedAppointmentId = appointmentRequestId;
+            this.careEndedAt = careEndedAt;
         }
     }
 }
