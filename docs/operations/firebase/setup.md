@@ -442,16 +442,16 @@ npm run seed:manager-docs:apply
   - 관리자(`ADMIN`): 모든 매니저 서류 읽기 가능
   - 매니저 본인: 본인 경로 읽기/쓰기 가능
   - 그 외 사용자: 접근 불가
-- 업로드 허용 형식은 `application/pdf`, `image/*`만 허용한다.
+- 매니저 증빙 업로드 형식은 `image/jpeg`, `image/png`, `image/webp`만 허용한다. 관리자 웹이 격리된 PDF 렌더러를 제공하기 전까지 매니저 증빙 PDF 신규 제출은 차단하며, 기존 PDF는 이미지로 다시 제출한다.
 - 업로드 최대 크기는 `10MB`다.
 - [firebase.json](../../../firebase.json)에 `storage.rules` 연결을 추가했으므로, 실제 프로젝트 반영 시에는 `firebase deploy --only storage`로 별도 배포해야 한다.
 - `users/{uid}.managerDocumentFiles` 메타데이터가 있으면 관리자 웹이 해당 `fullPath`를 우선 사용하고, 메타데이터가 없으면 위 폴더 규약으로 파일을 탐색한다.
 ## 2026-05-04 매니저 앱 서류 업로드 연동 메모
 
-- 매니저 앱은 `ManagerProfileActivity`에서 SAF `OpenDocument`로 PDF/이미지 파일을 선택하고, `FirebaseManagerDocumentStorageUploader`가 `manager-documents/{managerUserId}/{documentKey}/{timestamp-fileName}` 경로로 업로드한다.
+- 매니저 앱은 `ManagerProfileActivity`에서 SAF `OpenDocument`로 JPEG, PNG, WebP 이미지를 선택하고, `FirebaseManagerDocumentStorageUploader`가 `manager-documents/{managerUserId}/{documentKey}/{timestamp-fileName}` 경로로 업로드한다.
 - 업로드 직후 `FirebaseManagerRepository.saveManagerDocumentFileMetadata()`가 `users/{uid}` 문서에 `managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드를 함께 저장한다.
 - Storage 업로드만 성공하고 Firestore 메타데이터 저장이 실패할 수 있으므로, 운영 점검 시에는 `users/{uid}.managerDocumentFiles`와 실제 Storage 경로가 같이 있는지 확인하는 절차가 필요하다.
-- 심사 상태는 업로드마다 `PENDING_REVIEW`로 재설정되므로, 관리자 웹은 별도 추가 처리 없이 기존 심사 대기 목록에서 다시 확인할 수 있다.
+- 요약 없는 최초 파일 초안은 `NOT_SUBMITTED`를 유지한다. 이미 제출·심사된 자료를 교체하면 `PENDING_REVIEW`로 전환되고 Functions가 새 `SUBMITTED` 이력을 남기므로, 관리자 웹은 새 제출 버전을 기존 심사 대기 목록에서 확인한다.
 ## 2026-05-04 매니저 서류 Storage 점검 메모
 
 - 운영 도구 [check-manager-document-storage.js](../../../tools/firebase/check-manager-document-storage.js)를 추가해 `users/{uid}.managerDocumentFiles`와 `manager-documents/` 실제 Storage 객체의 일치 여부를 점검할 수 있게 했다.

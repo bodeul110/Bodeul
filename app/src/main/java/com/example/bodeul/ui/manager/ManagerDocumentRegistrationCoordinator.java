@@ -4,6 +4,7 @@ import android.content.Context;
 import android.text.TextUtils;
 
 import com.example.bodeul.R;
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
@@ -203,7 +204,10 @@ public final class ManagerDocumentRegistrationCoordinator {
         return context.getString(R.string.manager_document_registration_request_button);
     }
 
-    private boolean hasRequiredFiles(ManagerHomeProfile profile) {
+    static boolean hasRequiredFiles(ManagerHomeProfile profile) {
+        if (profile == null) {
+            return false;
+        }
         for (ManagerDocumentFileType fileType : MANDATORY_SINGLE_FILE_TYPES) {
             if (!isUploaded(profile.getDocumentFile(fileType))) {
                 return false;
@@ -215,8 +219,10 @@ public final class ManagerDocumentRegistrationCoordinator {
                 || isUploaded(profile.getDocumentFile(ManagerDocumentFileType.HEALTH_CERTIFICATE));
     }
 
-    private boolean isUploaded(ManagerDocumentFileMetadata metadata) {
-        return metadata != null && !metadata.isEmpty();
+    private static boolean isUploaded(ManagerDocumentFileMetadata metadata) {
+        return metadata != null
+                && !metadata.isEmpty()
+                && ManagerDocumentUploadPolicy.isAllowedContentType(metadata.getContentType());
     }
 
     private String getDocumentLabel(ManagerDocumentFileType fileType) {

@@ -1,6 +1,7 @@
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {isDeepStrictEqual} = require("node:util");
 
 const USER_LINK_SYNC_OPTIONS = {
   region: "asia-northeast3",
@@ -12,14 +13,28 @@ const APPOINTMENT_REQUEST_SYNC_OPTIONS = {
   document: "appointmentRequests/{appointmentRequestId}",
 };
 
+const MANAGER_DOCUMENT_SUBMISSION_OPTIONS = {
+  region: "asia-northeast3",
+  document: "users/{userId}",
+  retry: true,
+};
+
 const REMINDER_SCAN_STATUSES = new Set(["REQUESTED", "MATCHED"]);
 const REMINDER_SKIPPED_STATE = "SKIPPED";
 const REMINDER_CLEANUP_STATES = new Set(["PENDING", "PROCESSING", "FAILED"]);
-const MANAGER_DOCUMENT_SUBMISSION_SOURCE_STATUSES = new Set([
+const MANAGER_DOCUMENT_INITIAL_SUBMISSION_SOURCE_STATUSES = new Set([
   "NOT_SUBMITTED",
   "APPROVED",
   "REJECTED",
 ]);
+const MANAGER_DOCUMENT_SUBMISSION_FIELDS = [
+  "managerDocumentSummary",
+  "managerDocumentFiles",
+  "managerDocumentFilePaths",
+  "managerIdCardStoragePath",
+  "managerLicenseStoragePath",
+  "managerCriminalRecordStoragePath",
+];
 
 const syncLinkedAppointmentParticipants = onDocumentWritten(
     USER_LINK_SYNC_OPTIONS,
@@ -73,7 +88,7 @@ const cleanupAppointmentReminderJobs = onDocumentWritten(
 );
 
 const recordManagerDocumentSubmission = onDocumentWritten(
-    USER_LINK_SYNC_OPTIONS,
+    MANAGER_DOCUMENT_SUBMISSION_OPTIONS,
     async (event) => {
       if (!event.data?.before?.exists || !event.data?.after?.exists) {
         return;
@@ -84,7 +99,7 @@ const recordManagerDocumentSubmission = onDocumentWritten(
           event.data.after.data(),
           event.params?.userId,
           event.id,
-          event.data.after.get("managerDocumentUpdatedAt"),
+          resolveManagerDocumentEventTime(event.data.after.updateTime, event.time),
       );
       if (!submissionEvent) {
         return;
@@ -116,8 +131,12 @@ function resolveManagerDocumentSubmissionEvent(
   }
   const beforeStatus = sanitizeText(beforeData?.managerDocumentStatus) || "NOT_SUBMITTED";
   const afterStatus = sanitizeText(afterData?.managerDocumentStatus);
-  if (!MANAGER_DOCUMENT_SUBMISSION_SOURCE_STATUSES.has(beforeStatus) ||
-      afterStatus !== "PENDING_REVIEW") {
+  const enteredPendingReview = MANAGER_DOCUMENT_INITIAL_SUBMISSION_SOURCE_STATUSES.has(beforeStatus) &&
+      afterStatus === "PENDING_REVIEW";
+  const revisedPendingReview = beforeStatus === "PENDING_REVIEW" &&
+      afterStatus === "PENDING_REVIEW" &&
+      managerDocumentSubmissionContentChanged(beforeData, afterData);
+  if (!enteredPendingReview && !revisedPendingReview) {
     return null;
   }
 
@@ -136,6 +155,25 @@ function resolveManagerDocumentSubmissionEvent(
     summary: sanitizeText(afterData?.managerDocumentSummary),
     reviewNote: "",
   };
+}
+
+function managerDocumentSubmissionContentChanged(beforeData, afterData) {
+  return MANAGER_DOCUMENT_SUBMISSION_FIELDS.some((field) =>
+    !isDeepStrictEqual(beforeData?.[field], afterData?.[field]),
+  );
+}
+
+function resolveManagerDocumentEventTime(updateTime, cloudEventTime) {
+  if (updateTime instanceof Timestamp) {
+    return updateTime;
+  }
+  if (typeof cloudEventTime === "string") {
+    const parsedTime = new Date(cloudEventTime);
+    if (!Number.isNaN(parsedTime.getTime())) {
+      return Timestamp.fromDate(parsedTime);
+    }
+  }
+  throw new Error("매니저 서류 제출 이벤트의 서버 시각을 확인하지 못했습니다.");
 }
 
 async function appendManagerDocumentSubmissionHistory(firestore, documentReference, submissionEvent) {
@@ -453,4 +491,6 @@ module.exports = {
   recordManagerDocumentSubmission,
   resolveManagerDocumentSubmissionEvent,
   appendManagerDocumentSubmissionHistory,
+  managerDocumentSubmissionContentChanged,
+  resolveManagerDocumentEventTime,
 };

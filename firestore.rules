@@ -113,16 +113,27 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
 
-    function managerDocumentSubmissionChanged() {
+    function managerDocumentSubmissionContentChanged() {
       return affectedAny([
         'managerDocumentSummary',
         'managerDocumentFiles',
         'managerDocumentFilePaths',
         'managerIdCardStoragePath',
         'managerLicenseStoragePath',
-        'managerCriminalRecordStoragePath',
-        'managerDocumentUpdatedAt'
+        'managerCriminalRecordStoragePath'
       ]);
+    }
+
+    function managerDocumentUpdatedAtIsServerTimestamp() {
+      return affectedAny(['managerDocumentUpdatedAt'])
+          && request.resource.data.keys().hasAll(['managerDocumentUpdatedAt'])
+          && request.resource.data.managerDocumentUpdatedAt is timestamp
+          && request.resource.data.managerDocumentUpdatedAt == request.time;
+    }
+
+    function managerDocumentSubmissionActionChanged() {
+      return managerDocumentSubmissionContentChanged()
+          || affectedAny(['managerDocumentStatus']);
     }
 
     function managerDocumentFileSubmissionChanged() {
@@ -163,16 +174,67 @@ service cloud.firestore {
         'managerDocumentHistory',
         'managerDocumentLegalHoldUntil',
         'managerDocumentLegalHoldReason',
-        'managerDocumentLegalHoldByAdminUserId'
+        'managerDocumentLegalHoldByAdminUserId',
+        'managerDocumentOriginalsDeletedAt',
+        'managerDocumentApprovalEvidence',
+        'managerDocumentReviewedSubmissionRevision'
       ]);
+    }
+
+    function managerDocumentSubmissionFieldsAreAbsent(data) {
+      return !data.keys().hasAny([
+        'managerDocumentSummary',
+        'managerDocumentFiles',
+        'managerDocumentFilePaths',
+        'managerIdCardStoragePath',
+        'managerLicenseStoragePath',
+        'managerCriminalRecordStoragePath',
+        'managerDocumentUpdatedAt'
+      ]);
+    }
+
+    function managerDocumentFileIsReviewable(file) {
+      return file is map
+          && file.keys().hasAll(['fullPath', 'contentType'])
+          && file.fullPath is string
+          && file.fullPath.size() > 0
+          && file.contentType is string
+          && file.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+    }
+
+    function managerDocumentHasReviewableRequiredFiles(data) {
+      return data.keys().hasAll(['managerDocumentFiles'])
+          && data.managerDocumentFiles is map
+          && data.managerDocumentFiles.keys().hasAll(['idCard', 'criminalRecord'])
+          && managerDocumentFileIsReviewable(data.managerDocumentFiles.idCard)
+          && managerDocumentFileIsReviewable(data.managerDocumentFiles.criminalRecord)
+          && (
+            (
+              data.managerDocumentFiles.keys().hasAll(['license'])
+              && managerDocumentFileIsReviewable(data.managerDocumentFiles.license)
+            )
+            || (
+              data.managerDocumentFiles.keys().hasAll(['healthCertificate'])
+              && managerDocumentFileIsReviewable(data.managerDocumentFiles.healthCertificate)
+            )
+          );
     }
 
     function managerDocumentCreateIsSafe() {
       return managerDocumentServerFieldsAreAbsent(request.resource.data)
+          && managerDocumentSubmissionFieldsAreAbsent(request.resource.data)
           && (
-            request.resource.data.role != 'MANAGER'
-            || !request.resource.data.keys().hasAny(['managerDocumentStatus'])
-            || request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+            (
+              request.resource.data.role == 'MANAGER'
+              && (
+                !request.resource.data.keys().hasAny(['managerDocumentStatus'])
+                || request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+              )
+            )
+            || (
+              request.resource.data.role != 'MANAGER'
+              && !request.resource.data.keys().hasAny(['managerDocumentStatus'])
+            )
           );
     }
 
@@ -185,7 +247,10 @@ service cloud.firestore {
         'managerDocumentHistory',
         'managerDocumentLegalHoldUntil',
         'managerDocumentLegalHoldReason',
-        'managerDocumentLegalHoldByAdminUserId'
+        'managerDocumentLegalHoldByAdminUserId',
+        'managerDocumentOriginalsDeletedAt',
+        'managerDocumentApprovalEvidence',
+        'managerDocumentReviewedSubmissionRevision'
       ]);
     }
 
@@ -193,10 +258,14 @@ service cloud.firestore {
       return managerDocumentReviewFieldsAreUnchanged()
           && (
             (
-              managerDocumentSubmissionChanged()
+              managerDocumentSubmissionActionChanged()
+              && managerDocumentUpdatedAtIsServerTimestamp()
               && request.resource.data.keys().hasAll(['managerDocumentStatus'])
               && (
-                request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
+                (
+                  request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
+                  && managerDocumentHasReviewableRequiredFiles(request.resource.data)
+                )
                 || (
                   request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
                   && (
@@ -207,8 +276,9 @@ service cloud.firestore {
               )
             )
             || (
-              !managerDocumentSubmissionChanged()
+              !managerDocumentSubmissionActionChanged()
               && !affectedAny(['managerDocumentStatus'])
+              && !affectedAny(['managerDocumentUpdatedAt'])
             )
           );
     }

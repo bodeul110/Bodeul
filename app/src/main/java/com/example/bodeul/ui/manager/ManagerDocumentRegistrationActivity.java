@@ -41,6 +41,11 @@ import com.google.android.material.button.MaterialButton;
  */
 public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         implements ManagerDocumentRegistrationBinder.Listener {
+    private static final String[] DOCUMENT_IMAGE_MIME_TYPES = {
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    };
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private ManagerDocumentStorageUploader managerDocumentStorageUploader;
@@ -132,7 +137,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         }
         
         pendingDocumentFileType = fileType;
-        documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
+        documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
     }
 
     @Override
@@ -163,7 +168,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 .setTitle(R.string.manager_document_registration_document_nursing_or_elderly_care_license)
                 .setItems(options, (dialog, which) -> {
                     pendingDocumentFileType = types[which];
-                    documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
+                    documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
                 })
                 .show();
     }

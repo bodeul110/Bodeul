@@ -507,28 +507,24 @@ public class MockBodeulRepository implements BodeulRepository {
             return null;
         }
         String normalizedSummary = normalizeText(documentSummary);
+        String currentSummary = normalizeText(managerDocumentSummariesByUserId.get(managerUserId));
+        ManagerDocumentStatus currentStatus = resolveManagerDocumentStatus(managerUserId);
+        ManagerDocumentStatus targetStatus = normalizedSummary.isEmpty()
+                ? ManagerDocumentStatus.NOT_SUBMITTED
+                : ManagerDocumentStatus.PENDING_REVIEW;
+        if (currentSummary.equals(normalizedSummary) && currentStatus == targetStatus) {
+            return getManagerHomeProfile(managerUserId);
+        }
         if (normalizedSummary.isEmpty()) {
             managerDocumentSummariesByUserId.remove(managerUserId);
-            managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.NOT_SUBMITTED);
+            managerDocumentStatusesByUserId.put(managerUserId, targetStatus);
         } else {
             managerDocumentSummariesByUserId.put(managerUserId, normalizedSummary);
-            managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.PENDING_REVIEW);
+            managerDocumentStatusesByUserId.put(managerUserId, targetStatus);
         }
         managerDocumentUpdatedAtByUserId.put(managerUserId, System.currentTimeMillis());
-        managerDocumentReviewNotesByUserId.remove(managerUserId);
-        managerDocumentReviewedAtByUserId.remove(managerUserId);
-        managerDocumentReviewedByNameByUserId.remove(managerUserId);
         if (!normalizedSummary.isEmpty()) {
-            appendManagerDocumentHistory(
-                    managerUserId,
-                    new ManagerDocumentHistoryEntry(
-                            ManagerDocumentHistoryEventType.SUBMITTED,
-                            managerDocumentUpdatedAtByUserId.get(managerUserId),
-                            manager.getName(),
-                            normalizedSummary,
-                            ""
-                    )
-            );
+            appendManagerDocumentSubmissionHistory(managerUserId, manager);
         }
         return getManagerHomeProfile(managerUserId);
     }
@@ -563,19 +559,7 @@ public class MockBodeulRepository implements BodeulRepository {
                         ? documentFileMetadata.getUploadedAtMillis()
                         : System.currentTimeMillis()
         );
-        managerDocumentReviewNotesByUserId.remove(managerUserId);
-        managerDocumentReviewedAtByUserId.remove(managerUserId);
-        managerDocumentReviewedByNameByUserId.remove(managerUserId);
-        appendManagerDocumentHistory(
-                managerUserId,
-                new ManagerDocumentHistoryEntry(
-                        ManagerDocumentHistoryEventType.SUBMITTED,
-                        managerDocumentUpdatedAtByUserId.get(managerUserId),
-                        manager.getName(),
-                        managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
-                        ""
-                )
-        );
+        appendManagerDocumentSubmissionHistory(managerUserId, manager);
         return getManagerHomeProfile(managerUserId);
     }
 
@@ -598,17 +582,25 @@ public class MockBodeulRepository implements BodeulRepository {
             fileMap = new HashMap<>();
             managerDocumentFilesByUserId.put(managerUserId, fileMap);
         }
+        ManagerDocumentStatus currentStatus = resolveManagerDocumentStatus(managerUserId);
+        boolean isInitialDraft = currentStatus == ManagerDocumentStatus.NOT_SUBMITTED
+                && normalizeText(managerDocumentSummariesByUserId.get(managerUserId)).isEmpty();
         fileMap.put(documentFileMetadata.getFileType(), documentFileMetadata);
-        managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.NOT_SUBMITTED);
+        managerDocumentStatusesByUserId.put(
+                managerUserId,
+                isInitialDraft
+                        ? ManagerDocumentStatus.NOT_SUBMITTED
+                        : ManagerDocumentStatus.PENDING_REVIEW
+        );
         managerDocumentUpdatedAtByUserId.put(
                 managerUserId,
                 documentFileMetadata.getUploadedAtMillis() > 0L
                         ? documentFileMetadata.getUploadedAtMillis()
                         : System.currentTimeMillis()
         );
-        managerDocumentReviewNotesByUserId.remove(managerUserId);
-        managerDocumentReviewedAtByUserId.remove(managerUserId);
-        managerDocumentReviewedByNameByUserId.remove(managerUserId);
+        if (!isInitialDraft) {
+            appendManagerDocumentSubmissionHistory(managerUserId, manager);
+        }
         return getManagerHomeProfile(managerUserId);
     }
 
@@ -2038,6 +2030,19 @@ public class MockBodeulRepository implements BodeulRepository {
             managerDocumentHistoriesByUserId.put(managerUserId, historyEntries);
         }
         historyEntries.add(0, historyEntry);
+    }
+
+    private void appendManagerDocumentSubmissionHistory(String managerUserId, User manager) {
+        appendManagerDocumentHistory(
+                managerUserId,
+                new ManagerDocumentHistoryEntry(
+                        ManagerDocumentHistoryEventType.SUBMITTED,
+                        managerDocumentUpdatedAtByUserId.get(managerUserId),
+                        manager.getName(),
+                        managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
+                        ""
+                )
+        );
     }
 
     private String normalizeKey(String value) {

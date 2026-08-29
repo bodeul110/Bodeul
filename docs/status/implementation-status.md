@@ -1418,7 +1418,7 @@
 ### 구현
 
 - [ManagerProfileActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 `원본 파일 업로드` 버튼과 SAF 문서 선택 흐름을 추가했다.
-- 업로드 대상은 `신분증`, `자격증`, `범죄경력 조회서` 3종으로 제한하고, 선택 가능한 MIME은 `application/pdf`, `image/*`로 묶었다.
+- 업로드 대상은 `신분증`, `자격증`, `범죄경력 조회서` 3종으로 제한하고, 현재 선택 가능한 MIME은 `image/jpeg`, `image/png`, `image/webp`로 제한한다.
 - [FirebaseManagerDocumentStorageUploader](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)를 추가해 Storage 업로드와 목업 메타데이터 생성을 분리했다.
 - [FirebaseManagerRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](../../app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 `managerDocumentFiles` 메타데이터 저장 흐름을 추가했다.
 - Firestore 저장 형식은 `managerDocumentFiles.{documentKey}`, `managerDocumentFilePaths.{documentKey}`, 레거시 경로 필드(`managerIdCardStoragePath` 등)를 함께 갱신하도록 맞췄다.
@@ -1698,7 +1698,7 @@
 - [../security/review-2026-04-29.md](../security/review-2026-04-29.md)를 현재 코드 기준으로 전면 최신화했다.
 - 기존 지적 사항을 `해결`, `부분 해결`, `미해결`로 다시 분류하고, 런타임 앱 / 관리자 웹 / Firebase 운영 도구 기준 남은 위험을 재정리했다.
 - [storage.rules](../../storage.rules)에 매니저 서류 업로드 제약을 추가했다.
-  - 허용 MIME: `application/pdf`, `image/*`
+  - 허용 MIME: `image/jpeg`, `image/png`, `image/webp`
   - 최대 크기: `10MB`
 - [../operations/firebase/setup.md](../operations/firebase/setup.md)에 Storage 업로드 제약을 문서화했다.
 
@@ -1835,7 +1835,7 @@
 ### 구현
 
 - [ManagerDocumentUploadPolicy.java](../../app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java)를 추가해 매니저 원본 서류 업로드 전에 파일 형식과 용량을 먼저 검사하도록 정리했다.
-- [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 `PDF` 또는 `image/*`만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다.
+- [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 JPEG, PNG, WebP 이미지만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다. 일반 채팅 첨부의 PDF 정책은 이 변경과 분리해 유지한다.
 - 서버 규칙에서 막히기 전에 앱에서 같은 기준으로 먼저 안내해, 매니저가 업로드 실패 이유를 바로 이해할 수 있게 맞췄다.
 
 ### 변경 범위

@@ -3,6 +3,7 @@ package com.example.bodeul.data.firebase;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -52,6 +53,24 @@ public class FirebaseManagerRepositoryTest {
         FirebaseManagerRepository.putManagerDocumentSummaryState(updates, "자격 증빙 제출");
 
         assertEquals("PENDING_REVIEW", updates.get("managerDocumentStatus"));
+    }
+
+    @Test
+    public void unchangedPendingSummarySkipsTimestampOnlyWrite() {
+        assertFalse(FirebaseManagerRepository.managerDocumentSummaryStateChanged(
+                "동일한 제출 요약",
+                "PENDING_REVIEW",
+                "동일한 제출 요약"
+        ));
+    }
+
+    @Test
+    public void sameRejectedSummaryStillRequestsReview() {
+        assertTrue(FirebaseManagerRepository.managerDocumentSummaryStateChanged(
+                "동일한 제출 요약",
+                "REJECTED",
+                "동일한 제출 요약"
+        ));
     }
 
     @Test

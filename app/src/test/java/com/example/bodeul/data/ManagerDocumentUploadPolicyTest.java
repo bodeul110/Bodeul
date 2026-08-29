@@ -10,16 +10,21 @@ import org.junit.Test;
  */
 public class ManagerDocumentUploadPolicyTest {
     @Test
-    public void validateContentType_allowsPdfAndImage() {
-        assertNull(ManagerDocumentUploadPolicy.validateContentType("application/pdf"));
+    public void validateContentType_allowsReviewableImages() {
+        assertNull(ManagerDocumentUploadPolicy.validateContentType("image/jpeg"));
         assertNull(ManagerDocumentUploadPolicy.validateContentType("image/png"));
+        assertNull(ManagerDocumentUploadPolicy.validateContentType("image/webp"));
     }
 
     @Test
-    public void validateContentType_blocksUnsupportedType() {
+    public void validateContentType_blocksPdfAndUnsupportedImages() {
         assertEquals(
-                "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.",
-                ManagerDocumentUploadPolicy.validateContentType("text/plain")
+                "원본 서류는 JPEG, PNG 또는 WebP 이미지로만 업로드할 수 있습니다.",
+                ManagerDocumentUploadPolicy.validateContentType("application/pdf")
+        );
+        assertEquals(
+                "원본 서류는 JPEG, PNG 또는 WebP 이미지로만 업로드할 수 있습니다.",
+                ManagerDocumentUploadPolicy.validateContentType("image/gif")
         );
     }
 

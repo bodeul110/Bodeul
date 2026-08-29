@@ -455,29 +455,27 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         String normalizedSummary = normalizeText(documentSummary);
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("managerDocumentSummary", normalizedSummary);
-        putManagerDocumentSummaryState(updates, normalizedSummary);
+        DocumentReference managerReference = firestore.collection("users").document(managerUserId);
+        firestore.runTransaction(transaction -> {
+                    DocumentSnapshot snapshot = transaction.get(managerReference);
+                    if (!managerDocumentSummaryStateChanged(
+                            snapshot.getString("managerDocumentSummary"),
+                            snapshot.getString("managerDocumentStatus"),
+                            normalizedSummary
+                    )) {
+                        return false;
+                    }
 
-        firestore.collection("users")
-                .document(managerUserId)
-                .update(updates)
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("managerDocumentSummary", normalizedSummary);
+                    putManagerDocumentSummaryState(updates, normalizedSummary);
+                    transaction.update(managerReference, updates);
+                    return true;
+                })
                 .addOnSuccessListener(unused ->
                         onManagerDocumentSummarySaved(managerUserId, callback))
                 .addOnFailureListener(exception ->
                         callback.onError("서류 등록 정보를 저장하지 못했습니다."));
-
-        boolean shouldUseLegacyPath = false;
-        if (shouldUseLegacyPath) {
-        saveManagerHomeProfileField(
-                managerUserId,
-                "managerDocumentSummary",
-                normalizeText(documentSummary),
-                "managerDocumentUpdatedAt",
-                "?쒕쪟 ?깅줉 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??",
-                callback
-        );
-        }
     }
 
     @Override
@@ -1630,6 +1628,28 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         : ManagerDocumentStatus.PENDING_REVIEW.name()
         );
         updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+    }
+
+    static boolean managerDocumentSummaryStateChanged(
+            @Nullable String currentSummary,
+            @Nullable String currentStatus,
+            String normalizedSummary
+    ) {
+        String normalizedCurrentSummary = currentSummary == null ? "" : currentSummary.trim();
+        ManagerDocumentStatus resolvedCurrentStatus = SafeEnumParser.parseOrNull(
+                ManagerDocumentStatus.class,
+                currentStatus
+        );
+        if (resolvedCurrentStatus == null) {
+            resolvedCurrentStatus = normalizedCurrentSummary.isEmpty()
+                    ? ManagerDocumentStatus.NOT_SUBMITTED
+                    : ManagerDocumentStatus.PENDING_REVIEW;
+        }
+        ManagerDocumentStatus targetStatus = normalizedSummary.isEmpty()
+                ? ManagerDocumentStatus.NOT_SUBMITTED
+                : ManagerDocumentStatus.PENDING_REVIEW;
+        return !normalizedCurrentSummary.equals(normalizedSummary)
+                || resolvedCurrentStatus != targetStatus;
     }
 
     static void putManagerDocumentDraftState(

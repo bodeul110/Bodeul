@@ -40,8 +40,8 @@ public final class ManagerDocumentUploadPolicy {
 
     @Nullable
     static String validateContentType(@Nullable String contentType) {
-        if (!isAllowedContentType(normalizeText(contentType))) {
-            return "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.";
+        if (!isAllowedContentType(contentType)) {
+            return "원본 서류는 JPEG, PNG 또는 WebP 이미지로만 업로드할 수 있습니다.";
         }
 
         return null;
@@ -89,12 +89,14 @@ public final class ManagerDocumentUploadPolicy {
         );
     }
 
-    private static boolean isAllowedContentType(String contentType) {
-        if (contentType == null || contentType.isEmpty()) {
+    public static boolean isAllowedContentType(@Nullable String contentType) {
+        String normalizedContentType = normalizeText(contentType);
+        if (normalizedContentType.isEmpty()) {
             return false;
         }
-        return "application/pdf".equals(contentType)
-                || contentType.startsWith("image/");
+        return "image/jpeg".equals(normalizedContentType)
+                || "image/png".equals(normalizedContentType)
+                || "image/webp".equals(normalizedContentType);
     }
 
     private static String normalizeText(String value) {

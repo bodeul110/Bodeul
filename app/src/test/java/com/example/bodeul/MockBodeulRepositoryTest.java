@@ -1268,11 +1268,26 @@ public class MockBodeulRepositoryTest {
         assertNotNull(updatedDocumentProfile);
         assertNotNull(updatedAvailabilityProfile);
         assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedDocumentProfile.getDocumentStatus());
-        assertEquals("", updatedDocumentProfile.getDocumentReviewNote());
+        assertEquals(
+                "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요.",
+                updatedDocumentProfile.getDocumentReviewNote()
+        );
         assertTrue(updatedDocumentProfile.getDocumentUpdatedAtMillis() > 0L);
-        assertEquals(0L, updatedDocumentProfile.getDocumentReviewedAtMillis());
+        assertTrue(updatedDocumentProfile.getDocumentReviewedAtMillis() > 0L);
+        assertEquals("관리자", updatedDocumentProfile.getDocumentReviewedByName());
         assertEquals("updated summary", updatedDocumentProfile.getDocumentSummary());
         assertEquals("weekday 10:00-17:00", updatedAvailabilityProfile.getAvailabilitySummary());
+
+        int submittedHistoryCount = repository.getManagerDocumentHistory(manager.getId()).size();
+        long submittedAtMillis = updatedDocumentProfile.getDocumentUpdatedAtMillis();
+        ManagerHomeProfile unchangedDocumentProfile = repository.saveManagerDocumentSummary(
+                manager.getId(),
+                "updated summary"
+        );
+
+        assertNotNull(unchangedDocumentProfile);
+        assertEquals(submittedHistoryCount, repository.getManagerDocumentHistory(manager.getId()).size());
+        assertEquals(submittedAtMillis, unchangedDocumentProfile.getDocumentUpdatedAtMillis());
 
         List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
         assertEquals(3, historyEntries.size());
@@ -1291,9 +1306,9 @@ public class MockBodeulRepositoryTest {
                 manager.getId(),
                 new ManagerDocumentFileMetadata(
                         ManagerDocumentFileType.ID_CARD,
-                        "manager-documents/" + manager.getId() + "/idCard/1760500900000-id-card.pdf",
-                        "id-card.pdf",
-                        "application/pdf",
+                        "manager-documents/" + manager.getId() + "/idCard/1760500900000-id-card.jpg",
+                        "id-card.jpg",
+                        "image/jpeg",
                         1760500900000L,
                         "content://manager-documents/id-card"
                 )
@@ -1301,12 +1316,15 @@ public class MockBodeulRepositoryTest {
 
         assertNotNull(updatedProfile);
         assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedProfile.getDocumentStatus());
-        assertEquals("", updatedProfile.getDocumentReviewNote());
-        assertEquals(0L, updatedProfile.getDocumentReviewedAtMillis());
-        assertEquals("", updatedProfile.getDocumentReviewedByName());
+        assertEquals(
+                "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요.",
+                updatedProfile.getDocumentReviewNote()
+        );
+        assertTrue(updatedProfile.getDocumentReviewedAtMillis() > 0L);
+        assertEquals("관리자", updatedProfile.getDocumentReviewedByName());
         assertNotNull(updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD));
         assertEquals(
-                "id-card.pdf",
+                "id-card.jpg",
                 updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD).getFileName()
         );
         assertEquals(
@@ -1318,6 +1336,54 @@ public class MockBodeulRepositoryTest {
         assertFalse(historyEntries.isEmpty());
         assertEquals(ManagerDocumentHistoryEventType.SUBMITTED, historyEntries.get(0).getEventType());
         assertEquals(manager.getName(), historyEntries.get(0).getActorName());
+    }
+
+    @Test
+    public void managerDocumentDraft_matchesFirebaseSubmissionTransitions() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        int approvedHistoryCount = repository.getManagerDocumentHistory(manager.getId()).size();
+        ManagerHomeProfile reviewedDraft = repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.ID_CARD,
+                        "manager-documents/" + manager.getId() + "/idCard/reviewed-revision.jpg",
+                        "reviewed-revision.jpg",
+                        "image/jpeg",
+                        1760500900100L,
+                        "content://manager-documents/reviewed-revision"
+                )
+        );
+
+        assertNotNull(reviewedDraft);
+        assertEquals(ManagerDocumentStatus.PENDING_REVIEW, reviewedDraft.getDocumentStatus());
+        assertEquals(approvedHistoryCount + 1, repository.getManagerDocumentHistory(manager.getId()).size());
+        assertEquals(
+                ManagerDocumentHistoryEventType.SUBMITTED,
+                repository.getManagerDocumentHistory(manager.getId()).get(0).getEventType()
+        );
+        assertTrue(reviewedDraft.getDocumentReviewedAtMillis() > 0L);
+
+        repository.saveManagerDocumentSummary(manager.getId(), "");
+        int initialDraftHistoryCount = repository.getManagerDocumentHistory(manager.getId()).size();
+        ManagerHomeProfile initialDraft = repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.CRIMINAL_RECORD,
+                        "manager-documents/" + manager.getId() + "/criminalRecord/initial-draft.png",
+                        "initial-draft.png",
+                        "image/png",
+                        1760500900200L,
+                        "content://manager-documents/initial-draft"
+                )
+        );
+
+        assertNotNull(initialDraft);
+        assertEquals(ManagerDocumentStatus.NOT_SUBMITTED, initialDraft.getDocumentStatus());
+        assertEquals(initialDraftHistoryCount, repository.getManagerDocumentHistory(manager.getId()).size());
     }
 
     @Test

@@ -50,10 +50,11 @@ service firebase.storage {
     function isAllowedDocumentContentType() {
       return request.resource != null
           && request.resource.contentType is string
-          && (
-            request.resource.contentType == 'application/pdf'
-            || request.resource.contentType.matches('image/.*')
-          );
+          && request.resource.contentType in [
+            'image/jpeg',
+            'image/png',
+            'image/webp'
+          ];
     }
 
     function isAllowedDocumentSize() {

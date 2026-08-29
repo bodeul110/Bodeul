@@ -694,7 +694,7 @@
 - 현재 매니저 앱은 실제 Storage 업로드 후 같은 `users/{uid}` 문서에 `managerDocumentFiles` 메타데이터를 함께 저장한다.
 ### 2026-05-04 매니저 앱 서류 업로드 반영 메모
 
-- 매니저 앱 내 페이지에서 `원본 파일 업로드` 버튼으로 `application/pdf`, `image/*` 파일을 선택해 바로 Storage 업로드를 시작한다.
+- 매니저 앱 내 페이지에서 `원본 파일 업로드` 버튼으로 `image/jpeg`, `image/png`, `image/webp`만 선택해 Storage 업로드를 시작한다. 매니저 증빙 PDF는 격리 렌더러 없이 안전한 미리보기를 제공할 수 없어 신규 제출을 거부한다.
 - 업로드 성공 후 `users/{uid}` 문서에는 아래 필드를 함께 저장한다.
   - `managerDocumentFiles.{documentKey}.fullPath`
   - `managerDocumentFiles.{documentKey}.fileName`
@@ -702,12 +702,13 @@
   - `managerDocumentFiles.{documentKey}.uploadedAt`
   - `managerDocumentFilePaths.{documentKey}`
   - 레거시 호환 경로: `managerIdCardStoragePath`, `managerLicenseStoragePath`, `managerCriminalRecordStoragePath`
-- 업로드 또는 요약 변경 후 앱은 제출 메타데이터, `managerDocumentStatus=PENDING_REVIEW`, `managerDocumentUpdatedAt`만 원자적으로 갱신한다.
-- `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentReviewedByAdminUserId`, `managerDocumentHistory`, legal hold 필드는 서버 심사 전용이다. 매니저 앱은 과거 값을 지우거나 덧붙이지 않으며, `PENDING_REVIEW` 화면에서는 과거 심사 결과를 현재 판정으로 표시하지 않는다.
+- 업로드 또는 요약 변경 후 앱은 제출 메타데이터, `managerDocumentStatus`, 서버 timestamp인 `managerDocumentUpdatedAt`만 원자적으로 갱신한다.
+- `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentReviewedByAdminUserId`, `managerDocumentHistory`, legal hold 필드, `managerDocumentOriginalsDeletedAt`, `managerDocumentApprovalEvidence`, `managerDocumentReviewedSubmissionRevision`은 서버 심사·보존 전용이다. 매니저 앱은 이 값을 생성·변경·삭제하지 않으며, `PENDING_REVIEW` 화면에서는 과거 심사 결과를 현재 판정으로 표시하지 않는다.
 - 신규 등록 중 요약이 없는 파일 초안은 `NOT_SUBMITTED`를 유지한다. 승인·반려된 서류의 파일을 교체하면 즉시 `PENDING_REVIEW`가 되어야 한다.
-- `NOT_SUBMITTED`, `APPROVED`, `REJECTED`에서 `PENDING_REVIEW`로 전환된 제출 이력은 Functions가 매니저 사용자 ID를 행위자로 확정해 기록한다. Functions 이벤트 ID로 중복 실행을 제거하며 클라이언트는 `managerDocumentHistory`를 쓰지 않는다.
+- `PENDING_REVIEW` 전환에는 신분증, 범죄경력 조회서, 자격증 또는 간호사 자격증의 JPEG·PNG·WebP 메타데이터가 모두 필요하다. 앱 진입점과 Firestore Rules가 같은 조건을 사용하며 기존 PDF나 누락 파일만으로는 심사를 요청할 수 없다.
+- `NOT_SUBMITTED`, `APPROVED`, `REJECTED`에서 `PENDING_REVIEW`로 전환되거나 `PENDING_REVIEW` 중 파일·요약이 바뀐 제출 버전은 Functions가 매니저 사용자 ID와 Firestore 서버 update time을 기준으로 기록한다. trigger 재시도와 Functions 이벤트 ID로 일시 실패·중복 실행을 처리하며 클라이언트는 `managerDocumentHistory`를 쓰지 않는다.
 - Storage 원본은 타임스탬프를 포함한 고유 경로에 한 번만 생성한다. 브라우저 클라이언트의 overwrite/delete는 거부하고, 보존 기간에 따른 삭제는 Admin SDK를 사용하는 서버 작업에서 수행한다.
-- 업로드 전제 조건은 `managerDocumentSummary`가 비어 있지 않은 상태다. 요약이 없으면 앱과 저장소 모두 업로드 메타데이터 저장을 거부한다.
+- 신규 등록의 파일 초안은 요약 없이 저장할 수 있지만 `NOT_SUBMITTED`를 유지한다. 기존 제출의 파일 교체와 최종 인증 요청은 서버 timestamp로 제출 버전을 갱신한다.
 
 ### 2026-06-19 사용자 문의 관리자 통합
 
