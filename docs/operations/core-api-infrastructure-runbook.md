@@ -341,10 +341,11 @@ V18 schema 자체를 되돌려야 할 때는 다음 순서를 지킨다.
 
 1. `companion_session_artifacts`의 세션 ID, 용도와 `storage_path`, `companion_session_artifact_operations`의 요청 UUID·fingerprint·revision을 접근 제한된 산출물로 각각 export한다.
 2. export한 경로의 Firebase Storage 원본을 삭제하고 삭제 결과를 검증한다.
-3. 확인된 첨부 메타데이터와 operation ledger 행을 삭제한다. 두 테이블 중 어느 한쪽이라도 행이 남아 있으면 rollback SQL은 의도적으로 중단된다.
-4. `core-api/db/rollback/V18__merge_companion_care_completion.sql`을 실행하고 첨부·operation ledger 테이블과 V18 열이 제거됐는지 확인한다.
+3. `CARE_ENDED`, `care_ended_at`, 매니저 일지와 리포트 생성 상태·오류·갱신 시각을 export한다. V18 baseline 이후 값이 바뀐 행은 자동 역변환하지 않으며 운영자가 복원 가능성을 확인해 정리하기 전 rollback이 중단된다.
+4. 확인된 첨부 메타데이터와 operation ledger 행을 삭제한다. 두 테이블 중 어느 한쪽이라도 행이 남아 있으면 rollback SQL은 의도적으로 중단된다.
+5. `core-api/db/rollback/V18__merge_companion_care_completion.sql`을 실행한다. migration 직후 그대로인 legacy `COMPLETED` 행은 비공개 baseline ledger의 원래 `completed_at`으로 복원되고, 마지막에 ledger·첨부 테이블과 V18 열이 제거된다.
 
-CI의 `db/verification/verify_companion_completion_migration.sh`는 V17 fixture에서 V18을 실제 적용하고, 용도별 0~1/0~3 제약, SHA-256, operation ledger 유지, 첨부가 있을 때 rollback 실패, export·정리 후 rollback 성공을 disposable PostgreSQL에서 검증한다.
+CI의 `db/verification/verify_companion_completion_migration.sh`는 V17 fixture에서 V18을 실제 적용하고, legacy baseline 즉시 rollback 성공, baseline 변조와 신규 V18 상태별 rollback 실패, 용도별 0~1/0~3 제약, SHA-256, operation ledger 유지, 후반 오류가 발생한 rollback의 원자 복구, export·정리 후 rollback 성공을 disposable PostgreSQL 17에서 검증한다.
 
 ## 최초 서비스 공개
 

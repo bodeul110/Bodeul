@@ -138,7 +138,7 @@ npm --prefix tools/firebase run postgres:sessions:rollback -- --file backups/<�
 npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 파일>.json
 ```
 
-적용 전 `check`, transaction rollback SQL, 적용 SQL 순서로 검증한다. 생성 SQL은 개인정보를 포함하므로 `tools/firebase/reports/`의 Git 제외 경로에만 둔다. V5 DDL rollback은 `core-api/db/rollback/V5__drop_companion_session_operational_schema.sql`, V18 종료·완료 분리 rollback은 `core-api/db/rollback/V18__merge_companion_care_completion.sql`을 사용한다. V18 rollback은 첨부 또는 operation ledger 행이 하나라도 있으면 fail-closed로 중단한다. 먼저 첨부의 `storage_path`, 세션 ID와 용도, operation ledger의 요청 UUID·fingerprint·revision을 접근 제한된 운영 산출물로 export하고, 해당 Storage 원본 삭제를 확인한 뒤 두 테이블의 행을 지워야 한다. 그 후에만 rollback SQL을 다시 실행하며, `CARE_ENDED`는 기존 마지막 진행 상태인 `PAYMENT`로 되돌린다.
+적용 전 `check`, transaction rollback SQL, 적용 SQL 순서로 검증한다. 생성 SQL은 개인정보를 포함하므로 `tools/firebase/reports/`의 Git 제외 경로에만 둔다. V5 DDL rollback은 `core-api/db/rollback/V5__drop_companion_session_operational_schema.sql`, V18 종료·완료 분리 rollback은 `core-api/db/rollback/V18__merge_companion_care_completion.sql`을 사용한다. V18은 기존 `COMPLETED` 행의 원래 완료 시각과 migration 직후 예상 파생값을 runtime에 공개하지 않는 baseline ledger에 기록한다. rollback은 baseline과 정확히 같은 legacy 행만 원래 `completed_at`으로 복원한다. 이후 종료·일지·리포트 상태가 바뀐 행, 신규 `CARE_ENDED`, 첨부 또는 operation ledger가 있으면 fail-closed로 중단하므로 관련 데이터를 접근 제한된 운영 산출물로 export하고 Storage 원본까지 정리한 뒤 다시 실행한다. V18 이후 생성됐더라도 기존 상태와 V18 기본값만 가진 행은 rollback을 막지 않는다.
 
 개발 DB 적용은 `Core API DB Migration` workflow의 `apply_companion_session_seed=true` 입력을 사용한다. 적용 SQL은 `core-api-migration-preview`의 일회성 `COMPANION_SESSION_SEED_SQL_BASE64` secret으로 전달하고, `companion_session_seed_sha256` 입력과 실제 파일 해시가 일치해야 한다. workflow 종료를 확인한 즉시 일회성 secret을 삭제한다.
 

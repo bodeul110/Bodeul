@@ -1,3 +1,5 @@
+begin;
+
 do $$
 begin
     if exists (select 1 from bodeul.companion_session_artifacts limit 1)
@@ -13,14 +15,35 @@ begin
 
     if exists (
         select 1
-        from bodeul.companion_sessions
-        where current_status = 'CARE_ENDED'
-           or care_ended_at is not null
-           or btrim(manager_journal) <> ''
-           or report_generation_status <> 'NOT_REQUESTED'
-           or report_generation_attempts <> 0
-           or btrim(report_generation_last_error) <> ''
-           or report_generation_updated_at is not null
+        from bodeul.companion_completion_v18_baseline as baseline
+        join bodeul.companion_sessions as session
+          on session.id = baseline.companion_session_id
+        where session.current_status <> 'COMPLETED'
+           or session.completed_at is distinct from baseline.expected_completed_at
+           or session.care_ended_at is distinct from baseline.expected_care_ended_at
+           or session.manager_journal <> ''
+           or session.report_generation_status <> baseline.expected_report_generation_status
+           or session.report_generation_attempts <> baseline.expected_report_generation_attempts
+           or session.report_generation_last_error <> baseline.expected_report_generation_last_error
+           or session.report_generation_updated_at
+                is distinct from baseline.expected_report_generation_updated_at
+    ) or exists (
+        select 1
+        from bodeul.companion_sessions as session
+        where not exists (
+                select 1
+                from bodeul.companion_completion_v18_baseline as baseline
+                where baseline.companion_session_id = session.id
+            )
+          and (
+              session.current_status = 'CARE_ENDED'
+              or session.care_ended_at is not null
+              or btrim(session.manager_journal) <> ''
+              or session.report_generation_status <> 'NOT_REQUESTED'
+              or session.report_generation_attempts <> 0
+              or btrim(session.report_generation_last_error) <> ''
+              or session.report_generation_updated_at is not null
+          )
     ) then
         raise exception using
             errcode = 'P0001',
@@ -32,14 +55,15 @@ $$;
 drop table if exists bodeul.companion_session_artifact_operations;
 drop table if exists bodeul.companion_session_artifacts;
 
-update bodeul.companion_sessions
-set current_status = 'PAYMENT',
-    updated_at = now(),
-    version = version + 1
-where current_status = 'CARE_ENDED';
+alter table bodeul.companion_sessions
+    drop constraint ck_companion_sessions_completion_timestamps;
+
+update bodeul.companion_sessions as session
+set completed_at = baseline.original_completed_at
+from bodeul.companion_completion_v18_baseline as baseline
+where session.id = baseline.companion_session_id;
 
 alter table bodeul.companion_sessions
-    drop constraint ck_companion_sessions_completion_timestamps,
     drop constraint ck_companion_sessions_report_generation_attempts,
     drop constraint ck_companion_sessions_report_generation_status,
     drop constraint ck_companion_sessions_manager_journal,
@@ -57,3 +81,7 @@ alter table bodeul.companion_sessions
             'READY', 'MEETING', 'WAITING', 'IN_TREATMENT',
             'PAYMENT', 'CANCELED', 'COMPLETED'
         ));
+
+drop table bodeul.companion_completion_v18_baseline;
+
+commit;

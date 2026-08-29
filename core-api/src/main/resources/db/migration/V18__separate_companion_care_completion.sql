@@ -20,43 +20,58 @@ alter table bodeul.companion_sessions
     add constraint ck_companion_sessions_report_generation_attempts
         check (report_generation_attempts >= 0);
 
-update bodeul.companion_sessions as session
-set care_ended_at = coalesce(
-        session.completed_at,
-        session.updated_at,
-        session.started_at,
-        now()),
-    completed_at = coalesce(
-        session.completed_at,
-        session.updated_at,
-        session.started_at,
-        now()),
-    report_generation_status = case
-        when exists (
-            select 1
-            from bodeul.session_reports as report
-            where report.companion_session_id = session.id
-        ) then 'READY'
-        else 'FAILED'
-    end,
-    report_generation_attempts = case
-        when exists (
-            select 1
-            from bodeul.session_reports as report
-            where report.companion_session_id = session.id
-        ) then 1
-        else 0
-    end,
-    report_generation_last_error = case
-        when exists (
-            select 1
-            from bodeul.session_reports as report
-            where report.companion_session_id = session.id
-        ) then ''
-        else 'LEGACY_REPORT_MISSING'
-    end,
-    report_generation_updated_at = coalesce(session.completed_at, session.updated_at, now())
+create table bodeul.companion_completion_v18_baseline (
+    companion_session_id uuid primary key,
+    original_completed_at timestamptz,
+    expected_completed_at timestamptz not null,
+    expected_care_ended_at timestamptz not null,
+    expected_report_generation_status text not null,
+    expected_report_generation_attempts integer not null,
+    expected_report_generation_last_error text not null,
+    expected_report_generation_updated_at timestamptz not null,
+    recorded_at timestamptz not null default transaction_timestamp(),
+    constraint fk_companion_completion_v18_baseline_session
+        foreign key (companion_session_id) references bodeul.companion_sessions (id)
+            on delete cascade
+);
+
+revoke all on table bodeul.companion_completion_v18_baseline
+    from public, anon, authenticated, service_role,
+         bodeul_core_runtime, bodeul_admin_runtime;
+
+insert into bodeul.companion_completion_v18_baseline (
+    companion_session_id,
+    original_completed_at,
+    expected_completed_at,
+    expected_care_ended_at,
+    expected_report_generation_status,
+    expected_report_generation_attempts,
+    expected_report_generation_last_error,
+    expected_report_generation_updated_at
+)
+select
+    session.id,
+    session.completed_at,
+    coalesce(session.completed_at, session.updated_at, session.started_at, transaction_timestamp()),
+    coalesce(session.completed_at, session.updated_at, session.started_at, transaction_timestamp()),
+    case when report.id is not null then 'READY' else 'FAILED' end,
+    case when report.id is not null then 1 else 0 end,
+    case when report.id is not null then '' else 'LEGACY_REPORT_MISSING' end,
+    coalesce(session.completed_at, session.updated_at, transaction_timestamp())
+from bodeul.companion_sessions as session
+left join bodeul.session_reports as report
+    on report.companion_session_id = session.id
 where session.current_status = 'COMPLETED';
+
+update bodeul.companion_sessions as session
+set care_ended_at = baseline.expected_care_ended_at,
+    completed_at = baseline.expected_completed_at,
+    report_generation_status = baseline.expected_report_generation_status,
+    report_generation_attempts = baseline.expected_report_generation_attempts,
+    report_generation_last_error = baseline.expected_report_generation_last_error,
+    report_generation_updated_at = baseline.expected_report_generation_updated_at
+from bodeul.companion_completion_v18_baseline as baseline
+where session.id = baseline.companion_session_id;
 
 alter table bodeul.companion_sessions
     add constraint ck_companion_sessions_completion_timestamps

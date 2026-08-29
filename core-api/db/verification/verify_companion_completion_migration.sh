@@ -84,6 +84,13 @@ expect_rollback_failure() {
 }
 
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --command "update bodeul.companion_sessions set manager_journal = 'baseline 변조' where id = '30000000-0000-0000-0000-000000000001'"
+expect_rollback_failure "baseline 이후 변경"
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --command "update bodeul.companion_sessions set manager_journal = '' where id = '30000000-0000-0000-0000-000000000001'"
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --command "delete from bodeul.companion_completion_v18_baseline where companion_session_id = '30000000-0000-0000-0000-000000000001'"
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --command "update bodeul.companion_sessions set care_ended_at = null, manager_journal = '', report_generation_status = 'NOT_REQUESTED', report_generation_attempts = 0, report_generation_last_error = '', report_generation_updated_at = null where id = '30000000-0000-0000-0000-000000000001'"
 
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
@@ -113,4 +120,53 @@ psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/rollback/V18__merge_companion_care_completion.sql
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --file db/verification/014_companion_completion_rollback_checks.sql
+
+createdb bodeul_completion_clean_rollback
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/001_database_access.sql
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/002_database_access_hardening.sql
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/004_retention_runtime.sql
+export MIGRATION_DB_JDBC_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/bodeul_completion_clean_rollback?sslmode=disable"
+SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
+    SPRING_FLYWAY_BASELINE_VERSION=0 \
+    SPRING_FLYWAY_TARGET=17 \
+    ./gradlew migrateDatabase --console=plain
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/verification/012_companion_completion_legacy_fixture.sql
+env -u SPRING_FLYWAY_TARGET \
+    SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
+    SPRING_FLYWAY_BASELINE_VERSION=0 \
+    ./gradlew migrateDatabase --console=plain
+injected_rollback="${RUNNER_TEMP:-/tmp}/bodeul-v18-injected-rollback.sql"
+sed 's/^commit;$/select 1\/0;\ncommit;/' \
+    db/rollback/V18__merge_companion_care_completion.sql > "$injected_rollback"
+if psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+        --file "$injected_rollback"; then
+    echo "후반 오류를 주입한 V18 rollback이 성공했습니다." >&2
+    exit 1
+fi
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 <<'SQL'
+do $$
+begin
+    if to_regclass('bodeul.companion_completion_v18_baseline') is null
+            or to_regclass('bodeul.companion_session_artifacts') is null
+            or to_regclass('bodeul.companion_session_artifact_operations') is null
+            or not exists (
+                select 1
+                from information_schema.columns
+                where table_schema = 'bodeul'
+                  and table_name = 'companion_sessions'
+                  and column_name = 'care_ended_at'
+            ) then
+        raise exception '후반 실패 rollback이 V18 schema를 부분 삭제했습니다.';
+    end if;
+end;
+$$;
+SQL
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/rollback/V18__merge_companion_care_completion.sql
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
     --file db/verification/014_companion_completion_rollback_checks.sql
