@@ -131,11 +131,19 @@ if psql --dbname "$database" --set ON_ERROR_STOP=1 \
 fi
 
 export_file="${RUNNER_TEMP:-/tmp}/guardian-sharing-consent-v17-data.sql"
-pg_dump --dbname "$database" --data-only \
+docker run --rm --network host \
+    --env PGPASSWORD="$PGPASSWORD" \
+    postgres:17 \
+    pg_dump \
+    --host "$PGHOST" \
+    --port "$PGPORT" \
+    --username "$PGUSER" \
+    --dbname "$database" \
+    --data-only \
     --table=bodeul.guardian_sharing_consent_settings \
     --table=bodeul.guardian_sharing_consents \
     --table=bodeul.guardian_sharing_consent_events \
-    --file="$export_file"
+    > "$export_file"
 test -s "$export_file"
 
 psql --dbname "$database" --set ON_ERROR_STOP=1 <<'SQL'
