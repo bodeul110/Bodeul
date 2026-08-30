@@ -501,6 +501,10 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION);
         boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT);
         boolean reportAllowed = allowedScopes.contains(InformationScope.REPORT);
+        String exposedBlockedReason = !reportAllowed
+                && REPORT_RETRY_REQUIRED.equals(progress.blockedReason())
+                ? SESSION_TERMINAL
+                : progress.blockedReason();
         String exposedStatus = !completionEnforcement
                 && "CARE_ENDED".equals(session.currentStatus())
                 ? "PAYMENT"
@@ -535,7 +539,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 steps,
                 progress.currentStepCode(),
                 progress.canAdvance(),
-                progress.blockedReason(),
+                exposedBlockedReason,
                 format(session.careEndedAt()),
                 reportAllowed ? session.managerJournal() : "",
                 reportAllowed ? session.reportGenerationStatus() : "",

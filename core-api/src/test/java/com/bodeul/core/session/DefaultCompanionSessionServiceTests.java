@@ -781,7 +781,7 @@ class DefaultCompanionSessionServiceTests {
 
     @Test
     void guardianAppointmentConsentDoesNotExposeReportCompletionDetails() {
-        repository.session = Optional.of(completionMetadata(repository.session.orElseThrow()));
+        repository.session = Optional.of(completionMetadata(session("COMPLETED", 5, 5, 4)));
         var appointmentOnlyService = new DefaultCompanionSessionService(
                 repository,
                 events::add,
@@ -797,6 +797,7 @@ class DefaultCompanionSessionServiceTests {
         assertThat(view.reportGenerationAttempts()).isZero();
         assertThat(view.reportGenerationLastError()).isEmpty();
         assertThat(view.reportGenerationUpdatedAt()).isEmpty();
+        assertThat(view.blockedReason()).isEqualTo("SESSION_TERMINAL");
     }
 
     @Test
