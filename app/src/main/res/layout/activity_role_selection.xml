@@ -6,6 +6,7 @@
     android:background="@color/figma_mvp_background">
 
     <ScrollView
+        android:id="@+id/scrollRoleSelection"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
@@ -54,9 +55,10 @@
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardManagerType"
                 android:layout_width="match_parent"
-                android:layout_height="306dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="48dp"
                 android:clipToOutline="true"
+                android:minHeight="306dp"
                 app:cardBackgroundColor="@color/figma_mvp_surface"
                 app:cardCornerRadius="48dp"
                 app:cardElevation="4dp"
@@ -66,7 +68,8 @@
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent">
+                    android:layout_height="wrap_content"
+                    android:minHeight="306dp">
 
                     <View
                         android:layout_width="128dp"
@@ -78,7 +81,8 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="306dp"
                         android:orientation="vertical"
                         android:padding="34dp">
 
@@ -100,9 +104,8 @@
 
                         <TextView
                             android:layout_width="match_parent"
-                            android:layout_height="0dp"
+                            android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
-                            android:layout_weight="1"
                             android:fontFamily="@font/pretendard_semibold"
                             android:includeFontPadding="false"
                             android:lineSpacingExtra="6dp"
@@ -113,6 +116,7 @@
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="24dp"
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
 
@@ -157,9 +161,10 @@
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardPatientType"
                 android:layout_width="match_parent"
-                android:layout_height="306dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:clipToOutline="true"
+                android:minHeight="306dp"
                 app:cardBackgroundColor="@color/figma_mvp_surface"
                 app:cardCornerRadius="48dp"
                 app:cardElevation="4dp"
@@ -169,7 +174,8 @@
 
                 <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent">
+                    android:layout_height="wrap_content"
+                    android:minHeight="306dp">
 
                     <View
                         android:layout_width="128dp"
@@ -181,7 +187,8 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="306dp"
                         android:orientation="vertical"
                         android:padding="34dp">
 
@@ -203,9 +210,8 @@
 
                         <TextView
                             android:layout_width="match_parent"
-                            android:layout_height="0dp"
+                            android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
-                            android:layout_weight="1"
                             android:fontFamily="@font/pretendard_semibold"
                             android:includeFontPadding="false"
                             android:lineSpacingExtra="6dp"
@@ -216,6 +222,7 @@
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="24dp"
                             android:gravity="center_vertical"
                             android:orientation="horizontal">
 
@@ -261,12 +268,14 @@
     </ScrollView>
 
     <LinearLayout
+        android:id="@+id/layoutRoleBottomAction"
         android:layout_width="match_parent"
-        android:layout_height="112dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:background="@drawable/bg_figma_bottom_fade"
         android:gravity="bottom"
         android:orientation="vertical"
+        android:minHeight="112dp"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:paddingBottom="24dp">

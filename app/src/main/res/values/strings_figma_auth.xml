@@ -10,7 +10,7 @@
     <string name="figma_login_email_placeholder" translatable="false">example@bodeul.com</string>
     <string name="figma_login_password_placeholder" translatable="false">••••••••</string>
     <string name="figma_login_social_divider">간편 로그인</string>
-    <string name="figma_login_copyright" translatable="false">© 2026 Bodeul Hospital Accompaniment Service. All rights\nreserved.</string>
+    <string name="figma_login_copyright">© 2026 보들 병원동행 서비스. 모든 권리를 보유합니다.</string>
     <string name="figma_permission_title">권한 안내</string>
     <string name="figma_permission_description">보들 서비스를 원활하게 이용하기 위해\n다음의 접근 권한을 안내합니다.</string>
     <string name="figma_permission_confirm">확인</string>

@@ -9,6 +9,7 @@
     <color name="figma_mvp_text_primary">#191C1E</color>
     <color name="figma_mvp_text_secondary">#424752</color>
     <color name="figma_mvp_text_tertiary">#737784</color>
+    <color name="figma_mvp_text_hint">#5F6470</color>
     <color name="figma_mvp_text_disabled">#C3C6D4</color>
     <color name="figma_mvp_manager_icon_background">#D8E2FF</color>
     <color name="figma_mvp_patient_icon_background">#FEB64C</color>

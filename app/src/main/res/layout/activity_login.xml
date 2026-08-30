@@ -56,6 +56,13 @@
             android:textColor="@color/figma_mvp_text_secondary"
             android:textSize="18sp" />
 
+        <include
+            android:id="@+id/layoutLoginSummaryCard"
+            layout="@layout/view_auth_summary_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" />
+
         <TextView
             android:id="@+id/textDemoBanner"
             android:layout_width="match_parent"
@@ -178,7 +185,7 @@
                 android:hint="@string/figma_login_email_placeholder"
                 android:inputType="textEmailAddress"
                 android:textColor="@color/figma_mvp_text_primary"
-                android:textColorHint="@color/figma_mvp_text_disabled"
+                android:textColorHint="@color/figma_mvp_text_hint"
                 android:textSize="16sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -199,7 +206,7 @@
                 android:hint="@string/figma_login_password_placeholder"
                 android:inputType="textPassword"
                 android:textColor="@color/figma_mvp_text_primary"
-                android:textColorHint="@color/figma_mvp_text_disabled"
+                android:textColorHint="@color/figma_mvp_text_hint"
                 android:textSize="16sp" />
         </com.google.android.material.textfield.TextInputLayout>
 

@@ -35,6 +35,11 @@ public class RoleSelectionActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_role_selection);
 
+        AuthScreenInsets.apply(
+                findViewById(R.id.scrollRoleSelection),
+                findViewById(R.id.layoutRoleBottomAction)
+        );
+
         entryFlowCoordinator = new EntryFlowCoordinator(this);
         logoView = findViewById(R.id.imageRoleLogo);
         managerCard = findViewById(R.id.cardManagerType);

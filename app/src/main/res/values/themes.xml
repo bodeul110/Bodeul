@@ -63,7 +63,7 @@
         <item name="boxStrokeColor">@android:color/transparent</item>
         <item name="boxStrokeWidth">0dp</item>
         <item name="boxStrokeWidthFocused">0dp</item>
-        <item name="hintTextColor">@color/figma_mvp_text_tertiary</item>
+        <item name="hintTextColor">@color/figma_mvp_text_hint</item>
         <item name="helperTextTextColor">@color/figma_mvp_text_tertiary</item>
         <item name="errorTextColor">@color/bodeul_error</item>
     </style>
