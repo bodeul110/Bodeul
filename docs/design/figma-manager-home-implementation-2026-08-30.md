@@ -12,6 +12,8 @@
 - Pretendard 글꼴과 Figma MVP 색상 토큰
 - Figma에서 직접 내보낸 서비스 소개 이미지와 화면 아이콘
 - 서류 등록, 일정 등록, 동행 이력, 문의, 가이드, 프로필 이동 동작 유지
+- Android 15, display cutout, 3버튼 탐색을 고려한 상·하단 WindowInsets 처리
+- 비활성 하단 내비게이션 텍스트의 명암 대비 보완
 
 ## 후속 연결 조건
 

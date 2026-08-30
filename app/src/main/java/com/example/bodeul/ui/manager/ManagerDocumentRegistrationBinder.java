@@ -2,6 +2,7 @@ package com.example.bodeul.ui.manager;
 
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -41,6 +42,8 @@ public final class ManagerDocumentRegistrationBinder {
     private final TextView textReviewBody;
     private final MaterialButton buttonRequest;
     private final ManagerDocumentRegistrationItemBinder documentItemBinder;
+    private boolean interactionsEnabled = true;
+    private boolean requestButtonAllowed;
 
     public ManagerDocumentRegistrationBinder(
             LayoutInflater inflater,
@@ -90,12 +93,17 @@ public final class ManagerDocumentRegistrationBinder {
         textStatusTitle.setText(screenModel.getStatusTitleText());
         textStatusBody.setText(screenModel.getStatusBodyText());
         buttonRequest.setText(screenModel.getRequestButtonText());
-        buttonRequest.setEnabled(screenModel.isRequestButtonEnabled());
-        buttonRequest.setAlpha(screenModel.isRequestButtonEnabled() ? 1f : 0.55f);
+        requestButtonAllowed = screenModel.isRequestButtonEnabled();
 
         bindPrimaryDocument(screenModel);
         bindDocumentItems(screenModel);
         bindReviewCard(screenModel);
+        applyInteractionState();
+    }
+
+    public void setInteractionsEnabled(boolean enabled) {
+        interactionsEnabled = enabled;
+        applyInteractionState();
     }
 
     private void bindPrimaryDocument(ManagerDocumentRegistrationScreenModel screenModel) {
@@ -167,5 +175,25 @@ public final class ManagerDocumentRegistrationBinder {
         reviewCard.setVisibility(screenModel.isReviewCardVisible() ? View.VISIBLE : View.GONE);
         textReviewTitle.setText(screenModel.getReviewTitleText());
         textReviewBody.setText(screenModel.getReviewBodyText());
+    }
+
+    private void applyInteractionState() {
+        buttonPrimaryPreview.setEnabled(interactionsEnabled);
+        buttonPrimaryUpload.setEnabled(interactionsEnabled);
+        setEnabledRecursively(documentContainer, interactionsEnabled);
+        boolean requestEnabled = interactionsEnabled && requestButtonAllowed;
+        buttonRequest.setEnabled(requestEnabled);
+        buttonRequest.setAlpha(requestEnabled ? 1f : 0.55f);
+    }
+
+    private void setEnabledRecursively(View view, boolean enabled) {
+        view.setEnabled(enabled);
+        if (!(view instanceof ViewGroup)) {
+            return;
+        }
+        ViewGroup viewGroup = (ViewGroup) view;
+        for (int index = 0; index < viewGroup.getChildCount(); index++) {
+            setEnabledRecursively(viewGroup.getChildAt(index), enabled);
+        }
     }
 }

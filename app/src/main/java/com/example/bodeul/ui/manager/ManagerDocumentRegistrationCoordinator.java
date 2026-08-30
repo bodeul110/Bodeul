@@ -8,7 +8,6 @@ import androidx.annotation.Nullable;
 import com.example.bodeul.R;
 import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
-import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
@@ -70,7 +69,6 @@ public final class ManagerDocumentRegistrationCoordinator {
         if (!hasRequiredFiles(profile)) {
             return "";
         }
-
         ManagerDocumentFileType qualificationType = isUploaded(
                 profile.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE)
         ) ? ManagerDocumentFileType.NURSING_LICENSE : ManagerDocumentFileType.LICENSE;

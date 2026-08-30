@@ -12,8 +12,10 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.Lifecycle;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
@@ -42,7 +44,8 @@ import com.google.android.material.button.MaterialButton;
  */
 public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         implements ManagerDocumentRegistrationBinder.Listener {
-    private static final String[] DOCUMENT_IMAGE_MIME_TYPES = {
+    private static final String STATE_COMPLETION_PENDING = "state_completion_pending";
+    private static final String[] QUALIFICATION_IMAGE_MIME_TYPES = new String[]{
             "image/jpeg",
             "image/png",
             "image/webp"
@@ -65,6 +68,12 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
     private View statePanel;
     private View contentContainer;
     private ProgressBar progressBar;
+    private View buttonBack;
+    private View buttonClose;
+    private View buttonSkip;
+    private MaterialButton buttonRequest;
+    private boolean submissionInFlight;
+    private boolean completionPending;
 
     public static Intent createIntent(Context context) {
         return new Intent(context, ManagerDocumentRegistrationActivity.class);
@@ -74,6 +83,19 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_document_registration);
+
+        completionPending = savedInstanceState != null
+                && savedInstanceState.getBoolean(STATE_COMPLETION_PENDING, false);
+        ManagerScreenInsets.apply(
+                findViewById(R.id.scrollManagerDocumentRegistration),
+                findViewById(R.id.layoutManagerDocumentTopBar),
+                findViewById(R.id.layoutManagerDocumentBottomAction)
+        );
+        getSupportFragmentManager().setFragmentResultListener(
+                ManagerQualificationCompletionDialog.RESULT_KEY,
+                this,
+                (requestKey, result) -> completionPending = false
+        );
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
@@ -92,7 +114,10 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         contentContainer = findViewById(R.id.managerDocumentContentContainer);
         progressBar = findViewById(R.id.progressManagerDocumentRegistration);
 
-        MaterialButton buttonRequest = findViewById(R.id.buttonManagerDocumentRequest);
+        buttonBack = findViewById(R.id.buttonBackManagerDocument);
+        buttonClose = findViewById(R.id.buttonCloseManagerDocument);
+        buttonSkip = findViewById(R.id.buttonManagerDocumentSkip);
+        buttonRequest = findViewById(R.id.buttonManagerDocumentRequest);
         binder = new ManagerDocumentRegistrationBinder(
                 getLayoutInflater(),
                 this,
@@ -114,11 +139,29 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 buttonRequest
         );
 
-        findViewById(R.id.buttonBackManagerDocument).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonCloseManagerDocument).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonManagerDocumentSkip).setOnClickListener(view -> finish());
+        buttonBack.setOnClickListener(view -> requestExit());
+        buttonClose.setOnClickListener(view -> requestExit());
+        buttonSkip.setOnClickListener(view -> requestExit());
         buttonRequest.setOnClickListener(view -> submitRegistrationRequest());
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                requestExit();
+            }
+        });
         contentContainer.setVisibility(View.GONE);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        showCompletionDialogIfNeeded();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean(STATE_COMPLETION_PENDING, completionPending);
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -129,6 +172,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
 
     @Override
     public void onDocumentUploadRequested(@Nullable ManagerDocumentFileType fileType) {
+        if (submissionInFlight) {
+            return;
+        }
         if (currentUser == null) {
             showAuthState();
             return;
@@ -140,11 +186,14 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         }
         
         pendingDocumentFileType = fileType;
-        documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
+        documentPickerLauncher.launch(QUALIFICATION_IMAGE_MIME_TYPES);
     }
 
     @Override
     public void onDocumentPreviewRequested(@Nullable ManagerDocumentFileType fileType) {
+        if (submissionInFlight) {
+            return;
+        }
         ManagerDocumentFileMetadata metadata = findDocumentMetadata(fileType);
         if (metadata == null) {
             Toast.makeText(
@@ -171,7 +220,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 .setTitle(R.string.manager_document_registration_document_nursing_or_elderly_care_license)
                 .setItems(options, (dialog, which) -> {
                     pendingDocumentFileType = types[which];
-                    documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
+                    documentPickerLauncher.launch(QUALIFICATION_IMAGE_MIME_TYPES);
                 })
                 .show();
     }
@@ -306,6 +355,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
     }
 
     private void submitRegistrationRequest() {
+        if (submissionInFlight) {
+            return;
+        }
         if (currentUser == null || currentOverview == null) {
             showAuthState();
             return;
@@ -331,22 +383,29 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
 
-        setLoading(true);
+        setSubmissionInFlight(true);
         managerRepository.saveManagerDocumentSummary(
                 currentUser.getId(),
                 summary,
                 new RepositoryCallback<ManagerHomeProfile>() {
                     @Override
                     public void onSuccess(ManagerHomeProfile result) {
-                        ManagerQualificationCompletionDialog.show(
-                                ManagerDocumentRegistrationActivity.this
-                        );
+                        if (!isActivityUsable()) {
+                            return;
+                        }
+                        setSubmissionInFlight(false);
+                        completionPending = true;
+                        showCompletionDialogIfNeeded();
+                        setLoading(true);
                         loadOverview();
                     }
 
                     @Override
                     public void onError(String message) {
-                        setLoading(false);
+                        if (!isActivityUsable()) {
+                            return;
+                        }
+                        setSubmissionInFlight(false);
                         Toast.makeText(ManagerDocumentRegistrationActivity.this, message, Toast.LENGTH_SHORT).show();
                     }
                 }
@@ -414,6 +473,50 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
 
     private void setLoading(boolean loading) {
         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+    }
+
+    private void setSubmissionInFlight(boolean inFlight) {
+        submissionInFlight = inFlight;
+        setLoading(inFlight);
+        buttonBack.setEnabled(!inFlight);
+        buttonClose.setEnabled(!inFlight);
+        buttonSkip.setEnabled(!inFlight);
+        buttonBack.setAlpha(inFlight ? 0.45f : 1f);
+        buttonClose.setAlpha(inFlight ? 0.45f : 1f);
+        buttonSkip.setAlpha(inFlight ? 0.45f : 1f);
+        binder.setInteractionsEnabled(!inFlight);
+    }
+
+    private void requestExit() {
+        if (submissionInFlight) {
+            Toast.makeText(
+                    this,
+                    R.string.manager_document_registration_submission_in_progress,
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+        finish();
+    }
+
+    private void showCompletionDialogIfNeeded() {
+        if (!completionPending
+                || !isActivityUsable()
+                || !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)
+                || getSupportFragmentManager().isStateSaved()
+                || getSupportFragmentManager().findFragmentByTag(
+                ManagerQualificationCompletionDialog.TAG
+        ) != null) {
+            return;
+        }
+        new ManagerQualificationCompletionDialog().show(
+                getSupportFragmentManager(),
+                ManagerQualificationCompletionDialog.TAG
+        );
+    }
+
+    private boolean isActivityUsable() {
+        return !isFinishing() && !isDestroyed();
     }
 
     private void showPermissionState() {

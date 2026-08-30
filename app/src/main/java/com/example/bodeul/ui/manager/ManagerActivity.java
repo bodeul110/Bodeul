@@ -53,6 +53,12 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_home);
 
+        ManagerScreenInsets.apply(
+                findViewById(R.id.scrollManagerHome),
+                findViewById(R.id.layoutManagerHomeTopBar),
+                findViewById(R.id.layoutManagerHomeBottomNav)
+        );
+
         authRepository = ServiceLocator.provideAuthRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
         managerHomeCoordinator = new ManagerHomeCoordinator(

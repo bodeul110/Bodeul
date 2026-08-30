@@ -6,6 +6,7 @@
     android:background="@color/figma_mvp_background">
 
     <ScrollView
+        android:id="@+id/scrollManagerHome"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="68dp"
@@ -331,12 +332,14 @@
     </ScrollView>
 
     <LinearLayout
+        android:id="@+id/layoutManagerHomeTopBar"
         android:layout_width="match_parent"
-        android:layout_height="68dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:background="@color/figma_mvp_surface"
         android:elevation="4dp"
         android:gravity="center_vertical"
+        android:minHeight="68dp"
         android:orientation="horizontal"
         android:paddingStart="24dp"
         android:paddingEnd="24dp">
@@ -363,13 +366,13 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/layoutManagerHomeBottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:background="@drawable/bg_bottom_nav"
         android:baselineAligned="false"
         android:elevation="12dp"
-        android:fitsSystemWindows="true"
         android:gravity="center"
         android:minHeight="88dp"
         android:orientation="horizontal"
