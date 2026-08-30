@@ -368,6 +368,20 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   }, now);
   assert.equal(crossOwner.candidates.length, 0);
 
+  const whitespaceOwner = evaluateManagerDocument(" manager-1 ", baseData, now);
+  assert.equal(whitespaceOwner.candidates.length, 0);
+
+  const whitespacePath = " manager-documents/manager-1/license/license.pdf ";
+  const whitespaceAliases = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      license: {...baseData.managerDocumentFiles.license, fullPath: whitespacePath},
+    },
+    managerDocumentFilePaths: {license: whitespacePath},
+    managerLicenseStoragePath: whitespacePath,
+  }, now);
+  assert.equal(whitespaceAliases.candidates.length, 0);
+
   const wrongDocumentKeyPath = "manager-documents/manager-1/idCard/license.pdf";
   const crossDocumentKey = evaluateManagerDocument("manager-1", {
     ...baseData,
@@ -813,6 +827,26 @@ test("채팅 첨부 삭제 경로는 legacy와 Core API 구조만 허용한다",
   assert.equal(isAllowedManagerDocumentPath(
       "manager-documents/manager-1/license/a.pdf",
       "manager-1",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      " manager-1 ",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      "manager-1",
+      " idCard ",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      " manager-documents/manager-1/idCard/a.pdf ",
+      "manager-1",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      1,
       "idCard",
   ), false);
   assert.equal(isAllowedManagerDocumentPath("manager-documents/manager-1/other/a.pdf"), false);

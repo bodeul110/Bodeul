@@ -35,6 +35,21 @@ test("매니저 증빙 경로는 사용자와 문서 키에 정확히 귀속된�
       "manager-1",
       "idCard",
   ), false);
+  assert.equal(isExpectedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/id.jpg",
+      " manager-1 ",
+      "idCard",
+  ), false);
+  assert.equal(isExpectedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/id.jpg",
+      "manager-1",
+      " idCard ",
+  ), false);
+  assert.equal(isExpectedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/id.jpg",
+      1,
+      "idCard",
+  ), false);
 });
 
 test("세 alias가 같아도 다른 사용자 경로이면 불일치로 보고한다", () => {
@@ -64,4 +79,15 @@ test("세 alias가 같아도 다른 사용자 경로이면 불일치로 보고�
   );
   missingPathMap[0].documentFilePaths = {};
   assert.equal(collectReferences(missingPathMap)[0].pathMismatch, true);
+
+  const whitespaceOwner = managerDocument(
+      "manager-documents/manager-1/idCard/id.jpg",
+  );
+  whitespaceOwner[0].id = " manager-1 ";
+  assert.equal(collectReferences(whitespaceOwner)[0].pathMismatch, true);
+
+  const whitespacePath = managerDocument(
+      " manager-documents/manager-1/idCard/id.jpg ",
+  );
+  assert.equal(collectReferences(whitespacePath)[0].pathMismatch, true);
 });

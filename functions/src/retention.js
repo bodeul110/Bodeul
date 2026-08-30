@@ -648,14 +648,16 @@ function collectManagerDocumentReferences(managerId, data) {
     const metadata = isPlainObject(fileMap[documentKey]) ? fileMap[documentKey] : {};
     const legacyKey = MANAGER_DOCUMENT_LEGACY_PATH_KEYS[documentKey];
     const requiredPaths = [
-      sanitizeText(metadata.fullPath),
-      sanitizeText(pathMap[documentKey]),
+      metadata.fullPath,
+      pathMap[documentKey],
     ];
     if (legacyKey) {
-      requiredPaths.push(sanitizeText(data?.[legacyKey]));
+      requiredPaths.push(data?.[legacyKey]);
     }
     const paths = Array.from(new Set(requiredPaths));
-    if (requiredPaths.some((candidatePath) => !candidatePath) ||
+    if (requiredPaths.some(
+        (candidatePath) => !isExactNonEmptyString(candidatePath),
+    ) ||
         paths.length !== 1 ||
         !isAllowedManagerDocumentPath(paths[0], managerId, documentKey)) {
       continue;
@@ -828,7 +830,10 @@ function isAllowedChatAttachmentPath(value) {
 }
 
 function isAllowedManagerDocumentPath(value, managerId, documentKey) {
-  const segments = sanitizeText(value).split("/");
+  if (!isExactNonEmptyString(value)) {
+    return false;
+  }
+  const segments = value.split("/");
   if (segments.length !== 4 ||
       segments[0] !== "manager-documents" ||
       !segments[1] ||
@@ -836,13 +841,19 @@ function isAllowedManagerDocumentPath(value, managerId, documentKey) {
       !segments[3]) {
     return false;
   }
-  if (managerId !== undefined && segments[1] !== sanitizeText(managerId)) {
+  if (managerId !== undefined &&
+      (!isExactNonEmptyString(managerId) || segments[1] !== managerId)) {
     return false;
   }
-  if (documentKey !== undefined && segments[2] !== sanitizeText(documentKey)) {
+  if (documentKey !== undefined &&
+      (!isExactNonEmptyString(documentKey) || segments[2] !== documentKey)) {
     return false;
   }
   return true;
+}
+
+function isExactNonEmptyString(value) {
+  return typeof value === "string" && value.length > 0 && value.trim() === value;
 }
 
 function emptyRetentionSummary(mode, asOf) {

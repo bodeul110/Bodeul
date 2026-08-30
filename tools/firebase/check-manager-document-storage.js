@@ -136,10 +136,10 @@ async function loadManagerDocuments(context) {
       documentFiles: isPlainObject(data.managerDocumentFiles) ? data.managerDocumentFiles : {},
       documentFilePaths: isPlainObject(data.managerDocumentFilePaths) ? data.managerDocumentFilePaths : {},
       legacyPaths: {
-        idCard: sanitizeText(data.managerIdCardStoragePath),
-        license: sanitizeText(data.managerLicenseStoragePath),
+        idCard: data.managerIdCardStoragePath,
+        license: data.managerLicenseStoragePath,
         healthCertificate: "",
-        criminalRecord: sanitizeText(data.managerCriminalRecordStoragePath),
+        criminalRecord: data.managerCriminalRecordStoragePath,
       },
     });
   }
@@ -154,10 +154,13 @@ function collectReferences(managerDocuments) {
       const metadata = isPlainObject(manager.documentFiles[documentKey])
           ? manager.documentFiles[documentKey]
           : null;
-      const metadataPath = sanitizeText(metadata?.fullPath);
+      const rawMetadataPath = metadata?.fullPath;
+      const rawPathMapPath = manager.documentFilePaths[documentKey];
+      const rawLegacyPath = manager.legacyPaths[documentKey];
+      const metadataPath = sanitizeText(rawMetadataPath);
       const metadataFileName = sanitizeText(metadata?.fileName);
-      const pathMapPath = sanitizeText(manager.documentFilePaths[documentKey]);
-      const legacyPath = sanitizeText(manager.legacyPaths[documentKey]);
+      const pathMapPath = sanitizeText(rawPathMapPath);
+      const legacyPath = sanitizeText(rawLegacyPath);
       const distinctPaths = Array.from(new Set(
           [metadataPath, pathMapPath, legacyPath].filter(Boolean),
       ));
@@ -180,10 +183,14 @@ function collectReferences(managerDocuments) {
         pathMismatch: !metadataPath ||
           !pathMapPath ||
           (documentKey !== "healthCertificate" && !legacyPath) ||
+          !isExactNonEmptyString(rawMetadataPath) ||
+          !isExactNonEmptyString(rawPathMapPath) ||
+          (
+            documentKey !== "healthCertificate" &&
+            !isExactNonEmptyString(rawLegacyPath)
+          ) ||
           distinctPaths.length > 1 ||
-          distinctPaths.some((candidatePath) =>
-            !isExpectedManagerDocumentPath(candidatePath, manager.id, documentKey),
-          ),
+          !isExpectedManagerDocumentPath(metadataPath, manager.id, documentKey),
       });
     }
   }
@@ -444,13 +451,22 @@ function sanitizeText(value) {
 }
 
 function isExpectedManagerDocumentPath(value, managerId, documentKey) {
-  const segments = sanitizeText(value).split("/");
+  if (!isExactNonEmptyString(value) ||
+      !isExactNonEmptyString(managerId) ||
+      !isExactNonEmptyString(documentKey)) {
+    return false;
+  }
+  const segments = value.split("/");
   return segments.length === 4 &&
     segments[0] === "manager-documents" &&
-    segments[1] === sanitizeText(managerId) &&
-    segments[2] === sanitizeText(documentKey) &&
+    segments[1] === managerId &&
+    segments[2] === documentKey &&
     DOCUMENT_KEYS.includes(segments[2]) &&
     Boolean(segments[3]);
+}
+
+function isExactNonEmptyString(value) {
+  return typeof value === "string" && value.length > 0 && value.trim() === value;
 }
 
 function buildTimestampToken() {
