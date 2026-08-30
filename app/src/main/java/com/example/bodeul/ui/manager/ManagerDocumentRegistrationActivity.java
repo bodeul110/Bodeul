@@ -115,6 +115,8 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         );
 
         findViewById(R.id.buttonBackManagerDocument).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonCloseManagerDocument).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonManagerDocumentSkip).setOnClickListener(view -> finish());
         buttonRequest.setOnClickListener(view -> submitRegistrationRequest());
         contentContainer.setVisibility(View.GONE);
     }
