@@ -647,12 +647,16 @@ function collectManagerDocumentReferences(managerId, data) {
   for (const documentKey of MANAGER_DOCUMENT_KEYS) {
     const metadata = isPlainObject(fileMap[documentKey]) ? fileMap[documentKey] : {};
     const legacyKey = MANAGER_DOCUMENT_LEGACY_PATH_KEYS[documentKey];
-    const paths = Array.from(new Set([
+    const requiredPaths = [
       sanitizeText(metadata.fullPath),
       sanitizeText(pathMap[documentKey]),
-      legacyKey ? sanitizeText(data?.[legacyKey]) : "",
-    ].filter(Boolean)));
-    if (paths.length !== 1 ||
+    ];
+    if (legacyKey) {
+      requiredPaths.push(sanitizeText(data?.[legacyKey]));
+    }
+    const paths = Array.from(new Set(requiredPaths));
+    if (requiredPaths.some((candidatePath) => !candidatePath) ||
+        paths.length !== 1 ||
         !isAllowedManagerDocumentPath(paths[0], managerId, documentKey)) {
       continue;
     }

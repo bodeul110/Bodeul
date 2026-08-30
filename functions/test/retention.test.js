@@ -389,6 +389,46 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
     },
   }, now);
   assert.equal(mismatchedAliases.candidates.length, 0);
+
+  const missingLegacyAlias = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(missingLegacyAlias.candidates.length, 0);
+
+  const missingPathMapAlias = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFilePaths: {},
+  }, now);
+  assert.equal(missingPathMapAlias.candidates.length, 0);
+
+  const healthCertificatePath =
+    "manager-documents/manager-1/healthCertificate/health.jpg";
+  const healthCertificate = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      healthCertificate: {
+        fullPath: healthCertificatePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {healthCertificate: healthCertificatePath},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(healthCertificate.candidates.length, 1);
+
+  const incompleteHealthCertificate = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      healthCertificate: {
+        fullPath: healthCertificatePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(incompleteHealthCertificate.candidates.length, 0);
 });
 
 test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확인한다", async () => {

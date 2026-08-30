@@ -52,4 +52,16 @@ test("세 alias가 같아도 다른 사용자 경로이면 불일치로 보고�
       "manager-documents/manager-1/license/id.jpg",
   ));
   assert.equal(crossDocumentKey[0].pathMismatch, true);
+
+  const missingLegacy = managerDocument(
+      "manager-documents/manager-1/idCard/id.jpg",
+  );
+  missingLegacy[0].legacyPaths.idCard = "";
+  assert.equal(collectReferences(missingLegacy)[0].pathMismatch, true);
+
+  const missingPathMap = managerDocument(
+      "manager-documents/manager-1/idCard/id.jpg",
+  );
+  missingPathMap[0].documentFilePaths = {};
+  assert.equal(collectReferences(missingPathMap)[0].pathMismatch, true);
 });

@@ -177,7 +177,10 @@ function collectReferences(managerDocuments) {
         fileName: metadataFileName,
         uploadedAt: metadata?.uploadedAt || "",
         contentType: sanitizeText(metadata?.contentType),
-        pathMismatch: distinctPaths.length > 1 ||
+        pathMismatch: !metadataPath ||
+          !pathMapPath ||
+          (documentKey !== "healthCertificate" && !legacyPath) ||
+          distinctPaths.length > 1 ||
           distinctPaths.some((candidatePath) =>
             !isExpectedManagerDocumentPath(candidatePath, manager.id, documentKey),
           ),
