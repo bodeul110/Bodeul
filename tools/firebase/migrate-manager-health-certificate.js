@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
+const {createHash} = require("node:crypto");
+
 const {
   copyStorageObject,
   createCliContext,
   deleteStorageObject,
-  getDocument,
   getStorageObject,
   listCollectionDocuments,
   runDocumentTransaction,
@@ -13,6 +14,11 @@ const {
 const SOURCE_KEY = "healthCertificate";
 const DESTINATION_KEY = "nursingLicense";
 const LEGACY_ALIAS = "managerHealthCertificateStoragePath";
+const DELETION_CLAIM_FIELD = "managerDocumentDeletionClaim";
+const DELETION_CLAIM_VERSION = 1;
+const DELETION_CLAIM_OPERATION = "MIGRATION";
+const CLAIM_STATE_CLAIMED = "CLAIMED";
+const CLAIM_STATE_READY = "READY";
 const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
   "image/jpeg",
@@ -65,6 +71,21 @@ async function main() {
       continue;
     }
 
+    const runManagerTransaction = async (mutationBuilder) => {
+      let currentDecision = null;
+      await runDocumentTransaction(
+          context,
+          `users/${manager.id}`,
+          (document) => {
+            if (!document) {
+              throw new Error("Firestore 매니저 문서가 transaction 중 사라졌습니다.");
+            }
+            currentDecision = mutationBuilder(fromFirestoreDocument(document));
+            return currentDecision?.mutation || null;
+          },
+      );
+      return currentDecision;
+    };
     await applyMigrationPlan(plan, {
       copySource: () => copyStorageObject(
           context,
@@ -72,30 +93,15 @@ async function main() {
           plan.destinationPath,
           plan.sourceObject.generation,
       ),
+      getSource: () => getStorageObject(context, plan.sourcePath),
       getDestination: () => getStorageObject(context, plan.destinationPath),
-      updateMetadata: async (mutationBuilder) => {
-        let currentDecision = null;
-        await runDocumentTransaction(
-            context,
-            `users/${manager.id}`,
-            (document) => {
-              if (!document) {
-                throw new Error("Firestore 매니저 문서가 transaction 중 사라졌습니다.");
-              }
-              currentDecision = mutationBuilder(fromFirestoreDocument(document));
-              return currentDecision?.mutation || null;
-            },
-        );
-        return currentDecision;
-      },
-      getLatestData: async () => {
-        const document = await getDocument(context, `users/${manager.id}`);
-        return document ? fromFirestoreDocument(document) : null;
-      },
-      deleteSource: () => deleteStorageObject(
+      claimDeletion: runManagerTransaction,
+      prepareDeletion: runManagerTransaction,
+      finalizeDeletion: runManagerTransaction,
+      deleteSource: (generation) => deleteStorageObject(
           context,
           plan.sourcePath,
-          plan.sourceObject.generation,
+          generation,
       ),
     });
     results.push(summarizePlan(manager, plan, true));
@@ -171,7 +177,11 @@ function resolveMigrationObjectPaths(managerId, data) {
       ? data.managerDocumentFilePaths
       : {};
   const sourcePath = sanitizeText(
-      files[SOURCE_KEY]?.fullPath || paths[SOURCE_KEY] || data?.[LEGACY_ALIAS],
+      data?.[DELETION_CLAIM_FIELD]?.storagePath ||
+      files[SOURCE_KEY]?.fullPath ||
+      paths[SOURCE_KEY] ||
+      data?.[LEGACY_ALIAS] ||
+      data?.managerDocumentEvidenceMigration?.sourcePath,
   );
   const canonicalPath = sanitizeText(
       files[DESTINATION_KEY]?.fullPath || paths[DESTINATION_KEY],
@@ -220,8 +230,69 @@ function buildMigrationPlan({managerId, data, sourceObject, destinationObject}) 
   if (legalHoldIssue) {
     return blockedPlan(managerId, `legal hold 검증 실패: ${legalHoldIssue}`);
   }
+  const claimValidation = validateDeletionClaim(
+      data?.[DELETION_CLAIM_FIELD],
+      managerId,
+      objectPaths.sourcePath,
+  );
+  if (claimValidation.issue) {
+    return blockedPlan(managerId, `삭제 claim 검증 실패: ${claimValidation.issue}`);
+  }
   if (hasLicense && hasNursing) {
     return blockedPlan(managerId, "canonical 자격 증빙이 둘 이상입니다.");
+  }
+
+  if (claimValidation.claim) {
+    if (hasLegacy || hasLicense || !hasNursing) {
+      return blockedPlan(
+          managerId,
+          "삭제 claim 중에는 canonical nursingLicense만 참조해야 합니다.",
+      );
+    }
+    const canonicalIssue = validateCanonicalMigrationState(
+        data,
+        managerId,
+        objectPaths.sourcePath,
+        objectPaths.destinationPath,
+    );
+    if (canonicalIssue) {
+      return blockedPlan(managerId, `claim canonical 상태 검증 실패: ${canonicalIssue}`);
+    }
+    const destinationIssue = validateStorageObject(
+        destinationObject,
+        objectPaths.destinationPath,
+    );
+    if (destinationIssue) {
+      return blockedPlan(managerId, `canonical Storage 검증 실패: ${destinationIssue}`);
+    }
+    if (sourceObject) {
+      const sourceIssue = validateStorageObject(sourceObject, objectPaths.sourcePath);
+      const matchIssue = sourceIssue || compareStorageObjects(
+          sourceObject,
+          destinationObject,
+          objectPaths.destinationPath,
+      );
+      if (matchIssue) {
+        return blockedPlan(managerId, `claim 원본 검증 실패: ${matchIssue}`);
+      }
+      if (claimValidation.claim.state === CLAIM_STATE_READY &&
+          (claimValidation.claim.objectMissing ||
+           claimValidation.claim.objectGeneration !==
+             sanitizeText(sourceObject.generation))) {
+        return blockedPlan(managerId, "READY claim의 원본 generation 상태가 다릅니다.");
+      }
+    }
+    return {
+      action: "RESUME_CLAIM",
+      managerId,
+      sourcePath: objectPaths.sourcePath,
+      destinationPath: objectPaths.destinationPath,
+      sourceObject,
+      destinationObject,
+      claim: claimValidation.claim,
+      data,
+      reason: "기존 삭제 claim을 이어서 원본 삭제 또는 finalize를 수행합니다.",
+    };
   }
 
   if (hasLegacy) {
@@ -319,6 +390,15 @@ function buildMigrationPlan({managerId, data, sourceObject, destinationObject}) 
       reason: "canonical 이관과 구 객체 삭제가 이미 완료됐습니다.",
     };
   }
+  const canonicalIssue = validateCanonicalMigrationState(
+      data,
+      managerId,
+      objectPaths.sourcePath,
+      nursingMetadata.fullPath,
+  );
+  if (canonicalIssue) {
+    return blockedPlan(managerId, `삭제 대기 canonical 상태 검증 실패: ${canonicalIssue}`);
+  }
   const sourceIssue = validateStorageObject(sourceObject, objectPaths.sourcePath);
   const matchIssue = sourceIssue || compareStorageObjects(
       sourceObject,
@@ -362,83 +442,264 @@ async function applyMigrationPlan(plan, dependencies) {
     }
   }
 
-  if (plan.action === "COPY_AND_UPDATE" || plan.action === "UPDATE_METADATA") {
-    await dependencies.updateMetadata((currentData) => {
-      const currentPlan = buildMigrationPlan({
-        managerId: plan.managerId,
-        data: currentData,
-        sourceObject: plan.sourceObject,
-        destinationObject,
-      });
-      if (currentPlan.action === "NOOP" || currentPlan.action === "CLEANUP_SOURCE") {
-        return {state: currentPlan.action, mutation: null};
-      }
-      if (currentPlan.action !== "UPDATE_METADATA") {
-        throw new Error(`transaction 재검증 차단: ${currentPlan.reason}`);
-      }
-      return {
-        state: "UPDATE_METADATA",
-        mutation: buildFirestoreMutation(currentData, currentPlan.destinationPath),
-      };
-    });
+  const latestDestination = await dependencies.getDestination();
+  const latestDestinationIssue = plan.sourceObject
+    ? compareStorageObjects(
+        plan.sourceObject,
+        latestDestination,
+        plan.destinationPath,
+    )
+    : validateStorageObject(latestDestination, plan.destinationPath);
+  if (latestDestinationIssue) {
+    throw new Error(`claim 직전 대상 객체 검증 실패: ${latestDestinationIssue}`);
   }
 
-  const latestDestination = await dependencies.getDestination();
-  const latestDestinationIssue = compareStorageObjects(
-      plan.sourceObject,
+  const sourceBeforeClaim = await dependencies.getSource();
+  if (sourceBeforeClaim && plan.sourceObject) {
+    const sourceRaceIssue = compareStorageObjects(
+        plan.sourceObject,
+        sourceBeforeClaim,
+        plan.sourcePath,
+    );
+    if (sourceRaceIssue ||
+        sanitizeText(sourceBeforeClaim.generation) !==
+          sanitizeText(plan.sourceObject.generation)) {
+      throw new Error(`claim 직전 원본 객체 변경 감지: ${sourceRaceIssue || "generation이 다릅니다."}`);
+    }
+  }
+  const sourceForClaim = sourceBeforeClaim || plan.sourceObject;
+
+  const claimedAt = resolveClaimedAt(dependencies.claimedAt);
+  const claimDecision = await dependencies.claimDeletion((currentData) =>
+    buildClaimDecision({
+      managerId: plan.managerId,
+      data: currentData,
+      sourceObject: sourceForClaim,
+      destinationObject: latestDestination,
+      sourcePath: plan.sourcePath,
+      destinationPath: plan.destinationPath,
+      claimedAt,
+    }));
+  if (claimDecision?.state === "FINALIZED") {
+    return {action: plan.action};
+  }
+  const claimed = claimDecision?.claim;
+  const claimedValidation = validateDeletionClaim(
+      claimed,
+      plan.managerId,
+      plan.sourcePath,
+  );
+  if (claimedValidation.issue) {
+    throw new Error(`claim transaction 결과 검증 실패: ${claimedValidation.issue}`);
+  }
+
+  const latestSource = await dependencies.getSource();
+  const readyDecision = await dependencies.prepareDeletion((currentData) =>
+    buildReadyDecision({
+      managerId: plan.managerId,
+      data: currentData,
+      sourceObject: latestSource,
+      destinationObject: latestDestination,
+      sourcePath: plan.sourcePath,
+      destinationPath: plan.destinationPath,
+      expectedClaim: claimedValidation.claim,
+    }));
+  const readyClaim = readyDecision?.claim;
+  const readyValidation = validateDeletionClaim(
+      readyClaim,
+      plan.managerId,
+      plan.sourcePath,
+  );
+  if (readyValidation.issue || readyValidation.claim?.state !== CLAIM_STATE_READY) {
+    throw new Error(
+        `READY claim 결과 검증 실패: ${readyValidation.issue || "state가 READY가 아닙니다."}`,
+    );
+  }
+
+  const destinationBeforeDelete = await dependencies.getDestination();
+  const destinationRaceIssue = compareStorageObjects(
       latestDestination,
+      destinationBeforeDelete,
       plan.destinationPath,
   );
-  if (latestDestinationIssue) {
-    throw new Error(`삭제 직전 대상 객체 검증 실패: ${latestDestinationIssue}`);
+  if (destinationRaceIssue ||
+      sanitizeText(destinationBeforeDelete?.generation) !==
+        sanitizeText(latestDestination.generation)) {
+    throw new Error(
+        `원본 삭제 직전 canonical 객체 변경 감지: ${destinationRaceIssue || "generation이 다릅니다."}`,
+    );
   }
 
-  const latestData = await dependencies.getLatestData();
-  const deletionIssue = validateSourceDeletionState({
-    managerId: plan.managerId,
-    data: latestData,
-    sourceObject: plan.sourceObject,
-    destinationObject: latestDestination,
-    sourcePath: plan.sourcePath,
-    destinationPath: plan.destinationPath,
-  });
-  if (deletionIssue) {
-    throw new Error(`원본 삭제 직전 재검증 차단: ${deletionIssue}`);
+  if (latestSource && !readyClaim.objectMissing) {
+    await dependencies.deleteSource(readyClaim.objectGeneration);
+  }
+  const remainingSource = await dependencies.getSource();
+  if (remainingSource) {
+    throw new Error("generation 조건부 삭제 뒤에도 원본 Storage 객체가 남아 있습니다.");
   }
 
-  await dependencies.deleteSource();
+  await dependencies.finalizeDeletion((currentData) =>
+    buildFinalizeDecision({
+      managerId: plan.managerId,
+      data: currentData,
+      destinationObject: latestDestination,
+      sourcePath: plan.sourcePath,
+      destinationPath: plan.destinationPath,
+      expectedClaim: readyClaim,
+    }));
   return {action: plan.action};
 }
 
-function validateSourceDeletionState({
+function buildClaimDecision({
   managerId,
   data,
   sourceObject,
   destinationObject,
   sourcePath,
   destinationPath,
+  claimedAt,
 }) {
-  if (!isPlainObject(data)) {
-    return "Firestore 매니저 문서가 없습니다.";
-  }
   const currentPlan = buildMigrationPlan({
     managerId,
     data,
     sourceObject,
     destinationObject,
   });
-  if (currentPlan.action !== "CLEANUP_SOURCE") {
-    return currentPlan.reason ||
-      `현재 상태가 원본 삭제 가능 상태가 아닙니다: ${currentPlan.action}`;
+  if (currentPlan.action === "NOOP") {
+    return {state: "FINALIZED", mutation: null};
   }
-  if (currentPlan.sourcePath !== sourcePath ||
-      currentPlan.destinationPath !== destinationPath) {
-    return "현재 이관 경로가 처음 검증한 경로와 다릅니다.";
+  if (currentPlan.action === "BLOCKED") {
+    throw new Error(`claim transaction 재검증 차단: ${currentPlan.reason}`);
   }
-  return "";
+  assertMigrationPaths(currentPlan, sourcePath, destinationPath, "claim transaction");
+  if (currentPlan.action === "RESUME_CLAIM") {
+    return {
+      state: currentPlan.claim.state,
+      claim: currentPlan.claim,
+      mutation: null,
+    };
+  }
+  if (currentPlan.action !== "UPDATE_METADATA" &&
+      currentPlan.action !== "CLEANUP_SOURCE") {
+    throw new Error(`claim transaction에서 처리할 수 없는 상태입니다: ${currentPlan.action}`);
+  }
+
+  const claim = createDeletionClaim(managerId, sourcePath, claimedAt);
+  const mutation = currentPlan.action === "UPDATE_METADATA"
+    ? buildFirestoreMutation(data, destinationPath, claim)
+    : {data: {[DELETION_CLAIM_FIELD]: claim}};
+  return {state: CLAIM_STATE_CLAIMED, claim, mutation};
 }
 
-function buildFirestoreMutation(data, destinationPath) {
+function buildReadyDecision({
+  managerId,
+  data,
+  sourceObject,
+  destinationObject,
+  sourcePath,
+  destinationPath,
+  expectedClaim,
+}) {
+  const currentPlan = buildMigrationPlan({
+    managerId,
+    data,
+    sourceObject,
+    destinationObject,
+  });
+  if (currentPlan.action !== "RESUME_CLAIM") {
+    throw new Error(
+        `READY transaction 재검증 차단: ${currentPlan.reason || currentPlan.action}`,
+    );
+  }
+  assertMigrationPaths(currentPlan, sourcePath, destinationPath, "READY transaction");
+  if (!deletionClaimsMatch(currentPlan.claim, expectedClaim)) {
+    throw new Error("READY transaction의 claim이 획득한 claim과 다릅니다.");
+  }
+  if (currentPlan.claim.state === CLAIM_STATE_READY) {
+    return {state: CLAIM_STATE_READY, claim: currentPlan.claim, mutation: null};
+  }
+
+  const readyClaim = {
+    ...currentPlan.claim,
+    state: CLAIM_STATE_READY,
+  };
+  if (sourceObject) {
+    readyClaim.objectGeneration = sanitizeText(sourceObject.generation);
+  } else {
+    readyClaim.objectMissing = true;
+  }
+  const readyValidation = validateDeletionClaim(
+      readyClaim,
+      managerId,
+      sourcePath,
+  );
+  if (readyValidation.issue) {
+    throw new Error(`READY claim 생성 차단: ${readyValidation.issue}`);
+  }
+  return {
+    state: CLAIM_STATE_READY,
+    claim: readyClaim,
+    mutation: {data: {[DELETION_CLAIM_FIELD]: readyClaim}},
+  };
+}
+
+function buildFinalizeDecision({
+  managerId,
+  data,
+  destinationObject,
+  sourcePath,
+  destinationPath,
+  expectedClaim,
+}) {
+  const currentPlan = buildMigrationPlan({
+    managerId,
+    data,
+    sourceObject: null,
+    destinationObject,
+  });
+  if (currentPlan.action === "NOOP") {
+    return {state: "FINALIZED", mutation: null};
+  }
+  if (currentPlan.action !== "RESUME_CLAIM") {
+    throw new Error(
+        `finalize transaction 재검증 차단: ${currentPlan.reason || currentPlan.action}`,
+    );
+  }
+  assertMigrationPaths(currentPlan, sourcePath, destinationPath, "finalize transaction");
+  if (currentPlan.claim.state !== CLAIM_STATE_READY ||
+      !deletionClaimsMatch(currentPlan.claim, expectedClaim)) {
+    throw new Error("finalize transaction의 READY claim이 삭제에 사용한 claim과 다릅니다.");
+  }
+  return {
+    state: "FINALIZED",
+    mutation: {deleteFields: [DELETION_CLAIM_FIELD]},
+  };
+}
+
+function validateSourceDeletionState({
+  managerId,
+  data,
+  destinationObject,
+  sourcePath,
+  destinationPath,
+  expectedClaim,
+}) {
+  try {
+    buildFinalizeDecision({
+      managerId,
+      data,
+      destinationObject,
+      sourcePath,
+      destinationPath,
+      expectedClaim,
+    });
+    return "";
+  } catch (error) {
+    return error.message;
+  }
+}
+
+function buildFirestoreMutation(data, destinationPath, deletionClaim = null) {
   const files = {...data.managerDocumentFiles};
   const paths = {...data.managerDocumentFilePaths};
   const legacyMetadata = {...files[SOURCE_KEY]};
@@ -449,7 +710,7 @@ function buildFirestoreMutation(data, destinationPath) {
     fullPath: destinationPath,
   };
   paths[DESTINATION_KEY] = destinationPath;
-  return {
+  const mutation = {
     data: {
       managerDocumentFiles: files,
       managerDocumentFilePaths: paths,
@@ -463,6 +724,168 @@ function buildFirestoreMutation(data, destinationPath) {
     },
     deleteFields: [LEGACY_ALIAS],
   };
+  if (deletionClaim) {
+    mutation.data[DELETION_CLAIM_FIELD] = deletionClaim;
+  }
+  return mutation;
+}
+
+function createDeletionClaim(managerId, storagePath, claimedAt) {
+  return {
+    version: DELETION_CLAIM_VERSION,
+    claimId: buildDeletionClaimId(managerId, storagePath),
+    operation: DELETION_CLAIM_OPERATION,
+    documentKey: SOURCE_KEY,
+    storagePath,
+    state: CLAIM_STATE_CLAIMED,
+    claimedAt: resolveClaimedAt(claimedAt),
+  };
+}
+
+function buildDeletionClaimId(managerId, storagePath) {
+  return createHash("sha256")
+      .update([
+        String(DELETION_CLAIM_VERSION),
+        DELETION_CLAIM_OPERATION,
+        managerId,
+        SOURCE_KEY,
+        storagePath,
+      ].join("\0"), "utf8")
+      .digest("hex");
+}
+
+function validateDeletionClaim(value, managerId, expectedStoragePath) {
+  if (value === undefined) {
+    return {claim: null, issue: ""};
+  }
+  if (!isPlainObject(value)) {
+    return {claim: null, issue: "claim이 map이 아닙니다."};
+  }
+  if (value.state !== CLAIM_STATE_CLAIMED && value.state !== CLAIM_STATE_READY) {
+    return {claim: null, issue: "claim state가 CLAIMED 또는 READY가 아닙니다."};
+  }
+  const requiredKeys = [
+    "version",
+    "claimId",
+    "operation",
+    "documentKey",
+    "storagePath",
+    "state",
+    "claimedAt",
+  ];
+  if (value.state === CLAIM_STATE_READY) {
+    const hasGeneration = hasOwn(value, "objectGeneration");
+    const hasMissing = hasOwn(value, "objectMissing");
+    if (hasGeneration === hasMissing) {
+      return {
+        claim: null,
+        issue: "READY claim은 objectGeneration 또는 objectMissing 중 하나만 가져야 합니다.",
+      };
+    }
+    requiredKeys.push(hasGeneration ? "objectGeneration" : "objectMissing");
+  }
+  const actualKeys = Object.keys(value).sort();
+  if (actualKeys.length !== requiredKeys.length ||
+      requiredKeys.some((key) => !hasOwn(value, key))) {
+    return {claim: null, issue: "claim 필드가 불완전하거나 허용되지 않은 필드가 있습니다."};
+  }
+  if (value.version !== DELETION_CLAIM_VERSION ||
+      value.operation !== DELETION_CLAIM_OPERATION ||
+      value.documentKey !== SOURCE_KEY) {
+    return {claim: null, issue: "claim 버전·작업·문서 키가 현재 이관과 다릅니다."};
+  }
+  if (!isExpectedPath(value.storagePath, managerId, SOURCE_KEY) ||
+      value.storagePath !== expectedStoragePath) {
+    return {claim: null, issue: "claim Storage 경로가 현재 매니저 원본과 다릅니다."};
+  }
+  if (value.claimId !== buildDeletionClaimId(managerId, value.storagePath)) {
+    return {claim: null, issue: "claimId가 결정적 식별자와 다릅니다."};
+  }
+  if (!isExactIsoTimestamp(value.claimedAt)) {
+    return {claim: null, issue: "claimedAt이 정규화된 ISO 시각이 아닙니다."};
+  }
+  if (value.state === CLAIM_STATE_READY) {
+    if (hasOwn(value, "objectGeneration") &&
+        !/^\d+$/.test(value.objectGeneration)) {
+      return {claim: null, issue: "READY claim의 objectGeneration이 올바르지 않습니다."};
+    }
+    if (hasOwn(value, "objectMissing") && value.objectMissing !== true) {
+      return {claim: null, issue: "READY claim의 objectMissing은 true여야 합니다."};
+    }
+  }
+  return {claim: value, issue: ""};
+}
+
+function validateCanonicalMigrationState(
+    data,
+    managerId,
+    sourcePath,
+    destinationPath,
+) {
+  const files = isPlainObject(data?.managerDocumentFiles)
+    ? data.managerDocumentFiles
+    : {};
+  const paths = isPlainObject(data?.managerDocumentFilePaths)
+    ? data.managerDocumentFilePaths
+    : {};
+  const metadata = files[DESTINATION_KEY];
+  if (data?.role !== "MANAGER") {
+    return "현재 사용자 역할이 MANAGER가 아닙니다.";
+  }
+  if (hasOwn(files, SOURCE_KEY) || hasOwn(paths, SOURCE_KEY) ||
+      hasOwn(data || {}, LEGACY_ALIAS)) {
+    return "healthCertificate 원본 참조가 남아 있습니다.";
+  }
+  if (hasOwn(files, "license") || hasOwn(paths, "license") ||
+      hasOwn(data || {}, "managerLicenseStoragePath")) {
+    return "다른 canonical 자격 증빙이 함께 존재합니다.";
+  }
+  if (!isPlainObject(metadata) ||
+      metadata.fullPath !== destinationPath ||
+      paths[DESTINATION_KEY] !== destinationPath ||
+      !isExpectedPath(destinationPath, managerId, DESTINATION_KEY)) {
+    return "nursingLicense metadata와 path map이 일치하지 않습니다.";
+  }
+  const marker = data?.managerDocumentEvidenceMigration;
+  if (!isPlainObject(marker) ||
+      marker.migrationId !== "health-certificate-to-nursing-license-v1" ||
+      marker.sourceKey !== SOURCE_KEY ||
+      marker.destinationKey !== DESTINATION_KEY ||
+      marker.sourcePath !== sourcePath ||
+      marker.destinationPath !== destinationPath) {
+    return "이관 marker가 원본과 canonical 경로를 증명하지 못합니다.";
+  }
+  return "";
+}
+
+function assertMigrationPaths(plan, sourcePath, destinationPath, stage) {
+  if (plan.sourcePath !== sourcePath || plan.destinationPath !== destinationPath) {
+    throw new Error(`${stage}에서 처음 검증한 이관 경로가 바뀌었습니다.`);
+  }
+}
+
+function deletionClaimsMatch(left, right) {
+  if (!isPlainObject(left) || !isPlainObject(right)) {
+    return false;
+  }
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return Array.from(keys).every((key) => left[key] === right[key]);
+}
+
+function resolveClaimedAt(value) {
+  const candidate = value || new Date().toISOString();
+  if (!isExactIsoTimestamp(candidate)) {
+    throw new Error("claimedAt은 정규화된 ISO 시각이어야 합니다.");
+  }
+  return candidate;
+}
+
+function isExactIsoTimestamp(value) {
+  if (!isExactText(value)) {
+    return false;
+  }
+  const millis = Date.parse(value);
+  return Number.isFinite(millis) && new Date(millis).toISOString() === value;
 }
 
 function validateStorageObject(storageObject, expectedPath) {
@@ -676,12 +1099,18 @@ if (require.main === module) {
 
 module.exports = {
   applyMigrationPlan,
+  buildClaimDecision,
+  buildDeletionClaimId,
+  buildFinalizeDecision,
   buildFirestoreMutation,
   buildMigrationPlan,
+  buildReadyDecision,
   compareStorageObjects,
+  createDeletionClaim,
   parseOptions,
   resolveMigrationObjectPaths,
   shouldBlockApply,
+  validateDeletionClaim,
   validateManagerDocumentLegalHold,
   validateSourceDeletionState,
   validateStorageObject,

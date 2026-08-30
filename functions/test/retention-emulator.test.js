@@ -81,12 +81,25 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
         }
         await storageGateway.deleteChatAttachment(storagePath);
       },
-      async deleteManagerDocument(storagePath, managerId, documentKey) {
+      async inspectManagerDocument(storagePath, managerId, documentKey) {
+        return storageGateway.inspectManagerDocument(storagePath, managerId, documentKey);
+      },
+      async deleteManagerDocument(
+          storagePath,
+          managerId,
+          documentKey,
+          objectGeneration,
+      ) {
         if (storagePath === paths.managerRetry && !failedOnce.has(storagePath)) {
           failedOnce.add(storagePath);
           throw new Error("manager storage unavailable");
         }
-        await storageGateway.deleteManagerDocument(storagePath, managerId, documentKey);
+        await storageGateway.deleteManagerDocument(
+            storagePath,
+            managerId,
+            documentKey,
+            objectGeneration,
+        );
       },
     };
 
@@ -98,13 +111,12 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
       apply: true,
       now: asOf,
     });
-
     assert.equal(firstSummary.firestoreMessagesRedacted, 1);
     assert.equal(firstSummary.firestoreAttachmentsDeleted, 1);
     assert.equal(firstSummary.firestoreAttachmentDeleteFailures, 1);
     assert.equal(firstSummary.firestoreLocationsCleared, 1);
-    assert.equal(firstSummary.managerDocumentsDeleted, 1);
-    assert.equal(firstSummary.managerDocumentDeleteFailures, 1);
+    assert.equal(firstSummary.managerDocumentsDeleted, 0);
+    assert.equal(firstSummary.managerDocumentDeleteFailures, 2);
     assert.equal(firstSummary.firestoreLegalHoldSkips, 3);
     assert.equal(firstSummary.managerDocumentLegalHoldSkips, 1);
     assert.equal(firstSummary.adminAuditCandidates, 1);
@@ -130,9 +142,15 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
         firestore,
         "users/manager-expired",
     );
-    assert.equal(expiredManagerAfterFirst.managerDocumentFiles.idCard, undefined);
-    assert.equal(expiredManagerAfterFirst.managerDocumentFilePaths.idCard, undefined);
-    assert.equal(expiredManagerAfterFirst.managerIdCardStoragePath, undefined);
+    assert.equal(
+        expiredManagerAfterFirst.managerDocumentFiles.idCard.fullPath,
+        paths.managerSuccess,
+    );
+    assert.equal(
+        expiredManagerAfterFirst.managerDocumentFilePaths.idCard,
+        paths.managerSuccess,
+    );
+    assert.equal(expiredManagerAfterFirst.managerIdCardStoragePath, paths.managerSuccess);
     assert.equal(
         expiredManagerAfterFirst.managerDocumentFiles.license.fullPath,
         paths.managerRetry,
@@ -145,9 +163,12 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
         expiredManagerAfterFirst.managerLicenseStoragePath,
         paths.managerRetry,
     );
+    assert.equal(expiredManagerAfterFirst.managerDocumentDeletionClaim.operation, "RETENTION");
+    assert.equal(expiredManagerAfterFirst.managerDocumentDeletionClaim.documentKey, "license");
+    assert.equal(expiredManagerAfterFirst.managerDocumentDeletionClaim.state, "READY");
     assert.equal(await fileExists(bucket, paths.chatSuccess), false);
     assert.equal(await fileExists(bucket, paths.chatRetry), true);
-    assert.equal(await fileExists(bucket, paths.managerSuccess), false);
+    assert.equal(await fileExists(bucket, paths.managerSuccess), true);
     assert.equal(await fileExists(bucket, paths.managerRetry), true);
 
     await assertHeldData(firestore, bucket, paths);
@@ -165,7 +186,7 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     assert.equal(secondSummary.firestoreAttachmentsDeleted, 1);
     assert.equal(secondSummary.firestoreAttachmentDeleteFailures, 0);
     assert.equal(secondSummary.firestoreLocationsCleared, 0);
-    assert.equal(secondSummary.managerDocumentsDeleted, 1);
+    assert.equal(secondSummary.managerDocumentsDeleted, 2);
     assert.equal(secondSummary.managerDocumentDeleteFailures, 0);
     assert.equal(secondSummary.firestoreLegalHoldSkips, 3);
     assert.equal(secondSummary.managerDocumentLegalHoldSkips, 1);
@@ -194,6 +215,10 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
     assert.equal(expiredManagerAfterSecond.managerDocumentFiles.license, undefined);
     assert.equal(expiredManagerAfterSecond.managerDocumentFilePaths.license, undefined);
     assert.equal(expiredManagerAfterSecond.managerLicenseStoragePath, undefined);
+    assert.equal(
+        Object.hasOwn(expiredManagerAfterSecond, "managerDocumentDeletionClaim"),
+        false,
+    );
     assert.equal(await fileExists(bucket, paths.chatRetry), false);
     assert.equal(await fileExists(bucket, paths.managerRetry), false);
     await assertHeldData(firestore, bucket, paths);

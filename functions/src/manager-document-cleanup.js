@@ -4,6 +4,10 @@ const logger = require("firebase-functions/logger");
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 
 const {
+  executeManagerDocumentDeletion,
+} = require("./manager-document-deletion");
+
+const {
   REPLACEMENT_CLEANUP_MANAGER_DOCUMENT_KEYS,
   RETENTION_MANAGER_DOCUMENT_KEYS,
   collectManagerDocumentReferencePaths,
@@ -24,7 +28,42 @@ class ManagerDocumentReplacementStorageGateway {
     this.bucket = bucket;
   }
 
-  async deleteManagerDocument(storagePath, managerId, documentKey) {
+  async inspectManagerDocument(storagePath, managerId, documentKey) {
+    this.assertManagerDocumentPath(storagePath, managerId, documentKey);
+    try {
+      const [metadata] = await this.bucket.file(storagePath).getMetadata();
+      const objectGeneration = sanitizeText(String(metadata?.generation || ""));
+      if (!/^\d+$/.test(objectGeneration)) {
+        throw createManagerDocumentCleanupError("MANAGER_REPLACEMENT_GENERATION_INVALID");
+      }
+      return {objectGeneration};
+    } catch (error) {
+      if (isStorageObjectNotFound(error)) {
+        return {objectMissing: true};
+      }
+      throw error;
+    }
+  }
+
+  async deleteManagerDocument(storagePath, managerId, documentKey, objectGeneration) {
+    this.assertManagerDocumentPath(storagePath, managerId, documentKey);
+    const generation = sanitizeText(objectGeneration);
+    if (!/^\d+$/.test(generation)) {
+      throw createManagerDocumentCleanupError("MANAGER_REPLACEMENT_GENERATION_INVALID");
+    }
+    try {
+      await this.bucket.file(storagePath).delete({
+        ignoreNotFound: true,
+        ifGenerationMatch: generation,
+      });
+    } catch (error) {
+      if (!isStorageObjectNotFound(error)) {
+        throw error;
+      }
+    }
+  }
+
+  assertManagerDocumentPath(storagePath, managerId, documentKey) {
     if (!isManagerDocumentStoragePath(
         storagePath,
         managerId,
@@ -32,13 +71,6 @@ class ManagerDocumentReplacementStorageGateway {
         REPLACEMENT_CLEANUP_MANAGER_DOCUMENT_KEYS,
     )) {
       throw createManagerDocumentCleanupError("MANAGER_REPLACEMENT_PATH_INVALID");
-    }
-    try {
-      await this.bucket.file(storagePath).delete({ignoreNotFound: true});
-    } catch (error) {
-      if (!isStorageObjectNotFound(error)) {
-        throw error;
-      }
     }
   }
 }
@@ -64,6 +96,7 @@ const cleanupReplacedManagerDocumentObjects = onDocumentWritten(
       const documentReference = event.data?.after?.ref || event.data.before.ref;
       const bucket = getStorage(getApp()).bucket(resolveStorageBucketName());
       const result = await deleteUnreferencedManagerDocumentCandidates({
+        firestore: documentReference.firestore,
         documentReference,
         candidates,
         storage: new ManagerDocumentReplacementStorageGateway(bucket),
@@ -107,6 +140,7 @@ function collectReplacedManagerDocumentCandidates(
 }
 
 async function deleteUnreferencedManagerDocumentCandidates({
+  firestore,
   documentReference,
   candidates,
   storage,
@@ -118,6 +152,7 @@ async function deleteUnreferencedManagerDocumentCandidates({
     skippedInvalid: 0,
     skippedDocumentState: 0,
     skippedLegalHold: 0,
+    skippedClaimConflict: 0,
   };
   for (const candidate of candidates) {
     if (!isReplacementCleanupCandidate(candidate)) {
@@ -125,29 +160,46 @@ async function deleteUnreferencedManagerDocumentCandidates({
       continue;
     }
 
-    const latestSnapshot = await documentReference.get();
-    const latestData = latestSnapshot.exists ? latestSnapshot.data() : null;
-    if (!latestSnapshot.exists || sanitizeText(latestData?.role) !== "MANAGER") {
-      result.skippedDocumentState += 1;
-      continue;
-    }
-    if (managerDocumentLegalHoldBlocksDeletion(latestData, asOf)) {
+    const deletion = await executeManagerDocumentDeletion({
+      firestore,
+      documentReference,
+      candidate,
+      operation: "REPLACEMENT",
+      claimedAt: asOf,
+      storage,
+      validateCurrentState: (data) => replacementDeletionValidationIssue(
+          data,
+          candidate,
+          asOf,
+      ),
+    });
+    if (deletion.status === "COMPLETED") {
+      result.deleted += 1;
+    } else if (["CLAIM_CONFLICT", "CLAIM_BLOCKED"].includes(deletion.status)) {
+      result.skippedClaimConflict += 1;
+    } else if (deletion.reason === "LEGAL_HOLD") {
       result.skippedLegalHold += 1;
-      continue;
-    }
-    if (managerDocumentDataReferencesStoragePath(latestData, candidate.storagePath)) {
+    } else if (deletion.reason === "REFERENCED") {
       result.skippedReferenced += 1;
-      continue;
+    } else {
+      result.skippedDocumentState += 1;
     }
-
-    await storage.deleteManagerDocument(
-        candidate.storagePath,
-        candidate.managerId,
-        candidate.documentKey,
-    );
-    result.deleted += 1;
   }
   return result;
+}
+
+function replacementDeletionValidationIssue(data, candidate, asOf) {
+  if (sanitizeText(data?.role) !== "MANAGER" ||
+      !resolveCanonicalManagerDocumentReference(data, candidate.managerId)) {
+    return "DOCUMENT_STATE";
+  }
+  if (managerDocumentLegalHoldBlocksDeletion(data, asOf)) {
+    return "LEGAL_HOLD";
+  }
+  if (managerDocumentDataReferencesStoragePath(data, candidate.storagePath)) {
+    return "REFERENCED";
+  }
+  return "";
 }
 
 function managerDocumentDataReferencesStoragePath(data, storagePath) {
@@ -196,4 +248,5 @@ module.exports = {
   isReplacementCleanupCandidate,
   isStorageObjectNotFound,
   managerDocumentDataReferencesStoragePath,
+  replacementDeletionValidationIssue,
 };

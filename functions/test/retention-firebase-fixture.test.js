@@ -118,7 +118,11 @@ test("scoped adapter는 고정 문서와 객체 밖의 파기를 차단한다", 
       /픽스처 범위를 벗어난 문서/,
   );
   await assert.rejects(
-      () => managerStore.isStillEligible({managerId: "real-manager"}, new Date()),
+      () => managerStore.deleteCandidate(
+          {managerId: "real-manager"},
+          new Date(),
+          storage,
+      ),
       /픽스처 범위를 벗어난 문서/,
   );
   await assert.rejects(
@@ -201,11 +205,18 @@ test("매니저 transaction은 표식이 바뀐 문서의 참조를 지우지 �
   });
 
   await assert.rejects(
-      () => store.clearReference({
+      () => store.deleteCandidate({
         managerId: "retention-fixture-manager-expired-v1",
         documentKey: "idCard",
         storagePath: OBJECT_PATHS.managerExpired,
-      }, new Date()),
+      }, new Date(), {
+        async inspectManagerDocument() {
+          assert.fail("표식 검증 실패 뒤 Storage를 검사하면 안 됩니다.");
+        },
+        async deleteManagerDocument() {
+          assert.fail("표식 검증 실패 뒤 Storage를 삭제하면 안 됩니다.");
+        },
+      }),
       /FIRESTORE_DOCUMENT_GUARD_REJECTED/,
   );
   assert.equal(updated, false);

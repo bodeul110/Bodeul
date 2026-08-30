@@ -56,7 +56,7 @@ apply는 명시적 옵션이 있어야 실행하며, 재실행해도 완료된 �
 
 - 객체 복사 후 Firestore 갱신 전 실패하면 canonical 객체가 고아로 남을 수 있다. 사후 점검이 해당 부분 상태를 찾아야 한다.
 - Firestore 갱신 뒤 legacy 객체 삭제가 실패하면 두 객체가 잠시 남을 수 있다. 재실행은 canonical 메타데이터를 신뢰하되 legacy 객체 존재를 삭제 후보로 보고한다.
-- 사용자 문서의 자격 종류 교체 뒤 자동 정리는 삭제 직전에 최신 Firestore 참조와 legal hold를 다시 확인한다. 보존 필드가 불완전하거나 해석되지 않으면 삭제하지 않는 fail-closed 기준을 사용한다.
+- 사용자 문서의 자격 종류 교체·보존 파기·legacy 이관은 Firestore transaction에서 서버 전용 `managerDocumentDeletionClaim`을 먼저 확보한다. claim이 존재하는 동안 클라이언트의 참조·심사 상태 변경과 Storage 신규 업로드를 차단하고, 같은 claim만 객체 generation을 고정해 삭제한 뒤 참조와 claim을 transaction으로 정리한다. 보존 필드나 claim이 불완전하거나 다른 작업과 충돌하면 삭제하지 않는 fail-closed 기준을 사용한다.
 - 구버전 앱이 legacy key를 계속 쓰면 이관 뒤 다시 불일치가 생길 수 있다. 신규 Rules와 앱 배포 순서를 같은 출시 게이트에서 관리한다.
 - 실제 운영 데이터에 대한 apply와 Rules·Functions 배포는 별도 명시적 승인 전에는 실행하지 않는다.
 

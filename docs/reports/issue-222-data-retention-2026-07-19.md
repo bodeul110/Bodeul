@@ -168,7 +168,7 @@ npm --prefix functions run retention:apply -- --project bodeul-dev --confirm-pro
 ## 리스크와 전환 조건
 
 - 하루 500건보다 만료 적재가 빠르면 backlog가 생길 수 있다. 7일 연속 backlog가 줄지 않으면 배치 반복 또는 Cloud Run Job 전환을 검토한다.
-- legal hold 설정과 Storage 삭제가 같은 순간에 경합하면 외부 Storage 삭제를 DB 트랜잭션으로 되돌릴 수 없다. 운영에서는 legal hold 변경 중 파기 job을 일시 중지하고, 장기적으로 hold 변경용 관리자 API와 claim 잠금을 연결한다.
+- 매니저 증빙은 Firestore transaction에서 `managerDocumentDeletionClaim`을 확보한 뒤 클라이언트 참조·심사 상태 변경과 새 Storage 업로드를 잠그고, 고정한 객체 generation만 삭제한다. 별도 관리자 웹의 심사 transaction도 claim 존재 시 409로 중단한다. 현재 legal hold나 파일 참조를 바꾸는 Admin SDK 경로는 없으며, 향후 추가할 때는 동일 transaction 검사를 출시 조건으로 둔다. 실패 시 claim을 유지해 같은 작업만 재개하므로 최신 조회와 Storage 삭제 사이의 경쟁을 fail-closed한다.
 - Firestore 전환 문서는 문서 ID cursor로 500개씩 조회한다. 실행 시간이 Functions 한도에 가까워지면 페이지별 checkpoint 또는 Cloud Run Job으로 전환한다.
 - Firebase 기본 Storage bucket 이름은 `{projectId}.firebasestorage.app` 규약을 사용한다. 환경별 bucket이 다르면 함수 설정을 분리해야 한다.
 - Supabase CA가 교체되면 Secret의 새 버전을 등록하고 두 함수를 재배포해야 한다. CA 검증 실패 시 자동으로 우회하지 않는다.

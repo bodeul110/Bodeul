@@ -3,10 +3,15 @@ const assert = require("node:assert/strict");
 
 const {
   applyMigrationPlan,
+  buildClaimDecision,
+  buildFinalizeDecision,
   buildFirestoreMutation,
   buildMigrationPlan,
+  buildReadyDecision,
+  createDeletionClaim,
   parseOptions,
   shouldBlockApply,
+  validateDeletionClaim,
   validateManagerDocumentLegalHold,
 } = require("../migrate-manager-health-certificate");
 
@@ -43,6 +48,13 @@ function canonicalData() {
       },
     },
     managerDocumentFilePaths: {nursingLicense: destinationPath},
+    managerDocumentEvidenceMigration: {
+      migrationId: "health-certificate-to-nursing-license-v1",
+      sourceKey: "healthCertificate",
+      destinationKey: "nursingLicense",
+      sourcePath,
+      destinationPath,
+    },
   };
 }
 
@@ -215,181 +227,367 @@ test("Firestore mutation은 canonical map을 만들고 health alias를 삭제한
   assert.deepEqual(mutation.deleteFields, ["managerHealthCertificateStoragePath"]);
 });
 
-test("apply는 copy, 검증, transaction, source delete 순서를 지킨다", async () => {
-  const calls = [];
-  const result = plan();
-  await applyMigrationPlan(result, {
-    copySource: async () => calls.push("copy"),
-    getDestination: async () => {
-      calls.push("get-destination");
-      return storageObject(destinationPath);
-    },
-    updateMetadata: async (builder) => {
-      calls.push("transaction");
-      const decision = builder(legacyData());
-      assert.equal(decision.state, "UPDATE_METADATA");
-      assert.ok(decision.mutation);
-    },
-    getLatestData: async () => {
-      calls.push("latest-data");
-      return canonicalData();
-    },
-    deleteSource: async () => calls.push("delete-source"),
-  });
-  assert.deepEqual(calls, [
-    "copy",
-    "get-destination",
-    "transaction",
-    "get-destination",
-    "latest-data",
-    "delete-source",
+test("durable claim은 결정적 식별자와 엄격한 CLAIMED/READY schema를 사용한다", () => {
+  const claimed = createDeletionClaim(
+      managerId,
+      sourcePath,
+      "2026-08-30T00:00:00.000Z",
+  );
+  assert.deepEqual(Object.keys(claimed), [
+    "version",
+    "claimId",
+    "operation",
+    "documentKey",
+    "storagePath",
+    "state",
+    "claimedAt",
   ]);
-});
-
-test("transaction 실패 시 원본을 삭제하지 않고 재실행은 기존 복사본을 재사용한다", async () => {
-  const calls = [];
-  await assert.rejects(
-      applyMigrationPlan(plan(), {
-        copySource: async () => calls.push("copy"),
-        getDestination: async () => storageObject(destinationPath),
-        updateMetadata: async () => {
-          calls.push("transaction");
-          throw new Error("commit 실패");
-        },
-        getLatestData: async () => canonicalData(),
-        deleteSource: async () => calls.push("delete-source"),
-      }),
-      /commit 실패/,
+  assert.equal(claimed.operation, "MIGRATION");
+  assert.equal(claimed.state, "CLAIMED");
+  assert.equal(
+      claimed.claimId,
+      "de4e54727e34cfd1d54ee46ddcc754d55a3a79d1c745e36e82e40f42a3cc822f",
   );
-  assert.deepEqual(calls, ["copy", "transaction"]);
-
-  const resumed = plan({
-    destinationObject: storageObject(destinationPath),
-  });
-  const resumedCalls = [];
-  await applyMigrationPlan(resumed, {
-    copySource: async () => resumedCalls.push("copy"),
-    getDestination: async () => storageObject(destinationPath),
-    updateMetadata: async (builder) => {
-      resumedCalls.push("transaction");
-      builder(legacyData());
-    },
-    getLatestData: async () => {
-      resumedCalls.push("latest-data");
-      return canonicalData();
-    },
-    deleteSource: async () => resumedCalls.push("delete-source"),
-  });
-  assert.deepEqual(resumedCalls, [
-    "transaction",
-    "latest-data",
-    "delete-source",
-  ]);
-});
-
-test("metadata 교체 후 재실행은 transaction 없이 구 객체만 정리한다", async () => {
-  const cleanup = plan({
-    data: canonicalData(),
-    sourceObject: storageObject(sourcePath),
-    destinationObject: storageObject(destinationPath),
-  });
-  const calls = [];
-  await applyMigrationPlan(cleanup, {
-    copySource: async () => calls.push("copy"),
-    getDestination: async () => storageObject(destinationPath),
-    updateMetadata: async () => calls.push("transaction"),
-    getLatestData: async () => {
-      calls.push("latest-data");
-      return canonicalData();
-    },
-    deleteSource: async () => calls.push("delete-source"),
-  });
-  assert.deepEqual(calls, ["latest-data", "delete-source"]);
-});
-
-test("generation 조건부 삭제가 404 no-op을 반환해도 완료 상태를 유지한다", async () => {
-  const cleanup = plan({
-    data: canonicalData(),
-    sourceObject: storageObject(sourcePath),
-    destinationObject: storageObject(destinationPath),
-  });
-  const result = await applyMigrationPlan(cleanup, {
-    copySource: async () => assert.fail("복사를 다시 실행하면 안 됩니다."),
-    getDestination: async () => storageObject(destinationPath),
-    updateMetadata: async () => assert.fail("transaction을 다시 실행하면 안 됩니다."),
-    getLatestData: async () => canonicalData(),
-    deleteSource: async () => false,
-  });
-  assert.equal(result.action, "CLEANUP_SOURCE");
-});
-
-test("transaction 재검증과 삭제 직전 최신 legal hold가 원본 삭제를 차단한다", async () => {
-  const transactionCalls = [];
-  await assert.rejects(
-      applyMigrationPlan(plan(), {
-        copySource: async () => transactionCalls.push("copy"),
-        getDestination: async () => storageObject(destinationPath),
-        updateMetadata: async (builder) => {
-          transactionCalls.push("transaction");
-          builder(withLegalHold(legacyData()));
-        },
-        getLatestData: async () => canonicalData(),
-        deleteSource: async () => transactionCalls.push("delete-source"),
-      }),
-      /transaction 재검증 차단.*legal hold/,
+  assert.equal(validateDeletionClaim(claimed, managerId, sourcePath).issue, "");
+  assert.equal(
+      createDeletionClaim(managerId, sourcePath, claimed.claimedAt).claimId,
+      claimed.claimId,
   );
-  assert.deepEqual(transactionCalls, ["copy", "transaction"]);
 
-  const deletionCalls = [];
-  await assert.rejects(
-      applyMigrationPlan(plan(), {
-        copySource: async () => deletionCalls.push("copy"),
-        getDestination: async () => storageObject(destinationPath),
-        updateMetadata: async (builder) => {
-          deletionCalls.push("transaction");
-          builder(legacyData());
-        },
-        getLatestData: async () => {
-          deletionCalls.push("latest-data");
-          return withLegalHold(canonicalData());
-        },
-        deleteSource: async () => deletionCalls.push("delete-source"),
-      }),
-      /원본 삭제 직전 재검증 차단.*legal hold/,
-  );
-  assert.deepEqual(deletionCalls, ["copy", "transaction", "latest-data"]);
-});
-
-test("삭제 직전 역할 또는 canonical 경로가 바뀌면 원본을 보존한다", async () => {
-  for (const latestData of [
-    {...canonicalData(), role: "PATIENT"},
-    {
-      ...canonicalData(),
-      managerDocumentFiles: {
-        nursingLicense: {
-          ...canonicalData().managerDocumentFiles.nursingLicense,
-          fullPath: `manager-documents/${managerId}/nursingLicense/other.png`,
-        },
-      },
-      managerDocumentFilePaths: {
-        nursingLicense: `manager-documents/${managerId}/nursingLicense/other.png`,
-      },
-    },
+  const ready = {
+    ...claimed,
+    state: "READY",
+    objectGeneration: "7",
+  };
+  assert.equal(validateDeletionClaim(ready, managerId, sourcePath).issue, "");
+  assert.equal(validateDeletionClaim({
+    ...claimed,
+    state: "READY",
+    objectMissing: true,
+  }, managerId, sourcePath).issue, "");
+  for (const malformed of [
+    {...claimed, operation: "RETENTION"},
+    {...claimed, claimId: "forged"},
+    {...claimed, claimedAt: "not-a-date"},
+    {...ready, objectMissing: true},
+    {...ready, objectGeneration: "not-a-generation"},
+    {...claimed, state: "READY", objectMissing: false},
+    {...claimed, unexpected: true},
   ]) {
-    const calls = [];
-    await assert.rejects(
-        applyMigrationPlan(plan(), {
-          copySource: async () => calls.push("copy"),
-          getDestination: async () => storageObject(destinationPath),
-          updateMetadata: async (builder) => {
-            calls.push("transaction");
-            builder(legacyData());
-          },
-          getLatestData: async () => latestData,
-          deleteSource: async () => calls.push("delete-source"),
-        }),
-        /원본 삭제 직전 재검증 차단/,
-    );
-    assert.equal(calls.includes("delete-source"), false);
+    assert.notEqual(validateDeletionClaim(malformed, managerId, sourcePath).issue, "");
   }
 });
+
+test("claim transaction은 canonical 전환과 claim 생성을 한 mutation으로 묶는다", () => {
+  const decision = buildClaimDecision({
+    managerId,
+    data: legacyData(),
+    sourceObject: storageObject(sourcePath),
+    destinationObject: storageObject(destinationPath),
+    sourcePath,
+    destinationPath,
+    claimedAt: "2026-08-30T00:00:00.000Z",
+  });
+  assert.equal(decision.state, "CLAIMED");
+  assert.equal(decision.mutation.data.managerDocumentDeletionClaim.claimId,
+      decision.claim.claimId);
+  assert.equal(
+      decision.mutation.data.managerDocumentFiles.nursingLicense.fullPath,
+      destinationPath,
+  );
+  assert.equal(
+      "healthCertificate" in decision.mutation.data.managerDocumentFiles,
+      false,
+  );
+});
+
+test("claim 전 legal hold 또는 경로 변경 경쟁은 원본 삭제 전에 차단한다", async () => {
+  for (const racedData of [
+    withLegalHold(legacyData()),
+    legacyData({path: `${sourcePath}.changed`}),
+  ]) {
+    const harness = createApplyHarness({
+      beforeClaim: (state) => {
+        state.documentData = clone(racedData);
+      },
+    });
+    await assert.rejects(
+        applyMigrationPlan(plan(), harness.dependencies),
+        /claim transaction 재검증 차단/,
+    );
+    assert.equal(harness.calls.includes("delete-source"), false);
+    assert.ok(harness.state.sourceObject);
+  }
+});
+
+test("claim 획득 뒤 READY 직전 hold 또는 재참조 경쟁도 삭제 전에 차단한다", async () => {
+  for (const mutateAfterClaim of [
+    (data) => withLegalHold(data),
+    (data) => ({
+      ...data,
+      managerDocumentFiles: {
+        ...data.managerDocumentFiles,
+        healthCertificate: legacyData().managerDocumentFiles.healthCertificate,
+      },
+      managerDocumentFilePaths: {
+        ...data.managerDocumentFilePaths,
+        healthCertificate: sourcePath,
+      },
+      managerHealthCertificateStoragePath: sourcePath,
+    }),
+  ]) {
+    const harness = createApplyHarness({
+      beforeReady: (state) => {
+        state.documentData = mutateAfterClaim(state.documentData);
+      },
+    });
+    await assert.rejects(
+        applyMigrationPlan(plan(), harness.dependencies),
+        /READY transaction 재검증 차단/,
+    );
+    assert.equal(harness.calls.includes("delete-source"), false);
+    assert.ok(harness.state.sourceObject);
+    assert.equal(
+        harness.state.documentData.managerDocumentDeletionClaim.state,
+        "CLAIMED",
+    );
+  }
+});
+
+test("apply는 claim, READY generation 고정, 조건부 삭제, finalize 순서를 지킨다", async () => {
+  const harness = createApplyHarness();
+  await applyMigrationPlan(plan(), harness.dependencies);
+  assert.deepEqual(harness.calls, [
+    "copy",
+    "get-destination",
+    "get-destination",
+    "get-source",
+    "claim-transaction",
+    "get-source",
+    "ready-transaction",
+    "get-destination",
+    "delete-source",
+    "get-source",
+    "finalize-transaction",
+  ]);
+  assert.equal(harness.deletedGeneration, "7");
+  assert.equal(harness.state.sourceObject, null);
+  assert.equal("managerDocumentDeletionClaim" in harness.state.documentData, false);
+  assert.equal(
+      harness.state.documentData.managerDocumentFiles.nursingLicense.fullPath,
+      destinationPath,
+  );
+});
+
+test("READY 뒤 canonical 객체가 바뀌면 원본을 삭제하지 않는다", async () => {
+  const harness = createApplyHarness({
+    beforeDeleteDestination: (state) => {
+      state.destinationObject = storageObject(destinationPath, {generation: "99"});
+    },
+  });
+  await assert.rejects(
+      applyMigrationPlan(plan(), harness.dependencies),
+      /원본 삭제 직전 canonical 객체 변경 감지/,
+  );
+  assert.equal(harness.calls.includes("delete-source"), false);
+  assert.ok(harness.state.sourceObject);
+  assert.equal(
+      harness.state.documentData.managerDocumentDeletionClaim.state,
+      "READY",
+  );
+});
+
+test("CLAIMED 중단 후 재실행은 같은 claim을 READY로 승격해 완료한다", async () => {
+  const harness = createApplyHarness({failReadyOnce: true});
+  await assert.rejects(
+      applyMigrationPlan(plan(), harness.dependencies),
+      /READY transaction 중단/,
+  );
+  const claimed = clone(harness.state.documentData.managerDocumentDeletionClaim);
+  assert.equal(claimed.state, "CLAIMED");
+  assert.ok(harness.state.sourceObject);
+
+  const resumedPlan = buildMigrationPlan({
+    managerId,
+    data: harness.state.documentData,
+    sourceObject: harness.state.sourceObject,
+    destinationObject: harness.state.destinationObject,
+  });
+  assert.equal(resumedPlan.action, "RESUME_CLAIM");
+  harness.options.failReadyOnce = false;
+  harness.calls.length = 0;
+  await applyMigrationPlan(resumedPlan, harness.dependencies);
+  assert.equal(harness.claimIds.every((claimId) => claimId === claimed.claimId), true);
+  assert.equal("managerDocumentDeletionClaim" in harness.state.documentData, false);
+});
+
+test("삭제 후 finalize 중단은 READY claim과 404 상태에서 삭제 없이 재개한다", async () => {
+  const harness = createApplyHarness({failFinalizeOnce: true});
+  await assert.rejects(
+      applyMigrationPlan(plan(), harness.dependencies),
+      /finalize transaction 중단/,
+  );
+  const ready = clone(harness.state.documentData.managerDocumentDeletionClaim);
+  assert.equal(ready.state, "READY");
+  assert.equal(ready.objectGeneration, "7");
+  assert.equal("objectMissing" in ready, false);
+  assert.equal(harness.state.sourceObject, null);
+
+  const resumedPlan = buildMigrationPlan({
+    managerId,
+    data: harness.state.documentData,
+    sourceObject: null,
+    destinationObject: harness.state.destinationObject,
+  });
+  assert.equal(resumedPlan.action, "RESUME_CLAIM");
+  harness.options.failFinalizeOnce = false;
+  harness.calls.length = 0;
+  await applyMigrationPlan(resumedPlan, harness.dependencies);
+  assert.equal(harness.calls.includes("delete-source"), false);
+  assert.equal("managerDocumentDeletionClaim" in harness.state.documentData, false);
+});
+
+test("generation 조건부 삭제의 404는 멱등 성공으로 finalize한다", async () => {
+  const harness = createApplyHarness({deleteReturns404: true});
+  await applyMigrationPlan(plan(), harness.dependencies);
+  assert.equal(harness.deletedGeneration, "7");
+  assert.equal(harness.state.sourceObject, null);
+  assert.equal("managerDocumentDeletionClaim" in harness.state.documentData, false);
+});
+
+test("claim 뒤 이미 사라진 원본은 READY objectMissing으로 삭제 호출 없이 finalize한다", async () => {
+  const harness = createApplyHarness({sourceMissingAfterClaim: true});
+  await applyMigrationPlan(plan(), harness.dependencies);
+  assert.equal(harness.calls.includes("delete-source"), false);
+  assert.equal(
+      harness.readyClaims.some((claim) => claim.objectMissing === true),
+      true,
+  );
+  assert.equal("managerDocumentDeletionClaim" in harness.state.documentData, false);
+});
+
+test("상이하거나 손상된 claim과 finalize claim 교체는 fail-closed한다", () => {
+  const claimed = createDeletionClaim(
+      managerId,
+      sourcePath,
+      "2026-08-30T00:00:00.000Z",
+  );
+  const conflicting = {
+    ...canonicalData(),
+    managerDocumentDeletionClaim: {...claimed, claimId: "forged"},
+  };
+  assert.equal(plan({
+    data: conflicting,
+    sourceObject: storageObject(sourcePath),
+    destinationObject: storageObject(destinationPath),
+  }).action, "BLOCKED");
+
+  const readyDecision = buildReadyDecision({
+    managerId,
+    data: {...canonicalData(), managerDocumentDeletionClaim: claimed},
+    sourceObject: storageObject(sourcePath),
+    destinationObject: storageObject(destinationPath),
+    sourcePath,
+    destinationPath,
+    expectedClaim: claimed,
+  });
+  const changedClaim = {...readyDecision.claim, claimId: "forged"};
+  assert.throws(() => buildFinalizeDecision({
+    managerId,
+    data: {...canonicalData(), managerDocumentDeletionClaim: changedClaim},
+    destinationObject: storageObject(destinationPath),
+    sourcePath,
+    destinationPath,
+    expectedClaim: readyDecision.claim,
+  }), /재검증 차단|claim/);
+});
+
+function createApplyHarness(overrides = {}) {
+  const options = {...overrides};
+  const state = {
+    documentData: clone(overrides.documentData || legacyData()),
+    sourceObject: clone(overrides.sourceObject || storageObject(sourcePath)),
+    destinationObject: clone(overrides.destinationObject || null),
+  };
+  const calls = [];
+  const claimIds = [];
+  const readyClaims = [];
+  let deletedGeneration = "";
+  let destinationReads = 0;
+
+  function runTransaction(label, builder) {
+    calls.push(label);
+    const decision = builder(clone(state.documentData));
+    if (decision?.claim?.claimId) claimIds.push(decision.claim.claimId);
+    if (decision?.claim?.state === "READY") readyClaims.push(clone(decision.claim));
+    applyMutation(state.documentData, decision?.mutation);
+    return decision;
+  }
+
+  const dependencies = {
+    claimedAt: "2026-08-30T00:00:00.000Z",
+    copySource: async () => {
+      calls.push("copy");
+      state.destinationObject = storageObject(destinationPath, {generation: "8"});
+    },
+    getSource: async () => {
+      calls.push("get-source");
+      return clone(state.sourceObject);
+    },
+    getDestination: async () => {
+      calls.push("get-destination");
+      destinationReads += 1;
+      if (destinationReads === 3 && options.beforeDeleteDestination) {
+        options.beforeDeleteDestination(state);
+      }
+      return clone(state.destinationObject);
+    },
+    claimDeletion: async (builder) => {
+      if (options.beforeClaim) options.beforeClaim(state);
+      const decision = runTransaction("claim-transaction", builder);
+      if (options.sourceMissingAfterClaim) state.sourceObject = null;
+      return decision;
+    },
+    prepareDeletion: async (builder) => {
+      if (options.failReadyOnce) throw new Error("READY transaction 중단");
+      if (options.beforeReady) options.beforeReady(state);
+      return runTransaction("ready-transaction", builder);
+    },
+    deleteSource: async (generation) => {
+      calls.push("delete-source");
+      deletedGeneration = generation;
+      assert.equal(generation, state.sourceObject?.generation);
+      state.sourceObject = null;
+      return options.deleteReturns404 ? false : true;
+    },
+    finalizeDeletion: async (builder) => {
+      if (options.failFinalizeOnce) throw new Error("finalize transaction 중단");
+      return runTransaction("finalize-transaction", builder);
+    },
+  };
+  return {
+    calls,
+    claimIds,
+    readyClaims,
+    dependencies,
+    options,
+    state,
+    get deletedGeneration() {
+      return deletedGeneration;
+    },
+  };
+}
+
+function applyMutation(data, mutation) {
+  if (!mutation) return;
+  for (const [key, value] of Object.entries(mutation.data || {})) {
+    data[key] = clone(value);
+  }
+  for (const key of mutation.deleteFields || []) {
+    delete data[key];
+  }
+}
+
+function clone(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}

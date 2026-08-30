@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   FirebaseLegacyCompanionStore,
+  FirebaseManagerDocumentStore,
   FirebaseStorageGateway,
   PostgresRetentionRepository,
   evaluateManagerDocument,
@@ -15,6 +16,13 @@ const {
   retentionCounts,
   runRetentionJob,
 } = require("../src/retention");
+const {
+  MANAGER_DOCUMENT_DELETION_CLAIM_FIELD,
+  buildManagerDocumentDeletionClaim,
+} = require("../src/manager-document-deletion");
+const {
+  createTransactionalDocument,
+} = require("./manager-document-deletion-test-helper");
 
 test("PostgreSQL 연결은 Supabase CA 검증을 강제한다", () => {
   const ca = "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----";
@@ -134,13 +142,15 @@ function createManagerStore(overrides = {}) {
       calls.push("preview");
       return {candidates: [], legalHoldSkips: 0};
     },
-    async isStillEligible() {
-      calls.push("isStillEligible");
-      return true;
-    },
-    async clearReference() {
-      calls.push("clearReference");
-      return true;
+    async deleteCandidate(candidate, _asOf, storage) {
+      calls.push("deleteCandidate");
+      await storage.deleteManagerDocument(
+          candidate.storagePath,
+          candidate.managerId,
+          candidate.documentKey,
+          "1",
+      );
+      return {status: "COMPLETED"};
     },
     ...overrides,
   };
@@ -564,23 +574,77 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   assert.equal(unsupported.candidates.length, 0);
 });
 
+test("기존 retention claim 대상은 다음 실행의 첫 삭제 후보가 된다", () => {
+  const now = new Date("2026-07-18T00:00:00.000Z");
+  const licensePath = "manager-documents/manager-1/license/license.pdf";
+  const idCardPath = "manager-documents/manager-1/idCard/id-card.pdf";
+  const claimed = buildManagerDocumentDeletionClaim({
+    candidate: {
+      managerId: "manager-1",
+      documentKey: "idCard",
+      storagePath: idCardPath,
+    },
+    operation: "RETENTION",
+    claimedAt: now,
+  });
+  const evaluation = evaluateManagerDocument("manager-1", {
+    role: "MANAGER",
+    managerDocumentStatus: "APPROVED",
+    managerDocumentReviewedAt: Date.parse("2026-06-01T00:00:00.000Z"),
+    managerDocumentUpdatedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+    managerDocumentFiles: {
+      license: {fullPath: licensePath},
+      idCard: {fullPath: idCardPath},
+    },
+    managerDocumentFilePaths: {
+      license: licensePath,
+      idCard: idCardPath,
+    },
+    managerLicenseStoragePath: licensePath,
+    managerIdCardStoragePath: idCardPath,
+    [MANAGER_DOCUMENT_DELETION_CLAIM_FIELD]: {
+      ...claimed,
+      state: "READY",
+      objectGeneration: "17",
+    },
+  }, now);
+
+  assert.deepEqual(
+      evaluation.candidates.map((candidate) => candidate.documentKey),
+      ["idCard", "license"],
+  );
+});
+
 test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확인한다", async () => {
   const deletedPaths = [];
   const gateway = new FirebaseStorageGateway({
-    file(storagePath) {
+    file(storagePath, options) {
       return {
-        async delete() {
-          deletedPaths.push(storagePath);
+        async getMetadata() {
+          return [{generation: "19"}];
+        },
+        async delete(deleteOptions) {
+          deletedPaths.push({storagePath, options, deleteOptions});
         },
       };
     },
   });
+
+  assert.deepEqual(
+      await gateway.inspectManagerDocument(
+          "manager-documents/manager-1/license/license.jpg",
+          "manager-1",
+          "license",
+      ),
+      {objectGeneration: "19"},
+  );
 
   await assert.rejects(
       gateway.deleteManagerDocument(
           "manager-documents/manager-2/idCard/id.jpg",
           "manager-1",
           "idCard",
+          "20",
       ),
       (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
   );
@@ -589,6 +653,7 @@ test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확�
           "manager-documents/manager-1/license/id.jpg",
           "manager-1",
           "idCard",
+          "21",
       ),
       (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
   );
@@ -596,31 +661,107 @@ test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확�
       "manager-documents/manager-1/idCard/id.jpg",
       "manager-1",
       "idCard",
+      "22",
   );
   await gateway.deleteManagerDocument(
       "manager-documents/manager-1/nursingLicense/license.jpg",
       "manager-1",
       "nursingLicense",
+      "23",
   );
   await gateway.deleteManagerDocument(
       "manager-documents/manager-1/healthCertificate/legacy.jpg",
       "manager-1",
       "healthCertificate",
+      "24",
   );
   await assert.rejects(
       gateway.deleteManagerDocument(
           "manager-documents/manager-1/passport/unsupported.jpg",
           "manager-1",
           "passport",
+          "25",
       ),
       (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
   );
 
   assert.deepEqual(deletedPaths, [
-    "manager-documents/manager-1/idCard/id.jpg",
-    "manager-documents/manager-1/nursingLicense/license.jpg",
-    "manager-documents/manager-1/healthCertificate/legacy.jpg",
+    {
+      storagePath: "manager-documents/manager-1/idCard/id.jpg",
+      options: undefined,
+      deleteOptions: {ignoreNotFound: true, ifGenerationMatch: "22"},
+    },
+    {
+      storagePath: "manager-documents/manager-1/nursingLicense/license.jpg",
+      options: undefined,
+      deleteOptions: {ignoreNotFound: true, ifGenerationMatch: "23"},
+    },
+    {
+      storagePath: "manager-documents/manager-1/healthCertificate/legacy.jpg",
+      options: undefined,
+      deleteOptions: {ignoreNotFound: true, ifGenerationMatch: "24"},
+    },
   ]);
+});
+
+test("관리자 증빙 보존 파기는 exact claim과 참조·별칭을 한 transaction에서 정리한다", async () => {
+  const asOf = new Date("2026-07-18T00:00:00.000Z");
+  const storagePath = "manager-documents/manager-1/license/license.jpg";
+  const fixture = createTransactionalDocument({
+    role: "MANAGER",
+    managerDocumentStatus: "APPROVED",
+    managerDocumentReviewedAt: Date.parse("2026-06-01T00:00:00.000Z"),
+    managerDocumentUpdatedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+    managerDocumentFiles: {
+      license: {
+        fullPath: storagePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {license: storagePath},
+    managerLicenseStoragePath: storagePath,
+  });
+  const firestore = {
+    ...fixture.firestore,
+    collection(name) {
+      assert.equal(name, "users");
+      return {
+        doc(managerId) {
+          assert.equal(managerId, "manager-1");
+          return fixture.reference;
+        },
+      };
+    },
+  };
+  const store = new FirebaseManagerDocumentStore(firestore);
+  const deleteCalls = [];
+
+  const result = await store.deleteCandidate({
+    managerId: "manager-1",
+    documentKey: "license",
+    storagePath,
+  }, asOf, {
+    async inspectManagerDocument() {
+      return {objectGeneration: "37"};
+    },
+    async deleteManagerDocument(path, managerId, documentKey, generation) {
+      deleteCalls.push({path, managerId, documentKey, generation});
+    },
+  });
+
+  assert.equal(result.status, "COMPLETED");
+  assert.deepEqual(deleteCalls, [{
+    path: storagePath,
+    managerId: "manager-1",
+    documentKey: "license",
+    generation: "37",
+  }]);
+  const after = fixture.getData();
+  assert.equal(after.managerDocumentFiles.license, undefined);
+  assert.equal(after.managerDocumentFilePaths.license, undefined);
+  assert.equal(after.managerLicenseStoragePath, undefined);
+  assert.equal(Object.hasOwn(after, MANAGER_DOCUMENT_DELETION_CLAIM_FIELD), false);
+  assert.equal(after.managerDocumentOriginalsDeletedAt instanceof Date, true);
 });
 
 test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에서 재시도한다", async () => {
@@ -641,14 +782,17 @@ test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에�
         legalHoldSkips: 0,
       };
     },
-    async isStillEligible() {
-      order.push("validate");
-      return true;
-    },
-    async clearReference() {
-      order.push("clear");
+    async deleteCandidate(candidateToDelete, _asOf, storageToUse) {
+      order.push("claim");
+      await storageToUse.deleteManagerDocument(
+          candidateToDelete.storagePath,
+          candidateToDelete.managerId,
+          candidateToDelete.documentKey,
+          "31",
+      );
+      order.push("finalize");
       referenceExists = false;
-      return true;
+      return {status: "COMPLETED"};
     },
   });
   const storage = {
@@ -671,7 +815,7 @@ test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에�
     now: new Date("2026-07-18T00:00:00.000Z"),
   });
 
-  assert.deepEqual(order, ["validate", "delete"]);
+  assert.deepEqual(order, ["claim", "delete"]);
   assert.equal(referenceExists, true);
   assert.equal(firstSummary.managerDocumentsDeleted, 0);
   assert.equal(firstSummary.managerDocumentDeleteFailures, 1);
@@ -685,7 +829,7 @@ test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에�
     now: new Date("2026-07-19T00:00:00.000Z"),
   });
 
-  assert.deepEqual(order, ["validate", "delete", "validate", "delete", "clear"]);
+  assert.deepEqual(order, ["claim", "delete", "claim", "delete", "finalize"]);
   assert.equal(referenceExists, false);
   assert.equal(secondSummary.managerDocumentsDeleted, 1);
   assert.equal(secondSummary.managerDocumentDeleteFailures, 0);

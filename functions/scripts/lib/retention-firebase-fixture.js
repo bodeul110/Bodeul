@@ -301,13 +301,9 @@ function createScopedManagerStore(firestore, profile = DEVELOPMENT_PROFILE) {
       }
       return result;
     },
-    async isStillEligible(candidate, asOf) {
+    async deleteCandidate(candidate, asOf, storage) {
       assertAllowedId(candidate?.managerId, managerIds, "매니저");
-      return delegate.isStillEligible(candidate, asOf);
-    },
-    async clearReference(candidate, deletedAt) {
-      assertAllowedId(candidate?.managerId, managerIds, "매니저");
-      return delegate.clearReference(candidate, deletedAt);
+      return delegate.deleteCandidate(candidate, asOf, storage);
     },
   };
 }
@@ -315,9 +311,16 @@ function createScopedManagerStore(firestore, profile = DEVELOPMENT_PROFILE) {
 function createScopedStorageGateway(bucket, profile = DEVELOPMENT_PROFILE) {
   const allowedPaths = new Set(Object.values(profile.objectPaths));
   const scopedBucket = {
-    file(storagePath) {
+    file(storagePath, fileOptions = {}) {
       assertAllowedStoragePath(storagePath, allowedPaths);
       return {
+        async getMetadata() {
+          const [metadata] = await bucket.file(storagePath).getMetadata();
+          if (!isFixtureObjectMetadata(metadata?.metadata, profile)) {
+            throw new Error("Storage 객체의 픽스처 표식이 일치하지 않습니다.");
+          }
+          return [metadata];
+        },
         async delete(options) {
           if (!isAllowedChatAttachmentPath(storagePath) &&
               !isAllowedManagerDocumentPath(storagePath)) {
@@ -327,6 +330,17 @@ function createScopedStorageGateway(bucket, profile = DEVELOPMENT_PROFILE) {
           const [metadata] = await file.getMetadata();
           if (!isFixtureObjectMetadata(metadata?.metadata, profile)) {
             throw new Error("Storage 객체의 픽스처 표식이 일치하지 않습니다.");
+          }
+          const requestedGeneration = String(
+              options?.ifGenerationMatch || fileOptions.generation || "",
+          ).trim();
+          if (requestedGeneration && requestedGeneration !== String(metadata.generation)) {
+            const error = new Error("Storage 객체 generation이 변경되었습니다.");
+            error.code = 412;
+            throw error;
+          }
+          if (requestedGeneration) {
+            return bucket.file(storagePath).delete(options);
           }
           return bucket.file(storagePath, {generation: metadata.generation}).delete(options);
         },

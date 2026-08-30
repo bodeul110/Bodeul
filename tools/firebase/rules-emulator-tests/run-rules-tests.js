@@ -1034,6 +1034,102 @@ function testCases(testEnv) {
       },
     },
     {
+      name: "매니저 서류 삭제 claim은 클라이언트 재참조와 상태 변경 및 업로드를 잠근다",
+      run: async () => {
+        await seedFirestore(testEnv);
+
+        const forgedManager = "forged-deletion-claim-manager";
+        await assertFails(setDoc(
+            doc(firestoreFor(testEnv, forgedManager), "users", forgedManager),
+            {
+              ...userDocument("MANAGER", "forged-deletion-claim-manager"),
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentDeletionClaim: {
+                version: 1,
+                claimId: "f".repeat(64),
+                operation: "REPLACEMENT",
+                documentKey: "license",
+                storagePath:
+                  `manager-documents/${forgedManager}/license/forged.png`,
+                state: "CLAIMED",
+                claimedAt: "2026-08-31T00:00:00.000Z",
+              },
+            },
+        ));
+
+        const claimedPath =
+          `manager-documents/${users.manager}/license/replaced.png`;
+        const currentPath =
+          `manager-documents/${users.manager}/nursingLicense/current.png`;
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await updateDoc(doc(context.firestore(), "users", users.manager), {
+            ...managerDocumentSubmissionFiles({
+              documentKey: "nursingLicense",
+              fullPath: currentPath,
+            }),
+            managerDocumentSummary: "현재 제출 자료",
+            managerDocumentStatus: "NOT_SUBMITTED",
+            managerDocumentUpdatedAt: 1,
+            managerDocumentDeletionClaim: {
+              version: 1,
+              claimId: "a".repeat(64),
+              operation: "REPLACEMENT",
+              documentKey: "license",
+              storagePath: claimedPath,
+              state: "READY",
+              claimedAt: "2026-08-31T00:00:00.000Z",
+              objectGeneration: "7",
+            },
+          });
+        });
+
+        const managerReference =
+          doc(firestoreFor(testEnv, users.manager), "users", users.manager);
+        await assertFails(updateDoc(managerReference, {
+          ...managerDocumentSubmissionFiles({fullPath: claimedPath}),
+          managerDocumentSummary: "삭제 claim 경로 재참조",
+          managerDocumentStatus: "PENDING_REVIEW",
+          managerDocumentUpdatedAt: serverTimestamp(),
+        }));
+        await assertFails(updateDoc(managerReference, {
+          managerDocumentStatus: "PENDING_REVIEW",
+          managerDocumentUpdatedAt: serverTimestamp(),
+        }));
+        await assertFails(updateDoc(managerReference, {
+          managerDocumentLegalHoldUntil: new Date("2100-01-01T00:00:00.000Z"),
+          managerDocumentLegalHoldReason: "클라이언트 보존 설정",
+          managerDocumentLegalHoldByAdminUserId: users.manager,
+        }));
+        await assertFails(updateDoc(managerReference, {
+          "managerDocumentDeletionClaim.claimId": "b".repeat(64),
+        }));
+        await assertFails(updateDoc(managerReference, {
+          managerDocumentDeletionClaim: deleteField(),
+        }));
+        await assertSucceeds(updateDoc(managerReference, {
+          name: "claim 중 일반 프로필 수정",
+        }));
+
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.admin), "users", users.manager),
+            {
+              managerDocumentDeletionClaim: deleteField(),
+              managerDocumentLegalHoldUntil:
+                new Date("2100-01-01T00:00:00.000Z"),
+              "managerDocumentFilePaths.license": claimedPath,
+            },
+        ));
+        await assertFails(uploadBytes(
+            ref(
+                storageFor(testEnv, users.manager),
+                `manager-documents/${users.manager}/license/claim-blocked.png`,
+            ),
+            new Uint8Array([1, 2, 3]),
+            {contentType: "image/png"},
+        ));
+      },
+    },
+    {
       name: "appointmentRequests 비교 문서는 환자만 직접 읽고 관리자 브라우저 접근도 거부한다",
       run: async () => {
         await seedFirestore(testEnv);

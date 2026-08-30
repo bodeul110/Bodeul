@@ -6,6 +6,10 @@ const {defineSecret} = require("firebase-functions/params");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const postgres = require("postgres");
 const {
+  executeManagerDocumentDeletion,
+  parseManagerDocumentDeletionClaim,
+} = require("./manager-document-deletion");
+const {
   MANAGER_DOCUMENT_PATH_ALIAS_FIELDS,
   RETENTION_MANAGER_DOCUMENT_KEYS,
   isManagerDocumentStoragePath,
@@ -250,45 +254,37 @@ class FirebaseManagerDocumentStore {
     return result;
   }
 
-  async isStillEligible(candidate, asOf) {
-    const snapshot = await this.firestore.collection("users").doc(candidate.managerId).get();
-    if (!snapshot.exists) {
-      return false;
-    }
-    assertDocumentGuard(this.documentGuard, snapshot);
-    return evaluateManagerDocument(snapshot.id, snapshot.data(), asOf)
-        .candidates
-        .some((current) => sameManagerDocumentCandidate(current, candidate));
-  }
-
-  async clearReference(candidate, deletedAt) {
+  async deleteCandidate(candidate, deletedAt, storage) {
     const reference = this.firestore.collection("users").doc(candidate.managerId);
-    return this.firestore.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(reference);
-      if (!snapshot.exists) {
-        return false;
-      }
-      assertDocumentGuard(this.documentGuard, snapshot);
-      const currentCandidate = evaluateManagerDocument(
-          snapshot.id,
-          snapshot.data(),
-          deletedAt,
-      ).candidates.find((item) => sameManagerDocumentCandidate(item, candidate));
-      if (!currentCandidate) {
-        return false;
-      }
-
-      const updates = {
-        [`managerDocumentFiles.${candidate.documentKey}`]: FieldValue.delete(),
-        [`managerDocumentFilePaths.${candidate.documentKey}`]: FieldValue.delete(),
-        managerDocumentOriginalsDeletedAt: FieldValue.serverTimestamp(),
-      };
-      const legacyKey = MANAGER_DOCUMENT_PATH_ALIAS_FIELDS[candidate.documentKey];
-      if (legacyKey && sanitizeText(snapshot.data()?.[legacyKey]) === candidate.storagePath) {
-        updates[legacyKey] = FieldValue.delete();
-      }
-      transaction.update(reference, updates);
-      return true;
+    return executeManagerDocumentDeletion({
+      firestore: this.firestore,
+      documentReference: reference,
+      candidate,
+      operation: "RETENTION",
+      claimedAt: deletedAt,
+      storage,
+      validateCurrentState: (data, snapshot) => {
+        assertDocumentGuard(this.documentGuard, snapshot);
+        return evaluateManagerDocument(
+            snapshot.id,
+            data,
+            deletedAt,
+        ).candidates.some((item) => sameManagerDocumentCandidate(item, candidate))
+          ? ""
+          : "RETENTION_INELIGIBLE";
+      },
+      buildFinalizeUpdates: (data) => {
+        const updates = {
+          [`managerDocumentFiles.${candidate.documentKey}`]: FieldValue.delete(),
+          [`managerDocumentFilePaths.${candidate.documentKey}`]: FieldValue.delete(),
+          managerDocumentOriginalsDeletedAt: FieldValue.serverTimestamp(),
+        };
+        const legacyKey = MANAGER_DOCUMENT_PATH_ALIAS_FIELDS[candidate.documentKey];
+        if (legacyKey && sanitizeText(data?.[legacyKey]) === candidate.storagePath) {
+          updates[legacyKey] = FieldValue.delete();
+        }
+        return updates;
+      },
     });
   }
 }
@@ -442,11 +438,43 @@ class FirebaseStorageGateway {
     await this.bucket.file(storagePath).delete({ignoreNotFound: true});
   }
 
-  async deleteManagerDocument(storagePath, managerId, documentKey) {
+  async inspectManagerDocument(storagePath, managerId, documentKey) {
     if (!isAllowedManagerDocumentPath(storagePath, managerId, documentKey)) {
       throw createRetentionError("MANAGER_STORAGE_PATH_INVALID");
     }
-    await this.bucket.file(storagePath).delete({ignoreNotFound: true});
+    try {
+      const [metadata] = await this.bucket.file(storagePath).getMetadata();
+      const objectGeneration = sanitizeText(String(metadata?.generation || ""));
+      if (!/^\d+$/.test(objectGeneration)) {
+        throw createRetentionError("MANAGER_STORAGE_GENERATION_INVALID");
+      }
+      return {objectGeneration};
+    } catch (error) {
+      if (isStorageObjectNotFound(error)) {
+        return {objectMissing: true};
+      }
+      throw error;
+    }
+  }
+
+  async deleteManagerDocument(storagePath, managerId, documentKey, objectGeneration) {
+    if (!isAllowedManagerDocumentPath(storagePath, managerId, documentKey)) {
+      throw createRetentionError("MANAGER_STORAGE_PATH_INVALID");
+    }
+    const generation = sanitizeText(objectGeneration);
+    if (!/^\d+$/.test(generation)) {
+      throw createRetentionError("MANAGER_STORAGE_GENERATION_INVALID");
+    }
+    try {
+      await this.bucket.file(storagePath).delete({
+        ignoreNotFound: true,
+        ifGenerationMatch: generation,
+      });
+    } catch (error) {
+      if (!isStorageObjectNotFound(error)) {
+        throw error;
+      }
+    }
   }
 }
 
@@ -531,18 +559,10 @@ async function runRetentionJob({
       failureStage = "DELETE_MANAGER_DOCUMENTS";
       for (const candidate of managerPreview.candidates) {
         try {
-          if (!await managerStore.isStillEligible(candidate, asOf)) {
-            continue;
-          }
-          await storage.deleteManagerDocument(
-              candidate.storagePath,
-              candidate.managerId,
-              candidate.documentKey,
-          );
-          const cleared = await managerStore.clearReference(candidate, asOf);
-          if (cleared) {
+          const deletion = await managerStore.deleteCandidate(candidate, asOf, storage);
+          if (deletion.status === "COMPLETED") {
             summary.managerDocumentsDeleted += 1;
-          } else {
+          } else if (["CLAIM_CONFLICT", "CLAIM_BLOCKED"].includes(deletion.status)) {
             summary.managerDocumentDeleteFailures += 1;
           }
         } catch (error) {
@@ -622,7 +642,25 @@ function evaluateManagerDocument(managerId, data, asOf) {
       storagePath: reference.storagePath,
     });
   }
+  prioritizeClaimedManagerDocumentCandidate(result.candidates, data);
   return result;
+}
+
+function prioritizeClaimedManagerDocumentCandidate(candidates, data) {
+  const claim = parseManagerDocumentDeletionClaim(
+      data?.managerDocumentDeletionClaim,
+  );
+  if (claim?.operation !== "RETENTION") {
+    return;
+  }
+  const claimedIndex = candidates.findIndex((candidate) =>
+    candidate.documentKey === claim.documentKey &&
+    candidate.storagePath === claim.storagePath,
+  );
+  if (claimedIndex > 0) {
+    const [claimedCandidate] = candidates.splice(claimedIndex, 1);
+    candidates.unshift(claimedCandidate);
+  }
 }
 
 function collectManagerDocumentReferences(managerId, data) {
@@ -942,6 +980,12 @@ function createRetentionError(code) {
   const error = new Error(code);
   error.code = code;
   return error;
+}
+
+function isStorageObjectNotFound(error) {
+  const code = error?.code;
+  return code === 404 || code === "404" || code === "storage/object-not-found" ||
+    (Array.isArray(error?.errors) && error.errors.some((item) => item?.reason === "notFound"));
 }
 
 function retentionErrorCode(error) {

@@ -9,6 +9,9 @@ const {
   isStorageObjectNotFound,
   managerDocumentDataReferencesStoragePath,
 } = require("../src/manager-document-cleanup");
+const {
+  createTransactionalDocument,
+} = require("./manager-document-deletion-test-helper");
 
 const MANAGER_ID = "manager-1";
 
@@ -266,7 +269,7 @@ test("사용자 삭제와 MANAGER 역할 이탈은 후보와 Storage 삭제를 �
   assert.equal(storageDeletes, 0);
 });
 
-test("삭제 직전 최신 문서를 후보마다 다시 읽고 재참조와 잘못된 후보를 건너뛴다", async () => {
+test("transaction claim은 재참조와 잘못된 후보를 건너뛰고 미참조 원본만 삭제한다", async () => {
   const licensePath = documentPath("license", "old.jpg");
   const nursingPath = documentPath("nursingLicense", "old.jpg");
   const candidates = [
@@ -278,36 +281,32 @@ test("삭제 직전 최신 문서를 후보마다 다시 읽고 재참조와 잘
       storagePath: documentPath("idCard", "legacy.jpg"),
     },
   ];
-  let reads = 0;
-  const documentReference = {
-    async get() {
-      reads += 1;
-      return reads === 1
-        ? {
-          exists: true,
-          data: () => ({role: "MANAGER", managerLicenseStoragePath: licensePath}),
-        }
-        : {exists: true, data: () => ({role: "MANAGER"})};
-    },
-  };
+  const fixture = createTransactionalDocument({
+    ...canonicalAfterData(),
+    managerHealthCertificateStoragePath: licensePath,
+  });
   const deleted = [];
   const storage = {
-    async deleteManagerDocument(storagePath, managerId, documentKey) {
-      deleted.push({storagePath, managerId, documentKey});
+    async inspectManagerDocument() {
+      return {objectGeneration: "11"};
+    },
+    async deleteManagerDocument(storagePath, managerId, documentKey, generation) {
+      deleted.push({storagePath, managerId, documentKey, generation});
     },
   };
 
   const result = await deleteUnreferencedManagerDocumentCandidates({
-    documentReference,
+    firestore: fixture.firestore,
+    documentReference: fixture.reference,
     candidates,
     storage,
   });
 
-  assert.equal(reads, 2);
   assert.deepEqual(deleted, [{
     storagePath: nursingPath,
     managerId: MANAGER_ID,
     documentKey: "nursingLicense",
+    generation: "11",
   }]);
   assert.deepEqual(result, {
     deleted: 1,
@@ -315,18 +314,13 @@ test("삭제 직전 최신 문서를 후보마다 다시 읽고 재참조와 잘
     skippedInvalid: 1,
     skippedDocumentState: 0,
     skippedLegalHold: 0,
+    skippedClaimConflict: 0,
   });
 });
 
-test("삭제 직전 최신 legal hold도 활성·불완전 상태를 차단하고 만료만 허용한다", async () => {
+test("claim transaction은 최신 legal hold를 차단하고 만료 상태만 허용한다", async () => {
   const asOf = new Date("2026-08-30T00:00:00.000Z");
-  const fileNames = ["active.jpg", "invalid.jpg", "reason.jpg", "by.jpg", "expired.jpg"];
-  const candidates = fileNames.map((fileName) => ({
-    managerId: MANAGER_ID,
-    documentKey: "license",
-    storagePath: documentPath("license", fileName),
-  }));
-  const latestStates = [
+  const blockedHolds = [
     {
       managerDocumentLegalHoldUntil: "2026-09-01T00:00:00.000Z",
       managerDocumentLegalHoldReason: "분쟁 대응",
@@ -335,25 +329,53 @@ test("삭제 직전 최신 legal hold도 활성·불완전 상태를 차단하�
     {managerDocumentLegalHoldUntil: "invalid"},
     {managerDocumentLegalHoldReason: "분쟁 대응"},
     {managerDocumentLegalHoldByAdminUserId: "admin-1"},
-    {
-      managerDocumentLegalHoldUntil: "2026-08-29T23:59:59.999Z",
-      managerDocumentLegalHoldReason: "만료된 보존",
-      managerDocumentLegalHoldByAdminUserId: "admin-1",
-    },
   ];
-  let reads = 0;
   const deleted = [];
-
-  const result = await deleteUnreferencedManagerDocumentCandidates({
-    documentReference: {
-      async get() {
-        const data = latestStates[reads];
-        reads += 1;
-        return {exists: true, data: () => ({role: "MANAGER", ...data})};
+  for (let index = 0; index < blockedHolds.length; index += 1) {
+    const fixture = createTransactionalDocument({
+      ...canonicalAfterData(),
+      ...blockedHolds[index],
+    });
+    const result = await deleteUnreferencedManagerDocumentCandidates({
+      firestore: fixture.firestore,
+      documentReference: fixture.reference,
+      candidates: [{
+        managerId: MANAGER_ID,
+        documentKey: "license",
+        storagePath: documentPath("license", `blocked-${index}.jpg`),
+      }],
+      storage: {
+        async inspectManagerDocument() {
+          assert.fail("legal hold 상태에서 Storage를 검사하면 안 됩니다.");
+        },
+        async deleteManagerDocument() {
+          assert.fail("legal hold 상태에서 Storage를 삭제하면 안 됩니다.");
+        },
       },
-    },
-    candidates,
+      asOf,
+    });
+    assert.equal(result.skippedLegalHold, 1);
+  }
+
+  const expiredFixture = createTransactionalDocument({
+    ...canonicalAfterData(),
+    managerDocumentLegalHoldUntil: "2026-08-29T23:59:59.999Z",
+    managerDocumentLegalHoldReason: "만료된 보존",
+    managerDocumentLegalHoldByAdminUserId: "admin-1",
+  });
+  const expiredPath = documentPath("license", "expired.jpg");
+  const expiredResult = await deleteUnreferencedManagerDocumentCandidates({
+    firestore: expiredFixture.firestore,
+    documentReference: expiredFixture.reference,
+    candidates: [{
+      managerId: MANAGER_ID,
+      documentKey: "license",
+      storagePath: expiredPath,
+    }],
     storage: {
+      async inspectManagerDocument() {
+        return {objectGeneration: "13"};
+      },
       async deleteManagerDocument(storagePath) {
         deleted.push(storagePath);
       },
@@ -361,65 +383,64 @@ test("삭제 직전 최신 legal hold도 활성·불완전 상태를 차단하�
     asOf,
   });
 
-  assert.equal(reads, candidates.length);
-  assert.deepEqual(deleted, [documentPath("license", "expired.jpg")]);
-  assert.deepEqual(result, {
+  assert.deepEqual(deleted, [expiredPath]);
+  assert.deepEqual(expiredResult, {
     deleted: 1,
     skippedReferenced: 0,
     skippedInvalid: 0,
     skippedDocumentState: 0,
-    skippedLegalHold: 4,
+    skippedLegalHold: 0,
+    skippedClaimConflict: 0,
   });
 });
 
-test("삭제 직전 사용자 문서가 사라지거나 역할이 바뀌면 Storage를 삭제하지 않는다", async () => {
+test("claim transaction 시 사용자 문서가 사라지거나 역할이 바뀌면 삭제하지 않는다", async () => {
   const healthPath = documentPath("healthCertificate", "legacy.jpg");
   const licensePath = documentPath("license", "legacy.jpg");
   const deleted = [];
-  let reads = 0;
-  const result = await deleteUnreferencedManagerDocumentCandidates({
-    documentReference: {
-      async get() {
-        reads += 1;
-        return reads === 1
-          ? {exists: false}
-          : {exists: true, data: () => ({role: "PATIENT"})};
-      },
-    },
-    candidates: [
-      {
+  const states = [null, {...canonicalAfterData(), role: "PATIENT"}];
+  for (const [index, state] of states.entries()) {
+    const fixture = createTransactionalDocument(state);
+    const result = await deleteUnreferencedManagerDocumentCandidates({
+      firestore: fixture.firestore,
+      documentReference: fixture.reference,
+      candidates: [{
         managerId: MANAGER_ID,
-        documentKey: "healthCertificate",
-        storagePath: healthPath,
+        documentKey: index === 0 ? "healthCertificate" : "license",
+        storagePath: index === 0 ? healthPath : licensePath,
+      }],
+      storage: {
+        async inspectManagerDocument() {
+          assert.fail("삭제 불가 문서에서 Storage를 검사하면 안 됩니다.");
+        },
+        async deleteManagerDocument(storagePath) {
+          deleted.push(storagePath);
+        },
       },
-      {
-        managerId: MANAGER_ID,
-        documentKey: "license",
-        storagePath: licensePath,
-      },
-    ],
-    storage: {
-      async deleteManagerDocument(storagePath) {
-        deleted.push(storagePath);
-      },
-    },
-  });
+    });
+    assert.equal(result.skippedDocumentState, 1);
+  }
 
   assert.deepEqual(deleted, []);
-  assert.equal(result.deleted, 0);
-  assert.equal(result.skippedDocumentState, 2);
 });
 
 test("Storage gateway는 object-not-found만 성공으로 처리하고 경로를 다시 검증한다", async () => {
   const calls = [];
-  let failure = null;
+  let deleteFailure = null;
+  let metadataFailure = null;
   const gateway = new ManagerDocumentReplacementStorageGateway({
-    file(storagePath) {
+    file(storagePath, options) {
       return {
-        async delete(options) {
-          calls.push({storagePath, options});
-          if (failure) {
-            throw failure;
+        async getMetadata() {
+          if (metadataFailure) {
+            throw metadataFailure;
+          }
+          return [{generation: "41"}];
+        },
+        async delete(deleteOptions) {
+          calls.push({storagePath, options, deleteOptions});
+          if (deleteFailure) {
+            throw deleteFailure;
           }
         },
       };
@@ -427,28 +448,45 @@ test("Storage gateway는 object-not-found만 성공으로 처리하고 경로를
   });
   const licensePath = documentPath("license", "old.jpg");
 
-  await gateway.deleteManagerDocument(licensePath, MANAGER_ID, "license");
-  failure = {code: 404};
+  assert.deepEqual(
+      await gateway.inspectManagerDocument(licensePath, MANAGER_ID, "license"),
+      {objectGeneration: "41"},
+  );
+  await gateway.deleteManagerDocument(licensePath, MANAGER_ID, "license", "41");
+  metadataFailure = {code: 404};
+  assert.deepEqual(
+      await gateway.inspectManagerDocument(
+          documentPath("healthCertificate", "missing.jpg"),
+          MANAGER_ID,
+          "healthCertificate",
+      ),
+      {objectMissing: true},
+  );
+  metadataFailure = null;
+  deleteFailure = {code: 404};
   await gateway.deleteManagerDocument(
       documentPath("healthCertificate", "missing.jpg"),
       MANAGER_ID,
       "healthCertificate",
+      "42",
   );
-  failure = {code: 500};
+  deleteFailure = {code: 500};
   await assert.rejects(
       gateway.deleteManagerDocument(
           documentPath("nursingLicense", "failure.jpg"),
           MANAGER_ID,
           "nursingLicense",
+          "43",
       ),
       (error) => error.code === 500,
   );
-  failure = null;
+  deleteFailure = null;
   await assert.rejects(
       gateway.deleteManagerDocument(
           "manager-documents/manager-2/license/foreign.jpg",
           MANAGER_ID,
           "license",
+          "44",
       ),
       (error) => error.code === "MANAGER_REPLACEMENT_PATH_INVALID",
   );
@@ -457,12 +495,21 @@ test("Storage gateway는 object-not-found만 성공으로 처리하고 경로를
           documentPath("idCard", "legacy.jpg"),
           MANAGER_ID,
           "idCard",
+          "45",
       ),
       (error) => error.code === "MANAGER_REPLACEMENT_PATH_INVALID",
   );
+  await assert.rejects(
+      gateway.deleteManagerDocument(licensePath, MANAGER_ID, "license", "invalid"),
+      (error) => error.code === "MANAGER_REPLACEMENT_GENERATION_INVALID",
+  );
 
   assert.equal(calls.length, 3);
-  assert.deepEqual(calls[0].options, {ignoreNotFound: true});
+  assert.equal(calls[0].options, undefined);
+  assert.deepEqual(calls[0].deleteOptions, {
+    ignoreNotFound: true,
+    ifGenerationMatch: "41",
+  });
   assert.equal(isStorageObjectNotFound({code: "storage/object-not-found"}), true);
   assert.equal(isStorageObjectNotFound({errors: [{reason: "notFound"}]}), true);
   assert.equal(isStorageObjectNotFound({code: 500}), false);

@@ -3873,7 +3873,7 @@
 - Android는 UID·문서 키·nested metadata·path map·legacy alias가 일치하는 canonical 이미지 1종만 제출 가능으로 표시한다. 오염된 참조, legacy key와 PDF는 `교체 필요`로 안내한다.
 - `healthCertificate` 객체를 `nursingLicense`로 복사·무결성 검증·Firestore transaction·generation 조건부 원본 삭제 순서로 이관하는 기본 dry-run 도구를 추가했다.
 - 순수 서버 이관에는 클라이언트가 변경할 수 없는 표식을 남겨 사용자 재제출 이력과 구분한다.
-- Functions는 자격 종류 교체 뒤 이전 canonical·legacy 객체를 정리한다. 삭제 직전 최신 문서의 역할·참조·legal hold를 다시 확인하고, 불완전하거나 해석할 수 없는 보존 상태에서는 fail-closed한다.
+- Functions는 자격 종류 교체 뒤 이전 canonical·legacy 객체를 정리한다. Firestore transaction에서 서버 전용 삭제 claim과 최신 역할·참조·legal hold를 함께 고정하고, claim 중 클라이언트 참조 변경과 Storage 재업로드를 막은 뒤 객체 generation 조건부 삭제와 참조 정리를 완료한다. 불완전하거나 충돌한 상태에서는 fail-closed한다.
 - 실제 데이터 이관 apply, Rules·Functions 배포와 production 변경은 수행하지 않았다.
 
 ### 검증

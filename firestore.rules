@@ -204,7 +204,8 @@ service cloud.firestore {
         'managerDocumentOriginalsDeletedAt',
         'managerDocumentApprovalEvidence',
         'managerDocumentReviewedSubmissionRevision',
-        'managerDocumentEvidenceMigration'
+        'managerDocumentEvidenceMigration',
+        'managerDocumentDeletionClaim'
       ]);
     }
 
@@ -438,12 +439,20 @@ service cloud.firestore {
         'managerDocumentOriginalsDeletedAt',
         'managerDocumentApprovalEvidence',
         'managerDocumentReviewedSubmissionRevision',
-        'managerDocumentEvidenceMigration'
+        'managerDocumentEvidenceMigration',
+        'managerDocumentDeletionClaim'
       ]);
+    }
+
+    function managerDocumentDeletionClaimAllowsSubmissionAction() {
+      // 중단된 claim도 서버가 재검증해 회수하기 전에는 클라이언트가 우회할 수 없다.
+      return !resource.data.keys().hasAny(['managerDocumentDeletionClaim'])
+          || !managerDocumentSubmissionActionChanged();
     }
 
     function managerDocumentSubmissionUpdateIsSafe() {
       return managerDocumentReviewFieldsAreUnchanged()
+          && managerDocumentDeletionClaimAllowsSubmissionAction()
           && managerDocumentFileChangeLegalHoldAllows()
           && (
             (
