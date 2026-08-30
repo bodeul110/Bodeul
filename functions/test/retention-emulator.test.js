@@ -81,12 +81,12 @@ test("Firestore와 Storage 파기 실패를 다음 실행에서 복구한다", {
         }
         await storageGateway.deleteChatAttachment(storagePath);
       },
-      async deleteManagerDocument(storagePath) {
+      async deleteManagerDocument(storagePath, managerId, documentKey) {
         if (storagePath === paths.managerRetry && !failedOnce.has(storagePath)) {
           failedOnce.add(storagePath);
           throw new Error("manager storage unavailable");
         }
-        await storageGateway.deleteManagerDocument(storagePath);
+        await storageGateway.deleteManagerDocument(storagePath, managerId, documentKey);
       },
     };
 

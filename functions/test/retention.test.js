@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   FirebaseLegacyCompanionStore,
+  FirebaseStorageGateway,
   PostgresRetentionRepository,
   evaluateManagerDocument,
   evaluateLegacyCompanionSession,
@@ -355,6 +356,76 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   }, now);
   assert.equal(held.candidates.length, 0);
   assert.equal(held.legalHoldSkips, 1);
+
+  const otherManagerPath = "manager-documents/manager-2/license/license.pdf";
+  const crossOwner = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      license: {...baseData.managerDocumentFiles.license, fullPath: otherManagerPath},
+    },
+    managerDocumentFilePaths: {license: otherManagerPath},
+    managerLicenseStoragePath: otherManagerPath,
+  }, now);
+  assert.equal(crossOwner.candidates.length, 0);
+
+  const wrongDocumentKeyPath = "manager-documents/manager-1/idCard/license.pdf";
+  const crossDocumentKey = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      license: {
+        ...baseData.managerDocumentFiles.license,
+        fullPath: wrongDocumentKeyPath,
+      },
+    },
+    managerDocumentFilePaths: {license: wrongDocumentKeyPath},
+    managerLicenseStoragePath: wrongDocumentKeyPath,
+  }, now);
+  assert.equal(crossDocumentKey.candidates.length, 0);
+
+  const mismatchedAliases = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFilePaths: {
+      license: "manager-documents/manager-1/license/path-map-mismatch.pdf",
+    },
+  }, now);
+  assert.equal(mismatchedAliases.candidates.length, 0);
+});
+
+test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확인한다", async () => {
+  const deletedPaths = [];
+  const gateway = new FirebaseStorageGateway({
+    file(storagePath) {
+      return {
+        async delete() {
+          deletedPaths.push(storagePath);
+        },
+      };
+    },
+  });
+
+  await assert.rejects(
+      gateway.deleteManagerDocument(
+          "manager-documents/manager-2/idCard/id.jpg",
+          "manager-1",
+          "idCard",
+      ),
+      (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
+  );
+  await assert.rejects(
+      gateway.deleteManagerDocument(
+          "manager-documents/manager-1/license/id.jpg",
+          "manager-1",
+          "idCard",
+      ),
+      (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
+  );
+  await gateway.deleteManagerDocument(
+      "manager-documents/manager-1/idCard/id.jpg",
+      "manager-1",
+      "idCard",
+  );
+
+  assert.deepEqual(deletedPaths, ["manager-documents/manager-1/idCard/id.jpg"]);
 });
 
 test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에서 재시도한다", async () => {
@@ -689,6 +760,21 @@ test("채팅 첨부 삭제 경로는 legacy와 Core API 구조만 허용한다",
   assert.equal(isAllowedManagerDocumentPath(
       "manager-documents/manager-1/idCard/a.pdf",
   ), true);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      "manager-1",
+      "idCard",
+  ), true);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-2/idCard/a.pdf",
+      "manager-1",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/license/a.pdf",
+      "manager-1",
+      "idCard",
+  ), false);
   assert.equal(isAllowedManagerDocumentPath("manager-documents/manager-1/other/a.pdf"), false);
 });
 

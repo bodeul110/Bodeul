@@ -177,7 +177,10 @@ function collectReferences(managerDocuments) {
         fileName: metadataFileName,
         uploadedAt: metadata?.uploadedAt || "",
         contentType: sanitizeText(metadata?.contentType),
-        pathMismatch: distinctPaths.length > 1,
+        pathMismatch: distinctPaths.length > 1 ||
+          distinctPaths.some((candidatePath) =>
+            !isExpectedManagerDocumentPath(candidatePath, manager.id, documentKey),
+          ),
       });
     }
   }
@@ -437,6 +440,16 @@ function sanitizeText(value) {
   return String(value).trim();
 }
 
+function isExpectedManagerDocumentPath(value, managerId, documentKey) {
+  const segments = sanitizeText(value).split("/");
+  return segments.length === 4 &&
+    segments[0] === "manager-documents" &&
+    segments[1] === sanitizeText(managerId) &&
+    segments[2] === sanitizeText(documentKey) &&
+    DOCUMENT_KEYS.includes(segments[2]) &&
+    Boolean(segments[3]);
+}
+
 function buildTimestampToken() {
   const now = new Date();
   return [
@@ -450,8 +463,15 @@ function buildTimestampToken() {
   ].join("");
 }
 
-main().catch((error) => {
-  console.error("매니저 서류 Storage 점검 중 오류가 발생했습니다.");
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error("매니저 서류 Storage 점검 중 오류가 발생했습니다.");
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  collectReferences,
+  isExpectedManagerDocumentPath,
+};

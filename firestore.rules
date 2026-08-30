@@ -193,30 +193,117 @@ service cloud.firestore {
       ]);
     }
 
-    function managerDocumentFileIsReviewable(file) {
-      return file is map
-          && file.keys().hasAll(['fullPath', 'contentType'])
-          && file.fullPath is string
-          && file.fullPath.size() > 0
-          && file.contentType is string
-          && file.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+    function managerDocumentFilePathIsOwned(data, documentKey) {
+      return request.auth.uid.matches('^[A-Za-z0-9_-]{1,128}$')
+          && data.keys().hasAll(['managerDocumentFiles', 'managerDocumentFilePaths'])
+          && data.managerDocumentFiles is map
+          && data.managerDocumentFilePaths is map
+          && data.managerDocumentFiles.keys().hasAll([documentKey])
+          && data.managerDocumentFilePaths.keys().hasAll([documentKey])
+          && data.managerDocumentFiles[documentKey] is map
+          && data.managerDocumentFiles[documentKey].keys().hasAll(['fullPath'])
+          && data.managerDocumentFiles[documentKey].fullPath is string
+          && data.managerDocumentFilePaths[documentKey] is string
+          && data.managerDocumentFiles[documentKey].fullPath
+              == data.managerDocumentFilePaths[documentKey]
+          && data.managerDocumentFiles[documentKey].fullPath.matches(
+            '^manager-documents/' + request.auth.uid + '/' + documentKey + '/[^/]+$'
+          );
+    }
+
+    function managerDocumentLegacyPathMatches(data, documentKey, legacyPathKey) {
+      return data.keys().hasAll([legacyPathKey])
+          && data[legacyPathKey] is string
+          && data[legacyPathKey] == data.managerDocumentFiles[documentKey].fullPath;
+    }
+
+    function managerDocumentEntryIsAbsent(data, documentKey, legacyPathKey) {
+      return !data.managerDocumentFiles.keys().hasAny([documentKey])
+          && !data.managerDocumentFilePaths.keys().hasAny([documentKey])
+          && !data.keys().hasAny([legacyPathKey]);
+    }
+
+    function managerDocumentHealthEntryIsAbsent(data) {
+      return !data.managerDocumentFiles.keys().hasAny(['healthCertificate'])
+          && !data.managerDocumentFilePaths.keys().hasAny(['healthCertificate']);
+    }
+
+    function managerDocumentFileStateIsConsistent(data) {
+      return data.keys().hasAll(['managerDocumentFiles', 'managerDocumentFilePaths'])
+          && data.managerDocumentFiles is map
+          && data.managerDocumentFilePaths is map
+          && data.managerDocumentFiles.keys().hasOnly([
+            'idCard', 'license', 'healthCertificate', 'criminalRecord'
+          ])
+          && data.managerDocumentFilePaths.keys().hasOnly([
+            'idCard', 'license', 'healthCertificate', 'criminalRecord'
+          ])
+          && (
+            managerDocumentEntryIsAbsent(
+              data,
+              'idCard',
+              'managerIdCardStoragePath'
+            )
+            || (
+              managerDocumentFileIsReviewable(data, 'idCard')
+              && managerDocumentLegacyPathMatches(
+                data,
+                'idCard',
+                'managerIdCardStoragePath'
+              )
+            )
+          )
+          && (
+            managerDocumentEntryIsAbsent(
+              data,
+              'license',
+              'managerLicenseStoragePath'
+            )
+            || (
+              managerDocumentFileIsReviewable(data, 'license')
+              && managerDocumentLegacyPathMatches(
+                data,
+                'license',
+                'managerLicenseStoragePath'
+              )
+            )
+          )
+          && (
+            managerDocumentHealthEntryIsAbsent(data)
+            || managerDocumentFileIsReviewable(data, 'healthCertificate')
+          )
+          && (
+            managerDocumentEntryIsAbsent(
+              data,
+              'criminalRecord',
+              'managerCriminalRecordStoragePath'
+            )
+            || (
+              managerDocumentFileIsReviewable(data, 'criminalRecord')
+              && managerDocumentLegacyPathMatches(
+                data,
+                'criminalRecord',
+                'managerCriminalRecordStoragePath'
+              )
+            )
+          );
+    }
+
+    function managerDocumentFileIsReviewable(data, documentKey) {
+      return managerDocumentFilePathIsOwned(data, documentKey)
+          && data.managerDocumentFiles[documentKey].keys().hasAll(['contentType'])
+          && data.managerDocumentFiles[documentKey].contentType is string
+          && data.managerDocumentFiles[documentKey].contentType
+              in ['image/jpeg', 'image/png', 'image/webp'];
     }
 
     function managerDocumentHasReviewableRequiredFiles(data) {
       return data.keys().hasAll(['managerDocumentFiles'])
           && data.managerDocumentFiles is map
           && data.managerDocumentFiles.keys().hasAll(['idCard', 'criminalRecord'])
-          && managerDocumentFileIsReviewable(data.managerDocumentFiles.idCard)
-          && managerDocumentFileIsReviewable(data.managerDocumentFiles.criminalRecord)
           && (
-            (
-              data.managerDocumentFiles.keys().hasAll(['license'])
-              && managerDocumentFileIsReviewable(data.managerDocumentFiles.license)
-            )
-            || (
-              data.managerDocumentFiles.keys().hasAll(['healthCertificate'])
-              && managerDocumentFileIsReviewable(data.managerDocumentFiles.healthCertificate)
-            )
+            data.managerDocumentFiles.keys().hasAll(['license'])
+            || data.managerDocumentFiles.keys().hasAll(['healthCertificate'])
           );
     }
 
@@ -264,13 +351,17 @@ service cloud.firestore {
               && (
                 (
                   request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
+                  && managerDocumentFileStateIsConsistent(request.resource.data)
                   && managerDocumentHasReviewableRequiredFiles(request.resource.data)
                 )
                 || (
                   request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
                   && (
                     managerDocumentSummaryWasCleared()
-                    || managerDocumentIsInitialDraft()
+                    || (
+                      managerDocumentIsInitialDraft()
+                      && managerDocumentFileStateIsConsistent(request.resource.data)
+                    )
                   )
                 )
               )

@@ -447,8 +447,8 @@ class FirebaseStorageGateway {
     await this.bucket.file(storagePath).delete({ignoreNotFound: true});
   }
 
-  async deleteManagerDocument(storagePath) {
-    if (!isAllowedManagerDocumentPath(storagePath)) {
+  async deleteManagerDocument(storagePath, managerId, documentKey) {
+    if (!isAllowedManagerDocumentPath(storagePath, managerId, documentKey)) {
       throw createRetentionError("MANAGER_STORAGE_PATH_INVALID");
     }
     await this.bucket.file(storagePath).delete({ignoreNotFound: true});
@@ -539,7 +539,11 @@ async function runRetentionJob({
           if (!await managerStore.isStillEligible(candidate, asOf)) {
             continue;
           }
-          await storage.deleteManagerDocument(candidate.storagePath);
+          await storage.deleteManagerDocument(
+              candidate.storagePath,
+              candidate.managerId,
+              candidate.documentKey,
+          );
           const cleared = await managerStore.clearReference(candidate, asOf);
           if (cleared) {
             summary.managerDocumentsDeleted += 1;
@@ -603,7 +607,7 @@ function evaluateManagerDocument(managerId, data, asOf) {
     return result;
   }
 
-  const references = collectManagerDocumentReferences(data);
+  const references = collectManagerDocumentReferences(managerId, data);
   if (!references.length) {
     return result;
   }
@@ -631,7 +635,7 @@ function evaluateManagerDocument(managerId, data, asOf) {
   return result;
 }
 
-function collectManagerDocumentReferences(data) {
+function collectManagerDocumentReferences(managerId, data) {
   const fileMap = isPlainObject(data?.managerDocumentFiles)
     ? data.managerDocumentFiles
     : {};
@@ -648,7 +652,8 @@ function collectManagerDocumentReferences(data) {
       sanitizeText(pathMap[documentKey]),
       legacyKey ? sanitizeText(data?.[legacyKey]) : "",
     ].filter(Boolean)));
-    if (paths.length !== 1 || !isAllowedManagerDocumentPath(paths[0])) {
+    if (paths.length !== 1 ||
+        !isAllowedManagerDocumentPath(paths[0], managerId, documentKey)) {
       continue;
     }
     references.push({
@@ -818,9 +823,22 @@ function isAllowedChatAttachmentPath(value) {
   return CHAT_ATTACHMENT_PATH_PATTERN.test(sanitizeText(value));
 }
 
-function isAllowedManagerDocumentPath(value) {
-  return /^manager-documents\/[^/]+\/(idCard|license|healthCertificate|criminalRecord)\/[^/]+$/
-      .test(sanitizeText(value));
+function isAllowedManagerDocumentPath(value, managerId, documentKey) {
+  const segments = sanitizeText(value).split("/");
+  if (segments.length !== 4 ||
+      segments[0] !== "manager-documents" ||
+      !segments[1] ||
+      !MANAGER_DOCUMENT_KEYS.includes(segments[2]) ||
+      !segments[3]) {
+    return false;
+  }
+  if (managerId !== undefined && segments[1] !== sanitizeText(managerId)) {
+    return false;
+  }
+  if (documentKey !== undefined && segments[2] !== sanitizeText(documentKey)) {
+    return false;
+  }
+  return true;
 }
 
 function emptyRetentionSummary(mode, asOf) {
