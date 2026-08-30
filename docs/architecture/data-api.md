@@ -1,6 +1,6 @@
 # 데이터 / API 초안
 
-기준: 2026-07-19 (2026-04-15 초안 이력 포함)
+기준: 2026-08-29 (2026-04-15 초안 이력 포함)
 
 이 문서는 초기 데이터·API 초안과 날짜별 전환 이력을 함께 보관한다. 현재 예약·세션·채팅·위치 계약은 [예약 Core API 전환 계약](appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)을 우선한다.
 
@@ -80,7 +80,7 @@
 - `appointmentRequestId`
 - `managerUserId`
 - `currentStepOrder`
-- `currentStatus`: `READY`, `MEETING`, `WAITING`, `IN_TREATMENT`, `PAYMENT`, `CANCELED`, `COMPLETED`
+- `currentStatus`: `READY`, `MEETING`, `WAITING`, `IN_TREATMENT`, `PAYMENT`, `CARE_ENDED`, `CANCELED`, `COMPLETED`
 - `guardianUpdate`
 - `medicationNote`
 - `pharmacySummary`
@@ -93,6 +93,13 @@
 - `liveLocationSharingActive`
 - `liveLocationSharingStartedAt`
 - `sharedLocationHistory`
+- `careEndedAt`: 가이드 12에서 최초 한 번 기록하는 서버 시각
+- `managerJournal`: 선택, 최대 300자
+- `reportGenerationStatus`: `NOT_REQUESTED`, `PENDING`, `READY`, `FAILED`
+- `reportGenerationAttempts`
+- `reportGenerationLastError`
+- `reportGenerationUpdatedAt`
+- `artifacts`: 가이드 8·10 첨부 메타데이터 목록
 - `createdAt`
 - `updatedAt`
 
@@ -101,6 +108,28 @@
 - `sharedLocationHistory`는 진행 중 위치 확인을 위한 최근 좌표 이력이며 세션당 최근 10건만 유지한다.
 - `sharedLatitude`, `sharedLongitude`는 마지막 공유 좌표이고 `sharedLocationUpdatedAtMillis`는 마지막 갱신 시각이다.
 - 위치 원본 이력은 장기 분석 데이터로 보관하지 않고, 보관 및 노출 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)을 따른다.
+- `CARE_ENDED`는 실제 돌봄 종료, `COMPLETED`는 선택 일지 제출을 포함한 업무 완료다. 사고·긴급상황은 이 정상 상태로 합치지 않고 #297에서 별도 처리한다.
+- 리포트 저장 실패는 세션 완료를 되돌리지 않는다. `FAILED` 또는 중단된 `PENDING` 상태만 재시도한다.
+
+### CompanionSessionArtifact
+
+- `id`
+- `companionSessionId`
+- `purpose`: `PAYMENT_EVIDENCE`, `PRESCRIPTION_IMAGE`
+- `clientRequestId`: 같은 요청의 네트워크 재시도 식별자
+- `itemOrder`
+- `storagePath`
+- `originalFileName`
+- `contentType`
+- `sizeBytes`
+- `uploadedByUserId`
+- `createdAt`
+
+설명:
+
+- 결제 증빙은 JPEG·PNG·PDF 중 0~1개, 처방 이미지는 JPEG·PNG 0~3개다. 파일당 최대 크기는 10 MiB다.
+- 첨부는 모두 선택 입력이며 등록하지 않아도 다음 단계로 진행할 수 있다.
+- 원본은 Firebase Storage, 인가와 업무 메타데이터는 PostgreSQL이 소유한다. Android는 Core API를 통해서만 업로드·삭제·다운로드한다.
 
 ### SessionReport
 
@@ -148,12 +177,17 @@
 - `POST /appointment-requests/{id}/cancel`
 - `PATCH /appointment-requests/{id}/status`
 - `POST /appointment-requests/{id}/match`
-- `GET /manager/sessions`
-- `GET /sessions/{id}`
-- `PATCH /sessions/{id}/progress`
-- `POST /sessions/{id}/location-updates`
-- `POST /sessions/{id}/report`
-- `GET /guardian/sessions/{id}/report`
+- `GET /api/companion-sessions`
+- `GET /api/companion-sessions/{id}`
+- `PATCH /api/companion-sessions/{id}`
+- `POST /api/companion-sessions/{id}/advance`
+- `POST /api/companion-sessions/{id}/care-end`
+- `POST /api/companion-sessions/{id}/locations`
+- `GET /api/companion-sessions/{id}/report`
+- `PUT /api/companion-sessions/{id}/report`
+- `PUT /api/companion-sessions/{id}/artifacts`
+- `DELETE /api/companion-sessions/{id}/artifacts?purpose=...`
+- `GET /api/companion-sessions/{id}/artifacts/{artifactId}`
 - `GET /hospital-guides?hospitalName=&departmentName=`
 - `POST /admin/hospital-guides`
 - `PATCH /admin/hospital-guides/{id}`

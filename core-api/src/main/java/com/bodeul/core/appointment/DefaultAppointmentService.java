@@ -603,6 +603,9 @@ class DefaultAppointmentService implements AppointmentService {
             AppUserRepository.AppUser appUser,
             AppointmentRecord appointment) {
         boolean guardianView = appUser.role() == AppUserRole.GUARDIAN;
+        boolean managerViewAfterCareEnded = appUser.role() == AppUserRole.MANAGER
+                && appointmentRepository.hasCareEnded(appointment.id());
+        boolean redactCareDetails = guardianView || managerViewAfterCareEnded;
         AppUserProfile manager = guardianView || appointment.managerUserId() == null
                 ? null
                 : profileRepository.findById(appointment.managerUserId()).orElse(null);
@@ -627,10 +630,10 @@ class DefaultAppointmentService implements AppointmentService {
                 appointment.hospitalLongitude(),
                 APPOINTMENT_FORMATTER.format(appointment.appointmentAt().atZone(SEOUL)),
                 guardianView ? "" : appointment.meetingPlace(),
-                guardianView ? "" : appointment.specialNotes(),
-                guardianView ? "" : appointment.patientConditionSummary(),
-                guardianView ? "" : appointment.medicationSummary(),
-                guardianView ? "" : appointment.mobilitySupportCode(),
+                redactCareDetails ? "" : appointment.specialNotes(),
+                redactCareDetails ? "" : appointment.patientConditionSummary(),
+                redactCareDetails ? "" : appointment.medicationSummary(),
+                redactCareDetails ? "" : appointment.mobilitySupportCode(),
                 guardianView ? "" : appointment.tripTypeCode(),
                 guardianView ? "" : appointment.managerGenderPreferenceCode(),
                 appointment.status(),

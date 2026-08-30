@@ -49,7 +49,9 @@ public final class ManagerGuideCoordinator {
                         session,
                         dashboard.getHospitalGuide().getSteps().size(),
                         focusStep.getCode());
-        ManagerGuidePrimaryAction primaryAction = resolvePrimaryAction(advanceDecision);
+        ManagerGuidePrimaryAction primaryAction = resolvePrimaryAction(
+                advanceDecision,
+                focusStep.getCode());
         ManagerGuideSectionVisibility sectionVisibility =
                 resolveSectionVisibility(focusStep, primaryAction);
 
@@ -79,7 +81,7 @@ public final class ManagerGuideCoordinator {
                 buildPrescriptionActionLabel(session),
                 buildPharmacyActionLabel(session),
                 buildMedicationGuidanceActionLabel(session),
-                report == null ? "" : report.getSummary(),
+                report == null ? session.getManagerJournal() : report.getSummary(),
                 report == null ? "" : report.getTreatmentNotes(),
                 report == null ? "" : report.getMedicationName(),
                 report == null ? "" : report.getMedicationChangeSummary(),
@@ -90,9 +92,12 @@ public final class ManagerGuideCoordinator {
                 buildAdvanceButtonLabel(focusStep, advanceDecision, primaryAction),
                 primaryAction,
                 isPrimaryActionEnabled(advanceDecision),
-                context.getString(report == null
-                        ? R.string.guide_report_submit
-                        : R.string.guide_report_update),
+                context.getString(advanceDecision.getState()
+                        == ManagerGuideProgressPolicy.State.REPORT_RETRY
+                        ? R.string.guide_action_report_retry
+                        : (report == null
+                                ? R.string.guide_report_submit
+                                : R.string.guide_report_update)),
                 session.isLiveLocationSharingActive(),
                 isStepInputEnabled(advanceDecision)
         );
@@ -332,13 +337,20 @@ public final class ManagerGuideCoordinator {
             ManagerGuidePrimaryAction primaryAction
     ) {
         if (primaryAction == ManagerGuidePrimaryAction.SUBMIT_REPORT) {
-            return context.getString(R.string.guide_action_journal_complete);
+            return decision.getState() == ManagerGuideProgressPolicy.State.REPORT_RETRY
+                    ? context.getString(R.string.guide_action_report_retry)
+                    : context.getString(R.string.guide_action_journal_complete);
+        }
+        if (primaryAction == ManagerGuidePrimaryAction.END_CARE) {
+            return context.getString(R.string.guide_action_care_complete);
         }
         switch (decision.getState()) {
             case COMPLETED:
                 return context.getString(R.string.guide_button_done);
             case LAST_STEP:
                 return context.getString(R.string.guide_button_last);
+            case REPORT_RETRY:
+                return context.getString(R.string.guide_action_report_retry);
             case GUIDE_NOT_READY:
                 return context.getString(R.string.guide_button_preparing);
             case CONTRACT_MISMATCH:
@@ -356,10 +368,21 @@ public final class ManagerGuideCoordinator {
     static ManagerGuidePrimaryAction resolvePrimaryAction(
             ManagerGuideProgressPolicy.Decision decision
     ) {
+        return resolvePrimaryAction(decision, "");
+    }
+
+    static ManagerGuidePrimaryAction resolvePrimaryAction(
+            ManagerGuideProgressPolicy.Decision decision,
+            String focusStepCode
+    ) {
         switch (decision.getState()) {
             case ADVANCE:
-                return ManagerGuidePrimaryAction.ADVANCE;
+                return "CARE_COMPLETION".equals(
+                        focusStepCode == null ? "" : focusStepCode.trim())
+                        ? ManagerGuidePrimaryAction.END_CARE
+                        : ManagerGuidePrimaryAction.ADVANCE;
             case LAST_STEP:
+            case REPORT_RETRY:
                 return ManagerGuidePrimaryAction.SUBMIT_REPORT;
             default:
                 return ManagerGuidePrimaryAction.NONE;
@@ -385,6 +408,7 @@ public final class ManagerGuideCoordinator {
     static boolean isStepInputEnabled(ManagerGuideProgressPolicy.Decision decision) {
         return decision.getState() == ManagerGuideProgressPolicy.State.ADVANCE
                 || decision.getState() == ManagerGuideProgressPolicy.State.LAST_STEP
+                || decision.getState() == ManagerGuideProgressPolicy.State.REPORT_RETRY
                 || decision.getState() == ManagerGuideProgressPolicy.State.INPUT_REQUIRED;
     }
 

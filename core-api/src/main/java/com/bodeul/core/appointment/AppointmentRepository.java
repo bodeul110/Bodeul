@@ -15,6 +15,8 @@ interface AppointmentRepository {
 
     Optional<AppointmentRecord> findByClientRequestId(UUID requesterUserId, UUID clientRequestId);
 
+    boolean hasCareEnded(UUID appointmentId);
+
     Optional<AppointmentRecord> insert(AppointmentMutation mutation);
 
     Optional<AppointmentRecord> update(

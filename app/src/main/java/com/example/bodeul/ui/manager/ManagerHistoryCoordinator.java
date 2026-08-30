@@ -254,11 +254,11 @@ public final class ManagerHistoryCoordinator {
     }
 
     private String buildSummary(AppointmentRequestDetail detail) {
-        SessionReport report = detail.getSessionReport();
-        if (report == null || TextUtils.isEmpty(report.getSummary())) {
+        String summary = resolveManagerVisibleSummary(detail);
+        if (TextUtils.isEmpty(summary)) {
             return context.getString(R.string.manager_history_report_empty);
         }
-        return formatter.summarizeCardText(report.getSummary());
+        return formatter.summarizeCardText(summary);
     }
 
     private String buildActivityText(AppointmentFollowUpRecord followUpRecord) {
@@ -392,6 +392,13 @@ public final class ManagerHistoryCoordinator {
                         false
                 ));
             }
+        } else if (detail.getSession() != null
+                && !TextUtils.isEmpty(detail.getSession().getManagerJournal())) {
+            items.add(new ManagerInfoLineItem(
+                    context.getString(R.string.manager_history_line_journal),
+                    detail.getSession().getManagerJournal(),
+                    false
+            ));
         }
 
         if (!followUpRecord.hasAnySavedAction()) {
@@ -434,6 +441,16 @@ public final class ManagerHistoryCoordinator {
             ));
         }
         return items;
+    }
+
+    static String resolveManagerVisibleSummary(AppointmentRequestDetail detail) {
+        SessionReport report = detail.getSessionReport();
+        if (report != null
+                && report.getSummary() != null
+                && !report.getSummary().isEmpty()) {
+            return report.getSummary();
+        }
+        return detail.getSession() == null ? "" : detail.getSession().getManagerJournal();
     }
 
     private AppointmentFollowUpRecord resolveFollowUpRecord(AppointmentRequestDetail detail) {

@@ -124,6 +124,22 @@ class JdbcAppointmentRepository implements AppointmentRepository {
     }
 
     @Override
+    public boolean hasCareEnded(UUID appointmentId) {
+        String sql = """
+                select exists (
+                    select 1
+                    from bodeul.companion_sessions session
+                    where session.appointment_request_id = :appointmentId
+                      and session.care_ended_at is not null
+                )
+                """;
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource("appointmentId", appointmentId),
+                Boolean.class));
+    }
+
+    @Override
     public Optional<AppointmentRecord> insert(AppointmentMutation mutation) {
         String sql = """
                 insert into bodeul.appointment_requests (

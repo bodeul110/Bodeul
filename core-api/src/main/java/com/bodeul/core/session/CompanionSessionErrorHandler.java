@@ -17,7 +17,8 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 
 @RestControllerAdvice(assignableTypes = {
         CompanionSessionController.class,
-        CompanionRealtimeController.class
+        CompanionRealtimeController.class,
+        CompanionSessionArtifactController.class
 })
 @Profile({"database", "companion-session-test", "companion-realtime-test"})
 class CompanionSessionErrorHandler {

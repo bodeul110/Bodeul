@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -144,6 +145,38 @@ class CompanionSessionApiIntegrationTests {
 
         assertThat(sessionService.lastSessionId).isEqualTo(SESSION_ID);
         assertThat(sessionService.lastAdvanceVersion).isEqualTo(3);
+    }
+
+    @Test
+    void assignedManagerEndsCareWithOptimisticVersion() throws Exception {
+        mockMvc.perform(post("/api/companion-sessions/{sessionId}/care-end", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("{\"version\":3}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
+
+        assertThat(sessionService.lastSessionId).isEqualTo(SESSION_ID);
+        assertThat(sessionService.lastCareEndVersion).isEqualTo(3);
+    }
+
+    @Test
+    void reportRequestPassesOptionalManagerJournal() throws Exception {
+        mockMvc.perform(put("/api/companion-sessions/{sessionId}/report", SESSION_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "version": 4,
+                                  "summary": "",
+                                  "managerJournal": "특이사항 없음"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
+
+        assertThat(sessionService.lastReportCommand.version()).isEqualTo(4);
+        assertThat(sessionService.lastReportCommand.managerJournal()).isEqualTo("특이사항 없음");
     }
 
     @Test
@@ -274,6 +307,8 @@ class CompanionSessionApiIntegrationTests {
         private UUID lastSessionId;
         private UpdateSessionCommand lastUpdate;
         private long lastAdvanceVersion;
+        private long lastCareEndVersion;
+        private SubmitReportCommand lastReportCommand;
         private RuntimeException failure;
 
         void reset() {
@@ -281,6 +316,8 @@ class CompanionSessionApiIntegrationTests {
             lastSessionId = null;
             lastUpdate = null;
             lastAdvanceVersion = -1;
+            lastCareEndVersion = -1;
+            lastReportCommand = null;
             failure = null;
         }
 
@@ -324,6 +361,18 @@ class CompanionSessionApiIntegrationTests {
         }
 
         @Override
+        public SessionView endCare(
+                AppUserRepository.AppUser appUser,
+                UUID sessionId,
+                long version) {
+            failIfNeeded();
+            lastUser = appUser;
+            lastSessionId = sessionId;
+            lastCareEndVersion = version;
+            return session();
+        }
+
+        @Override
         public ReportView getReport(AppUserRepository.AppUser appUser, UUID sessionId) {
             failIfNeeded();
             return report();
@@ -335,6 +384,7 @@ class CompanionSessionApiIntegrationTests {
                 UUID sessionId,
                 SubmitReportCommand command) {
             failIfNeeded();
+            lastReportCommand = command;
             return report();
         }
 

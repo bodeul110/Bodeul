@@ -3825,3 +3825,34 @@
 - 인증된 관리자 계정으로 주요 흐름과 App Check `VALID` 요청 확인
 - 관찰 결과 확인 뒤 `enforce` 전환과 rollback 실검증
 - 개발 Web provider와 Preview debug token 분리
+
+## 154. 2026-08-29 정상 동행 종료·완료 경계 구현
+
+### 구현과 운영 설정
+
+- 가이드 12 실제 동행 종료 `CARE_ENDED`와 가이드 13 업무 완료 `COMPLETED`를 분리하고 최초 서버 종료 시각을 보존했다.
+- 선택 매니저 일지를 최대 300자로 제한하고 세션 완료와 리포트 `PENDING`·`READY`·`FAILED` 상태를 분리해 실패 세션 재진입과 재시도를 지원했다.
+- 최초 `care_ended_at`부터 새 채팅·첨부·위치 쓰기와 배정 매니저의 기존 원문 조회를 닫았다. 보호자의 범위별 인가는 `CHAT`=채팅 본문·읽음 상태, `CHAT+ATTACHMENT`=채팅 첨부, `ATTACHMENT`=가이드 첨부, `REPORT`=리포트·건강정보로 분리했다.
+- 채팅 180일·첨부 30일·위치 24시간 TTL과 보호자 동의 만료를 `CARE_ENDED`에서 시작하고, DB 세션 행 잠금과 trigger로 종료 동시 쓰기 우회를 차단했다.
+- 종료 뒤 동의 재부여와 매니저 리포트·가이드 첨부 원문 조회를 차단했다. Android는 `careEndedAt`이 있으면 Realtime 보강을 생략하고 구독을 닫으며, 매니저 완료 이력은 리포트 대신 본인 `managerJournal`만 표시한다. DB 신호 발행 중단과 privileged bootstrap 006으로 신규·재인가 연결도 막는다.
+- Firestore의 전환된 예약·세션·리포트·후속 처리 비교 문서와 Storage 채팅 첨부는 매니저·보호자 직접 경로를 닫고 Core API 인가·마스킹을 거치게 했다. 환자 보관 조회와 관리자 운영 조회만 유지하고 채팅 첨부의 모든 클라이언트 쓰기를 거부한다.
+- migration 전 실시간 원문과 동의 만료값을 비공개 ledger에 보존해 V18 rollback 때 원래 값을 복원하고, 대상이 이미 파기됐으면 중단하도록 했다.
+- 가이드 8 선택 결제 증빙 0~1개와 가이드 10 선택 처방 이미지 0~3개를 Core API 서버 중계로 추가했다.
+- 완료 강제 설정은 Preview·Production 워크플로가 전달할 수 있게 준비했지만 기본값 `false`를 유지했고 실제 Environment 값 변경이나 배포는 하지 않았다.
+
+### 검증
+
+- 최신 변경을 포함한 Core API 전체 `check`, Android 전체 `testDebugUnitTest`와 `assembleDebug`: 성공
+- Firebase Rules 에뮬레이터 테스트: 7/7 성공
+- V18 migration·rollback 계약과 `CARE_ENDED` 역할별 접근 테스트: Core API 전체 검사에서 성공. 실제 PostgreSQL 17 실행은 PR `migration-contract` 대기
+- Core API·Preview·Production workflow YAML 파싱, 전체 diff와 migration 검증 셸 문법 검사: 성공
+
+### 남은 범위
+
+- 새 커밋의 disposable PostgreSQL CI에서 V18 적용·rollback, runtime role, `CARE_ENDED` TTL·동의 재부여·Realtime 회수와 동시 쓰기 차단 실검증
+- maintenance 상태에서 V18 schema rollback과 bootstrap 006 rollback을 연속 실행하는 운영 절차 확인
+- Preview Core API·Android 배포 후 실기기 중복 종료, 재진입, 첨부와 리포트 실패 재시도 검증
+- #222 가이드 첨부 원본 만료·orphan 정리 연결
+- 새 앱 보급과 별도 승인 뒤 Preview 완료 강제 설정 검증. Production 활성화는 출시 게이트에서 별도 결정
+
+상세 근거는 [이슈 307 정상 동행 종료·완료 구현 기록](../reports/issue-307-companion-completion-2026-08-29.md)에 정리했다.

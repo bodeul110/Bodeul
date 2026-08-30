@@ -55,6 +55,13 @@ final class CompanionSessionException extends RuntimeException {
                 "동행 리포트를 찾을 수 없습니다.");
     }
 
+    static CompanionSessionException reportGenerationFailed() {
+        return new CompanionSessionException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "companion_session_report_generation_failed",
+                "동행 완료는 저장했지만 최종 리포트를 만들지 못했습니다. 다시 시도해 주세요.");
+    }
+
     static CompanionSessionException stateConflict() {
         return new CompanionSessionException(
                 HttpStatus.CONFLICT,
@@ -67,6 +74,13 @@ final class CompanionSessionException extends RuntimeException {
                 HttpStatus.CONFLICT,
                 "companion_message_idempotency_conflict",
                 "같은 재시도 식별자에 다른 메시지 내용이 이미 저장되어 있습니다.");
+    }
+
+    static CompanionSessionException artifactIdempotencyConflict() {
+        return new CompanionSessionException(
+                HttpStatus.CONFLICT,
+                "companion_session_artifact_idempotency_conflict",
+                "같은 재시도 식별자에 다른 동행 첨부가 이미 저장되어 있습니다.");
     }
 
     static CompanionSessionException chatMessageNotFound() {
@@ -88,6 +102,20 @@ final class CompanionSessionException extends RuntimeException {
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "companion_chat_attachment_unavailable",
                 "첨부 파일을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+
+    static CompanionSessionException artifactNotFound() {
+        return new CompanionSessionException(
+                HttpStatus.NOT_FOUND,
+                "companion_session_artifact_not_found",
+                "동행 첨부 파일을 찾을 수 없습니다.");
+    }
+
+    static CompanionSessionException artifactUnavailable() {
+        return new CompanionSessionException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "companion_session_artifact_unavailable",
+                "동행 첨부 파일을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     }
 
     static CompanionSessionException versionConflict() {

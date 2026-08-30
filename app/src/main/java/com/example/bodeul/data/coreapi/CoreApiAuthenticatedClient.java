@@ -29,6 +29,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -136,16 +138,43 @@ final class CoreApiAuthenticatedClient {
             String idToken,
             @Nullable String appCheckToken
     ) throws Exception {
+        Map<String, String> textParts = new LinkedHashMap<>();
+        textParts.put("clientMessageId", clientMessageId);
+        textParts.put("body", body == null ? "" : body);
+        return requestMultipartJson(
+                "POST",
+                path,
+                textParts,
+                attachments,
+                idToken,
+                appCheckToken);
+    }
+
+    JSONObject requestMultipartJson(
+            String method,
+            String path,
+            Map<String, String> textParts,
+            List<UploadPart> attachments,
+            String idToken,
+            @Nullable String appCheckToken
+    ) throws Exception {
         String boundary = "bodeul-" + UUID.randomUUID();
         HttpURLConnection connection = null;
         try {
-            connection = openAuthenticatedConnection("POST", path, idToken, appCheckToken);
+            connection = openAuthenticatedConnection(method, path, idToken, appCheckToken);
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
             connection.setChunkedStreamingMode(8192);
             try (OutputStream outputStream = connection.getOutputStream()) {
-                writeTextPart(outputStream, boundary, "clientMessageId", clientMessageId);
-                writeTextPart(outputStream, boundary, "body", body == null ? "" : body);
+                if (textParts != null) {
+                    for (Map.Entry<String, String> entry : textParts.entrySet()) {
+                        writeTextPart(
+                                outputStream,
+                                boundary,
+                                entry.getKey(),
+                                entry.getValue() == null ? "" : entry.getValue());
+                    }
+                }
                 if (attachments != null) {
                     for (UploadPart attachment : attachments) {
                         writeFilePart(outputStream, boundary, attachment);

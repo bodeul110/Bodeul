@@ -202,6 +202,33 @@ public class CoreApiCompanionSessionClientTest {
         assertFalse(snapshot.merge(null, "legacy-appointment").hasServerAdvanceDecision());
     }
 
+    @Test
+    public void managerDashboard_skipsRealtimeWhenCareBoundaryExistsInCompatibilityStatus()
+            throws Exception {
+        JSONObject fixture = createSessionJson(13)
+                .put("currentStatus", "PAYMENT")
+                .put("careEndedAt", "2026-08-29T02:00:00Z");
+
+        CoreApiCompanionSessionClient.SessionSnapshot snapshot =
+                CoreApiCompanionSessionClient.parseSessionSnapshot(fixture);
+
+        assertTrue(snapshot.hasCareEnded());
+        assertFalse(CoreApiManagerRepository.shouldEnrichDashboardWithRealtime(snapshot));
+    }
+
+    @Test
+    public void managerDashboard_keepsRealtimeForActiveSession() throws Exception {
+        JSONObject fixture = createSessionJson(12)
+                .put("currentStatus", "PAYMENT")
+                .put("careEndedAt", "");
+
+        CoreApiCompanionSessionClient.SessionSnapshot snapshot =
+                CoreApiCompanionSessionClient.parseSessionSnapshot(fixture);
+
+        assertFalse(snapshot.hasCareEnded());
+        assertTrue(CoreApiManagerRepository.shouldEnrichDashboardWithRealtime(snapshot));
+    }
+
     private JSONObject createSessionJson(int stepCount) throws Exception {
         JSONArray steps = new JSONArray();
         for (int index = 0; index < stepCount; index++) {

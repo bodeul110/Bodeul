@@ -1,10 +1,12 @@
 package com.example.bodeul.ui.manager;
 
+import android.net.Uri;
 import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.SavedStateHandle;
 import androidx.lifecycle.ViewModel;
 
 import com.example.bodeul.data.AuthRepository;
@@ -13,12 +15,20 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
+import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 
+import java.util.List;
+import java.util.UUID;
+
 public class ManagerGuideViewModel extends ViewModel {
+
+    private static final String REPORT_DRAFT_PRESENT = "managerGuide.reportDraft.present";
+    private static final String REPORT_DRAFT_PREFIX = "managerGuide.reportDraft.";
+    private static final String ARTIFACT_REQUEST_PREFIX = "managerGuide.artifactRequest.";
 
     public enum StatePanelType {
         NONE,
@@ -78,26 +88,36 @@ public class ManagerGuideViewModel extends ViewModel {
         return _reportSubmittedEvent;
     }
 
+    private final MutableLiveData<Boolean> _mutationInFlight =
+            new MutableLiveData<>(false);
+    public LiveData<Boolean> getMutationInFlight() {
+        return _mutationInFlight;
+    }
+
     private final AuthRepository authRepository;
     private final ManagerRepository managerRepository;
     private final ManagerGuideCoordinator coordinator;
     private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
+    private final SavedStateHandle savedStateHandle;
 
     private User currentUser;
     private boolean liveLocationShareInFlight = false;
     private PendingLocationUpdate pendingLiveLocationUpdate;
     private String subscribedSessionId = "";
+    private boolean mutationInFlight;
 
     public ManagerGuideViewModel(
             AuthRepository authRepository,
             ManagerRepository managerRepository,
             ManagerGuideCoordinator coordinator,
-            SupabaseCompanionRealtimeSubscriber realtimeSubscriber
+            SupabaseCompanionRealtimeSubscriber realtimeSubscriber,
+            SavedStateHandle savedStateHandle
     ) {
         this.authRepository = authRepository;
         this.managerRepository = managerRepository;
         this.coordinator = coordinator;
         this.realtimeSubscriber = realtimeSubscriber;
+        this.savedStateHandle = savedStateHandle;
     }
 
     public void reload() {
@@ -154,6 +174,9 @@ public class ManagerGuideViewModel extends ViewModel {
             _uiState.setValue(UiState.panel(StatePanelType.EMPTY, null));
             return;
         }
+        if (isRealtimeClosed(dashboard)) {
+            stopRealtimeSubscription();
+        }
         _uiState.setValue(UiState.screen(dashboard, coordinator.createScreenModel(
                 dashboard,
                 managerRepository.isFirebaseBacked()
@@ -161,6 +184,10 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     private void ensureRealtimeSubscription(ManagerDashboard dashboard) {
+        if (isRealtimeClosed(dashboard)) {
+            stopRealtimeSubscription();
+            return;
+        }
         String sessionId = dashboard == null || dashboard.getSession() == null
                 ? ""
                 : dashboard.getSession().getRealtimeSessionId();
@@ -171,24 +198,46 @@ public class ManagerGuideViewModel extends ViewModel {
         realtimeSubscriber.subscribe(sessionId, this::loadDashboard);
     }
 
+    private boolean isRealtimeClosed(@Nullable ManagerDashboard dashboard) {
+        if (dashboard == null || dashboard.getSession() == null) {
+            return false;
+        }
+        if (dashboard.getSession().getCareEndedAtMillis() > 0L) {
+            return true;
+        }
+        SessionStatus status = dashboard.getSession().getStatus();
+        return status == SessionStatus.CARE_ENDED
+                || status == SessionStatus.COMPLETED
+                || status == SessionStatus.CANCELED;
+    }
+
+    private void stopRealtimeSubscription() {
+        realtimeSubscriber.stop();
+        subscribedSessionId = "";
+    }
+
     @Override
     protected void onCleared() {
-        realtimeSubscriber.stop();
+        stopRealtimeSubscription();
         super.onCleared();
     }
 
     public void advanceStep() {
         if (currentUser == null) return;
+        if (!beginMutation()) return;
         managerRepository.advanceCurrentStep(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                finishMutation();
                 _toastMessage.setValue("다음 단계로 이동했습니다.");
                 bindDashboard(result);
             }
 
             @Override
             public void onError(String message) {
+                finishMutation();
                 _toastMessage.setValue(message);
+                loadDashboard();
             }
         });
     }
@@ -249,6 +298,56 @@ public class ManagerGuideViewModel extends ViewModel {
                 _toastMessage.setValue(message);
             }
         });
+    }
+
+    public void replaceSessionArtifacts(String purpose, List<Uri> fileUris) {
+        if (currentUser == null) return;
+        String requestFingerprint = artifactRequestFingerprint(purpose, fileUris);
+        String requestId = artifactRequestId(purpose, requestFingerprint);
+        if (!beginMutation()) return;
+        managerRepository.replaceSessionArtifacts(
+                currentUser.getId(),
+                purpose,
+                requestId,
+                fileUris,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        clearArtifactRequest(purpose);
+                        finishMutation();
+                        _toastMessage.setValue("선택한 동행 첨부를 저장했습니다.");
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        finishMutation();
+                        _toastMessage.setValue(message);
+                    }
+                });
+    }
+
+    public void clearSessionArtifacts(String purpose) {
+        if (currentUser == null) return;
+        if (!beginMutation()) return;
+        managerRepository.clearSessionArtifacts(
+                currentUser.getId(),
+                purpose,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        clearArtifactRequest(purpose);
+                        finishMutation();
+                        _toastMessage.setValue("동행 첨부를 삭제했습니다.");
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        finishMutation();
+                        _toastMessage.setValue(message);
+                    }
+                });
     }
 
     public void updatePreConsultationConfirmed(boolean confirmed) {
@@ -422,8 +521,19 @@ public class ManagerGuideViewModel extends ViewModel {
             String nextVisit
     ) {
         if (currentUser == null) return;
-        if (TextUtils.isEmpty(summary)) {
-            _toastMessage.setValue("진료 요약을 입력해 주세요.");
+        saveReportDraft(new ReportDraft(
+                currentSessionId(),
+                summary,
+                treatment,
+                medication,
+                medicationName,
+                medicationChangeSummary,
+                medicationScheduleNote,
+                medicationComparisonDecision,
+                medicationComparisonNote,
+                nextVisit));
+        if (summary != null && summary.trim().length() > 300) {
+            _toastMessage.setValue("매니저 일지는 300자 이하로 입력해 주세요.");
             return;
         }
         boolean hasMedicationComparisonInput = !TextUtils.isEmpty(medication)
@@ -439,6 +549,7 @@ public class ManagerGuideViewModel extends ViewModel {
             _toastMessage.setValue("재확인 사유를 입력해 주세요.");
             return;
         }
+        if (!beginMutation()) return;
         managerRepository.submitSessionReport(
                 currentUser.getId(),
                 summary,
@@ -453,15 +564,153 @@ public class ManagerGuideViewModel extends ViewModel {
                 new RepositoryCallback<SessionReport>() {
                     @Override
                     public void onSuccess(SessionReport result) {
+                        clearReportDraft();
+                        finishMutation();
                         _reportSubmittedEvent.setValue(System.currentTimeMillis());
                     }
 
                     @Override
                     public void onError(String message) {
+                        finishMutation();
                         _toastMessage.setValue(message);
+                        loadDashboard();
                     }
                 }
         );
+    }
+
+    @Nullable
+    public ReportDraft getReportDraft(String sessionId) {
+        ReportDraft draft = restoreReportDraft(savedStateHandle);
+        String normalizedSessionId = sessionId == null ? "" : sessionId.trim();
+        return draft != null && draft.sessionId.equals(normalizedSessionId) ? draft : null;
+    }
+
+    @Nullable
+    static ReportDraft restoreReportDraft(SavedStateHandle state) {
+        if (!Boolean.TRUE.equals(state.get(REPORT_DRAFT_PRESENT))) {
+            return null;
+        }
+        String decisionName = valueFromState(state, "decision");
+        MedicationComparisonDecision decision = null;
+        if (!decisionName.isEmpty()) {
+            try {
+                decision = MedicationComparisonDecision.valueOf(decisionName);
+            } catch (IllegalArgumentException ignored) {
+                // 지원하지 않는 과거 값은 선택되지 않은 상태로 복원한다.
+            }
+        }
+        return new ReportDraft(
+                valueFromState(state, "sessionId"),
+                valueFromState(state, "summary"),
+                valueFromState(state, "treatment"),
+                valueFromState(state, "medication"),
+                valueFromState(state, "medicationName"),
+                valueFromState(state, "medicationChangeSummary"),
+                valueFromState(state, "medicationScheduleNote"),
+                decision,
+                valueFromState(state, "medicationComparisonNote"),
+                valueFromState(state, "nextVisit"));
+    }
+
+    private void saveReportDraft(ReportDraft draft) {
+        saveReportDraft(savedStateHandle, draft);
+    }
+
+    static void saveReportDraft(SavedStateHandle state, ReportDraft draft) {
+        state.set(REPORT_DRAFT_PRESENT, true);
+        state.set(REPORT_DRAFT_PREFIX + "sessionId", draft.sessionId);
+        state.set(REPORT_DRAFT_PREFIX + "summary", draft.summary);
+        state.set(REPORT_DRAFT_PREFIX + "treatment", draft.treatment);
+        state.set(REPORT_DRAFT_PREFIX + "medication", draft.medication);
+        state.set(REPORT_DRAFT_PREFIX + "medicationName", draft.medicationName);
+        state.set(
+                REPORT_DRAFT_PREFIX + "medicationChangeSummary",
+                draft.medicationChangeSummary);
+        state.set(
+                REPORT_DRAFT_PREFIX + "medicationScheduleNote",
+                draft.medicationScheduleNote);
+        state.set(
+                REPORT_DRAFT_PREFIX + "decision",
+                draft.medicationComparisonDecision == null
+                        ? ""
+                        : draft.medicationComparisonDecision.name());
+        state.set(
+                REPORT_DRAFT_PREFIX + "medicationComparisonNote",
+                draft.medicationComparisonNote);
+        state.set(REPORT_DRAFT_PREFIX + "nextVisit", draft.nextVisit);
+    }
+
+    private void clearReportDraft() {
+        savedStateHandle.set(REPORT_DRAFT_PRESENT, false);
+    }
+
+    private static String valueFromState(SavedStateHandle state, String suffix) {
+        String value = state.get(REPORT_DRAFT_PREFIX + suffix);
+        return value == null ? "" : value;
+    }
+
+    private String currentSessionId() {
+        UiState state = _uiState.getValue();
+        if (state == null || state.dashboard == null || state.dashboard.getSession() == null) {
+            return "";
+        }
+        String sessionId = state.dashboard.getSession().getId();
+        return sessionId == null ? "" : sessionId.trim();
+    }
+
+    private String artifactRequestFingerprint(String purpose, List<Uri> fileUris) {
+        StringBuilder fingerprint = new StringBuilder(purpose == null ? "" : purpose.trim());
+        if (fileUris != null) {
+            for (Uri uri : fileUris) {
+                fingerprint.append('\n').append(uri == null ? "" : uri.toString());
+            }
+        }
+        return fingerprint.toString();
+    }
+
+    private String artifactRequestId(String purpose, String fingerprint) {
+        return artifactRequestId(savedStateHandle, purpose, fingerprint);
+    }
+
+    static String artifactRequestId(
+            SavedStateHandle state,
+            String purpose,
+            String fingerprint) {
+        String key = ARTIFACT_REQUEST_PREFIX + normalizePurposeKey(purpose);
+        String storedFingerprint = state.get(key + ".fingerprint");
+        String storedRequestId = state.get(key + ".id");
+        if (fingerprint.equals(storedFingerprint) && storedRequestId != null) {
+            return storedRequestId;
+        }
+        String requestId = UUID.randomUUID().toString();
+        state.set(key + ".fingerprint", fingerprint);
+        state.set(key + ".id", requestId);
+        return requestId;
+    }
+
+    private void clearArtifactRequest(String purpose) {
+        String key = ARTIFACT_REQUEST_PREFIX + normalizePurposeKey(purpose);
+        savedStateHandle.remove(key + ".fingerprint");
+        savedStateHandle.remove(key + ".id");
+    }
+
+    private static String normalizePurposeKey(String purpose) {
+        return purpose == null ? "unknown" : purpose.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private boolean beginMutation() {
+        if (mutationInFlight) {
+            return false;
+        }
+        mutationInFlight = true;
+        _mutationInFlight.setValue(true);
+        return true;
+    }
+
+    private void finishMutation() {
+        mutationInFlight = false;
+        _mutationInFlight.setValue(false);
     }
 
     public void shareCurrentLocation(double latitude, double longitude, String summary) {
@@ -584,18 +833,61 @@ public class ManagerGuideViewModel extends ViewModel {
         }
     }
 
-    public static class Factory implements androidx.lifecycle.ViewModelProvider.Factory {
+    public static final class ReportDraft {
+        public final String sessionId;
+        public final String summary;
+        public final String treatment;
+        public final String medication;
+        public final String medicationName;
+        public final String medicationChangeSummary;
+        public final String medicationScheduleNote;
+        @Nullable
+        public final MedicationComparisonDecision medicationComparisonDecision;
+        public final String medicationComparisonNote;
+        public final String nextVisit;
+
+        ReportDraft(
+                String sessionId,
+                String summary,
+                String treatment,
+                String medication,
+                String medicationName,
+                String medicationChangeSummary,
+                String medicationScheduleNote,
+                @Nullable MedicationComparisonDecision medicationComparisonDecision,
+                String medicationComparisonNote,
+                String nextVisit) {
+            this.sessionId = normalizeDraftValue(sessionId);
+            this.summary = normalizeDraftValue(summary);
+            this.treatment = normalizeDraftValue(treatment);
+            this.medication = normalizeDraftValue(medication);
+            this.medicationName = normalizeDraftValue(medicationName);
+            this.medicationChangeSummary = normalizeDraftValue(medicationChangeSummary);
+            this.medicationScheduleNote = normalizeDraftValue(medicationScheduleNote);
+            this.medicationComparisonDecision = medicationComparisonDecision;
+            this.medicationComparisonNote = normalizeDraftValue(medicationComparisonNote);
+            this.nextVisit = normalizeDraftValue(nextVisit);
+        }
+
+        private static String normalizeDraftValue(String value) {
+            return value == null ? "" : value;
+        }
+    }
+
+    public static class Factory extends androidx.lifecycle.AbstractSavedStateViewModelFactory {
         private final AuthRepository authRepository;
         private final ManagerRepository managerRepository;
         private final ManagerGuideCoordinator coordinator;
         private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
 
         public Factory(
+                androidx.savedstate.SavedStateRegistryOwner owner,
                 AuthRepository authRepository,
                 ManagerRepository managerRepository,
                 ManagerGuideCoordinator coordinator,
                 SupabaseCompanionRealtimeSubscriber realtimeSubscriber
         ) {
+            super(owner, null);
             this.authRepository = authRepository;
             this.managerRepository = managerRepository;
             this.coordinator = coordinator;
@@ -605,13 +897,17 @@ public class ManagerGuideViewModel extends ViewModel {
         @androidx.annotation.NonNull
         @Override
         @SuppressWarnings("unchecked")
-        public <T extends ViewModel> T create(@androidx.annotation.NonNull Class<T> modelClass) {
+        protected <T extends ViewModel> T create(
+                @androidx.annotation.NonNull String key,
+                @androidx.annotation.NonNull Class<T> modelClass,
+                @androidx.annotation.NonNull SavedStateHandle handle) {
             if (modelClass.isAssignableFrom(ManagerGuideViewModel.class)) {
                 return (T) new ManagerGuideViewModel(
                         authRepository,
                         managerRepository,
                         coordinator,
-                        realtimeSubscriber);
+                        realtimeSubscriber,
+                        handle);
             }
             throw new IllegalArgumentException("Unknown ViewModel class");
         }

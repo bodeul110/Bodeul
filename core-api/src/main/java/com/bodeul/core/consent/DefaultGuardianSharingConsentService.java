@@ -74,7 +74,8 @@ class DefaultGuardianSharingConsentService implements GuardianSharingConsentServ
             throw GuardianSharingConsentException.invalidRequest(
                     "성인 환자 본인 확인이 필요합니다.");
         }
-        if (CLOSED_APPOINTMENT_STATUSES.contains(appointment.status())) {
+        if (CLOSED_APPOINTMENT_STATUSES.contains(appointment.status())
+                || appointment.careEndedAt() != null) {
             throw GuardianSharingConsentException.stateConflict();
         }
         if (appointment.guardianUserId() == null) {

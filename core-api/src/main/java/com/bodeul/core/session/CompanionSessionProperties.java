@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CompanionSessionProperties {
 
     private boolean preConsultationEnforcement;
+    private boolean completionEnforcement;
 
     public boolean isPreConsultationEnforcement() {
         return preConsultationEnforcement;
@@ -13,5 +14,13 @@ public class CompanionSessionProperties {
 
     public void setPreConsultationEnforcement(boolean preConsultationEnforcement) {
         this.preConsultationEnforcement = preConsultationEnforcement;
+    }
+
+    public boolean isCompletionEnforcement() {
+        return completionEnforcement;
+    }
+
+    public void setCompletionEnforcement(boolean completionEnforcement) {
+        this.completionEnforcement = completionEnforcement;
     }
 }

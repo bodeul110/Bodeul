@@ -282,8 +282,9 @@ Kakao 키만 회전할 때는 DB 자격 증명을 다시 입력하지 않고 대
 - `FIREBASE_PROJECT_ID=bodeul-dev`
 - `FIREBASE_PROJECT_NUMBER=533563500316`
 - `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=false`
+- `BODEUL_SESSION_COMPLETION_ENFORCEMENT=false`
 
-`FIREBASE_PROJECT_NUMBER`는 token issuer와 audience를 제한하기 위한 공개 project 식별자이며 secret으로 저장하지 않는다. 배포 workflow가 `BODEUL_APP_CHECK_MODE=observe`를 Cloud Run 환경변수로 주입한다. 진료 전 확인 서버 차단은 Android 보급 전이므로 `false`를 유지한다.
+`FIREBASE_PROJECT_NUMBER`는 token issuer와 audience를 제한하기 위한 공개 project 식별자이며 secret으로 저장하지 않는다. 배포 workflow가 `BODEUL_APP_CHECK_MODE=observe`를 Cloud Run 환경변수로 주입한다. 진료 전 확인과 동행 종료·완료 분리의 서버 강제는 Android 보급 전이므로 모두 `false`를 유지한다.
 
 `OCI_REGION`, `CORE_API_SERVICE_NAME` 같은 OCI 변수는 제거한다. `core-api-production`에는 실제 GCP/Firebase 식별자와 DB secret version만 등록했고 Kakao version은 비워 뒀다. `core-api-migration-production`에는 별도 production migration 자격 증명을 등록했다.
 
@@ -306,6 +307,7 @@ production 리소스 생성 후 다음 값만 등록한다. DB URL과 비밀번�
 - `FIREBASE_PROJECT_NUMBER=649312328770`
 - `BODEUL_APP_CHECK_MODE=observe`
 - `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=false`
+- `BODEUL_SESSION_COMPLETION_ENFORCEMENT=false`
 
 첫 release 요청이 정상 App Check 판정을 받고 rollback을 재현한 뒤 `BODEUL_APP_CHECK_MODE=enforce`로 변경한다. DB version을 포함한 공개 Variables는 등록했지만 `KAKAO_LOCAL_REST_API_KEY_SECRET_VERSION`이 없으므로 production workflow는 인증 전에 fail-closed다.
 
@@ -320,6 +322,34 @@ production 리소스 생성 후 다음 값만 등록한다. DB URL과 비밀번�
 5. preview를 `true`로 바꾸어 `STEP_INPUT_REQUIRED`와 동시 advance 차단을 검증한 뒤 production 전환을 별도로 승인한다.
 
 문제가 생기면 값을 `false`로 되돌려 Core API를 다시 배포한다. DB 열은 상태 저장과 롤링 호환에 계속 필요하므로 애플리케이션보다 먼저 rollback하지 않는다. 이번 구현 시점에는 preview와 production 모두 서버 차단을 켜지 않는다.
+
+### 동행 종료·완료 분리 점진적 적용
+
+`BODEUL_SESSION_COMPLETION_ENFORCEMENT`는 V18 schema 적용 여부가 아니라 구버전 앱의 마지막 단계 직접 완료를 허용할지 제어한다. Core API가 `care_ended_at`, `manager_journal`, 리포트 상태와 가이드 첨부를 항상 읽으므로 설정이 `false`여도 V18 migration을 먼저 적용해야 한다.
+
+설정이 `false`인 혼합 버전 기간에는 돌봄 종료 시 `care_ended_at`과 다음 단계만 저장하고 구버전이 알고 있는 기존 `current_status`를 유지한다. 새 앱은 `CARE_ENDED_PENDING_COMPLETION` 진행 판정으로 일지 화면에 재진입하고, 구버전 앱은 알 수 없는 `CARE_ENDED` enum을 받지 않는다. `true`로 전환한 뒤에만 상태값도 `CARE_ENDED`로 바뀐다. 다만 채팅·첨부·위치 쓰기 차단, 매니저 조회 회수, 정보공유 동의 만료와 실시간 원문의 보존 시작점은 플래그와 무관하게 최초 `care_ended_at`에서 즉시 적용한다.
+
+1. V18 migration을 개발 DB에 적용하고 기존 `COMPLETED` 행 backfill, runtime role, `CARE_ENDED` 기준 `+180일/+30일/+24시간`, 동의 `+7일`과 rollback SQL을 검증한다.
+2. postgres 권한으로 `core-api/db/bootstrap/006_companion_completion_realtime_authorization.sql`을 적용하고 `015_companion_completion_realtime_authorization_scenarios.sql`로 진행 중 매니저 허용, 종료 매니저 거부와 환자 유지 여부를 확인한다.
+3. preview와 production GitHub Environment의 값을 `false`로 둔 채 Core API를 배포한다.
+4. 새 Android에서 가이드 8·10 선택 첨부, 가이드 12 중복 종료 요청, 종료 직후 채팅·첨부·위치 거부와 Realtime 구독 종료·역할별 조회 회수, 가이드 13 빈 일지·300자 제한과 리포트 실패 재시도를 실기기로 검증한다.
+5. 구버전 앱 잔존율, `CARE_ENDED` 세션 재진입과 직전 Core API revision rollback을 확인하고 별도 승인을 받는다.
+6. preview에서만 값을 `true`로 바꾸어 구버전 직접 완료 차단과 새 앱 정상 완료를 검증한다. production 활성화는 별도 출시 승인 뒤 진행한다.
+
+문제가 생기면 값을 `false`로 되돌려 Core API를 다시 배포한다. V18 열과 첨부 테이블은 롤링 호환과 이미 저장된 종료 시각을 위해 유지하며 애플리케이션보다 먼저 rollback하지 않는다. 이번 구현에서는 preview·production 값을 만들거나 변경하지 않고 워크플로 기본값도 `false`로 둔다.
+
+V18 schema 자체를 되돌려야 할 때는 앱·Core API 쓰기와 신규 Realtime 연결을 차단한 maintenance window를 먼저 확보하고 다음 순서를 지킨다. schema와 Realtime 권한식을 서로 다른 시점에 되돌리면 존재하지 않는 `care_ended_at`을 참조하거나 종료 매니저 권한을 먼저 다시 열 수 있으므로, 두 rollback을 같은 maintenance 상태에서 연속 실행한다.
+
+1. maintenance 상태 진입과 쓰기·신규 연결 차단 시각을 기록하고, 기존 Core API 요청이 끝난 것을 확인한다.
+2. `companion_session_artifacts`의 세션 ID, 용도와 `storage_path`, `companion_session_artifact_operations`의 요청 UUID·fingerprint·revision을 접근 제한된 산출물로 각각 export한다.
+3. export한 경로의 Firebase Storage 원본을 삭제하고 삭제 결과를 검증한다.
+4. `CARE_ENDED`, `care_ended_at`, 매니저 일지와 리포트 생성 상태·오류·갱신 시각을 export한다. V18 baseline 이후 값이 바뀐 행은 자동 역변환하지 않으며 운영자가 복원 가능성을 확인해 정리하기 전 rollback이 중단된다.
+5. 확인된 첨부 메타데이터와 operation ledger 행을 삭제한다. 두 테이블 중 어느 한쪽이라도 행이 남아 있으면 rollback SQL은 의도적으로 중단된다.
+6. `core-api/db/rollback/V18__merge_companion_care_completion.sql`을 실행한다. migration 직후 legacy 원문의 TTL과 동의 만료 경계도 비공개 baseline ledger 값으로 복원된다. 대상 원문이 이미 파기됐으면 백업 복원 전 rollback이 중단된다.
+7. schema rollback 성공을 확인한 같은 maintenance 상태에서 곧바로 `core-api/db/bootstrap/rollback/006_companion_completion_realtime_authorization_rollback.sql`을 실행하고 V17 권한식 복원을 확인한다. 순서를 바꾸거나 중간에 트래픽을 열지 않는다.
+8. 두 rollback 중 하나라도 실패하면 maintenance 상태를 유지하고 백업 복원 또는 누락된 rollback을 완료한다. schema와 V17 Realtime helper가 함께 검증된 뒤에만 Core API와 신규 Realtime 연결을 다시 연다.
+
+CI의 `db/verification/verify_companion_completion_migration.sh`는 V17 fixture에서 V18을 실제 적용하고, `care_ended_at` 기준 채팅·첨부·위치 TTL, 동의 만료 확정·재부여 차단, 종료와 동시에 들어오는 직접 쓰기 거부, 매니저 Realtime 회수, 늦은 `COMPLETED` 전환의 TTL 불변, legacy baseline TTL 복원, baseline 변조와 신규 V18 상태별 rollback 실패, 용도별 0~1/0~3 제약, SHA-256, operation ledger 유지, 후반 오류가 발생한 rollback의 원자 복구, export·정리 후 rollback 성공을 disposable PostgreSQL 17에서 검증한다.
 
 ## 최초 서비스 공개
 

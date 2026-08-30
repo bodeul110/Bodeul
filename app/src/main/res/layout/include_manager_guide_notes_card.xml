@@ -56,6 +56,55 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/groupGuideSessionArtifact"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/textGuideSessionArtifactTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/guide_artifact_payment_title"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textGuideSessionArtifactStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/guide_artifact_empty"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonSelectGuideSessionArtifact"
+                    style="@style/BodeulOutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="@string/guide_artifact_select" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonClearGuideSessionArtifact"
+                    style="@style/BodeulOutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/guide_artifact_clear" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/groupGuidePreConsultationConfirmation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

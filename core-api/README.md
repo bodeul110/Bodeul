@@ -140,6 +140,8 @@ bootstrap은 개발 DB에서 `postgres` 권한으로 먼저 적용한다. 각 bo
 
 V17 적용 뒤에는 `db/verification/012_guardian_sharing_consent_checks.sql`을 읽기 전용으로 실행하고, postgres 권한으로 `db/bootstrap/005_guardian_sharing_realtime_authorization.sql`을 적용한다. 이어 `db/verification/004_companion_realtime_authorization_scenarios.sql`로 보호자가 동의 여부와 무관하게 Broadcast에서 거부되고 환자·매니저만 허용되는지 확인한다. 보호자는 매 요청 동의를 판정하는 Core API polling만 사용한다.
 
+V18 적용 뒤에는 postgres 권한으로 `db/bootstrap/006_companion_completion_realtime_authorization.sql`을 적용하고 `db/verification/015_companion_completion_realtime_authorization_scenarios.sql`을 실행한다. 진행 중 배정 매니저만 Broadcast를 구독하고 `care_ended_at` 이후 신규·재인가 구독은 거부되어야 한다. V18 schema rollback이 성공한 뒤에만 `db/bootstrap/rollback/006_companion_completion_realtime_authorization_rollback.sql`로 V17 권한식을 복원한다.
+
 Flyway는 runtime profile에서 실행하지 않는다. migration 전용 자격 증명을 준비한 환경에서만 다음처럼 실행한다. migration profile은 연결 직후 `SET ROLE bodeul_migration`을 실행해 history와 업무 객체의 소유자를 로그인 계정이 아닌 migration 권한 role로 통일한다.
 
 ```powershell

@@ -1,12 +1,16 @@
 package com.example.bodeul.data.coreapi;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.data.CompanionChatAttachmentUploadPolicy;
+import com.example.bodeul.data.CompanionSessionArtifactUploadPolicy;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.CompanionSessionArtifact;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
@@ -27,6 +31,7 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -39,10 +44,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class CoreApiCompanionSessionClient {
     private final CoreApiAuthenticatedClient authenticatedClient;
+    private final ContentResolver contentResolver;
     private final Map<String, SessionSnapshot> references = new ConcurrentHashMap<>();
 
     CoreApiCompanionSessionClient(Context context) {
-        authenticatedClient = new CoreApiAuthenticatedClient(context);
+        Context appContext = context.getApplicationContext();
+        authenticatedClient = new CoreApiAuthenticatedClient(appContext);
+        contentResolver = appContext.getContentResolver();
     }
 
     void getSessions(RepositoryCallback<List<SessionSnapshot>> callback) {
@@ -389,6 +397,129 @@ final class CoreApiCompanionSessionClient {
         });
     }
 
+    void endCare(String externalSessionId, RepositoryCallback<SessionSnapshot> callback) {
+        resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
+            @Override
+            public void onSuccess(SessionSnapshot session) {
+                JSONObject body = new JSONObject();
+                try {
+                    body.put("version", session.version);
+                } catch (JSONException exception) {
+                    callback.onError("동행 종료 요청을 준비하지 못했습니다.");
+                    return;
+                }
+                authenticatedClient.execute(
+                        (idToken, appCheckToken) -> parseAndRememberSession(
+                                authenticatedClient.requestJson(
+                                        "POST",
+                                        "/api/companion-sessions/" + session.coreId + "/care-end",
+                                        body,
+                                        idToken,
+                                        appCheckToken)),
+                        callback,
+                        "동행 종료를 저장하지 못했습니다.",
+                        "동행 종료 API"
+                );
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
+    void replaceArtifacts(
+            String externalSessionId,
+            String purpose,
+            String clientRequestId,
+            List<Uri> fileUris,
+            RepositoryCallback<JSONObject> callback
+    ) {
+        String validationError = CompanionSessionArtifactUploadPolicy.validate(
+                contentResolver,
+                purpose,
+                fileUris);
+        if (!validationError.isEmpty()) {
+            callback.onError(validationError);
+            return;
+        }
+        String normalizedRequestId = clientRequestId == null
+                ? ""
+                : clientRequestId.trim();
+        try {
+            UUID.fromString(normalizedRequestId);
+        } catch (IllegalArgumentException exception) {
+            callback.onError("첨부 교체 요청 식별자를 확인해 주세요.");
+            return;
+        }
+        List<CoreApiAuthenticatedClient.UploadPart> uploadParts = new ArrayList<>();
+        for (Uri fileUri : fileUris) {
+            uploadParts.add(new CoreApiAuthenticatedClient.UploadPart(
+                    fileUri,
+                    CompanionChatAttachmentUploadPolicy.resolveFileName(contentResolver, fileUri),
+                    CompanionChatAttachmentUploadPolicy.resolveContentType(contentResolver, fileUri),
+                    CompanionChatAttachmentUploadPolicy.resolveFileSize(contentResolver, fileUri)));
+        }
+        resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
+            @Override
+            public void onSuccess(SessionSnapshot session) {
+                Map<String, String> textParts = new LinkedHashMap<>();
+                textParts.put("purpose", purpose);
+                textParts.put("clientRequestId", normalizedRequestId);
+                authenticatedClient.execute(
+                        (idToken, appCheckToken) -> authenticatedClient.requestMultipartJson(
+                                "PUT",
+                                "/api/companion-sessions/" + session.coreId + "/artifacts",
+                                textParts,
+                                uploadParts,
+                                idToken,
+                                appCheckToken),
+                        callback,
+                        "동행 첨부 파일을 저장하지 못했습니다.",
+                        "동행 단계 첨부 API");
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
+    void clearArtifacts(
+            String externalSessionId,
+            String purpose,
+            RepositoryCallback<JSONObject> callback
+    ) {
+        if (!CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE.equals(purpose)
+                && !CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE.equals(purpose)) {
+            callback.onError("첨부 파일 용도를 확인하지 못했습니다.");
+            return;
+        }
+        resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
+            @Override
+            public void onSuccess(SessionSnapshot session) {
+                authenticatedClient.execute(
+                        (idToken, appCheckToken) -> authenticatedClient.requestJson(
+                                "DELETE",
+                                "/api/companion-sessions/" + session.coreId
+                                        + "/artifacts?purpose=" + purpose,
+                                null,
+                                idToken,
+                                appCheckToken),
+                        callback,
+                        "동행 첨부 파일을 삭제하지 못했습니다.",
+                        "동행 단계 첨부 삭제 API");
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
     void submitReport(
             String externalSessionId,
             String summary,
@@ -421,6 +552,7 @@ final class CoreApiCompanionSessionClient {
                                     : medicationComparisonDecision.name());
                     body.put("medicationComparisonNote", valueOrEmpty(medicationComparisonNote));
                     body.put("nextVisitAt", valueOrEmpty(nextVisitAt));
+                    body.put("managerJournal", valueOrEmpty(summary));
                 } catch (JSONException exception) {
                     callback.onError("동행 리포트 요청을 준비하지 못했습니다.");
                     return;
@@ -569,6 +701,23 @@ final class CoreApiCompanionSessionClient {
         }
 
         boolean hasAdvanceDecision = item.has("canAdvance") && !item.isNull("canAdvance");
+        List<CompanionSessionArtifact> artifacts = new ArrayList<>();
+        JSONArray artifactItems = item.optJSONArray("artifacts");
+        if (artifactItems != null) {
+            for (int index = 0; index < artifactItems.length(); index++) {
+                JSONObject artifact = artifactItems.optJSONObject(index);
+                if (artifact == null) {
+                    continue;
+                }
+                artifacts.add(new CompanionSessionArtifact(
+                        optText(artifact, "id"),
+                        optText(artifact, "purpose"),
+                        optText(artifact, "fileName"),
+                        optText(artifact, "contentType"),
+                        artifact.optLong("sizeBytes", 0L),
+                        parseInstantMillis(optText(artifact, "createdAt"))));
+            }
+        }
         return new SessionSnapshot(
                 coreId,
                 legacyFirestoreId,
@@ -598,7 +747,14 @@ final class CoreApiCompanionSessionClient {
                 optText(item, "liveLocationSharingStartedAt"),
                 optText(item, "locationAlertStage"),
                 optText(item, "locationAlertSentAt"),
-                item.getLong("version"));
+                item.getLong("version"),
+                optText(item, "careEndedAt"),
+                optText(item, "managerJournal"),
+                optText(item, "reportGenerationStatus"),
+                item.optInt("reportGenerationAttempts", 0),
+                optText(item, "reportGenerationLastError"),
+                optText(item, "reportGenerationUpdatedAt"),
+                artifacts);
     }
 
     private void forget(SessionSnapshot session) {
@@ -822,6 +978,13 @@ final class CoreApiCompanionSessionClient {
         private final String locationAlertStage;
         private final String locationAlertSentAt;
         private final long version;
+        private final String careEndedAt;
+        private final String managerJournal;
+        private final String reportGenerationStatus;
+        private final int reportGenerationAttempts;
+        private final String reportGenerationLastError;
+        private final String reportGenerationUpdatedAt;
+        private final List<CompanionSessionArtifact> artifacts;
 
         private SessionSnapshot(
                 String coreId,
@@ -852,7 +1015,14 @@ final class CoreApiCompanionSessionClient {
                 String liveLocationSharingStartedAt,
                 String locationAlertStage,
                 String locationAlertSentAt,
-                long version
+                long version,
+                String careEndedAt,
+                String managerJournal,
+                String reportGenerationStatus,
+                int reportGenerationAttempts,
+                String reportGenerationLastError,
+                String reportGenerationUpdatedAt,
+                List<CompanionSessionArtifact> artifacts
         ) {
             this.coreId = coreId;
             this.legacyFirestoreId = legacyFirestoreId;
@@ -883,6 +1053,13 @@ final class CoreApiCompanionSessionClient {
             this.locationAlertStage = locationAlertStage;
             this.locationAlertSentAt = locationAlertSentAt;
             this.version = version;
+            this.careEndedAt = careEndedAt;
+            this.managerJournal = managerJournal;
+            this.reportGenerationStatus = reportGenerationStatus;
+            this.reportGenerationAttempts = reportGenerationAttempts;
+            this.reportGenerationLastError = reportGenerationLastError;
+            this.reportGenerationUpdatedAt = reportGenerationUpdatedAt;
+            this.artifacts = new ArrayList<>(artifacts);
         }
 
         String getExternalId() {
@@ -899,6 +1076,17 @@ final class CoreApiCompanionSessionClient {
 
         SessionStatus getStatus() {
             return status;
+        }
+
+        boolean hasCareEnded() {
+            return parseInstantMillis(careEndedAt) > 0L
+                    || status == SessionStatus.CARE_ENDED
+                    || status == SessionStatus.COMPLETED;
+        }
+
+        boolean requiresReportRetry() {
+            return "FAILED".equals(reportGenerationStatus)
+                    || "PENDING".equals(reportGenerationStatus);
         }
 
         int getTotalStepCount() {
@@ -970,6 +1158,14 @@ final class CoreApiCompanionSessionClient {
                     hasAdvanceDecision,
                     canAdvance,
                     blockedReason);
+            result.applyCompletionState(
+                    parseInstantMillis(careEndedAt),
+                    managerJournal,
+                    reportGenerationStatus,
+                    reportGenerationAttempts,
+                    reportGenerationLastError,
+                    parseInstantMillis(reportGenerationUpdatedAt),
+                    artifacts);
             return result;
         }
     }

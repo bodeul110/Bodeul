@@ -50,6 +50,7 @@ interface GuardianSharingConsentRepository {
             UUID patientUserId,
             UUID guardianUserId,
             Instant appointmentAt,
-            String status) {
+            String status,
+            Instant careEndedAt) {
     }
 }

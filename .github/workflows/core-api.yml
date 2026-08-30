@@ -154,3 +154,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: bash db/verification/verify_guardian_sharing_consent_migration.sh
+
+      - name: 동행 종료 V18 적용, 기능 제약과 fail-closed rollback 검증
+        env:
+          PGPASSWORD: postgres
+        run: bash db/verification/verify_companion_completion_migration.sh

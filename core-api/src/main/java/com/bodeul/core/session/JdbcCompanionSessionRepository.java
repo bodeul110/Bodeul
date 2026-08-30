@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @Profile("database")
@@ -55,6 +56,24 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 session.live_location_sharing_started_at,
                 session.location_alert_stage,
                 session.location_alert_sent_at,
+                session.care_ended_at,
+                session.manager_journal,
+                session.report_generation_status,
+                session.report_generation_attempts,
+                session.report_generation_last_error,
+                session.report_generation_updated_at,
+                coalesce((
+                    select jsonb_agg(jsonb_build_object(
+                        'id', artifact.id,
+                        'purpose', artifact.purpose,
+                        'fileName', artifact.file_name,
+                        'contentType', artifact.content_type,
+                        'sizeBytes', artifact.size_bytes,
+                        'createdAt', artifact.created_at
+                    ) order by artifact.purpose, artifact.item_order)
+                    from bodeul.companion_session_artifacts artifact
+                    where artifact.companion_session_id = session.id
+                ), '[]'::jsonb)::text as artifacts_json,
                 session.version,
                 session.started_at,
                 session.completed_at,
@@ -175,7 +194,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                     version = version + 1
                 where id = :sessionId
                   and manager_user_id = :managerUserId
-                  and current_status not in ('COMPLETED', 'CANCELED')
+                  and current_status not in ('CARE_ENDED', 'COMPLETED', 'CANCELED')
                   and version = :expectedVersion
                 """;
         int updated = jdbcTemplate.update(sql, new MapSqlParameterSource()
@@ -229,7 +248,7 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                     version = version + 1
                 where id = :sessionId
                   and manager_user_id = :managerUserId
-                  and current_status not in ('COMPLETED', 'CANCELED')
+                  and current_status not in ('CARE_ENDED', 'COMPLETED', 'CANCELED')
                   and version = :expectedVersion
                   and guide_steps_snapshot is not null
                   and jsonb_typeof(guide_steps_snapshot) = 'array'
@@ -260,39 +279,161 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
     }
 
     @Override
-    public Optional<CompletionRecord> completeWithReport(
+    @Transactional
+    public Optional<SessionRecord> endCare(
             UUID sessionId,
             UUID managerUserId,
             long expectedVersion,
             UUID appointmentRequestId,
-            ReportMutation report) {
-        if (!markAppointmentCompleted(appointmentRequestId)) {
-            return Optional.empty();
-        }
-
-        ReportRecord savedReport = upsertReport(sessionId, report);
+            boolean exposeCareEndedStatus) {
         String sql = """
                 update bodeul.companion_sessions
-                set current_status = 'COMPLETED',
-                    medication_note = :medicationNotes,
-                    completed_at = now(),
+                set current_step_order = current_step_order + 1,
+                    current_status = case
+                        when :exposeCareEndedStatus then 'CARE_ENDED'
+                        else current_status
+                    end,
+                    care_ended_at = coalesce(care_ended_at, now()),
+                    live_location_sharing_active = false,
+                    live_location_sharing_started_at = null,
                     updated_at = now(),
                     version = version + 1
                 where id = :sessionId
                   and manager_user_id = :managerUserId
-                  and current_status not in ('COMPLETED', 'CANCELED')
+                  and current_status not in ('CARE_ENDED', 'COMPLETED', 'CANCELED')
                   and version = :expectedVersion
+                  and guide_steps_snapshot is not null
+                  and jsonb_typeof(guide_steps_snapshot) = 'array'
+                  and current_step_order between 1 and jsonb_array_length(guide_steps_snapshot) - 1
+                  and guide_steps_snapshot -> (current_step_order - 1) ->> 'code'
+                      = 'CARE_COMPLETION'
                 """;
         int updated = jdbcTemplate.update(sql, new MapSqlParameterSource()
                 .addValue("sessionId", sessionId)
                 .addValue("managerUserId", managerUserId)
                 .addValue("expectedVersion", expectedVersion)
-                .addValue("medicationNotes", report.medicationNotes()));
-        if (updated != 1) {
-            return Optional.empty();
+                .addValue("exposeCareEndedStatus", exposeCareEndedStatus));
+        if (updated == 1) {
+            if (!markAppointmentInProgress(appointmentRequestId)) {
+                throw new DataRetrievalFailureException("동행 중인 예약 상태를 갱신하지 못했습니다.");
+            }
+            return findById(sessionId);
         }
-        return findById(sessionId)
-                .map(session -> new CompletionRecord(session, savedReport));
+        return findById(sessionId).filter(session ->
+                managerUserId.equals(session.managerUserId())
+                        && session.careEndedAt() != null
+                        && !"CANCELED".equals(session.currentStatus()));
+    }
+
+    @Override
+    @Transactional
+    public Optional<SessionRecord> finalizeSession(
+            UUID sessionId,
+            UUID managerUserId,
+            long expectedVersion,
+            UUID appointmentRequestId,
+            String managerJournal,
+            boolean allowLegacyCompletion) {
+        String sql = """
+                update bodeul.companion_sessions
+                set current_status = 'COMPLETED',
+                    care_ended_at = coalesce(care_ended_at, now()),
+                    manager_journal = :managerJournal,
+                    report_generation_status = 'PENDING',
+                    report_generation_last_error = '',
+                    report_generation_updated_at = now(),
+                    completed_at = coalesce(completed_at, now()),
+                    live_location_sharing_active = false,
+                    live_location_sharing_started_at = null,
+                    updated_at = now(),
+                    version = version + 1
+                where id = :sessionId
+                  and manager_user_id = :managerUserId
+                  and version = :expectedVersion
+                  and (
+                      current_status = 'CARE_ENDED'
+                      or (
+                          :allowLegacyCompletion
+                          and current_status not in ('COMPLETED', 'CANCELED')
+                          and guide_steps_snapshot is not null
+                          and jsonb_typeof(guide_steps_snapshot) = 'array'
+                          and current_step_order = jsonb_array_length(guide_steps_snapshot)
+                      )
+                  )
+                """;
+        int updated = jdbcTemplate.update(sql, new MapSqlParameterSource()
+                .addValue("sessionId", sessionId)
+                .addValue("managerUserId", managerUserId)
+                .addValue("expectedVersion", expectedVersion)
+                .addValue("managerJournal", managerJournal)
+                .addValue("allowLegacyCompletion", allowLegacyCompletion));
+        if (updated != 1) {
+            return findById(sessionId).filter(session ->
+                    managerUserId.equals(session.managerUserId())
+                            && "COMPLETED".equals(session.currentStatus()));
+        }
+        if (!markAppointmentCompleted(appointmentRequestId)) {
+            throw new DataRetrievalFailureException("완료된 동행의 예약 상태를 갱신하지 못했습니다.");
+        }
+        return findById(sessionId);
+    }
+
+    @Override
+    @Transactional
+    public ReportRecord saveReportAndMarkReady(UUID sessionId, ReportMutation report) {
+        List<String> statuses = jdbcTemplate.queryForList(
+                """
+                select report_generation_status
+                from bodeul.companion_sessions
+                where id = :sessionId and current_status = 'COMPLETED'
+                for update
+                """,
+                new MapSqlParameterSource("sessionId", sessionId),
+                String.class);
+        if (statuses.isEmpty()) {
+            throw new DataRetrievalFailureException("완료된 동행 세션을 찾을 수 없습니다.");
+        }
+        if ("READY".equals(statuses.get(0))) {
+            return findReportBySessionId(sessionId)
+                    .orElseThrow(() -> new DataRetrievalFailureException(
+                            "완료된 동행의 리포트를 찾을 수 없습니다."));
+        }
+        ReportRecord savedReport = upsertReport(sessionId, report);
+        String sql = """
+                update bodeul.companion_sessions
+                set report_generation_status = 'READY',
+                    report_generation_attempts = report_generation_attempts + 1,
+                    report_generation_last_error = '',
+                    report_generation_updated_at = now(),
+                    updated_at = now()
+                where id = :sessionId
+                  and current_status = 'COMPLETED'
+                """;
+        if (jdbcTemplate.update(
+                sql,
+                new MapSqlParameterSource("sessionId", sessionId)) != 1) {
+            throw new DataRetrievalFailureException("완료된 동행의 리포트 상태를 갱신하지 못했습니다.");
+        }
+        return savedReport;
+    }
+
+    @Override
+    @Transactional
+    public void markReportGenerationFailed(UUID sessionId, String errorMessage) {
+        String sql = """
+                update bodeul.companion_sessions
+                set report_generation_status = 'FAILED',
+                    report_generation_attempts = report_generation_attempts + 1,
+                    report_generation_last_error = :errorMessage,
+                    report_generation_updated_at = now(),
+                    updated_at = now()
+                where id = :sessionId
+                  and current_status = 'COMPLETED'
+                  and report_generation_status <> 'READY'
+                """;
+        jdbcTemplate.update(sql, new MapSqlParameterSource()
+                .addValue("sessionId", sessionId)
+                .addValue("errorMessage", errorMessage));
     }
 
     private boolean markAppointmentInProgress(UUID appointmentRequestId) {
@@ -314,9 +455,9 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 update bodeul.appointment_requests
                 set status = 'COMPLETED',
                     updated_at = now(),
-                    version = version + 1
+                    version = version + case when status = 'COMPLETED' then 0 else 1 end
                 where id = :appointmentRequestId
-                  and status in ('MATCHED', 'IN_PROGRESS')
+                  and status in ('MATCHED', 'IN_PROGRESS', 'COMPLETED')
                 """;
         return jdbcTemplate.update(
                 sql,
@@ -437,7 +578,39 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                 resultSet.getLong("version"),
                 instant(resultSet, "started_at"),
                 instant(resultSet, "completed_at"),
-                instant(resultSet, "canceled_at"));
+                instant(resultSet, "canceled_at"),
+                instant(resultSet, "care_ended_at"),
+                resultSet.getString("manager_journal"),
+                resultSet.getString("report_generation_status"),
+                resultSet.getInt("report_generation_attempts"),
+                resultSet.getString("report_generation_last_error"),
+                instant(resultSet, "report_generation_updated_at"),
+                parseArtifacts(resultSet.getString("artifacts_json")));
+    }
+
+    private static List<ArtifactRecord> parseArtifacts(String artifactsJson) throws SQLException {
+        if (artifactsJson == null || artifactsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = new ObjectMapper().readTree(artifactsJson);
+            if (root == null || !root.isArray()) {
+                return List.of();
+            }
+            List<ArtifactRecord> artifacts = new ArrayList<>(root.size());
+            for (JsonNode artifact : root) {
+                artifacts.add(new ArtifactRecord(
+                        UUID.fromString(artifact.path("id").asText()),
+                        artifact.path("purpose").asText(),
+                        artifact.path("fileName").asText(),
+                        artifact.path("contentType").asText(),
+                        artifact.path("sizeBytes").asLong(),
+                        java.time.Instant.parse(artifact.path("createdAt").asText())));
+            }
+            return List.copyOf(artifacts);
+        } catch (RuntimeException | JsonProcessingException exception) {
+            throw new SQLException("동행 첨부 메타데이터 JSON을 읽을 수 없습니다.", exception);
+        }
     }
 
     private List<GuideStepRecord> parseGuideSteps(String snapshotJson) throws SQLException {

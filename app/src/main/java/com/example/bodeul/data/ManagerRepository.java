@@ -1,5 +1,7 @@
 package com.example.bodeul.data;
 
+import android.net.Uri;
+
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -78,6 +80,24 @@ public interface ManagerRepository {
             boolean medicationGuidanceCompleted,
             RepositoryCallback<ManagerDashboard> callback
     );
+
+    default void replaceSessionArtifacts(
+            String managerUserId,
+            String purpose,
+            String clientRequestId,
+            List<Uri> fileUris,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        callback.onError("현재 실행 모드에서는 동행 첨부를 저장할 수 없습니다.");
+    }
+
+    default void clearSessionArtifacts(
+            String managerUserId,
+            String purpose,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        callback.onError("현재 실행 모드에서는 동행 첨부를 삭제할 수 없습니다.");
+    }
 
     void getManagerHomeProfile(String managerUserId, RepositoryCallback<ManagerHomeProfile> callback);
 

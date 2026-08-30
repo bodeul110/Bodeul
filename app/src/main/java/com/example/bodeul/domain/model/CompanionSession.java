@@ -34,6 +34,13 @@ public class CompanionSession {
     private boolean prescriptionCollected;
     private boolean pharmacyCompleted;
     private boolean medicationGuidanceCompleted;
+    private long careEndedAtMillis;
+    private String managerJournal = "";
+    private String reportGenerationStatus = "NOT_REQUESTED";
+    private int reportGenerationAttempts;
+    private String reportGenerationLastError = "";
+    private long reportGenerationUpdatedAtMillis;
+    private final List<CompanionSessionArtifact> artifacts = new ArrayList<>();
     @Nullable
     private Double sharedLatitude;
     @Nullable
@@ -470,6 +477,70 @@ public class CompanionSession {
 
     public boolean hasAnyPharmacyProgress() {
         return prescriptionCollected || pharmacyCompleted || medicationGuidanceCompleted;
+    }
+
+    public long getCareEndedAtMillis() {
+        return careEndedAtMillis;
+    }
+
+    public String getManagerJournal() {
+        return managerJournal;
+    }
+
+    public String getReportGenerationStatus() {
+        return reportGenerationStatus;
+    }
+
+    public int getReportGenerationAttempts() {
+        return reportGenerationAttempts;
+    }
+
+    public String getReportGenerationLastError() {
+        return reportGenerationLastError;
+    }
+
+    public long getReportGenerationUpdatedAtMillis() {
+        return reportGenerationUpdatedAtMillis;
+    }
+
+    public List<CompanionSessionArtifact> getArtifacts() {
+        return Collections.unmodifiableList(artifacts);
+    }
+
+    public List<CompanionSessionArtifact> getArtifacts(String purpose) {
+        List<CompanionSessionArtifact> matching = new ArrayList<>();
+        String normalized = purpose == null ? "" : purpose.trim();
+        for (CompanionSessionArtifact artifact : artifacts) {
+            if (normalized.equals(artifact.getPurpose())) {
+                matching.add(artifact);
+            }
+        }
+        return Collections.unmodifiableList(matching);
+    }
+
+    public void applyCompletionState(
+            long careEndedAtMillis,
+            String managerJournal,
+            String reportGenerationStatus,
+            int reportGenerationAttempts,
+            String reportGenerationLastError,
+            long reportGenerationUpdatedAtMillis,
+            List<CompanionSessionArtifact> artifacts
+    ) {
+        this.careEndedAtMillis = Math.max(careEndedAtMillis, 0L);
+        this.managerJournal = managerJournal == null ? "" : managerJournal;
+        this.reportGenerationStatus = reportGenerationStatus == null
+                ? "NOT_REQUESTED"
+                : reportGenerationStatus;
+        this.reportGenerationAttempts = Math.max(reportGenerationAttempts, 0);
+        this.reportGenerationLastError = reportGenerationLastError == null
+                ? ""
+                : reportGenerationLastError;
+        this.reportGenerationUpdatedAtMillis = Math.max(reportGenerationUpdatedAtMillis, 0L);
+        this.artifacts.clear();
+        if (artifacts != null) {
+            this.artifacts.addAll(artifacts);
+        }
     }
 
     public List<CompanionChatMessage> getChatMessages() {

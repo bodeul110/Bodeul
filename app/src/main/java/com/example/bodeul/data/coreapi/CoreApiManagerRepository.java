@@ -1,6 +1,7 @@
 package com.example.bodeul.data.coreapi;
 
 import android.content.Context;
+import android.net.Uri;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.ManagerRepository;
@@ -75,9 +76,15 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 callback.onError(toAdvanceBlockedMessage(session.getAdvanceBlockedReason()));
                 return;
             }
-            sessionClient.advance(
-                    session.getId(),
-                    refreshCallback(managerUserId, callback));
+            if ("CARE_COMPLETION".equals(session.getCurrentStepCode())) {
+                sessionClient.endCare(
+                        session.getId(),
+                        refreshCallback(managerUserId, callback));
+            } else {
+                sessionClient.advance(
+                        session.getId(),
+                        refreshCallback(managerUserId, callback));
+            }
         });
     }
 
@@ -297,6 +304,54 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                 "medicationGuidanceCompleted",
                 medicationGuidanceCompleted,
                 callback);
+    }
+
+    @Override
+    public void replaceSessionArtifacts(
+            String managerUserId,
+            String purpose,
+            String clientRequestId,
+            List<Uri> fileUris,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        withDashboard(managerUserId, callback, dashboard -> sessionClient.replaceArtifacts(
+                dashboard.getSession().getId(),
+                purpose,
+                clientRequestId,
+                fileUris,
+                new RepositoryCallback<org.json.JSONObject>() {
+                    @Override
+                    public void onSuccess(org.json.JSONObject result) {
+                        getManagerDashboard(managerUserId, callback);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }));
+    }
+
+    @Override
+    public void clearSessionArtifacts(
+            String managerUserId,
+            String purpose,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        withDashboard(managerUserId, callback, dashboard -> sessionClient.clearArtifacts(
+                dashboard.getSession().getId(),
+                purpose,
+                new RepositoryCallback<org.json.JSONObject>() {
+                    @Override
+                    public void onSuccess(org.json.JSONObject result) {
+                        getManagerDashboard(managerUserId, callback);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        callback.onError(message);
+                    }
+                }));
     }
 
     @Override
@@ -526,6 +581,10 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                     && session.getStatus() != SessionStatus.CANCELED) {
                 return session;
             }
+            if (session.getStatus() == SessionStatus.COMPLETED
+                    && session.requiresReportRetry()) {
+                return session;
+            }
         }
         return null;
     }
@@ -540,30 +599,23 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                     @Override
                     public void onSuccess(AppointmentRequest appointment) {
                         CompanionSession session = sessionSnapshot.merge(null, appointment.getId());
+                        if (!shouldEnrichDashboardWithRealtime(sessionSnapshot)) {
+                            callback.onSuccess(toDashboard(
+                                    appointment,
+                                    session,
+                                    sessionSnapshot));
+                            return;
+                        }
                         sessionClient.enrichWithRealtime(
                                 sessionSnapshot,
                                 session,
                                 new RepositoryCallback<CompanionSession>() {
                                     @Override
                                     public void onSuccess(CompanionSession realtimeSession) {
-                                        callback.onSuccess(new ManagerDashboard(
-                                                toManager(appointment),
-                                                toParticipant(
-                                                        appointment.getPatientUserId(),
-                                                        UserRole.PATIENT,
-                                                        appointment.getPatientName(),
-                                                        appointment.getPatientEmail(),
-                                                        appointment.getPatientPhone()),
-                                                toParticipant(
-                                                        appointment.getGuardianUserId(),
-                                                        UserRole.GUARDIAN,
-                                                        appointment.getGuardianName(),
-                                                        appointment.getGuardianEmail(),
-                                                        appointment.getGuardianPhone()),
+                                        callback.onSuccess(toDashboard(
                                                 appointment,
                                                 realtimeSession,
-                                                resolveHospitalGuide(sessionSnapshot, appointment),
-                                                null));
+                                                sessionSnapshot));
                                     }
 
                                     @Override
@@ -600,26 +652,12 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                     @Override
                     public void onSuccess(AppointmentRequest appointment) {
                         CompanionSession session = sessionSnapshot.merge(null, appointment.getId());
-                        sessionClient.getReport(
-                                sessionSnapshot,
-                                new RepositoryCallback<CoreApiCompanionSessionClient.ReportSnapshot>() {
-                                    @Override
-                                    public void onSuccess(
-                                            CoreApiCompanionSessionClient.ReportSnapshot report
-                                    ) {
-                                        output.add(toHistoryDetail(
-                                                appointment,
-                                                session,
-                                                report.toModel(session.getId()),
-                                                sessionSnapshot));
-                                        loadHistory(sessions, index + 1, output, callback);
-                                    }
-
-                                    @Override
-                                    public void onError(String message) {
-                                        callback.onError(message);
-                                    }
-                                });
+                        output.add(toHistoryDetail(
+                                appointment,
+                                session,
+                                null,
+                                sessionSnapshot));
+                        loadHistory(sessions, index + 1, output, callback);
                     }
 
                     @Override
@@ -627,6 +665,37 @@ public final class CoreApiManagerRepository implements ManagerRepository {
                         callback.onError(message);
                     }
                 });
+    }
+
+    static boolean shouldEnrichDashboardWithRealtime(
+            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
+    ) {
+        return sessionSnapshot != null && !sessionSnapshot.hasCareEnded();
+    }
+
+    private ManagerDashboard toDashboard(
+            AppointmentRequest appointment,
+            CompanionSession session,
+            CoreApiCompanionSessionClient.SessionSnapshot sessionSnapshot
+    ) {
+        return new ManagerDashboard(
+                toManager(appointment),
+                toParticipant(
+                        appointment.getPatientUserId(),
+                        UserRole.PATIENT,
+                        appointment.getPatientName(),
+                        appointment.getPatientEmail(),
+                        appointment.getPatientPhone()),
+                toParticipant(
+                        appointment.getGuardianUserId(),
+                        UserRole.GUARDIAN,
+                        appointment.getGuardianName(),
+                        appointment.getGuardianEmail(),
+                        appointment.getGuardianPhone()),
+                appointment,
+                session,
+                resolveHospitalGuide(sessionSnapshot, appointment),
+                null);
     }
 
     private AppointmentRequestDetail toHistoryDetail(
