@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Notion 정책 충돌 해소 결과 (2026-08-30)](notion-policy-conflict-resolution-2026-08-30.md)
 - [Issue 296 성인 환자 보호자 동의·철회 구현 (2026-08-29)](issue-296-adult-patient-guardian-consent-2026-08-29.md)
 - [Issue 374 성인 환자·보호자 정보공유 판정 계약 (2026-08-28)](issue-374-adult-patient-guardian-sharing-contract-2026-08-28.md)
 - [Issue 307 승인 입력 범위 구현 기록 (2026-08-28)](issue-307-guide-input-slice-2026-08-28.md)
