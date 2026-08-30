@@ -338,11 +338,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 new RepositoryCallback<ManagerHomeProfile>() {
                     @Override
                     public void onSuccess(ManagerHomeProfile result) {
-                        Toast.makeText(
-                                ManagerDocumentRegistrationActivity.this,
-                                R.string.manager_document_registration_request_success,
-                                Toast.LENGTH_SHORT
-                        ).show();
+                        ManagerQualificationCompletionDialog.show(
+                                ManagerDocumentRegistrationActivity.this
+                        );
                         loadOverview();
                     }
 

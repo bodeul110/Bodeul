@@ -5,4 +5,7 @@
     <string name="figma_manager_qualification_close_description">닫기</string>
     <string name="figma_manager_qualification_privacy_badge">개인정보 보호 · 암호화 저장</string>
     <string name="figma_manager_qualification_skip">다음에 인증하기</string>
+    <string name="figma_manager_qualification_complete_title">인증 요청 완료</string>
+    <string name="figma_manager_qualification_complete_body">서류 제출이 정상적으로 완료되었습니다.\n영업일 기준 이틀 이내로 승인 여부를 안내해 드릴 예정입니다.\n조금만 기다려 주세요!</string>
+    <string name="figma_manager_qualification_complete_confirm">확인</string>
 </resources>
