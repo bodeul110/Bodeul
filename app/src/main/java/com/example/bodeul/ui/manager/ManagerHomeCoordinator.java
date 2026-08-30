@@ -133,18 +133,18 @@ public final class ManagerHomeCoordinator {
     private List<ManagerHomePromoCardModel> createPromoCards() {
         List<ManagerHomePromoCardModel> promoCards = new ArrayList<>();
         promoCards.add(new ManagerHomePromoCardModel(
-                R.drawable.bg_service_thumb_warm,
+                R.drawable.manager_service_intro_safe,
                 context.getString(R.string.manager_home_card_waiting),
                 R.drawable.bg_badge_blue,
-                R.color.bodeul_primary,
+                R.color.figma_mvp_primary,
                 context.getString(R.string.manager_home_service_card_title),
                 context.getString(R.string.manager_home_service_card_body)
         ));
         promoCards.add(new ManagerHomePromoCardModel(
-                R.drawable.bg_service_thumb_cool,
+                R.drawable.manager_service_intro_ai,
                 context.getString(R.string.guide_actions_title),
                 R.drawable.bg_badge_green,
-                R.color.bodeul_success,
+                R.color.figma_mvp_gold_text,
                 context.getString(R.string.manager_home_service_card_secondary_title),
                 context.getString(R.string.manager_home_service_card_secondary_body)
         ));
