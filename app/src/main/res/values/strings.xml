@@ -1256,7 +1256,7 @@
     <string name="manager_document_registration_request_done_button">인증 완료</string>
     <string name="manager_document_registration_request_disabled_button">자격 증빙 1종 업로드 후 요청 가능</string>
     <string name="manager_document_registration_request_missing_required">간호사 면허증 또는 현재 직무 관련 자격 증빙 중 정확히 1종을 업로드한 뒤 인증을 요청해주세요.</string>
-    <string name="manager_document_registration_submission_in_progress">인증 요청을 제출하고 있습니다. 잠시만 기다려주세요.</string>
+    <string name="manager_document_registration_operation_in_progress">자격 증빙 작업을 처리하고 있습니다. 잠시만 기다려주세요.</string>
     <string name="manager_document_registration_request_success">인증 요청을 전송했습니다.</string>
     <string name="manager_document_registration_upload_saved">%1$s 파일을 저장했습니다.</string>
     <string name="manager_document_registration_request_summary_format">%1$s 원본 업로드 완료</string>

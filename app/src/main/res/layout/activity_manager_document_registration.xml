@@ -466,7 +466,7 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:text="@string/figma_manager_qualification_skip"
-                android:textColor="@color/figma_mvp_text_tertiary"
+                android:textColor="@color/figma_mvp_text_hint"
                 android:textSize="13sp" />
         </LinearLayout>
     </FrameLayout>
