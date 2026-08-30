@@ -36,7 +36,7 @@
                 android:layout_marginTop="30dp"
                 android:fontFamily="@font/pretendard_bold"
                 android:includeFontPadding="false"
-                android:letterSpacing="-0.025"
+                android:letterSpacing="0"
                 android:text="@string/role_select_title"
                 android:textColor="@color/figma_mvp_text_primary"
                 android:textSize="36sp" />
@@ -63,6 +63,8 @@
                 app:cardCornerRadius="48dp"
                 app:cardElevation="4dp"
                 app:cardPreventCornerOverlap="false"
+                android:checkable="true"
+                app:checkedIcon="@null"
                 app:strokeColor="@color/figma_mvp_primary"
                 app:strokeWidth="2dp">
 
@@ -169,6 +171,8 @@
                 app:cardCornerRadius="48dp"
                 app:cardElevation="4dp"
                 app:cardPreventCornerOverlap="false"
+                android:checkable="true"
+                app:checkedIcon="@null"
                 app:strokeColor="@android:color/transparent"
                 app:strokeWidth="0dp">
 

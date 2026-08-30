@@ -53,7 +53,7 @@
                 android:layout_marginTop="30dp"
                 android:fontFamily="@font/pretendard_bold"
                 android:includeFontPadding="false"
-                android:letterSpacing="-0.025"
+                android:letterSpacing="0"
                 android:text="@string/figma_permission_title"
                 android:textColor="@color/figma_mvp_text_primary"
                 android:textSize="30sp" />

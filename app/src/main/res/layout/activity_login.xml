@@ -298,7 +298,7 @@
                 android:includeFontPadding="false"
                 android:letterSpacing="0.1"
                 android:text="@string/figma_login_social_divider"
-                android:textColor="@color/figma_mvp_text_disabled"
+                android:textColor="@color/figma_mvp_text_hint"
                 android:textSize="12sp" />
 
             <View
@@ -378,7 +378,7 @@
             android:includeFontPadding="false"
             android:lineSpacingExtra="2dp"
             android:text="@string/figma_login_copyright"
-            android:textColor="@color/figma_mvp_text_disabled"
+            android:textColor="@color/figma_mvp_text_hint"
             android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>

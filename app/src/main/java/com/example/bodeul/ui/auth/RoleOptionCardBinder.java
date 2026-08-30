@@ -6,6 +6,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
 
 import com.example.bodeul.R;
 import com.google.android.material.card.MaterialCardView;
@@ -32,6 +33,16 @@ public final class RoleOptionCardBinder {
     }
 
     public void render(boolean selected) {
+        cardView.setChecked(selected);
+        cardView.setSelected(selected);
+        ViewCompat.setStateDescription(
+                cardView,
+                context.getString(
+                        selected
+                                ? R.string.role_selection_state_selected
+                                : R.string.role_selection_state_not_selected
+                )
+        );
         cardView.setStrokeWidth(dpToPx(selected ? 2 : 0));
         cardView.setStrokeColor(ContextCompat.getColor(
                 context,
