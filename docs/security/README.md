@@ -14,5 +14,6 @@
 ## 같이 볼 문서
 
 - [관리자 권한 QA 체크리스트](../operations/admin-access-qa-checklist.md)
+- [예약 공개 코드 계약](../architecture/appointment-public-code.md)
 - [Firebase 설정](../operations/firebase/setup.md)
 - [프로젝트 전체 점검 보고서](../reports/project-check-2026-06-23.md)

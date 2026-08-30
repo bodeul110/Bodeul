@@ -640,6 +640,7 @@
     <string name="guide_hero_title_format">%1$s 환자 동행</string>
     <string name="guide_hero_title_empty">현재 동행 중인 일정이 없습니다.</string>
     <string name="guide_hero_body_format">%1$s · %2$s\n예약 %3$s\n만남 장소 %4$s\n보호자 %5$s</string>
+    <string name="guide_hero_public_code_format">%1$s\n예약 코드 %2$s</string>
     <string name="guide_hero_body_empty">매칭이 완료되면 병원, 일정, 보호자 연락처가 이 영역에 정리됩니다.</string>
     <string name="guide_hero_note_format">요청 사항: %1$s</string>
     <string name="guide_hero_note_empty">아직 전달된 요청 사항이 없습니다. 일정이 잡히면 보호자 요청과 주의 사항이 함께 표시됩니다.</string>
@@ -880,6 +881,7 @@
     <string name="booking_status_stage_section">진행 단계</string>
     <string name="booking_status_next_section">다음 안내</string>
     <string name="booking_status_line_patient">환자</string>
+    <string name="booking_status_line_public_code">예약 코드</string>
     <string name="booking_status_line_guardian">보호자</string>
     <string name="booking_status_line_manager">담당 매니저</string>
     <string name="booking_status_line_schedule">예약 시간</string>

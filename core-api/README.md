@@ -115,6 +115,8 @@ V4 migration은 `app_users`의 최소 프로필 컬럼과 Core runtime의 예약
 
 V16의 진료 전 확인값 저장은 롤링 배포 호환을 위해 서버 진행 차단과 분리한다. `BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT`의 기본값은 `false`이며, 이 상태에서는 구버전 앱도 기존처럼 진행할 수 있다. V16 migration과 Core API를 먼저 배포하고 새 Android의 저장·재진입을 검증한 뒤 별도 승인을 받아 `true`로 바꾼다. 설정을 켜면 서비스의 `STEP_INPUT_REQUIRED` 판정과 repository의 동시 진행 방지 SQL 조건이 함께 적용된다.
 
+V19는 예약에 `BD-` + 영문 대문자·숫자 6자리의 `publicCode`를 추가한다. Core API가 생성 시 발급하고 DB unique 충돌이면 최대 5회 재시도한다. 이 값은 신청자와 배정 매니저의 기존 목록·상세 응답에만 포함되는 표시용 코드이며, 연결 참여자가 신청자가 아니면 응답에서 빈 값으로 가린다. 내부 UUID 또는 인가 관계를 대체하지 않으며, 관리자 정확 검색과 감사는 별도 관리자 웹 서버가 `bodeul.search_appointment_by_public_code` 함수로 처리한다.
+
 리포트 저장은 예약과 세션을 함께 `COMPLETED`로 바꾸며, 매칭된 예약 취소는 활성 세션을 함께 `CANCELED`로 바꾼다. 어느 한쪽 갱신이라도 실패하면 Spring transaction 전체를 rollback한다.
 
 ## 연결 원칙

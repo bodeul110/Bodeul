@@ -23,6 +23,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
             select
                 id,
                 firestore_id,
+                public_code,
                 patient_user_id,
                 guardian_user_id,
                 manager_user_id,
@@ -140,10 +141,11 @@ class JdbcAppointmentRepository implements AppointmentRepository {
     }
 
     @Override
-    public Optional<AppointmentRecord> insert(AppointmentMutation mutation) {
+    public Optional<AppointmentRecord> insert(AppointmentMutation mutation, String publicCode) {
         String sql = """
                 insert into bodeul.appointment_requests (
                     client_request_id,
+                    public_code,
                     patient_user_id,
                     guardian_user_id,
                     requester_user_id,
@@ -185,6 +187,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     updated_at
                 ) values (
                     :clientRequestId,
+                    :publicCode,
                     :patientUserId,
                     :guardianUserId,
                     :requesterUserId,
@@ -225,12 +228,10 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     now(),
                     now()
                 )
-                on conflict (requester_user_id, client_request_id)
-                    where client_request_id is not null
-                do nothing
+                on conflict do nothing
                 returning
                 """ + RETURNING_COLUMNS;
-        return queryOne(sql, parameters(mutation));
+        return queryOne(sql, parameters(mutation).addValue("publicCode", publicCode));
     }
 
     @Override
@@ -508,6 +509,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
         return new AppointmentRecord(
                 resultSet.getObject("id", UUID.class),
                 resultSet.getString("firestore_id"),
+                resultSet.getString("public_code"),
                 resultSet.getObject("patient_user_id", UUID.class),
                 resultSet.getObject("guardian_user_id", UUID.class),
                 resultSet.getObject("manager_user_id", UUID.class),

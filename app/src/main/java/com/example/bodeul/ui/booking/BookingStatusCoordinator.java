@@ -174,6 +174,12 @@ public final class BookingStatusCoordinator {
     private List<BookingStatusLineItem> createSummaryLines(AppointmentRequestDetail detail) {
         AppointmentRequest request = detail.getAppointmentRequest();
         List<BookingStatusLineItem> items = new ArrayList<>();
+        addOptionalLine(
+                items,
+                R.string.booking_status_line_public_code,
+                request.getPublicCode(),
+                true
+        );
         items.add(new BookingStatusLineItem(
                 context.getString(R.string.booking_status_line_schedule),
                 request.getAppointmentAt(),

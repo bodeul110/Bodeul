@@ -71,6 +71,7 @@ public interface AppointmentService {
     record AppointmentView(
             UUID id,
             String legacyFirestoreId,
+            String publicCode,
             UUID patientUserId,
             UUID guardianUserId,
             UUID managerUserId,

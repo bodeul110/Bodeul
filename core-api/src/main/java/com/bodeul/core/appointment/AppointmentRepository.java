@@ -17,7 +17,7 @@ interface AppointmentRepository {
 
     boolean hasCareEnded(UUID appointmentId);
 
-    Optional<AppointmentRecord> insert(AppointmentMutation mutation);
+    Optional<AppointmentRecord> insert(AppointmentMutation mutation, String publicCode);
 
     Optional<AppointmentRecord> update(
             UUID appointmentId,
@@ -73,6 +73,7 @@ interface AppointmentRepository {
     record AppointmentRecord(
             UUID id,
             String firestoreId,
+            String publicCode,
             UUID patientUserId,
             UUID guardianUserId,
             UUID managerUserId,

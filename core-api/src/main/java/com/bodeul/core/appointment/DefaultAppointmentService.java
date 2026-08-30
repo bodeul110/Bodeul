@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import com.bodeul.core.appointment.AppUserProfileRepository.AppUserProfile;
 import com.bodeul.core.appointment.AppointmentRepository.AppointmentMutation;
@@ -39,6 +40,7 @@ class DefaultAppointmentService implements AppointmentService {
             .ofPattern("uuuu-MM-dd HH:mm", Locale.KOREA)
             .withResolverStyle(ResolverStyle.STRICT);
     private static final int BASE_PRICE = 69_000;
+    private static final int PUBLIC_CODE_MAX_ATTEMPTS = 5;
     private static final Set<String> REVIEW_RATINGS = Set.of(
             "excellent", "good", "ok", "disappointing", "need_help");
     private static final Set<String> SETTLEMENT_STATUSES = Set.of(
@@ -50,13 +52,20 @@ class DefaultAppointmentService implements AppointmentService {
     private final AppUserProfileRepository profileRepository;
     private final GuardianSharingConsentAccess consentAccess;
     private final Clock clock;
+    private final Supplier<String> publicCodeSupplier;
 
     @Autowired
     DefaultAppointmentService(
             AppointmentRepository appointmentRepository,
             AppUserProfileRepository profileRepository,
-            GuardianSharingConsentAccess consentAccess) {
-        this(appointmentRepository, profileRepository, consentAccess, Clock.systemUTC());
+            GuardianSharingConsentAccess consentAccess,
+            AppointmentPublicCodeGenerator publicCodeGenerator) {
+        this(
+                appointmentRepository,
+                profileRepository,
+                consentAccess,
+                Clock.systemUTC(),
+                publicCodeGenerator::nextCode);
     }
 
     DefaultAppointmentService(
@@ -64,10 +73,25 @@ class DefaultAppointmentService implements AppointmentService {
             AppUserProfileRepository profileRepository,
             GuardianSharingConsentAccess consentAccess,
             Clock clock) {
+        this(
+                appointmentRepository,
+                profileRepository,
+                consentAccess,
+                clock,
+                new AppointmentPublicCodeGenerator()::nextCode);
+    }
+
+    DefaultAppointmentService(
+            AppointmentRepository appointmentRepository,
+            AppUserProfileRepository profileRepository,
+            GuardianSharingConsentAccess consentAccess,
+            Clock clock,
+            Supplier<String> publicCodeSupplier) {
         this.appointmentRepository = appointmentRepository;
         this.profileRepository = profileRepository;
         this.consentAccess = consentAccess;
         this.clock = clock;
+        this.publicCodeSupplier = publicCodeSupplier;
     }
 
     @Override
@@ -77,7 +101,7 @@ class DefaultAppointmentService implements AppointmentService {
         return appointmentRepository.findAllForParticipant(appUser.id(), appUser.role())
                 .stream()
                 .filter(appointment -> guardianCanReadAppointment(appUser, appointment))
-                .map(appointment -> toView(appUser, appointment))
+                .map(appointment -> toViewForReader(appUser, appointment))
                 .toList();
     }
 
@@ -89,7 +113,7 @@ class DefaultAppointmentService implements AppointmentService {
         requireReadableRole(appUser);
         AppointmentRecord appointment = findAppointment(appointmentId);
         requireReader(appUser, appointment);
-        return toView(appUser, appointment);
+        return toViewForReader(appUser, appointment);
     }
 
     @Override
@@ -110,7 +134,7 @@ class DefaultAppointmentService implements AppointmentService {
                 appUser.id(),
                 command.clientRequestId());
         if (existing.isPresent()) {
-            return toView(appUser, existing.get());
+            return toViewForReader(appUser, existing.get());
         }
 
         ParticipantPair participants = resolveParticipants(appUser, draft);
@@ -123,11 +147,19 @@ class DefaultAppointmentService implements AppointmentService {
                 draft,
                 price);
 
-        return appointmentRepository.insert(mutation)
-                .or(() -> appointmentRepository.findByClientRequestId(
-                        appUser.id(), command.clientRequestId()))
-                .map(appointment -> toView(appUser, appointment))
-                .orElseThrow(AppointmentException::versionConflict);
+        for (int attempt = 0; attempt < PUBLIC_CODE_MAX_ATTEMPTS; attempt++) {
+            var inserted = appointmentRepository.insert(mutation, publicCodeSupplier.get());
+            if (inserted.isPresent()) {
+                return toViewForReader(appUser, inserted.get());
+            }
+
+            var idempotentResult = appointmentRepository.findByClientRequestId(
+                    appUser.id(), command.clientRequestId());
+            if (idempotentResult.isPresent()) {
+                return toViewForReader(appUser, idempotentResult.get());
+            }
+        }
+        throw AppointmentException.publicCodeUnavailable();
     }
 
     @Override
@@ -170,7 +202,7 @@ class DefaultAppointmentService implements AppointmentService {
                 requester);
 
         return appointmentRepository.update(appointmentId, command.version(), mutation)
-                .map(appointment -> toView(appUser, appointment))
+                .map(appointment -> toViewForReader(appUser, appointment))
                 .orElseThrow(AppointmentException::versionConflict);
     }
 
@@ -206,7 +238,7 @@ class DefaultAppointmentService implements AppointmentService {
         Instant cancellationBoundary = appointmentRepository.findCancellationBoundary(appointmentId)
                 .orElseThrow(AppointmentException::stateConflict);
         consentAccess.finalizeExpiryAfterCareBoundary(appointmentId, cancellationBoundary);
-        return toView(appUser, canceled);
+        return toViewForReader(appUser, canceled);
     }
 
     @Override
@@ -599,19 +631,23 @@ class DefaultAppointmentService implements AppointmentService {
                 "ON_SITE".equals(draft.paymentMethodCode()) ? "DEFERRED" : "PENDING");
     }
 
-    private AppointmentView toView(
+    private AppointmentView toViewForReader(
             AppUserRepository.AppUser appUser,
             AppointmentRecord appointment) {
         boolean guardianView = appUser.role() == AppUserRole.GUARDIAN;
         boolean managerViewAfterCareEnded = appUser.role() == AppUserRole.MANAGER
                 && appointmentRepository.hasCareEnded(appointment.id());
         boolean redactCareDetails = guardianView || managerViewAfterCareEnded;
+        boolean canReadPublicCode = appUser.id().equals(appointment.requesterUserId())
+                || (appUser.role() == AppUserRole.MANAGER
+                && appUser.id().equals(appointment.managerUserId()));
         AppUserProfile manager = guardianView || appointment.managerUserId() == null
                 ? null
                 : profileRepository.findById(appointment.managerUserId()).orElse(null);
         return new AppointmentView(
                 appointment.id(),
                 guardianView ? "" : nullToEmpty(appointment.firestoreId()),
+                canReadPublicCode ? nullToEmpty(appointment.publicCode()) : "",
                 guardianView ? null : appointment.patientUserId(),
                 guardianView ? null : appointment.guardianUserId(),
                 guardianView ? null : appointment.managerUserId(),

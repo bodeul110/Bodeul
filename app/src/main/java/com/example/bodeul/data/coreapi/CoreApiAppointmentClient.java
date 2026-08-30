@@ -368,6 +368,7 @@ final class CoreApiAppointmentClient {
                 optText(item, "managerName"),
                 optText(item, "managerPhone"),
                 optText(item, "managerEmail"));
+        request.setPublicCode(optText(item, "publicCode"));
         AppointmentReference reference = new AppointmentReference(
                 coreId,
                 legacyFirestoreId,

@@ -67,6 +67,7 @@ class AppointmentApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.appointments[0].id").value(APPOINTMENT_ID.toString()))
+                .andExpect(jsonPath("$.appointments[0].publicCode").value("BD-ABC123"))
                 .andExpect(jsonPath("$.appointments[0].managerName").value("매니저 사용자"))
                 .andExpect(jsonPath("$.appointments[0].version").value(2));
 
@@ -215,6 +216,7 @@ class AppointmentApiIntegrationTests {
         return new AppointmentService.AppointmentView(
                 APPOINTMENT_ID,
                 "",
+                "BD-ABC123",
                 USER_ID,
                 null,
                 MANAGER_ID,

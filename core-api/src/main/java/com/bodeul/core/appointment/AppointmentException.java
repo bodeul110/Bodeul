@@ -97,6 +97,13 @@ final class AppointmentException extends RuntimeException {
                 "다른 변경이 먼저 반영되었습니다. 최신 예약 정보를 다시 확인해 주세요.");
     }
 
+    static AppointmentException publicCodeUnavailable() {
+        return new AppointmentException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "appointment_public_code_unavailable",
+                "예약 코드를 발급하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+
     HttpStatus status() {
         return status;
     }

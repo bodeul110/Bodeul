@@ -79,7 +79,7 @@ public final class ManagerGuidePresentationFormatter {
         String place = TextUtils.isEmpty(dashboard.getAppointmentRequest().getMeetingPlace())
                 ? context.getString(R.string.booking_status_place_missing)
                 : dashboard.getAppointmentRequest().getMeetingPlace();
-        return context.getString(
+        String body = context.getString(
                 R.string.guide_hero_body_format,
                 dashboard.getAppointmentRequest().getHospitalName(),
                 dashboard.getAppointmentRequest().getDepartmentName(),
@@ -87,6 +87,11 @@ public final class ManagerGuidePresentationFormatter {
                 place,
                 buildGuardianContact(dashboard.getGuardian())
         );
+        String publicCode = dashboard.getAppointmentRequest().getPublicCode();
+        if (TextUtils.isEmpty(publicCode)) {
+            return body;
+        }
+        return context.getString(R.string.guide_hero_public_code_format, body, publicCode);
     }
 
     public String buildHeroNote(ManagerDashboard dashboard) {

@@ -24,6 +24,7 @@ SQL
 
 createdb bodeul_guide_empty
 createdb bodeul_guide_upgrade
+createdb bodeul_appointment_public_code
 
 bootstrap_database() {
     local database="$1"
@@ -73,3 +74,12 @@ psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
     --file db/rollback/V14__restore_live_companion_guides.sql
 psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/009_companion_guide_snapshot_rollback_checks.sql
+
+bootstrap_database bodeul_appointment_public_code
+migrate_database bodeul_appointment_public_code
+psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
+    --file db/verification/012_appointment_public_code_checks.sql
+psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
+    --file db/rollback/V19__remove_appointment_public_code.sql
+psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
+    --file db/verification/013_appointment_public_code_rollback_checks.sql
