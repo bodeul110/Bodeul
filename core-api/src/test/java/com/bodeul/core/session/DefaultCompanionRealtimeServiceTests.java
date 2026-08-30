@@ -65,6 +65,86 @@ class DefaultCompanionRealtimeServiceTests {
     }
 
     @Test
+    void careEndedPatientKeepsRetainedChatButCannotSeeLocation() {
+        sessionRepository.session = Optional.of(session("CARE_ENDED"));
+        realtimeRepository.messages = List.of(message("보관 중인 메시지"));
+        realtimeRepository.locations = List.of(location());
+        realtimeRepository.attachment = Optional.of(attachment());
+
+        var snapshot = service.getSnapshot(patient(), SESSION_ID);
+        var guardianSnapshot = service.getSnapshot(guardian(), SESSION_ID);
+
+        assertThat(snapshot.messages()).singleElement()
+                .extracting("body")
+                .isEqualTo("보관 중인 메시지");
+        assertThat(snapshot.locations()).isEmpty();
+        assertThat(guardianSnapshot.messages()).hasSize(1);
+        assertThat(guardianSnapshot.locations()).isEmpty();
+        assertThat(service.getAttachment(patient(), SESSION_ID, ATTACHMENT_ID).id())
+                .isEqualTo(ATTACHMENT_ID);
+        assertThat(service.getAttachment(guardian(), SESSION_ID, ATTACHMENT_ID).id())
+                .isEqualTo(ATTACHMENT_ID);
+    }
+
+    @Test
+    void careEndedManagerCannotReadRetainedRealtimeData() {
+        sessionRepository.session = Optional.of(session("CARE_ENDED"));
+        realtimeRepository.messages = List.of(message("환자와 보호자에게만 보이는 메시지"));
+        realtimeRepository.attachment = Optional.of(attachment());
+
+        assertThatThrownBy(() -> service.getSnapshot(manager(), SESSION_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+        assertThatThrownBy(() -> service.getAttachment(manager(), SESSION_ID, ATTACHMENT_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
+    void careEndedSessionRejectsNewChatAttachmentAndLocationWrites() {
+        sessionRepository.session = Optional.of(session("CARE_ENDED"));
+        var message = new CompanionRealtimeService.PostMessageCommand(
+                UUID.randomUUID(),
+                "종료 후 메시지",
+                List.of());
+
+        assertThatThrownBy(() -> service.postMessage(patient(), SESSION_ID, message))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+        assertThatThrownBy(() -> service.validateAttachmentWrite(patient(), SESSION_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+        assertThatThrownBy(() -> service.postLocation(manager(), SESSION_ID, locationCommand()))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+    }
+
+    @Test
+    void careEndedTimestampClosesRealtimeWhileLegacyStatusIsStillActive() {
+        sessionRepository.session = Optional.of(withCareEndedAt(session("IN_TREATMENT")));
+        realtimeRepository.locations = List.of(location());
+        var message = new CompanionRealtimeService.PostMessageCommand(
+                UUID.randomUUID(),
+                "호환 모드 종료 후 메시지",
+                List.of());
+
+        assertThat(service.getSnapshot(patient(), SESSION_ID).locations()).isEmpty();
+        assertThatThrownBy(() -> service.postMessage(patient(), SESSION_ID, message))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_state_conflict");
+        assertThatThrownBy(() -> service.getSnapshot(manager(), SESSION_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
     void unrelatedParticipantCannotReadSnapshot() {
         var unrelatedPatient = user(UUID.randomUUID(), AppUserRole.PATIENT);
 
@@ -327,6 +407,23 @@ class DefaultCompanionRealtimeServiceTests {
                 "HOSPITAL_GUIDE_STEP_CODE_V1",
                 true,
                 steps);
+    }
+
+    private CompanionSessionRepository.SessionRecord withCareEndedAt(
+            CompanionSessionRepository.SessionRecord current) {
+        return new CompanionSessionRepository.SessionRecord(
+                current.id(), current.firestoreId(), current.appointmentRequestId(),
+                current.managerUserId(), current.patientUserId(), current.guardianUserId(),
+                current.currentStepOrder(), current.totalStepCount(), current.guideSnapshot(),
+                current.currentStatus(), current.guardianUpdate(), current.locationSummary(),
+                current.fieldPhotoNote(), current.medicationNote(), current.pharmacySummary(),
+                current.preConsultationConfirmed(), current.prescriptionCollected(),
+                current.pharmacyCompleted(), current.medicationGuidanceCompleted(),
+                current.liveLocationSharingActive(), current.liveLocationSharingStartedAt(),
+                current.locationAlertStage(), current.locationAlertSentAt(), current.version(),
+                current.startedAt(), current.completedAt(), current.canceledAt(),
+                Instant.parse("2026-07-18T01:00:00Z"), "", "NOT_REQUESTED", 0, "", null,
+                List.of());
     }
 
     private CompanionRealtimeRepository.ChatMessageRecord message(String body) {

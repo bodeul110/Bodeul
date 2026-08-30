@@ -64,6 +64,11 @@ class JdbcCompanionRealtimeRepository implements CompanionRealtimeRepository {
                 MESSAGE_SELECT + """
                         where companion_session_id = :sessionId
                           and deleted_at is null
+                          and (
+                            expires_at is null
+                            or expires_at > now()
+                            or legal_hold_until > now()
+                          )
                         order by sent_at desc, id desc
                         limit :limit
                         """,

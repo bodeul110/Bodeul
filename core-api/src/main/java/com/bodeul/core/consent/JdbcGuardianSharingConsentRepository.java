@@ -52,9 +52,16 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
     @Override
     public Optional<AppointmentContext> findAppointment(UUID appointmentRequestId) {
         return jdbcClient.sql("""
-                        select id, patient_user_id, guardian_user_id, appointment_at, status
-                        from bodeul.appointment_requests
-                        where id = :appointmentRequestId
+                        select appointment.id,
+                               appointment.patient_user_id,
+                               appointment.guardian_user_id,
+                               appointment.appointment_at,
+                               appointment.status,
+                               session.care_ended_at
+                        from bodeul.appointment_requests as appointment
+                        left join bodeul.companion_sessions as session
+                          on session.appointment_request_id = appointment.id
+                        where appointment.id = :appointmentRequestId
                         """)
                 .param("appointmentRequestId", appointmentRequestId)
                 .query((resultSet, rowNumber) -> new AppointmentContext(
@@ -62,7 +69,10 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                         resultSet.getObject("patient_user_id", UUID.class),
                         resultSet.getObject("guardian_user_id", UUID.class),
                         resultSet.getTimestamp("appointment_at").toInstant(),
-                        resultSet.getString("status")))
+                        resultSet.getString("status"),
+                        resultSet.getTimestamp("care_ended_at") == null
+                                ? null
+                                : resultSet.getTimestamp("care_ended_at").toInstant()))
                 .optional();
     }
 
@@ -122,10 +132,11 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                             expires_at = excluded.expires_at,
                             care_ended_at = null,
                             expiry_finalized = false,
-                            revoked_by_user_id = null,
-                            revoked_at = null,
-                            version = bodeul.guardian_sharing_consents.version + 1,
-                            updated_at = now()
+                             revoked_by_user_id = null,
+                             revoked_at = null,
+                             version = bodeul.guardian_sharing_consents.version + 1,
+                             updated_at = now()
+                        where not bodeul.guardian_sharing_consents.expiry_finalized
                         """ + RETURNING_COLUMNS)
                 .param("id", requestedGrant.id())
                 .param("appointmentRequestId", requestedGrant.appointmentRequestId())
@@ -138,7 +149,8 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                 .param("grantedAt", requestedGrant.grantedAt())
                 .param("expiresAt", requestedGrant.expiresAt())
                 .query(this::mapGrant)
-                .single();
+                .optional()
+                .orElseThrow(GuardianSharingConsentException::stateConflict);
     }
 
     @Override

@@ -192,6 +192,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         requireManagerAssignment(appUser, existing);
         if (existing.careEndedAt() != null
                 && !"CANCELED".equals(existing.currentStatus())) {
+            consentAccess.finalizeExpiryAfterCareBoundary(
+                    existing.appointmentRequestId(),
+                    existing.careEndedAt());
             return toView(appUser, existing);
         }
         requireMutable(existing, version);
@@ -199,14 +202,17 @@ class DefaultCompanionSessionService implements CompanionSessionService {
             throw CompanionSessionException.stateConflict();
         }
 
-        return sessionRepository.endCare(
+        SessionRecord ended = sessionRepository.endCare(
                         sessionId,
                         appUser.id(),
                         version,
                         existing.appointmentRequestId(),
                         completionEnforcement)
-                .map(session -> toView(appUser, session))
                 .orElseThrow(CompanionSessionException::versionConflict);
+        consentAccess.finalizeExpiryAfterCareBoundary(
+                ended.appointmentRequestId(),
+                ended.careEndedAt());
+        return toView(appUser, ended);
     }
 
     @Override
@@ -215,6 +221,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         requireReadableRole(appUser);
         SessionRecord session = findSession(sessionId);
         requireReader(appUser, session, InformationScope.REPORT);
+        if (appUser.role() == AppUserRole.MANAGER && hasCareEnded(session)) {
+            throw CompanionSessionException.permissionDenied();
+        }
         return sessionRepository.findReportBySessionId(sessionId)
                 .map(this::toView)
                 .orElseThrow(CompanionSessionException::reportNotFound);
@@ -238,7 +247,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         if ("COMPLETED".equals(existing.currentStatus())
                 && "READY".equals(existing.reportGenerationStatus())) {
             return sessionRepository.findReportBySessionId(sessionId)
-                    .map(this::toView)
+                    .map(this::toManagerSubmissionView)
                     .orElseThrow(CompanionSessionException::reportNotFound);
         }
         if (!retryReport) {
@@ -282,15 +291,18 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                     .orElseThrow(CompanionSessionException::versionConflict);
             consentAccess.finalizeExpiryAfterCareBoundary(
                     existing.appointmentRequestId(),
-                    finalized.completedAt());
+                    finalized.careEndedAt() == null
+                            ? finalized.completedAt()
+                            : finalized.careEndedAt());
             if ("READY".equals(finalized.reportGenerationStatus())) {
                 return sessionRepository.findReportBySessionId(sessionId)
-                        .map(this::toView)
+                        .map(this::toManagerSubmissionView)
                         .orElseThrow(CompanionSessionException::reportNotFound);
             }
         }
         try {
-            return toView(sessionRepository.saveReportAndMarkReady(sessionId, report));
+            return toManagerSubmissionView(
+                    sessionRepository.saveReportAndMarkReady(sessionId, report));
         } catch (RuntimeException exception) {
             try {
                 sessionRepository.markReportGenerationFailed(sessionId, "REPORT_WRITE_FAILED");
@@ -301,7 +313,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 SessionRecord latest = findSession(sessionId);
                 if ("READY".equals(latest.reportGenerationStatus())) {
                     return sessionRepository.findReportBySessionId(sessionId)
-                            .map(this::toView)
+                            .map(this::toManagerSubmissionView)
                             .orElseThrow(CompanionSessionException::reportNotFound);
                 }
             } catch (RuntimeException ignored) {
@@ -497,10 +509,14 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 session.patientUserId(),
                 session.guardianUserId())
                 : Set.of(InformationScope.values());
-        boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT);
-        boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION);
-        boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT);
+        boolean managerCareEnded = appUser.role() == AppUserRole.MANAGER
+                && hasCareEnded(session);
+        boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT) && !managerCareEnded;
+        boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION) && !managerCareEnded;
+        boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT)
+                && !managerCareEnded;
         boolean reportAllowed = allowedScopes.contains(InformationScope.REPORT);
+        boolean healthAllowed = reportAllowed && !managerCareEnded;
         String exposedBlockedReason = !reportAllowed
                 && REPORT_RETRY_REQUIRED.equals(progress.blockedReason())
                 ? SESSION_TERMINAL
@@ -520,12 +536,12 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 chatAllowed ? session.guardianUpdate() : "",
                 locationAllowed ? session.locationSummary() : "",
                 attachmentAllowed ? session.fieldPhotoNote() : "",
-                reportAllowed ? session.medicationNote() : "",
-                reportAllowed ? session.pharmacySummary() : "",
-                reportAllowed && session.preConsultationConfirmed(),
-                reportAllowed && session.prescriptionCollected(),
-                reportAllowed && session.pharmacyCompleted(),
-                reportAllowed && session.medicationGuidanceCompleted(),
+                healthAllowed ? session.medicationNote() : "",
+                healthAllowed ? session.pharmacySummary() : "",
+                healthAllowed && session.preConsultationConfirmed(),
+                healthAllowed && session.prescriptionCollected(),
+                healthAllowed && session.pharmacyCompleted(),
+                healthAllowed && session.medicationGuidanceCompleted(),
                 locationAllowed && session.liveLocationSharingActive(),
                 locationAllowed ? format(session.liveLocationSharingStartedAt()) : "",
                 locationAllowed ? session.locationAlertStage() : "",
@@ -585,6 +601,12 @@ class DefaultCompanionSessionService implements CompanionSessionService {
             return new ProgressState(currentStepCode, false, LAST_STEP_REACHED);
         }
         return new ProgressState(currentStepCode, true, null);
+    }
+
+    private boolean hasCareEnded(SessionRecord session) {
+        return session.careEndedAt() != null
+                || "CARE_ENDED".equals(session.currentStatus())
+                || "COMPLETED".equals(session.currentStatus());
     }
 
     private String currentStepCode(SessionRecord session) {
@@ -659,6 +681,23 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 report.medicationComparisonDecisionCode(),
                 report.medicationComparisonNote(),
                 nextVisit,
+                report.version());
+    }
+
+    private ReportView toManagerSubmissionView(ReportRecord report) {
+        return new ReportView(
+                report.id(),
+                report.firestoreId() == null ? "" : report.firestoreId(),
+                report.companionSessionId(),
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
                 report.version());
     }
 

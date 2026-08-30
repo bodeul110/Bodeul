@@ -117,6 +117,23 @@ class DefaultGuardianSharingConsentServiceTests {
     }
 
     @Test
+    void finalizedCareBoundaryCannotBeReopenedByGrantRetry() {
+        repository.careEndedAt = NOW.minusSeconds(60);
+
+        assertThatThrownBy(() -> service.grant(
+                patient(),
+                APPOINTMENT_ID,
+                Set.of(APPOINTMENT, CHAT),
+                true))
+                .isInstanceOf(GuardianSharingConsentException.class)
+                .extracting(exception -> ((GuardianSharingConsentException) exception).error())
+                .isEqualTo("guardian_sharing_consent_state_conflict");
+
+        assertThat(repository.current).isEmpty();
+        assertThat(repository.events).isEmpty();
+    }
+
+    @Test
     void consentForPreviousGuardianIsNotReturnedAsCurrentConsent() {
         repository.current = Optional.of(new AdultPatientGuardianSharingPolicy.Grant(
                 UUID.randomUUID(),
@@ -170,6 +187,7 @@ class DefaultGuardianSharingConsentServiceTests {
         private Optional<AdultPatientGuardianSharingPolicy.Grant> current = Optional.empty();
         private final List<EventAction> events = new ArrayList<>();
         private boolean expiryFinalized;
+        private Instant careEndedAt;
 
         @Override
         public ConsentSettings getSettings() {
@@ -186,7 +204,8 @@ class DefaultGuardianSharingConsentServiceTests {
                     PATIENT_ID,
                     GUARDIAN_ID,
                     APPOINTMENT_AT,
-                    "REQUESTED"));
+                    "REQUESTED",
+                    careEndedAt));
         }
 
         @Override

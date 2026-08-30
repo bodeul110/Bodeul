@@ -24,19 +24,18 @@ service firebase.storage {
       return signedIn() && request.auth.uid == userId;
     }
 
-    function sessionDoc(sessionId) {
-      return firestore.get(/databases/(default)/documents/companionSessions/$(sessionId));
-    }
-
-    function isSessionParticipant(sessionId) {
+    function canReadRetainedChatAttachment(sessionId) {
       return signedIn()
-          && firestore.exists(
-            /databases/(default)/documents/companionSessions/$(sessionId)
-          )
           && (
             isAdmin()
-            || sessionDoc(sessionId).data.managerUserId == request.auth.uid
-            || sessionDoc(sessionId).data.patientUserId == request.auth.uid
+            || (
+              firestore.exists(
+                /databases/(default)/documents/companionSessions/$(sessionId)
+              )
+              && firestore.get(
+                /databases/(default)/documents/companionSessions/$(sessionId)
+              ).data.patientUserId == request.auth.uid
+            )
           );
     }
 
@@ -62,21 +61,6 @@ service firebase.storage {
           && request.resource.size <= 10485760;
     }
 
-    function isAllowedChatAttachmentContentType() {
-      return request.resource != null
-          && request.resource.contentType is string
-          && (
-            request.resource.contentType == 'application/pdf'
-            || request.resource.contentType.matches('image/.*')
-          );
-    }
-
-    function isAllowedChatAttachmentSize() {
-      return request.resource != null
-          && request.resource.size is int
-          && request.resource.size <= 10485760;
-    }
-
     match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
       allow read: if isAdmin() || (isManager() && isSelf(managerUserId));
       allow write: if isManager()
@@ -87,11 +71,9 @@ service firebase.storage {
     }
 
     match /companion-chat-attachments/{sessionId}/{fileName} {
-      // 보호자는 PostgreSQL 동의를 조회하는 Core API를 거쳐야 하므로 관계만으로 직접 접근할 수 없다.
-      allow read: if isSessionParticipant(sessionId);
-      allow write: if isSessionParticipant(sessionId)
-          && isAllowedChatAttachmentContentType()
-          && isAllowedChatAttachmentSize();
+      // 매니저·보호자 조회와 모든 쓰기는 Core API를 거쳐야 한다. 서버 SDK는 Rules를 우회한다.
+      allow read: if canReadRetainedChatAttachment(sessionId);
+      allow write: if false;
     }
 
     match /{allPaths=**} {

@@ -1078,6 +1078,12 @@ final class CoreApiCompanionSessionClient {
             return status;
         }
 
+        boolean hasCareEnded() {
+            return parseInstantMillis(careEndedAt) > 0L
+                    || status == SessionStatus.CARE_ENDED
+                    || status == SessionStatus.COMPLETED;
+        }
+
         boolean requiresReportRetry() {
             return "FAILED".equals(reportGenerationStatus)
                     || "PENDING".equals(reportGenerationStatus);

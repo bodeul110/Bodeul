@@ -35,7 +35,8 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     private static final int LOCATION_LIMIT = 10;
     private static final int MAX_ATTACHMENTS = 3;
     private static final long MAX_ATTACHMENT_SIZE_BYTES = 10L * 1024L * 1024L;
-    private static final Set<String> TERMINAL_STATUSES = Set.of("COMPLETED", "CANCELED");
+    private static final Set<String> REALTIME_WRITE_CLOSED_STATUSES = Set.of(
+            "CARE_ENDED", "COMPLETED", "CANCELED");
     private static final Set<String> ATTACHMENT_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "application/pdf");
 
@@ -61,6 +62,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             AppUserRepository.AppUser appUser,
             UUID sessionId) {
         SessionRecord session = requireParticipantSession(appUser, sessionId);
+        requireRetainedRealtimeReader(appUser, session);
         Set<InformationScope> allowedScopes = allowedScopes(appUser, session);
         boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT);
         boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT);
@@ -68,7 +70,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         if (!chatAllowed && !locationAllowed) {
             throw CompanionSessionException.permissionDenied();
         }
-        List<LocationView> locations = !locationAllowed || isTerminal(session)
+        List<LocationView> locations = !locationAllowed || isRealtimeWriteClosed(session)
                 ? List.of()
                 : realtimeRepository.findRecentLocations(sessionId, LOCATION_LIMIT)
                         .stream()
@@ -148,6 +150,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             UUID sessionId,
             UUID attachmentId) {
         SessionRecord session = requireParticipantSession(appUser, sessionId);
+        requireRetainedRealtimeReader(appUser, session);
         requireScope(appUser, session, InformationScope.CHAT);
         requireScope(appUser, session, InformationScope.ATTACHMENT);
         if (attachmentId == null) {
@@ -165,6 +168,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             UUID sessionId,
             UUID lastReadMessageId) {
         SessionRecord session = requireParticipantSession(appUser, sessionId);
+        requireRetainedRealtimeReader(appUser, session);
         requireScope(appUser, session, InformationScope.CHAT);
         if (lastReadMessageId == null) {
             throw CompanionSessionException.invalidRequest("마지막으로 읽은 메시지 ID가 필요합니다.");
@@ -183,7 +187,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         requireManager(appUser);
         SessionRecord session = findSession(sessionId);
         requireReader(appUser, session);
-        requireActive(session);
+        requireRealtimeWriteAllowed(session);
         LocationMutation mutation = normalizeLocation(appUser.id(), sessionId, command);
         return realtimeRepository.saveLocation(mutation)
                 .map(this::toView)
@@ -319,7 +323,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             UUID sessionId) {
         SessionRecord session = requireParticipantSession(appUser, sessionId);
         requireScope(appUser, session, InformationScope.CHAT);
-        requireActive(session);
+        requireRealtimeWriteAllowed(session);
         return session;
     }
 
@@ -358,6 +362,14 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         }
     }
 
+    private void requireRetainedRealtimeReader(
+            AppUserRepository.AppUser appUser,
+            SessionRecord session) {
+        if (appUser.role() == AppUserRole.MANAGER && hasCareEnded(session)) {
+            throw CompanionSessionException.permissionDenied();
+        }
+    }
+
     private void requireScope(
             AppUserRepository.AppUser appUser,
             SessionRecord session,
@@ -377,14 +389,21 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
                 session.guardianUserId());
     }
 
-    private void requireActive(SessionRecord session) {
-        if (isTerminal(session)) {
+    private void requireRealtimeWriteAllowed(SessionRecord session) {
+        if (isRealtimeWriteClosed(session)) {
             throw CompanionSessionException.stateConflict();
         }
     }
 
-    private boolean isTerminal(SessionRecord session) {
-        return TERMINAL_STATUSES.contains(session.currentStatus());
+    private boolean isRealtimeWriteClosed(SessionRecord session) {
+        return session.careEndedAt() != null
+                || REALTIME_WRITE_CLOSED_STATUSES.contains(session.currentStatus());
+    }
+
+    private boolean hasCareEnded(SessionRecord session) {
+        return session.careEndedAt() != null
+                || "CARE_ENDED".equals(session.currentStatus())
+                || "COMPLETED".equals(session.currentStatus());
     }
 
     private String normalizeText(String value, int maxLength, String label) {

@@ -22,7 +22,46 @@ end;
 $$;
 SQL
 
+prepare_realtime_schema() {
+    local database="$1"
+    psql --dbname "$database" --set ON_ERROR_STOP=1 <<'SQL'
+create schema realtime authorization postgres;
+create table realtime.messages (
+    id bigint generated always as identity primary key,
+    topic text not null,
+    extension text not null,
+    payload jsonb not null,
+    event text not null,
+    private boolean not null
+);
+alter table realtime.messages enable row level security;
+grant usage on schema realtime to authenticated;
+grant select on realtime.messages to authenticated;
+
+create function realtime.topic() returns text
+language sql stable
+as $$ select current_setting('realtime.topic', true) $$;
+
+create function realtime.send(jsonb, text, text, boolean) returns void
+language plpgsql
+as $$ begin null; end $$;
+SQL
+}
+
+apply_v17_realtime_authorization() {
+    local database="$1"
+    psql --dbname "$database" --set ON_ERROR_STOP=1 \
+        --file db/bootstrap/003_companion_realtime_authorization.sql
+    psql --dbname "$database" --set ON_ERROR_STOP=1 <<'SQL'
+insert into bodeul_realtime_auth.allowed_firebase_projects (project_id)
+values ('bodeul-dev');
+SQL
+    psql --dbname "$database" --set ON_ERROR_STOP=1 \
+        --file db/bootstrap/005_guardian_sharing_realtime_authorization.sql
+}
+
 createdb bodeul_completion_upgrade
+prepare_realtime_schema bodeul_completion_upgrade
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/bootstrap/001_database_access.sql
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
@@ -39,6 +78,8 @@ SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
     SPRING_FLYWAY_TARGET=17 \
     ./gradlew migrateDatabase --console=plain
 
+apply_v17_realtime_authorization bodeul_completion_upgrade
+
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/012_companion_completion_legacy_fixture.sql
 
@@ -46,6 +87,11 @@ env -u SPRING_FLYWAY_TARGET \
     SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
     SPRING_FLYWAY_BASELINE_VERSION=0 \
     ./gradlew migrateDatabase --console=plain
+
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/006_companion_completion_realtime_authorization.sql
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --file db/verification/015_companion_completion_realtime_authorization_scenarios.sql
 
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/013_companion_completion_checks.sql
@@ -84,6 +130,23 @@ expect_rollback_failure() {
 }
 
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --command "update bodeul.guardian_sharing_consents set revoked_by_user_id = patient_user_id, revoked_at = now(), version = version + 1, updated_at = now() where id = '70000000-0000-0000-0000-000000000001'"
+expect_rollback_failure "보호자 동의 변경"
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 <<'SQL'
+alter table bodeul.guardian_sharing_consents
+    disable trigger guard_guardian_consent_care_boundary_before_write;
+update bodeul.guardian_sharing_consents as consent
+set revoked_by_user_id = baseline.original_revoked_by_user_id,
+    revoked_at = baseline.original_revoked_at,
+    version = baseline.expected_version,
+    updated_at = baseline.expected_updated_at
+from bodeul.companion_completion_v18_consent_expiry_baseline as baseline
+where consent.id = baseline.consent_id;
+alter table bodeul.guardian_sharing_consents
+    enable trigger guard_guardian_consent_care_boundary_before_write;
+SQL
+
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --command "update bodeul.companion_sessions set manager_journal = 'baseline 변조' where id = '30000000-0000-0000-0000-000000000001'"
 expect_rollback_failure "baseline 이후 변경"
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
@@ -120,9 +183,12 @@ psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/rollback/V18__merge_companion_care_completion.sql
 psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/rollback/006_companion_completion_realtime_authorization_rollback.sql
+psql --dbname bodeul_completion_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/014_companion_completion_rollback_checks.sql
 
 createdb bodeul_completion_clean_rollback
+prepare_realtime_schema bodeul_completion_clean_rollback
 psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
     --file db/bootstrap/001_database_access.sql
 psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
@@ -134,12 +200,15 @@ SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
     SPRING_FLYWAY_BASELINE_VERSION=0 \
     SPRING_FLYWAY_TARGET=17 \
     ./gradlew migrateDatabase --console=plain
+apply_v17_realtime_authorization bodeul_completion_clean_rollback
 psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
     --file db/verification/012_companion_completion_legacy_fixture.sql
 env -u SPRING_FLYWAY_TARGET \
     SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
     SPRING_FLYWAY_BASELINE_VERSION=0 \
     ./gradlew migrateDatabase --console=plain
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/006_companion_completion_realtime_authorization.sql
 injected_rollback="${RUNNER_TEMP:-/tmp}/bodeul-v18-injected-rollback.sql"
 sed 's/^commit;$/select 1\/0;\ncommit;/' \
     db/rollback/V18__merge_companion_care_completion.sql > "$injected_rollback"
@@ -152,6 +221,10 @@ psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 <<'SQL'
 do $$
 begin
     if to_regclass('bodeul.companion_completion_v18_baseline') is null
+            or to_regclass('bodeul.companion_completion_v18_chat_expiry_baseline') is null
+            or to_regclass('bodeul.companion_completion_v18_attachment_expiry_baseline') is null
+            or to_regclass('bodeul.companion_completion_v18_location_expiry_baseline') is null
+            or to_regclass('bodeul.companion_completion_v18_consent_expiry_baseline') is null
             or to_regclass('bodeul.companion_session_artifacts') is null
             or to_regclass('bodeul.companion_session_artifact_operations') is null
             or not exists (
@@ -168,5 +241,7 @@ $$;
 SQL
 psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
     --file db/rollback/V18__merge_companion_care_completion.sql
+psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
+    --file db/bootstrap/rollback/006_companion_completion_realtime_authorization_rollback.sql
 psql --dbname bodeul_completion_clean_rollback --set ON_ERROR_STOP=1 \
     --file db/verification/014_companion_completion_rollback_checks.sql

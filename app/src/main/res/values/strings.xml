@@ -1292,6 +1292,7 @@
     <string name="manager_history_line_place">만남 장소</string>
     <string name="manager_history_line_request_note">요청 메모</string>
     <string name="manager_history_line_report">최종 리포트</string>
+    <string name="manager_history_line_journal">내가 남긴 동행 일지</string>
     <string name="manager_history_line_next_visit">다음 방문</string>
     <string name="manager_history_contact_missing">등록 정보가 없습니다.</string>
     <string name="manager_history_name_phone">%1$s · %2$s</string>

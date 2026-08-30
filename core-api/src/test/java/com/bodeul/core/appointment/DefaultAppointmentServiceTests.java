@@ -123,6 +123,47 @@ class DefaultAppointmentServiceTests {
     }
 
     @Test
+    void assignedManagerCanReadCareDetailsBeforeCareEnds() {
+        appointmentRepository.current = Optional.of(existingAppointment("IN_PROGRESS", 1, MANAGER_ID));
+
+        var appointment = service.getAppointment(manager(), APPOINTMENT_ID);
+
+        assertThat(appointment.specialNotes()).isEqualTo("진료 20분 전 도착");
+        assertThat(appointment.patientConditionSummary()).isEqualTo("휠체어 이동 지원 필요");
+        assertThat(appointment.medicationSummary()).isEqualTo("아침 약 복용");
+        assertThat(appointment.mobilitySupportCode()).isEqualTo("INDEPENDENT");
+    }
+
+    @Test
+    void assignedManagerCannotReadCareDetailsAfterCareBoundary() {
+        appointmentRepository.current = Optional.of(existingAppointment("IN_PROGRESS", 1, MANAGER_ID));
+        appointmentRepository.careEnded = true;
+
+        var appointment = service.getAppointment(manager(), APPOINTMENT_ID);
+
+        assertThat(appointment.specialNotes()).isEmpty();
+        assertThat(appointment.patientConditionSummary()).isEmpty();
+        assertThat(appointment.medicationSummary()).isEmpty();
+        assertThat(appointment.mobilitySupportCode()).isEmpty();
+        assertThat(appointment.patientName()).isEqualTo("환자 사용자");
+        assertThat(appointment.hospitalName()).isEqualTo("서울대학교병원");
+        assertThat(appointment.status()).isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
+    void patientRetainsCareDetailsAfterCareBoundary() {
+        appointmentRepository.current = Optional.of(existingAppointment("IN_PROGRESS", 1, MANAGER_ID));
+        appointmentRepository.careEnded = true;
+
+        var appointment = service.getAppointment(patient(), APPOINTMENT_ID);
+
+        assertThat(appointment.specialNotes()).isEqualTo("진료 20분 전 도착");
+        assertThat(appointment.patientConditionSummary()).isEqualTo("휠체어 이동 지원 필요");
+        assertThat(appointment.medicationSummary()).isEqualTo("아침 약 복용");
+        assertThat(appointment.mobilitySupportCode()).isEqualTo("INDEPENDENT");
+    }
+
+    @Test
     void managerCannotUsePatientAppointmentWriteApi() {
         var manager = new AppUserRepository.AppUser(
                 UUID.randomUUID(),
@@ -499,6 +540,10 @@ class DefaultAppointmentServiceTests {
         return new AppUserRepository.AppUser(PATIENT_ID, "patient-firebase-uid", AppUserRole.PATIENT);
     }
 
+    private AppUserRepository.AppUser manager() {
+        return new AppUserRepository.AppUser(MANAGER_ID, "manager-firebase-uid", AppUserRole.MANAGER);
+    }
+
     private AppointmentService.AppointmentDraft draft() {
         return new AppointmentService.AppointmentDraft(
                 "입력된 보호자",
@@ -543,9 +588,9 @@ class DefaultAppointmentServiceTests {
                 126.9990,
                 Instant.parse("2026-12-20T01:30:00Z"),
                 "본관 1층",
-                "",
-                "",
-                "",
+                "진료 20분 전 도착",
+                "휠체어 이동 지원 필요",
+                "아침 약 복용",
                 "INDEPENDENT",
                 "ONE_WAY",
                 "ANY",
@@ -569,6 +614,7 @@ class DefaultAppointmentServiceTests {
         private final Map<String, AppointmentRecord> byClientRequest = new HashMap<>();
         private int insertCount;
         private boolean sessionCanceled;
+        private boolean careEnded;
 
         @Override
         public List<AppointmentRecord> findAllForParticipant(UUID userId, AppUserRole role) {
@@ -585,6 +631,11 @@ class DefaultAppointmentServiceTests {
                 UUID requesterUserId,
                 UUID clientRequestId) {
             return Optional.ofNullable(byClientRequest.get(requesterUserId + ":" + clientRequestId));
+        }
+
+        @Override
+        public boolean hasCareEnded(UUID appointmentId) {
+            return careEnded;
         }
 
         @Override

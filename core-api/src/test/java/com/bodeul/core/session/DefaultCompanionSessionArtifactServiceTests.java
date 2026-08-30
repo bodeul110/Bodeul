@@ -206,6 +206,24 @@ class DefaultCompanionSessionArtifactServiceTests {
     }
 
     @Test
+    void careEndedManagerCannotDownloadRetainedArtifactButPatientCan() {
+        var uploaded = service.replace(
+                manager(), SESSION_ID, "PAYMENT_EVIDENCE", UUID.randomUUID(),
+                List.of(jpeg("영수증.jpg")));
+        UUID artifactId = uploaded.artifacts().get(0).id();
+        sessionRepository.session = session("MANAGER_JOURNAL", "CARE_ENDED");
+
+        assertThatThrownBy(() -> service.download(manager(), SESSION_ID, artifactId))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+
+        AppUserRepository.AppUser patient = new AppUserRepository.AppUser(
+                PATIENT_ID, "firebase-patient", AppUserRole.PATIENT);
+        assertThat(service.download(patient, SESSION_ID, artifactId).content()).isNotEmpty();
+    }
+
+    @Test
     void downloadRejectsSameSizeContentWithDifferentSha256() {
         var uploaded = service.replace(
                 manager(),

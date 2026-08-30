@@ -15,6 +15,7 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
+import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -173,6 +174,9 @@ public class ManagerGuideViewModel extends ViewModel {
             _uiState.setValue(UiState.panel(StatePanelType.EMPTY, null));
             return;
         }
+        if (isRealtimeClosed(dashboard)) {
+            stopRealtimeSubscription();
+        }
         _uiState.setValue(UiState.screen(dashboard, coordinator.createScreenModel(
                 dashboard,
                 managerRepository.isFirebaseBacked()
@@ -180,6 +184,10 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     private void ensureRealtimeSubscription(ManagerDashboard dashboard) {
+        if (isRealtimeClosed(dashboard)) {
+            stopRealtimeSubscription();
+            return;
+        }
         String sessionId = dashboard == null || dashboard.getSession() == null
                 ? ""
                 : dashboard.getSession().getRealtimeSessionId();
@@ -190,9 +198,27 @@ public class ManagerGuideViewModel extends ViewModel {
         realtimeSubscriber.subscribe(sessionId, this::loadDashboard);
     }
 
+    private boolean isRealtimeClosed(@Nullable ManagerDashboard dashboard) {
+        if (dashboard == null || dashboard.getSession() == null) {
+            return false;
+        }
+        if (dashboard.getSession().getCareEndedAtMillis() > 0L) {
+            return true;
+        }
+        SessionStatus status = dashboard.getSession().getStatus();
+        return status == SessionStatus.CARE_ENDED
+                || status == SessionStatus.COMPLETED
+                || status == SessionStatus.CANCELED;
+    }
+
+    private void stopRealtimeSubscription() {
+        realtimeSubscriber.stop();
+        subscribedSessionId = "";
+    }
+
     @Override
     protected void onCleared() {
-        realtimeSubscriber.stop();
+        stopRealtimeSubscription();
         super.onCleared();
     }
 

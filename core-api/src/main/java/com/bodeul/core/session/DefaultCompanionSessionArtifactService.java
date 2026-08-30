@@ -192,6 +192,12 @@ class DefaultCompanionSessionArtifactService implements CompanionSessionArtifact
         if (!appUser.id().equals(allowed)) {
             throw CompanionSessionException.permissionDenied();
         }
+        if (appUser.role() == AppUserRole.MANAGER
+                && (session.careEndedAt() != null
+                || Set.of("CARE_ENDED", "COMPLETED")
+                .contains(session.currentStatus()))) {
+            throw CompanionSessionException.permissionDenied();
+        }
         if (appUser.role() == AppUserRole.GUARDIAN
                 && !consentAccess.isAllowed(
                 appUser,

@@ -349,7 +349,7 @@ class DefaultCompanionSessionServiceTests {
                     manager(),
                     SESSION_ID,
                     reportCommand(lastStep.version()));
-            assertThat(report.summary()).isEqualTo("전체 단계 회귀 검증 완료");
+            assertThat(report.summary()).isEmpty();
             assertThat(repository.lastReport).isNotNull();
             assertThat(consentAccess.finalizedAppointmentId).isEqualTo(APPOINTMENT_ID);
             assertThat(consentAccess.careEndedAt).isNotNull();
@@ -516,9 +516,23 @@ class DefaultCompanionSessionServiceTests {
 
         var report = service.submitReport(manager(), SESSION_ID, command);
 
-        assertThat(report.summary()).isEqualTo("진료 동행 완료");
-        assertThat(report.nextVisitAt()).isEqualTo("의사 안내 후 예약");
+        assertThat(report.summary()).isEmpty();
+        assertThat(report.treatmentNotes()).isEmpty();
+        assertThat(report.medicationNotes()).isEmpty();
+        assertThat(report.nextVisitAt()).isEmpty();
+        assertThat(repository.lastReport.summary()).isEqualTo("진료 동행 완료");
         assertThat(repository.lastReport.nextVisitAt()).isNull();
+        assertThat(repository.lastReport.nextVisitNote()).isEqualTo("의사 안내 후 예약");
+
+        var retainedReport = service.getReport(
+                user(PATIENT_ID, AppUserRole.PATIENT),
+                SESSION_ID);
+        assertThat(retainedReport.summary()).isEqualTo("진료 동행 완료");
+        assertThat(retainedReport.treatmentNotes()).isEqualTo("검사 완료");
+
+        var retryReceipt = service.submitReport(manager(), SESSION_ID, command);
+        assertThat(retryReceipt.summary()).isEmpty();
+        assertThat(retryReceipt.medicationName()).isEmpty();
     }
 
     @Test
@@ -539,6 +553,8 @@ class DefaultCompanionSessionServiceTests {
         assertThat(retried.careEndedAt()).isEqualTo(first.careEndedAt());
         assertThat(retried.version()).isEqualTo(first.version());
         assertThat(retried.blockedReason()).isEqualTo("CARE_ENDED_PENDING_COMPLETION");
+        assertThat(consentAccess.finalizedAppointmentId).isEqualTo(APPOINTMENT_ID);
+        assertThat(consentAccess.careEndedAt).isEqualTo(Instant.parse(first.careEndedAt()));
     }
 
     @Test
@@ -592,6 +608,7 @@ class DefaultCompanionSessionServiceTests {
                 3,
                 transitionSnapshot(13)));
         var careEnded = service.endCare(manager(), SESSION_ID, 3);
+        Instant retentionBoundary = consentAccess.careEndedAt;
         repository.failNextReportWrite = true;
 
         assertThatThrownBy(() -> service.submitReport(
@@ -607,6 +624,7 @@ class DefaultCompanionSessionServiceTests {
         assertThat(failed.reportGenerationStatus()).isEqualTo("FAILED");
         assertThat(failed.blockedReason()).isEqualTo("REPORT_RETRY_REQUIRED");
         assertThat(failed.careEndedAt()).isEqualTo(careEnded.careEndedAt());
+        assertThat(consentAccess.careEndedAt).isEqualTo(retentionBoundary);
 
         var report = service.submitReport(
                 manager(),
@@ -614,11 +632,13 @@ class DefaultCompanionSessionServiceTests {
                 reportCommand(careEnded.version()));
         var completed = service.getSession(manager(), SESSION_ID);
 
-        assertThat(report.summary()).isEqualTo("전체 단계 회귀 검증 완료");
+        assertThat(report.summary()).isEmpty();
+        assertThat(repository.lastReport.summary()).isEqualTo("전체 단계 회귀 검증 완료");
         assertThat(completed.reportGenerationStatus()).isEqualTo("READY");
         assertThat(completed.blockedReason()).isEqualTo("SESSION_TERMINAL");
         assertThat(completed.careEndedAt()).isEqualTo(careEnded.careEndedAt());
         assertThat(completed.reportGenerationAttempts()).isEqualTo(2);
+        assertThat(consentAccess.careEndedAt).isEqualTo(retentionBoundary);
     }
 
     @Test
@@ -824,6 +844,39 @@ class DefaultCompanionSessionServiceTests {
     }
 
     @Test
+    void careEndedManagerViewOnlyKeepsOwnCompletionFields() {
+        repository.session = Optional.of(completionMetadata(withArtifact(withSensitiveCareData(
+                session("COMPLETED", 5, 5, 4)))));
+
+        var managerView = service.getSession(manager(), SESSION_ID);
+
+        assertThat(managerView.guardianUpdate()).isEmpty();
+        assertThat(managerView.locationSummary()).isEmpty();
+        assertThat(managerView.fieldPhotoNote()).isEmpty();
+        assertThat(managerView.medicationNote()).isEmpty();
+        assertThat(managerView.pharmacySummary()).isEmpty();
+        assertThat(managerView.preConsultationConfirmed()).isFalse();
+        assertThat(managerView.prescriptionCollected()).isFalse();
+        assertThat(managerView.pharmacyCompleted()).isFalse();
+        assertThat(managerView.medicationGuidanceCompleted()).isFalse();
+        assertThat(managerView.liveLocationSharingActive()).isFalse();
+        assertThat(managerView.locationAlertStage()).isEmpty();
+        assertThat(managerView.artifacts()).isEmpty();
+        assertThat(managerView.managerJournal()).isEqualTo("민감한 매니저 일지");
+        assertThat(managerView.reportGenerationStatus()).isEqualTo("FAILED");
+    }
+
+    @Test
+    void careEndedManagerCannotReadFinalHealthReport() {
+        repository.session = Optional.of(session("COMPLETED", 5, 5, 4));
+
+        assertThatThrownBy(() -> service.getReport(manager(), SESSION_ID))
+                .isInstanceOf(CompanionSessionException.class)
+                .extracting(exception -> ((CompanionSessionException) exception).error())
+                .isEqualTo("companion_session_permission_denied");
+    }
+
+    @Test
     void invalidLocationAlertStageIsRejected() {
         var command = new CompanionSessionService.UpdateSessionCommand(
                 3, null, null, null, null, null, null, null, null, null, null, "unexpected");
@@ -955,6 +1008,23 @@ class DefaultCompanionSessionServiceTests {
                 List.of(new CompanionSessionRepository.ArtifactRecord(
                         UUID.randomUUID(), "PAYMENT_EVIDENCE", "영수증.pdf",
                         "application/pdf", 10L, Instant.parse("2026-07-18T00:00:00Z"))));
+    }
+
+    private CompanionSessionRepository.SessionRecord withSensitiveCareData(
+            CompanionSessionRepository.SessionRecord current) {
+        return new CompanionSessionRepository.SessionRecord(
+                current.id(), current.firestoreId(), current.appointmentRequestId(),
+                current.managerUserId(), current.patientUserId(), current.guardianUserId(),
+                current.currentStepOrder(), current.totalStepCount(), current.guideSnapshot(),
+                current.currentStatus(), "보호자 공유 내용", "병원 도착 위치", "현장 사진 메모",
+                "복약 메모", "약국 처리 내용", true, true, true, true, true,
+                Instant.parse("2026-07-18T00:20:00Z"), "hospital_near",
+                Instant.parse("2026-07-18T00:21:00Z"), current.version(),
+                current.startedAt(), current.completedAt(), current.canceledAt(),
+                current.careEndedAt(), current.managerJournal(),
+                current.reportGenerationStatus(), current.reportGenerationAttempts(),
+                current.reportGenerationLastError(), current.reportGenerationUpdatedAt(),
+                current.artifacts());
     }
 
     private CompanionSessionRepository.SessionRecord completionMetadata(
