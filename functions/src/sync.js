@@ -2,6 +2,12 @@ const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
 const {isDeepStrictEqual} = require("node:util");
+const {
+  ACTIVE_MANAGER_DOCUMENT_KEYS,
+  MANAGER_DOCUMENT_PATH_ALIAS_FIELDS,
+  resolveCanonicalManagerDocumentReference,
+  resolveManagerDocumentReference,
+} = require("./manager-document-contract");
 
 const USER_LINK_SYNC_OPTIONS = {
   region: "asia-northeast3",
@@ -27,14 +33,14 @@ const MANAGER_DOCUMENT_INITIAL_SUBMISSION_SOURCE_STATUSES = new Set([
   "APPROVED",
   "REJECTED",
 ]);
-const MANAGER_DOCUMENT_SUBMISSION_FIELDS = [
-  "managerDocumentSummary",
+const MANAGER_DOCUMENT_SUBMISSION_MAP_FIELDS = [
   "managerDocumentFiles",
   "managerDocumentFilePaths",
-  "managerIdCardStoragePath",
-  "managerLicenseStoragePath",
-  "managerCriminalRecordStoragePath",
 ];
+const MANAGER_DOCUMENT_EVIDENCE_MIGRATION_FIELD =
+  "managerDocumentEvidenceMigration";
+const HEALTH_CERTIFICATE_MIGRATION_ID =
+  "health-certificate-to-nursing-license-v1";
 
 const syncLinkedAppointmentParticipants = onDocumentWritten(
     USER_LINK_SYNC_OPTIONS,
@@ -135,7 +141,11 @@ function resolveManagerDocumentSubmissionEvent(
       afterStatus === "PENDING_REVIEW";
   const revisedPendingReview = beforeStatus === "PENDING_REVIEW" &&
       afterStatus === "PENDING_REVIEW" &&
-      managerDocumentSubmissionContentChanged(beforeData, afterData);
+      managerDocumentSubmissionContentChanged(
+          beforeData,
+          afterData,
+          managerUserId,
+      );
   if (!enteredPendingReview && !revisedPendingReview) {
     return null;
   }
@@ -157,10 +167,109 @@ function resolveManagerDocumentSubmissionEvent(
   };
 }
 
-function managerDocumentSubmissionContentChanged(beforeData, afterData) {
-  return MANAGER_DOCUMENT_SUBMISSION_FIELDS.some((field) =>
-    !isDeepStrictEqual(beforeData?.[field], afterData?.[field]),
+function managerDocumentSubmissionContentChanged(
+    beforeData,
+    afterData,
+    managerUserId,
+) {
+  if (isPureHealthCertificateMigration(beforeData, afterData, managerUserId)) {
+    return false;
+  }
+  if (!isDeepStrictEqual(
+      beforeData?.managerDocumentSummary,
+      afterData?.managerDocumentSummary,
+  )) {
+    return true;
+  }
+  return MANAGER_DOCUMENT_SUBMISSION_MAP_FIELDS.some((field) =>
+    ACTIVE_MANAGER_DOCUMENT_KEYS.some((documentKey) =>
+      !isDeepStrictEqual(
+          beforeData?.[field]?.[documentKey],
+          afterData?.[field]?.[documentKey],
+      ),
+    ),
   );
+}
+
+function isPureHealthCertificateMigration(beforeData, afterData, managerUserId) {
+  const normalizedManagerId = sanitizeText(managerUserId);
+  const marker = afterData?.[MANAGER_DOCUMENT_EVIDENCE_MIGRATION_FIELD];
+  if (!normalizedManagerId || !isPlainObject(marker) ||
+      isDeepStrictEqual(
+          beforeData?.[MANAGER_DOCUMENT_EVIDENCE_MIGRATION_FIELD],
+          marker,
+      ) ||
+      !isDeepStrictEqual(
+          Object.keys(marker).sort(),
+          [
+            "destinationKey",
+            "destinationPath",
+            "migrationId",
+            "sourceKey",
+            "sourcePath",
+          ],
+      ) ||
+      marker.migrationId !== HEALTH_CERTIFICATE_MIGRATION_ID ||
+      marker.sourceKey !== "healthCertificate" ||
+      marker.destinationKey !== "nursingLicense" ||
+      !isDeepStrictEqual(
+          beforeData?.managerDocumentSummary,
+          afterData?.managerDocumentSummary,
+      ) ||
+      managerDocumentHasActiveState(beforeData)) {
+    return false;
+  }
+
+  const source = resolveManagerDocumentReference(
+      beforeData,
+      normalizedManagerId,
+      "healthCertificate",
+  );
+  const destination = resolveCanonicalManagerDocumentReference(
+      afterData,
+      normalizedManagerId,
+  );
+  if (!source || !destination || destination.documentKey !== "nursingLicense" ||
+      marker.sourcePath !== source.storagePath ||
+      marker.destinationPath !== destination.storagePath ||
+      managerDocumentHasLegacyHealthState(afterData)) {
+    return false;
+  }
+
+  const sourceMetadata = beforeData.managerDocumentFiles.healthCertificate;
+  const destinationMetadata = afterData.managerDocumentFiles.nursingLicense;
+  return isPlainObject(sourceMetadata) && isPlainObject(destinationMetadata) &&
+    isDeepStrictEqual(
+        {...sourceMetadata, fullPath: destination.storagePath},
+        destinationMetadata,
+    );
+}
+
+function managerDocumentHasActiveState(data) {
+  const fileMap = isPlainObject(data?.managerDocumentFiles)
+    ? data.managerDocumentFiles
+    : {};
+  const pathMap = isPlainObject(data?.managerDocumentFilePaths)
+    ? data.managerDocumentFilePaths
+    : {};
+  return ACTIVE_MANAGER_DOCUMENT_KEYS.some((documentKey) => {
+    const aliasField = MANAGER_DOCUMENT_PATH_ALIAS_FIELDS[documentKey];
+    return Object.hasOwn(fileMap, documentKey) ||
+      Object.hasOwn(pathMap, documentKey) ||
+      Boolean(aliasField && Object.hasOwn(data || {}, aliasField));
+  });
+}
+
+function managerDocumentHasLegacyHealthState(data) {
+  const fileMap = isPlainObject(data?.managerDocumentFiles)
+    ? data.managerDocumentFiles
+    : {};
+  const pathMap = isPlainObject(data?.managerDocumentFilePaths)
+    ? data.managerDocumentFilePaths
+    : {};
+  return Object.hasOwn(fileMap, "healthCertificate") ||
+    Object.hasOwn(pathMap, "healthCertificate") ||
+    Object.hasOwn(data || {}, "managerHealthCertificateStoragePath");
 }
 
 function resolveManagerDocumentEventTime(updateTime, cloudEventTime) {
@@ -485,12 +594,17 @@ function sanitizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 module.exports = {
   syncLinkedAppointmentParticipants,
   cleanupAppointmentReminderJobs,
   recordManagerDocumentSubmission,
   resolveManagerDocumentSubmissionEvent,
   appendManagerDocumentSubmissionHistory,
+  isPureHealthCertificateMigration,
   managerDocumentSubmissionContentChanged,
   resolveManagerDocumentEventTime,
 };

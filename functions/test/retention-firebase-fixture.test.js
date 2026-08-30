@@ -38,6 +38,10 @@ test("개발 Firebase 픽스처 경로와 합성 데이터 표식을 고정한�
       fixture.documents.managerExpired.data.managerDocumentFiles.idCard.fullPath,
       OBJECT_PATHS.managerExpired,
   );
+  assert.equal(
+      fixture.documents.managerHeld.data.managerDocumentFiles.nursingLicense.fullPath,
+      OBJECT_PATHS.managerHeld,
+  );
   assert.equal(fixture.objects.length, 4);
 });
 

@@ -42,6 +42,8 @@
     "backfill:supabase-auth-claims:apply": "node backfill-supabase-auth-claims.js --apply",
     "seed:manager-docs:dry-run": "node seed-manager-document-storage-sample.js",
     "seed:manager-docs:apply": "node seed-manager-document-storage-sample.js --apply",
+    "migrate:manager-health-certificate:dry-run": "node migrate-manager-health-certificate.js",
+    "migrate:manager-health-certificate:apply": "node migrate-manager-health-certificate.js --apply",
     "restore:state:dry-run": "node restore-firestore-state.js",
     "restore:state:apply": "node restore-firestore-state.js --apply"
   },

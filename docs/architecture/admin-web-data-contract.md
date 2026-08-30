@@ -1,6 +1,6 @@
 # 관리자 웹 데이터 계약
 
-기준일: 2026-08-29
+기준일: 2026-08-30
 
 관리자 웹 source of truth는 별도 [bodeul-admin-web 저장소](https://github.com/bodeul110/bodeul-admin-web)다. 이 문서는 메인 저장소의 Firebase Rules·Storage·PostgreSQL schema 변경이 관리자 웹에 미치는 공용 계약만 관리한다.
 
@@ -31,11 +31,14 @@ Firestore role은 로그인 화면의 진입 자격만 확인한다. 서버는 `
 
 ## Storage 계약
 
-- 서버가 매니저 신분증, 자격증, 범죄경력 확인 파일을 읽는다.
+- 신규 매니저 심사 원본은 `license` 또는 `nursingLicense` 자격 증빙 1종만 사용한다.
+- `idCard`, `criminalRecord`, `healthCertificate`는 신규 업로드·심사 입력으로 받지 않는다. 기존 `healthCertificate`는 `nursingLicense` 이관 전용이고, 기존 신분증·범죄경력 원본은 보존 정책에 따른 파기 대상으로만 처리한다.
 - 목록에는 마스킹된 정보와 제출 여부만 반환하고 Storage 경로를 반환하지 않는다.
 - 원문은 10자 이상 사유를 받은 `no-store` 인라인 응답으로만 중계하고 공개 다운로드 URL을 만들지 않는다.
-- 원본 파일은 Storage에 유지하고 심사 상태·감사 메타데이터만 PostgreSQL 이전 후보로 둔다.
+- 원본은 심사 중에만 Storage에 유지하고 심사 종료 후 30일 안에 삭제한다. PostgreSQL에는 자격 종류, 검증 결과·시각, 유효기간과 감사 메타데이터만 남긴다.
 - Storage Rules 변경 PR은 관리자 미리보기 영향을 확인한다.
+
+`managerDocumentFiles`와 `managerDocumentFilePaths`의 canonical key·경로는 서로 일치해야 하고, Storage 경로는 `manager-documents/{managerUserId}/{documentKey}/...` 형식을 따른다. `license`와 `nursingLicense`가 동시에 존재하는 제출은 거부하며, 자격 종류 교체는 서버가 이전 메타데이터와 원본을 정리한 뒤 새 revision으로 기록한다.
 
 ## PostgreSQL 관리자 API 계약
 

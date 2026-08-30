@@ -11,8 +11,13 @@ const {
   listStorageObjects,
 } = require("./lib/firebase-toolkit");
 
-const DOCUMENT_KEYS = ["idCard", "license", "healthCertificate", "criminalRecord"];
+const CANONICAL_DOCUMENT_KEYS = ["license", "nursingLicense"];
+const LEGACY_DOCUMENT_KEYS = ["idCard", "healthCertificate", "criminalRecord"];
+const DOCUMENT_KEYS = [...CANONICAL_DOCUMENT_KEYS, ...LEGACY_DOCUMENT_KEYS];
+const REQUIRED_ALIAS_KEYS = new Set(["idCard", "license", "criminalRecord"]);
 const STORAGE_PREFIX = "manager-documents/";
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
+const ALLOWED_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 async function main() {
   const options = parseOptions(process.argv.slice(2));
@@ -24,6 +29,7 @@ async function main() {
   const context = await createCliContext();
   const managerDocuments = await loadManagerDocuments(context);
   const references = collectReferences(managerDocuments);
+  const policyChecks = analyzeManagerDocumentPolicy(managerDocuments);
   const objectChecks = await resolveStorageChecks(context, references);
   const storageObjects = await listStorageObjects(context, STORAGE_PREFIX);
   const orphanObjects = resolveOrphanObjects(storageObjects, references);
@@ -31,6 +37,7 @@ async function main() {
   const deletionDecision = resolveDeletionDecision(
       {
         managerDocuments,
+        policyChecks,
         objectChecks,
         orphanObjects,
       },
@@ -46,6 +53,7 @@ async function main() {
       context,
       managerDocuments,
       references,
+      policyChecks,
       objectChecks,
       orphanObjects,
       deletedOrphanCount,
@@ -115,6 +123,7 @@ function printHelp() {
   console.log("");
   console.log("- users 컬렉션의 MANAGER 문서에서 managerDocumentFiles / managerDocumentFilePaths / 레거시 경로를 읽습니다.");
   console.log("- manager-documents/ 아래 실제 Storage 객체와 비교해 누락, 경로 불일치, 고아 파일 후보를 찾습니다.");
+  console.log("- license / nursingLicense canonical 1종 계약과 레거시 이관 후보, 이미지 MIME / 10 MiB 경계를 함께 점검합니다.");
   console.log("- --delete-orphans 는 삭제 후보만 계산하고, 실제 삭제는 --apply 를 함께 줘야 합니다.");
   console.log("- 누락 객체나 경로 불일치가 있으면 기본적으로 삭제를 막고, 정말 필요할 때만 --force 로 우회합니다.");
   console.log("- 대량 삭제 방지를 위해 기본 최대 삭제 수는 20개이며, --max-delete 로 조정할 수 있습니다.");
@@ -133,12 +142,14 @@ async function loadManagerDocuments(context) {
       name: sanitizeText(data.name) || "이름 없음",
       email: sanitizeText(data.email),
       documentSummary: sanitizeText(data.managerDocumentSummary),
+      documentStatus: sanitizeText(data.managerDocumentStatus),
+      originalsDeletedAt: data.managerDocumentOriginalsDeletedAt || null,
       documentFiles: isPlainObject(data.managerDocumentFiles) ? data.managerDocumentFiles : {},
       documentFilePaths: isPlainObject(data.managerDocumentFilePaths) ? data.managerDocumentFilePaths : {},
       legacyPaths: {
         idCard: data.managerIdCardStoragePath,
         license: data.managerLicenseStoragePath,
-        healthCertificate: "",
+        healthCertificate: data.managerHealthCertificateStoragePath,
         criminalRecord: data.managerCriminalRecordStoragePath,
       },
     });
@@ -161,6 +172,8 @@ function collectReferences(managerDocuments) {
       const metadataFileName = sanitizeText(metadata?.fileName);
       const pathMapPath = sanitizeText(rawPathMapPath);
       const legacyPath = sanitizeText(rawLegacyPath);
+      const requiresAlias = REQUIRED_ALIAS_KEYS.has(documentKey);
+      const hasAlias = rawLegacyPath !== undefined && rawLegacyPath !== null;
       const distinctPaths = Array.from(new Set(
           [metadataPath, pathMapPath, legacyPath].filter(Boolean),
       ));
@@ -173,6 +186,9 @@ function collectReferences(managerDocuments) {
         managerName: manager.name,
         managerEmail: manager.email,
         documentKey,
+        policyKind: CANONICAL_DOCUMENT_KEYS.includes(documentKey)
+            ? "canonical"
+            : "legacy",
         metadataPath,
         pathMapPath,
         legacyPath,
@@ -182,12 +198,17 @@ function collectReferences(managerDocuments) {
         contentType: sanitizeText(metadata?.contentType),
         pathMismatch: !metadataPath ||
           !pathMapPath ||
-          (documentKey !== "healthCertificate" && !legacyPath) ||
+          (requiresAlias && !legacyPath) ||
           !isExactNonEmptyString(rawMetadataPath) ||
           !isExactNonEmptyString(rawPathMapPath) ||
           (
-            documentKey !== "healthCertificate" &&
+            requiresAlias &&
             !isExactNonEmptyString(rawLegacyPath)
+          ) ||
+          (
+            !requiresAlias &&
+            hasAlias &&
+            (!isExactNonEmptyString(rawLegacyPath) || legacyPath !== metadataPath)
           ) ||
           distinctPaths.length > 1 ||
           !isExpectedManagerDocumentPath(metadataPath, manager.id, documentKey),
@@ -197,12 +218,55 @@ function collectReferences(managerDocuments) {
   return references;
 }
 
+function analyzeManagerDocumentPolicy(managerDocuments) {
+  return managerDocuments.map((manager) => {
+    const canonicalKeys = CANONICAL_DOCUMENT_KEYS.filter((documentKey) =>
+      hasDocumentReference(manager, documentKey),
+    );
+    const legacyKeys = LEGACY_DOCUMENT_KEYS.filter((documentKey) =>
+      hasDocumentReference(manager, documentKey),
+    );
+    const requiresCanonical = manager.documentStatus === "PENDING_REVIEW" ||
+      (
+        ["APPROVED", "REJECTED"].includes(manager.documentStatus) &&
+        !manager.originalsDeletedAt
+      );
+    const issues = [];
+    if (canonicalKeys.length > 1) {
+      issues.push("canonical 자격 증빙이 둘 이상입니다.");
+    } else if (requiresCanonical && canonicalKeys.length !== 1) {
+      issues.push("심사 상태에 필요한 canonical 자격 증빙 1종이 없습니다.");
+    }
+    return {
+      managerId: manager.id,
+      managerEmail: manager.email,
+      documentStatus: manager.documentStatus,
+      canonicalKeys,
+      legacyKeys,
+      migrationRequired: legacyKeys.length > 0,
+      issues,
+    };
+  });
+}
+
+function hasDocumentReference(manager, documentKey) {
+  const metadata = manager.documentFiles?.[documentKey];
+  return Boolean(
+      sanitizeText(metadata?.fullPath) ||
+      sanitizeText(manager.documentFilePaths?.[documentKey]) ||
+      sanitizeText(manager.legacyPaths?.[documentKey]),
+  );
+}
+
 async function resolveStorageChecks(context, references) {
   return Promise.all(references.map(async (reference) => {
     const storageObject = await getStorageObject(context, reference.fullPath);
     return {
       ...reference,
       objectExists: Boolean(storageObject),
+      storagePolicyMismatch: storageObject
+          ? hasStoragePolicyMismatch(reference, storageObject)
+          : false,
       storageObject: storageObject ? {
         name: sanitizeText(storageObject.name),
         contentType: sanitizeText(storageObject.contentType),
@@ -211,6 +275,16 @@ async function resolveStorageChecks(context, references) {
       } : null,
     };
   }));
+}
+
+function hasStoragePolicyMismatch(reference, storageObject) {
+  const contentType = sanitizeText(storageObject?.contentType);
+  const size = Number(storageObject?.size);
+  return !ALLOWED_CONTENT_TYPES.has(contentType) ||
+    !Number.isSafeInteger(size) ||
+    size <= 0 ||
+    size > MAX_DOCUMENT_SIZE ||
+    (Boolean(reference.contentType) && reference.contentType !== contentType);
 }
 
 function resolveOrphanObjects(storageObjects, references) {
@@ -240,6 +314,10 @@ async function deleteOrphanObjects(context, orphanObjects) {
 function resolveDeletionDecision(input, options) {
   const missingObjectCount = input.objectChecks.filter((item) => !item.objectExists).length;
   const pathMismatchCount = input.objectChecks.filter((item) => item.pathMismatch).length;
+  const storagePolicyMismatchCount = input.objectChecks
+      .filter((item) => item.storagePolicyMismatch).length;
+  const policyViolationCount = input.policyChecks
+      .filter((item) => item.issues.length > 0).length;
   const candidateCount = input.orphanObjects.length;
   const blockedReasons = [];
 
@@ -267,6 +345,12 @@ function resolveDeletionDecision(input, options) {
   if (!options.force && pathMismatchCount > 0) {
     blockedReasons.push("경로 불일치가 있어 잘못된 파일 삭제를 막기 위해 중단했습니다.");
   }
+  if (!options.force && storagePolicyMismatchCount > 0) {
+    blockedReasons.push("MIME 또는 크기 정책 위반 객체가 있어 삭제를 중단했습니다.");
+  }
+  if (!options.force && policyViolationCount > 0) {
+    blockedReasons.push("canonical 자격 증빙 정책 위반이 있어 삭제를 중단했습니다.");
+  }
   if (options.maxDelete > 0 && candidateCount > options.maxDelete) {
     blockedReasons.push(`삭제 후보가 ${candidateCount}건이라 최대 삭제 수 ${options.maxDelete}건을 넘습니다.`);
   }
@@ -287,6 +371,7 @@ function buildSummary(
     context,
     managerDocuments,
     references,
+    policyChecks,
     objectChecks,
     orphanObjects,
     deletedOrphanCount,
@@ -294,10 +379,14 @@ function buildSummary(
 ) {
   const missingObjects = objectChecks.filter((item) => !item.objectExists);
   const pathMismatches = objectChecks.filter((item) => item.pathMismatch);
+  const storagePolicyMismatches = objectChecks
+      .filter((item) => item.storagePolicyMismatch);
   const managersWithReferences = new Set(objectChecks.map((item) => item.managerId));
   const legacyOnlyReferences = objectChecks.filter((item) =>
     !item.metadataPath && !item.pathMapPath && Boolean(item.legacyPath),
   );
+  const policyViolations = policyChecks.filter((item) => item.issues.length > 0);
+  const migrationCandidates = policyChecks.filter((item) => item.migrationRequired);
 
   return {
     projectId: context.projectId,
@@ -309,7 +398,10 @@ function buildSummary(
     matchedFileCount: objectChecks.length - missingObjects.length,
     missingObjectCount: missingObjects.length,
     pathMismatchCount: pathMismatches.length,
+    storagePolicyMismatchCount: storagePolicyMismatches.length,
     legacyOnlyReferenceCount: legacyOnlyReferences.length,
+    policyViolationCount: policyViolations.length,
+    legacyMigrationCandidateCount: migrationCandidates.length,
     orphanObjectCount: orphanObjects.length,
     deletedOrphanCount,
     orphanDeletion: {
@@ -324,7 +416,10 @@ function buildSummary(
     },
     missingObjects,
     pathMismatches,
+    storagePolicyMismatches,
     legacyOnlyReferences,
+    policyViolations,
+    migrationCandidates,
     orphanObjects,
   };
 }
@@ -352,7 +447,10 @@ function printSummary(summary, deleteOrphans) {
   console.log(`- 실제 Storage 객체 일치 수: ${summary.matchedFileCount}`);
   console.log(`- 누락 객체 수: ${summary.missingObjectCount}`);
   console.log(`- 경로 불일치 수: ${summary.pathMismatchCount}`);
+  console.log(`- MIME/크기 정책 위반 수: ${summary.storagePolicyMismatchCount}`);
   console.log(`- 레거시 경로만 있는 참조 수: ${summary.legacyOnlyReferenceCount}`);
+  console.log(`- canonical 정책 위반 매니저 수: ${summary.policyViolationCount}`);
+  console.log(`- 레거시 이관 후보 매니저 수: ${summary.legacyMigrationCandidateCount}`);
   console.log(`- 고아 파일 수: ${summary.orphanObjectCount}`);
   if (deleteOrphans) {
     console.log(`- 삭제한 고아 파일 수: ${summary.deletedOrphanCount}`);
@@ -383,6 +481,14 @@ function printSummary(summary, deleteOrphans) {
     }
   }
 
+  if (summary.storagePolicyMismatches.length) {
+    console.log("");
+    console.log("MIME/크기 정책 위반:");
+    for (const item of summary.storagePolicyMismatches) {
+      console.log(`- ${item.managerEmail} | ${item.documentKey} | ${item.fullPath}`);
+    }
+  }
+
   if (summary.orphanObjectCount) {
     console.log("");
     console.log("고아 파일 후보:");
@@ -390,10 +496,21 @@ function printSummary(summary, deleteOrphans) {
       console.log(`- ${item.name}`);
     }
   }
+
+  if (summary.policyViolations.length) {
+    console.log("");
+    console.log("canonical 정책 위반:");
+    for (const item of summary.policyViolations) {
+      console.log(`- ${item.managerEmail} | ${item.issues.join(" ")}`);
+    }
+  }
 }
 
 function hasBlockingIssue(summary) {
-  return summary.missingObjectCount > 0 || summary.pathMismatchCount > 0;
+  return summary.missingObjectCount > 0 ||
+    summary.pathMismatchCount > 0 ||
+    summary.storagePolicyMismatchCount > 0 ||
+    summary.policyViolationCount > 0;
 }
 
 function fromFirestoreDocument(document) {
@@ -491,6 +608,8 @@ if (require.main === module) {
 }
 
 module.exports = {
+  analyzeManagerDocumentPolicy,
   collectReferences,
+  hasStoragePolicyMismatch,
   isExpectedManagerDocumentPath,
 };

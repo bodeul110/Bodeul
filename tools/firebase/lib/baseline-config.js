@@ -45,7 +45,7 @@ const BASELINE_USERS = Object.freeze([
     email: "manager@bodeul.app",
     phone: "010-0000-0003",
     managerProfile: {
-      managerDocumentSummary: "요양보호사 자격증, 신분증, 통장사본 제출 완료",
+      managerDocumentSummary: "요양보호사 자격증 제출 완료",
       managerAvailabilitySummary: "평일 09:00-18:00, 주요 병원 동행 가능",
       managerDocumentStatus: "APPROVED",
       managerDocumentReviewNote: "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요.",

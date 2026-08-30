@@ -158,6 +158,8 @@ class AdminRbacMigrationContractTests {
                 .contains("drop view bodeul.verify_v20_rollback_dependency");
 
         assertThat(runner)
+                .contains("migrate_database bodeul_appointment_public_code 19")
+                .contains("migrate_database bodeul_admin_rbac")
                 .contains("--file db/verification/014_admin_rbac_rollback_failure_fixture.sql")
                 .contains("if psql --dbname bodeul_admin_rbac")
                 .contains("의존 객체가 있는 v20 롤백이 예상과 달리 성공했습니다.")

@@ -5,6 +5,13 @@ const logger = require("firebase-functions/logger");
 const {defineSecret} = require("firebase-functions/params");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const postgres = require("postgres");
+const {
+  MANAGER_DOCUMENT_PATH_ALIAS_FIELDS,
+  RETENTION_MANAGER_DOCUMENT_KEYS,
+  isManagerDocumentStoragePath,
+  managerDocumentLegalHoldBlocksDeletion,
+  resolveManagerDocumentReference,
+} = require("./manager-document-contract");
 
 const RETENTION_DATABASE_URL = defineSecret("RETENTION_DATABASE_URL");
 const RETENTION_DATABASE_CA_CERT = defineSecret("RETENTION_DATABASE_CA_CERT");
@@ -45,18 +52,6 @@ const CHAT_ATTACHMENT_PATH_PATTERN = new RegExp(
     "^companion-chat-attachments/[A-Za-z0-9_-]{1,128}/"
     + `(?:${UUID_PATH_SEGMENT_PATTERN}/)?[^/]+$`,
 );
-const MANAGER_DOCUMENT_KEYS = [
-  "idCard",
-  "license",
-  "healthCertificate",
-  "criminalRecord",
-];
-const MANAGER_DOCUMENT_LEGACY_PATH_KEYS = {
-  idCard: "managerIdCardStoragePath",
-  license: "managerLicenseStoragePath",
-  healthCertificate: null,
-  criminalRecord: "managerCriminalRecordStoragePath",
-};
 const REVIEWED_MANAGER_DOCUMENT_STATUSES = new Set(["APPROVED", "REJECTED"]);
 const RETENTION_COUNT_KEYS = [
   "postgresMessageCandidates",
@@ -288,7 +283,7 @@ class FirebaseManagerDocumentStore {
         [`managerDocumentFilePaths.${candidate.documentKey}`]: FieldValue.delete(),
         managerDocumentOriginalsDeletedAt: FieldValue.serverTimestamp(),
       };
-      const legacyKey = MANAGER_DOCUMENT_LEGACY_PATH_KEYS[candidate.documentKey];
+      const legacyKey = MANAGER_DOCUMENT_PATH_ALIAS_FIELDS[candidate.documentKey];
       if (legacyKey && sanitizeText(snapshot.data()?.[legacyKey]) === candidate.storagePath) {
         updates[legacyKey] = FieldValue.delete();
       }
@@ -611,12 +606,7 @@ function evaluateManagerDocument(managerId, data, asOf) {
   if (!references.length) {
     return result;
   }
-  const legalHoldUntilMillis = toMillis(data?.managerDocumentLegalHoldUntil);
-  if (hasTimestampValue(data, "managerDocumentLegalHoldUntil") && !legalHoldUntilMillis) {
-    result.legalHoldSkips = references.length;
-    return result;
-  }
-  if (legalHoldUntilMillis > asOf.getTime()) {
+  if (managerDocumentLegalHoldBlocksDeletion(data, asOf)) {
     result.legalHoldSkips = references.length;
     return result;
   }
@@ -636,37 +626,12 @@ function evaluateManagerDocument(managerId, data, asOf) {
 }
 
 function collectManagerDocumentReferences(managerId, data) {
-  const fileMap = isPlainObject(data?.managerDocumentFiles)
-    ? data.managerDocumentFiles
-    : {};
-  const pathMap = isPlainObject(data?.managerDocumentFilePaths)
-    ? data.managerDocumentFilePaths
-    : {};
   const references = [];
-
-  for (const documentKey of MANAGER_DOCUMENT_KEYS) {
-    const metadata = isPlainObject(fileMap[documentKey]) ? fileMap[documentKey] : {};
-    const legacyKey = MANAGER_DOCUMENT_LEGACY_PATH_KEYS[documentKey];
-    const requiredPaths = [
-      metadata.fullPath,
-      pathMap[documentKey],
-    ];
-    if (legacyKey) {
-      requiredPaths.push(data?.[legacyKey]);
+  for (const documentKey of RETENTION_MANAGER_DOCUMENT_KEYS) {
+    const reference = resolveManagerDocumentReference(data, managerId, documentKey);
+    if (reference) {
+      references.push(reference);
     }
-    const paths = Array.from(new Set(requiredPaths));
-    if (requiredPaths.some(
-        (candidatePath) => !isExactNonEmptyString(candidatePath),
-    ) ||
-        paths.length !== 1 ||
-        !isAllowedManagerDocumentPath(paths[0], managerId, documentKey)) {
-      continue;
-    }
-    references.push({
-      documentKey,
-      storagePath: paths[0],
-      uploadedAt: metadata.uploadedAt,
-    });
   }
   return references;
 }
@@ -830,30 +795,14 @@ function isAllowedChatAttachmentPath(value) {
 }
 
 function isAllowedManagerDocumentPath(value, managerId, documentKey) {
-  if (!isExactNonEmptyString(value)) {
-    return false;
+  if (managerId === undefined || documentKey === undefined) {
+    const segments = typeof value === "string" ? value.split("/") : [];
+    if (segments.length !== 4) {
+      return false;
+    }
+    return isManagerDocumentStoragePath(value, segments[1], segments[2]);
   }
-  const segments = value.split("/");
-  if (segments.length !== 4 ||
-      segments[0] !== "manager-documents" ||
-      !segments[1] ||
-      !MANAGER_DOCUMENT_KEYS.includes(segments[2]) ||
-      !segments[3]) {
-    return false;
-  }
-  if (managerId !== undefined &&
-      (!isExactNonEmptyString(managerId) || segments[1] !== managerId)) {
-    return false;
-  }
-  if (documentKey !== undefined &&
-      (!isExactNonEmptyString(documentKey) || segments[2] !== documentKey)) {
-    return false;
-  }
-  return true;
-}
-
-function isExactNonEmptyString(value) {
-  return typeof value === "string" && value.length > 0 && value.trim() === value;
+  return isManagerDocumentStoragePath(value, managerId, documentKey);
 }
 
 function emptyRetentionSummary(mode, asOf) {

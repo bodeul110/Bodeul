@@ -55,7 +55,7 @@ function createFixtureProfile({projectId, marker, idPrefix, messagePrefix}) {
       sessionExpired: `companion-chat-attachments/${sessionExpiredId}/fixture.pdf`,
       sessionHeld: `companion-chat-attachments/${sessionHeldId}/fixture.pdf`,
       managerExpired: `manager-documents/${managerExpiredId}/idCard/fixture.pdf`,
-      managerHeld: `manager-documents/${managerHeldId}/license/fixture.pdf`,
+      managerHeld: `manager-documents/${managerHeldId}/nursingLicense/fixture.pdf`,
     }),
   });
 }
@@ -150,13 +150,12 @@ function buildFixtureDefinition(now = new Date(), profile = DEVELOPMENT_PROFILE)
           managerDocumentUpdatedAt: managerExpiredAt,
           managerDocumentLegalHoldUntil: heldUntil,
           managerDocumentFiles: {
-            license: {
+            nursingLicense: {
               fullPath: objectPaths.managerHeld,
               uploadedAt: managerExpiredAt,
             },
           },
-          managerDocumentFilePaths: {license: objectPaths.managerHeld},
-          managerLicenseStoragePath: objectPaths.managerHeld,
+          managerDocumentFilePaths: {nursingLicense: objectPaths.managerHeld},
         },
       },
     },

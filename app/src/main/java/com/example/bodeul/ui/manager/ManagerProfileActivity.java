@@ -19,6 +19,7 @@ import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
@@ -179,26 +180,7 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
             showAuthState();
             return;
         }
-        CharSequence[] items = new CharSequence[]{
-                getString(R.string.manager_profile_document_type_id_card),
-                getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license),
-                getString(R.string.manager_profile_document_type_criminal_record)
-        };
-
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.manager_profile_document_upload_title)
-                .setItems(items, (dialog, which) -> {
-                    if (which == 1) {
-                        openLicenseTypeSelector();
-                        return;
-                    }
-                    pendingDocumentFileType = which == 0
-                            ? ManagerDocumentFileType.ID_CARD
-                            : ManagerDocumentFileType.CRIMINAL_RECORD;
-                    openDocumentPicker();
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        openLicenseTypeSelector();
     }
 
     private void openLicenseTypeSelector() {
@@ -207,7 +189,7 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
                 getString(R.string.manager_document_registration_document_elderly_care_license)
         };
         ManagerDocumentFileType[] fileTypes = new ManagerDocumentFileType[]{
-                ManagerDocumentFileType.HEALTH_CERTIFICATE,
+                ManagerDocumentFileType.NURSING_LICENSE,
                 ManagerDocumentFileType.LICENSE
         };
 
@@ -233,6 +215,12 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
         }
         if (currentUser == null) {
             showAuthState();
+            return;
+        }
+
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(selectedFileType);
+        if (!TextUtils.isEmpty(fileTypeError)) {
+            Toast.makeText(this, fileTypeError, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -456,7 +444,8 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
         if (fileType == ManagerDocumentFileType.LICENSE) {
             return getString(R.string.manager_document_registration_document_elderly_care_license);
         }
-        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE
+                || fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
             return getString(R.string.manager_document_registration_document_nursing_license);
         }
         return getString(R.string.manager_profile_document_type_criminal_record);

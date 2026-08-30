@@ -15,21 +15,69 @@ import java.util.List;
 
 public class ManagerDocumentRegistrationCoordinatorTest {
     @Test
-    public void requiredReviewableImagesEnableReviewRequest() {
+    public void jobQualificationImageEnablesReviewRequest() {
         assertTrue(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profileWithFiles(
-                document(ManagerDocumentFileType.ID_CARD, "id-card.jpg", "image/jpeg"),
+                document(ManagerDocumentFileType.LICENSE, "license.png", "image/png")
+        )));
+    }
+
+    @Test
+    public void nursingLicenseImageEnablesReviewRequest() {
+        assertTrue(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profileWithFiles(
+                document(ManagerDocumentFileType.NURSING_LICENSE, "nursing.webp", "image/webp")
+        )));
+    }
+
+    @Test
+    public void bothCanonicalQualificationsMustBeReplacedWithOneBeforeReviewRequest() {
+        assertFalse(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profileWithFiles(
                 document(ManagerDocumentFileType.LICENSE, "license.png", "image/png"),
+                document(ManagerDocumentFileType.NURSING_LICENSE, "nursing.jpg", "image/jpeg")
+        )));
+    }
+
+    @Test
+    public void legacyHealthCertificateRemainsReadableButCannotRequestNewReview() {
+        ManagerHomeProfile profile = profileWithFiles(
+                document(ManagerDocumentFileType.HEALTH_CERTIFICATE, "legacy.jpg", "image/jpeg")
+        );
+
+        assertFalse(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profile));
+        assertTrue(ManagerDocumentRegistrationCoordinator.requiresQualificationReplacement(profile));
+    }
+
+    @Test
+    public void identityAndCriminalRecordDoNotSatisfyQualificationRequirement() {
+        assertFalse(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profileWithFiles(
+                document(ManagerDocumentFileType.ID_CARD, "id-card.jpg", "image/jpeg"),
                 document(ManagerDocumentFileType.CRIMINAL_RECORD, "record.webp", "image/webp")
         )));
     }
 
     @Test
-    public void legacyPdfMustBeReplacedBeforeReviewRequest() {
-        assertFalse(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profileWithFiles(
-                document(ManagerDocumentFileType.ID_CARD, "id-card.pdf", "application/pdf"),
-                document(ManagerDocumentFileType.LICENSE, "license.png", "image/png"),
-                document(ManagerDocumentFileType.CRIMINAL_RECORD, "record.webp", "image/webp")
-        )));
+    public void unsupportedQualificationFileMustBeReplacedBeforeReviewRequest() {
+        ManagerHomeProfile profile = profileWithFiles(
+                document(ManagerDocumentFileType.LICENSE, "license.pdf", "application/pdf")
+        );
+
+        assertFalse(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profile));
+        assertTrue(ManagerDocumentRegistrationCoordinator.requiresQualificationReplacement(profile));
+    }
+
+    @Test
+    public void inconsistentCanonicalReferenceMustBeReplacedBeforeReviewRequest() {
+        ManagerHomeProfile profile = profileWithFiles(new ManagerDocumentFileMetadata(
+                ManagerDocumentFileType.LICENSE,
+                "manager-documents/manager-1/license/license.png",
+                "license.png",
+                "image/png",
+                100L,
+                "",
+                false
+        ));
+
+        assertFalse(ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profile));
+        assertTrue(ManagerDocumentRegistrationCoordinator.requiresQualificationReplacement(profile));
     }
 
     private static ManagerHomeProfile profileWithFiles(ManagerDocumentFileMetadata... files) {

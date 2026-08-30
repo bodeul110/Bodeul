@@ -120,6 +120,7 @@ service cloud.firestore {
         'managerDocumentFilePaths',
         'managerIdCardStoragePath',
         'managerLicenseStoragePath',
+        'managerHealthCertificateStoragePath',
         'managerCriminalRecordStoragePath'
       ]);
     }
@@ -142,6 +143,7 @@ service cloud.firestore {
         'managerDocumentFilePaths',
         'managerIdCardStoragePath',
         'managerLicenseStoragePath',
+        'managerHealthCertificateStoragePath',
         'managerCriminalRecordStoragePath'
       ]);
     }
@@ -151,6 +153,30 @@ service cloud.firestore {
           && !managerDocumentFileSubmissionChanged()
           && request.resource.data.keys().hasAll(['managerDocumentSummary'])
           && request.resource.data.managerDocumentSummary == '';
+    }
+
+    function managerDocumentFileChangeLegalHoldAllows() {
+      return !managerDocumentFileSubmissionChanged()
+          || (
+            !resource.data.keys().hasAny([
+              'managerDocumentLegalHoldUntil',
+              'managerDocumentLegalHoldReason',
+              'managerDocumentLegalHoldByAdminUserId'
+            ])
+          )
+          || (
+            resource.data.keys().hasAll([
+              'managerDocumentLegalHoldUntil',
+              'managerDocumentLegalHoldReason',
+              'managerDocumentLegalHoldByAdminUserId'
+            ])
+            && resource.data.managerDocumentLegalHoldUntil is timestamp
+            && resource.data.managerDocumentLegalHoldReason is string
+            && resource.data.managerDocumentLegalHoldReason.matches('.*\\S.*')
+            && resource.data.managerDocumentLegalHoldByAdminUserId is string
+            && resource.data.managerDocumentLegalHoldByAdminUserId.matches('.*\\S.*')
+            && resource.data.managerDocumentLegalHoldUntil <= request.time
+          );
     }
 
     function managerDocumentIsInitialDraft() {
@@ -177,7 +203,8 @@ service cloud.firestore {
         'managerDocumentLegalHoldByAdminUserId',
         'managerDocumentOriginalsDeletedAt',
         'managerDocumentApprovalEvidence',
-        'managerDocumentReviewedSubmissionRevision'
+        'managerDocumentReviewedSubmissionRevision',
+        'managerDocumentEvidenceMigration'
       ]);
     }
 
@@ -188,6 +215,7 @@ service cloud.firestore {
         'managerDocumentFilePaths',
         'managerIdCardStoragePath',
         'managerLicenseStoragePath',
+        'managerHealthCertificateStoragePath',
         'managerCriminalRecordStoragePath',
         'managerDocumentUpdatedAt'
       ]);
@@ -217,94 +245,166 @@ service cloud.firestore {
           && data[legacyPathKey] == data.managerDocumentFiles[documentKey].fullPath;
     }
 
-    function managerDocumentEntryIsAbsent(data, documentKey, legacyPathKey) {
-      return !data.managerDocumentFiles.keys().hasAny([documentKey])
-          && !data.managerDocumentFilePaths.keys().hasAny([documentKey])
-          && !data.keys().hasAny([legacyPathKey]);
+    function managerDocumentRestrictedLegacyFilesAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFiles'])
+            && !request.resource.data.managerDocumentFiles.keys().hasAny([
+              'idCard', 'criminalRecord'
+            ])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFiles'])
+            && resource.data.managerDocumentFiles is map
+            && !request.resource.data.managerDocumentFiles
+                .diff(resource.data.managerDocumentFiles)
+                .affectedKeys()
+                .hasAny(['idCard', 'criminalRecord'])
+          );
     }
 
-    function managerDocumentHealthEntryIsAbsent(data) {
-      return !data.managerDocumentFiles.keys().hasAny(['healthCertificate'])
-          && !data.managerDocumentFilePaths.keys().hasAny(['healthCertificate']);
+    function managerDocumentRestrictedLegacyPathsAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFilePaths'])
+            && !request.resource.data.managerDocumentFilePaths.keys().hasAny([
+              'idCard', 'criminalRecord'
+            ])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFilePaths'])
+            && resource.data.managerDocumentFilePaths is map
+            && !request.resource.data.managerDocumentFilePaths
+                .diff(resource.data.managerDocumentFilePaths)
+                .affectedKeys()
+                .hasAny(['idCard', 'criminalRecord'])
+          );
     }
 
-    function managerDocumentFileStateIsConsistent(data) {
+    function managerDocumentLegacyHealthFilesAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFiles'])
+            && !request.resource.data.managerDocumentFiles.keys()
+                .hasAny(['healthCertificate'])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFiles'])
+            && resource.data.managerDocumentFiles is map
+            && !request.resource.data.managerDocumentFiles
+                .diff(resource.data.managerDocumentFiles)
+                .affectedKeys()
+                .hasAny(['healthCertificate'])
+          );
+    }
+
+    function managerDocumentLegacyHealthPathsAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFilePaths'])
+            && !request.resource.data.managerDocumentFilePaths.keys()
+                .hasAny(['healthCertificate'])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFilePaths'])
+            && resource.data.managerDocumentFilePaths is map
+            && !request.resource.data.managerDocumentFilePaths
+                .diff(resource.data.managerDocumentFilePaths)
+                .affectedKeys()
+                .hasAny(['healthCertificate'])
+          );
+    }
+
+    function managerDocumentLegacyHealthIsUnchanged() {
+      return managerDocumentLegacyHealthFilesAreUnchanged()
+          && managerDocumentLegacyHealthPathsAreUnchanged()
+          && !affectedAny(['managerHealthCertificateStoragePath']);
+    }
+
+    function managerDocumentLegacyHealthCanBeFullyRemoved() {
+      return managerDocumentFilePathIsOwned(resource.data, 'healthCertificate')
+          && (
+            !resource.data.keys().hasAny(['managerHealthCertificateStoragePath'])
+            || (
+              resource.data.managerHealthCertificateStoragePath is string
+              && resource.data.managerHealthCertificateStoragePath
+                  == resource.data.managerDocumentFiles.healthCertificate.fullPath
+            )
+          )
+          && !request.resource.data.managerDocumentFiles.keys()
+              .hasAny(['healthCertificate'])
+          && !request.resource.data.managerDocumentFilePaths.keys()
+              .hasAny(['healthCertificate'])
+          && !request.resource.data.keys()
+              .hasAny(['managerHealthCertificateStoragePath']);
+    }
+
+    function managerDocumentLegacyHealthStateIsAllowed() {
+      return resource.data.keys().hasAll(['managerDocumentFiles'])
+          && resource.data.managerDocumentFiles is map
+          && resource.data.managerDocumentFiles.keys().hasAny(['healthCertificate'])
+          && !request.resource.data.managerDocumentFiles.keys()
+              .hasAny(['healthCertificate'])
+          ? managerDocumentLegacyHealthCanBeFullyRemoved()
+          : managerDocumentLegacyHealthIsUnchanged();
+    }
+
+    function managerDocumentLegacyStateIsAllowed() {
+      return managerDocumentRestrictedLegacyFilesAreUnchanged()
+          && managerDocumentRestrictedLegacyPathsAreUnchanged()
+          && !affectedAny([
+            'managerIdCardStoragePath',
+            'managerCriminalRecordStoragePath'
+          ])
+          && managerDocumentLegacyHealthStateIsAllowed();
+    }
+
+    function managerDocumentCanonicalFileStateIsConsistent(data) {
       return data.keys().hasAll(['managerDocumentFiles', 'managerDocumentFilePaths'])
           && data.managerDocumentFiles is map
           && data.managerDocumentFilePaths is map
           && data.managerDocumentFiles.keys().hasOnly([
-            'idCard', 'license', 'healthCertificate', 'criminalRecord'
+            'idCard', 'license', 'nursingLicense', 'healthCertificate', 'criminalRecord'
           ])
           && data.managerDocumentFilePaths.keys().hasOnly([
-            'idCard', 'license', 'healthCertificate', 'criminalRecord'
+            'idCard', 'license', 'nursingLicense', 'healthCertificate', 'criminalRecord'
           ])
           && (
-            managerDocumentEntryIsAbsent(
-              data,
-              'idCard',
-              'managerIdCardStoragePath'
-            )
-            || (
-              managerDocumentFileIsReviewable(data, 'idCard')
-              && managerDocumentLegacyPathMatches(
-                data,
-                'idCard',
-                'managerIdCardStoragePath'
-              )
-            )
-          )
-          && (
-            managerDocumentEntryIsAbsent(
-              data,
-              'license',
-              'managerLicenseStoragePath'
-            )
-            || (
-              managerDocumentFileIsReviewable(data, 'license')
+            (
+              data.managerDocumentFiles.keys().hasAll(['license'])
+              && data.managerDocumentFilePaths.keys().hasAll(['license'])
+              && !data.managerDocumentFiles.keys().hasAny(['nursingLicense'])
+              && !data.managerDocumentFilePaths.keys().hasAny(['nursingLicense'])
+              && managerDocumentCanonicalFileIsReviewable(data, 'license')
               && managerDocumentLegacyPathMatches(
                 data,
                 'license',
                 'managerLicenseStoragePath'
               )
             )
-          )
-          && (
-            managerDocumentHealthEntryIsAbsent(data)
-            || managerDocumentFileIsReviewable(data, 'healthCertificate')
-          )
-          && (
-            managerDocumentEntryIsAbsent(
-              data,
-              'criminalRecord',
-              'managerCriminalRecordStoragePath'
-            )
             || (
-              managerDocumentFileIsReviewable(data, 'criminalRecord')
-              && managerDocumentLegacyPathMatches(
-                data,
-                'criminalRecord',
-                'managerCriminalRecordStoragePath'
-              )
+              data.managerDocumentFiles.keys().hasAll(['nursingLicense'])
+              && data.managerDocumentFilePaths.keys().hasAll(['nursingLicense'])
+              && !data.managerDocumentFiles.keys().hasAny(['license'])
+              && !data.managerDocumentFilePaths.keys().hasAny(['license'])
+              && !data.keys().hasAny(['managerLicenseStoragePath'])
+              && managerDocumentCanonicalFileIsReviewable(data, 'nursingLicense')
             )
           );
     }
 
-    function managerDocumentFileIsReviewable(data, documentKey) {
-      return managerDocumentFilePathIsOwned(data, documentKey)
-          && data.managerDocumentFiles[documentKey].keys().hasAll(['contentType'])
+    function managerDocumentCanonicalFileIsReviewable(data, documentKey) {
+      return request.auth.uid.matches('^[A-Za-z0-9_-]{1,128}$')
+          && data.managerDocumentFiles[documentKey] is map
+          && data.managerDocumentFiles[documentKey].keys().hasAll([
+            'fullPath', 'contentType'
+          ])
+          && data.managerDocumentFiles[documentKey].fullPath is string
+          && data.managerDocumentFilePaths[documentKey] is string
+          && data.managerDocumentFiles[documentKey].fullPath
+              == data.managerDocumentFilePaths[documentKey]
+          && data.managerDocumentFiles[documentKey].fullPath.matches(
+            '^manager-documents/' + request.auth.uid + '/' + documentKey + '/[^/]+$'
+          )
           && data.managerDocumentFiles[documentKey].contentType is string
           && data.managerDocumentFiles[documentKey].contentType
               in ['image/jpeg', 'image/png', 'image/webp'];
-    }
-
-    function managerDocumentHasReviewableRequiredFiles(data) {
-      return data.keys().hasAll(['managerDocumentFiles'])
-          && data.managerDocumentFiles is map
-          && data.managerDocumentFiles.keys().hasAll(['idCard', 'criminalRecord'])
-          && (
-            data.managerDocumentFiles.keys().hasAll(['license'])
-            || data.managerDocumentFiles.keys().hasAll(['healthCertificate'])
-          );
     }
 
     function managerDocumentCreateIsSafe() {
@@ -337,12 +437,14 @@ service cloud.firestore {
         'managerDocumentLegalHoldByAdminUserId',
         'managerDocumentOriginalsDeletedAt',
         'managerDocumentApprovalEvidence',
-        'managerDocumentReviewedSubmissionRevision'
+        'managerDocumentReviewedSubmissionRevision',
+        'managerDocumentEvidenceMigration'
       ]);
     }
 
     function managerDocumentSubmissionUpdateIsSafe() {
       return managerDocumentReviewFieldsAreUnchanged()
+          && managerDocumentFileChangeLegalHoldAllows()
           && (
             (
               managerDocumentSubmissionActionChanged()
@@ -351,8 +453,8 @@ service cloud.firestore {
               && (
                 (
                   request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
-                  && managerDocumentFileStateIsConsistent(request.resource.data)
-                  && managerDocumentHasReviewableRequiredFiles(request.resource.data)
+                  && managerDocumentCanonicalFileStateIsConsistent(request.resource.data)
+                  && managerDocumentLegacyStateIsAllowed()
                 )
                 || (
                   request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
@@ -360,7 +462,8 @@ service cloud.firestore {
                     managerDocumentSummaryWasCleared()
                     || (
                       managerDocumentIsInitialDraft()
-                      && managerDocumentFileStateIsConsistent(request.resource.data)
+                      && managerDocumentCanonicalFileStateIsConsistent(request.resource.data)
+                      && managerDocumentLegacyStateIsAllowed()
                     )
                   )
                 )

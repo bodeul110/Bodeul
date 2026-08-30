@@ -3864,3 +3864,32 @@
 - PostgreSQL에는 관리자별 분당 10회 제한과 평문을 남기지 않는 감사 기록을 포함한 정확 검색 함수를 준비했다. 관리자 웹 route와 화면은 별도 PR #43에서 검토 중이다.
 - Firestore `reservationCodes`는 추가하지 않았으며 PostgreSQL `appointment_requests`를 계속 예약 업무 원본으로 유지한다.
 - production DB migration과 실제 배포는 수행하지 않았다.
+
+## 156. 2026-08-30 매니저 자격 증빙 최소수집 전환
+
+### 구현과 운영 경계
+
+- 신규 매니저 심사 원본을 `license` 또는 `nursingLicense` 중 정확히 1종으로 줄이고, 신분증·범죄경력 원본과 legacy `healthCertificate`의 신규 클라이언트 쓰기를 차단했다.
+- Android는 UID·문서 키·nested metadata·path map·legacy alias가 일치하는 canonical 이미지 1종만 제출 가능으로 표시한다. 오염된 참조, legacy key와 PDF는 `교체 필요`로 안내한다.
+- `healthCertificate` 객체를 `nursingLicense`로 복사·무결성 검증·Firestore transaction·generation 조건부 원본 삭제 순서로 이관하는 기본 dry-run 도구를 추가했다.
+- 순수 서버 이관에는 클라이언트가 변경할 수 없는 표식을 남겨 사용자 재제출 이력과 구분한다.
+- Functions는 자격 종류 교체 뒤 이전 canonical·legacy 객체를 정리한다. 삭제 직전 최신 문서의 역할·참조·legal hold를 다시 확인하고, 불완전하거나 해석할 수 없는 보존 상태에서는 fail-closed한다.
+- 실제 데이터 이관 apply, Rules·Functions 배포와 production 변경은 수행하지 않았다.
+
+### 검증
+
+- Android 전체 단위 테스트와 debug APK 빌드: 성공
+- Core API 전체 `check`와 V19 뒤 V20 migration 순서 계약: 성공
+- Functions 테스트: 73개 중 70개 성공, 기존 Emulator 전용 3개 제외, 실패 0개
+- Firebase 운영 도구 테스트: 62/62 성공
+- Firestore·Storage Rules 에뮬레이터: 7/7 성공
+- CI 프리플라이트의 로컬 빌드·테스트: 성공. 전용 작업공간에 Firebase 프로젝트 입력이 없어 운영 워크플로는 건너뜀
+- 전체 diff 형식과 migration 검증 셸 문법 검사: 성공
+
+### 남은 범위
+
+- 개발 Firebase에서 이관 dry-run 대상·차단 건과 백업 증적 대조 후 승인된 apply 수행
+- 관리자 웹 PR `bodeul110/bodeul-admin-web#44`를 같은 canonical 계약으로 갱신하고 Preview 역할별 심사·거부·파기 흐름 검증
+- 새 Android 앱과 Rules·Functions를 같은 출시 창에 배포한 뒤 구버전 legacy 쓰기가 남지 않았는지 확인
+
+상세 근거는 [이슈 349 매니저 자격 증빙 최소수집 전환 기록](../reports/issue-349-manager-document-minimization-2026-08-30.md)에 정리했다.

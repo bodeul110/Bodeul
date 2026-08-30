@@ -62,7 +62,7 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
   "email": "manager@bodeul.app",
   "phone": "010-0000-0003",
   "role": "MANAGER",
-  "managerDocumentSummary": "요양보호사 자격증, 신분증, 통장사본 제출 완료",
+  "managerDocumentSummary": "요양보호사 자격증 제출 완료",
   "managerAvailabilitySummary": "평일 09:00-18:00 활동 가능"
 }
 ```
@@ -436,10 +436,11 @@ npm run seed:manager-docs:apply
 
 - 관리자 웹은 Firebase Storage 버킷 `bodeul-dev.firebasestorage.app`을 사용한다.
 - 서류 원본 기본 경로 규약은 `manager-documents/{managerUserId}/{documentKey}/{fileName}` 이다.
-- `documentKey`는 `idCard`, `license`, `healthCertificate`, `criminalRecord`를 사용한다.
-- 관리자 웹은 `license`와 `healthCertificate`를 모두 `자격증` 슬롯으로 묶어서 읽는다.
+- 신규 `documentKey`는 `license`, `nursingLicense`만 사용하고 한 제출에는 정확히 1종만 둔다.
+- `healthCertificate`는 실제 간호사 면허의 legacy key이므로 신규 쓰기를 막고 `nursingLicense`로 이관한다. `idCard`, `criminalRecord`는 신규 수집하지 않는다.
+- 관리자 웹은 `license`, `nursingLicense`만 현재 자격 증빙으로 읽고 legacy key는 이관 확인에만 사용한다.
 - [storage.rules](../../../storage.rules) 기준 권한은 아래와 같다.
-  - 관리자(`ADMIN`): 모든 매니저 서류 읽기 가능
+  - 관리자 브라우저: 직접 읽기 불가. 관리자 서버가 세부 역할·사유·감사를 확인한 뒤 인라인으로 중계
   - 매니저 본인: 본인 경로 읽기/쓰기 가능
   - 그 외 사용자: 접근 불가
 - 매니저 증빙 업로드 형식은 `image/jpeg`, `image/png`, `image/webp`만 허용한다. 관리자 웹이 격리된 PDF 렌더러를 제공하기 전까지 매니저 증빙 PDF 신규 제출은 차단하며, 기존 PDF는 이미지로 다시 제출한다.
@@ -460,7 +461,7 @@ npm run seed:manager-docs:apply
 - 고아 파일 정리는 `npm run cleanup:manager-storage:dry-run` -> `npm run cleanup:manager-storage:apply` 순서로 실행한다.
 - 실제 삭제는 `--apply`가 있어야만 수행되고, 누락 객체나 경로 불일치가 있으면 기본적으로 차단한다.
 - 정말 예외적으로 강제 삭제가 필요할 때만 `--delete-orphans --apply --force`를 수동으로 사용한다.
-- `seed-manager-document-storage-sample.js`로 `manager@bodeul.app` 샘플 서류 3종을 Storage와 Firestore에 함께 올려 실제 관리자 웹 미리보기 데이터를 검증할 수 있다.
+- `seed-manager-document-storage-sample.js`로 `manager@bodeul.app`의 canonical 자격 증빙 이미지 1종을 Storage와 Firestore에 함께 올려 실제 관리자 웹 미리보기 데이터를 검증할 수 있다.
 - Firebase 운영 도구의 Firestore 부분 업데이트는 [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)에서 `updateMask.fieldPaths`를 함께 붙여 문서 전체 덮어쓰기를 피한다.
 
 ## 2026-05-04 App Check 1단계 메모

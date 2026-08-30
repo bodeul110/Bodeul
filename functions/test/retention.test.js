@@ -350,12 +350,49 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   assert.equal(eligible.candidates.length, 1);
   assert.equal(eligible.legalHoldSkips, 0);
 
+  const reviewedAt = Date.parse("2026-06-01T00:00:00.000Z");
+  assert.equal(evaluateManagerDocument(
+      "manager-1",
+      baseData,
+      new Date(reviewedAt + (30 * 24 * 60 * 60 * 1000) - 1),
+  ).candidates.length, 0);
+  assert.equal(evaluateManagerDocument(
+      "manager-1",
+      baseData,
+      new Date(reviewedAt + (30 * 24 * 60 * 60 * 1000)),
+  ).candidates.length, 1);
+
   const held = evaluateManagerDocument("manager-1", {
     ...baseData,
     managerDocumentLegalHoldUntil: Date.parse("2026-08-01T00:00:00.000Z"),
+    managerDocumentLegalHoldReason: "분쟁 대응",
+    managerDocumentLegalHoldByAdminUserId: "admin-1",
   }, now);
   assert.equal(held.candidates.length, 0);
   assert.equal(held.legalHoldSkips, 1);
+
+  const incompleteHold = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentLegalHoldReason: "분쟁 대응",
+  }, now);
+  assert.equal(incompleteHold.candidates.length, 0);
+  assert.equal(incompleteHold.legalHoldSkips, 1);
+
+  const invalidHold = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentLegalHoldUntil: "invalid",
+  }, now);
+  assert.equal(invalidHold.candidates.length, 0);
+  assert.equal(invalidHold.legalHoldSkips, 1);
+
+  const expiredHold = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentLegalHoldUntil: Date.parse("2026-07-17T23:59:59.999Z"),
+    managerDocumentLegalHoldReason: "만료된 보존",
+    managerDocumentLegalHoldByAdminUserId: "admin-1",
+  }, now);
+  assert.equal(expiredHold.candidates.length, 1);
+  assert.equal(expiredHold.legalHoldSkips, 0);
 
   const otherManagerPath = "manager-documents/manager-2/license/license.pdf";
   const crossOwner = evaluateManagerDocument("manager-1", {
@@ -416,6 +453,24 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   }, now);
   assert.equal(missingPathMapAlias.candidates.length, 0);
 
+  const nursingLicensePath =
+    "manager-documents/manager-1/nursingLicense/nursing-license.jpg";
+  const nursingLicense = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      nursingLicense: {
+        fullPath: nursingLicensePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {nursingLicense: nursingLicensePath},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.deepEqual(
+      nursingLicense.candidates.map(({documentKey}) => documentKey),
+      ["nursingLicense"],
+  );
+
   const healthCertificatePath =
     "manager-documents/manager-1/healthCertificate/health.jpg";
   const healthCertificate = evaluateManagerDocument("manager-1", {
@@ -431,6 +486,21 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   }, now);
   assert.equal(healthCertificate.candidates.length, 1);
 
+  const mismatchedHealthCertificateAlias = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      healthCertificate: {
+        fullPath: healthCertificatePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {healthCertificate: healthCertificatePath},
+    managerHealthCertificateStoragePath:
+      "manager-documents/manager-1/healthCertificate/mismatch.jpg",
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(mismatchedHealthCertificateAlias.candidates.length, 0);
+
   const incompleteHealthCertificate = evaluateManagerDocument("manager-1", {
     ...baseData,
     managerDocumentFiles: {
@@ -440,9 +510,58 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
       },
     },
     managerDocumentFilePaths: {},
+    managerHealthCertificateStoragePath: healthCertificatePath,
     managerLicenseStoragePath: "",
   }, now);
   assert.equal(incompleteHealthCertificate.candidates.length, 0);
+
+  const idCardPath = "manager-documents/manager-1/idCard/legacy-id.jpg";
+  const idCard = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      idCard: {
+        fullPath: idCardPath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {idCard: idCardPath},
+    managerIdCardStoragePath: idCardPath,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.deepEqual(idCard.candidates.map(({documentKey}) => documentKey), ["idCard"]);
+
+  const criminalRecordPath =
+    "manager-documents/manager-1/criminalRecord/legacy-record.jpg";
+  const criminalRecord = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      criminalRecord: {
+        fullPath: criminalRecordPath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {criminalRecord: criminalRecordPath},
+    managerCriminalRecordStoragePath: criminalRecordPath,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.deepEqual(
+      criminalRecord.candidates.map(({documentKey}) => documentKey),
+      ["criminalRecord"],
+  );
+
+  const unsupportedPath = "manager-documents/manager-1/passport/unsupported.jpg";
+  const unsupported = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      passport: {
+        fullPath: unsupportedPath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {passport: unsupportedPath},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(unsupported.candidates.length, 0);
 });
 
 test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확인한다", async () => {
@@ -478,8 +597,30 @@ test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확�
       "manager-1",
       "idCard",
   );
+  await gateway.deleteManagerDocument(
+      "manager-documents/manager-1/nursingLicense/license.jpg",
+      "manager-1",
+      "nursingLicense",
+  );
+  await gateway.deleteManagerDocument(
+      "manager-documents/manager-1/healthCertificate/legacy.jpg",
+      "manager-1",
+      "healthCertificate",
+  );
+  await assert.rejects(
+      gateway.deleteManagerDocument(
+          "manager-documents/manager-1/passport/unsupported.jpg",
+          "manager-1",
+          "passport",
+      ),
+      (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
+  );
 
-  assert.deepEqual(deletedPaths, ["manager-documents/manager-1/idCard/id.jpg"]);
+  assert.deepEqual(deletedPaths, [
+    "manager-documents/manager-1/idCard/id.jpg",
+    "manager-documents/manager-1/nursingLicense/license.jpg",
+    "manager-documents/manager-1/healthCertificate/legacy.jpg",
+  ]);
 });
 
 test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에서 재시도한다", async () => {

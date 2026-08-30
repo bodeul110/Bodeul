@@ -7,6 +7,8 @@ import android.webkit.MimeTypeMap;
 
 import androidx.annotation.Nullable;
 
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
+
 import java.util.Locale;
 
 /**
@@ -16,6 +18,23 @@ public final class ManagerDocumentUploadPolicy {
     public static final long MAX_FILE_SIZE_BYTES = UploadFileSizePolicy.MAX_FILE_SIZE_BYTES;
 
     private ManagerDocumentUploadPolicy() {
+    }
+
+    public static boolean isCanonicalQualificationType(@Nullable ManagerDocumentFileType fileType) {
+        return fileType == ManagerDocumentFileType.LICENSE
+                || fileType == ManagerDocumentFileType.NURSING_LICENSE;
+    }
+
+    public static boolean isLegacyReadOnlyType(@Nullable ManagerDocumentFileType fileType) {
+        return fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE;
+    }
+
+    @Nullable
+    public static String validateFileType(@Nullable ManagerDocumentFileType fileType) {
+        if (!isCanonicalQualificationType(fileType)) {
+            return "간호사 면허증 또는 현재 직무 관련 자격 증빙 중 1종만 업로드할 수 있습니다.";
+        }
+        return null;
     }
 
     @Nullable

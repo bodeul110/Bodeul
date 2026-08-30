@@ -20,6 +20,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerDocumentPreviewResolver;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
@@ -131,7 +132,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
         
-        if (fileType == null) {
+        if (!ManagerDocumentUploadPolicy.isCanonicalQualificationType(fileType)) {
             showLicenseTypeSelector();
             return;
         }
@@ -160,7 +161,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 getString(R.string.manager_document_registration_document_elderly_care_license)
         };
         ManagerDocumentFileType[] types = new ManagerDocumentFileType[]{
-                ManagerDocumentFileType.HEALTH_CERTIFICATE,
+                ManagerDocumentFileType.NURSING_LICENSE,
                 ManagerDocumentFileType.LICENSE
         };
 
@@ -181,6 +182,12 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         }
         if (currentUser == null) {
             showAuthState();
+            return;
+        }
+
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(selectedFileType);
+        if (!TextUtils.isEmpty(fileTypeError)) {
+            Toast.makeText(this, fileTypeError, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -520,7 +527,8 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         if (fileType == ManagerDocumentFileType.LICENSE) {
             return getString(R.string.manager_document_registration_document_elderly_care_license);
         }
-        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE
+                || fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
             return getString(R.string.manager_document_registration_document_nursing_license);
         }
         return getString(R.string.manager_document_registration_document_criminal_record);

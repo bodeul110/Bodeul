@@ -47,18 +47,25 @@ test("심사 전 상태에서 재심사 대기로 바뀔 때만 제출 이력을
   ), null);
 });
 
-test("심사 대기 중 제출 파일이나 요약이 바뀌면 새 제출 이력을 만든다", () => {
+test("심사 대기 중 활성 자격 증빙이 바뀌면 새 제출 이력을 만든다", () => {
   const happenedAt = Timestamp.fromMillis(1_760_000_000_100);
   const beforeData = {
     role: "MANAGER",
     managerDocumentStatus: "PENDING_REVIEW",
     managerDocumentSummary: "첫 제출",
-    managerDocumentFiles: {idCard: {fullPath: "manager-documents/manager-1/idCard/old.jpg"}},
+    managerDocumentFiles: {
+      nursingLicense: {
+        fullPath: "manager-documents/manager-1/nursingLicense/old.jpg",
+      },
+    },
   };
   const afterData = {
     ...beforeData,
-    managerDocumentSummary: "수정 제출",
-    managerDocumentFiles: {idCard: {fullPath: "manager-documents/manager-1/idCard/new.jpg"}},
+    managerDocumentFiles: {
+      nursingLicense: {
+        fullPath: "manager-documents/manager-1/nursingLicense/new.jpg",
+      },
+    },
   };
 
   const event = resolveManagerDocumentSubmissionEvent(
@@ -72,7 +79,235 @@ test("심사 대기 중 제출 파일이나 요약이 바뀌면 새 제출 이�
   assert.equal(managerDocumentSubmissionContentChanged(beforeData, afterData), true);
   assert.equal(event.eventId, "event-pending-revision");
   assert.equal(event.happenedAt, happenedAt);
-  assert.equal(event.summary, "수정 제출");
+  assert.equal(event.summary, "첫 제출");
+});
+
+test("활성 자격 증빙 두 키와 요약만 제출 내용 변경으로 판단한다", () => {
+  const baseData = {
+    managerDocumentSummary: "제출 요약",
+    managerDocumentFiles: {
+      license: {fullPath: "manager-documents/manager-1/license/current.jpg"},
+      nursingLicense: {
+        fullPath: "manager-documents/manager-1/nursingLicense/current.jpg",
+      },
+      healthCertificate: {
+        fullPath: "manager-documents/manager-1/healthCertificate/legacy.jpg",
+      },
+      idCard: {fullPath: "manager-documents/manager-1/idCard/legacy.jpg"},
+      criminalRecord: {
+        fullPath: "manager-documents/manager-1/criminalRecord/legacy.jpg",
+      },
+    },
+    managerDocumentFilePaths: {
+      license: "manager-documents/manager-1/license/current.jpg",
+      nursingLicense: "manager-documents/manager-1/nursingLicense/current.jpg",
+      healthCertificate: "manager-documents/manager-1/healthCertificate/legacy.jpg",
+      idCard: "manager-documents/manager-1/idCard/legacy.jpg",
+      criminalRecord: "manager-documents/manager-1/criminalRecord/legacy.jpg",
+    },
+    managerIdCardStoragePath: "manager-documents/manager-1/idCard/legacy.jpg",
+    managerLicenseStoragePath: "manager-documents/manager-1/license/current.jpg",
+    managerHealthCertificateStoragePath:
+      "manager-documents/manager-1/healthCertificate/legacy.jpg",
+    managerCriminalRecordStoragePath:
+      "manager-documents/manager-1/criminalRecord/legacy.jpg",
+  };
+
+  assert.equal(managerDocumentSubmissionContentChanged(baseData, {
+    ...baseData,
+    managerDocumentFiles: {
+      ...baseData.managerDocumentFiles,
+      license: {fullPath: "manager-documents/manager-1/license/revised.jpg"},
+    },
+  }), true);
+  assert.equal(managerDocumentSubmissionContentChanged(baseData, {
+    ...baseData,
+    managerDocumentFilePaths: {
+      ...baseData.managerDocumentFilePaths,
+      nursingLicense: "manager-documents/manager-1/nursingLicense/revised.jpg",
+    },
+  }), true);
+  assert.equal(managerDocumentSubmissionContentChanged(baseData, {
+    ...baseData,
+    managerDocumentSummary: "수정한 제출 요약",
+  }), true);
+});
+
+test("이관 및 파기 전용 기존 키 변경은 새 제출 이력을 만들지 않는다", () => {
+  const beforeData = {
+    role: "MANAGER",
+    managerDocumentStatus: "PENDING_REVIEW",
+    managerDocumentSummary: "제출 요약",
+    managerDocumentFiles: {
+      license: {fullPath: "manager-documents/manager-1/license/current.jpg"},
+      healthCertificate: {
+        fullPath: "manager-documents/manager-1/healthCertificate/old.jpg",
+      },
+      idCard: {fullPath: "manager-documents/manager-1/idCard/old.jpg"},
+      criminalRecord: {
+        fullPath: "manager-documents/manager-1/criminalRecord/old.jpg",
+      },
+    },
+    managerDocumentFilePaths: {
+      license: "manager-documents/manager-1/license/current.jpg",
+    },
+    managerLicenseStoragePath: "manager-documents/manager-1/license/current.jpg",
+  };
+  const afterData = {
+    ...beforeData,
+    managerDocumentFiles: {
+      ...beforeData.managerDocumentFiles,
+      healthCertificate: {
+        fullPath: "manager-documents/manager-1/healthCertificate/new.jpg",
+      },
+      idCard: {fullPath: "manager-documents/manager-1/idCard/new.jpg"},
+      criminalRecord: {
+        fullPath: "manager-documents/manager-1/criminalRecord/new.jpg",
+      },
+    },
+    managerIdCardStoragePath: "manager-documents/manager-1/idCard/new.jpg",
+    managerHealthCertificateStoragePath:
+      "manager-documents/manager-1/healthCertificate/new.jpg",
+    managerCriminalRecordStoragePath:
+      "manager-documents/manager-1/criminalRecord/new.jpg",
+  };
+
+  assert.equal(managerDocumentSubmissionContentChanged(beforeData, afterData), false);
+  assert.equal(resolveManagerDocumentSubmissionEvent(
+      beforeData,
+      afterData,
+      "manager-1",
+      "event-legacy-only",
+      Timestamp.fromMillis(1_760_000_000_125),
+  ), null);
+});
+
+test("서버 표식과 경로가 일치하는 건강진단서 이관은 사용자 재제출로 기록하지 않는다", () => {
+  const managerId = "manager-1";
+  const sourcePath =
+    `manager-documents/${managerId}/healthCertificate/evidence.jpg`;
+  const destinationPath =
+    `manager-documents/${managerId}/nursingLicense/evidence.jpg`;
+  const sourceMetadata = {
+    fullPath: sourcePath,
+    fileName: "evidence.jpg",
+    contentType: "image/jpeg",
+    sizeBytes: 1024,
+    uploadedAt: 1_760_000_000_000,
+  };
+  const marker = {
+    migrationId: "health-certificate-to-nursing-license-v1",
+    sourceKey: "healthCertificate",
+    destinationKey: "nursingLicense",
+    sourcePath,
+    destinationPath,
+  };
+  const beforeData = {
+    role: "MANAGER",
+    managerDocumentStatus: "PENDING_REVIEW",
+    managerDocumentSummary: "기존 제출",
+    managerDocumentFiles: {healthCertificate: sourceMetadata},
+    managerDocumentFilePaths: {healthCertificate: sourcePath},
+    managerHealthCertificateStoragePath: sourcePath,
+  };
+  const afterData = {
+    role: "MANAGER",
+    managerDocumentStatus: "PENDING_REVIEW",
+    managerDocumentSummary: "기존 제출",
+    managerDocumentFiles: {
+      nursingLicense: {...sourceMetadata, fullPath: destinationPath},
+    },
+    managerDocumentFilePaths: {nursingLicense: destinationPath},
+    managerDocumentEvidenceMigration: marker,
+  };
+
+  assert.equal(
+      managerDocumentSubmissionContentChanged(beforeData, afterData, managerId),
+      false,
+  );
+  assert.equal(resolveManagerDocumentSubmissionEvent(
+      beforeData,
+      afterData,
+      managerId,
+      "migration-event",
+      Timestamp.fromMillis(1_760_000_000_150),
+  ), null);
+});
+
+test("표식이 없거나 불일치한 canonical 변경은 실제 제출 변경으로 기록한다", () => {
+  const managerId = "manager-1";
+  const sourcePath =
+    `manager-documents/${managerId}/healthCertificate/evidence.jpg`;
+  const destinationPath =
+    `manager-documents/${managerId}/nursingLicense/evidence.jpg`;
+  const sourceMetadata = {
+    fullPath: sourcePath,
+    fileName: "evidence.jpg",
+    contentType: "image/jpeg",
+    sizeBytes: 1024,
+  };
+  const beforeData = {
+    role: "MANAGER",
+    managerDocumentStatus: "PENDING_REVIEW",
+    managerDocumentSummary: "기존 제출",
+    managerDocumentFiles: {healthCertificate: sourceMetadata},
+    managerDocumentFilePaths: {healthCertificate: sourcePath},
+    managerHealthCertificateStoragePath: sourcePath,
+  };
+  const migrated = {
+    role: "MANAGER",
+    managerDocumentStatus: "PENDING_REVIEW",
+    managerDocumentSummary: "기존 제출",
+    managerDocumentFiles: {
+      nursingLicense: {...sourceMetadata, fullPath: destinationPath},
+    },
+    managerDocumentFilePaths: {nursingLicense: destinationPath},
+  };
+  const validMarker = {
+    migrationId: "health-certificate-to-nursing-license-v1",
+    sourceKey: "healthCertificate",
+    destinationKey: "nursingLicense",
+    sourcePath,
+    destinationPath,
+  };
+  const cases = [
+    migrated,
+    {
+      ...migrated,
+      managerDocumentEvidenceMigration: {
+        ...validMarker,
+        destinationPath: `${destinationPath}.mismatch`,
+      },
+    },
+    {
+      ...migrated,
+      managerDocumentFiles: {
+        nursingLicense: {
+          ...sourceMetadata,
+          fullPath: destinationPath,
+          sizeBytes: 2048,
+        },
+      },
+      managerDocumentEvidenceMigration: validMarker,
+    },
+    {
+      ...migrated,
+      managerDocumentSummary: "사용자가 수정한 제출",
+      managerDocumentEvidenceMigration: validMarker,
+    },
+  ];
+
+  for (const afterData of cases) {
+    assert.equal(
+        managerDocumentSubmissionContentChanged(beforeData, afterData, managerId),
+        true,
+    );
+  }
+  assert.equal(managerDocumentSubmissionContentChanged(
+      {...beforeData, managerDocumentEvidenceMigration: validMarker},
+      {...migrated, managerDocumentEvidenceMigration: validMarker},
+      managerId,
+  ), true);
 });
 
 test("반려 뒤 같은 자료로 다시 요청해도 새 제출 이력을 만든다", () => {

@@ -101,44 +101,53 @@ public final class ManagerProfileCoordinator {
 
     private List<ManagerDocumentFileCardModel> createDocumentFileCards(ManagerHomeProfile profile) {
         List<ManagerDocumentFileCardModel> cards = new ArrayList<>();
-        cards.add(createDocumentFileCard(
-                context.getString(R.string.manager_profile_document_type_id_card),
-                profile.getDocumentFile(ManagerDocumentFileType.ID_CARD)
-        ));
         cards.add(createCombinedLicenseFileCard(profile));
-        cards.add(createDocumentFileCard(
-                context.getString(R.string.manager_profile_document_type_criminal_record),
-                profile.getDocumentFile(ManagerDocumentFileType.CRIMINAL_RECORD)
-        ));
         return cards;
     }
 
     private ManagerDocumentFileCardModel createCombinedLicenseFileCard(ManagerHomeProfile profile) {
-        ManagerDocumentFileMetadata nursingMetadata = profile.getDocumentFile(ManagerDocumentFileType.HEALTH_CERTIFICATE);
+        ManagerDocumentFileMetadata nursingMetadata = profile.getDocumentFile(
+                ManagerDocumentFileType.NURSING_LICENSE
+        );
         if (nursingMetadata != null && !nursingMetadata.isEmpty()) {
             return createDocumentFileCard(
                     context.getString(R.string.manager_document_registration_document_nursing_license),
-                    nursingMetadata
+                    nursingMetadata,
+                    ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profile)
             );
         }
 
-        ManagerDocumentFileMetadata elderlyCareMetadata = profile.getDocumentFile(ManagerDocumentFileType.LICENSE);
-        if (elderlyCareMetadata != null && !elderlyCareMetadata.isEmpty()) {
+        ManagerDocumentFileMetadata qualificationMetadata = profile.getDocumentFile(ManagerDocumentFileType.LICENSE);
+        if (qualificationMetadata != null && !qualificationMetadata.isEmpty()) {
             return createDocumentFileCard(
                     context.getString(R.string.manager_document_registration_document_elderly_care_license),
-                    elderlyCareMetadata
+                    qualificationMetadata,
+                    ManagerDocumentRegistrationCoordinator.hasRequiredFiles(profile)
+            );
+        }
+
+        ManagerDocumentFileMetadata legacyNursingMetadata = profile.getDocumentFile(
+                ManagerDocumentFileType.HEALTH_CERTIFICATE
+        );
+        if (legacyNursingMetadata != null && !legacyNursingMetadata.isEmpty()) {
+            return createDocumentFileCard(
+                    context.getString(R.string.manager_document_registration_document_nursing_license),
+                    legacyNursingMetadata,
+                    false
             );
         }
 
         return createDocumentFileCard(
                 context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license),
-                null
+                null,
+                false
         );
     }
 
     private ManagerDocumentFileCardModel createDocumentFileCard(
             String titleText,
-            ManagerDocumentFileMetadata metadata
+            ManagerDocumentFileMetadata metadata,
+            boolean reviewable
     ) {
         if (metadata == null || metadata.isEmpty()) {
             return new ManagerDocumentFileCardModel(
@@ -147,7 +156,20 @@ public final class ManagerProfileCoordinator {
                     R.color.bodeul_soft_yellow,
                     R.color.bodeul_text_primary,
                     context.getString(R.string.manager_profile_document_file_card_missing_body, titleText),
-                    ""
+                ""
+            );
+        }
+        if (!reviewable) {
+            return new ManagerDocumentFileCardModel(
+                    titleText,
+                    context.getString(R.string.manager_document_registration_status_replace_required),
+                    R.color.bodeul_soft_yellow,
+                    R.color.bodeul_text_primary,
+                    metadata.getFileName(),
+                    context.getString(
+                            R.string.manager_document_registration_replace_file_body,
+                            titleText
+                    )
             );
         }
         return new ManagerDocumentFileCardModel(

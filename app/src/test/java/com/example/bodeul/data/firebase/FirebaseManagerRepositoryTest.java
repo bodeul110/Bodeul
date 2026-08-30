@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDashboard;
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 
 import org.junit.Test;
@@ -97,6 +98,24 @@ public class FirebaseManagerRepositoryTest {
         );
 
         assertEquals("PENDING_REVIEW", updates.get("managerDocumentStatus"));
+    }
+
+    @Test
+    public void nursingLicenseReplacementRemovesOtherQualificationReferences() {
+        Map<String, Object> updates = new HashMap<>();
+
+        FirebaseManagerRepository.putCanonicalQualificationReplacement(
+                updates,
+                ManagerDocumentFileType.NURSING_LICENSE
+        );
+
+        assertTrue(updates.containsKey("managerDocumentFiles.license"));
+        assertTrue(updates.containsKey("managerDocumentFilePaths.license"));
+        assertTrue(updates.containsKey("managerLicenseStoragePath"));
+        assertTrue(updates.containsKey("managerDocumentFiles.healthCertificate"));
+        assertTrue(updates.containsKey("managerDocumentFilePaths.healthCertificate"));
+        assertTrue(updates.containsKey("managerHealthCertificateStoragePath"));
+        assertFalse(updates.containsKey("managerDocumentFiles.nursingLicense"));
     }
 
     @Test

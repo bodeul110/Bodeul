@@ -2,9 +2,12 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  copyStorageObject,
   createCliContext,
+  deleteStorageObject,
   lookupAuthUserByEmail,
   resolveFirestoreConnection,
+  runDocumentTransaction,
 } = require("../lib/firebase-toolkit");
 
 test("Emulator 환경변수가 없으면 운영 Firestore endpoint를 사용한다", () => {
@@ -90,10 +93,102 @@ test("WIF OAuth access token을 Firebase 사용자 token보다 우선한다", as
   }
 });
 
+test("Storage 복사와 삭제는 source/destination generation 조건을 사용한다", async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (url, options = {}) => {
+    requests.push({url: String(url), options});
+    if (options.method === "POST") {
+      return jsonResponse({
+        done: true,
+        resource: {name: "manager-documents/manager-1/nursingLicense/a.png"},
+      });
+    }
+    return jsonResponse({}, 204);
+  };
+  const context = {
+    projectId: "bodeul-dev",
+    storageBucket: "bodeul-dev.appspot.com",
+    accessToken: "token",
+    useFirestoreEmulator: false,
+  };
+  try {
+    await copyStorageObject(
+        context,
+        "manager-documents/manager-1/healthCertificate/a.png",
+        "manager-documents/manager-1/nursingLicense/a.png",
+        "7",
+    );
+    await deleteStorageObject(
+        context,
+        "manager-documents/manager-1/healthCertificate/a.png",
+        "7",
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+  assert.match(requests[0].url, /ifGenerationMatch=0/);
+  assert.match(requests[0].url, /ifSourceGenerationMatch=7/);
+  assert.match(requests[1].url, /ifGenerationMatch=7/);
+});
+
+test("Firestore transaction은 삭제 필드를 updateMask에만 포함한다", async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  const responses = [
+    jsonResponse({transaction: "transaction-1"}),
+    jsonResponse({
+      name: "projects/bodeul-dev/databases/(default)/documents/users/manager-1",
+      fields: {role: {stringValue: "MANAGER"}},
+    }),
+    jsonResponse({commitTime: "2026-08-30T00:00:00.000Z"}),
+  ];
+  global.fetch = async (url, options = {}) => {
+    requests.push({url: String(url), options});
+    return responses.shift();
+  };
+  try {
+    await runDocumentTransaction(
+        {
+          projectId: "bodeul-dev",
+          accessToken: "token",
+          useFirestoreEmulator: false,
+        },
+        "users/manager-1",
+        () => ({
+          data: {managerDocumentFilePaths: {nursingLicense: "path"}},
+          deleteFields: ["managerHealthCertificateStoragePath"],
+        }),
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+  const commitBody = JSON.parse(requests[2].options.body);
+  const write = commitBody.writes[0];
+  assert.deepEqual(write.updateMask.fieldPaths, [
+    "managerDocumentFilePaths",
+    "managerHealthCertificateStoragePath",
+  ]);
+  assert.equal(
+      "managerHealthCertificateStoragePath" in write.update.fields,
+      false,
+  );
+  assert.equal(commitBody.transaction, "transaction-1");
+});
+
 function restoreEnv(name, value) {
   if (value === undefined) {
     delete process.env[name];
     return;
   }
   process.env[name] = value;
+}
+
+function jsonResponse(payload, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: status === 204 ? "No Content" : "OK",
+    json: async () => payload,
+  };
 }

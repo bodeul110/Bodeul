@@ -109,30 +109,44 @@ function userDocument(role, name) {
 
 function managerDocumentSubmissionFiles({
   managerId = users.manager,
-  idCardPath = `manager-documents/${managerId}/idCard/seed.jpg`,
-  idCardPathMap = idCardPath,
-  idCardLegacyPath = idCardPath,
-  licensePath = `manager-documents/${managerId}/license/seed.png`,
-  licensePathMap = licensePath,
-  licenseLegacyPath = licensePath,
-  criminalRecordPath = `manager-documents/${managerId}/criminalRecord/seed.webp`,
-  criminalRecordPathMap = criminalRecordPath,
-  criminalRecordLegacyPath = criminalRecordPath,
+  documentKey = "license",
+  fullPath = `manager-documents/${managerId}/${documentKey}/seed.png`,
+  pathMap = fullPath,
+  legacyPath = fullPath,
 } = {}) {
-  return {
+  const result = {
     managerDocumentFiles: {
-      idCard: { fullPath: idCardPath, contentType: "image/jpeg" },
-      license: { fullPath: licensePath, contentType: "image/png" },
-      criminalRecord: { fullPath: criminalRecordPath, contentType: "image/webp" },
+      [documentKey]: { fullPath, contentType: "image/png" },
     },
     managerDocumentFilePaths: {
-      idCard: idCardPathMap,
-      license: licensePathMap,
-      criminalRecord: criminalRecordPathMap,
+      [documentKey]: pathMap,
     },
-    managerIdCardStoragePath: idCardLegacyPath,
-    managerLicenseStoragePath: licenseLegacyPath,
-    managerCriminalRecordStoragePath: criminalRecordLegacyPath,
+  };
+  if (documentKey === "license") {
+    result.managerLicenseStoragePath = legacyPath;
+  }
+  return result;
+}
+
+function legacyManagerDocumentFiles(managerId = users.manager) {
+  const idCardPath = `manager-documents/${managerId}/idCard/legacy.jpg`;
+  const criminalRecordPath = `manager-documents/${managerId}/criminalRecord/legacy.webp`;
+  const healthCertificatePath =
+    `manager-documents/${managerId}/healthCertificate/legacy.png`;
+  return {
+    managerDocumentFiles: {
+      idCard: {fullPath: idCardPath, contentType: "image/jpeg"},
+      criminalRecord: {fullPath: criminalRecordPath, contentType: "image/webp"},
+      healthCertificate: {fullPath: healthCertificatePath, contentType: "image/png"},
+    },
+    managerDocumentFilePaths: {
+      idCard: idCardPath,
+      criminalRecord: criminalRecordPath,
+      healthCertificate: healthCertificatePath,
+    },
+    managerIdCardStoragePath: idCardPath,
+    managerCriminalRecordStoragePath: criminalRecordPath,
+    managerHealthCertificateStoragePath: healthCertificatePath,
   };
 }
 
@@ -323,6 +337,14 @@ function testCases(testEnv) {
             },
         ));
         await assertFails(setDoc(
+            doc(firestoreFor(testEnv, "forged-migration-manager"), "users", "forged-migration-manager"),
+            {
+              ...userDocument("MANAGER", "forged-migration-manager"),
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentEvidenceMigration: {migrationId: "forged"},
+            },
+        ));
+        await assertFails(setDoc(
             doc(firestoreFor(testEnv, "forged-submission-manager"), "users", "forged-submission-manager"),
             {
               ...userDocument("MANAGER", "forged-submission-manager"),
@@ -418,6 +440,11 @@ function testCases(testEnv) {
             managerDocumentOriginalsDeletedAt: 100,
             managerDocumentApprovalEvidence: { payloadHash: "server-evidence" },
             managerDocumentReviewedSubmissionRevision: "server-revision",
+            managerDocumentEvidenceMigration: {
+              migrationId: "server-migration",
+              sourceKey: "healthCertificate",
+              destinationKey: "nursingLicense",
+            },
           });
         });
         await assertFails(updateDoc(
@@ -431,6 +458,20 @@ function testCases(testEnv) {
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             { managerDocumentReviewedSubmissionRevision: deleteField() },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              managerDocumentEvidenceMigration: {
+                migrationId: "forged",
+                sourceKey: "healthCertificate",
+                destinationKey: "nursingLicense",
+              },
+            },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {managerDocumentEvidenceMigration: deleteField()},
         ));
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.admin), "users", users.manager),
@@ -463,14 +504,14 @@ function testCases(testEnv) {
             },
         ));
         const wrongDocumentKeyPath =
-          `manager-documents/${users.manager}/license/id-card.jpg`;
+          `manager-documents/${users.manager}/nursingLicense/license.jpg`;
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
               ...managerDocumentSubmissionFiles({
-                idCardPath: wrongDocumentKeyPath,
-                idCardPathMap: wrongDocumentKeyPath,
-                idCardLegacyPath: wrongDocumentKeyPath,
+                fullPath: wrongDocumentKeyPath,
+                pathMap: wrongDocumentKeyPath,
+                legacyPath: wrongDocumentKeyPath,
               }),
               managerDocumentSummary: "다른 문서 키 경로 제출",
               managerDocumentStatus: "PENDING_REVIEW",
@@ -481,8 +522,8 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
               ...managerDocumentSubmissionFiles({
-                idCardPathMap:
-                  `manager-documents/${users.manager}/idCard/path-map-mismatch.jpg`,
+                pathMap:
+                  `manager-documents/${users.manager}/license/path-map-mismatch.jpg`,
               }),
               managerDocumentSummary: "경로 맵 불일치 제출",
               managerDocumentStatus: "PENDING_REVIEW",
@@ -493,8 +534,8 @@ function testCases(testEnv) {
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
               ...managerDocumentSubmissionFiles({
-                idCardLegacyPath:
-                  `manager-documents/${users.manager}/idCard/legacy-mismatch.jpg`,
+                legacyPath:
+                  `manager-documents/${users.manager}/license/legacy-mismatch.jpg`,
               }),
               managerDocumentSummary: "레거시 경로 불일치 제출",
               managerDocumentStatus: "PENDING_REVIEW",
@@ -502,7 +543,7 @@ function testCases(testEnv) {
             },
         ));
         const missingLegacyAlias = managerDocumentSubmissionFiles();
-        delete missingLegacyAlias.managerIdCardStoragePath;
+        delete missingLegacyAlias.managerLicenseStoragePath;
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
@@ -514,21 +555,56 @@ function testCases(testEnv) {
         ));
         const healthCertificatePath =
           `manager-documents/${users.manager}/healthCertificate/health.jpg`;
-        const healthCertificateSubmission = managerDocumentSubmissionFiles();
-        delete healthCertificateSubmission.managerDocumentFiles.license;
-        delete healthCertificateSubmission.managerDocumentFilePaths.license;
-        delete healthCertificateSubmission.managerLicenseStoragePath;
-        healthCertificateSubmission.managerDocumentFiles.healthCertificate = {
+        const newHealthSubmission = managerDocumentSubmissionFiles();
+        newHealthSubmission.managerDocumentFiles.healthCertificate = {
           fullPath: healthCertificatePath,
           contentType: "image/jpeg",
         };
-        healthCertificateSubmission.managerDocumentFilePaths.healthCertificate =
+        newHealthSubmission.managerDocumentFilePaths.healthCertificate =
           healthCertificatePath;
-        await assertSucceeds(updateDoc(
+        newHealthSubmission.managerHealthCertificateStoragePath =
+          healthCertificatePath;
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
-              ...healthCertificateSubmission,
-              managerDocumentSummary: "건강진단서 경로 제출",
+              ...newHealthSubmission,
+              managerDocumentSummary: "레거시 건강진단서 신규 제출",
+              managerDocumentStatus: "PENDING_REVIEW",
+              managerDocumentUpdatedAt: serverTimestamp(),
+            },
+        ));
+        for (const legacyKey of ["idCard", "criminalRecord"]) {
+          const legacyPath =
+            `manager-documents/${users.manager}/${legacyKey}/new.jpg`;
+          const sensitiveSubmission = managerDocumentSubmissionFiles();
+          sensitiveSubmission.managerDocumentFiles[legacyKey] = {
+            fullPath: legacyPath,
+            contentType: "image/jpeg",
+          };
+          sensitiveSubmission.managerDocumentFilePaths[legacyKey] = legacyPath;
+          await assertFails(updateDoc(
+              doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+              {
+                ...sensitiveSubmission,
+                managerDocumentSummary: "민감 원본 신규 제출",
+                managerDocumentStatus: "PENDING_REVIEW",
+                managerDocumentUpdatedAt: serverTimestamp(),
+              },
+          ));
+        }
+        const bothCanonical = managerDocumentSubmissionFiles();
+        const nursingPath =
+          `manager-documents/${users.manager}/nursingLicense/nursing.png`;
+        bothCanonical.managerDocumentFiles.nursingLicense = {
+          fullPath: nursingPath,
+          contentType: "image/png",
+        };
+        bothCanonical.managerDocumentFilePaths.nursingLicense = nursingPath;
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              ...bothCanonical,
+              managerDocumentSummary: "자격 증빙 두 종류 제출",
               managerDocumentStatus: "PENDING_REVIEW",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
@@ -538,6 +614,26 @@ function testCases(testEnv) {
             {
               ...managerDocumentSubmissionFiles(),
               managerDocumentSummary: "정상 경로 제출",
+              managerDocumentStatus: "PENDING_REVIEW",
+              managerDocumentUpdatedAt: serverTimestamp(),
+            },
+        ));
+        const nursingManager = "nursing-manager-user";
+        await assertSucceeds(setDoc(
+            doc(firestoreFor(testEnv, nursingManager), "users", nursingManager),
+            {
+              ...userDocument("MANAGER", "nursing-manager"),
+              managerDocumentStatus: "NOT_SUBMITTED",
+            },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, nursingManager), "users", nursingManager),
+            {
+              ...managerDocumentSubmissionFiles({
+                managerId: nursingManager,
+                documentKey: "nursingLicense",
+              }),
+              managerDocumentSummary: "간호사 면허 제출",
               managerDocumentStatus: "PENDING_REVIEW",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
@@ -575,7 +671,8 @@ function testCases(testEnv) {
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
-              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/replaced.jpg",
+              "managerDocumentFiles.license.fullPath":
+                "manager-documents/manager-user/license/replaced.jpg",
               managerDocumentStatus: "APPROVED",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
@@ -596,29 +693,32 @@ function testCases(testEnv) {
               managerDocumentUpdatedAt: serverTimestamp(),
             },
         ));
-        await assertSucceeds(updateDoc(
+        await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
               managerDocumentSummary: "",
-              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/replaced.jpg",
-              "managerDocumentFilePaths.idCard": "manager-documents/manager-user/idCard/replaced.jpg",
-              managerIdCardStoragePath: "manager-documents/manager-user/idCard/replaced.jpg",
+              "managerDocumentFiles.license.fullPath":
+                "manager-documents/manager-user/license/replaced.jpg",
+              "managerDocumentFilePaths.license":
+                "manager-documents/manager-user/license/replaced.jpg",
+              managerLicenseStoragePath:
+                "manager-documents/manager-user/license/replaced.jpg",
               managerDocumentStatus: "NOT_SUBMITTED",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
         ));
-        await testEnv.withSecurityRulesDisabled(async (context) => {
-          await updateDoc(doc(context.firestore(), "users", users.manager), {
-            managerDocumentStatus: "NOT_SUBMITTED",
-            managerDocumentSummary: "",
-          });
-        });
-        await assertSucceeds(updateDoc(
-            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+        const draftManager = "draft-manager-user";
+        await assertSucceeds(setDoc(
+            doc(firestoreFor(testEnv, draftManager), "users", draftManager),
             {
-              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/draft.jpg",
-              "managerDocumentFilePaths.idCard": "manager-documents/manager-user/idCard/draft.jpg",
-              managerIdCardStoragePath: "manager-documents/manager-user/idCard/draft.jpg",
+              ...userDocument("MANAGER", "draft-manager"),
+              managerDocumentStatus: "NOT_SUBMITTED",
+            },
+        ));
+        await assertSucceeds(updateDoc(
+            doc(firestoreFor(testEnv, draftManager), "users", draftManager),
+            {
+              ...managerDocumentSubmissionFiles({managerId: draftManager}),
               managerDocumentStatus: "NOT_SUBMITTED",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
@@ -632,7 +732,8 @@ function testCases(testEnv) {
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
-              "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/reviewed.jpg",
+              "managerDocumentFiles.license.fullPath":
+                "manager-documents/manager-user/license/reviewed.jpg",
               managerDocumentStatus: "NOT_SUBMITTED",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
@@ -649,10 +750,7 @@ function testCases(testEnv) {
           await updateDoc(doc(context.firestore(), "users", users.manager), {
             managerDocumentStatus: "REJECTED",
             managerDocumentSummary: "같은 자료 재심사",
-            "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/legacy.pdf",
-            "managerDocumentFiles.idCard.contentType": "application/pdf",
-            "managerDocumentFilePaths.idCard": "manager-documents/manager-user/idCard/legacy.pdf",
-            managerIdCardStoragePath: "manager-documents/manager-user/idCard/legacy.pdf",
+            "managerDocumentFiles.license.contentType": "application/pdf",
           });
         });
         await assertFails(updateDoc(
@@ -663,12 +761,24 @@ function testCases(testEnv) {
             },
         ));
         await testEnv.withSecurityRulesDisabled(async (context) => {
+          const canonical = managerDocumentSubmissionFiles();
+          const legacy = legacyManagerDocumentFiles();
           await updateDoc(doc(context.firestore(), "users", users.manager), {
             managerDocumentStatus: "REJECTED",
-            "managerDocumentFiles.idCard.fullPath": "manager-documents/manager-user/idCard/current.jpg",
-            "managerDocumentFiles.idCard.contentType": "image/jpeg",
-            "managerDocumentFilePaths.idCard": "manager-documents/manager-user/idCard/current.jpg",
-            managerIdCardStoragePath: "manager-documents/manager-user/idCard/current.jpg",
+            managerDocumentFiles: {
+              ...canonical.managerDocumentFiles,
+              ...legacy.managerDocumentFiles,
+            },
+            managerDocumentFilePaths: {
+              ...canonical.managerDocumentFilePaths,
+              ...legacy.managerDocumentFilePaths,
+            },
+            managerLicenseStoragePath: canonical.managerLicenseStoragePath,
+            managerIdCardStoragePath: legacy.managerIdCardStoragePath,
+            managerCriminalRecordStoragePath:
+              legacy.managerCriminalRecordStoragePath,
+            managerHealthCertificateStoragePath:
+              legacy.managerHealthCertificateStoragePath,
           });
         });
         await assertSucceeds(updateDoc(
@@ -681,6 +791,216 @@ function testCases(testEnv) {
         await assertFails(updateDoc(
             doc(firestoreFor(testEnv, users.manager), "users", users.manager),
             {
+              "managerDocumentFiles.idCard.fullPath":
+                "manager-documents/manager-user/idCard/changed.jpg",
+              managerDocumentUpdatedAt: serverTimestamp(),
+            },
+        ));
+        await assertFails(updateDoc(
+            doc(firestoreFor(testEnv, users.manager), "users", users.manager),
+            {
+              "managerDocumentFilePaths.healthCertificate": deleteField(),
+              managerDocumentUpdatedAt: serverTimestamp(),
+            },
+        ));
+        for (const [replacementManager, documentKey, withAlias] of [
+          ["legacy-health-to-nursing", "nursingLicense", true],
+          ["legacy-health-to-license", "license", false],
+        ]) {
+          const legacyPath =
+            `manager-documents/${replacementManager}/healthCertificate/legacy.png`;
+          await testEnv.withSecurityRulesDisabled(async (context) => {
+            const data = {
+              ...userDocument("MANAGER", replacementManager),
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentFiles: {
+                healthCertificate: {
+                  fullPath: legacyPath,
+                  contentType: "image/png",
+                },
+              },
+              managerDocumentFilePaths: {healthCertificate: legacyPath},
+            };
+            if (withAlias) {
+              data.managerHealthCertificateStoragePath = legacyPath;
+            }
+            await setDoc(
+                doc(context.firestore(), "users", replacementManager),
+                data,
+            );
+          });
+          const replacement = managerDocumentSubmissionFiles({
+            managerId: replacementManager,
+            documentKey,
+          });
+          await assertSucceeds(updateDoc(
+              doc(
+                  firestoreFor(testEnv, replacementManager),
+                  "users",
+                  replacementManager,
+              ),
+              {
+                ...replacement,
+                managerHealthCertificateStoragePath: deleteField(),
+                managerDocumentSummary: "자격 증빙 교체",
+                managerDocumentStatus: "PENDING_REVIEW",
+                managerDocumentUpdatedAt: serverTimestamp(),
+              },
+          ));
+        }
+        for (const [holdManager, holdFields, shouldSucceed] of [
+          [
+            "legacy-health-active-hold",
+            {
+              managerDocumentLegalHoldUntil: new Date("2100-01-01T00:00:00.000Z"),
+              managerDocumentLegalHoldReason: "분쟁 보존",
+              managerDocumentLegalHoldByAdminUserId: users.admin,
+            },
+            false,
+          ],
+          [
+            "legacy-health-invalid-hold",
+            {managerDocumentLegalHoldReason: "불완전 보존 설정"},
+            false,
+          ],
+          [
+            "legacy-health-invalid-hold-type",
+            {
+              managerDocumentLegalHoldUntil: new Date("2000-01-01T00:00:00.000Z"),
+              managerDocumentLegalHoldReason: 123,
+              managerDocumentLegalHoldByAdminUserId: users.admin,
+            },
+            false,
+          ],
+          [
+            "legacy-health-empty-hold-reason",
+            {
+              managerDocumentLegalHoldUntil: new Date("2000-01-01T00:00:00.000Z"),
+              managerDocumentLegalHoldReason: "",
+              managerDocumentLegalHoldByAdminUserId: users.admin,
+            },
+            false,
+          ],
+          [
+            "legacy-health-blank-hold-admin",
+            {
+              managerDocumentLegalHoldUntil: new Date("2000-01-01T00:00:00.000Z"),
+              managerDocumentLegalHoldReason: "만료된 분쟁 보존",
+              managerDocumentLegalHoldByAdminUserId: "   ",
+            },
+            false,
+          ],
+          [
+            "legacy-health-expired-hold",
+            {
+              managerDocumentLegalHoldUntil: new Date("2000-01-01T00:00:00.000Z"),
+              managerDocumentLegalHoldReason: "만료된 분쟁 보존",
+              managerDocumentLegalHoldByAdminUserId: users.admin,
+            },
+            true,
+          ],
+        ]) {
+          const legacyPath =
+            `manager-documents/${holdManager}/healthCertificate/legacy.png`;
+          await testEnv.withSecurityRulesDisabled(async (context) => {
+            await setDoc(doc(context.firestore(), "users", holdManager), {
+              ...userDocument("MANAGER", holdManager),
+              managerDocumentStatus: "NOT_SUBMITTED",
+              managerDocumentFiles: {
+                healthCertificate: {
+                  fullPath: legacyPath,
+                  contentType: "image/png",
+                },
+              },
+              managerDocumentFilePaths: {healthCertificate: legacyPath},
+              ...holdFields,
+            });
+          });
+          const operation = updateDoc(
+              doc(firestoreFor(testEnv, holdManager), "users", holdManager),
+              {
+                ...managerDocumentSubmissionFiles({
+                  managerId: holdManager,
+                  documentKey: "nursingLicense",
+                }),
+                managerDocumentSummary: "보존 상태 교체",
+                managerDocumentStatus: "PENDING_REVIEW",
+                managerDocumentUpdatedAt: serverTimestamp(),
+              },
+          );
+          if (shouldSucceed) {
+            await assertSucceeds(operation);
+          } else {
+            await assertFails(operation);
+          }
+        }
+        const partialRemovalManager = "legacy-health-partial";
+        const partialLegacyPath =
+          `manager-documents/${partialRemovalManager}/healthCertificate/legacy.png`;
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await setDoc(doc(context.firestore(), "users", partialRemovalManager), {
+            ...userDocument("MANAGER", partialRemovalManager),
+            managerDocumentStatus: "NOT_SUBMITTED",
+            managerDocumentFiles: {
+              healthCertificate: {
+                fullPath: partialLegacyPath,
+                contentType: "image/png",
+              },
+            },
+            managerDocumentFilePaths: {healthCertificate: partialLegacyPath},
+          });
+        });
+        const partialReplacement = managerDocumentSubmissionFiles({
+          managerId: partialRemovalManager,
+          documentKey: "nursingLicense",
+        });
+        partialReplacement.managerDocumentFiles.healthCertificate = {
+          fullPath: partialLegacyPath,
+          contentType: "image/png",
+        };
+        await assertFails(updateDoc(
+            doc(
+                firestoreFor(testEnv, partialRemovalManager),
+                "users",
+                partialRemovalManager,
+            ),
+            {
+              ...partialReplacement,
+              managerDocumentSummary: "부분 제거 시도",
+              managerDocumentStatus: "PENDING_REVIEW",
+              managerDocumentUpdatedAt: serverTimestamp(),
+            },
+        ));
+        const mismatchedHealthManager = "legacy-health-mismatch";
+        await testEnv.withSecurityRulesDisabled(async (context) => {
+          await setDoc(doc(context.firestore(), "users", mismatchedHealthManager), {
+            ...userDocument("MANAGER", mismatchedHealthManager),
+            managerDocumentStatus: "NOT_SUBMITTED",
+            managerDocumentFiles: {
+              healthCertificate: {
+                fullPath:
+                  `manager-documents/${mismatchedHealthManager}/healthCertificate/a.png`,
+                contentType: "image/png",
+              },
+            },
+            managerDocumentFilePaths: {
+              healthCertificate:
+                `manager-documents/${mismatchedHealthManager}/healthCertificate/b.png`,
+            },
+          });
+        });
+        await assertFails(updateDoc(
+            doc(
+                firestoreFor(testEnv, mismatchedHealthManager),
+                "users",
+                mismatchedHealthManager,
+            ),
+            {
+              ...managerDocumentSubmissionFiles({
+                managerId: mismatchedHealthManager,
+                documentKey: "nursingLicense",
+              }),
+              managerDocumentSummary: "불일치 원본 교체",
               managerDocumentStatus: "PENDING_REVIEW",
               managerDocumentUpdatedAt: serverTimestamp(),
             },
@@ -689,13 +1009,18 @@ function testCases(testEnv) {
           await updateDoc(doc(context.firestore(), "users", users.manager), {
             managerDocumentStatus: "NOT_SUBMITTED",
             managerDocumentSummary: "",
-            "managerDocumentFiles.healthCertificate": {
-              fullPath:
-                `manager-documents/${users.otherManager}/healthCertificate/poisoned.jpg`,
-              contentType: "image/jpeg",
+            managerDocumentFiles: {
+              healthCertificate: {
+                fullPath:
+                  `manager-documents/${users.manager}/healthCertificate/legacy.jpg`,
+                contentType: "image/jpeg",
+              },
             },
-            "managerDocumentFilePaths.healthCertificate":
-              `manager-documents/${users.otherManager}/healthCertificate/poisoned.jpg`,
+            managerDocumentFilePaths: {
+              healthCertificate:
+                `manager-documents/${users.manager}/healthCertificate/legacy.jpg`,
+            },
+            managerLicenseStoragePath: deleteField(),
           });
         });
         await assertFails(updateDoc(
@@ -709,12 +1034,12 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "appointmentRequests 비교 문서는 환자·관리자만 읽고 매니저·보호자는 거부한다",
+      name: "appointmentRequests 비교 문서는 환자만 직접 읽고 관리자 브라우저 접근도 거부한다",
       run: async () => {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "appointmentRequests", "request-main")));
-        await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.admin), "appointmentRequests", "request-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.admin), "appointmentRequests", "request-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.guardian), "appointmentRequests", "request-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.manager), "appointmentRequests", "request-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.outsider), "appointmentRequests", "request-main")));
@@ -740,12 +1065,12 @@ function testCases(testEnv) {
       },
     },
     {
-      name: "companionSessions 비교 문서는 환자·관리자만 읽고 매니저·보호자는 거부한다",
+      name: "companionSessions 비교 문서는 환자만 직접 읽고 관리자 브라우저 접근도 거부한다",
       run: async () => {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "companionSessions", "session-main")));
-        await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.admin), "companionSessions", "session-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.manager), "companionSessions", "session-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.guardian), "companionSessions", "session-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.outsider), "companionSessions", "session-main")));
@@ -814,7 +1139,7 @@ function testCases(testEnv) {
         await seedFirestore(testEnv);
 
         await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.patient), "sessionReports", "report-main")));
-        await assertSucceeds(getDoc(doc(firestoreFor(testEnv, users.admin), "sessionReports", "report-main")));
+        await assertFails(getDoc(doc(firestoreFor(testEnv, users.admin), "sessionReports", "report-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.manager), "sessionReports", "report-main")));
         await assertFails(getDoc(doc(firestoreFor(testEnv, users.guardian), "sessionReports", "report-main")));
         await assertFails(setDoc(
@@ -832,7 +1157,7 @@ function testCases(testEnv) {
         await assertSucceeds(getDoc(
             doc(firestoreFor(testEnv, users.patient), "appointmentFollowUps", "request-main"),
         ));
-        await assertSucceeds(getDoc(
+        await assertFails(getDoc(
             doc(firestoreFor(testEnv, users.admin), "appointmentFollowUps", "request-main"),
         ));
         await assertFails(getDoc(
@@ -923,10 +1248,20 @@ function testCases(testEnv) {
             new Uint8Array([4, 5, 6]),
             { contentType: "image/jpeg" },
         ));
+        await assertSucceeds(uploadBytes(
+            ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/nursingLicense/1760000000000-upload.webp"),
+            new Uint8Array([4, 5, 6]),
+            { contentType: "image/webp" },
+        ));
         await assertFails(uploadBytes(
             ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/license/1760000000001-upload.pdf"),
             new Uint8Array([4, 5, 6]),
             { contentType: "application/pdf" },
+        ));
+        await assertFails(uploadBytes(
+            ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/license/too-large.png"),
+            new Uint8Array(10 * 1024 * 1024 + 1),
+            { contentType: "image/png" },
         ));
         await assertFails(uploadBytes(
             ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/idCard/seed.pdf"),
@@ -947,11 +1282,16 @@ function testCases(testEnv) {
             new Uint8Array([4, 5, 6]),
             { contentType: "image/jpeg" },
         ));
-        await assertFails(uploadBytes(
-            ref(storageFor(testEnv, users.manager), "manager-documents/manager-user/idCard/upload.exe"),
-            new Uint8Array([4, 5, 6]),
-            { contentType: "application/x-msdownload" },
-        ));
+        for (const legacyKey of ["idCard", "healthCertificate", "criminalRecord"]) {
+          await assertFails(uploadBytes(
+              ref(
+                  storageFor(testEnv, users.manager),
+                  `manager-documents/manager-user/${legacyKey}/new-upload.jpg`,
+              ),
+              new Uint8Array([4, 5, 6]),
+              {contentType: "image/jpeg"},
+          ));
+        }
       },
     },
     {
@@ -1036,7 +1376,10 @@ async function runTests() {
     },
   });
 
-  const cases = testCases(testEnv);
+  const filter = String(process.env.RULES_TEST_FILTER || "").trim();
+  const cases = testCases(testEnv).filter((testCase) =>
+    !filter || testCase.name.includes(filter),
+  );
   let failedCount = 0;
 
   try {
