@@ -1,7 +1,11 @@
 package com.example.bodeul.data;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
 
 import org.junit.Test;
 
@@ -10,16 +14,64 @@ import org.junit.Test;
  */
 public class ManagerDocumentUploadPolicyTest {
     @Test
-    public void validateContentType_allowsPdfAndImage() {
-        assertNull(ManagerDocumentUploadPolicy.validateContentType("application/pdf"));
-        assertNull(ManagerDocumentUploadPolicy.validateContentType("image/png"));
+    public void canonicalQualificationTypesAreTheOnlyNewUploadTypes() {
+        assertTrue(ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                ManagerDocumentFileType.LICENSE
+        ));
+        assertTrue(ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                ManagerDocumentFileType.NURSING_LICENSE
+        ));
+        assertFalse(ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                ManagerDocumentFileType.ID_CARD
+        ));
+        assertFalse(ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                ManagerDocumentFileType.CRIMINAL_RECORD
+        ));
+        assertFalse(ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                ManagerDocumentFileType.HEALTH_CERTIFICATE
+        ));
     }
 
     @Test
-    public void validateContentType_blocksUnsupportedType() {
+    public void healthCertificateIsLegacyReadOnlyType() {
+        assertTrue(ManagerDocumentUploadPolicy.isLegacyReadOnlyType(
+                ManagerDocumentFileType.HEALTH_CERTIFICATE
+        ));
+        assertFalse(ManagerDocumentUploadPolicy.isLegacyReadOnlyType(
+                ManagerDocumentFileType.NURSING_LICENSE
+        ));
+    }
+
+    @Test
+    public void validateFileTypeUsesCurrentQualificationLabels() {
+        assertNull(ManagerDocumentUploadPolicy.validateFileType(
+                ManagerDocumentFileType.LICENSE
+        ));
+        assertNull(ManagerDocumentUploadPolicy.validateFileType(
+                ManagerDocumentFileType.NURSING_LICENSE
+        ));
         assertEquals(
-                "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.",
-                ManagerDocumentUploadPolicy.validateContentType("text/plain")
+                "간호사 면허증 또는 현재 직무 관련 자격 증빙 중 1종만 업로드할 수 있습니다.",
+                ManagerDocumentUploadPolicy.validateFileType(ManagerDocumentFileType.ID_CARD)
+        );
+    }
+
+    @Test
+    public void validateContentType_allowsReviewableImages() {
+        assertNull(ManagerDocumentUploadPolicy.validateContentType("image/jpeg"));
+        assertNull(ManagerDocumentUploadPolicy.validateContentType("image/png"));
+        assertNull(ManagerDocumentUploadPolicy.validateContentType("image/webp"));
+    }
+
+    @Test
+    public void validateContentType_blocksPdfAndUnsupportedImages() {
+        assertEquals(
+                "원본 서류는 JPEG, PNG 또는 WebP 이미지로만 업로드할 수 있습니다.",
+                ManagerDocumentUploadPolicy.validateContentType("application/pdf")
+        );
+        assertEquals(
+                "원본 서류는 JPEG, PNG 또는 WebP 이미지로만 업로드할 수 있습니다.",
+                ManagerDocumentUploadPolicy.validateContentType("image/gif")
         );
     }
 

@@ -3,14 +3,12 @@
 const {
   createCliContext,
   listCollectionDocuments,
-  patchDocumentData,
+  runDocumentTransaction,
   uploadStorageObject,
 } = require("./lib/firebase-toolkit");
 
 const DOCUMENTS = [
-  {key: "idCard", fileName: "sample-id-card.png", label: "신분증"},
-  {key: "license", fileName: "sample-license.png", label: "자격증"},
-  {key: "criminalRecord", fileName: "sample-criminal-record.png", label: "범죄경력 조회서"},
+  {key: "license", fileName: "sample-license.png", label: "요양보호사 자격증"},
 ];
 
 const SAMPLE_PNG_BASE64 =
@@ -29,20 +27,9 @@ async function main() {
     throw new Error(`매니저 계정을 찾지 못했습니다: ${options.email}`);
   }
 
-  const summaryText = manager.documentSummary || "신분증, 자격증, 범죄경력 조회서 샘플 업로드";
+  const summaryText = manager.documentSummary || "자격 증빙 샘플 업로드";
   const now = Date.now();
-  const uploads = [];
-  for (const document of DOCUMENTS) {
-    const objectPath = `manager-documents/${manager.id}/${document.key}/${now}-${document.fileName}`;
-    uploads.push({
-      documentKey: document.key,
-      label: document.label,
-      fileName: document.fileName,
-      fullPath: objectPath,
-      contentType: "image/png",
-      uploadedAt: now,
-    });
-  }
+  const uploads = buildSampleUploads(manager.id, now);
 
   if (options.dryRun) {
     printDryRun(context, manager, summaryText, uploads);
@@ -54,43 +41,23 @@ async function main() {
     await uploadStorageObject(context, upload.fullPath, upload.contentType, buffer);
   }
 
-  const updatedHistory = [
-    {
-      eventType: "SUBMITTED",
-      happenedAt: now,
-      actorName: manager.name,
-      summary: summaryText,
-      reviewNote: "",
-    },
-    ...manager.documentHistory,
-  ];
-
-  const patch = {
-    managerDocumentSummary: summaryText,
-    managerDocumentStatus: "PENDING_REVIEW",
-    managerDocumentReviewNote: "",
-    managerDocumentReviewedAt: null,
-    managerDocumentReviewedByName: "",
-    managerDocumentUpdatedAt: now,
-    managerDocumentHistory: updatedHistory,
-    managerDocumentFiles: {},
-    managerDocumentFilePaths: {},
-    managerIdCardStoragePath: uploads[0].fullPath,
-    managerLicenseStoragePath: uploads[1].fullPath,
-    managerCriminalRecordStoragePath: uploads[2].fullPath,
-  };
-
-  for (const upload of uploads) {
-    patch.managerDocumentFiles[upload.documentKey] = {
-      fullPath: upload.fullPath,
-      fileName: upload.fileName,
-      contentType: upload.contentType,
-      uploadedAt: upload.uploadedAt,
-    };
-    patch.managerDocumentFilePaths[upload.documentKey] = upload.fullPath;
-  }
-
-  await patchDocumentData(context, `users/${manager.id}`, patch);
+  await runDocumentTransaction(context, `users/${manager.id}`, (document) => {
+    if (!document) {
+      throw new Error("샘플을 반영할 매니저 문서가 사라졌습니다.");
+    }
+    const current = fromFirestoreDocument(document);
+    return buildSampleMutation({
+      manager: {
+        name: sanitizeText(current.name) || manager.name,
+        documentHistory: Array.isArray(current.managerDocumentHistory)
+            ? current.managerDocumentHistory
+            : [],
+      },
+      summaryText,
+      uploads,
+      now,
+    });
+  });
 
   console.log("매니저 서류 샘플 업로드를 반영했습니다.");
   console.log(`- 프로젝트: ${context.projectId}`);
@@ -132,7 +99,63 @@ function printHelp() {
   console.log("  node seed-manager-document-storage-sample.js --apply --email manager@bodeul.app");
   console.log("");
   console.log("- 기본값은 dry-run 입니다.");
-  console.log("- --apply 를 주면 manager-documents/{uid}/{documentKey}/ 아래 샘플 PNG 3개를 업로드하고 users 문서 메타데이터를 함께 갱신합니다.");
+  console.log("- --apply 를 주면 manager-documents/{uid}/license/ 아래 샘플 PNG 1개를 업로드하고 users 문서 메타데이터를 함께 갱신합니다.");
+}
+
+function buildSampleUploads(managerId, now) {
+  return DOCUMENTS.map((document) => ({
+    documentKey: document.key,
+    label: document.label,
+    fileName: document.fileName,
+    fullPath:
+      `manager-documents/${managerId}/${document.key}/${now}-${document.fileName}`,
+    contentType: "image/png",
+    uploadedAt: now,
+  }));
+}
+
+function buildSamplePatch({manager, summaryText, uploads, now}) {
+  const upload = uploads[0];
+  return {
+    managerDocumentSummary: summaryText,
+    managerDocumentStatus: "PENDING_REVIEW",
+    managerDocumentReviewNote: "",
+    managerDocumentReviewedAt: null,
+    managerDocumentReviewedByName: "",
+    managerDocumentUpdatedAt: now,
+    managerDocumentHistory: [
+      {
+        eventType: "SUBMITTED",
+        happenedAt: now,
+        actorName: manager.name,
+        summary: summaryText,
+        reviewNote: "",
+      },
+      ...manager.documentHistory,
+    ],
+    managerDocumentFiles: {
+      license: {
+        fullPath: upload.fullPath,
+        fileName: upload.fileName,
+        contentType: upload.contentType,
+        uploadedAt: upload.uploadedAt,
+      },
+    },
+    managerDocumentFilePaths: {license: upload.fullPath},
+    managerLicenseStoragePath: upload.fullPath,
+  };
+}
+
+function buildSampleMutation(input) {
+  return {
+    data: buildSamplePatch(input),
+    deleteFields: [
+      "managerIdCardStoragePath",
+      "managerCriminalRecordStoragePath",
+      "managerHealthCertificateStoragePath",
+      "managerDocumentEvidenceMigration",
+    ],
+  };
 }
 
 async function findManagerByEmail(context, email) {
@@ -219,8 +242,17 @@ function sanitizeText(value) {
   return String(value).trim();
 }
 
-main().catch((error) => {
-  console.error("매니저 서류 샘플 업로드 중 오류가 발생했습니다.");
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error("매니저 서류 샘플 업로드 중 오류가 발생했습니다.");
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  buildSampleMutation,
+  buildSamplePatch,
+  buildSampleUploads,
+  parseOptions,
+};

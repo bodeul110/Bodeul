@@ -10,6 +10,7 @@ public final class ManagerDocumentFileMetadata {
     private final String contentType;
     private final long uploadedAtMillis;
     private final String previewUri;
+    private final boolean referenceConsistent;
 
     public ManagerDocumentFileMetadata(
             ManagerDocumentFileType fileType,
@@ -24,7 +25,8 @@ public final class ManagerDocumentFileMetadata {
                 fileName,
                 contentType,
                 uploadedAtMillis,
-                ""
+                "",
+                true
         );
     }
 
@@ -36,12 +38,33 @@ public final class ManagerDocumentFileMetadata {
             long uploadedAtMillis,
             String previewUri
     ) {
+        this(
+                fileType,
+                fullPath,
+                fileName,
+                contentType,
+                uploadedAtMillis,
+                previewUri,
+                true
+        );
+    }
+
+    public ManagerDocumentFileMetadata(
+            ManagerDocumentFileType fileType,
+            String fullPath,
+            String fileName,
+            String contentType,
+            long uploadedAtMillis,
+            String previewUri,
+            boolean referenceConsistent
+    ) {
         this.fileType = fileType;
         this.fullPath = fullPath == null ? "" : fullPath;
         this.fileName = fileName == null ? "" : fileName;
         this.contentType = contentType == null ? "" : contentType;
         this.uploadedAtMillis = Math.max(uploadedAtMillis, 0L);
         this.previewUri = previewUri == null ? "" : previewUri;
+        this.referenceConsistent = referenceConsistent;
     }
 
     public ManagerDocumentFileType getFileType() {
@@ -66,6 +89,10 @@ public final class ManagerDocumentFileMetadata {
 
     public String getPreviewUri() {
         return previewUri;
+    }
+
+    public boolean isReferenceConsistent() {
+        return referenceConsistent;
     }
 
     public boolean isEmpty() {

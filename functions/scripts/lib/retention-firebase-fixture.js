@@ -55,7 +55,7 @@ function createFixtureProfile({projectId, marker, idPrefix, messagePrefix}) {
       sessionExpired: `companion-chat-attachments/${sessionExpiredId}/fixture.pdf`,
       sessionHeld: `companion-chat-attachments/${sessionHeldId}/fixture.pdf`,
       managerExpired: `manager-documents/${managerExpiredId}/idCard/fixture.pdf`,
-      managerHeld: `manager-documents/${managerHeldId}/license/fixture.pdf`,
+      managerHeld: `manager-documents/${managerHeldId}/nursingLicense/fixture.pdf`,
     }),
   });
 }
@@ -150,13 +150,12 @@ function buildFixtureDefinition(now = new Date(), profile = DEVELOPMENT_PROFILE)
           managerDocumentUpdatedAt: managerExpiredAt,
           managerDocumentLegalHoldUntil: heldUntil,
           managerDocumentFiles: {
-            license: {
+            nursingLicense: {
               fullPath: objectPaths.managerHeld,
               uploadedAt: managerExpiredAt,
             },
           },
-          managerDocumentFilePaths: {license: objectPaths.managerHeld},
-          managerLicenseStoragePath: objectPaths.managerHeld,
+          managerDocumentFilePaths: {nursingLicense: objectPaths.managerHeld},
         },
       },
     },
@@ -302,13 +301,9 @@ function createScopedManagerStore(firestore, profile = DEVELOPMENT_PROFILE) {
       }
       return result;
     },
-    async isStillEligible(candidate, asOf) {
+    async deleteCandidate(candidate, asOf, storage) {
       assertAllowedId(candidate?.managerId, managerIds, "매니저");
-      return delegate.isStillEligible(candidate, asOf);
-    },
-    async clearReference(candidate, deletedAt) {
-      assertAllowedId(candidate?.managerId, managerIds, "매니저");
-      return delegate.clearReference(candidate, deletedAt);
+      return delegate.deleteCandidate(candidate, asOf, storage);
     },
   };
 }
@@ -316,9 +311,16 @@ function createScopedManagerStore(firestore, profile = DEVELOPMENT_PROFILE) {
 function createScopedStorageGateway(bucket, profile = DEVELOPMENT_PROFILE) {
   const allowedPaths = new Set(Object.values(profile.objectPaths));
   const scopedBucket = {
-    file(storagePath) {
+    file(storagePath, fileOptions = {}) {
       assertAllowedStoragePath(storagePath, allowedPaths);
       return {
+        async getMetadata() {
+          const [metadata] = await bucket.file(storagePath).getMetadata();
+          if (!isFixtureObjectMetadata(metadata?.metadata, profile)) {
+            throw new Error("Storage 객체의 픽스처 표식이 일치하지 않습니다.");
+          }
+          return [metadata];
+        },
         async delete(options) {
           if (!isAllowedChatAttachmentPath(storagePath) &&
               !isAllowedManagerDocumentPath(storagePath)) {
@@ -328,6 +330,17 @@ function createScopedStorageGateway(bucket, profile = DEVELOPMENT_PROFILE) {
           const [metadata] = await file.getMetadata();
           if (!isFixtureObjectMetadata(metadata?.metadata, profile)) {
             throw new Error("Storage 객체의 픽스처 표식이 일치하지 않습니다.");
+          }
+          const requestedGeneration = String(
+              options?.ifGenerationMatch || fileOptions.generation || "",
+          ).trim();
+          if (requestedGeneration && requestedGeneration !== String(metadata.generation)) {
+            const error = new Error("Storage 객체 generation이 변경되었습니다.");
+            error.code = 412;
+            throw error;
+          }
+          if (requestedGeneration) {
+            return bucket.file(storagePath).delete(options);
           }
           return bucket.file(storagePath, {generation: metadata.generation}).delete(options);
         },
@@ -559,6 +572,7 @@ function createFixtureDatabase(profile = DEVELOPMENT_PROFILE) {
         attachmentCandidates: 0,
         locationCandidates: 0,
         legalHoldSkips: 0,
+        adminAuditCandidates: 0,
       };
     },
     async claimAttachments() {
@@ -566,6 +580,9 @@ function createFixtureDatabase(profile = DEVELOPMENT_PROFILE) {
     },
     async purgeCompanionRecords() {
       return {messagesRedacted: 0, locationsDeleted: 0};
+    },
+    async purgeAdminAudits() {
+      return 0;
     },
     async finishJob() {
       return true;
@@ -585,6 +602,7 @@ function assertExpectedSummary(summary, apply) {
     firestoreLegalHoldSkips: 3,
     managerDocumentCandidates: 1,
     managerDocumentLegalHoldSkips: 1,
+    adminAuditCandidates: 0,
     messagesRedacted: 0,
     attachmentsDeleted: 0,
     attachmentDeleteFailures: 0,
@@ -595,6 +613,7 @@ function assertExpectedSummary(summary, apply) {
     firestoreLocationsCleared: apply ? 1 : 0,
     managerDocumentsDeleted: apply ? 1 : 0,
     managerDocumentDeleteFailures: 0,
+    adminAuditsDeleted: 0,
   };
   for (const [key, value] of Object.entries(expected)) {
     if (summary[key] !== value) {

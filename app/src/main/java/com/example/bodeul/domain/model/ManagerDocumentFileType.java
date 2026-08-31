@@ -6,7 +6,9 @@ package com.example.bodeul.domain.model;
 public enum ManagerDocumentFileType {
     ID_CARD("idCard"),
     LICENSE("license"),
+    NURSING_LICENSE("nursingLicense"),
     CRIMINAL_RECORD("criminalRecord"),
+    // 기존 데이터 조회 호환용이다. 신규 간호사 면허 업로드에는 NURSING_LICENSE를 사용한다.
     HEALTH_CERTIFICATE("healthCertificate"),
     RESIDENT_REGISTRATION("residentRegistration"),
     BANKBOOK_COPY("bankbookCopy");

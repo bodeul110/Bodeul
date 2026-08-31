@@ -34,6 +34,26 @@ begin
 end;
 $$;
 
+do $$
+begin
+    if to_regclass('bodeul.admin_role_assignments') is not null then
+        execute $statement$
+            insert into bodeul.admin_role_assignments (
+                admin_user_id,
+                admin_role,
+                granted_by_admin_user_id,
+                grant_reason
+            ) values (
+                '00000000-0000-0000-0000-000000000103',
+                'OPERATIONS',
+                null,
+                '가이드 rollback 검증 fixture'
+            )
+        $statement$;
+    end if;
+end;
+$$;
+
 set role bodeul_admin_runtime;
 select bodeul.assign_companion_session(
     '00000000-0000-0000-0000-000000000113',

@@ -681,29 +681,30 @@
 ### 2026-05-04 관리자 서류 Storage 메모
 
 - `users` 문서에는 선택적으로 `managerDocumentFiles` 맵을 둘 수 있다.
-- 권장 구조는 아래와 같다.
-  - `managerDocumentFiles.idCard.fullPath`
-  - `managerDocumentFiles.idCard.fileName`
-  - `managerDocumentFiles.idCard.contentType`
-  - `managerDocumentFiles.idCard.uploadedAt`
-  - `managerDocumentFiles.license.*`
-  - `managerDocumentFiles.healthCertificate.*`
-  - `managerDocumentFiles.criminalRecord.*`
+- 현재 canonical 구조는 `managerDocumentFiles.license.*` 또는 `managerDocumentFiles.nursingLicense.*` 중 정확히 한 종류다. 각 항목은 `fullPath`, `fileName`, `contentType`, `uploadedAt`을 가진다.
+- `managerDocumentFilePaths`도 같은 canonical key와 `fullPath`를 사용하며, Storage 경로는 `manager-documents/{managerUserId}/{documentKey}/...`로 고정한다.
+- `healthCertificate`는 실제 간호사 면허를 뜻하던 legacy key다. 신규 쓰기에는 사용하지 않고 `nursingLicense`로 이관할 때만 읽는다.
+- `idCard`, `criminalRecord`는 MVP 신규 수집 대상이 아니다. 기존 메타데이터와 원본은 심사 자료로 다시 사용하지 않고 파기 작업에서만 처리한다.
 - 관리자 웹은 `managerDocumentFiles`가 있으면 해당 `fullPath`를 우선 읽고, 없으면 `manager-documents/{managerUserId}/{documentKey}/{fileName}` Storage 폴더를 탐색한다.
-- 현재 관리자 웹은 `idCard`, `criminalRecord`를 그대로 사용하고, `자격증` 슬롯에서는 `license`, `healthCertificate`를 함께 해석한다.
+- 관리자 웹은 `license`, `nursingLicense`만 현재 자격 증빙으로 해석한다. legacy `healthCertificate`는 이관이 끝나기 전 호환 조회에만 사용하고 신규 심사 결과에는 저장하지 않는다.
 - 현재 매니저 앱은 실제 Storage 업로드 후 같은 `users/{uid}` 문서에 `managerDocumentFiles` 메타데이터를 함께 저장한다.
 ### 2026-05-04 매니저 앱 서류 업로드 반영 메모
 
-- 매니저 앱 내 페이지에서 `원본 파일 업로드` 버튼으로 `application/pdf`, `image/*` 파일을 선택해 바로 Storage 업로드를 시작한다.
+- 매니저 앱 내 페이지에서 `원본 파일 업로드` 버튼으로 `image/jpeg`, `image/png`, `image/webp`만 선택해 Storage 업로드를 시작한다. 매니저 증빙 PDF는 격리 렌더러 없이 안전한 미리보기를 제공할 수 없어 신규 제출을 거부한다.
 - 업로드 성공 후 `users/{uid}` 문서에는 아래 필드를 함께 저장한다.
   - `managerDocumentFiles.{documentKey}.fullPath`
   - `managerDocumentFiles.{documentKey}.fileName`
   - `managerDocumentFiles.{documentKey}.contentType`
   - `managerDocumentFiles.{documentKey}.uploadedAt`
   - `managerDocumentFilePaths.{documentKey}`
-  - 레거시 호환 경로: `managerIdCardStoragePath`, `managerLicenseStoragePath`, `managerCriminalRecordStoragePath`
-- 업로드 후에는 `managerDocumentStatus=PENDING_REVIEW`, `managerDocumentReviewNote=""`, `managerDocumentReviewedAt` 삭제, `managerDocumentReviewedByName=""`, `managerDocumentUpdatedAt` 갱신으로 심사 상태를 다시 대기 상태로 돌린다.
-- 업로드 전제 조건은 `managerDocumentSummary`가 비어 있지 않은 상태다. 요약이 없으면 앱과 저장소 모두 업로드 메타데이터 저장을 거부한다.
+  - `license` 호환 경로: `managerLicenseStoragePath`
+- 업로드 또는 요약 변경 후 앱은 제출 메타데이터, `managerDocumentStatus`, 서버 timestamp인 `managerDocumentUpdatedAt`만 원자적으로 갱신한다.
+- `managerDocumentReviewNote`, `managerDocumentReviewedAt`, `managerDocumentReviewedByName`, `managerDocumentReviewedByAdminUserId`, `managerDocumentHistory`, legal hold 필드, `managerDocumentOriginalsDeletedAt`, `managerDocumentApprovalEvidence`, `managerDocumentReviewedSubmissionRevision`, `managerDocumentEvidenceMigration`은 서버 심사·보존·이관 전용이다. 매니저 앱은 이 값을 생성·변경·삭제하지 않으며, `PENDING_REVIEW` 화면에서는 과거 심사 결과를 현재 판정으로 표시하지 않는다.
+- 신규 등록 중 요약이 없는 파일 초안은 `NOT_SUBMITTED`를 유지한다. 승인·반려된 서류의 파일을 교체하면 즉시 `PENDING_REVIEW`가 되어야 한다.
+- `PENDING_REVIEW` 전환에는 `license` 또는 `nursingLicense` 중 정확히 한 종류의 JPEG·PNG·WebP 메타데이터가 필요하다. 두 canonical 종류가 동시에 있거나 파일이 없거나 legacy key만 있으면 심사를 요청할 수 없다.
+- `NOT_SUBMITTED`, `APPROVED`, `REJECTED`에서 `PENDING_REVIEW`로 전환되거나 `PENDING_REVIEW` 중 파일·요약이 바뀐 제출 버전은 Functions가 매니저 사용자 ID와 Firestore 서버 update time을 기준으로 기록한다. trigger 재시도와 Functions 이벤트 ID로 일시 실패·중복 실행을 처리하며 클라이언트는 `managerDocumentHistory`를 쓰지 않는다.
+- Storage 원본은 타임스탬프를 포함한 고유 경로에 한 번만 생성한다. 브라우저 클라이언트의 overwrite/delete는 거부하고, 보존 기간에 따른 삭제는 Admin SDK를 사용하는 서버 작업에서 수행한다.
+- 신규 등록의 파일 초안은 요약 없이 저장할 수 있지만 `NOT_SUBMITTED`를 유지한다. 기존 제출의 파일 교체와 최종 인증 요청은 서버 timestamp로 제출 버전을 갱신한다.
 
 ### 2026-06-19 사용자 문의 관리자 통합
 

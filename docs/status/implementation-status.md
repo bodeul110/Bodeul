@@ -1418,7 +1418,7 @@
 ### 구현
 
 - [ManagerProfileActivity](../../app/src/main/java/com/example/bodeul/ui/manager/ManagerProfileActivity.java)에서 `원본 파일 업로드` 버튼과 SAF 문서 선택 흐름을 추가했다.
-- 업로드 대상은 `신분증`, `자격증`, `범죄경력 조회서` 3종으로 제한하고, 선택 가능한 MIME은 `application/pdf`, `image/*`로 묶었다.
+- 업로드 대상은 `신분증`, `자격증`, `범죄경력 조회서` 3종으로 제한하고, 현재 선택 가능한 MIME은 `image/jpeg`, `image/png`, `image/webp`로 제한한다.
 - [FirebaseManagerDocumentStorageUploader](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)를 추가해 Storage 업로드와 목업 메타데이터 생성을 분리했다.
 - [FirebaseManagerRepository](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerRepository.java), [MockManagerRepository](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerRepository.java), [MockBodeulRepository](../../app/src/main/java/com/example/bodeul/data/MockBodeulRepository.java)에 `managerDocumentFiles` 메타데이터 저장 흐름을 추가했다.
 - Firestore 저장 형식은 `managerDocumentFiles.{documentKey}`, `managerDocumentFilePaths.{documentKey}`, 레거시 경로 필드(`managerIdCardStoragePath` 등)를 함께 갱신하도록 맞췄다.
@@ -1698,7 +1698,7 @@
 - [../security/review-2026-04-29.md](../security/review-2026-04-29.md)를 현재 코드 기준으로 전면 최신화했다.
 - 기존 지적 사항을 `해결`, `부분 해결`, `미해결`로 다시 분류하고, 런타임 앱 / 관리자 웹 / Firebase 운영 도구 기준 남은 위험을 재정리했다.
 - [storage.rules](../../storage.rules)에 매니저 서류 업로드 제약을 추가했다.
-  - 허용 MIME: `application/pdf`, `image/*`
+  - 허용 MIME: `image/jpeg`, `image/png`, `image/webp`
   - 최대 크기: `10MB`
 - [../operations/firebase/setup.md](../operations/firebase/setup.md)에 Storage 업로드 제약을 문서화했다.
 
@@ -1835,7 +1835,7 @@
 ### 구현
 
 - [ManagerDocumentUploadPolicy.java](../../app/src/main/java/com/example/bodeul/data/ManagerDocumentUploadPolicy.java)를 추가해 매니저 원본 서류 업로드 전에 파일 형식과 용량을 먼저 검사하도록 정리했다.
-- [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 `PDF` 또는 `image/*`만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다.
+- [FirebaseManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/firebase/FirebaseManagerDocumentStorageUploader.java), [MockManagerDocumentStorageUploader.java](../../app/src/main/java/com/example/bodeul/data/mock/MockManagerDocumentStorageUploader.java)에서 공통 정책을 사용해 JPEG, PNG, WebP 이미지만 허용하고, `10MB` 초과 파일은 업로드 전에 바로 차단한다. 일반 채팅 첨부의 PDF 정책은 이 변경과 분리해 유지한다.
 - 서버 규칙에서 막히기 전에 앱에서 같은 기준으로 먼저 안내해, 매니저가 업로드 실패 이유를 바로 이해할 수 있게 맞췄다.
 
 ### 변경 범위
@@ -3864,3 +3864,32 @@
 - PostgreSQL에는 관리자별 분당 10회 제한과 평문을 남기지 않는 감사 기록을 포함한 정확 검색 함수를 준비했다. 관리자 웹 route와 화면은 별도 PR #43에서 검토 중이다.
 - Firestore `reservationCodes`는 추가하지 않았으며 PostgreSQL `appointment_requests`를 계속 예약 업무 원본으로 유지한다.
 - production DB migration과 실제 배포는 수행하지 않았다.
+
+## 156. 2026-08-30 매니저 자격 증빙 최소수집 전환
+
+### 구현과 운영 경계
+
+- 신규 매니저 심사 원본을 `license` 또는 `nursingLicense` 중 정확히 1종으로 줄이고, 신분증·범죄경력 원본과 legacy `healthCertificate`의 신규 클라이언트 쓰기를 차단했다.
+- Android는 UID·문서 키·nested metadata·path map·legacy alias가 일치하는 canonical 이미지 1종만 제출 가능으로 표시한다. 오염된 참조, legacy key와 PDF는 `교체 필요`로 안내한다.
+- `healthCertificate` 객체를 `nursingLicense`로 복사·무결성 검증·Firestore transaction·generation 조건부 원본 삭제 순서로 이관하는 기본 dry-run 도구를 추가했다.
+- 순수 서버 이관에는 클라이언트가 변경할 수 없는 표식을 남겨 사용자 재제출 이력과 구분한다.
+- Functions는 자격 종류 교체 뒤 이전 canonical·legacy 객체를 정리한다. Firestore transaction에서 서버 전용 삭제 claim과 최신 역할·참조·legal hold를 함께 고정하고, claim 중 클라이언트 참조 변경과 Storage 재업로드를 막은 뒤 객체 generation 조건부 삭제와 참조 정리를 완료한다. 불완전하거나 충돌한 상태에서는 fail-closed한다.
+- 실제 데이터 이관 apply, Rules·Functions 배포와 production 변경은 수행하지 않았다.
+
+### 검증
+
+- Android 전체 단위 테스트와 debug APK 빌드: 성공
+- Core API 전체 `check`와 V19 뒤 V20 migration 순서 계약: 성공
+- Functions 테스트: 73개 중 70개 성공, 기존 Emulator 전용 3개 제외, 실패 0개
+- Firebase 운영 도구 테스트: 62/62 성공
+- Firestore·Storage Rules 에뮬레이터: 7/7 성공
+- CI 프리플라이트의 로컬 빌드·테스트: 성공. 전용 작업공간에 Firebase 프로젝트 입력이 없어 운영 워크플로는 건너뜀
+- 전체 diff 형식과 migration 검증 셸 문법 검사: 성공
+
+### 남은 범위
+
+- 개발 Firebase에서 이관 dry-run 대상·차단 건과 백업 증적 대조 후 승인된 apply 수행
+- 관리자 웹 PR `bodeul110/bodeul-admin-web#44`를 같은 canonical 계약으로 갱신하고 Preview 역할별 심사·거부·파기 흐름 검증
+- 새 Android 앱과 Rules·Functions를 같은 출시 창에 배포한 뒤 구버전 legacy 쓰기가 남지 않았는지 확인
+
+상세 근거는 [이슈 349 매니저 자격 증빙 최소수집 전환 기록](../reports/issue-349-manager-document-minimization-2026-08-30.md)에 정리했다.
