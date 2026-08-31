@@ -20,6 +20,7 @@ import com.example.bodeul.R;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerDocumentPreviewResolver;
 import com.example.bodeul.data.ManagerDocumentStorageUploader;
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
@@ -41,6 +42,11 @@ import com.google.android.material.button.MaterialButton;
  */
 public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         implements ManagerDocumentRegistrationBinder.Listener {
+    private static final String[] DOCUMENT_IMAGE_MIME_TYPES = {
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    };
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
     private ManagerDocumentStorageUploader managerDocumentStorageUploader;
@@ -126,13 +132,13 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
         
-        if (fileType == null) {
+        if (!ManagerDocumentUploadPolicy.isCanonicalQualificationType(fileType)) {
             showLicenseTypeSelector();
             return;
         }
         
         pendingDocumentFileType = fileType;
-        documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
+        documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
     }
 
     @Override
@@ -155,7 +161,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 getString(R.string.manager_document_registration_document_elderly_care_license)
         };
         ManagerDocumentFileType[] types = new ManagerDocumentFileType[]{
-                ManagerDocumentFileType.HEALTH_CERTIFICATE,
+                ManagerDocumentFileType.NURSING_LICENSE,
                 ManagerDocumentFileType.LICENSE
         };
 
@@ -163,7 +169,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 .setTitle(R.string.manager_document_registration_document_nursing_or_elderly_care_license)
                 .setItems(options, (dialog, which) -> {
                     pendingDocumentFileType = types[which];
-                    documentPickerLauncher.launch(new String[]{"application/pdf", "image/*"});
+                    documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
                 })
                 .show();
     }
@@ -176,6 +182,12 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         }
         if (currentUser == null) {
             showAuthState();
+            return;
+        }
+
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(selectedFileType);
+        if (!TextUtils.isEmpty(fileTypeError)) {
+            Toast.makeText(this, fileTypeError, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -515,7 +527,8 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         if (fileType == ManagerDocumentFileType.LICENSE) {
             return getString(R.string.manager_document_registration_document_elderly_care_license);
         }
-        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE
+                || fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
             return getString(R.string.manager_document_registration_document_nursing_license);
         }
         return getString(R.string.manager_document_registration_document_criminal_record);

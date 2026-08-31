@@ -3,6 +3,9 @@ const test = require("node:test");
 
 const {
   FirebaseLegacyCompanionStore,
+  FirebaseManagerDocumentStore,
+  FirebaseStorageGateway,
+  PostgresRetentionRepository,
   evaluateManagerDocument,
   evaluateLegacyCompanionSession,
   isAllowedChatAttachmentPath,
@@ -13,6 +16,13 @@ const {
   retentionCounts,
   runRetentionJob,
 } = require("../src/retention");
+const {
+  MANAGER_DOCUMENT_DELETION_CLAIM_FIELD,
+  buildManagerDocumentDeletionClaim,
+} = require("../src/manager-document-deletion");
+const {
+  createTransactionalDocument,
+} = require("./manager-document-deletion-test-helper");
 
 test("PostgreSQL 연결은 Supabase CA 검증을 강제한다", () => {
   const ca = "-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----";
@@ -40,6 +50,8 @@ test("DB 집계 payload는 계약 키만 남기고 안전한 정수로 정규화
     mode: "DRY_RUN",
     asOf: "2026-07-19T00:00:00.000Z",
     postgresMessageCandidates: "3",
+    adminAuditCandidates: "5",
+    adminAuditsDeleted: "2",
     attachmentsDeleted: -1,
     unexpected: 100,
   });
@@ -47,9 +59,29 @@ test("DB 집계 payload는 계약 키만 남기고 안전한 정수로 정규화
   assert.equal(counts.postgresMessageCandidates, 3);
   assert.equal(counts.attachmentsDeleted, 0);
   assert.equal(counts.managerDocumentDeleteFailures, 0);
+  assert.equal(counts.adminAuditCandidates, 5);
+  assert.equal(counts.adminAuditsDeleted, 2);
   assert.equal(Object.hasOwn(counts, "mode"), false);
   assert.equal(Object.hasOwn(counts, "unexpected"), false);
-  assert.equal(Object.keys(counts).length, 20);
+  assert.equal(Object.keys(counts).length, 22);
+});
+
+test("월간 보고는 관리자 감사 후보·삭제 집계를 함께 반환한다", async () => {
+  const repository = Object.create(PostgresRetentionRepository.prototype);
+  repository.sql = async () => [{
+    run_count: "2",
+    failed_run_count: "1",
+    admin_audit_candidates: "15",
+    admin_audits_deleted: "12",
+  }];
+
+  const summary = await repository.monthlySummary(new Date("2026-07-01T00:00:00.000Z"));
+
+  assert.equal(summary.month, "2026-07");
+  assert.equal(summary.runCount, 2);
+  assert.equal(summary.failedRunCount, 1);
+  assert.equal(summary.adminAuditCandidates, 15);
+  assert.equal(summary.adminAuditsDeleted, 12);
 });
 
 test("정기 파기는 true를 명시한 환경에서만 활성화한다", () => {
@@ -75,6 +107,7 @@ function createDatabase(overrides = {}) {
         attachmentCandidates: 1,
         locationCandidates: 3,
         legalHoldSkips: 4,
+        adminAuditCandidates: 5,
       };
     },
     async claimAttachments() {
@@ -88,6 +121,10 @@ function createDatabase(overrides = {}) {
     async purgeCompanionRecords() {
       calls.push("purgeCompanionRecords");
       return {messagesRedacted: 2, locationsDeleted: 3};
+    },
+    async purgeAdminAudits() {
+      calls.push("purgeAdminAudits");
+      return 5;
     },
     async finishJob() {
       calls.push("finish");
@@ -105,13 +142,15 @@ function createManagerStore(overrides = {}) {
       calls.push("preview");
       return {candidates: [], legalHoldSkips: 0};
     },
-    async isStillEligible() {
-      calls.push("isStillEligible");
-      return true;
-    },
-    async clearReference() {
-      calls.push("clearReference");
-      return true;
+    async deleteCandidate(candidate, _asOf, storage) {
+      calls.push("deleteCandidate");
+      await storage.deleteManagerDocument(
+          candidate.storagePath,
+          candidate.managerId,
+          candidate.documentKey,
+          "1",
+      );
+      return {status: "COMPLETED"};
     },
     ...overrides,
   };
@@ -171,7 +210,43 @@ test("dry-run은 후보 수만 기록하고 삭제 함수를 호출하지 않는
   assert.equal(summary.postgresAttachmentCandidates, 1);
   assert.equal(summary.postgresLocationCandidates, 3);
   assert.equal(summary.postgresLegalHoldSkips, 4);
+  assert.equal(summary.adminAuditCandidates, 5);
+  assert.equal(summary.adminAuditsDeleted, 0);
   assert.deepEqual(database.calls, ["begin", "preview", "finish"]);
+});
+
+test("관리자 감사기록은 1년 경과 후보만 500건 단위로 끝까지 파기한다", async () => {
+  const batches = [500, 2];
+  const database = createDatabase({
+    async preview() {
+      return {
+        messageCandidates: 0,
+        attachmentCandidates: 0,
+        locationCandidates: 0,
+        legalHoldSkips: 0,
+        adminAuditCandidates: 502,
+      };
+    },
+    async purgeAdminAudits() {
+      return batches.shift() ?? 0;
+    },
+  });
+
+  const summary = await runRetentionJob({
+    database,
+    legacyStore: createLegacyStore(),
+    managerStore: createManagerStore(),
+    storage: {
+      async deleteChatAttachment() {},
+      async deleteManagerDocument() {},
+    },
+    apply: true,
+    now: new Date("2026-07-18T00:00:00.000Z"),
+  });
+
+  assert.equal(summary.adminAuditCandidates, 502);
+  assert.equal(summary.adminAuditsDeleted, 502);
+  assert.equal(batches.length, 0);
 });
 
 test("PostgreSQL 첨부 일부 삭제 실패는 참조를 유지하고 다음 실행에서 재시도한다", async () => {
@@ -285,12 +360,408 @@ test("관리자 증빙은 심사 후 30일이 지나고 법적 보존이 없을 
   assert.equal(eligible.candidates.length, 1);
   assert.equal(eligible.legalHoldSkips, 0);
 
+  const reviewedAt = Date.parse("2026-06-01T00:00:00.000Z");
+  assert.equal(evaluateManagerDocument(
+      "manager-1",
+      baseData,
+      new Date(reviewedAt + (30 * 24 * 60 * 60 * 1000) - 1),
+  ).candidates.length, 0);
+  assert.equal(evaluateManagerDocument(
+      "manager-1",
+      baseData,
+      new Date(reviewedAt + (30 * 24 * 60 * 60 * 1000)),
+  ).candidates.length, 1);
+
   const held = evaluateManagerDocument("manager-1", {
     ...baseData,
     managerDocumentLegalHoldUntil: Date.parse("2026-08-01T00:00:00.000Z"),
+    managerDocumentLegalHoldReason: "분쟁 대응",
+    managerDocumentLegalHoldByAdminUserId: "admin-1",
   }, now);
   assert.equal(held.candidates.length, 0);
   assert.equal(held.legalHoldSkips, 1);
+
+  const incompleteHold = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentLegalHoldReason: "분쟁 대응",
+  }, now);
+  assert.equal(incompleteHold.candidates.length, 0);
+  assert.equal(incompleteHold.legalHoldSkips, 1);
+
+  const invalidHold = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentLegalHoldUntil: "invalid",
+  }, now);
+  assert.equal(invalidHold.candidates.length, 0);
+  assert.equal(invalidHold.legalHoldSkips, 1);
+
+  const expiredHold = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentLegalHoldUntil: Date.parse("2026-07-17T23:59:59.999Z"),
+    managerDocumentLegalHoldReason: "만료된 보존",
+    managerDocumentLegalHoldByAdminUserId: "admin-1",
+  }, now);
+  assert.equal(expiredHold.candidates.length, 1);
+  assert.equal(expiredHold.legalHoldSkips, 0);
+
+  const otherManagerPath = "manager-documents/manager-2/license/license.pdf";
+  const crossOwner = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      license: {...baseData.managerDocumentFiles.license, fullPath: otherManagerPath},
+    },
+    managerDocumentFilePaths: {license: otherManagerPath},
+    managerLicenseStoragePath: otherManagerPath,
+  }, now);
+  assert.equal(crossOwner.candidates.length, 0);
+
+  const whitespaceOwner = evaluateManagerDocument(" manager-1 ", baseData, now);
+  assert.equal(whitespaceOwner.candidates.length, 0);
+
+  const whitespacePath = " manager-documents/manager-1/license/license.pdf ";
+  const whitespaceAliases = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      license: {...baseData.managerDocumentFiles.license, fullPath: whitespacePath},
+    },
+    managerDocumentFilePaths: {license: whitespacePath},
+    managerLicenseStoragePath: whitespacePath,
+  }, now);
+  assert.equal(whitespaceAliases.candidates.length, 0);
+
+  const wrongDocumentKeyPath = "manager-documents/manager-1/idCard/license.pdf";
+  const crossDocumentKey = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      license: {
+        ...baseData.managerDocumentFiles.license,
+        fullPath: wrongDocumentKeyPath,
+      },
+    },
+    managerDocumentFilePaths: {license: wrongDocumentKeyPath},
+    managerLicenseStoragePath: wrongDocumentKeyPath,
+  }, now);
+  assert.equal(crossDocumentKey.candidates.length, 0);
+
+  const mismatchedAliases = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFilePaths: {
+      license: "manager-documents/manager-1/license/path-map-mismatch.pdf",
+    },
+  }, now);
+  assert.equal(mismatchedAliases.candidates.length, 0);
+
+  const missingLegacyAlias = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(missingLegacyAlias.candidates.length, 0);
+
+  const missingPathMapAlias = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFilePaths: {},
+  }, now);
+  assert.equal(missingPathMapAlias.candidates.length, 0);
+
+  const nursingLicensePath =
+    "manager-documents/manager-1/nursingLicense/nursing-license.jpg";
+  const nursingLicense = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      nursingLicense: {
+        fullPath: nursingLicensePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {nursingLicense: nursingLicensePath},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.deepEqual(
+      nursingLicense.candidates.map(({documentKey}) => documentKey),
+      ["nursingLicense"],
+  );
+
+  const healthCertificatePath =
+    "manager-documents/manager-1/healthCertificate/health.jpg";
+  const healthCertificate = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      healthCertificate: {
+        fullPath: healthCertificatePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {healthCertificate: healthCertificatePath},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(healthCertificate.candidates.length, 1);
+
+  const mismatchedHealthCertificateAlias = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      healthCertificate: {
+        fullPath: healthCertificatePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {healthCertificate: healthCertificatePath},
+    managerHealthCertificateStoragePath:
+      "manager-documents/manager-1/healthCertificate/mismatch.jpg",
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(mismatchedHealthCertificateAlias.candidates.length, 0);
+
+  const incompleteHealthCertificate = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      healthCertificate: {
+        fullPath: healthCertificatePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {},
+    managerHealthCertificateStoragePath: healthCertificatePath,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(incompleteHealthCertificate.candidates.length, 0);
+
+  const idCardPath = "manager-documents/manager-1/idCard/legacy-id.jpg";
+  const idCard = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      idCard: {
+        fullPath: idCardPath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {idCard: idCardPath},
+    managerIdCardStoragePath: idCardPath,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.deepEqual(idCard.candidates.map(({documentKey}) => documentKey), ["idCard"]);
+
+  const criminalRecordPath =
+    "manager-documents/manager-1/criminalRecord/legacy-record.jpg";
+  const criminalRecord = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      criminalRecord: {
+        fullPath: criminalRecordPath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {criminalRecord: criminalRecordPath},
+    managerCriminalRecordStoragePath: criminalRecordPath,
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.deepEqual(
+      criminalRecord.candidates.map(({documentKey}) => documentKey),
+      ["criminalRecord"],
+  );
+
+  const unsupportedPath = "manager-documents/manager-1/passport/unsupported.jpg";
+  const unsupported = evaluateManagerDocument("manager-1", {
+    ...baseData,
+    managerDocumentFiles: {
+      passport: {
+        fullPath: unsupportedPath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {passport: unsupportedPath},
+    managerLicenseStoragePath: "",
+  }, now);
+  assert.equal(unsupported.candidates.length, 0);
+});
+
+test("기존 retention claim 대상은 다음 실행의 첫 삭제 후보가 된다", () => {
+  const now = new Date("2026-07-18T00:00:00.000Z");
+  const licensePath = "manager-documents/manager-1/license/license.pdf";
+  const idCardPath = "manager-documents/manager-1/idCard/id-card.pdf";
+  const claimed = buildManagerDocumentDeletionClaim({
+    candidate: {
+      managerId: "manager-1",
+      documentKey: "idCard",
+      storagePath: idCardPath,
+    },
+    operation: "RETENTION",
+    claimedAt: now,
+  });
+  const evaluation = evaluateManagerDocument("manager-1", {
+    role: "MANAGER",
+    managerDocumentStatus: "APPROVED",
+    managerDocumentReviewedAt: Date.parse("2026-06-01T00:00:00.000Z"),
+    managerDocumentUpdatedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+    managerDocumentFiles: {
+      license: {fullPath: licensePath},
+      idCard: {fullPath: idCardPath},
+    },
+    managerDocumentFilePaths: {
+      license: licensePath,
+      idCard: idCardPath,
+    },
+    managerLicenseStoragePath: licensePath,
+    managerIdCardStoragePath: idCardPath,
+    [MANAGER_DOCUMENT_DELETION_CLAIM_FIELD]: {
+      ...claimed,
+      state: "READY",
+      objectGeneration: "17",
+    },
+  }, now);
+
+  assert.deepEqual(
+      evaluation.candidates.map((candidate) => candidate.documentKey),
+      ["idCard", "license"],
+  );
+});
+
+test("관리자 증빙 Storage 삭제도 사용자와 문서 키를 다시 확인한다", async () => {
+  const deletedPaths = [];
+  const gateway = new FirebaseStorageGateway({
+    file(storagePath, options) {
+      return {
+        async getMetadata() {
+          return [{generation: "19"}];
+        },
+        async delete(deleteOptions) {
+          deletedPaths.push({storagePath, options, deleteOptions});
+        },
+      };
+    },
+  });
+
+  assert.deepEqual(
+      await gateway.inspectManagerDocument(
+          "manager-documents/manager-1/license/license.jpg",
+          "manager-1",
+          "license",
+      ),
+      {objectGeneration: "19"},
+  );
+
+  await assert.rejects(
+      gateway.deleteManagerDocument(
+          "manager-documents/manager-2/idCard/id.jpg",
+          "manager-1",
+          "idCard",
+          "20",
+      ),
+      (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
+  );
+  await assert.rejects(
+      gateway.deleteManagerDocument(
+          "manager-documents/manager-1/license/id.jpg",
+          "manager-1",
+          "idCard",
+          "21",
+      ),
+      (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
+  );
+  await gateway.deleteManagerDocument(
+      "manager-documents/manager-1/idCard/id.jpg",
+      "manager-1",
+      "idCard",
+      "22",
+  );
+  await gateway.deleteManagerDocument(
+      "manager-documents/manager-1/nursingLicense/license.jpg",
+      "manager-1",
+      "nursingLicense",
+      "23",
+  );
+  await gateway.deleteManagerDocument(
+      "manager-documents/manager-1/healthCertificate/legacy.jpg",
+      "manager-1",
+      "healthCertificate",
+      "24",
+  );
+  await assert.rejects(
+      gateway.deleteManagerDocument(
+          "manager-documents/manager-1/passport/unsupported.jpg",
+          "manager-1",
+          "passport",
+          "25",
+      ),
+      (error) => error.code === "MANAGER_STORAGE_PATH_INVALID",
+  );
+
+  assert.deepEqual(deletedPaths, [
+    {
+      storagePath: "manager-documents/manager-1/idCard/id.jpg",
+      options: undefined,
+      deleteOptions: {ignoreNotFound: true, ifGenerationMatch: "22"},
+    },
+    {
+      storagePath: "manager-documents/manager-1/nursingLicense/license.jpg",
+      options: undefined,
+      deleteOptions: {ignoreNotFound: true, ifGenerationMatch: "23"},
+    },
+    {
+      storagePath: "manager-documents/manager-1/healthCertificate/legacy.jpg",
+      options: undefined,
+      deleteOptions: {ignoreNotFound: true, ifGenerationMatch: "24"},
+    },
+  ]);
+});
+
+test("관리자 증빙 보존 파기는 exact claim과 참조·별칭을 한 transaction에서 정리한다", async () => {
+  const asOf = new Date("2026-07-18T00:00:00.000Z");
+  const storagePath = "manager-documents/manager-1/license/license.jpg";
+  const fixture = createTransactionalDocument({
+    role: "MANAGER",
+    managerDocumentStatus: "APPROVED",
+    managerDocumentReviewedAt: Date.parse("2026-06-01T00:00:00.000Z"),
+    managerDocumentUpdatedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+    managerDocumentFiles: {
+      license: {
+        fullPath: storagePath,
+        uploadedAt: Date.parse("2026-05-31T00:00:00.000Z"),
+      },
+    },
+    managerDocumentFilePaths: {license: storagePath},
+    managerLicenseStoragePath: storagePath,
+  });
+  const firestore = {
+    ...fixture.firestore,
+    collection(name) {
+      assert.equal(name, "users");
+      return {
+        doc(managerId) {
+          assert.equal(managerId, "manager-1");
+          return fixture.reference;
+        },
+      };
+    },
+  };
+  const store = new FirebaseManagerDocumentStore(firestore);
+  const deleteCalls = [];
+
+  const result = await store.deleteCandidate({
+    managerId: "manager-1",
+    documentKey: "license",
+    storagePath,
+  }, asOf, {
+    async inspectManagerDocument() {
+      return {objectGeneration: "37"};
+    },
+    async deleteManagerDocument(path, managerId, documentKey, generation) {
+      deleteCalls.push({path, managerId, documentKey, generation});
+    },
+  });
+
+  assert.equal(result.status, "COMPLETED");
+  assert.deepEqual(deleteCalls, [{
+    path: storagePath,
+    managerId: "manager-1",
+    documentKey: "license",
+    generation: "37",
+  }]);
+  const after = fixture.getData();
+  assert.equal(after.managerDocumentFiles.license, undefined);
+  assert.equal(after.managerDocumentFilePaths.license, undefined);
+  assert.equal(after.managerLicenseStoragePath, undefined);
+  assert.equal(Object.hasOwn(after, MANAGER_DOCUMENT_DELETION_CLAIM_FIELD), false);
+  assert.equal(after.managerDocumentOriginalsDeletedAt instanceof Date, true);
 });
 
 test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에서 재시도한다", async () => {
@@ -311,14 +782,17 @@ test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에�
         legalHoldSkips: 0,
       };
     },
-    async isStillEligible() {
-      order.push("validate");
-      return true;
-    },
-    async clearReference() {
-      order.push("clear");
+    async deleteCandidate(candidateToDelete, _asOf, storageToUse) {
+      order.push("claim");
+      await storageToUse.deleteManagerDocument(
+          candidateToDelete.storagePath,
+          candidateToDelete.managerId,
+          candidateToDelete.documentKey,
+          "31",
+      );
+      order.push("finalize");
       referenceExists = false;
-      return true;
+      return {status: "COMPLETED"};
     },
   });
   const storage = {
@@ -341,7 +815,7 @@ test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에�
     now: new Date("2026-07-18T00:00:00.000Z"),
   });
 
-  assert.deepEqual(order, ["validate", "delete"]);
+  assert.deepEqual(order, ["claim", "delete"]);
   assert.equal(referenceExists, true);
   assert.equal(firstSummary.managerDocumentsDeleted, 0);
   assert.equal(firstSummary.managerDocumentDeleteFailures, 1);
@@ -355,7 +829,7 @@ test("관리자 증빙 삭제 실패는 참조를 유지하고 다음 실행에�
     now: new Date("2026-07-19T00:00:00.000Z"),
   });
 
-  assert.deepEqual(order, ["validate", "delete", "validate", "delete", "clear"]);
+  assert.deepEqual(order, ["claim", "delete", "claim", "delete", "finalize"]);
   assert.equal(referenceExists, false);
   assert.equal(secondSummary.managerDocumentsDeleted, 1);
   assert.equal(secondSummary.managerDocumentDeleteFailures, 0);
@@ -625,6 +1099,41 @@ test("채팅 첨부 삭제 경로는 legacy와 Core API 구조만 허용한다",
   assert.equal(isAllowedManagerDocumentPath(
       "manager-documents/manager-1/idCard/a.pdf",
   ), true);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      "manager-1",
+      "idCard",
+  ), true);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-2/idCard/a.pdf",
+      "manager-1",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/license/a.pdf",
+      "manager-1",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      " manager-1 ",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      "manager-1",
+      " idCard ",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      " manager-documents/manager-1/idCard/a.pdf ",
+      "manager-1",
+      "idCard",
+  ), false);
+  assert.equal(isAllowedManagerDocumentPath(
+      "manager-documents/manager-1/idCard/a.pdf",
+      1,
+      "idCard",
+  ), false);
   assert.equal(isAllowedManagerDocumentPath("manager-documents/manager-1/other/a.pdf"), false);
 });
 

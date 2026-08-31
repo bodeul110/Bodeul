@@ -5,6 +5,17 @@ const logger = require("firebase-functions/logger");
 const {defineSecret} = require("firebase-functions/params");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const postgres = require("postgres");
+const {
+  executeManagerDocumentDeletion,
+  parseManagerDocumentDeletionClaim,
+} = require("./manager-document-deletion");
+const {
+  MANAGER_DOCUMENT_PATH_ALIAS_FIELDS,
+  RETENTION_MANAGER_DOCUMENT_KEYS,
+  isManagerDocumentStoragePath,
+  managerDocumentLegalHoldBlocksDeletion,
+  resolveManagerDocumentReference,
+} = require("./manager-document-contract");
 
 const RETENTION_DATABASE_URL = defineSecret("RETENTION_DATABASE_URL");
 const RETENTION_DATABASE_CA_CERT = defineSecret("RETENTION_DATABASE_CA_CERT");
@@ -45,18 +56,6 @@ const CHAT_ATTACHMENT_PATH_PATTERN = new RegExp(
     "^companion-chat-attachments/[A-Za-z0-9_-]{1,128}/"
     + `(?:${UUID_PATH_SEGMENT_PATTERN}/)?[^/]+$`,
 );
-const MANAGER_DOCUMENT_KEYS = [
-  "idCard",
-  "license",
-  "healthCertificate",
-  "criminalRecord",
-];
-const MANAGER_DOCUMENT_LEGACY_PATH_KEYS = {
-  idCard: "managerIdCardStoragePath",
-  license: "managerLicenseStoragePath",
-  healthCertificate: null,
-  criminalRecord: "managerCriminalRecordStoragePath",
-};
 const REVIEWED_MANAGER_DOCUMENT_STATUSES = new Set(["APPROVED", "REJECTED"]);
 const RETENTION_COUNT_KEYS = [
   "postgresMessageCandidates",
@@ -69,6 +68,7 @@ const RETENTION_COUNT_KEYS = [
   "firestoreLegalHoldSkips",
   "managerDocumentCandidates",
   "managerDocumentLegalHoldSkips",
+  "adminAuditCandidates",
   "messagesRedacted",
   "attachmentsDeleted",
   "attachmentDeleteFailures",
@@ -79,6 +79,7 @@ const RETENTION_COUNT_KEYS = [
   "firestoreLocationsCleared",
   "managerDocumentsDeleted",
   "managerDocumentDeleteFailures",
+  "adminAuditsDeleted",
 ];
 
 class PostgresRetentionRepository {
@@ -105,12 +106,18 @@ class PostgresRetentionRepository {
       select *
       from bodeul.preview_expired_companion_data(${asOf.toISOString()}::timestamptz)
     `;
+    const adminAuditRows = await this.sql`
+      select bodeul.preview_expired_admin_access_audits(
+        ${asOf.toISOString()}::timestamptz
+      ) as candidate_count
+    `;
     const row = rows[0] || {};
     return {
       messageCandidates: toCount(row.message_candidates),
       attachmentCandidates: toCount(row.attachment_candidates),
       locationCandidates: toCount(row.location_candidates),
       legalHoldSkips: toCount(row.legal_hold_skips),
+      adminAuditCandidates: toCount(adminAuditRows[0]?.candidate_count),
     };
   }
 
@@ -152,6 +159,16 @@ class PostgresRetentionRepository {
       messagesRedacted: toCount(row.messages_redacted),
       locationsDeleted: toCount(row.locations_deleted),
     };
+  }
+
+  async purgeAdminAudits(asOf, limit) {
+    const rows = await this.sql`
+      select bodeul.purge_expired_admin_access_audits(
+        ${asOf.toISOString()}::timestamptz,
+        ${limit}
+      ) as deleted_count
+    `;
+    return toCount(rows[0]?.deleted_count);
   }
 
   async finishJob(jobId, status, finishedAt, summary, failureStage = null) {
@@ -199,6 +216,8 @@ class PostgresRetentionRepository {
       managerDocumentsDeleted: toCount(row.manager_documents_deleted),
       managerDocumentDeleteFailures: toCount(row.manager_document_delete_failures),
       legalHoldSkips: toCount(row.legal_hold_skips),
+      adminAuditCandidates: toCount(row.admin_audit_candidates),
+      adminAuditsDeleted: toCount(row.admin_audits_deleted),
     };
   }
 
@@ -235,45 +254,37 @@ class FirebaseManagerDocumentStore {
     return result;
   }
 
-  async isStillEligible(candidate, asOf) {
-    const snapshot = await this.firestore.collection("users").doc(candidate.managerId).get();
-    if (!snapshot.exists) {
-      return false;
-    }
-    assertDocumentGuard(this.documentGuard, snapshot);
-    return evaluateManagerDocument(snapshot.id, snapshot.data(), asOf)
-        .candidates
-        .some((current) => sameManagerDocumentCandidate(current, candidate));
-  }
-
-  async clearReference(candidate, deletedAt) {
+  async deleteCandidate(candidate, deletedAt, storage) {
     const reference = this.firestore.collection("users").doc(candidate.managerId);
-    return this.firestore.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(reference);
-      if (!snapshot.exists) {
-        return false;
-      }
-      assertDocumentGuard(this.documentGuard, snapshot);
-      const currentCandidate = evaluateManagerDocument(
-          snapshot.id,
-          snapshot.data(),
-          deletedAt,
-      ).candidates.find((item) => sameManagerDocumentCandidate(item, candidate));
-      if (!currentCandidate) {
-        return false;
-      }
-
-      const updates = {
-        [`managerDocumentFiles.${candidate.documentKey}`]: FieldValue.delete(),
-        [`managerDocumentFilePaths.${candidate.documentKey}`]: FieldValue.delete(),
-        managerDocumentOriginalsDeletedAt: FieldValue.serverTimestamp(),
-      };
-      const legacyKey = MANAGER_DOCUMENT_LEGACY_PATH_KEYS[candidate.documentKey];
-      if (legacyKey && sanitizeText(snapshot.data()?.[legacyKey]) === candidate.storagePath) {
-        updates[legacyKey] = FieldValue.delete();
-      }
-      transaction.update(reference, updates);
-      return true;
+    return executeManagerDocumentDeletion({
+      firestore: this.firestore,
+      documentReference: reference,
+      candidate,
+      operation: "RETENTION",
+      claimedAt: deletedAt,
+      storage,
+      validateCurrentState: (data, snapshot) => {
+        assertDocumentGuard(this.documentGuard, snapshot);
+        return evaluateManagerDocument(
+            snapshot.id,
+            data,
+            deletedAt,
+        ).candidates.some((item) => sameManagerDocumentCandidate(item, candidate))
+          ? ""
+          : "RETENTION_INELIGIBLE";
+      },
+      buildFinalizeUpdates: (data) => {
+        const updates = {
+          [`managerDocumentFiles.${candidate.documentKey}`]: FieldValue.delete(),
+          [`managerDocumentFilePaths.${candidate.documentKey}`]: FieldValue.delete(),
+          managerDocumentOriginalsDeletedAt: FieldValue.serverTimestamp(),
+        };
+        const legacyKey = MANAGER_DOCUMENT_PATH_ALIAS_FIELDS[candidate.documentKey];
+        if (legacyKey && sanitizeText(data?.[legacyKey]) === candidate.storagePath) {
+          updates[legacyKey] = FieldValue.delete();
+        }
+        return updates;
+      },
     });
   }
 }
@@ -427,11 +438,43 @@ class FirebaseStorageGateway {
     await this.bucket.file(storagePath).delete({ignoreNotFound: true});
   }
 
-  async deleteManagerDocument(storagePath) {
-    if (!isAllowedManagerDocumentPath(storagePath)) {
+  async inspectManagerDocument(storagePath, managerId, documentKey) {
+    if (!isAllowedManagerDocumentPath(storagePath, managerId, documentKey)) {
       throw createRetentionError("MANAGER_STORAGE_PATH_INVALID");
     }
-    await this.bucket.file(storagePath).delete({ignoreNotFound: true});
+    try {
+      const [metadata] = await this.bucket.file(storagePath).getMetadata();
+      const objectGeneration = sanitizeText(String(metadata?.generation || ""));
+      if (!/^\d+$/.test(objectGeneration)) {
+        throw createRetentionError("MANAGER_STORAGE_GENERATION_INVALID");
+      }
+      return {objectGeneration};
+    } catch (error) {
+      if (isStorageObjectNotFound(error)) {
+        return {objectMissing: true};
+      }
+      throw error;
+    }
+  }
+
+  async deleteManagerDocument(storagePath, managerId, documentKey, objectGeneration) {
+    if (!isAllowedManagerDocumentPath(storagePath, managerId, documentKey)) {
+      throw createRetentionError("MANAGER_STORAGE_PATH_INVALID");
+    }
+    const generation = sanitizeText(objectGeneration);
+    if (!/^\d+$/.test(generation)) {
+      throw createRetentionError("MANAGER_STORAGE_GENERATION_INVALID");
+    }
+    try {
+      await this.bucket.file(storagePath).delete({
+        ignoreNotFound: true,
+        ifGenerationMatch: generation,
+      });
+    } catch (error) {
+      if (!isStorageObjectNotFound(error)) {
+        throw error;
+      }
+    }
   }
 }
 
@@ -461,6 +504,7 @@ async function runRetentionJob({
     summary.postgresAttachmentCandidates = postgresPreview.attachmentCandidates;
     summary.postgresLocationCandidates = postgresPreview.locationCandidates;
     summary.postgresLegalHoldSkips = postgresPreview.legalHoldSkips;
+    summary.adminAuditCandidates = postgresPreview.adminAuditCandidates;
 
     failureStage = "PREVIEW_FIRESTORE";
     const firestorePreview = await legacyStore.preview(asOf);
@@ -496,6 +540,13 @@ async function runRetentionJob({
       summary.messagesRedacted = purged.messagesRedacted;
       summary.locationsDeleted = purged.locationsDeleted;
 
+      failureStage = "PURGE_ADMIN_AUDITS";
+      let deletedAdminAudits;
+      do {
+        deletedAdminAudits = await database.purgeAdminAudits(asOf, POSTGRES_BATCH_SIZE);
+        summary.adminAuditsDeleted += deletedAdminAudits;
+      } while (deletedAdminAudits === POSTGRES_BATCH_SIZE);
+
       failureStage = "PURGE_FIRESTORE";
       for (const session of firestorePreview.sessions) {
         const result = await legacyStore.applySession(session, asOf, storage);
@@ -508,14 +559,10 @@ async function runRetentionJob({
       failureStage = "DELETE_MANAGER_DOCUMENTS";
       for (const candidate of managerPreview.candidates) {
         try {
-          if (!await managerStore.isStillEligible(candidate, asOf)) {
-            continue;
-          }
-          await storage.deleteManagerDocument(candidate.storagePath);
-          const cleared = await managerStore.clearReference(candidate, asOf);
-          if (cleared) {
+          const deletion = await managerStore.deleteCandidate(candidate, asOf, storage);
+          if (deletion.status === "COMPLETED") {
             summary.managerDocumentsDeleted += 1;
-          } else {
+          } else if (["CLAIM_CONFLICT", "CLAIM_BLOCKED"].includes(deletion.status)) {
             summary.managerDocumentDeleteFailures += 1;
           }
         } catch (error) {
@@ -575,16 +622,11 @@ function evaluateManagerDocument(managerId, data, asOf) {
     return result;
   }
 
-  const references = collectManagerDocumentReferences(data);
+  const references = collectManagerDocumentReferences(managerId, data);
   if (!references.length) {
     return result;
   }
-  const legalHoldUntilMillis = toMillis(data?.managerDocumentLegalHoldUntil);
-  if (hasTimestampValue(data, "managerDocumentLegalHoldUntil") && !legalHoldUntilMillis) {
-    result.legalHoldSkips = references.length;
-    return result;
-  }
-  if (legalHoldUntilMillis > asOf.getTime()) {
+  if (managerDocumentLegalHoldBlocksDeletion(data, asOf)) {
     result.legalHoldSkips = references.length;
     return result;
   }
@@ -600,34 +642,34 @@ function evaluateManagerDocument(managerId, data, asOf) {
       storagePath: reference.storagePath,
     });
   }
+  prioritizeClaimedManagerDocumentCandidate(result.candidates, data);
   return result;
 }
 
-function collectManagerDocumentReferences(data) {
-  const fileMap = isPlainObject(data?.managerDocumentFiles)
-    ? data.managerDocumentFiles
-    : {};
-  const pathMap = isPlainObject(data?.managerDocumentFilePaths)
-    ? data.managerDocumentFilePaths
-    : {};
-  const references = [];
+function prioritizeClaimedManagerDocumentCandidate(candidates, data) {
+  const claim = parseManagerDocumentDeletionClaim(
+      data?.managerDocumentDeletionClaim,
+  );
+  if (claim?.operation !== "RETENTION") {
+    return;
+  }
+  const claimedIndex = candidates.findIndex((candidate) =>
+    candidate.documentKey === claim.documentKey &&
+    candidate.storagePath === claim.storagePath,
+  );
+  if (claimedIndex > 0) {
+    const [claimedCandidate] = candidates.splice(claimedIndex, 1);
+    candidates.unshift(claimedCandidate);
+  }
+}
 
-  for (const documentKey of MANAGER_DOCUMENT_KEYS) {
-    const metadata = isPlainObject(fileMap[documentKey]) ? fileMap[documentKey] : {};
-    const legacyKey = MANAGER_DOCUMENT_LEGACY_PATH_KEYS[documentKey];
-    const paths = Array.from(new Set([
-      sanitizeText(metadata.fullPath),
-      sanitizeText(pathMap[documentKey]),
-      legacyKey ? sanitizeText(data?.[legacyKey]) : "",
-    ].filter(Boolean)));
-    if (paths.length !== 1 || !isAllowedManagerDocumentPath(paths[0])) {
-      continue;
+function collectManagerDocumentReferences(managerId, data) {
+  const references = [];
+  for (const documentKey of RETENTION_MANAGER_DOCUMENT_KEYS) {
+    const reference = resolveManagerDocumentReference(data, managerId, documentKey);
+    if (reference) {
+      references.push(reference);
     }
-    references.push({
-      documentKey,
-      storagePath: paths[0],
-      uploadedAt: metadata.uploadedAt,
-    });
   }
   return references;
 }
@@ -790,9 +832,15 @@ function isAllowedChatAttachmentPath(value) {
   return CHAT_ATTACHMENT_PATH_PATTERN.test(sanitizeText(value));
 }
 
-function isAllowedManagerDocumentPath(value) {
-  return /^manager-documents\/[^/]+\/(idCard|license|healthCertificate|criminalRecord)\/[^/]+$/
-      .test(sanitizeText(value));
+function isAllowedManagerDocumentPath(value, managerId, documentKey) {
+  if (managerId === undefined || documentKey === undefined) {
+    const segments = typeof value === "string" ? value.split("/") : [];
+    if (segments.length !== 4) {
+      return false;
+    }
+    return isManagerDocumentStoragePath(value, segments[1], segments[2]);
+  }
+  return isManagerDocumentStoragePath(value, managerId, documentKey);
 }
 
 function emptyRetentionSummary(mode, asOf) {
@@ -819,6 +867,8 @@ function emptyRetentionSummary(mode, asOf) {
     firestoreLocationsCleared: 0,
     managerDocumentsDeleted: 0,
     managerDocumentDeleteFailures: 0,
+    adminAuditCandidates: 0,
+    adminAuditsDeleted: 0,
   };
 }
 
@@ -930,6 +980,12 @@ function createRetentionError(code) {
   const error = new Error(code);
   error.code = code;
   return error;
+}
+
+function isStorageObjectNotFound(error) {
+  const code = error?.code;
+  return code === 404 || code === "404" || code === "storage/object-not-found" ||
+    (Array.isArray(error?.errors) && error.errors.some((item) => item?.reason === "notFound"));
 }
 
 function retentionErrorCode(error) {

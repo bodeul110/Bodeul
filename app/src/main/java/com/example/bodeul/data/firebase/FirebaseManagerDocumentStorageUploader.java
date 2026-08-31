@@ -42,6 +42,12 @@ public final class FirebaseManagerDocumentStorageUploader implements ManagerDocu
             return;
         }
 
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(fileType);
+        if (!TextUtils.isEmpty(fileTypeError)) {
+            callback.onError(fileTypeError);
+            return;
+        }
+
         ContentResolver resolver = appContext.getContentResolver();
         String validationError = ManagerDocumentUploadPolicy.validate(resolver, fileUri);
         if (!TextUtils.isEmpty(validationError)) {

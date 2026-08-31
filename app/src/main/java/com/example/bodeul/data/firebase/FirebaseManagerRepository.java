@@ -2,6 +2,8 @@ package com.example.bodeul.data.firebase;
 
 import androidx.annotation.Nullable;
 
+import com.example.bodeul.data.ManagerDocumentReferencePolicy;
+import com.example.bodeul.data.ManagerDocumentUploadPolicy;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
@@ -52,7 +54,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Firestore????λ맂 ?몄뀡, ?붿껌, 媛?대뱶, 由ы룷?몃? 議고빀??留ㅻ땲? ?붾㈃??援ъ꽦?쒕떎.
+ * Firestore에 저장된 세션, 요청, 가이드, 리포트를 조합해 매니저 화면을 구성한다.
  */
 public class FirebaseManagerRepository implements ManagerRepository {
     private final FirebaseFirestore firestore;
@@ -63,13 +65,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void getManagerDashboard(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        // ?몄뀡 臾몄꽌瑜?湲곗??쇰줈 愿???ъ슜?? ?붿껌, 媛?대뱶, 由ы룷?몃? 蹂묐젹濡??쎌뼱 ??쒕낫?쒕? ?꾩꽦?쒕떎.
+        // 세션 문서를 기준으로 관련 사용자, 요청, 가이드, 리포트를 병렬로 읽어 대시보드를 완성한다.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
                 CompanionSession session = toSession(sessionSnapshot);
                 if (session == null) {
-                    callback.onError("companionSessions ?곗씠???뺤떇???뺤씤?댁＜?몄슂.");
+                    callback.onError("companionSessions 데이터 형식을 확인해 주세요.");
                     return;
                 }
 
@@ -79,7 +81,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .addOnSuccessListener(requestSnapshot -> {
                             AppointmentRequest request = toAppointmentRequest(requestSnapshot);
                             if (request == null) {
-                                callback.onError("appointmentRequests ?곗씠?곕? 李얠? 紐삵뻽?듬땲??");
+                                callback.onError("appointmentRequests 데이터를 찾지 못했습니다.");
                                 return;
                             }
 
@@ -143,10 +145,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                         ));
                                     })
                                     .addOnFailureListener(exception ->
-                                            callback.onError("留ㅻ땲? ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                                            callback.onError("매니저 데이터를 불러오지 못했습니다."));
                         })
                         .addOnFailureListener(exception ->
-                                callback.onError("?덉빟 ?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                                callback.onError("예약 데이터를 불러오지 못했습니다."));
             }
 
             @Override
@@ -158,7 +160,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
-        // ?④퀎 ?대룞? ?꾩옱 ?몄뀡 臾몄꽌? ?꾩껜 ?④퀎 ?섎? 紐⑤몢 ?뚯븘???댁꽌 ??쒕낫?쒕? 癒쇱? ?쎈뒗??
+        // 단계 이동은 현재 세션 문서와 전체 단계 수를 모두 확인한 뒤 대시보드를 다시 읽는다.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
@@ -168,7 +170,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         int totalSteps = dashboard.getHospitalGuide().getSteps().size();
                         int currentStep = dashboard.getSession().getCurrentStepOrder();
                         if (currentStep >= totalSteps) {
-                            callback.onError("留덉?留??④퀎?낅땲?? 由ы룷?몃? ?꾩넚?댁＜?몄슂.");
+                            callback.onError("마지막 단계입니다. 리포트를 전송해 주세요.");
                             return;
                         }
 
@@ -178,7 +180,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         updates.put("currentStatus", resolveStepStatus(nextStep, totalSteps).name());
                         updates.put("updatedAt", FieldValue.serverTimestamp());
 
-                        // ?몄뀡 ?④퀎? ?덉빟 ?곹깭瑜???踰덉뿉 媛깆떊???붾㈃ 媛??곹깭 遺덉씪移섎? 以꾩씤??
+                        // 세션 단계와 예약 상태를 한 번에 갱신해 화면 간 상태 불일치를 줄인다.
                         WriteBatch batch = firestore.batch();
                         batch.update(sessionSnapshot.getReference(), updates);
                         batch.update(
@@ -191,7 +193,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         batch.commit()
                                 .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                                 .addOnFailureListener(exception ->
-                                        callback.onError("?ㅼ쓬 ?④퀎濡??대룞?섏? 紐삵뻽?듬땲??"));
+                                        callback.onError("다음 단계로 이동하지 못했습니다."));
                     }
 
                     @Override
@@ -210,7 +212,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Override
     public void saveGuardianUpdate(String managerUserId, String guardianUpdate, RepositoryCallback<ManagerDashboard> callback) {
-        // 蹂댄샇??怨듭쑀 硫붿떆吏??companionSessions 臾몄꽌???⑥씪 ?꾨뱶濡?愿由ы븳??
+        // 보호자 공유 메시지는 companionSessions 문서의 단일 필드로 관리한다.
         updateSessionField(managerUserId, "guardianUpdate", guardianUpdate, callback);
     }
 
@@ -230,7 +232,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         UserRole.MANAGER
                 );
                 if (session == null) {
-                    callback.onError("?몄뀡 ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
+                    callback.onError("세션 정보를 찾지 못했습니다.");
                     return;
                 }
 
@@ -255,7 +257,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updates)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("?ㅼ떆媛??꾩튂瑜???ν븯吏 紐삵뻽?듬땲??"));
+                                callback.onError("실시간 위치를 저장하지 못했습니다."));
             }
 
             @Override
@@ -367,13 +369,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (!documentSnapshot.exists()) {
-                        callback.onError("users 而щ젆?섏뿉??留ㅻ땲? ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
+                        callback.onError("users 컬렉션에서 매니저 정보를 찾지 못했습니다.");
                         return;
                     }
                     callback.onSuccess(toManagerHomeProfile(documentSnapshot));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? ???붿빟 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 서류 요약 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -387,7 +389,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null) {
-                        callback.onError("留ㅻ땲? ???섏씠吏 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+                        callback.onError("매니저 프로필 정보를 불러오지 못했습니다.");
                         return;
                     }
 
@@ -398,7 +400,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     ));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? ???섏씠吏 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 프로필 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -418,7 +420,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(results -> {
                     User manager = toUser((DocumentSnapshot) results.get(0));
                     if (manager == null) {
-                        callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다.");
                         return;
                     }
 
@@ -445,7 +447,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     );
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
     }
 
     @Override
@@ -455,38 +457,27 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         String normalizedSummary = normalizeText(documentSummary);
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("managerDocumentSummary", normalizedSummary);
-        updates.put(
-                "managerDocumentStatus",
-                normalizedSummary.isEmpty()
-                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
-                        : ManagerDocumentStatus.PENDING_REVIEW.name()
-        );
-        updates.put("managerDocumentReviewNote", "");
-        updates.put("managerDocumentReviewedByName", "");
-        updates.put("managerDocumentReviewedAt", FieldValue.delete());
-        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+        DocumentReference managerReference = firestore.collection("users").document(managerUserId);
+        firestore.runTransaction(transaction -> {
+                    DocumentSnapshot snapshot = transaction.get(managerReference);
+                    if (!managerDocumentSummaryStateChanged(
+                            snapshot.getString("managerDocumentSummary"),
+                            snapshot.getString("managerDocumentStatus"),
+                            normalizedSummary
+                    )) {
+                        return false;
+                    }
 
-        firestore.collection("users")
-                .document(managerUserId)
-                .update(updates)
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("managerDocumentSummary", normalizedSummary);
+                    putManagerDocumentSummaryState(updates, normalizedSummary);
+                    transaction.update(managerReference, updates);
+                    return true;
+                })
                 .addOnSuccessListener(unused ->
-                        onManagerDocumentSummarySaved(managerUserId, normalizedSummary, callback))
+                        onManagerDocumentSummarySaved(managerUserId, callback))
                 .addOnFailureListener(exception ->
-                        callback.onError("?쒕쪟 ?깅줉 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
-
-        boolean shouldUseLegacyPath = false;
-        if (shouldUseLegacyPath) {
-        saveManagerHomeProfileField(
-                managerUserId,
-                "managerDocumentSummary",
-                normalizeText(documentSummary),
-                "managerDocumentUpdatedAt",
-                "?쒕쪟 ?깅줉 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??",
-                callback
-        );
-        }
+                        callback.onError("서류 등록 정보를 저장하지 못했습니다."));
     }
 
     @Override
@@ -496,7 +487,14 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
-            callback.onError("?낅줈?쒗븳 ?쒕쪟 ?뚯씪 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
+            return;
+        }
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(
+                documentFileMetadata.getFileType()
+        );
+        if (fileTypeError != null) {
+            callback.onError(fileTypeError);
             return;
         }
 
@@ -506,31 +504,24 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                        callback.onError("留ㅻ땲? 怨꾩젙???뺤씤?섏? 紐삵뻽?듬땲??");
+                        callback.onError("매니저 계정을 확인하지 못했습니다.");
                         return;
                     }
 
                     String documentSummary = normalizeText(documentSnapshot.getString("managerDocumentSummary"));
                     if (documentSummary.isEmpty()) {
-                        callback.onError("?쒕쪟 ?붿빟??癒쇱? ??ν븳 ???먮낯 ?뚯씪???щ젮二쇱꽭??");
+                        callback.onError("서류 요약을 먼저 저장한 뒤 원본 파일을 올려 주세요.");
                         return;
                     }
 
                     long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
                             ? documentFileMetadata.getUploadedAtMillis()
                             : System.currentTimeMillis();
-                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
-                            toManagerDocumentHistory(documentSnapshot),
-                            new ManagerDocumentHistoryEntry(
-                                    ManagerDocumentHistoryEventType.SUBMITTED,
-                                    uploadedAtMillis,
-                                    normalizeText(manager.getName()),
-                                    documentSummary,
-                                    ""
-                            )
-                    );
-
                     Map<String, Object> updates = new HashMap<>();
+                    putCanonicalQualificationReplacement(
+                            updates,
+                            documentFileMetadata.getFileType()
+                    );
                     String fileKeyPrefix = "managerDocumentFiles."
                             + documentFileMetadata.getFileType().getStorageKey();
                     updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
@@ -548,21 +539,16 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     if (legacyPathKey != null) {
                         updates.put(legacyPathKey, documentFileMetadata.getFullPath());
                     }
-                    updates.put("managerDocumentStatus", ManagerDocumentStatus.PENDING_REVIEW.name());
-                    updates.put("managerDocumentReviewNote", "");
-                    updates.put("managerDocumentReviewedByName", "");
-                    updates.put("managerDocumentReviewedAt", FieldValue.delete());
-                    updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
-                    updates.put("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries));
+                    putManagerDocumentSubmissionState(updates);
 
                     documentSnapshot.getReference()
                             .update(updates)
                             .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
                             .addOnFailureListener(exception ->
-                                    callback.onError("?먮낯 ?쒕쪟 ?뚯씪 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
+                                    callback.onError("원본 서류 파일 정보를 저장하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? ?쒕쪟 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -572,40 +558,69 @@ public class FirebaseManagerRepository implements ManagerRepository {
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
-            callback.onError("?낅줈?쒗븳 ?쒕쪟 ?뚯씪 ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+            callback.onError("업로드한 서류 파일 정보를 확인하지 못했습니다.");
+            return;
+        }
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(
+                documentFileMetadata.getFileType()
+        );
+        if (fileTypeError != null) {
+            callback.onError(fileTypeError);
             return;
         }
 
-        long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
-                ? documentFileMetadata.getUploadedAtMillis()
-                : System.currentTimeMillis();
-        Map<String, Object> updates = new HashMap<>();
-        String fileKeyPrefix = "managerDocumentFiles." + documentFileMetadata.getFileType().getStorageKey();
-        updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
-        updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
-        updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
-        updates.put(fileKeyPrefix + ".previewUri", documentFileMetadata.getPreviewUri());
-        updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
-        updates.put(
-                "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
-                documentFileMetadata.getFullPath()
-        );
-        String legacyPathKey = resolveLegacyDocumentStoragePathKey(documentFileMetadata.getFileType());
-        if (legacyPathKey != null) {
-            updates.put(legacyPathKey, documentFileMetadata.getFullPath());
-        }
-        updates.put("managerDocumentStatus", ManagerDocumentStatus.NOT_SUBMITTED.name());
-        updates.put("managerDocumentReviewNote", "");
-        updates.put("managerDocumentReviewedByName", "");
-        updates.put("managerDocumentReviewedAt", FieldValue.delete());
-        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
-
         firestore.collection("users")
                 .document(managerUserId)
-                .update(updates)
-                .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (!documentSnapshot.exists()) {
+                        callback.onError("매니저 정보를 찾지 못했습니다.");
+                        return;
+                    }
+
+                    long uploadedAtMillis = documentFileMetadata.getUploadedAtMillis() > 0L
+                            ? documentFileMetadata.getUploadedAtMillis()
+                            : System.currentTimeMillis();
+                    Map<String, Object> updates = new HashMap<>();
+                    putCanonicalQualificationReplacement(
+                            updates,
+                            documentFileMetadata.getFileType()
+                    );
+                    String fileKeyPrefix = "managerDocumentFiles."
+                            + documentFileMetadata.getFileType().getStorageKey();
+                    updates.put(fileKeyPrefix + ".fullPath", documentFileMetadata.getFullPath());
+                    updates.put(fileKeyPrefix + ".fileName", documentFileMetadata.getFileName());
+                    updates.put(fileKeyPrefix + ".contentType", documentFileMetadata.getContentType());
+                    updates.put(fileKeyPrefix + ".previewUri", documentFileMetadata.getPreviewUri());
+                    updates.put(fileKeyPrefix + ".uploadedAt", uploadedAtMillis);
+                    updates.put(
+                            "managerDocumentFilePaths." + documentFileMetadata.getFileType().getStorageKey(),
+                            documentFileMetadata.getFullPath()
+                    );
+                    String legacyPathKey = resolveLegacyDocumentStoragePathKey(
+                            documentFileMetadata.getFileType()
+                    );
+                    if (legacyPathKey != null) {
+                        updates.put(legacyPathKey, documentFileMetadata.getFullPath());
+                    }
+                    ManagerDocumentStatus currentStatus = resolveManagerDocumentStatus(
+                            documentSnapshot.getString("managerDocumentStatus"),
+                            documentSnapshot.getString("managerDocumentSummary")
+                    );
+                    putManagerDocumentDraftState(
+                            updates,
+                            currentStatus,
+                            normalizeText(documentSnapshot.getString("managerDocumentSummary"))
+                    );
+
+                    documentSnapshot.getReference()
+                            .update(updates)
+                            .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
+                            .addOnFailureListener(exception ->
+                                    callback.onError("원본 서류 파일 초안을 저장하지 못했습니다."));
+                })
                 .addOnFailureListener(exception ->
-                        callback.onError("?먮낯 ?쒕쪟 ?뚯씪 珥덉븞????ν븯吏 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 서류 정보를 불러오지 못했습니다."));
     }
 
     @Override
@@ -619,7 +634,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 "managerAvailabilitySummary",
                 normalizeText(availabilitySummary),
                 "managerAvailabilityUpdatedAt",
-                "?쒕룞 媛???쇱젙????ν븯吏 紐삵뻽?듬땲??",
+                "활동 가능 일정을 저장하지 못했습니다.",
                 callback
         );
     }
@@ -727,7 +742,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     callback.onSuccess(inquiries);
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("臾몄쓽 ?댁뿭??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("문의 이력을 불러오지 못했습니다."));
     }
 
     @Override
@@ -744,7 +759,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 .addOnSuccessListener(documentSnapshot -> {
                     User manager = toUser(documentSnapshot);
                     if (manager == null || manager.getRole() != UserRole.MANAGER) {
-                        callback.onError("留ㅻ땲? 怨꾩젙???뺤씤?섏? 紐삵뻽?듬땲??");
+                        callback.onError("매니저 계정을 확인하지 못했습니다.");
                         return;
                     }
 
@@ -766,10 +781,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                             .add(inquiryDocument)
                             .addOnSuccessListener(unused -> getSupportInquiries(managerUserId, callback))
                             .addOnFailureListener(exception ->
-                                    callback.onError("臾몄쓽 ?댁슜????ν븯吏 紐삵뻽?듬땲??"));
+                                    callback.onError("문의 내용을 저장하지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? ?뺣낫瑜??뺤씤?섏? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 정보를 확인하지 못했습니다."));
     }
 
     @Override
@@ -799,7 +814,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updates)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("硫붿떆吏瑜??꾩넚?섏? 紐삵뻽?듬땲??"));
+                                callback.onError("메시지를 전송하지 못했습니다."));
             }
 
             @Override
@@ -822,7 +837,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
             @Override
             public void onError(String message) {
-                // ?쎌쓬 泥섎━ ?ㅽ뙣???붾㈃ ?먮쫫??留됱? ?딅뒗??
+                // 읽음 처리 실패가 화면 흐름을 막지 않도록 한다.
             }
         });
     }
@@ -848,7 +863,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
             @Override
             public void onError(String message) {
-                // ?먮룞 ?꾩튂 ?뚮┝ ?ㅽ뙣???꾩튂 怨듭쑀 ?먮쫫??留됱? ?딅뒗??
+                // 자동 위치 알림 실패가 위치 공유 흐름을 막지 않도록 한다.
             }
         });
     }
@@ -860,42 +875,9 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     private void onManagerDocumentSummarySaved(
             String managerUserId,
-            String normalizedSummary,
             RepositoryCallback<ManagerHomeProfile> callback
     ) {
-        if (normalizedSummary.isEmpty()) {
-            getManagerHomeProfile(managerUserId, callback);
-            return;
-        }
-
-        firestore.collection("users")
-                .document(managerUserId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (!documentSnapshot.exists()) {
-                        callback.onError("users 而щ젆?섏뿉??留ㅻ땲? ?뺣낫瑜?李얠? 紐삵뻽?듬땲??");
-                        return;
-                    }
-
-                    List<ManagerDocumentHistoryEntry> historyEntries = appendManagerDocumentHistory(
-                            toManagerDocumentHistory(documentSnapshot),
-                            new ManagerDocumentHistoryEntry(
-                                    ManagerDocumentHistoryEventType.SUBMITTED,
-                                    System.currentTimeMillis(),
-                                    normalizeText(documentSnapshot.getString("name")),
-                                    normalizedSummary,
-                                    ""
-                            )
-                    );
-
-                    documentSnapshot.getReference()
-                            .update("managerDocumentHistory", toManagerDocumentHistoryPayload(historyEntries))
-                            .addOnSuccessListener(unused -> getManagerHomeProfile(managerUserId, callback))
-                            .addOnFailureListener(exception ->
-                                    callback.onError("??뺤첒 野꺜??????????館釉?쭪? 筌륁궢六??щ빍??"));
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("??뺤첒 野꺜??????????館釉??袁④에 ?類ｋ궖???븍뜄???? 筌륁궢六??щ빍??"));
+        getManagerHomeProfile(managerUserId, callback);
     }
 
     private void loadManagerHistoryDetailsSequentially(
@@ -990,10 +972,10 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                 );
                             })
                             .addOnFailureListener(exception ->
-                                    callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                                    callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("留ㅻ땲? 怨쇨굅 ?숉뻾 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("매니저 과거 동행 이력을 불러오지 못했습니다."));
     }
 
     private void saveManagerHomeProfileField(
@@ -1031,7 +1013,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             Map<String, Object> updates,
             RepositoryCallback<ManagerDashboard> callback
     ) {
-        // ?몄뀡 硫붾え? ?쎄뎅 ?④퀎 ?곹깭?????????쒕낫?쒕? ?ㅼ떆 ?쎌뼱 ??援ъ“濡??좎??쒕떎.
+        // 세션 메모와 단계 상태를 저장한 뒤 대시보드를 다시 읽어 화면을 갱신한다.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot sessionSnapshot) {
@@ -1042,7 +1024,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         .update(updatesWithTimestamp)
                         .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
                         .addOnFailureListener(exception ->
-                                callback.onError("?몄뀡 ?뺣낫瑜???ν븯吏 紐삵뻽?듬땲??"));
+                                callback.onError("세션 정보를 저장하지 못했습니다."));
             }
 
             @Override
@@ -1053,7 +1035,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     private void loadSessionDocument(String managerUserId, RepositoryCallback<DocumentSnapshot> callback) {
-        // ?꾩옱 援ы쁽? 留ㅻ땲???吏꾪뻾 以묒씤 ?숉뻾 ?몄뀡 1嫄댁쓣 湲곗??쇰줈 ?붾㈃??援ъ꽦?쒕떎.
+        // 현재 구현은 매니저의 진행 중 동행 세션 1건을 기준으로 화면을 구성한다.
         firestore.collection("companionSessions")
                 .whereEqualTo("managerUserId", managerUserId)
                 .get()
@@ -1068,7 +1050,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
                     callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
                 })
                 .addOnFailureListener(exception ->
-                        callback.onError("?숉뻾 ?몄뀡 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??"));
+                        callback.onError("동행 세션 정보를 불러오지 못했습니다."));
     }
 
     private boolean isActiveSession(CompanionSession session) {
@@ -1098,6 +1080,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     private List<ManagerDocumentFileMetadata> toManagerDocumentFiles(DocumentSnapshot documentSnapshot) {
         Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileByType = new HashMap<>();
+        Object rawPathMap = documentSnapshot.get("managerDocumentFilePaths");
+        Map<?, ?> pathMap = rawPathMap instanceof Map ? (Map<?, ?>) rawPathMap : null;
 
         Object rawMetadataMap = documentSnapshot.get("managerDocumentFiles");
         if (rawMetadataMap instanceof Map) {
@@ -1108,14 +1092,19 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         metadataMap.get(fileType.getStorageKey())
                 );
                 if (metadata != null) {
-                    fileByType.put(fileType, metadata);
+                    fileByType.put(
+                            fileType,
+                            withReferenceConsistency(
+                                    documentSnapshot,
+                                    pathMap,
+                                    metadata
+                            )
+                    );
                 }
             }
         }
 
-        Object rawPathMap = documentSnapshot.get("managerDocumentFilePaths");
-        if (rawPathMap instanceof Map) {
-            Map<?, ?> pathMap = (Map<?, ?>) rawPathMap;
+        if (pathMap != null) {
             for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
                 if (fileByType.containsKey(fileType)) {
                     continue;
@@ -1167,8 +1156,8 @@ public class FirebaseManagerRepository implements ManagerRepository {
         }
 
         Map<?, ?> valueMap = (Map<?, ?>) rawValue;
-        String fullPath = normalizeText(stringValue(valueMap.get("fullPath")));
-        if (fullPath.isEmpty()) {
+        String fullPath = stringValue(valueMap.get("fullPath"));
+        if (fullPath == null || fullPath.trim().isEmpty()) {
             return null;
         }
 
@@ -1201,7 +1190,40 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 normalizedPath,
                 resolveFileNameFromPath(normalizedPath),
                 "",
-                0L
+                0L,
+                "",
+                false
+        );
+    }
+
+    private ManagerDocumentFileMetadata withReferenceConsistency(
+            DocumentSnapshot documentSnapshot,
+            @Nullable Map<?, ?> pathMap,
+            ManagerDocumentFileMetadata metadata
+    ) {
+        ManagerDocumentFileType fileType = metadata.getFileType();
+        String aliasKey = resolveReferenceConsistencyAliasKey(fileType);
+        boolean aliasPresent = aliasKey != null && documentSnapshot.contains(aliasKey);
+        String aliasValue = aliasPresent ? stringValue(documentSnapshot.get(aliasKey)) : null;
+        String pathMapValue = pathMap == null
+                ? null
+                : stringValue(pathMap.get(fileType.getStorageKey()));
+        boolean referenceConsistent = ManagerDocumentReferencePolicy.isConsistent(
+                documentSnapshot.getId(),
+                fileType,
+                metadata.getFullPath(),
+                pathMapValue,
+                aliasPresent,
+                aliasValue
+        );
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                metadata.getFullPath(),
+                metadata.getFileName(),
+                metadata.getContentType(),
+                metadata.getUploadedAtMillis(),
+                metadata.getPreviewUri(),
+                referenceConsistent
         );
     }
 
@@ -1256,7 +1278,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private User toUser(DocumentSnapshot documentSnapshot) {
-        // users 而щ젆??臾몄꽌瑜??깆쓽 User 紐⑤뜽濡?蹂?섑븳??
+        // users 컬렉션 문서를 도메인 User 모델로 변환한다.
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -1306,7 +1328,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private AppointmentRequest toAppointmentRequest(DocumentSnapshot documentSnapshot) {
-        // appointmentRequests 臾몄꽌瑜??쇱젙 移대뱶??諛붾줈 ?????덈뒗 紐⑤뜽濡??뺣━?쒕떎.
+        // appointmentRequests 문서를 일정 카드에 바로 쓸 수 있는 모델로 정리한다.
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -1376,7 +1398,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private CompanionSession toSession(DocumentSnapshot documentSnapshot) {
-        // currentStepOrder? currentStatus瑜??쎌뼱 ?④퀎??UI ?곹깭瑜?蹂듭썝?쒕떎.
+        // currentStepOrder와 currentStatus를 읽어 단계별 UI 상태를 복원한다.
         return FirebaseCompanionSessionMapper.toSession(documentSnapshot, UserRole.MANAGER);
     }
 
@@ -1499,7 +1521,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private HospitalGuide findGuide(QuerySnapshot querySnapshot, String departmentName) {
-        // 蹂묒썝紐낆쑝濡?癒쇱? 醫곹엺 ??吏꾨즺怨쇨? ?쇱튂?섎뒗 媛?대뱶瑜???踰???李얜뒗??
+        // 병원명으로 먼저 좁힌 뒤 진료과가 일치하는 가이드를 한 번 더 찾는다.
         for (DocumentSnapshot documentSnapshot : querySnapshot.getDocuments()) {
             HospitalGuide guide = toGuide(documentSnapshot);
             if (guide != null && guide.getDepartmentName().equals(departmentName)) {
@@ -1511,7 +1533,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private HospitalGuide toGuide(DocumentSnapshot documentSnapshot) {
-        // Firestore 諛곗뿴 ?뺥깭??steps瑜?GuideStep 紐⑸줉?쇰줈 蹂?섑븳??
+        // Firestore 배열 형태의 steps를 GuideStep 목록으로 변환한다.
         if (!documentSnapshot.exists()) {
             return null;
         }
@@ -1529,7 +1551,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
             if (!(rawStep instanceof Map)) {
                 continue;
             }
-            // 媛??④퀎??order/title/description 3媛??꾨뱶瑜?媛吏?留듭씠?쇨퀬 媛?뺥븳??
+            // 각 단계의 order, title, description 필드를 확인한다.
             Map<?, ?> stepMap = (Map<?, ?>) rawStep;
             Object orderValue = stepMap.get("order");
             Object titleValue = stepMap.get("title");
@@ -1553,7 +1575,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private SessionReport toReport(QuerySnapshot querySnapshot) {
-        // ?꾩옱 援ы쁽? ?몄뀡??由ы룷??1媛쒕? 媛?뺥븯怨?泥?臾몄꽌留??ъ슜?쒕떎.
+        // 현재 구현은 세션별 리포트 1개를 가정하고 첫 문서만 사용한다.
         if (querySnapshot.isEmpty()) {
             return null;
         }
@@ -1644,7 +1666,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Nullable
-    private String resolveLegacyDocumentStoragePathKey(ManagerDocumentFileType fileType) {
+    private static String resolveLegacyDocumentStoragePathKey(ManagerDocumentFileType fileType) {
         if (fileType == ManagerDocumentFileType.ID_CARD) {
             return "managerIdCardStoragePath";
         }
@@ -1654,7 +1676,107 @@ public class FirebaseManagerRepository implements ManagerRepository {
         if (fileType == ManagerDocumentFileType.CRIMINAL_RECORD) {
             return "managerCriminalRecordStoragePath";
         }
+        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+            return "managerHealthCertificateStoragePath";
+        }
         return null;
+    }
+
+    @Nullable
+    private static String resolveReferenceConsistencyAliasKey(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE) {
+            // nursingLicense 제출에는 과거 license 별칭이 남아 있으면 안 된다.
+            return "managerLicenseStoragePath";
+        }
+        return resolveLegacyDocumentStoragePathKey(fileType);
+    }
+
+    static void putManagerDocumentSubmissionState(Map<String, Object> updates) {
+        updates.put("managerDocumentStatus", ManagerDocumentStatus.PENDING_REVIEW.name());
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+    }
+
+    static void putCanonicalQualificationReplacement(
+            Map<String, Object> updates,
+            ManagerDocumentFileType selectedType
+    ) {
+        if (!ManagerDocumentUploadPolicy.isCanonicalQualificationType(selectedType)) {
+            return;
+        }
+
+        ManagerDocumentFileType[] removableTypes = new ManagerDocumentFileType[]{
+                ManagerDocumentFileType.LICENSE,
+                ManagerDocumentFileType.NURSING_LICENSE,
+                ManagerDocumentFileType.HEALTH_CERTIFICATE
+        };
+        for (ManagerDocumentFileType removableType : removableTypes) {
+            if (removableType == selectedType) {
+                continue;
+            }
+            updates.put(
+                    "managerDocumentFiles." + removableType.getStorageKey(),
+                    FieldValue.delete()
+            );
+            updates.put(
+                    "managerDocumentFilePaths." + removableType.getStorageKey(),
+                    FieldValue.delete()
+            );
+            String legacyPathKey = resolveLegacyDocumentStoragePathKey(removableType);
+            if (legacyPathKey != null) {
+                updates.put(legacyPathKey, FieldValue.delete());
+            }
+        }
+
+        // 참조 교체는 한 번의 Firestore update로 끝낸다. 이전 Storage 객체 삭제는
+        // 클라이언트 실패 시 복구가 어려우므로 서버의 고아 원본 정리 작업이 담당해야 한다.
+    }
+
+    static void putManagerDocumentSummaryState(Map<String, Object> updates, String normalizedSummary) {
+        updates.put(
+                "managerDocumentStatus",
+                normalizedSummary.isEmpty()
+                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
+                        : ManagerDocumentStatus.PENDING_REVIEW.name()
+        );
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
+    }
+
+    static boolean managerDocumentSummaryStateChanged(
+            @Nullable String currentSummary,
+            @Nullable String currentStatus,
+            String normalizedSummary
+    ) {
+        String normalizedCurrentSummary = currentSummary == null ? "" : currentSummary.trim();
+        ManagerDocumentStatus resolvedCurrentStatus = SafeEnumParser.parseOrNull(
+                ManagerDocumentStatus.class,
+                currentStatus
+        );
+        if (resolvedCurrentStatus == null) {
+            resolvedCurrentStatus = normalizedCurrentSummary.isEmpty()
+                    ? ManagerDocumentStatus.NOT_SUBMITTED
+                    : ManagerDocumentStatus.PENDING_REVIEW;
+        }
+        ManagerDocumentStatus targetStatus = normalizedSummary.isEmpty()
+                ? ManagerDocumentStatus.NOT_SUBMITTED
+                : ManagerDocumentStatus.PENDING_REVIEW;
+        return !normalizedCurrentSummary.equals(normalizedSummary)
+                || resolvedCurrentStatus != targetStatus;
+    }
+
+    static void putManagerDocumentDraftState(
+            Map<String, Object> updates,
+            ManagerDocumentStatus currentStatus,
+            String normalizedSummary
+    ) {
+        boolean isInitialDraft = currentStatus == ManagerDocumentStatus.NOT_SUBMITTED
+                && normalizedSummary.isEmpty();
+        updates.put(
+                "managerDocumentStatus",
+                isInitialDraft
+                        ? ManagerDocumentStatus.NOT_SUBMITTED.name()
+                        : ManagerDocumentStatus.PENDING_REVIEW.name()
+        );
+        updates.put("managerDocumentUpdatedAt", FieldValue.serverTimestamp());
     }
 
     private String resolveFileNameFromPath(String fullPath) {
@@ -1676,7 +1798,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
 
     @Nullable
     private String stringifyDate(@Nullable Object rawValue) {
-        // Timestamp? 臾몄옄???낅젰??紐⑤몢 媛숈? ?띿뒪??異쒕젰?쇰줈 留욎텣??
+        // Timestamp와 문자열 입력을 같은 텍스트 출력으로 맞춘다.
         if (rawValue == null) {
             return null;
         }
@@ -1746,7 +1868,7 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     private SessionStatus resolveStepStatus(int stepOrder, int totalSteps) {
-        // ?④퀎 踰덊샇瑜??붾㈃ ?곷떒 ?곹깭 諛곗????ъ슜?섎뒗 ????곹깭濡?留ㅽ븨?쒕떎.
+        // 단계 번호를 화면 상태 배지에 사용하는 도메인 상태로 매핑한다.
         if (stepOrder <= 1) {
             return SessionStatus.MEETING;
         }
