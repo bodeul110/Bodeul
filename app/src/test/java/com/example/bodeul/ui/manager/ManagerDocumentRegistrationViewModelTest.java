@@ -20,8 +20,11 @@ import org.junit.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -128,6 +131,48 @@ public class ManagerDocumentRegistrationViewModelTest {
         assertEquals(0, scheduler.pendingCount());
     }
 
+    @Test
+    public void qualificationReplacement_appliesLatestProfileBeforeUnlock() {
+        RepositoryHarness repository = new RepositoryHarness();
+        ManagerHomeProfile latestProfile = profileWithQualification(
+                ManagerDocumentFileType.NURSING_LICENSE
+        );
+        repository.draftSaveResult = latestProfile;
+        ManagerDocumentRegistrationViewModel viewModel = createUploadViewModel(repository);
+        List<String> stateChanges = new ArrayList<>();
+
+        viewModel.getUiEvent().observeForever(event -> {
+            if (event == null
+                    || event.getType()
+                    != ManagerDocumentRegistrationViewModel.EventType.UPLOAD_SAVED) {
+                return;
+            }
+            assertTrue(viewModel.isOperationInFlight());
+            assertEquals(latestProfile, event.getLatestProfile());
+            assertNotNull(event.getLatestProfile().getDocumentFile(
+                    ManagerDocumentFileType.NURSING_LICENSE
+            ));
+            stateChanges.add("최신 프로필 반영");
+        });
+        viewModel.getOperationInFlight().observeForever(inFlight -> {
+            if (!Boolean.TRUE.equals(inFlight) && !stateChanges.isEmpty()) {
+                stateChanges.add("작업 잠금 해제");
+            }
+        });
+
+        assertTrue(viewModel.uploadDocument(
+                MANAGER_USER_ID,
+                ManagerDocumentFileType.NURSING_LICENSE,
+                null
+        ));
+
+        assertFalse(viewModel.isOperationInFlight());
+        assertEquals(
+                Arrays.asList("최신 프로필 반영", "작업 잠금 해제"),
+                stateChanges
+        );
+    }
+
     private static ManagerDocumentRegistrationViewModel createViewModel(
             RepositoryHarness repository,
             FakeRecoveryRetryScheduler scheduler
@@ -164,8 +209,67 @@ public class ManagerDocumentRegistrationViewModelTest {
         );
     }
 
+    private static ManagerDocumentRegistrationViewModel createUploadViewModel(
+            RepositoryHarness repository
+    ) {
+        ManagerDocumentStorageUploader storageUploader =
+                new ManagerDocumentStorageUploader() {
+                    @Override
+                    public void uploadDocument(
+                            String managerUserId,
+                            ManagerDocumentFileType fileType,
+                            android.net.Uri fileUri,
+                            RepositoryCallback<ManagerDocumentFileMetadata> callback
+                    ) {
+                        callback.onSuccess(document(fileType));
+                    }
+
+                    @Override
+                    public boolean isFirebaseBacked() {
+                        return false;
+                    }
+                };
+        ManagerDocumentPreviewResolver previewResolver = (metadata, callback) -> {
+            throw new AssertionError("업로드 테스트에서 미리보기가 호출되면 안 됩니다.");
+        };
+        return new ManagerDocumentRegistrationViewModel(
+                repository.repository,
+                storageUploader,
+                previewResolver,
+                new SavedStateHandle(),
+                new FakeRecoveryRetryScheduler()
+        );
+    }
+
     private static ManagerHomeProfile profile(ManagerDocumentStatus status) {
         return new ManagerHomeProfile("", "", status, "");
+    }
+
+    private static ManagerHomeProfile profileWithQualification(
+            ManagerDocumentFileType fileType
+    ) {
+        return new ManagerHomeProfile(
+                "",
+                "",
+                ManagerDocumentStatus.REJECTED,
+                "자격 서류를 교체해 주세요.",
+                100L,
+                90L,
+                "관리자",
+                Collections.singletonList(document(fileType))
+        );
+    }
+
+    private static ManagerDocumentFileMetadata document(
+            ManagerDocumentFileType fileType
+    ) {
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                "manager-documents/manager-1/" + fileType.getStorageKey() + "/latest.png",
+                "latest.png",
+                "image/png",
+                100L
+        );
     }
 
     private static ManagerDocumentOverview overview(ManagerDocumentStatus status) {
@@ -203,6 +307,7 @@ public class ManagerDocumentRegistrationViewModelTest {
         private final Deque<ManagerDocumentOverview> overviews = new ArrayDeque<>();
         private int overviewLoadCount;
         private int submissionCount;
+        private ManagerHomeProfile draftSaveResult;
         private final ManagerRepository repository = (ManagerRepository) Proxy.newProxyInstance(
                 ManagerRepository.class.getClassLoader(),
                 new Class<?>[]{ManagerRepository.class},
@@ -217,6 +322,13 @@ public class ManagerDocumentRegistrationViewModelTest {
                     }
                     if (method.getName().equals("saveManagerDocumentSummary")) {
                         submissionCount++;
+                        return null;
+                    }
+                    if (method.getName().equals("saveManagerDocumentDraftFileMetadata")) {
+                        @SuppressWarnings("unchecked")
+                        RepositoryCallback<ManagerHomeProfile> callback =
+                                (RepositoryCallback<ManagerHomeProfile>) args[2];
+                        callback.onSuccess(draftSaveResult);
                         return null;
                     }
                     if (method.getReturnType() == boolean.class) {

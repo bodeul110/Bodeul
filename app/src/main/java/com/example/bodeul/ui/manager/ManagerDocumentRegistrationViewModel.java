@@ -101,6 +101,8 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
         private final ManagerDocumentFileType fileType;
         @Nullable
         private final Uri previewUri;
+        @Nullable
+        private final ManagerHomeProfile latestProfile;
         private final String contentType;
         private final String message;
         private boolean handled;
@@ -109,12 +111,14 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
                 EventType type,
                 @Nullable ManagerDocumentFileType fileType,
                 @Nullable Uri previewUri,
+                @Nullable ManagerHomeProfile latestProfile,
                 String contentType,
                 String message
         ) {
             this.type = type;
             this.fileType = fileType;
             this.previewUri = previewUri;
+            this.latestProfile = latestProfile;
             this.contentType = contentType == null ? "" : contentType;
             this.message = message == null ? "" : message;
         }
@@ -142,6 +146,11 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
             return previewUri;
         }
 
+        @Nullable
+        public ManagerHomeProfile getLatestProfile() {
+            return latestProfile;
+        }
+
         public String getContentType() {
             return contentType;
         }
@@ -150,20 +159,30 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
             return message;
         }
 
-        private static UiEvent uploadSaved(ManagerDocumentFileType fileType) {
-            return new UiEvent(EventType.UPLOAD_SAVED, fileType, null, "", "");
+        private static UiEvent uploadSaved(
+                ManagerDocumentFileType fileType,
+                ManagerHomeProfile latestProfile
+        ) {
+            return new UiEvent(
+                    EventType.UPLOAD_SAVED,
+                    fileType,
+                    null,
+                    latestProfile,
+                    "",
+                    ""
+            );
         }
 
         private static UiEvent previewReady(Uri uri, String contentType) {
-            return new UiEvent(EventType.PREVIEW_READY, null, uri, contentType, "");
+            return new UiEvent(EventType.PREVIEW_READY, null, uri, null, contentType, "");
         }
 
         private static UiEvent submissionSucceeded() {
-            return new UiEvent(EventType.SUBMISSION_SUCCEEDED, null, null, "", "");
+            return new UiEvent(EventType.SUBMISSION_SUCCEEDED, null, null, null, "", "");
         }
 
         private static UiEvent error(String message) {
-            return new UiEvent(EventType.ERROR, null, null, "", message);
+            return new UiEvent(EventType.ERROR, null, null, null, "", message);
         }
     }
 
@@ -304,8 +323,9 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
                 new RepositoryCallback<ManagerHomeProfile>() {
                     @Override
                     public void onSuccess(ManagerHomeProfile result) {
+                        // 화면이 최신 프로필을 반영한 뒤에만 검토 요청을 다시 활성화한다.
+                        uiEvent.setValue(UiEvent.uploadSaved(fileType, result));
                         finishOperation();
-                        uiEvent.setValue(UiEvent.uploadSaved(fileType));
                     }
 
                     @Override

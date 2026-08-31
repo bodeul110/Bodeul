@@ -69,6 +69,8 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
     private View buttonClose;
     private View buttonSkip;
     private MaterialButton buttonRequest;
+    private final ManagerQualificationCompletionDialogGate completionDialogGate =
+            new ManagerQualificationCompletionDialogGate();
     private boolean operationInFlight;
     private boolean screenLoading;
 
@@ -105,7 +107,10 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         getSupportFragmentManager().setFragmentResultListener(
                 ManagerQualificationCompletionDialog.RESULT_KEY,
                 this,
-                (requestKey, result) -> viewModel.clearCompletionPending()
+                (requestKey, result) -> {
+                    completionDialogGate.clear();
+                    viewModel.clearCompletionPending();
+                }
         );
         coordinator = new ManagerDocumentRegistrationCoordinator(
                 this,
@@ -159,15 +164,14 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 this,
                 inFlight -> setOperationInFlight(Boolean.TRUE.equals(inFlight))
         );
-        viewModel.getUiEvent().observe(this, event -> dispatchOperationEvent(event));
+        viewModel.getUiEvent().observe(this, this::handleUiState);
         contentContainer.setVisibility(View.GONE);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        dispatchOperationEvent(viewModel.getUiEvent().getValue());
-        showCompletionDialogIfNeeded();
+        handleUiState(viewModel.getUiEvent().getValue());
     }
 
     @Override
@@ -448,6 +452,7 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
 
         if (consumedEvent.getType()
                 == ManagerDocumentRegistrationViewModel.EventType.UPLOAD_SAVED) {
+            applyLatestProfile(consumedEvent.getLatestProfile());
             ManagerDocumentFileType fileType = consumedEvent.getFileType();
             if (fileType != null) {
                 Toast.makeText(
@@ -483,7 +488,6 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         if (consumedEvent.getType()
                 == ManagerDocumentRegistrationViewModel.EventType.SUBMISSION_SUCCEEDED) {
             loadOverview();
-            showCompletionDialogIfNeeded();
             return;
         }
 
@@ -492,14 +496,43 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         }
     }
 
+    private void handleUiState(
+            @Nullable ManagerDocumentRegistrationViewModel.UiEvent event
+    ) {
+        dispatchOperationEvent(event);
+        showCompletionDialogIfNeeded();
+    }
+
+    private void applyLatestProfile(@Nullable ManagerHomeProfile latestProfile) {
+        if (latestProfile == null || currentOverview == null) {
+            return;
+        }
+        currentOverview = new ManagerDocumentOverview(
+                currentOverview.getManager(),
+                latestProfile,
+                currentOverview.getHistoryEntries()
+        );
+        binder.bindScreen(
+                coordinator.createScreenModel(
+                        currentOverview,
+                        managerRepository.isFirebaseBacked()
+                )
+        );
+    }
+
     private void showCompletionDialogIfNeeded() {
-        if (!viewModel.isCompletionPending()
-                || !isActivityUsable()
+        if (!isActivityUsable()
                 || !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)
-                || getSupportFragmentManager().isStateSaved()
-                || getSupportFragmentManager().findFragmentByTag(
+                || getSupportFragmentManager().isStateSaved()) {
+            return;
+        }
+        boolean dialogAlreadyAdded = getSupportFragmentManager().findFragmentByTag(
                 ManagerQualificationCompletionDialog.TAG
-        ) != null) {
+        ) != null;
+        if (!completionDialogGate.tryEnqueue(
+                viewModel.isCompletionPending(),
+                dialogAlreadyAdded
+        )) {
             return;
         }
         new ManagerQualificationCompletionDialog().show(
