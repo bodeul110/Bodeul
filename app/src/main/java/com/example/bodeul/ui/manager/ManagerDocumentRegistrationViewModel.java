@@ -1,6 +1,8 @@
 package com.example.bodeul.ui.manager;
 
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -15,6 +17,7 @@ import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentFileType;
+import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 
@@ -29,6 +32,29 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
             "manager_document_registration.pending_file_type";
     private static final String STATE_PENDING_MANAGER_USER_ID =
             "manager_document_registration.pending_manager_user_id";
+    private static final int RECOVERY_RECHECK_LIMIT = 3;
+    private static final long RECOVERY_RECHECK_DELAY_MILLIS = 750L;
+
+    interface RecoveryRetryScheduler {
+        void schedule(Runnable runnable, long delayMillis);
+
+        void cancelAll();
+    }
+
+    private static final class MainThreadRecoveryRetryScheduler
+            implements RecoveryRetryScheduler {
+        private final Handler handler = new Handler(Looper.getMainLooper());
+
+        @Override
+        public void schedule(Runnable runnable, long delayMillis) {
+            handler.postDelayed(runnable, delayMillis);
+        }
+
+        @Override
+        public void cancelAll() {
+            handler.removeCallbacksAndMessages(null);
+        }
+    }
 
     private enum Operation {
         IDLE,
@@ -145,6 +171,7 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
     private final ManagerDocumentStorageUploader storageUploader;
     private final ManagerDocumentPreviewResolver previewResolver;
     private final SavedStateHandle savedStateHandle;
+    private final RecoveryRetryScheduler recoveryRetryScheduler;
     private final MutableLiveData<Boolean> operationInFlight = new MutableLiveData<>(false);
     private final MutableLiveData<UiEvent> uiEvent = new MutableLiveData<>();
 
@@ -157,10 +184,27 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
             ManagerDocumentPreviewResolver previewResolver,
             SavedStateHandle savedStateHandle
     ) {
+        this(
+                managerRepository,
+                storageUploader,
+                previewResolver,
+                savedStateHandle,
+                new MainThreadRecoveryRetryScheduler()
+        );
+    }
+
+    ManagerDocumentRegistrationViewModel(
+            ManagerRepository managerRepository,
+            ManagerDocumentStorageUploader storageUploader,
+            ManagerDocumentPreviewResolver previewResolver,
+            SavedStateHandle savedStateHandle,
+            RecoveryRetryScheduler recoveryRetryScheduler
+    ) {
         this.managerRepository = managerRepository;
         this.storageUploader = storageUploader;
         this.previewResolver = previewResolver;
         this.savedStateHandle = savedStateHandle;
+        this.recoveryRetryScheduler = recoveryRetryScheduler;
 
         Operation restoredOperation = parseOperation(savedStateHandle.get(STATE_OPERATION));
         if (restoredOperation == Operation.SUBMISSION) {
@@ -324,7 +368,10 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
     /**
      * 프로세스 재생성으로 제출 콜백을 잃은 경우 최신 서버 상태로 잠금을 해제한다.
      */
-    public void reconcileRecoveredSubmission(@Nullable ManagerHomeProfile profile) {
+    public void reconcileRecoveredSubmission(
+            String managerUserId,
+            @Nullable ManagerHomeProfile profile
+    ) {
         if (!recoveringSubmission) {
             return;
         }
@@ -332,12 +379,83 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
         ManagerDocumentStatus status = profile == null
                 ? ManagerDocumentStatus.NOT_SUBMITTED
                 : profile.getDocumentStatus();
-        finishOperation();
-        if (status == ManagerDocumentStatus.PENDING_REVIEW
-                || status == ManagerDocumentStatus.APPROVED) {
-            setCompletionPending(true);
+        handleRecoveredSubmissionStatus(managerUserId, status, RECOVERY_RECHECK_LIMIT);
+    }
+
+    private void handleRecoveredSubmissionStatus(
+            String managerUserId,
+            ManagerDocumentStatus status,
+            int rechecksRemaining
+    ) {
+        if (operation != Operation.SUBMISSION_RECOVERY) {
             return;
         }
+        if (status == ManagerDocumentStatus.PENDING_REVIEW
+                || status == ManagerDocumentStatus.APPROVED) {
+            finishOperation();
+            setCompletionPending(true);
+            uiEvent.setValue(UiEvent.submissionSucceeded());
+            return;
+        }
+
+        if (status == ManagerDocumentStatus.NOT_SUBMITTED && rechecksRemaining > 0) {
+            scheduleRecoveredSubmissionRecheck(managerUserId, rechecksRemaining);
+            return;
+        }
+
+        finishRecoveredSubmissionWithError();
+    }
+
+    private void scheduleRecoveredSubmissionRecheck(
+            String managerUserId,
+            int rechecksRemaining
+    ) {
+        recoveryRetryScheduler.schedule(
+                () -> loadRecoveredSubmissionStatus(managerUserId, rechecksRemaining),
+                RECOVERY_RECHECK_DELAY_MILLIS
+        );
+    }
+
+    private void loadRecoveredSubmissionStatus(
+            String managerUserId,
+            int rechecksRemaining
+    ) {
+        if (operation != Operation.SUBMISSION_RECOVERY) {
+            return;
+        }
+        managerRepository.getManagerDocumentOverview(
+                managerUserId,
+                new RepositoryCallback<ManagerDocumentOverview>() {
+                    @Override
+                    public void onSuccess(ManagerDocumentOverview result) {
+                        ManagerHomeProfile profile = result == null ? null : result.getProfile();
+                        ManagerDocumentStatus status = profile == null
+                                ? ManagerDocumentStatus.NOT_SUBMITTED
+                                : profile.getDocumentStatus();
+                        handleRecoveredSubmissionStatus(
+                                managerUserId,
+                                status,
+                                rechecksRemaining - 1
+                        );
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (rechecksRemaining > 1) {
+                            scheduleRecoveredSubmissionRecheck(
+                                    managerUserId,
+                                    rechecksRemaining - 1
+                            );
+                            return;
+                        }
+                        finishRecoveredSubmissionWithError();
+                    }
+                }
+        );
+    }
+
+    private void finishRecoveredSubmissionWithError() {
+        finishOperation();
         uiEvent.setValue(UiEvent.error(
                 "이전 인증 요청 결과를 확인하지 못했습니다. 상태를 확인한 뒤 다시 요청해주세요."
         ));
@@ -371,9 +489,17 @@ public final class ManagerDocumentRegistrationViewModel extends ViewModel {
     }
 
     private void finishOperation() {
+        if (operation == Operation.SUBMISSION_RECOVERY) {
+            recoveryRetryScheduler.cancelAll();
+        }
         operation = Operation.IDLE;
         savedStateHandle.set(STATE_OPERATION, Operation.IDLE.name());
         operationInFlight.setValue(false);
+    }
+
+    @Override
+    protected void onCleared() {
+        recoveryRetryScheduler.cancelAll();
     }
 
     private static Operation parseOperation(@Nullable String storedOperation) {

@@ -245,7 +245,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
 
-        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(selectedFileType);
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(
+                selection.getFileType()
+        );
         if (!TextUtils.isEmpty(fileTypeError)) {
             Toast.makeText(this, fileTypeError, Toast.LENGTH_SHORT).show();
             return;
@@ -365,7 +367,10 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                             return;
                         }
                         currentOverview = result;
-                        viewModel.reconcileRecoveredSubmission(result.getProfile());
+                        viewModel.reconcileRecoveredSubmission(
+                                currentUser.getId(),
+                                result.getProfile()
+                        );
                         setLoading(false);
                         hideBlockingState();
                         contentContainer.setVisibility(View.VISIBLE);
