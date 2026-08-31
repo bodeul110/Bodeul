@@ -25,6 +25,7 @@ SQL
 createdb bodeul_guide_empty
 createdb bodeul_guide_upgrade
 createdb bodeul_appointment_public_code
+createdb bodeul_admin_rbac
 
 bootstrap_database() {
     local database="$1"
@@ -76,10 +77,28 @@ psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/009_companion_guide_snapshot_rollback_checks.sql
 
 bootstrap_database bodeul_appointment_public_code
-migrate_database bodeul_appointment_public_code
+migrate_database bodeul_appointment_public_code 19
 psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
     --file db/verification/012_appointment_public_code_checks.sql
 psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
     --file db/rollback/V19__remove_appointment_public_code.sql
 psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
     --file db/verification/013_appointment_public_code_rollback_checks.sql
+
+bootstrap_database bodeul_admin_rbac
+migrate_database bodeul_admin_rbac
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/verification/012_admin_rbac_checks.sql
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/verification/014_admin_rbac_rollback_failure_fixture.sql
+if psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/rollback/V20__remove_admin_rbac_and_access_audit.sql; then
+    echo "의존 객체가 있는 V20 롤백이 예상과 달리 성공했습니다." >&2
+    exit 1
+fi
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/verification/015_admin_rbac_rollback_atomicity_checks.sql
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/rollback/V20__remove_admin_rbac_and_access_audit.sql
+psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
+    --file db/verification/013_admin_rbac_rollback_checks.sql

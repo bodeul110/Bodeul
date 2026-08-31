@@ -7,6 +7,8 @@ import android.webkit.MimeTypeMap;
 
 import androidx.annotation.Nullable;
 
+import com.example.bodeul.domain.model.ManagerDocumentFileType;
+
 import java.util.Locale;
 
 /**
@@ -16,6 +18,23 @@ public final class ManagerDocumentUploadPolicy {
     public static final long MAX_FILE_SIZE_BYTES = UploadFileSizePolicy.MAX_FILE_SIZE_BYTES;
 
     private ManagerDocumentUploadPolicy() {
+    }
+
+    public static boolean isCanonicalQualificationType(@Nullable ManagerDocumentFileType fileType) {
+        return fileType == ManagerDocumentFileType.LICENSE
+                || fileType == ManagerDocumentFileType.NURSING_LICENSE;
+    }
+
+    public static boolean isLegacyReadOnlyType(@Nullable ManagerDocumentFileType fileType) {
+        return fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE;
+    }
+
+    @Nullable
+    public static String validateFileType(@Nullable ManagerDocumentFileType fileType) {
+        if (!isCanonicalQualificationType(fileType)) {
+            return "간호사 면허증 또는 현재 직무 관련 자격 증빙 중 1종만 업로드할 수 있습니다.";
+        }
+        return null;
     }
 
     @Nullable
@@ -40,8 +59,8 @@ public final class ManagerDocumentUploadPolicy {
 
     @Nullable
     static String validateContentType(@Nullable String contentType) {
-        if (!isAllowedContentType(normalizeText(contentType))) {
-            return "원본 서류는 PDF 또는 이미지 파일만 업로드할 수 있습니다.";
+        if (!isAllowedContentType(contentType)) {
+            return "원본 서류는 JPEG, PNG 또는 WebP 이미지로만 업로드할 수 있습니다.";
         }
 
         return null;
@@ -89,12 +108,14 @@ public final class ManagerDocumentUploadPolicy {
         );
     }
 
-    private static boolean isAllowedContentType(String contentType) {
-        if (contentType == null || contentType.isEmpty()) {
+    public static boolean isAllowedContentType(@Nullable String contentType) {
+        String normalizedContentType = normalizeText(contentType);
+        if (normalizedContentType.isEmpty()) {
             return false;
         }
-        return "application/pdf".equals(contentType)
-                || contentType.startsWith("image/");
+        return "image/jpeg".equals(normalizedContentType)
+                || "image/png".equals(normalizedContentType)
+                || "image/webp".equals(normalizedContentType);
     }
 
     private static String normalizeText(String value) {

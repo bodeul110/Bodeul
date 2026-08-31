@@ -34,6 +34,12 @@ public final class MockManagerDocumentStorageUploader implements ManagerDocument
             return;
         }
 
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(fileType);
+        if (!TextUtils.isEmpty(fileTypeError)) {
+            callback.onError(fileTypeError);
+            return;
+        }
+
         String validationError = ManagerDocumentUploadPolicy.validate(
                 appContext.getContentResolver(),
                 fileUri

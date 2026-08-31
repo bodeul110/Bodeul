@@ -93,7 +93,7 @@
 
 1. PostgreSQL 테이블에 `expires_at`, `deleted_at`, 필요한 경우 `legal_hold_until`을 둔다.
 2. 만료 정리 job은 매일 실행하고 삭제 건수와 실패 건수만 운영 로그에 남긴다.
-3. Storage 삭제와 DB 상태 변경은 재시도 가능한 job으로 처리한다.
+3. Storage 삭제와 DB 상태 변경은 재시도 가능한 job으로 처리한다. 매니저 증빙은 Firestore transaction에서 서버 전용 삭제 claim을 먼저 확보하고, claim이 존재하는 동안 참조·심사 상태 변경과 새 원본 업로드를 차단한다. 관리자 웹 심사 transaction도 같은 claim을 확인하며, 향후 legal hold나 참조를 바꾸는 Admin SDK 경로를 추가할 때도 동일 검사를 출시 조건으로 둔다.
 4. 파기 job은 dry-run 보고서와 실제 apply 모드를 분리한다.
 5. 백업 안의 삭제 데이터는 백업 자체 만료 시점까지 존재할 수 있음을 처리방침에 알린다.
 6. 월 1회 만료 예정, 삭제 성공, 실패와 legal hold 건수를 운영 보고서로 확인한다.
@@ -119,7 +119,7 @@
 
 - PostgreSQL 만료 후보 조회, 채팅 본문 비식별화, 위치 원본 삭제, 첨부 claim·재시도 계약은 Flyway V13으로 구현했다.
 - PostgreSQL V18은 `CARE_ENDED`부터 위치 24시간, 채팅 첨부 30일, 채팅 본문 180일 만료시각을 기록한다. Firestore 전환 파기 함수는 여전히 `COMPLETED/CANCELED`만 종료로 판단하므로, 전환 데이터의 `CARE_ENDED` 시작점은 별도 보완이 필요하다.
-- 매니저 증빙 원본은 심사 후 30일과 `managerDocumentLegalHoldUntil`을 확인한 뒤 삭제한다. 매니저 본인은 legal hold 필드를 수정할 수 없다.
+- 매니저 증빙 원본은 심사 후 30일과 `managerDocumentLegalHoldUntil`을 transaction에서 확인한 뒤 `managerDocumentDeletionClaim`을 확보하고 삭제한다. claim이 존재하는 동안 매니저 본인은 증빙 참조·심사 상태를 바꾸거나 새 원본을 업로드할 수 없고, 관리자 웹 심사도 중단된다. 같은 claim의 재시도만 Storage generation 조건부 삭제와 참조 정리를 완료할 수 있다.
 - 일일 작업은 기본 dry-run이며 `RETENTION_APPLY_ENABLED=true`인 환경에서만 실제 파기를 수행한다.
 - 개발 환경의 두 예약 함수는 Supabase CA와 DB URL을 각각 Secret Manager에서 주입하고 서버 인증서 검증을 강제한다.
 - 월간 보고는 원문, 사용자 ID, 좌표, Storage 경로 없이 건수와 실패 단계만 기록한다.
@@ -138,7 +138,7 @@
 - [ ] Firestore 전환 파기 함수의 종료 기준을 `CARE_ENDED`까지 확장하고 dry-run·APPLY fixture 재검증
 - [ ] 결제 영수증·처방 이미지에 만료 필드와 Storage 파기 작업을 연결하고 dry-run·legal hold를 검증
 - [ ] 구조화 건강정보와 최종 리포트의 1년 만료 필드·조회 차단·삭제 job을 구현하고 복원 뒤 재삭제를 검증
-- [ ] 매니저 가입의 신분증·범죄경력 필수 조합을 제거하고 자격 증빙 1종 계약으로 변경
+- [x] 매니저 가입의 신분증·범죄경력 필수 조합을 제거하고 자격 증빙 1종 계약으로 변경
 - [ ] [#348](https://github.com/bodeul110/Bodeul/issues/348) 탈퇴 시 서비스 데이터 삭제, 법정 보존 분리와 재가입 식별자 처리 구현
 - [ ] [#347](https://github.com/bodeul110/Bodeul/issues/347) 범죄경력·건강 관련 서류와 대리권 등 추가 자문 회신 확인
 - [ ] 승인된 개인정보 처리방침과 실제 파기 job을 대조

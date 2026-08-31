@@ -13,7 +13,8 @@ service firebase.storage {
     }
 
     function isAdmin() {
-      return currentRole() == 'ADMIN';
+      // 관리자 원본 미리보기는 세부 역할과 사유를 감사하는 서버 route만 사용한다.
+      return false;
     }
 
     function isManager() {
@@ -40,19 +41,18 @@ service firebase.storage {
     }
 
     function isAllowedDocumentKey(documentKey) {
-      return documentKey == 'idCard'
-          || documentKey == 'license'
-          || documentKey == 'healthCertificate'
-          || documentKey == 'criminalRecord';
+      return documentKey == 'license'
+          || documentKey == 'nursingLicense';
     }
 
     function isAllowedDocumentContentType() {
       return request.resource != null
           && request.resource.contentType is string
-          && (
-            request.resource.contentType == 'application/pdf'
-            || request.resource.contentType.matches('image/.*')
-          );
+          && request.resource.contentType in [
+            'image/jpeg',
+            'image/png',
+            'image/webp'
+          ];
     }
 
     function isAllowedDocumentSize() {
@@ -61,10 +61,20 @@ service firebase.storage {
           && request.resource.size <= 10485760;
     }
 
+    function managerDocumentDeletionClaimIsAbsent(managerUserId) {
+      return !firestore.get(
+        /databases/(default)/documents/users/$(managerUserId)
+      ).data.keys().hasAny(['managerDocumentDeletionClaim']);
+    }
+
     match /manager-documents/{managerUserId}/{documentKey}/{fileName} {
-      allow read: if isAdmin() || (isManager() && isSelf(managerUserId));
-      allow write: if isManager()
+      allow read: if isManager() && isSelf(managerUserId);
+      // 원본 증빙은 고유 경로에 한 번만 생성하고 교체·삭제는 서버 보존 절차에서만 수행한다.
+      allow write: if resource == null
+          && request.resource != null
+          && isManager()
           && isSelf(managerUserId)
+          && managerDocumentDeletionClaimIsAbsent(managerUserId)
           && isAllowedDocumentKey(documentKey)
           && isAllowedDocumentContentType()
           && isAllowedDocumentSize();

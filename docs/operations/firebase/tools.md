@@ -339,7 +339,7 @@ npm run cleanup:manager-storage:dry-run
 npm run cleanup:manager-storage:apply
 ```
 
-- [check-manager-document-storage.js](../../../tools/firebase/check-manager-document-storage.js)는 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 아래 실제 Storage 객체를 비교한다.
+- [check-manager-document-storage.js](../../../tools/firebase/check-manager-document-storage.js)는 `users/{uid}.managerDocumentFiles`, `managerDocumentFilePaths`, 레거시 경로 필드와 `manager-documents/` 아래 실제 Storage 객체를 비교한다. 현재 자격 증빙인 `license`, `nursingLicense`와 이관·파기 대상으로만 남은 `healthCertificate`, `idCard`, `criminalRecord`를 구분해 보고한다.
 - 점검 결과는 기본적으로 `tools/firebase/reports/manager-document-storage-check-YYYYMMDD-HHMMSS.json`에 저장된다.
 - `--strict`를 주면 누락 객체나 경로 불일치가 있을 때 비정상 종료해 CI나 수동 점검에서 바로 걸 수 있다.
 - `cleanup:manager-storage:dry-run`은 고아 파일 삭제 후보만 계산하고 실제 삭제는 하지 않는다.
@@ -355,9 +355,23 @@ npm run seed:manager-docs:dry-run
 npm run seed:manager-docs:apply
 ```
 
-- [seed-manager-document-storage-sample.js](../../../tools/firebase/seed-manager-document-storage-sample.js)는 `manager@bodeul.app` 기준으로 신분증/자격증/범죄경력 조회서 샘플 PNG 3개를 업로드하고, 같은 경로를 `users/{uid}` 메타데이터에도 저장한다.
+- [seed-manager-document-storage-sample.js](../../../tools/firebase/seed-manager-document-storage-sample.js)는 `manager@bodeul.app` 기준으로 canonical 직무 자격 증빙 PNG 1개를 업로드하고, 같은 경로를 `users/{uid}` 메타데이터에도 저장한다.
 - 기본값은 dry-run이며, `--apply`를 줘야 실제 Storage 업로드와 Firestore 메타데이터 반영을 수행한다.
 - 이 스크립트는 관리자 웹 미리보기나 Storage 경로 점검을 실데이터로 검증할 때만 사용한다.
+
+### 간호사 면허 legacy key 이관
+
+```powershell
+cd D:\BoDeul\tools\firebase
+npm run migrate:manager-health-certificate:dry-run
+npm run migrate:manager-health-certificate:apply
+```
+
+- [migrate-manager-health-certificate.js](../../../tools/firebase/migrate-manager-health-certificate.js)는 실제 간호사 면허를 `healthCertificate`로 저장한 기존 항목을 `nursingLicense` canonical key와 Storage 경로로 이관한다.
+- dry-run은 대상, 이미 완료된 항목, canonical 충돌, 경로·메타데이터 불일치를 구분해 보고하며 Storage나 Firestore를 변경하지 않는다.
+- apply는 원본 Storage generation과 목적지 미존재 조건을 확인해 복사하고, 크기·MIME·해시를 대조한 뒤 Firestore transaction으로 metadata와 path를 교체한다. legacy 객체는 Firestore 교체 성공 뒤에만 generation 조건으로 삭제한다.
+- `license` 또는 `nursingLicense`가 이미 있거나 legacy metadata·path가 완전하지 않으면 자동 덮어쓰지 않는다. 점검 결과를 먼저 정리한 뒤 별도 승인된 보정 절차를 사용한다.
+- 운영 apply는 이관 dry-run 결과와 백업 증적을 확인한 뒤 명시적으로 실행한다.
 
 ### 패치 주의
 

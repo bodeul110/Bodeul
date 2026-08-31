@@ -41,7 +41,8 @@ public final class ManagerHomePresentationFormatter {
 
     public String buildDocumentStatusText(ManagerHomeProfile profile) {
         String statusLabel = toDocumentStatusLabel(profile.getDocumentStatus());
-        if (TextUtils.isEmpty(profile.getDocumentReviewNote())) {
+        if (!shouldShowReviewDecision(profile.getDocumentStatus())
+                || TextUtils.isEmpty(profile.getDocumentReviewNote())) {
             return context.getString(R.string.manager_action_docs_status_plain, statusLabel);
         }
         return context.getString(
@@ -58,39 +59,60 @@ public final class ManagerHomePresentationFormatter {
         return summarizeCardText(reviewNote);
     }
 
+    public String buildDocumentReviewNote(ManagerHomeProfile profile) {
+        if (!shouldShowReviewDecision(profile.getDocumentStatus())) {
+            return context.getString(R.string.manager_profile_review_note_empty);
+        }
+        return buildDocumentReviewNote(profile.getDocumentReviewNote());
+    }
+
     public String buildDocumentFileSummary(ManagerHomeProfile profile) {
         if (profile.getDocumentFiles().isEmpty()) {
             return context.getString(R.string.manager_profile_document_files_empty);
         }
 
         StringBuilder builder = new StringBuilder();
-        appendDocumentFileLine(builder, ManagerDocumentFileType.ID_CARD, profile.getDocumentFile(ManagerDocumentFileType.ID_CARD));
-        
-        // Handle combined license for summary
+        ManagerDocumentFileMetadata nursingMetadata = profile.getDocumentFile(
+                ManagerDocumentFileType.NURSING_LICENSE
+        );
         ManagerDocumentFileMetadata licenseMetadata = profile.getDocumentFile(ManagerDocumentFileType.LICENSE);
-        ManagerDocumentFileMetadata nursingMetadata = profile.getDocumentFile(ManagerDocumentFileType.HEALTH_CERTIFICATE);
-        
-        boolean licenseUploaded = licenseMetadata != null && !licenseMetadata.isEmpty();
-        boolean nursingUploaded = nursingMetadata != null && !nursingMetadata.isEmpty();
-        
-        if (licenseUploaded || nursingUploaded) {
-            ManagerDocumentFileMetadata activeMetadata = nursingUploaded ? nursingMetadata : licenseMetadata;
-            String label = context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license);
-            appendDocumentFileLine(builder, label, activeMetadata);
+        ManagerDocumentFileMetadata legacyNursingMetadata = profile.getDocumentFile(
+                ManagerDocumentFileType.HEALTH_CERTIFICATE
+        );
+
+        if (isPresent(nursingMetadata)) {
+            appendDocumentFileLine(
+                    builder,
+                    context.getString(R.string.manager_document_registration_document_nursing_license),
+                    nursingMetadata
+            );
+        } else if (isPresent(licenseMetadata)) {
+            appendDocumentFileLine(
+                    builder,
+                    context.getString(R.string.manager_document_registration_document_elderly_care_license),
+                    licenseMetadata
+            );
+        } else if (isPresent(legacyNursingMetadata)) {
+            appendDocumentFileLine(
+                    builder,
+                    context.getString(R.string.manager_document_registration_document_nursing_license),
+                    legacyNursingMetadata
+            );
         } else {
             String label = context.getString(R.string.manager_document_registration_document_nursing_or_elderly_care_license);
             builder.append(context.getString(R.string.manager_profile_document_file_missing, label));
         }
-
-        appendDocumentFileLine(
-                builder,
-                ManagerDocumentFileType.CRIMINAL_RECORD,
-                profile.getDocumentFile(ManagerDocumentFileType.CRIMINAL_RECORD)
-        );
         return builder.toString();
     }
 
+    private static boolean isPresent(ManagerDocumentFileMetadata metadata) {
+        return metadata != null && !metadata.isEmpty();
+    }
+
     public String buildDocumentTimelineText(ManagerHomeProfile profile) {
+        if (!shouldShowReviewDecision(profile.getDocumentStatus())) {
+            return context.getString(R.string.manager_profile_timeline_pending);
+        }
         if (profile.getDocumentUpdatedAtMillis() <= 0L
                 && profile.getDocumentReviewedAtMillis() <= 0L
                 && TextUtils.isEmpty(profile.getDocumentReviewedByName())) {
@@ -106,6 +128,10 @@ public final class ManagerHomePresentationFormatter {
                 formatTimestamp(profile.getDocumentReviewedAtMillis()),
                 reviewedBy
         );
+    }
+
+    static boolean shouldShowReviewDecision(ManagerDocumentStatus status) {
+        return status == ManagerDocumentStatus.APPROVED || status == ManagerDocumentStatus.REJECTED;
     }
 
     public String formatTimestamp(long timestampMillis) {
@@ -219,6 +245,10 @@ public final class ManagerHomePresentationFormatter {
         }
         if (fileType == ManagerDocumentFileType.LICENSE) {
             return context.getString(R.string.manager_profile_document_type_license);
+        }
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE
+                || fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+            return context.getString(R.string.manager_document_registration_document_nursing_license);
         }
         return context.getString(R.string.manager_profile_document_type_criminal_record);
     }

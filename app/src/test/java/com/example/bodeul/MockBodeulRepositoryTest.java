@@ -1255,6 +1255,8 @@ public class MockBodeulRepositoryTest {
         ManagerHomeProfile initialProfile = repository.getManagerHomeProfile(manager.getId());
         assertNotNull(initialProfile);
         assertEquals(ManagerDocumentStatus.APPROVED, initialProfile.getDocumentStatus());
+        assertNotNull(initialProfile.getDocumentFile(ManagerDocumentFileType.LICENSE));
+        assertNull(initialProfile.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE));
 
         ManagerHomeProfile updatedDocumentProfile = repository.saveManagerDocumentSummary(
                 manager.getId(),
@@ -1268,11 +1270,26 @@ public class MockBodeulRepositoryTest {
         assertNotNull(updatedDocumentProfile);
         assertNotNull(updatedAvailabilityProfile);
         assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedDocumentProfile.getDocumentStatus());
-        assertEquals("", updatedDocumentProfile.getDocumentReviewNote());
+        assertEquals(
+                "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요.",
+                updatedDocumentProfile.getDocumentReviewNote()
+        );
         assertTrue(updatedDocumentProfile.getDocumentUpdatedAtMillis() > 0L);
-        assertEquals(0L, updatedDocumentProfile.getDocumentReviewedAtMillis());
+        assertTrue(updatedDocumentProfile.getDocumentReviewedAtMillis() > 0L);
+        assertEquals("관리자", updatedDocumentProfile.getDocumentReviewedByName());
         assertEquals("updated summary", updatedDocumentProfile.getDocumentSummary());
         assertEquals("weekday 10:00-17:00", updatedAvailabilityProfile.getAvailabilitySummary());
+
+        int submittedHistoryCount = repository.getManagerDocumentHistory(manager.getId()).size();
+        long submittedAtMillis = updatedDocumentProfile.getDocumentUpdatedAtMillis();
+        ManagerHomeProfile unchangedDocumentProfile = repository.saveManagerDocumentSummary(
+                manager.getId(),
+                "updated summary"
+        );
+
+        assertNotNull(unchangedDocumentProfile);
+        assertEquals(submittedHistoryCount, repository.getManagerDocumentHistory(manager.getId()).size());
+        assertEquals(submittedAtMillis, unchangedDocumentProfile.getDocumentUpdatedAtMillis());
 
         List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
         assertEquals(3, historyEntries.size());
@@ -1290,34 +1307,133 @@ public class MockBodeulRepositoryTest {
         ManagerHomeProfile updatedProfile = repository.saveManagerDocumentFileMetadata(
                 manager.getId(),
                 new ManagerDocumentFileMetadata(
-                        ManagerDocumentFileType.ID_CARD,
-                        "manager-documents/" + manager.getId() + "/idCard/1760500900000-id-card.pdf",
-                        "id-card.pdf",
-                        "application/pdf",
+                        ManagerDocumentFileType.NURSING_LICENSE,
+                        "manager-documents/" + manager.getId() + "/nursingLicense/1760500900000-nursing-license.jpg",
+                        "nursing-license.jpg",
+                        "image/jpeg",
                         1760500900000L,
-                        "content://manager-documents/id-card"
+                        "content://manager-documents/nursing-license"
                 )
         );
 
         assertNotNull(updatedProfile);
         assertEquals(ManagerDocumentStatus.PENDING_REVIEW, updatedProfile.getDocumentStatus());
-        assertEquals("", updatedProfile.getDocumentReviewNote());
-        assertEquals(0L, updatedProfile.getDocumentReviewedAtMillis());
-        assertEquals("", updatedProfile.getDocumentReviewedByName());
-        assertNotNull(updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD));
         assertEquals(
-                "id-card.pdf",
-                updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD).getFileName()
+                "관리자 검토를 마쳤습니다. 이번 주 일정만 최신으로 유지해 주세요.",
+                updatedProfile.getDocumentReviewNote()
+        );
+        assertTrue(updatedProfile.getDocumentReviewedAtMillis() > 0L);
+        assertEquals("관리자", updatedProfile.getDocumentReviewedByName());
+        assertNotNull(updatedProfile.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE));
+        assertEquals(
+                "nursing-license.jpg",
+                updatedProfile.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE).getFileName()
         );
         assertEquals(
-                "content://manager-documents/id-card",
-                updatedProfile.getDocumentFile(ManagerDocumentFileType.ID_CARD).getPreviewUri()
+                "content://manager-documents/nursing-license",
+                updatedProfile.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE).getPreviewUri()
         );
 
         List<ManagerDocumentHistoryEntry> historyEntries = repository.getManagerDocumentHistory(manager.getId());
         assertFalse(historyEntries.isEmpty());
         assertEquals(ManagerDocumentHistoryEventType.SUBMITTED, historyEntries.get(0).getEventType());
         assertEquals(manager.getName(), historyEntries.get(0).getActorName());
+    }
+
+    @Test
+    public void managerDocumentDraft_matchesFirebaseSubmissionTransitions() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        int approvedHistoryCount = repository.getManagerDocumentHistory(manager.getId()).size();
+        ManagerHomeProfile reviewedDraft = repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.LICENSE,
+                        "manager-documents/" + manager.getId() + "/license/reviewed-revision.jpg",
+                        "reviewed-revision.jpg",
+                        "image/jpeg",
+                        1760500900100L,
+                        "content://manager-documents/reviewed-revision"
+                )
+        );
+
+        assertNotNull(reviewedDraft);
+        assertEquals(ManagerDocumentStatus.PENDING_REVIEW, reviewedDraft.getDocumentStatus());
+        assertEquals(approvedHistoryCount + 1, repository.getManagerDocumentHistory(manager.getId()).size());
+        assertEquals(
+                ManagerDocumentHistoryEventType.SUBMITTED,
+                repository.getManagerDocumentHistory(manager.getId()).get(0).getEventType()
+        );
+        assertTrue(reviewedDraft.getDocumentReviewedAtMillis() > 0L);
+
+        repository.saveManagerDocumentSummary(manager.getId(), "");
+        int initialDraftHistoryCount = repository.getManagerDocumentHistory(manager.getId()).size();
+        ManagerHomeProfile initialDraft = repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.NURSING_LICENSE,
+                        "manager-documents/" + manager.getId() + "/nursingLicense/initial-draft.png",
+                        "initial-draft.png",
+                        "image/png",
+                        1760500900200L,
+                        "content://manager-documents/initial-draft"
+                )
+        );
+
+        assertNotNull(initialDraft);
+        assertEquals(ManagerDocumentStatus.NOT_SUBMITTED, initialDraft.getDocumentStatus());
+        assertEquals(initialDraftHistoryCount, repository.getManagerDocumentHistory(manager.getId()).size());
+    }
+
+    @Test
+    public void managerDocumentDraft_replacesPreviousCanonicalQualificationAndRejectsLegacyWrite() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User manager = repository.findUserByEmail("manager@bodeul.app");
+
+        assertNotNull(manager);
+
+        ManagerHomeProfile jobQualificationDraft = repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.LICENSE,
+                        "manager-documents/" + manager.getId() + "/license/license.jpg",
+                        "license.jpg",
+                        "image/jpeg",
+                        1760500900300L,
+                        "content://manager-documents/license"
+                )
+        );
+        assertNotNull(jobQualificationDraft);
+
+        ManagerHomeProfile nursingDraft = repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.NURSING_LICENSE,
+                        "manager-documents/" + manager.getId() + "/nursingLicense/nursing.jpg",
+                        "nursing.jpg",
+                        "image/jpeg",
+                        1760500900400L,
+                        "content://manager-documents/nursing"
+                )
+        );
+
+        assertNotNull(nursingDraft);
+        assertNull(nursingDraft.getDocumentFile(ManagerDocumentFileType.LICENSE));
+        assertNotNull(nursingDraft.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE));
+        assertNull(repository.saveManagerDocumentDraftFileMetadata(
+                manager.getId(),
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.HEALTH_CERTIFICATE,
+                        "manager-documents/" + manager.getId() + "/healthCertificate/legacy.jpg",
+                        "legacy.jpg",
+                        "image/jpeg",
+                        1760500900500L,
+                        "content://manager-documents/legacy"
+                )
+        ));
     }
 
     @Test

@@ -321,7 +321,8 @@ final class AdminManagerDocumentSectionController {
         if (fileType == ManagerDocumentFileType.ID_CARD) {
             return activity.getString(R.string.manager_document_registration_document_id_card);
         }
-        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE
+                || fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
             return activity.getString(R.string.manager_document_registration_document_nursing_license);
         }
         if (fileType == ManagerDocumentFileType.LICENSE) {
