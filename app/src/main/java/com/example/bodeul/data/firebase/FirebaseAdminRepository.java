@@ -3,6 +3,7 @@ package com.example.bodeul.data.firebase;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.AdminRepository;
+import com.example.bodeul.data.ManagerDocumentReferencePolicy;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AdminActionContract;
 import com.example.bodeul.domain.model.AdminActionNotification;
@@ -1408,6 +1409,8 @@ public class FirebaseAdminRepository implements AdminRepository {
 
     private List<ManagerDocumentFileMetadata> toManagerDocumentFiles(DocumentSnapshot documentSnapshot) {
         Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileByType = new HashMap<>();
+        Object rawPathMap = documentSnapshot.get("managerDocumentFilePaths");
+        Map<?, ?> pathMap = rawPathMap instanceof Map ? (Map<?, ?>) rawPathMap : null;
 
         Object rawMetadataMap = documentSnapshot.get("managerDocumentFiles");
         if (rawMetadataMap instanceof Map) {
@@ -1418,14 +1421,19 @@ public class FirebaseAdminRepository implements AdminRepository {
                         metadataMap.get(fileType.getStorageKey())
                 );
                 if (metadata != null) {
-                    fileByType.put(fileType, metadata);
+                    fileByType.put(
+                            fileType,
+                            withReferenceConsistency(
+                                    documentSnapshot,
+                                    pathMap,
+                                    metadata
+                            )
+                    );
                 }
             }
         }
 
-        Object rawPathMap = documentSnapshot.get("managerDocumentFilePaths");
-        if (rawPathMap instanceof Map) {
-            Map<?, ?> pathMap = (Map<?, ?>) rawPathMap;
+        if (pathMap != null) {
             for (ManagerDocumentFileType fileType : ManagerDocumentFileType.values()) {
                 if (fileByType.containsKey(fileType)) {
                     continue;
@@ -1444,9 +1452,13 @@ public class FirebaseAdminRepository implements AdminRepository {
             if (fileByType.containsKey(fileType)) {
                 continue;
             }
+            String legacyPathKey = resolveLegacyDocumentStoragePathKey(fileType);
+            if (legacyPathKey == null) {
+                continue;
+            }
             ManagerDocumentFileMetadata metadata = toManagerDocumentFileMetadataFromPath(
                     fileType,
-                    documentSnapshot.getString(resolveLegacyDocumentStoragePathKey(fileType))
+                    documentSnapshot.getString(legacyPathKey)
             );
             if (metadata != null) {
                 fileByType.put(fileType, metadata);
@@ -1473,8 +1485,8 @@ public class FirebaseAdminRepository implements AdminRepository {
         }
 
         Map<?, ?> valueMap = (Map<?, ?>) rawValue;
-        String fullPath = normalizeText(stringValue(valueMap.get("fullPath")));
-        if (fullPath.isEmpty()) {
+        String fullPath = stringValue(valueMap.get("fullPath"));
+        if (fullPath == null || fullPath.trim().isEmpty()) {
             return null;
         }
 
@@ -1507,7 +1519,40 @@ public class FirebaseAdminRepository implements AdminRepository {
                 normalizedPath,
                 resolveFileNameFromPath(normalizedPath),
                 "",
-                0L
+                0L,
+                "",
+                false
+        );
+    }
+
+    private ManagerDocumentFileMetadata withReferenceConsistency(
+            DocumentSnapshot documentSnapshot,
+            @Nullable Map<?, ?> pathMap,
+            ManagerDocumentFileMetadata metadata
+    ) {
+        ManagerDocumentFileType fileType = metadata.getFileType();
+        String aliasKey = resolveReferenceConsistencyAliasKey(fileType);
+        boolean aliasPresent = aliasKey != null && documentSnapshot.contains(aliasKey);
+        String aliasValue = aliasPresent ? stringValue(documentSnapshot.get(aliasKey)) : null;
+        String pathMapValue = pathMap == null
+                ? null
+                : stringValue(pathMap.get(fileType.getStorageKey()));
+        boolean referenceConsistent = ManagerDocumentReferencePolicy.isConsistent(
+                documentSnapshot.getId(),
+                fileType,
+                metadata.getFullPath(),
+                pathMapValue,
+                aliasPresent,
+                aliasValue
+        );
+        return new ManagerDocumentFileMetadata(
+                fileType,
+                metadata.getFullPath(),
+                metadata.getFileName(),
+                metadata.getContentType(),
+                metadata.getUploadedAtMillis(),
+                metadata.getPreviewUri(),
+                referenceConsistent
         );
     }
 
@@ -2277,6 +2322,7 @@ public class FirebaseAdminRepository implements AdminRepository {
         return rawValue == null ? "" : rawValue.trim();
     }
 
+    @Nullable
     private String resolveLegacyDocumentStoragePathKey(ManagerDocumentFileType fileType) {
         if (fileType == ManagerDocumentFileType.ID_CARD) {
             return "managerIdCardStoragePath";
@@ -2284,7 +2330,21 @@ public class FirebaseAdminRepository implements AdminRepository {
         if (fileType == ManagerDocumentFileType.LICENSE) {
             return "managerLicenseStoragePath";
         }
-        return "managerCriminalRecordStoragePath";
+        if (fileType == ManagerDocumentFileType.CRIMINAL_RECORD) {
+            return "managerCriminalRecordStoragePath";
+        }
+        if (fileType == ManagerDocumentFileType.HEALTH_CERTIFICATE) {
+            return "managerHealthCertificateStoragePath";
+        }
+        return null;
+    }
+
+    @Nullable
+    private String resolveReferenceConsistencyAliasKey(ManagerDocumentFileType fileType) {
+        if (fileType == ManagerDocumentFileType.NURSING_LICENSE) {
+            return "managerLicenseStoragePath";
+        }
+        return resolveLegacyDocumentStoragePathKey(fileType);
     }
 
     private String resolveFileNameFromPath(String fullPath) {

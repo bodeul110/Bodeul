@@ -1,6 +1,13 @@
 const {onDocumentWritten} = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const {FieldValue, Timestamp, getFirestore} = require("firebase-admin/firestore");
+const {isDeepStrictEqual} = require("node:util");
+const {
+  ACTIVE_MANAGER_DOCUMENT_KEYS,
+  MANAGER_DOCUMENT_PATH_ALIAS_FIELDS,
+  resolveCanonicalManagerDocumentReference,
+  resolveManagerDocumentReference,
+} = require("./manager-document-contract");
 
 const USER_LINK_SYNC_OPTIONS = {
   region: "asia-northeast3",
@@ -12,9 +19,28 @@ const APPOINTMENT_REQUEST_SYNC_OPTIONS = {
   document: "appointmentRequests/{appointmentRequestId}",
 };
 
+const MANAGER_DOCUMENT_SUBMISSION_OPTIONS = {
+  region: "asia-northeast3",
+  document: "users/{userId}",
+  retry: true,
+};
+
 const REMINDER_SCAN_STATUSES = new Set(["REQUESTED", "MATCHED"]);
 const REMINDER_SKIPPED_STATE = "SKIPPED";
 const REMINDER_CLEANUP_STATES = new Set(["PENDING", "PROCESSING", "FAILED"]);
+const MANAGER_DOCUMENT_INITIAL_SUBMISSION_SOURCE_STATUSES = new Set([
+  "NOT_SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+]);
+const MANAGER_DOCUMENT_SUBMISSION_MAP_FIELDS = [
+  "managerDocumentFiles",
+  "managerDocumentFilePaths",
+];
+const MANAGER_DOCUMENT_EVIDENCE_MIGRATION_FIELD =
+  "managerDocumentEvidenceMigration";
+const HEALTH_CERTIFICATE_MIGRATION_ID =
+  "health-certificate-to-nursing-license-v1";
 
 const syncLinkedAppointmentParticipants = onDocumentWritten(
     USER_LINK_SYNC_OPTIONS,
@@ -66,6 +92,219 @@ const cleanupAppointmentReminderJobs = onDocumentWritten(
       }
     },
 );
+
+const recordManagerDocumentSubmission = onDocumentWritten(
+    MANAGER_DOCUMENT_SUBMISSION_OPTIONS,
+    async (event) => {
+      if (!event.data?.before?.exists || !event.data?.after?.exists) {
+        return;
+      }
+
+      const submissionEvent = resolveManagerDocumentSubmissionEvent(
+          event.data.before.data(),
+          event.data.after.data(),
+          event.params?.userId,
+          event.id,
+          resolveManagerDocumentEventTime(event.data.after.updateTime, event.time),
+      );
+      if (!submissionEvent) {
+        return;
+      }
+
+      const recorded = await appendManagerDocumentSubmissionHistory(
+          getFirestore(),
+          event.data.after.ref,
+          submissionEvent,
+      );
+      if (recorded) {
+        logger.info("매니저 서류 제출 이력을 기록했습니다.", {
+          managerUserId: submissionEvent.actorUserId,
+          submissionEventId: submissionEvent.eventId,
+        });
+      }
+    },
+);
+
+function resolveManagerDocumentSubmissionEvent(
+    beforeData,
+    afterData,
+    managerUserId,
+    eventId,
+    happenedAt,
+) {
+  if (sanitizeText(afterData?.role) !== "MANAGER") {
+    return null;
+  }
+  const beforeStatus = sanitizeText(beforeData?.managerDocumentStatus) || "NOT_SUBMITTED";
+  const afterStatus = sanitizeText(afterData?.managerDocumentStatus);
+  const enteredPendingReview = MANAGER_DOCUMENT_INITIAL_SUBMISSION_SOURCE_STATUSES.has(beforeStatus) &&
+      afterStatus === "PENDING_REVIEW";
+  const revisedPendingReview = beforeStatus === "PENDING_REVIEW" &&
+      afterStatus === "PENDING_REVIEW" &&
+      managerDocumentSubmissionContentChanged(
+          beforeData,
+          afterData,
+          managerUserId,
+      );
+  if (!enteredPendingReview && !revisedPendingReview) {
+    return null;
+  }
+
+  const normalizedUserId = sanitizeText(managerUserId);
+  const normalizedEventId = sanitizeText(eventId);
+  if (!normalizedUserId || !normalizedEventId) {
+    return null;
+  }
+
+  return {
+    eventId: normalizedEventId,
+    eventType: "SUBMITTED",
+    happenedAt: happenedAt instanceof Timestamp ? happenedAt : Timestamp.now(),
+    actorUserId: normalizedUserId,
+    actorName: "매니저 본인",
+    summary: sanitizeText(afterData?.managerDocumentSummary),
+    reviewNote: "",
+  };
+}
+
+function managerDocumentSubmissionContentChanged(
+    beforeData,
+    afterData,
+    managerUserId,
+) {
+  if (isPureHealthCertificateMigration(beforeData, afterData, managerUserId)) {
+    return false;
+  }
+  if (!isDeepStrictEqual(
+      beforeData?.managerDocumentSummary,
+      afterData?.managerDocumentSummary,
+  )) {
+    return true;
+  }
+  return MANAGER_DOCUMENT_SUBMISSION_MAP_FIELDS.some((field) =>
+    ACTIVE_MANAGER_DOCUMENT_KEYS.some((documentKey) =>
+      !isDeepStrictEqual(
+          beforeData?.[field]?.[documentKey],
+          afterData?.[field]?.[documentKey],
+      ),
+    ),
+  );
+}
+
+function isPureHealthCertificateMigration(beforeData, afterData, managerUserId) {
+  const normalizedManagerId = sanitizeText(managerUserId);
+  const marker = afterData?.[MANAGER_DOCUMENT_EVIDENCE_MIGRATION_FIELD];
+  if (!normalizedManagerId || !isPlainObject(marker) ||
+      isDeepStrictEqual(
+          beforeData?.[MANAGER_DOCUMENT_EVIDENCE_MIGRATION_FIELD],
+          marker,
+      ) ||
+      !isDeepStrictEqual(
+          Object.keys(marker).sort(),
+          [
+            "destinationKey",
+            "destinationPath",
+            "migrationId",
+            "sourceKey",
+            "sourcePath",
+          ],
+      ) ||
+      marker.migrationId !== HEALTH_CERTIFICATE_MIGRATION_ID ||
+      marker.sourceKey !== "healthCertificate" ||
+      marker.destinationKey !== "nursingLicense" ||
+      !isDeepStrictEqual(
+          beforeData?.managerDocumentSummary,
+          afterData?.managerDocumentSummary,
+      ) ||
+      managerDocumentHasActiveState(beforeData)) {
+    return false;
+  }
+
+  const source = resolveManagerDocumentReference(
+      beforeData,
+      normalizedManagerId,
+      "healthCertificate",
+  );
+  const destination = resolveCanonicalManagerDocumentReference(
+      afterData,
+      normalizedManagerId,
+  );
+  if (!source || !destination || destination.documentKey !== "nursingLicense" ||
+      marker.sourcePath !== source.storagePath ||
+      marker.destinationPath !== destination.storagePath ||
+      managerDocumentHasLegacyHealthState(afterData)) {
+    return false;
+  }
+
+  const sourceMetadata = beforeData.managerDocumentFiles.healthCertificate;
+  const destinationMetadata = afterData.managerDocumentFiles.nursingLicense;
+  return isPlainObject(sourceMetadata) && isPlainObject(destinationMetadata) &&
+    isDeepStrictEqual(
+        {...sourceMetadata, fullPath: destination.storagePath},
+        destinationMetadata,
+    );
+}
+
+function managerDocumentHasActiveState(data) {
+  const fileMap = isPlainObject(data?.managerDocumentFiles)
+    ? data.managerDocumentFiles
+    : {};
+  const pathMap = isPlainObject(data?.managerDocumentFilePaths)
+    ? data.managerDocumentFilePaths
+    : {};
+  return ACTIVE_MANAGER_DOCUMENT_KEYS.some((documentKey) => {
+    const aliasField = MANAGER_DOCUMENT_PATH_ALIAS_FIELDS[documentKey];
+    return Object.hasOwn(fileMap, documentKey) ||
+      Object.hasOwn(pathMap, documentKey) ||
+      Boolean(aliasField && Object.hasOwn(data || {}, aliasField));
+  });
+}
+
+function managerDocumentHasLegacyHealthState(data) {
+  const fileMap = isPlainObject(data?.managerDocumentFiles)
+    ? data.managerDocumentFiles
+    : {};
+  const pathMap = isPlainObject(data?.managerDocumentFilePaths)
+    ? data.managerDocumentFilePaths
+    : {};
+  return Object.hasOwn(fileMap, "healthCertificate") ||
+    Object.hasOwn(pathMap, "healthCertificate") ||
+    Object.hasOwn(data || {}, "managerHealthCertificateStoragePath");
+}
+
+function resolveManagerDocumentEventTime(updateTime, cloudEventTime) {
+  if (updateTime instanceof Timestamp) {
+    return updateTime;
+  }
+  if (typeof cloudEventTime === "string") {
+    const parsedTime = new Date(cloudEventTime);
+    if (!Number.isNaN(parsedTime.getTime())) {
+      return Timestamp.fromDate(parsedTime);
+    }
+  }
+  throw new Error("매니저 서류 제출 이벤트의 서버 시각을 확인하지 못했습니다.");
+}
+
+async function appendManagerDocumentSubmissionHistory(firestore, documentReference, submissionEvent) {
+  return firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(documentReference);
+    if (!snapshot.exists) {
+      return false;
+    }
+
+    const currentHistory = Array.isArray(snapshot.get("managerDocumentHistory"))
+        ? snapshot.get("managerDocumentHistory")
+        : [];
+    if (currentHistory.some((entry) => entry?.eventId === submissionEvent.eventId)) {
+      return false;
+    }
+
+    transaction.update(documentReference, {
+      managerDocumentHistory: FieldValue.arrayUnion(submissionEvent),
+    });
+    return true;
+  });
+}
 
 function toLinkableUserProfile(documentSnapshot) {
   const role = sanitizeText(documentSnapshot.get("role"));
@@ -355,7 +594,17 @@ function sanitizeText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 module.exports = {
   syncLinkedAppointmentParticipants,
   cleanupAppointmentReminderJobs,
+  recordManagerDocumentSubmission,
+  resolveManagerDocumentSubmissionEvent,
+  appendManagerDocumentSubmissionHistory,
+  isPureHealthCertificateMigration,
+  managerDocumentSubmissionContentChanged,
+  resolveManagerDocumentEventTime,
 };

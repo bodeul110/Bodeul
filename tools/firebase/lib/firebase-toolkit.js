@@ -320,11 +320,31 @@ function buildStorageListUrl(context, queryParams) {
   );
 }
 
-function buildStorageObjectUrl(context, objectName) {
+function buildStorageObjectUrl(context, objectName, queryParams) {
   return buildApiUrl(
       STORAGE_API_ORIGIN,
       `/storage/v1/b/${encodeURIComponent(assertStorageBucket(context.storageBucket))}` +
       `/o/${encodeURIComponent(assertStorageObjectName(objectName))}`,
+      queryParams,
+  );
+}
+
+function buildStorageRewriteUrl(context, sourceName, destinationName, queryParams) {
+  const bucket = encodeURIComponent(assertStorageBucket(context.storageBucket));
+  return buildApiUrl(
+      STORAGE_API_ORIGIN,
+      `/storage/v1/b/${bucket}/o/${encodeURIComponent(assertStorageObjectName(sourceName))}` +
+      `/rewriteTo/b/${bucket}/o/${encodeURIComponent(assertStorageObjectName(destinationName))}`,
+      queryParams,
+  );
+}
+
+function buildFirestoreActionUrl(context, action) {
+  const safeAction = assertApiPathSegment(action, "Firestore 작업");
+  return buildApiUrl(
+      context.firestoreApiOrigin || DEFAULT_FIRESTORE_API_ORIGIN,
+      `/v1/projects/${encodeURIComponent(assertProjectId(context.projectId))}` +
+      `/databases/(default)/documents:${safeAction}`,
   );
 }
 
@@ -588,10 +608,14 @@ async function listStorageObjects(context, prefix) {
   }
 }
 
-async function deleteStorageObject(context, objectName) {
+async function deleteStorageObject(context, objectName, generation) {
   assertNoProductionServiceInFirestoreEmulator(context, "Firebase Storage");
+  const query = new URLSearchParams();
+  if (sanitizeText(generation)) {
+    query.set("ifGenerationMatch", sanitizeText(generation));
+  }
   const response = await fetch(
-      buildStorageObjectUrl(context, objectName),
+      buildStorageObjectUrl(context, objectName, query),
       {
         method: "DELETE",
         headers: {
@@ -609,6 +633,47 @@ async function deleteStorageObject(context, objectName) {
     throw new Error(`Storage 객체 삭제 실패: ${response.status} ${JSON.stringify(payload)}`);
   }
   return true;
+}
+
+async function copyStorageObject(
+    context,
+    sourceName,
+    destinationName,
+    sourceGeneration,
+) {
+  assertNoProductionServiceInFirestoreEmulator(context, "Firebase Storage");
+  const generation = sanitizeText(sourceGeneration);
+  if (!generation) {
+    throw new Error("Storage 원본 generation이 없어 복사를 시작할 수 없습니다.");
+  }
+
+  let rewriteToken = "";
+  while (true) {
+    const query = new URLSearchParams();
+    query.set("ifGenerationMatch", "0");
+    query.set("ifSourceGenerationMatch", generation);
+    if (rewriteToken) {
+      query.set("rewriteToken", rewriteToken);
+    }
+    const response = await fetch(
+        buildStorageRewriteUrl(context, sourceName, destinationName, query),
+        {
+          method: "POST",
+          headers: {Authorization: `Bearer ${context.accessToken}`},
+        },
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(`Storage 객체 복사 실패: ${response.status} ${JSON.stringify(payload)}`);
+    }
+    if (payload.done) {
+      return payload.resource || null;
+    }
+    rewriteToken = sanitizeText(payload.rewriteToken);
+    if (!rewriteToken) {
+      throw new Error("Storage 객체 복사 응답에 rewriteToken이 없습니다.");
+    }
+  }
 }
 
 async function uploadStorageObject(context, objectName, contentType, body) {
@@ -661,6 +726,79 @@ async function patchDocumentFields(context, relativePath, fields) {
     throw new Error(`${relativePath} 저장 실패: ${response.status} ${JSON.stringify(payload)}`);
   }
   return payload;
+}
+
+async function runDocumentTransaction(context, relativePath, mutationBuilder) {
+  const begin = await postJson(
+      buildFirestoreActionUrl(context, "beginTransaction"),
+      context.accessToken,
+      {options: {readWrite: {}}},
+  );
+  const transaction = sanitizeText(begin.transaction);
+  if (!transaction) {
+    throw new Error("Firestore transaction ID를 받지 못했습니다.");
+  }
+
+  try {
+    const query = new URLSearchParams();
+    query.set("transaction", transaction);
+    const response = await fetch(
+        buildFirestoreDocumentUrl(context, relativePath, query),
+        {headers: {Authorization: `Bearer ${context.accessToken}`}},
+    );
+    const document = response.status === 404 ? null : await response.json();
+    if (!response.ok && response.status !== 404) {
+      throw new Error(
+          `${relativePath} transaction 조회 실패: ${response.status} ${JSON.stringify(document)}`,
+      );
+    }
+
+    const mutation = await mutationBuilder(document);
+    if (!mutation) {
+      await postJson(
+          buildFirestoreActionUrl(context, "rollback"),
+          context.accessToken,
+          {transaction},
+      );
+      return {document, mutation: null, commit: null};
+    }
+
+    const data = mutation.data || {};
+    const deleteFields = Array.isArray(mutation.deleteFields)
+        ? mutation.deleteFields
+        : [];
+    const fieldPaths = Array.from(new Set([
+      ...Object.keys(data),
+      ...deleteFields,
+    ]));
+    const commit = await postJson(
+        buildFirestoreActionUrl(context, "commit"),
+        context.accessToken,
+        {
+          transaction,
+          writes: [{
+            update: {
+              name: document?.name ||
+                `projects/${context.projectId}/databases/(default)/documents/${relativePath}`,
+              fields: toFirestoreMap(data),
+            },
+            updateMask: {fieldPaths},
+          }],
+        },
+    );
+    return {document, mutation, commit};
+  } catch (error) {
+    try {
+      await postJson(
+          buildFirestoreActionUrl(context, "rollback"),
+          context.accessToken,
+          {transaction},
+      );
+    } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
+    throw error;
+  }
 }
 
 async function postJson(url, accessToken, body) {
@@ -813,6 +951,7 @@ function readLocalProperty(key) {
 module.exports = {
   buildBackupFileName,
   createCliContext,
+  copyStorageObject,
   deleteCollectionDocuments,
   deleteStorageObject,
   extractRelativeDocumentPath,
@@ -830,5 +969,6 @@ module.exports = {
   resolveBaselineUsers,
   resolveProjectId,
   resolveStorageBucket,
+  runDocumentTransaction,
   uploadStorageObject,
 };

@@ -507,28 +507,24 @@ public class MockBodeulRepository implements BodeulRepository {
             return null;
         }
         String normalizedSummary = normalizeText(documentSummary);
+        String currentSummary = normalizeText(managerDocumentSummariesByUserId.get(managerUserId));
+        ManagerDocumentStatus currentStatus = resolveManagerDocumentStatus(managerUserId);
+        ManagerDocumentStatus targetStatus = normalizedSummary.isEmpty()
+                ? ManagerDocumentStatus.NOT_SUBMITTED
+                : ManagerDocumentStatus.PENDING_REVIEW;
+        if (currentSummary.equals(normalizedSummary) && currentStatus == targetStatus) {
+            return getManagerHomeProfile(managerUserId);
+        }
         if (normalizedSummary.isEmpty()) {
             managerDocumentSummariesByUserId.remove(managerUserId);
-            managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.NOT_SUBMITTED);
+            managerDocumentStatusesByUserId.put(managerUserId, targetStatus);
         } else {
             managerDocumentSummariesByUserId.put(managerUserId, normalizedSummary);
-            managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.PENDING_REVIEW);
+            managerDocumentStatusesByUserId.put(managerUserId, targetStatus);
         }
         managerDocumentUpdatedAtByUserId.put(managerUserId, System.currentTimeMillis());
-        managerDocumentReviewNotesByUserId.remove(managerUserId);
-        managerDocumentReviewedAtByUserId.remove(managerUserId);
-        managerDocumentReviewedByNameByUserId.remove(managerUserId);
         if (!normalizedSummary.isEmpty()) {
-            appendManagerDocumentHistory(
-                    managerUserId,
-                    new ManagerDocumentHistoryEntry(
-                            ManagerDocumentHistoryEventType.SUBMITTED,
-                            managerDocumentUpdatedAtByUserId.get(managerUserId),
-                            manager.getName(),
-                            normalizedSummary,
-                            ""
-                    )
-            );
+            appendManagerDocumentSubmissionHistory(managerUserId, manager);
         }
         return getManagerHomeProfile(managerUserId);
     }
@@ -545,6 +541,11 @@ public class MockBodeulRepository implements BodeulRepository {
         if (documentFileMetadata == null || documentFileMetadata.isEmpty()) {
             return null;
         }
+        if (!ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                documentFileMetadata.getFileType()
+        )) {
+            return null;
+        }
         if (normalizeText(managerDocumentSummariesByUserId.get(managerUserId)).isEmpty()) {
             return null;
         }
@@ -555,7 +556,7 @@ public class MockBodeulRepository implements BodeulRepository {
             fileMap = new HashMap<>();
             managerDocumentFilesByUserId.put(managerUserId, fileMap);
         }
-        fileMap.put(documentFileMetadata.getFileType(), documentFileMetadata);
+        replaceCanonicalQualification(fileMap, documentFileMetadata);
         managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.PENDING_REVIEW);
         managerDocumentUpdatedAtByUserId.put(
                 managerUserId,
@@ -563,19 +564,7 @@ public class MockBodeulRepository implements BodeulRepository {
                         ? documentFileMetadata.getUploadedAtMillis()
                         : System.currentTimeMillis()
         );
-        managerDocumentReviewNotesByUserId.remove(managerUserId);
-        managerDocumentReviewedAtByUserId.remove(managerUserId);
-        managerDocumentReviewedByNameByUserId.remove(managerUserId);
-        appendManagerDocumentHistory(
-                managerUserId,
-                new ManagerDocumentHistoryEntry(
-                        ManagerDocumentHistoryEventType.SUBMITTED,
-                        managerDocumentUpdatedAtByUserId.get(managerUserId),
-                        manager.getName(),
-                        managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
-                        ""
-                )
-        );
+        appendManagerDocumentSubmissionHistory(managerUserId, manager);
         return getManagerHomeProfile(managerUserId);
     }
 
@@ -588,7 +577,10 @@ public class MockBodeulRepository implements BodeulRepository {
         if (manager == null
                 || manager.getRole() != UserRole.MANAGER
                 || documentFileMetadata == null
-                || documentFileMetadata.isEmpty()) {
+                || documentFileMetadata.isEmpty()
+                || !ManagerDocumentUploadPolicy.isCanonicalQualificationType(
+                        documentFileMetadata.getFileType()
+                )) {
             return null;
         }
 
@@ -598,18 +590,36 @@ public class MockBodeulRepository implements BodeulRepository {
             fileMap = new HashMap<>();
             managerDocumentFilesByUserId.put(managerUserId, fileMap);
         }
-        fileMap.put(documentFileMetadata.getFileType(), documentFileMetadata);
-        managerDocumentStatusesByUserId.put(managerUserId, ManagerDocumentStatus.NOT_SUBMITTED);
+        ManagerDocumentStatus currentStatus = resolveManagerDocumentStatus(managerUserId);
+        boolean isInitialDraft = currentStatus == ManagerDocumentStatus.NOT_SUBMITTED
+                && normalizeText(managerDocumentSummariesByUserId.get(managerUserId)).isEmpty();
+        replaceCanonicalQualification(fileMap, documentFileMetadata);
+        managerDocumentStatusesByUserId.put(
+                managerUserId,
+                isInitialDraft
+                        ? ManagerDocumentStatus.NOT_SUBMITTED
+                        : ManagerDocumentStatus.PENDING_REVIEW
+        );
         managerDocumentUpdatedAtByUserId.put(
                 managerUserId,
                 documentFileMetadata.getUploadedAtMillis() > 0L
                         ? documentFileMetadata.getUploadedAtMillis()
                         : System.currentTimeMillis()
         );
-        managerDocumentReviewNotesByUserId.remove(managerUserId);
-        managerDocumentReviewedAtByUserId.remove(managerUserId);
-        managerDocumentReviewedByNameByUserId.remove(managerUserId);
+        if (!isInitialDraft) {
+            appendManagerDocumentSubmissionHistory(managerUserId, manager);
+        }
         return getManagerHomeProfile(managerUserId);
+    }
+
+    private static void replaceCanonicalQualification(
+            Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> fileMap,
+            ManagerDocumentFileMetadata documentFileMetadata
+    ) {
+        fileMap.remove(ManagerDocumentFileType.LICENSE);
+        fileMap.remove(ManagerDocumentFileType.NURSING_LICENSE);
+        fileMap.remove(ManagerDocumentFileType.HEALTH_CERTIFICATE);
+        fileMap.put(documentFileMetadata.getFileType(), documentFileMetadata);
     }
 
     @Nullable
@@ -2040,6 +2050,19 @@ public class MockBodeulRepository implements BodeulRepository {
         historyEntries.add(0, historyEntry);
     }
 
+    private void appendManagerDocumentSubmissionHistory(String managerUserId, User manager) {
+        appendManagerDocumentHistory(
+                managerUserId,
+                new ManagerDocumentHistoryEntry(
+                        ManagerDocumentHistoryEventType.SUBMITTED,
+                        managerDocumentUpdatedAtByUserId.get(managerUserId),
+                        manager.getName(),
+                        managerDocumentSummariesByUserId.getOrDefault(managerUserId, ""),
+                        ""
+                )
+        );
+    }
+
     private String normalizeKey(String value) {
         // 이메일과 내부 키는 사용자 기기 로케일과 무관하게 동일한 규칙으로 정규화한다.
         return value.toLowerCase(Locale.ROOT);
@@ -2083,7 +2106,7 @@ public class MockBodeulRepository implements BodeulRepository {
 
         managerDocumentSummariesByUserId.put(
                 "manager-1",
-                "요양보호사 자격증, 신분증, 통장사본 제출 완료"
+                "직무 자격 증빙 원본 업로드 완료"
         );
         managerDocumentStatusesByUserId.put("manager-1", ManagerDocumentStatus.APPROVED);
         managerDocumentUpdatedAtByUserId.put("manager-1", 1760490000000L);
@@ -2108,11 +2131,25 @@ public class MockBodeulRepository implements BodeulRepository {
                 new ManagerDocumentHistoryEntry(
                         ManagerDocumentHistoryEventType.SUBMITTED,
                         1760490000000L,
-                        "김보들",
+                        "김승민",
                         managerDocumentSummariesByUserId.get("manager-1"),
                         ""
                 )
         );
+        Map<ManagerDocumentFileType, ManagerDocumentFileMetadata> defaultManagerDocumentFiles =
+                new HashMap<>();
+        defaultManagerDocumentFiles.put(
+                ManagerDocumentFileType.LICENSE,
+                new ManagerDocumentFileMetadata(
+                        ManagerDocumentFileType.LICENSE,
+                        "manager-documents/manager-1/license/mock-job-qualification.png",
+                        "mock-job-qualification.png",
+                        "image/png",
+                        1760490000000L,
+                        "android.resource://com.example.bodeul/drawable/ic_launcher_foreground"
+                )
+        );
+        managerDocumentFilesByUserId.put("manager-1", defaultManagerDocumentFiles);
         managerAvailabilitySummariesByUserId.put(
                 "manager-1",
                 "평일 09:00-18:00, 토요일 오전 활동 가능"
@@ -2147,10 +2184,10 @@ public class MockBodeulRepository implements BodeulRepository {
                 "manager-1",
                 2,
                 SessionStatus.MEETING,
-                "???? ?? ???? ?? ????.",
-                "?????? ?? ? ??, ?? ??? ?? ?? ????.",
-                "?? ?? ??? ?? ???? ??????.",
-                "??? ?? ????.",
+                "환자분과 만나 접수를 진행하고 있습니다.",
+                "서울내과병원 본관 1층 안내 데스크 근처입니다.",
+                "접수 번호표와 진료 안내를 확인했습니다.",
+                "복용 중인 약이 있습니다.",
                 "",
                 false,
                 37.56650,
@@ -2162,13 +2199,13 @@ public class MockBodeulRepository implements BodeulRepository {
                         new CompanionLocationHistoryEntry(
                                 37.56591,
                                 126.97795,
-                                "?????? ?? ?? ??????.",
+                                "서울내과병원 앞에 도착했습니다.",
                                 1760502600000L
                         ),
                         new CompanionLocationHistoryEntry(
                                 37.56650,
                                 126.97800,
-                                "?? ?? ???? ?? ????.",
+                                "본관 1층 안내 데스크로 이동했습니다.",
                                 1760503200000L
                         )
                 ),
@@ -2201,23 +2238,23 @@ public class MockBodeulRepository implements BodeulRepository {
         supportInquiries.add(new SupportInquiry(
                 "support-seed-2",
                 "manager-1",
-                "源?밸?",
+                "김승민",
                 SupportInquiryCategory.SETTLEMENT,
-                "泥섎━ ???곷떒 ?뺤씤 ?붿껌",
-                "理쒖쥌 ?섎궔 湲덉븸怨?怨좉컼 ?곗젣 ?댁뿭???ㅼ떆 ?뺤씤?댁빞 ?⑸땲??",
+                "처리 후 정산 확인 요청",
+                "최종 수납 금액과 고객 결제 내역을 다시 확인해야 합니다.",
                 SupportInquiryStatus.ANSWERED,
                 1760655600000L,
-                "?댁쁺 移대뱶 ?뺤궛 ?곸뿭?먯꽌 ?뱀씤 踰덊샇???ㅼ떆 ?대젰?댁＜?몄슂. ?ㅽ듃??湲곗??怨좉컼?먯뿉寃?理쒖쥌 ?좎궡瑜??꾨떖?덈뒗??",
+                "운영 카드 정산 영역에서 승인 번호를 다시 입력해 주세요. 확인 뒤 고객에게 최종 안내를 전달해 주세요.",
                 1760659200000L,
-                "愿由ъ옄"
+                "관리자"
         ));
         supportInquiries.add(new SupportInquiry(
                 "support-seed-1",
                 "manager-1",
-                "源?밸?",
+                "김승민",
                 SupportInquiryCategory.MATCHING,
-                "留ㅼ묶 ?쒓컙 議곗젙 臾몄쓽",
-                "?ㅼ쓬 二??먯쟾 ?쒓컙? ?대룞 媛???쒓컙???곌껐?섍퀶?듬땲??",
+                "매칭 시간 조정 문의",
+                "다음 주 오전 시간대에 이동 가능한 시간을 확인하고 싶습니다.",
                 SupportInquiryStatus.RECEIVED,
                 1760662800000L,
                 "",

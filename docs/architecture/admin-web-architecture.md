@@ -1,13 +1,13 @@
 # 관리자 웹 역할과 서버 경계
 
-기준일: 2026-07-17
+기준일: 2026-08-29
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 ## 결론
 
-관리자 웹은 [bodeul110/bodeul-admin-web](https://github.com/bodeul110/bodeul-admin-web) 저장소의 Next.js 애플리케이션이 source of truth다. Vercel 서버가 Firebase ID token과 PostgreSQL `ADMIN` role을 확인한 뒤 관리자 전용 DB role로 직접 조회한다. Spring Core API나 기존 Node API를 중간 proxy로 두지 않는다.
+관리자 웹은 [bodeul110/bodeul-admin-web](https://github.com/bodeul110/bodeul-admin-web) 저장소의 Next.js 애플리케이션이 source of truth다. Vercel 서버가 Firebase ID token, PostgreSQL `ADMIN` 진입 자격과 활성 세부 역할을 확인한 뒤 관리자 전용 DB role로 직접 조회한다. Spring Core API나 기존 Node API를 중간 proxy로 두지 않는다.
 
 ## 현재 검증
 
@@ -30,6 +30,8 @@ Preview에만 `ADMIN_DATABASE_URL`을 두고 production에는 등록하지 않�
 - 병원 가이드와 운영 데이터 조회
 - 민감정보 마스킹과 관리자 유휴 세션 종료
 - 관리자 권한과 감사 이력 관리
+- `SUPER_ADMIN`, `OPERATIONS`, `DEVELOPER` 역할별 메뉴와 API 제한
+- 민감정보 원문 접근 사유, 최대 60분 break-glass와 추가 전용 감사
 
 ## 선택 이유
 
@@ -53,9 +55,8 @@ Preview에만 `ADMIN_DATABASE_URL`을 두고 production에는 등록하지 않�
 - production Firebase·Supabase·Vercel 환경과 자격 증명 분리
 - custom domain과 Firebase Auth authorized domain 확정
 - reCAPTCHA Enterprise 기반 App Check와 enforcement 기준 검증
-- Firestore 직접 접근 화면을 도메인별 서버 계약으로 이전
-- 관리자 쓰기 API에 감사 로그와 더 세분화한 DB 권한 적용
-- 운영 인원이 늘기 전 MFA와 긴급 권한 회수 절차 마련
+- Firestore 직접 접근 화면을 도메인별 서버 계약으로 이전하고 이전이 끝난 경로부터 브라우저 Rules 권한 제거
+- production 역할 bootstrap, MFA 확인과 긴급 권한 회수 리허설
 
 Vite 빌드는 별도 저장소에 rollback 자산으로 남아 있다. 메인 저장소의 중복 `admin-web/`은 제거했으므로 웹 변경과 배포는 별도 저장소에서만 진행한다.
 
@@ -65,3 +66,4 @@ Vite 빌드는 별도 저장소에 rollback 자산으로 남아 있다. 메인 �
 - [관리자 웹 환경 기준](../operations/admin-web-environments.md)
 - [관리자 웹 저장소 분리 기록](../operations/admin-web-repository-split.md)
 - [관리자 웹 데이터 계약](admin-web-data-contract.md)
+- [관리자 세부 역할과 감사 계약](admin-rbac.md)

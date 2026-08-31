@@ -324,6 +324,14 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
         };
 
         if (actionType == ManagerQuickNoteType.DOCUMENT) {
+            if (!ManagerDocumentRegistrationCoordinator.hasRequiredFiles(managerHomeProfile)) {
+                Toast.makeText(
+                        this,
+                        R.string.manager_document_registration_request_missing_required,
+                        Toast.LENGTH_SHORT
+                ).show();
+                return;
+            }
             managerRepository.saveManagerDocumentSummary(currentUser.getId(), value, callback);
             return;
         }

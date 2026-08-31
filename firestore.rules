@@ -18,7 +18,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return currentRole() == 'ADMIN';
+      // 관리자 업무는 PostgreSQL 세부 역할을 확인하는 Next.js 서버 route만 수행한다.
+      // Firestore Rules는 PostgreSQL을 조회할 수 없으므로 ADMIN 브라우저 권한을 fail-closed로 둔다.
+      return false;
     }
 
     function isManager() {
@@ -111,31 +113,391 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
     }
 
-    function managerDocumentStatusUpdateIsSafe() {
-      return !affectedAny(['managerDocumentStatus'])
+    function managerDocumentSubmissionContentChanged() {
+      return affectedAny([
+        'managerDocumentSummary',
+        'managerDocumentFiles',
+        'managerDocumentFilePaths',
+        'managerIdCardStoragePath',
+        'managerLicenseStoragePath',
+        'managerHealthCertificateStoragePath',
+        'managerCriminalRecordStoragePath'
+      ]);
+    }
+
+    function managerDocumentUpdatedAtIsServerTimestamp() {
+      return affectedAny(['managerDocumentUpdatedAt'])
+          && request.resource.data.keys().hasAll(['managerDocumentUpdatedAt'])
+          && request.resource.data.managerDocumentUpdatedAt is timestamp
+          && request.resource.data.managerDocumentUpdatedAt == request.time;
+    }
+
+    function managerDocumentSubmissionActionChanged() {
+      return managerDocumentSubmissionContentChanged()
+          || affectedAny(['managerDocumentStatus']);
+    }
+
+    function managerDocumentFileSubmissionChanged() {
+      return affectedAny([
+        'managerDocumentFiles',
+        'managerDocumentFilePaths',
+        'managerIdCardStoragePath',
+        'managerLicenseStoragePath',
+        'managerHealthCertificateStoragePath',
+        'managerCriminalRecordStoragePath'
+      ]);
+    }
+
+    function managerDocumentSummaryWasCleared() {
+      return affectedAny(['managerDocumentSummary'])
+          && !managerDocumentFileSubmissionChanged()
+          && request.resource.data.keys().hasAll(['managerDocumentSummary'])
+          && request.resource.data.managerDocumentSummary == '';
+    }
+
+    function managerDocumentFileChangeLegalHoldAllows() {
+      return !managerDocumentFileSubmissionChanged()
           || (
-            request.resource.data.keys().hasAll(['managerDocumentStatus'])
-            && request.resource.data.managerDocumentStatus != 'APPROVED'
-            && request.resource.data.managerDocumentStatus != 'REJECTED'
+            !resource.data.keys().hasAny([
+              'managerDocumentLegalHoldUntil',
+              'managerDocumentLegalHoldReason',
+              'managerDocumentLegalHoldByAdminUserId'
+            ])
+          )
+          || (
+            resource.data.keys().hasAll([
+              'managerDocumentLegalHoldUntil',
+              'managerDocumentLegalHoldReason',
+              'managerDocumentLegalHoldByAdminUserId'
+            ])
+            && resource.data.managerDocumentLegalHoldUntil is timestamp
+            && resource.data.managerDocumentLegalHoldReason is string
+            && resource.data.managerDocumentLegalHoldReason.matches('.*\\S.*')
+            && resource.data.managerDocumentLegalHoldByAdminUserId is string
+            && resource.data.managerDocumentLegalHoldByAdminUserId.matches('.*\\S.*')
+            && resource.data.managerDocumentLegalHoldUntil <= request.time
           );
     }
 
-    function managerDocumentLegalHoldUpdateIsSafe() {
-      return !affectedAny(['managerDocumentLegalHoldUntil']);
+    function managerDocumentIsInitialDraft() {
+      return managerDocumentFileSubmissionChanged()
+          && (
+            !resource.data.keys().hasAny(['managerDocumentStatus'])
+            || resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+          )
+          && (
+            !request.resource.data.keys().hasAny(['managerDocumentSummary'])
+            || request.resource.data.managerDocumentSummary == ''
+          );
+    }
+
+    function managerDocumentServerFieldsAreAbsent(data) {
+      return !data.keys().hasAny([
+        'managerDocumentReviewNote',
+        'managerDocumentReviewedAt',
+        'managerDocumentReviewedByName',
+        'managerDocumentReviewedByAdminUserId',
+        'managerDocumentHistory',
+        'managerDocumentLegalHoldUntil',
+        'managerDocumentLegalHoldReason',
+        'managerDocumentLegalHoldByAdminUserId',
+        'managerDocumentOriginalsDeletedAt',
+        'managerDocumentApprovalEvidence',
+        'managerDocumentReviewedSubmissionRevision',
+        'managerDocumentEvidenceMigration',
+        'managerDocumentDeletionClaim'
+      ]);
+    }
+
+    function managerDocumentSubmissionFieldsAreAbsent(data) {
+      return !data.keys().hasAny([
+        'managerDocumentSummary',
+        'managerDocumentFiles',
+        'managerDocumentFilePaths',
+        'managerIdCardStoragePath',
+        'managerLicenseStoragePath',
+        'managerHealthCertificateStoragePath',
+        'managerCriminalRecordStoragePath',
+        'managerDocumentUpdatedAt'
+      ]);
+    }
+
+    function managerDocumentFilePathIsOwned(data, documentKey) {
+      return request.auth.uid.matches('^[A-Za-z0-9_-]{1,128}$')
+          && data.keys().hasAll(['managerDocumentFiles', 'managerDocumentFilePaths'])
+          && data.managerDocumentFiles is map
+          && data.managerDocumentFilePaths is map
+          && data.managerDocumentFiles.keys().hasAll([documentKey])
+          && data.managerDocumentFilePaths.keys().hasAll([documentKey])
+          && data.managerDocumentFiles[documentKey] is map
+          && data.managerDocumentFiles[documentKey].keys().hasAll(['fullPath'])
+          && data.managerDocumentFiles[documentKey].fullPath is string
+          && data.managerDocumentFilePaths[documentKey] is string
+          && data.managerDocumentFiles[documentKey].fullPath
+              == data.managerDocumentFilePaths[documentKey]
+          && data.managerDocumentFiles[documentKey].fullPath.matches(
+            '^manager-documents/' + request.auth.uid + '/' + documentKey + '/[^/]+$'
+          );
+    }
+
+    function managerDocumentLegacyPathMatches(data, documentKey, legacyPathKey) {
+      return data.keys().hasAll([legacyPathKey])
+          && data[legacyPathKey] is string
+          && data[legacyPathKey] == data.managerDocumentFiles[documentKey].fullPath;
+    }
+
+    function managerDocumentRestrictedLegacyFilesAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFiles'])
+            && !request.resource.data.managerDocumentFiles.keys().hasAny([
+              'idCard', 'criminalRecord'
+            ])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFiles'])
+            && resource.data.managerDocumentFiles is map
+            && !request.resource.data.managerDocumentFiles
+                .diff(resource.data.managerDocumentFiles)
+                .affectedKeys()
+                .hasAny(['idCard', 'criminalRecord'])
+          );
+    }
+
+    function managerDocumentRestrictedLegacyPathsAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFilePaths'])
+            && !request.resource.data.managerDocumentFilePaths.keys().hasAny([
+              'idCard', 'criminalRecord'
+            ])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFilePaths'])
+            && resource.data.managerDocumentFilePaths is map
+            && !request.resource.data.managerDocumentFilePaths
+                .diff(resource.data.managerDocumentFilePaths)
+                .affectedKeys()
+                .hasAny(['idCard', 'criminalRecord'])
+          );
+    }
+
+    function managerDocumentLegacyHealthFilesAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFiles'])
+            && !request.resource.data.managerDocumentFiles.keys()
+                .hasAny(['healthCertificate'])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFiles'])
+            && resource.data.managerDocumentFiles is map
+            && !request.resource.data.managerDocumentFiles
+                .diff(resource.data.managerDocumentFiles)
+                .affectedKeys()
+                .hasAny(['healthCertificate'])
+          );
+    }
+
+    function managerDocumentLegacyHealthPathsAreUnchanged() {
+      return (
+            !resource.data.keys().hasAny(['managerDocumentFilePaths'])
+            && !request.resource.data.managerDocumentFilePaths.keys()
+                .hasAny(['healthCertificate'])
+          )
+          || (
+            resource.data.keys().hasAll(['managerDocumentFilePaths'])
+            && resource.data.managerDocumentFilePaths is map
+            && !request.resource.data.managerDocumentFilePaths
+                .diff(resource.data.managerDocumentFilePaths)
+                .affectedKeys()
+                .hasAny(['healthCertificate'])
+          );
+    }
+
+    function managerDocumentLegacyHealthIsUnchanged() {
+      return managerDocumentLegacyHealthFilesAreUnchanged()
+          && managerDocumentLegacyHealthPathsAreUnchanged()
+          && !affectedAny(['managerHealthCertificateStoragePath']);
+    }
+
+    function managerDocumentLegacyHealthCanBeFullyRemoved() {
+      return managerDocumentFilePathIsOwned(resource.data, 'healthCertificate')
+          && (
+            !resource.data.keys().hasAny(['managerHealthCertificateStoragePath'])
+            || (
+              resource.data.managerHealthCertificateStoragePath is string
+              && resource.data.managerHealthCertificateStoragePath
+                  == resource.data.managerDocumentFiles.healthCertificate.fullPath
+            )
+          )
+          && !request.resource.data.managerDocumentFiles.keys()
+              .hasAny(['healthCertificate'])
+          && !request.resource.data.managerDocumentFilePaths.keys()
+              .hasAny(['healthCertificate'])
+          && !request.resource.data.keys()
+              .hasAny(['managerHealthCertificateStoragePath']);
+    }
+
+    function managerDocumentLegacyHealthStateIsAllowed() {
+      return resource.data.keys().hasAll(['managerDocumentFiles'])
+          && resource.data.managerDocumentFiles is map
+          && resource.data.managerDocumentFiles.keys().hasAny(['healthCertificate'])
+          && !request.resource.data.managerDocumentFiles.keys()
+              .hasAny(['healthCertificate'])
+          ? managerDocumentLegacyHealthCanBeFullyRemoved()
+          : managerDocumentLegacyHealthIsUnchanged();
+    }
+
+    function managerDocumentLegacyStateIsAllowed() {
+      return managerDocumentRestrictedLegacyFilesAreUnchanged()
+          && managerDocumentRestrictedLegacyPathsAreUnchanged()
+          && !affectedAny([
+            'managerIdCardStoragePath',
+            'managerCriminalRecordStoragePath'
+          ])
+          && managerDocumentLegacyHealthStateIsAllowed();
+    }
+
+    function managerDocumentCanonicalFileStateIsConsistent(data) {
+      return data.keys().hasAll(['managerDocumentFiles', 'managerDocumentFilePaths'])
+          && data.managerDocumentFiles is map
+          && data.managerDocumentFilePaths is map
+          && data.managerDocumentFiles.keys().hasOnly([
+            'idCard', 'license', 'nursingLicense', 'healthCertificate', 'criminalRecord'
+          ])
+          && data.managerDocumentFilePaths.keys().hasOnly([
+            'idCard', 'license', 'nursingLicense', 'healthCertificate', 'criminalRecord'
+          ])
+          && (
+            (
+              data.managerDocumentFiles.keys().hasAll(['license'])
+              && data.managerDocumentFilePaths.keys().hasAll(['license'])
+              && !data.managerDocumentFiles.keys().hasAny(['nursingLicense'])
+              && !data.managerDocumentFilePaths.keys().hasAny(['nursingLicense'])
+              && managerDocumentCanonicalFileIsReviewable(data, 'license')
+              && managerDocumentLegacyPathMatches(
+                data,
+                'license',
+                'managerLicenseStoragePath'
+              )
+            )
+            || (
+              data.managerDocumentFiles.keys().hasAll(['nursingLicense'])
+              && data.managerDocumentFilePaths.keys().hasAll(['nursingLicense'])
+              && !data.managerDocumentFiles.keys().hasAny(['license'])
+              && !data.managerDocumentFilePaths.keys().hasAny(['license'])
+              && !data.keys().hasAny(['managerLicenseStoragePath'])
+              && managerDocumentCanonicalFileIsReviewable(data, 'nursingLicense')
+            )
+          );
+    }
+
+    function managerDocumentCanonicalFileIsReviewable(data, documentKey) {
+      return request.auth.uid.matches('^[A-Za-z0-9_-]{1,128}$')
+          && data.managerDocumentFiles[documentKey] is map
+          && data.managerDocumentFiles[documentKey].keys().hasAll([
+            'fullPath', 'contentType'
+          ])
+          && data.managerDocumentFiles[documentKey].fullPath is string
+          && data.managerDocumentFilePaths[documentKey] is string
+          && data.managerDocumentFiles[documentKey].fullPath
+              == data.managerDocumentFilePaths[documentKey]
+          && data.managerDocumentFiles[documentKey].fullPath.matches(
+            '^manager-documents/' + request.auth.uid + '/' + documentKey + '/[^/]+$'
+          )
+          && data.managerDocumentFiles[documentKey].contentType is string
+          && data.managerDocumentFiles[documentKey].contentType
+              in ['image/jpeg', 'image/png', 'image/webp'];
+    }
+
+    function managerDocumentCreateIsSafe() {
+      return managerDocumentServerFieldsAreAbsent(request.resource.data)
+          && managerDocumentSubmissionFieldsAreAbsent(request.resource.data)
+          && (
+            (
+              request.resource.data.role == 'MANAGER'
+              && (
+                !request.resource.data.keys().hasAny(['managerDocumentStatus'])
+                || request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+              )
+            )
+            || (
+              request.resource.data.role != 'MANAGER'
+              && !request.resource.data.keys().hasAny(['managerDocumentStatus'])
+            )
+          );
+    }
+
+    function managerDocumentReviewFieldsAreUnchanged() {
+      return !affectedAny([
+        'managerDocumentReviewNote',
+        'managerDocumentReviewedAt',
+        'managerDocumentReviewedByName',
+        'managerDocumentReviewedByAdminUserId',
+        'managerDocumentHistory',
+        'managerDocumentLegalHoldUntil',
+        'managerDocumentLegalHoldReason',
+        'managerDocumentLegalHoldByAdminUserId',
+        'managerDocumentOriginalsDeletedAt',
+        'managerDocumentApprovalEvidence',
+        'managerDocumentReviewedSubmissionRevision',
+        'managerDocumentEvidenceMigration',
+        'managerDocumentDeletionClaim'
+      ]);
+    }
+
+    function managerDocumentDeletionClaimAllowsSubmissionAction() {
+      // 중단된 claim도 서버가 재검증해 회수하기 전에는 클라이언트가 우회할 수 없다.
+      return !resource.data.keys().hasAny(['managerDocumentDeletionClaim'])
+          || !managerDocumentSubmissionActionChanged();
+    }
+
+    function managerDocumentSubmissionUpdateIsSafe() {
+      return managerDocumentReviewFieldsAreUnchanged()
+          && managerDocumentDeletionClaimAllowsSubmissionAction()
+          && managerDocumentFileChangeLegalHoldAllows()
+          && (
+            (
+              managerDocumentSubmissionActionChanged()
+              && managerDocumentUpdatedAtIsServerTimestamp()
+              && request.resource.data.keys().hasAll(['managerDocumentStatus'])
+              && (
+                (
+                  request.resource.data.managerDocumentStatus == 'PENDING_REVIEW'
+                  && managerDocumentCanonicalFileStateIsConsistent(request.resource.data)
+                  && managerDocumentLegacyStateIsAllowed()
+                )
+                || (
+                  request.resource.data.managerDocumentStatus == 'NOT_SUBMITTED'
+                  && (
+                    managerDocumentSummaryWasCleared()
+                    || (
+                      managerDocumentIsInitialDraft()
+                      && managerDocumentCanonicalFileStateIsConsistent(request.resource.data)
+                      && managerDocumentLegacyStateIsAllowed()
+                    )
+                  )
+                )
+              )
+            )
+            || (
+              !managerDocumentSubmissionActionChanged()
+              && !affectedAny(['managerDocumentStatus'])
+              && !affectedAny(['managerDocumentUpdatedAt'])
+            )
+          );
     }
 
     match /users/{userId} {
-      // 사용자 문서는 본인과 관리자만 직접 읽고, 교차 프로필 참조는 Functions 중계를 사용한다.
+      // 사용자 문서는 본인만 직접 읽고, 관리자·교차 프로필 참조는 서버 중계를 사용한다.
       allow get: if canGetUser(userId);
       allow list: if isAdmin();
       allow create: if isSelf(userId)
-          && isClientCreatableRole(request.resource.data.role);
+          && isClientCreatableRole(request.resource.data.role)
+          && managerDocumentCreateIsSafe();
       allow update: if isAdmin()
           || (
             isSelf(userId)
             && request.resource.data.role == resource.data.role
-            && managerDocumentStatusUpdateIsSafe()
-            && managerDocumentLegalHoldUpdateIsSafe()
+            && managerDocumentSubmissionUpdateIsSafe()
           );
       allow delete: if isAdmin();
     }
