@@ -48,7 +48,10 @@ public final class PermissionGuideItemBinder {
                 ))
         );
         iconView.setImageResource(item.getIconResId());
-        iconView.setColorFilter(ContextCompat.getColor(itemView.getContext(), R.color.bodeul_text_primary));
+        iconView.setColorFilter(ContextCompat.getColor(
+                itemView.getContext(),
+                R.color.figma_mvp_primary
+        ));
         badgeView.setText(item.getBadgeResId());
         titleView.setText(item.getTitleResId());
         descriptionView.setText(item.getDescriptionResId());

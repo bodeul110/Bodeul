@@ -1,13 +1,15 @@
 # 디자인 문서
 
-기준일: 2026-08-28
+기준일: 2026-08-29
 
 Figma 원본의 현재 화면 구조, 구현에 적용할 수 있는 시각 기준과 불일치를 관리한다.
 
 ## 현재 기준
 
+- [Figma MVP 화면 인벤토리와 Android 구현 매핑](figma-mvp-implementation-map-2026-08-29.md)
+  - 새 `보들 MVP` 파일 `Page 1(0:1)`의 41개 frame, 현재 Android 대응과 PR 충돌 회피 순서
 - [Figma 현행 화면 지도](figma-current-screen-map.md)
-  - `Page 2(460:2)`의 38개 화면, prototype 흐름, 관찰된 시각 기준과 불일치
+  - 이전 `보들 가이드` 파일 `Page 2(460:2)`의 38개 화면, prototype 흐름과 과거 비교 기준
 - [환자·보호자 공통 하단 내비게이션](client-bottom-navigation.md)
   - 홈, 일정·이력, 동행방, 내 정보 탭과 서버 인가 소비 경계
 - [디자인 참조 정리](../../design_refs/README.md)

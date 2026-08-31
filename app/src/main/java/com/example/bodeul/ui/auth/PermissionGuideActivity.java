@@ -50,6 +50,11 @@ public class PermissionGuideActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_permission_guide);
 
+        AuthScreenInsets.apply(
+                findViewById(R.id.scrollPermissionGuide),
+                findViewById(R.id.layoutPermissionBottomAction)
+        );
+
         permissionGuidePreferences = new PermissionGuidePreferences(this);
         permissionGuideCatalog = new PermissionGuideCatalog();
 

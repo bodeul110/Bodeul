@@ -6,6 +6,7 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
 
 import com.example.bodeul.R;
 import com.google.android.material.card.MaterialCardView;
@@ -32,15 +33,25 @@ public final class RoleOptionCardBinder {
     }
 
     public void render(boolean selected) {
-        cardView.setStrokeWidth(dpToPx(selected ? 2 : 1));
+        cardView.setChecked(selected);
+        cardView.setSelected(selected);
+        ViewCompat.setStateDescription(
+                cardView,
+                context.getString(
+                        selected
+                                ? R.string.role_selection_state_selected
+                                : R.string.role_selection_state_not_selected
+                )
+        );
+        cardView.setStrokeWidth(dpToPx(selected ? 2 : 0));
         cardView.setStrokeColor(ContextCompat.getColor(
                 context,
-                selected ? R.color.bodeul_primary : R.color.bodeul_outline
+                selected ? R.color.figma_mvp_primary : android.R.color.transparent
         ));
         selectedBadge.setVisibility(selected ? View.VISIBLE : View.INVISIBLE);
         actionView.setTextColor(ContextCompat.getColor(
                 context,
-                selected ? R.color.bodeul_primary : R.color.bodeul_text_secondary
+                R.color.figma_mvp_primary
         ));
     }
 

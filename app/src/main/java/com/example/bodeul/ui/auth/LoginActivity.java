@@ -15,6 +15,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 import androidx.appcompat.widget.AppCompatImageButton;
 import androidx.core.graphics.Insets;
 import androidx.core.view.OneShotPreDrawListener;
@@ -77,7 +78,7 @@ public class LoginActivity extends AppCompatActivity {
     private Chip chipRoleManager;
     private Chip chipRolePatient;
     private Chip chipRoleGuardian;
-    private MaterialButton buttonSubmit;
+    private AppCompatButton buttonSubmit;
     private AppCompatImageButton buttonSocialKakao;
     private AppCompatImageButton buttonSocialGoogle;
     private MaterialButton buttonSocialNaver;
@@ -132,7 +133,6 @@ public class LoginActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressAuth);
         summaryCardBinder = new AuthSummaryCardBinder(findViewById(R.id.layoutLoginSummaryCard));
         summaryFormatter = new LoginSummaryFormatter(this);
-
         configureImeInsets();
         configureRoleChips();
         restoreScreenState(savedInstanceState);
@@ -151,6 +151,7 @@ public class LoginActivity extends AppCompatActivity {
         buttonSocialKakao.setOnClickListener(view -> submitKakaoAuth());
         buttonSocialGoogle.setOnClickListener(view -> submitGoogleAuth());
         buttonSocialNaver.setOnClickListener(view -> submitNaverAuth());
+        findViewById(R.id.buttonLoginBack).setOnClickListener(view -> finish());
 
         View.OnClickListener roleListener = view -> {
             applyDemoCredentials();
@@ -169,15 +170,16 @@ public class LoginActivity extends AppCompatActivity {
 
         ViewCompat.setOnApplyWindowInsetsListener(scrollLogin, (view, windowInsets) -> {
             Insets imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
-            Insets navigationInsets = windowInsets.getInsets(
-                    WindowInsetsCompat.Type.navigationBars()
+            Insets systemInsets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            | WindowInsetsCompat.Type.displayCutout()
             );
-            int bottomInset = Math.max(imeInsets.bottom, navigationInsets.bottom);
+            int bottomInset = Math.max(imeInsets.bottom, systemInsets.bottom);
             imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
             view.setPadding(
-                    initialLeftPadding,
-                    initialTopPadding,
-                    initialRightPadding,
+                    initialLeftPadding + systemInsets.left,
+                    initialTopPadding + systemInsets.top,
+                    initialRightPadding + systemInsets.right,
                     initialBottomPadding + bottomInset
             );
 
@@ -288,10 +290,13 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         // 로그인과 회원가입 모드에 따라 필요한 입력 필드만 노출한다.
-        textLoginTitle.setText(getLoginTitleResId());
+        textLoginTitle.setText(registerMode ? R.string.register_button : getLoginTitleResId());
+        textLoginTitle.setVisibility(
+                registerMode || isFixedRoleHint() ? View.VISIBLE : View.GONE
+        );
         textLoginSubtitle.setText(registerMode
                 ? R.string.login_subtitle_register
-                : R.string.login_subtitle);
+                : R.string.figma_login_tagline);
 
         buttonSubmit.setText(registerMode ? R.string.register_button : R.string.login_button);
         textSwitchMode.setText(registerMode
@@ -609,7 +614,7 @@ public class LoginActivity extends AppCompatActivity {
         int visibility = isAdminRoleHint() ? View.GONE : View.VISIBLE;
         layoutSocialDivider.setVisibility(visibility);
         layoutSocialButtons.setVisibility(visibility);
-        textSocialHelper.setVisibility(visibility);
+        textSocialHelper.setVisibility(View.GONE);
         buttonSocialNaver.setVisibility(
                 visibility == View.VISIBLE && isNaverLoginEnabled() ? View.VISIBLE : View.GONE
         );

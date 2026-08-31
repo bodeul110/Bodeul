@@ -53,4 +53,18 @@
         <item name="helperTextTextColor">@color/bodeul_text_secondary</item>
         <item name="errorTextColor">@color/bodeul_primary_dark</item>
     </style>
+
+    <style name="BodeulFigmaFilledInput" parent="Widget.MaterialComponents.TextInputLayout.FilledBox">
+        <item name="boxBackgroundColor">@color/figma_mvp_input</item>
+        <item name="boxCornerRadiusBottomEnd">28dp</item>
+        <item name="boxCornerRadiusBottomStart">28dp</item>
+        <item name="boxCornerRadiusTopEnd">28dp</item>
+        <item name="boxCornerRadiusTopStart">28dp</item>
+        <item name="boxStrokeColor">@android:color/transparent</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxStrokeWidthFocused">0dp</item>
+        <item name="hintTextColor">@color/figma_mvp_text_hint</item>
+        <item name="helperTextTextColor">@color/figma_mvp_text_tertiary</item>
+        <item name="errorTextColor">@color/bodeul_error</item>
+    </style>
 </resources>
