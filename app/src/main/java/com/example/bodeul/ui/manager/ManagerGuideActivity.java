@@ -17,6 +17,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -81,6 +82,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean bindingPreConsultationConfirmation;
     private boolean mutationInFlight;
     private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
+    private String currentStepCode = "";
 
     private View managerGuideStatePanel;
     private View managerGuideContentContainer;
@@ -223,6 +225,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.textGuideFocusPreviewLabel),
                 findViewById(R.id.textGuideFocusPreviewBody),
                 findViewById(R.id.viewGuideFocusPreview),
+                new ManagerGuideVideoGuidanceBinder(findViewById(android.R.id.content)),
                 new ManagerGuideStepSectionsBinder(this, findViewById(android.R.id.content)),
                 findViewById(R.id.textGuideLiveLocationStatus),
                 findViewById(R.id.textGuideLiveLocationHistory),
@@ -353,6 +356,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
+            currentStepCode = "";
             managerGuideContentContainer.setVisibility(View.GONE);
             managerGuideBottomAction.setVisibility(View.GONE);
             switch (state.statePanelType) {
@@ -386,6 +390,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     bindingPreConsultationConfirmation = false;
                 }
                 currentPrimaryAction = state.screenModel.getPrimaryAction();
+                currentStepCode = state.screenModel.getCurrentStepCode();
                 bindSessionArtifactSection(state.screenModel.isInputsEnabled());
                 if (mutationInFlight) {
                     disableMutationActions();
@@ -393,6 +398,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 updateMapMarker();
             } else {
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
+                currentStepCode = "";
                 managerGuideContentContainer.setVisibility(View.GONE);
                 managerGuideBottomAction.setVisibility(View.GONE);
             }
@@ -460,12 +466,56 @@ public class ManagerGuideActivity extends AppCompatActivity {
             return;
         }
         if (currentPrimaryAction == ManagerGuidePrimaryAction.ADVANCE) {
+            if (ManagerGuideAdvanceConfirmationPolicy.requiresConfirmation(
+                    currentPrimaryAction,
+                    currentStepCode)) {
+                showRouteCompletionConfirmation();
+                return;
+            }
             viewModel.advanceStep();
             return;
         }
         if (currentPrimaryAction == ManagerGuidePrimaryAction.END_CARE) {
             viewModel.advanceStep();
         }
+    }
+
+    private void showRouteCompletionConfirmation() {
+        String expectedSessionId = currentDashboard == null
+                || currentDashboard.getSession() == null
+                ? ""
+                : currentDashboard.getSession().getId();
+        String expectedStepCode = currentStepCode == null ? "" : currentStepCode.trim();
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.guide_route_confirmation_title)
+                .setMessage(R.string.guide_route_confirmation_body)
+                .setNegativeButton(R.string.guide_route_confirmation_cancel, null)
+                .setPositiveButton(
+                        R.string.guide_action_route_confirmed,
+                        (dialog, which) -> advanceRouteIfStillCurrent(
+                                expectedSessionId,
+                                expectedStepCode))
+                .show();
+    }
+
+    private void advanceRouteIfStillCurrent(String expectedSessionId, String expectedStepCode) {
+        String activeSessionId = currentDashboard == null
+                || currentDashboard.getSession() == null
+                ? ""
+                : currentDashboard.getSession().getId();
+        if (!ManagerGuideAdvanceConfirmationPolicy.canApplyConfirmation(
+                currentPrimaryAction,
+                expectedSessionId,
+                expectedStepCode,
+                activeSessionId,
+                currentStepCode)) {
+            Toast.makeText(
+                    this,
+                    R.string.guide_route_confirmation_stale,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        viewModel.advanceStep(expectedSessionId, expectedStepCode);
     }
 
     private void selectCurrentStepArtifact() {

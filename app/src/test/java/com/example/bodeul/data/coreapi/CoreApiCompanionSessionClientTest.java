@@ -41,6 +41,16 @@ public class CoreApiCompanionSessionClientTest {
     }
 
     @Test
+    public void matchesExpectedStep_rejectsChangedStepBeforeVersionedRequest() {
+        assertTrue(CoreApiCompanionSessionClient.matchesExpectedStep(
+                " HOSPITAL_ROUTE ",
+                "HOSPITAL_ROUTE"));
+        assertFalse(CoreApiCompanionSessionClient.matchesExpectedStep(
+                "HOSPITAL_ROUTE",
+                "RECEPTION_QUEUE"));
+    }
+
+    @Test
     public void parseInstantMillis_acceptsUtcWithoutFraction() {
         assertEquals(
                 1000L,
@@ -117,8 +127,35 @@ public class CoreApiCompanionSessionClientTest {
                 assertEquals(expectedCode, step.getCode());
                 assertEquals(expectedTitle, step.getTitle());
                 assertEquals(expectedDescription, step.getDescription());
+                assertEquals("", step.getVideoAssetId());
+                assertEquals("", step.getVideoAssetVersion());
+                assertEquals("", step.getVideoFallbackText());
             }
         }
+    }
+
+    @Test
+    public void parseSessionSnapshot_preservesGuideVideoMetadataWithoutPlaybackUrl()
+            throws Exception {
+        JSONObject fixture = createSessionJson(2);
+        fixture.getJSONArray("steps").getJSONObject(1)
+                .put("videoAssetId", "hospital-route-main")
+                .put("videoAssetVersion", "2026-09-01-r1")
+                .put("videoFallbackText", "정문 안내 데스크를 지나 신경과 표지판을 따라가세요.");
+
+        GuideStep routeStep = CoreApiCompanionSessionClient
+                .parseSessionSnapshot(fixture)
+                .toHospitalGuide("서울대학교병원", "신경과")
+                .getSteps()
+                .get(1);
+
+        assertEquals("hospital-route-main", routeStep.getVideoAssetId());
+        assertEquals("2026-09-01-r1", routeStep.getVideoAssetVersion());
+        assertEquals(
+                "정문 안내 데스크를 지나 신경과 표지판을 따라가세요.",
+                routeStep.getVideoFallbackText());
+        assertTrue(routeStep.hasVideoAssetMetadata());
+        assertTrue(routeStep.hasCompleteVideoGuidanceMetadata());
     }
 
     @Test

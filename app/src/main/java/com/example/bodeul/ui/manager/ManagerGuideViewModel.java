@@ -223,9 +223,25 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     public void advanceStep() {
+        UiState state = _uiState.getValue();
+        ManagerDashboard dashboard = state == null ? null : state.dashboard;
+        if (dashboard == null || dashboard.getSession() == null) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
+            return;
+        }
+        advanceStep(
+                dashboard.getSession().getId(),
+                dashboard.getSession().getCurrentStepCode());
+    }
+
+    public void advanceStep(String expectedSessionId, String expectedStepCode) {
         if (currentUser == null) return;
         if (!beginMutation()) return;
-        managerRepository.advanceCurrentStep(currentUser.getId(), new RepositoryCallback<ManagerDashboard>() {
+        managerRepository.advanceCurrentStep(
+                currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
+                new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
                 finishMutation();

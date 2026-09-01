@@ -499,7 +499,10 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                                 step.code(),
                                 step.order(),
                                 step.title(),
-                                step.description()))
+                                step.description(),
+                                step.videoAssetId(),
+                                step.videoAssetVersion(),
+                                step.videoFallbackText()))
                         .toList();
         ProgressState progress = progressState(session);
         Set<InformationScope> allowedScopes = appUser.role() == AppUserRole.GUARDIAN

@@ -43,6 +43,7 @@ public final class ManagerGuideDashboardBinder {
     private final TextView textGuideFocusPreviewLabel;
     private final TextView textGuideFocusPreviewBody;
     private final View viewGuideFocusPreview;
+    private final ManagerGuideVideoGuidanceBinder videoGuidanceBinder;
     private final ManagerGuideStepSectionsBinder stepSectionsBinder;
     private final TextView textGuideLiveLocationStatus;
     private final TextView textGuideLiveLocationHistory;
@@ -98,6 +99,7 @@ public final class ManagerGuideDashboardBinder {
             TextView textGuideFocusPreviewLabel,
             TextView textGuideFocusPreviewBody,
             View viewGuideFocusPreview,
+            ManagerGuideVideoGuidanceBinder videoGuidanceBinder,
             ManagerGuideStepSectionsBinder stepSectionsBinder,
             TextView textGuideLiveLocationStatus,
             TextView textGuideLiveLocationHistory,
@@ -152,6 +154,7 @@ public final class ManagerGuideDashboardBinder {
         this.textGuideFocusPreviewLabel = textGuideFocusPreviewLabel;
         this.textGuideFocusPreviewBody = textGuideFocusPreviewBody;
         this.viewGuideFocusPreview = viewGuideFocusPreview;
+        this.videoGuidanceBinder = videoGuidanceBinder;
         this.stepSectionsBinder = stepSectionsBinder;
         this.textGuideLiveLocationStatus = textGuideLiveLocationStatus;
         this.textGuideLiveLocationHistory = textGuideLiveLocationHistory;
@@ -359,6 +362,7 @@ public final class ManagerGuideDashboardBinder {
         textGuideFocusPreviewLabel.setText(focusModel.getPreviewLabel());
         textGuideFocusPreviewBody.setText(focusModel.getPreviewBody());
         viewGuideFocusPreview.setBackgroundResource(focusModel.getPreviewBackgroundResId());
+        videoGuidanceBinder.bind(focusModel);
     }
 
     private void setTextIfDifferent(TextInputEditText editText, String value) {

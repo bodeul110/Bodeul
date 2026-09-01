@@ -280,6 +280,11 @@ public class CompanionSession {
         return currentStepCode;
     }
 
+    // 단계 코드를 저장하지 않는 이전 데이터 경로는 고정된 가이드 순서에서 코드를 복원한다.
+    public void setCurrentStepCode(String currentStepCode) {
+        this.currentStepCode = currentStepCode == null ? "" : currentStepCode.trim();
+    }
+
     public boolean hasServerAdvanceDecision() {
         return hasServerAdvanceDecision;
     }
@@ -299,7 +304,7 @@ public class CompanionSession {
             boolean serverCanAdvance,
             String advanceBlockedReason
     ) {
-        this.currentStepCode = currentStepCode == null ? "" : currentStepCode.trim();
+        setCurrentStepCode(currentStepCode);
         this.hasServerAdvanceDecision = hasServerAdvanceDecision;
         this.serverCanAdvance = serverCanAdvance;
         this.advanceBlockedReason = advanceBlockedReason == null

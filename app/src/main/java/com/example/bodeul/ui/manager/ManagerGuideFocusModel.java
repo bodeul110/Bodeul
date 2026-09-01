@@ -10,6 +10,9 @@ public final class ManagerGuideFocusModel {
     private final String previewLabel;
     private final String previewBody;
     private final int previewBackgroundResId;
+    private final boolean videoGuidanceVisible;
+    private final String videoGuidanceTitle;
+    private final String videoGuidanceBody;
 
     public ManagerGuideFocusModel(
             String badge,
@@ -17,7 +20,10 @@ public final class ManagerGuideFocusModel {
             String body,
             String previewLabel,
             String previewBody,
-            int previewBackgroundResId
+            int previewBackgroundResId,
+            boolean videoGuidanceVisible,
+            String videoGuidanceTitle,
+            String videoGuidanceBody
     ) {
         this.badge = badge;
         this.title = title;
@@ -25,6 +31,9 @@ public final class ManagerGuideFocusModel {
         this.previewLabel = previewLabel;
         this.previewBody = previewBody;
         this.previewBackgroundResId = previewBackgroundResId;
+        this.videoGuidanceVisible = videoGuidanceVisible;
+        this.videoGuidanceTitle = videoGuidanceTitle;
+        this.videoGuidanceBody = videoGuidanceBody;
     }
 
     public String getBadge() {
@@ -49,5 +58,17 @@ public final class ManagerGuideFocusModel {
 
     public int getPreviewBackgroundResId() {
         return previewBackgroundResId;
+    }
+
+    public boolean isVideoGuidanceVisible() {
+        return videoGuidanceVisible;
+    }
+
+    public String getVideoGuidanceTitle() {
+        return videoGuidanceTitle;
+    }
+
+    public String getVideoGuidanceBody() {
+        return videoGuidanceBody;
     }
 }

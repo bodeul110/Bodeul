@@ -211,7 +211,14 @@ interface CompanionSessionRepository {
             String code,
             int order,
             String title,
-            String description) {
+            String description,
+            String videoAssetId,
+            String videoAssetVersion,
+            String videoFallbackText) {
+
+        public GuideStepRecord(String code, int order, String title, String description) {
+            this(code, order, title, description, null, null, null);
+        }
     }
 
     record ArtifactRecord(

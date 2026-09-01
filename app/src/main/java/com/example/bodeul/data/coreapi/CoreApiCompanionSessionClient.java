@@ -7,6 +7,7 @@ import android.net.Uri;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.data.RepositoryCallback;
+import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.CompanionChatAttachmentUploadPolicy;
 import com.example.bodeul.data.CompanionSessionArtifactUploadPolicy;
 import com.example.bodeul.domain.model.CompanionSession;
@@ -365,10 +366,18 @@ final class CoreApiCompanionSessionClient {
         updateSession(externalSessionId, field, value, callback);
     }
 
-    void advance(String externalSessionId, RepositoryCallback<SessionSnapshot> callback) {
+    void advance(
+            String externalSessionId,
+            String expectedStepCode,
+            RepositoryCallback<SessionSnapshot> callback
+    ) {
         resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
             @Override
             public void onSuccess(SessionSnapshot session) {
+                if (!matchesExpectedStep(expectedStepCode, session.currentStepCode)) {
+                    callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                    return;
+                }
                 JSONObject body = new JSONObject();
                 try {
                     body.put("version", session.version);
@@ -397,10 +406,18 @@ final class CoreApiCompanionSessionClient {
         });
     }
 
-    void endCare(String externalSessionId, RepositoryCallback<SessionSnapshot> callback) {
+    void endCare(
+            String externalSessionId,
+            String expectedStepCode,
+            RepositoryCallback<SessionSnapshot> callback
+    ) {
         resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
             @Override
             public void onSuccess(SessionSnapshot session) {
+                if (!matchesExpectedStep(expectedStepCode, session.currentStepCode)) {
+                    callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                    return;
+                }
                 JSONObject body = new JSONObject();
                 try {
                     body.put("version", session.version);
@@ -427,6 +444,14 @@ final class CoreApiCompanionSessionClient {
                 callback.onError(message);
             }
         });
+    }
+
+    static boolean matchesExpectedStep(
+            @Nullable String expectedStepCode,
+            @Nullable String actualStepCode
+    ) {
+        return valueOrEmpty(expectedStepCode).trim()
+                .equals(valueOrEmpty(actualStepCode).trim());
     }
 
     void replaceArtifacts(
@@ -696,7 +721,10 @@ final class CoreApiCompanionSessionClient {
                         optText(step, "code"),
                         step.getInt("order"),
                         optText(step, "title"),
-                        optText(step, "description")));
+                        optText(step, "description"),
+                        optText(step, "videoAssetId"),
+                        optText(step, "videoAssetVersion"),
+                        optText(step, "videoFallbackText")));
             }
         }
 

@@ -127,6 +127,11 @@ public class FirebaseManagerRepository implements ManagerRepository {
                                                 request.getHospitalName(),
                                                 request.getDepartmentName()
                                         );
+                                        session.setCurrentStepCode(
+                                                resolveCurrentStepCode(
+                                                        guide.getSteps(),
+                                                        session.getCurrentStepOrder())
+                                        );
                                         SessionReport report = toReport((QuerySnapshot) results.get(2));
 
                                         if (manager == null || patient == null || guardian == null) {
@@ -159,7 +164,12 @@ public class FirebaseManagerRepository implements ManagerRepository {
     }
 
     @Override
-    public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
+    public void advanceCurrentStep(
+            String managerUserId,
+            String expectedSessionId,
+            String expectedStepCode,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
         // 단계 이동은 현재 세션 문서와 전체 단계 수를 모두 확인한 뒤 대시보드를 다시 읽는다.
         loadSessionDocument(managerUserId, new RepositoryCallback<DocumentSnapshot>() {
             @Override
@@ -167,6 +177,13 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 getManagerDashboard(managerUserId, new RepositoryCallback<ManagerDashboard>() {
                     @Override
                     public void onSuccess(ManagerDashboard dashboard) {
+                        if (!ManagerRepository.matchesAdvanceExpectation(
+                                dashboard.getSession(),
+                                expectedSessionId,
+                                expectedStepCode)) {
+                            callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                            return;
+                        }
                         int totalSteps = dashboard.getHospitalGuide().getSteps().size();
                         int currentStep = dashboard.getSession().getCurrentStepOrder();
                         if (currentStep >= totalSteps) {
@@ -175,23 +192,52 @@ public class FirebaseManagerRepository implements ManagerRepository {
                         }
 
                         int nextStep = currentStep + 1;
+                        String expectedStatus = dashboard.getSession().getStatus().name();
+                        String expectedAppointmentRequestId = dashboard.getSession().getAppointmentRequestId();
+                        String expectedAppointmentStatus = dashboard.getAppointmentRequest().getStatus().name();
                         Map<String, Object> updates = new HashMap<>();
                         updates.put("currentStepOrder", nextStep);
                         updates.put("currentStatus", resolveStepStatus(nextStep, totalSteps).name());
                         updates.put("updatedAt", FieldValue.serverTimestamp());
 
-                        // 세션 단계와 예약 상태를 한 번에 갱신해 화면 간 상태 불일치를 줄인다.
-                        WriteBatch batch = firestore.batch();
-                        batch.update(sessionSnapshot.getReference(), updates);
-                        batch.update(
-                                firestore.collection("appointmentRequests")
-                                        .document(dashboard.getAppointmentRequest().getId()),
-                                "status",
-                                AppointmentStatus.IN_PROGRESS.name()
-                        );
+                        DocumentReference appointmentReference = firestore.collection("appointmentRequests")
+                                .document(dashboard.getAppointmentRequest().getId());
+                        // 확인창을 연 뒤 단계가 바뀌었으면 이전 화면의 완료 요청을 적용하지 않는다.
+                        firestore.runTransaction(transaction -> {
+                                    DocumentSnapshot latestSession = transaction.get(sessionSnapshot.getReference());
+                                    DocumentSnapshot latestAppointment = transaction.get(appointmentReference);
+                                    if (!matchesFreshAdvanceState(
+                                            latestSession.getLong("currentStepOrder"),
+                                            latestSession.getString("currentStatus"),
+                                            latestSession.getString("managerUserId"),
+                                            latestSession.getString("appointmentRequestId"),
+                                            currentStep,
+                                            expectedStatus,
+                                            managerUserId,
+                                            expectedAppointmentRequestId
+                                    )) {
+                                        return false;
+                                    }
+                                    if (!normalizeAdvanceValue(latestAppointment.getString("status"))
+                                            .equals(normalizeAdvanceValue(expectedAppointmentStatus))) {
+                                        return false;
+                                    }
 
-                        batch.commit()
-                                .addOnSuccessListener(unused -> getManagerDashboard(managerUserId, callback))
+                                    transaction.update(sessionSnapshot.getReference(), updates);
+                                    transaction.update(
+                                            appointmentReference,
+                                            "status",
+                                            AppointmentStatus.IN_PROGRESS.name()
+                                    );
+                                    return true;
+                                })
+                                .addOnSuccessListener(advanced -> {
+                                    if (!Boolean.TRUE.equals(advanced)) {
+                                        callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                                        return;
+                                    }
+                                    getManagerDashboard(managerUserId, callback);
+                                })
                                 .addOnFailureListener(exception ->
                                         callback.onError("다음 단계로 이동하지 못했습니다."));
                     }
@@ -208,6 +254,43 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 callback.onError(message);
             }
         });
+    }
+
+    static boolean matchesFreshAdvanceState(
+            @Nullable Long latestStepOrder,
+            @Nullable String latestStatus,
+            @Nullable String latestManagerUserId,
+            @Nullable String latestAppointmentRequestId,
+            int expectedStepOrder,
+            String expectedStatus,
+            String expectedManagerUserId,
+            String expectedAppointmentRequestId
+    ) {
+        return latestStepOrder != null
+                && latestStepOrder.intValue() == expectedStepOrder
+                && normalizeAdvanceValue(latestStatus).equals(normalizeAdvanceValue(expectedStatus))
+                && normalizeAdvanceValue(latestManagerUserId).equals(normalizeAdvanceValue(expectedManagerUserId))
+                && normalizeAdvanceValue(latestAppointmentRequestId)
+                .equals(normalizeAdvanceValue(expectedAppointmentRequestId));
+    }
+
+    private static String normalizeAdvanceValue(@Nullable String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    static String resolveCurrentStepCode(
+            @Nullable List<GuideStep> steps,
+            int currentStepOrder
+    ) {
+        if (steps == null) {
+            return "";
+        }
+        for (GuideStep step : steps) {
+            if (step != null && step.getOrder() == currentStepOrder) {
+                return normalizeAdvanceValue(step.getCode());
+            }
+        }
+        return "";
     }
 
     @Override
@@ -1541,17 +1624,29 @@ public class FirebaseManagerRepository implements ManagerRepository {
         String hospitalName = documentSnapshot.getString("hospitalName");
         String departmentName = documentSnapshot.getString("departmentName");
         Object stepsValue = documentSnapshot.get("steps");
-        if (hospitalName == null || departmentName == null || !(stepsValue instanceof List)) {
+        if (hospitalName == null || departmentName == null) {
             return null;
         }
 
-        List<?> rawSteps = (List<?>) stepsValue;
+        List<GuideStep> steps = toGuideSteps(stepsValue);
+        if (steps.isEmpty()) {
+            return null;
+        }
+
+        return new HospitalGuide(documentSnapshot.getId(), hospitalName, departmentName, steps);
+    }
+
+    static List<GuideStep> toGuideSteps(@Nullable Object stepsValue) {
         List<GuideStep> steps = new ArrayList<>();
+        if (!(stepsValue instanceof List)) {
+            return steps;
+        }
+        List<?> rawSteps = (List<?>) stepsValue;
         for (Object rawStep : rawSteps) {
             if (!(rawStep instanceof Map)) {
                 continue;
             }
-            // 각 단계의 order, title, description 필드를 확인한다.
+            // 구형 문서는 기존 필드만 읽고 새 선택 필드는 빈 값으로 유지한다.
             Map<?, ?> stepMap = (Map<?, ?>) rawStep;
             Object orderValue = stepMap.get("order");
             Object titleValue = stepMap.get("title");
@@ -1560,17 +1655,21 @@ public class FirebaseManagerRepository implements ManagerRepository {
                 continue;
             }
             steps.add(new GuideStep(
+                    optionalGuideString(stepMap, "code"),
                     ((Number) orderValue).intValue(),
                     String.valueOf(titleValue),
-                    String.valueOf(descriptionValue)
+                    String.valueOf(descriptionValue),
+                    optionalGuideString(stepMap, "videoAssetId"),
+                    optionalGuideString(stepMap, "videoAssetVersion"),
+                    optionalGuideString(stepMap, "videoFallbackText")
             ));
         }
+        return steps;
+    }
 
-        if (steps.isEmpty()) {
-            return null;
-        }
-
-        return new HospitalGuide(documentSnapshot.getId(), hospitalName, departmentName, steps);
+    private static String optionalGuideString(Map<?, ?> stepMap, String key) {
+        Object value = stepMap.get(key);
+        return value instanceof String ? ((String) value).trim() : "";
     }
 
     @Nullable

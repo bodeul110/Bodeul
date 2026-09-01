@@ -72,6 +72,15 @@ public class ManagerGuideStepRegistryTest {
     }
 
     @Test
+    public void isHospitalRoute_matchesOnlyStableHospitalRouteCode() {
+        assertTrue(ManagerGuideStepRegistry.isHospitalRoute("HOSPITAL_ROUTE"));
+        assertTrue(ManagerGuideStepRegistry.isHospitalRoute(" HOSPITAL_ROUTE "));
+        assertFalse(ManagerGuideStepRegistry.isHospitalRoute("MEETING_CONFIRMATION"));
+        assertFalse(ManagerGuideStepRegistry.isHospitalRoute("LEGACY_CORE_PATIENT_CONTACT"));
+        assertFalse(ManagerGuideStepRegistry.isHospitalRoute(null));
+    }
+
+    @Test
     public void resolveGuideStep_usesStableCodeBeforeLegacyOrderFallback() {
         GuideStep codedStep = new GuideStep("PHARMACY_ROUTE", 1, "약국 이동", "");
         GuideStep legacyOrderStep = new GuideStep("", 6, "복약", "");

@@ -69,9 +69,21 @@ public final class CoreApiManagerRepository implements ManagerRepository {
     }
 
     @Override
-    public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
+    public void advanceCurrentStep(
+            String managerUserId,
+            String expectedSessionId,
+            String expectedStepCode,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
         withDashboard(managerUserId, callback, dashboard -> {
             CompanionSession session = dashboard.getSession();
+            if (!ManagerRepository.matchesAdvanceExpectation(
+                    session,
+                    expectedSessionId,
+                    expectedStepCode)) {
+                callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                return;
+            }
             if (session.hasServerAdvanceDecision() && !session.isServerAdvanceAllowed()) {
                 callback.onError(toAdvanceBlockedMessage(session.getAdvanceBlockedReason()));
                 return;
@@ -79,10 +91,12 @@ public final class CoreApiManagerRepository implements ManagerRepository {
             if ("CARE_COMPLETION".equals(session.getCurrentStepCode())) {
                 sessionClient.endCare(
                         session.getId(),
+                        expectedStepCode,
                         refreshCallback(managerUserId, callback));
             } else {
                 sessionClient.advance(
                         session.getId(),
+                        expectedStepCode,
                         refreshCallback(managerUserId, callback));
             }
         });

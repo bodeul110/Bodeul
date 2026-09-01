@@ -75,6 +75,88 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class MockBodeulRepositoryTest {
     @Test
+    public void managerRepository_advanceCurrentStep_movesToNextMockGuideStep() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        MockManagerRepository managerRepository = new MockManagerRepository(repository);
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+        User guardian = repository.findUserByEmail("guardian@bodeul.app");
+        User manager = repository.registerUser(
+                "mock-guide-manager",
+                "mock-guide-manager@bodeul.app",
+                "010-2222-3333",
+                UserRole.MANAGER,
+                "bodeul1234"
+        );
+
+        assertNotNull(patient);
+        assertNotNull(guardian);
+        assertNotNull(manager);
+
+        AppointmentRequest request = repository.createLinkedAppointmentRequest(
+                patient.getId(),
+                guardian.getId(),
+                "목업 가이드 병원",
+                "가정의학과",
+                "2026-09-02 09:00",
+                "본관 안내 데스크",
+                "목업 단계 전진 검증"
+        );
+        assertNotNull(request);
+        assertNotNull(repository.assignManagerToRequest(request.getId(), manager.getId()));
+
+        AtomicReference<ManagerDashboard> initialDashboardRef = new AtomicReference<>();
+        managerRepository.getManagerDashboard(
+                manager.getId(),
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        initialDashboardRef.set(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                    }
+                }
+        );
+
+        ManagerDashboard initialDashboard = initialDashboardRef.get();
+        assertNotNull(initialDashboard);
+        assertEquals(1, initialDashboard.getSession().getCurrentStepOrder());
+        assertEquals(
+                "LEGACY_CORE_PATIENT_CONTACT",
+                initialDashboard.getSession().getCurrentStepCode()
+        );
+
+        AtomicReference<ManagerDashboard> advancedDashboardRef = new AtomicReference<>();
+        AtomicReference<String> errorRef = new AtomicReference<>();
+        managerRepository.advanceCurrentStep(
+                manager.getId(),
+                initialDashboard.getSession().getId(),
+                initialDashboard.getSession().getCurrentStepCode(),
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        advancedDashboardRef.set(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        errorRef.set(message);
+                    }
+                }
+        );
+
+        assertNull(errorRef.get());
+        ManagerDashboard advancedDashboard = advancedDashboardRef.get();
+        assertNotNull(advancedDashboard);
+        assertEquals(2, advancedDashboard.getSession().getCurrentStepOrder());
+        assertEquals(
+                "LEGACY_CORE_RECEPTION_PREPARATION",
+                advancedDashboard.getSession().getCurrentStepCode()
+        );
+    }
+
+    @Test
     public void createAppointmentRequest_patientLinksExistingGuardianByEmail() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");
