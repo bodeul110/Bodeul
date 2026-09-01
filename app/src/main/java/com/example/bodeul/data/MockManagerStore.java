@@ -8,6 +8,7 @@ import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
 import com.example.bodeul.domain.model.CompanionSession;
+import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.HospitalGuideFallbackFactory;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -49,6 +50,7 @@ public final class MockManagerStore {
                 request.getHospitalName(),
                 request.getDepartmentName()
         );
+        synchronizeCurrentStepCode(session, guide);
         SessionReport report = repository.getSessionReport(session.getId());
 
         if (patient == null || guardian == null) {
@@ -56,6 +58,17 @@ public final class MockManagerStore {
         }
 
         return new ManagerDashboard(manager, patient, guardian, request, session, guide, report);
+    }
+
+    private void synchronizeCurrentStepCode(CompanionSession session, HospitalGuide guide) {
+        String currentStepCode = "";
+        for (GuideStep step : guide.getSteps()) {
+            if (step.getOrder() == session.getCurrentStepOrder()) {
+                currentStepCode = step.getCode();
+                break;
+            }
+        }
+        session.setCurrentStepCode(currentStepCode);
     }
 
     @Nullable
