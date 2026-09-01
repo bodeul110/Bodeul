@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.ManagerDocumentFileMetadata;
 import com.example.bodeul.domain.model.ManagerDocumentOverview;
 import com.example.bodeul.domain.model.ManagerHomeProfile;
 import com.example.bodeul.domain.model.CompanionLocationAlertStage;
+import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SupportInquiry;
@@ -21,10 +22,31 @@ import java.util.List;
  */
 public interface ManagerRepository {
     String MESSAGE_NO_ACTIVE_SESSION = "현재 배정된 동행 일정이 없습니다.";
+    String MESSAGE_STALE_GUIDE_STEP = "진행 단계가 변경되어 다시 확인해야 합니다.";
 
     void getManagerDashboard(String managerUserId, RepositoryCallback<ManagerDashboard> callback);
 
-    void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback);
+    void advanceCurrentStep(
+            String managerUserId,
+            String expectedSessionId,
+            String expectedStepCode,
+            RepositoryCallback<ManagerDashboard> callback);
+
+    static boolean matchesAdvanceExpectation(
+            CompanionSession session,
+            String expectedSessionId,
+            String expectedStepCode
+    ) {
+        if (session == null) {
+            return false;
+        }
+        return normalize(expectedSessionId).equals(normalize(session.getId()))
+                && normalize(expectedStepCode).equals(normalize(session.getCurrentStepCode()));
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
 
     void saveGuardianUpdate(String managerUserId, String guardianUpdate, RepositoryCallback<ManagerDashboard> callback);
 

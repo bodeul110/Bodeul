@@ -14,15 +14,35 @@ public class GuideStep {
     private final String title;
     private final String description;
 
+    // 영상 원본 주소를 앱에 노출하지 않고 서버 자산 계약만 식별한다.
+    private final String videoAssetId;
+    private final String videoAssetVersion;
+    private final String videoFallbackText;
+
     public GuideStep(int order, String title, String description) {
-        this("", order, title, description);
+        this("", order, title, description, "", "", "");
     }
 
     public GuideStep(String code, int order, String title, String description) {
+        this(code, order, title, description, "", "", "");
+    }
+
+    public GuideStep(
+            String code,
+            int order,
+            String title,
+            String description,
+            String videoAssetId,
+            String videoAssetVersion,
+            String videoFallbackText
+    ) {
         this.code = code == null ? "" : code.trim();
         this.order = order;
         this.title = title == null ? "" : title;
         this.description = description == null ? "" : description;
+        this.videoAssetId = videoAssetId == null ? "" : videoAssetId.trim();
+        this.videoAssetVersion = videoAssetVersion == null ? "" : videoAssetVersion.trim();
+        this.videoFallbackText = videoFallbackText == null ? "" : videoFallbackText.trim();
     }
 
     public String getCode() {
@@ -39,5 +59,25 @@ public class GuideStep {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getVideoAssetId() {
+        return videoAssetId;
+    }
+
+    public String getVideoAssetVersion() {
+        return videoAssetVersion;
+    }
+
+    public String getVideoFallbackText() {
+        return videoFallbackText;
+    }
+
+    public boolean hasVideoAssetMetadata() {
+        return !videoAssetId.isEmpty() && !videoAssetVersion.isEmpty();
+    }
+
+    public boolean hasCompleteVideoGuidanceMetadata() {
+        return hasVideoAssetMetadata() && !videoFallbackText.isEmpty();
     }
 }

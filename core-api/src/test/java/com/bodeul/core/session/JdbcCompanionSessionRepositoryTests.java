@@ -84,6 +84,39 @@ class JdbcCompanionSessionRepositoryTests {
         assertThat(session.guideSnapshot().steps()).hasSize(14);
         assertThat(session.guideSnapshot().steps().get(13).code()).isEqualTo("UNLISTED_EXTENSION");
         assertThat(session.guideSnapshot().steps().get(13).title()).isEqualTo("단계 14");
+        assertThat(session.guideSnapshot().steps().get(13).videoAssetId()).isNull();
+        assertThat(session.guideSnapshot().steps().get(13).videoAssetVersion()).isNull();
+        assertThat(session.guideSnapshot().steps().get(13).videoFallbackText()).isNull();
+    }
+
+    @Test
+    void snapshotMapperPreservesOptionalVideoMetadata() throws Exception {
+        var mapper = sessionMapperCaptor();
+        doReturn(List.of()).when(jdbcTemplate).query(
+                anyString(),
+                any(MapSqlParameterSource.class),
+                mapper.capture());
+        repository.findById(SESSION_ID);
+
+        String snapshotJson = """
+                [{
+                  "code":"GUIDE_VIDEO",
+                  "order":1,
+                  "title":"길안내",
+                  "description":"영상으로 이동 경로를 확인합니다.",
+                  "videoAssetId":"guide-video-fixture",
+                  "videoAssetVersion":"v1",
+                  "videoFallbackText":"영상 없이 단계 설명을 확인해 주세요."
+                }]
+                """;
+        CompanionSessionRepository.SessionRecord session = mapper.getValue()
+                .mapRow(resultSetWithSnapshot(snapshotJson, 5L), 0);
+
+        assertThat(session.guideSnapshot().steps()).singleElement().satisfies(step -> {
+            assertThat(step.videoAssetId()).isEqualTo("guide-video-fixture");
+            assertThat(step.videoAssetVersion()).isEqualTo("v1");
+            assertThat(step.videoFallbackText()).isEqualTo("영상 없이 단계 설명을 확인해 주세요.");
+        });
     }
 
     @Test

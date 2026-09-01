@@ -59,6 +59,8 @@ bootstrap_database bodeul_guide_empty
 migrate_database bodeul_guide_empty
 psql --dbname bodeul_guide_empty --set ON_ERROR_STOP=1 \
     --file db/verification/006_companion_guide_snapshot_checks.sql
+psql --dbname bodeul_guide_empty --set ON_ERROR_STOP=1 \
+    --file db/verification/016_companion_guide_video_metadata_checks.sql
 
 bootstrap_database bodeul_guide_upgrade
 migrate_database bodeul_guide_upgrade 13
@@ -70,7 +72,13 @@ psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
 psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/007_companion_guide_snapshot_upgrade_checks.sql
 psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
+    --file db/verification/016_companion_guide_video_metadata_checks.sql
+psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
     --file db/verification/008_companion_guide_snapshot_rollback_fixture.sql
+psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
+    --file db/rollback/V21__remove_companion_guide_video_metadata_validation.sql
+psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
+    --file db/verification/017_companion_guide_video_metadata_rollback_checks.sql
 psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \
     --file db/rollback/V14__restore_live_companion_guides.sql
 psql --dbname bodeul_guide_upgrade --set ON_ERROR_STOP=1 \

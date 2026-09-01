@@ -538,6 +538,14 @@
     <string name="guide_button_blocked">현재 단계 진행 불가</string>
     <string name="guide_action_meeting_complete">상봉 완료</string>
     <string name="guide_action_department_arrived">진료과 도착</string>
+    <string name="guide_action_route_confirmed">길안내 확인 완료</string>
+    <string name="guide_route_confirmation_title">길안내 확인을 완료할까요?</string>
+    <string name="guide_route_confirmation_body">텍스트 안내와 카카오맵 경로를 확인했는지 확인해 주세요. 완료하면 다음 단계로 이동합니다.</string>
+    <string name="guide_route_confirmation_cancel">계속 확인하기</string>
+    <string name="guide_route_confirmation_stale">진행 단계가 변경되어 다시 확인해야 합니다.</string>
+    <string name="guide_video_asset_registered_title">길안내 영상 준비 중</string>
+    <string name="guide_video_unavailable_title">영상 안내를 사용할 수 없습니다</string>
+    <string name="guide_video_fallback_default">영상 대신 아래 설명과 카카오맵 경로를 확인해 주세요.</string>
     <string name="guide_action_reception_complete">접수 완료</string>
     <string name="guide_action_vitals_complete">측정 확인 완료</string>
     <string name="guide_action_consultation_ready">진료 준비 완료</string>

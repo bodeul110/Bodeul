@@ -76,6 +76,11 @@ class CompanionSessionApiIntegrationTests {
                 .andExpect(jsonPath("$.sessions[0].steps[1].order").value(2))
                 .andExpect(jsonPath("$.sessions[0].steps[1].title").value("단계 2"))
                 .andExpect(jsonPath("$.sessions[0].steps[1].description").value("설명 2"))
+                .andExpect(jsonPath("$.sessions[0].steps[0].videoAssetId").value(nullValue()))
+                .andExpect(jsonPath("$.sessions[0].steps[1].videoAssetId").value("guide-step-2"))
+                .andExpect(jsonPath("$.sessions[0].steps[1].videoAssetVersion").value("v1"))
+                .andExpect(jsonPath("$.sessions[0].steps[1].videoFallbackText")
+                        .value("영상 없이 단계 설명을 확인해 주세요."))
                 .andExpect(jsonPath("$.sessions[0].currentStepCode").value("STEP_2"))
                 .andExpect(jsonPath("$.sessions[0].canAdvance").value(true))
                 .andExpect(jsonPath("$.sessions[0].blockedReason").value(nullValue()));
@@ -267,7 +272,14 @@ class CompanionSessionApiIntegrationTests {
     private static List<CompanionSessionService.GuideStepView> guideSteps() {
         return List.of(
                 new CompanionSessionService.GuideStepView("STEP_1", 1, "단계 1", "설명 1"),
-                new CompanionSessionService.GuideStepView("STEP_2", 2, "단계 2", "설명 2"),
+                new CompanionSessionService.GuideStepView(
+                        "STEP_2",
+                        2,
+                        "단계 2",
+                        "설명 2",
+                        "guide-step-2",
+                        "v1",
+                        "영상 없이 단계 설명을 확인해 주세요."),
                 new CompanionSessionService.GuideStepView("STEP_3", 3, "단계 3", "설명 3"),
                 new CompanionSessionService.GuideStepView("STEP_4", 4, "단계 4", "설명 4"),
                 new CompanionSessionService.GuideStepView("STEP_5", 5, "단계 5", "설명 5"));

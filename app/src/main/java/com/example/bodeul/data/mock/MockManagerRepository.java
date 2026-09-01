@@ -54,7 +54,24 @@ public class MockManagerRepository implements ManagerRepository {
     }
 
     @Override
-    public void advanceCurrentStep(String managerUserId, RepositoryCallback<ManagerDashboard> callback) {
+    public void advanceCurrentStep(
+            String managerUserId,
+            String expectedSessionId,
+            String expectedStepCode,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        ManagerDashboard current = managerStore.getManagerDashboard(managerUserId);
+        if (current == null) {
+            callback.onError(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
+            return;
+        }
+        if (!ManagerRepository.matchesAdvanceExpectation(
+                current.getSession(),
+                expectedSessionId,
+                expectedStepCode)) {
+            callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+            return;
+        }
         ManagerDashboard dashboard = managerStore.advanceManagerSession(managerUserId);
         if (dashboard == null) {
             callback.onError("다음 단계를 불러오지 못했습니다.");

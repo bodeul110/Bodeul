@@ -476,6 +476,32 @@ class DefaultCompanionSessionServiceTests {
     }
 
     @Test
+    void optionalVideoMetadataIsExposedWithoutChangingLegacySteps() {
+        List<CompanionSessionRepository.GuideStepRecord> steps = List.of(
+                new CompanionSessionRepository.GuideStepRecord(
+                        "STEP_1", 1, "기존 단계", "기존 설명"),
+                new CompanionSessionRepository.GuideStepRecord(
+                        "STEP_2",
+                        2,
+                        "영상 단계",
+                        "영상으로 이동 경로를 확인합니다.",
+                        "guide-video-fixture",
+                        "v1",
+                        "영상 없이 단계 설명을 확인해 주세요."));
+        repository.session = Optional.of(session(
+                "WAITING", 1, 2, 3, hospitalGuideSnapshot(steps)));
+
+        var result = service.getSession(manager(), SESSION_ID);
+
+        assertThat(result.steps().get(0).videoAssetId()).isNull();
+        assertThat(result.steps().get(1).videoAssetId()).isEqualTo("guide-video-fixture");
+        assertThat(result.steps().get(1).videoAssetVersion()).isEqualTo("v1");
+        assertThat(result.steps().get(1).videoFallbackText())
+                .isEqualTo("영상 없이 단계 설명을 확인해 주세요.");
+        assertThat(result.canAdvance()).isTrue();
+    }
+
+    @Test
     void mismatchedStepOrderAndOutOfRangeCurrentStepAreRejected() {
         List<CompanionSessionRepository.GuideStepRecord> mismatched = guideSteps(2);
         mismatched.set(1, new CompanionSessionRepository.GuideStepRecord(

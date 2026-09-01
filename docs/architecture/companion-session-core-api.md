@@ -130,7 +130,7 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 남고 환자·관리자 읽기만 유지한다. 매니저와 보호자는 종료 경계·마스킹·범위별 동의를 적용하는 Core API를 거친다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
-- Core API는 세션에 고정된 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 반환한다. Android Core 경로는 이 snapshot을 Manager·Booking·Guardian 화면 원본으로 사용하고, `steps` 키가 없는 구버전 응답에만 기존 fallback을 사용한다.
+- Core API는 세션에 고정된 `guideId`, `guideRevision`, 상세 `steps`, `currentStepCode`, `canAdvance`, `blockedReason`을 반환한다. 각 step의 영상 계약은 URL이 아닌 선택 `videoAssetId`, `videoAssetVersion`, `videoFallbackText`만 포함하며 세 값이 모두 유효할 때만 등록된 자산으로 취급한다. Android Core 경로는 이 snapshot을 Manager·Booking·Guardian 화면 원본으로 사용하고, `steps` 키가 없는 구버전 응답에만 기존 fallback을 사용한다.
 
 ## 백필과 rollback
 

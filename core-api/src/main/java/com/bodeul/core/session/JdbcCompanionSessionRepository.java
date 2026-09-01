@@ -628,7 +628,10 @@ class JdbcCompanionSessionRepository implements CompanionSessionRepository {
                         text(step, "code"),
                         integer(step, "order"),
                         text(step, "title"),
-                        text(step, "description")));
+                        text(step, "description"),
+                        text(step, "videoAssetId"),
+                        text(step, "videoAssetVersion"),
+                        text(step, "videoFallbackText")));
             }
             return List.copyOf(steps);
         } catch (JsonProcessingException exception) {

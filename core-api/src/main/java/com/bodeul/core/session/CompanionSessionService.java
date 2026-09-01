@@ -204,7 +204,14 @@ public interface CompanionSessionService {
             String code,
             int order,
             String title,
-            String description) {
+            String description,
+            String videoAssetId,
+            String videoAssetVersion,
+            String videoFallbackText) {
+
+        public GuideStepView(String code, int order, String title, String description) {
+            this(code, order, title, description, null, null, null);
+        }
     }
 
     record ArtifactView(

@@ -121,7 +121,10 @@ public final class ManagerGuideCoordinator {
                         context.getString(R.string.guide_focus_body_empty),
                         context.getString(R.string.guide_focus_preview_label),
                         context.getString(R.string.guide_focus_preview_empty),
-                        R.drawable.bg_service_thumb_cool
+                        R.drawable.bg_service_thumb_cool,
+                        false,
+                        "",
+                        ""
                 ),
                 ManagerGuideSectionVisibility.hidden(),
                 "",
@@ -277,6 +280,14 @@ public final class ManagerGuideCoordinator {
             CompanionSession session,
             ManagerGuideProgressPolicy.Decision advanceDecision
     ) {
+        ManagerGuideVideoGuidancePolicy.Result videoGuidance =
+                ManagerGuideVideoGuidancePolicy.resolve(focusStep);
+        String videoGuidanceBody = videoGuidance.getFallbackText().isEmpty()
+                ? context.getString(R.string.guide_video_fallback_default)
+                : videoGuidance.getFallbackText();
+        String videoGuidanceTitle = videoGuidance.hasRegisteredAsset()
+                ? context.getString(R.string.guide_video_asset_registered_title)
+                : context.getString(R.string.guide_video_unavailable_title);
         if (focusStep.getOrder() <= 0) {
             return new ManagerGuideFocusModel(
                     context.getString(R.string.guide_focus_badge_preparing),
@@ -284,7 +295,10 @@ public final class ManagerGuideCoordinator {
                     focusStep.getDescription(),
                     context.getString(R.string.guide_focus_preview_label),
                     buildBlockedGuidance(advanceDecision),
-                    R.drawable.bg_service_thumb_cool
+                    R.drawable.bg_service_thumb_cool,
+                    false,
+                    "",
+                    ""
             );
         }
         return new ManagerGuideFocusModel(
@@ -295,7 +309,10 @@ public final class ManagerGuideCoordinator {
                 shouldShowBlockedGuidance(advanceDecision)
                         ? buildBlockedGuidance(advanceDecision)
                         : formatter.buildFocusPreviewBody(focusStep, session),
-                formatter.resolveFocusPreviewBackground(focusStep)
+                formatter.resolveFocusPreviewBackground(focusStep),
+                videoGuidance.isVisible(),
+                videoGuidanceTitle,
+                videoGuidanceBody
         );
     }
 
@@ -418,7 +435,7 @@ public final class ManagerGuideCoordinator {
             case "MEETING_CONFIRMATION":
                 return context.getString(R.string.guide_action_meeting_complete);
             case "HOSPITAL_ROUTE":
-                return context.getString(R.string.guide_action_department_arrived);
+                return context.getString(R.string.guide_action_route_confirmed);
             case "RECEPTION_QUEUE":
                 return context.getString(R.string.guide_action_reception_complete);
             case "VITALS_CHECK":
