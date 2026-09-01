@@ -559,7 +559,7 @@ begin
 
     update bodeul.appointment_bank_transfer_payments payment
     set depositor_name = v_normalized_name,
-        payment_version = payment_version + 1,
+        payment_version = payment.payment_version + 1,
         updated_at = now()
     where payment.appointment_request_id = p_appointment_request_id;
 
