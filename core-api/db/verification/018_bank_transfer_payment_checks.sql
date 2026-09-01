@@ -431,6 +431,8 @@ begin
 end;
 $$;
 
+set local role bodeul_migration;
+
 do $$
 begin
     if (select count(*) from bodeul.appointment_payment_events
@@ -457,7 +459,13 @@ begin
     ) then
         raise exception '관리자 감사 metadata에 입금자명 평문이 저장됐습니다.';
     end if;
+end;
+$$;
 
+set local role bodeul_admin_runtime;
+
+do $$
+begin
     begin
         perform * from bodeul.transition_appointment_bank_transfer_payment(
             '20000000-0000-0000-0000-000000000001',
