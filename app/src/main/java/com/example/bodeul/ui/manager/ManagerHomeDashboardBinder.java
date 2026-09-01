@@ -99,7 +99,7 @@ public final class ManagerHomeDashboardBinder {
         this.textManagerLiveSubtitle = textManagerLiveSubtitle;
         this.textManagerLiveNote = textManagerLiveNote;
         this.textManagerLiveFooter = textManagerLiveFooter;
-        actionCardBinder = new ManagerHomeActionCardBinder(context);
+        actionCardBinder = new ManagerHomeActionCardBinder();
         promoCardBinder = new ManagerHomePromoCardBinder(context);
     }
 

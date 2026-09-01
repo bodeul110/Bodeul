@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="figma_manager_qualification_topbar">매니저 자격 인증</string>
+    <string name="figma_manager_qualification_back_description">뒤로 가기</string>
+    <string name="figma_manager_qualification_close_description">닫기</string>
+    <string name="figma_manager_qualification_privacy_badge">개인정보 보호 · 암호화 저장</string>
+    <string name="figma_manager_qualification_skip">다음에 인증하기</string>
+    <string name="figma_manager_qualification_complete_title">인증 요청 완료</string>
+    <string name="figma_manager_qualification_complete_body">자격 증빙 제출이 완료되었습니다.\n검토 결과는 앱의 인증 상태에서 확인할 수 있습니다.</string>
+    <string name="figma_manager_qualification_complete_confirm">확인</string>
+</resources>

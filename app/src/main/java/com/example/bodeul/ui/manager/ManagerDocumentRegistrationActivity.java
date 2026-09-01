@@ -12,8 +12,11 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.bodeul.MainActivity;
 import com.example.bodeul.R;
@@ -42,29 +45,34 @@ import com.google.android.material.button.MaterialButton;
  */
 public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         implements ManagerDocumentRegistrationBinder.Listener {
-    private static final String[] DOCUMENT_IMAGE_MIME_TYPES = {
+    private static final String[] QUALIFICATION_IMAGE_MIME_TYPES = new String[]{
             "image/jpeg",
             "image/png",
             "image/webp"
     };
     private AuthRepository authRepository;
     private ManagerRepository managerRepository;
-    private ManagerDocumentStorageUploader managerDocumentStorageUploader;
-    private ManagerDocumentPreviewResolver managerDocumentPreviewResolver;
     private ManagerDocumentRegistrationCoordinator coordinator;
     private ManagerDocumentRegistrationBinder binder;
+    private ManagerDocumentRegistrationViewModel viewModel;
     private ActivityResultLauncher<String[]> documentPickerLauncher;
 
     @Nullable
     private User currentUser;
     @Nullable
     private ManagerDocumentOverview currentOverview;
-    @Nullable
-    private ManagerDocumentFileType pendingDocumentFileType;
 
     private View statePanel;
     private View contentContainer;
     private ProgressBar progressBar;
+    private View buttonBack;
+    private View buttonClose;
+    private View buttonSkip;
+    private MaterialButton buttonRequest;
+    private final ManagerQualificationCompletionDialogGate completionDialogGate =
+            new ManagerQualificationCompletionDialogGate();
+    private boolean operationInFlight;
+    private boolean screenLoading;
 
     public static Intent createIntent(Context context) {
         return new Intent(context, ManagerDocumentRegistrationActivity.class);
@@ -75,10 +83,35 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_document_registration);
 
+        ManagerScreenInsets.apply(
+                findViewById(R.id.scrollManagerDocumentRegistration),
+                findViewById(R.id.layoutManagerDocumentTopBar),
+                findViewById(R.id.layoutManagerDocumentBottomAction)
+        );
         authRepository = ServiceLocator.provideAuthRepository(this);
         managerRepository = ServiceLocator.provideManagerRepository(this);
-        managerDocumentStorageUploader = ServiceLocator.provideManagerDocumentStorageUploader(this);
-        managerDocumentPreviewResolver = ServiceLocator.provideManagerDocumentPreviewResolver(this);
+        ManagerDocumentStorageUploader storageUploader =
+                ServiceLocator.provideManagerDocumentStorageUploader(this);
+        ManagerDocumentPreviewResolver previewResolver =
+                ServiceLocator.provideManagerDocumentPreviewResolver(this);
+        ManagerDocumentRegistrationViewModel.Factory factory =
+                new ManagerDocumentRegistrationViewModel.Factory(
+                        this,
+                        managerRepository,
+                        storageUploader,
+                        previewResolver
+                );
+        viewModel = new ViewModelProvider(this, factory).get(
+                ManagerDocumentRegistrationViewModel.class
+        );
+        getSupportFragmentManager().setFragmentResultListener(
+                ManagerQualificationCompletionDialog.RESULT_KEY,
+                this,
+                (requestKey, result) -> {
+                    completionDialogGate.clear();
+                    viewModel.clearCompletionPending();
+                }
+        );
         coordinator = new ManagerDocumentRegistrationCoordinator(
                 this,
                 new ManagerHomePresentationFormatter(this)
@@ -92,7 +125,10 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         contentContainer = findViewById(R.id.managerDocumentContentContainer);
         progressBar = findViewById(R.id.progressManagerDocumentRegistration);
 
-        MaterialButton buttonRequest = findViewById(R.id.buttonManagerDocumentRequest);
+        buttonBack = findViewById(R.id.buttonBackManagerDocument);
+        buttonClose = findViewById(R.id.buttonCloseManagerDocument);
+        buttonSkip = findViewById(R.id.buttonManagerDocumentSkip);
+        buttonRequest = findViewById(R.id.buttonManagerDocumentRequest);
         binder = new ManagerDocumentRegistrationBinder(
                 getLayoutInflater(),
                 this,
@@ -114,9 +150,28 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 buttonRequest
         );
 
-        findViewById(R.id.buttonBackManagerDocument).setOnClickListener(view -> finish());
+        buttonBack.setOnClickListener(view -> requestExit());
+        buttonClose.setOnClickListener(view -> requestExit());
+        buttonSkip.setOnClickListener(view -> requestExit());
         buttonRequest.setOnClickListener(view -> submitRegistrationRequest());
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                requestExit();
+            }
+        });
+        viewModel.getOperationInFlight().observe(
+                this,
+                inFlight -> setOperationInFlight(Boolean.TRUE.equals(inFlight))
+        );
+        viewModel.getUiEvent().observe(this, this::handleUiState);
         contentContainer.setVisibility(View.GONE);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        handleUiState(viewModel.getUiEvent().getValue());
     }
 
     @Override
@@ -127,6 +182,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
 
     @Override
     public void onDocumentUploadRequested(@Nullable ManagerDocumentFileType fileType) {
+        if (operationInFlight) {
+            return;
+        }
         if (currentUser == null) {
             showAuthState();
             return;
@@ -137,12 +195,15 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
         
-        pendingDocumentFileType = fileType;
-        documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
+        viewModel.setPendingDocumentSelection(currentUser.getId(), fileType);
+        documentPickerLauncher.launch(QUALIFICATION_IMAGE_MIME_TYPES);
     }
 
     @Override
     public void onDocumentPreviewRequested(@Nullable ManagerDocumentFileType fileType) {
+        if (operationInFlight) {
+            return;
+        }
         ManagerDocumentFileMetadata metadata = findDocumentMetadata(fileType);
         if (metadata == null) {
             Toast.makeText(
@@ -152,10 +213,17 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             ).show();
             return;
         }
-        openDocumentPreview(metadata);
+        if (!viewModel.resolvePreview(metadata)) {
+            showOperationInProgressMessage();
+        }
     }
 
     private void showLicenseTypeSelector() {
+        if (currentUser == null) {
+            showAuthState();
+            return;
+        }
+        String managerUserId = currentUser.getId();
         String[] options = new String[]{
                 getString(R.string.manager_document_registration_document_nursing_license),
                 getString(R.string.manager_document_registration_document_elderly_care_license)
@@ -168,82 +236,35 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.manager_document_registration_document_nursing_or_elderly_care_license)
                 .setItems(options, (dialog, which) -> {
-                    pendingDocumentFileType = types[which];
-                    documentPickerLauncher.launch(DOCUMENT_IMAGE_MIME_TYPES);
+                    viewModel.setPendingDocumentSelection(managerUserId, types[which]);
+                    documentPickerLauncher.launch(QUALIFICATION_IMAGE_MIME_TYPES);
                 })
                 .show();
     }
 
     private void handleDocumentPicked(@Nullable Uri fileUri) {
-        ManagerDocumentFileType selectedFileType = pendingDocumentFileType;
-        pendingDocumentFileType = null;
-        if (fileUri == null || selectedFileType == null) {
-            return;
-        }
-        if (currentUser == null) {
-            showAuthState();
+        ManagerDocumentRegistrationViewModel.PendingDocumentSelection selection =
+                viewModel.consumePendingDocumentSelection();
+        if (fileUri == null || selection == null) {
             return;
         }
 
-        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(selectedFileType);
+        String fileTypeError = ManagerDocumentUploadPolicy.validateFileType(
+                selection.getFileType()
+        );
         if (!TextUtils.isEmpty(fileTypeError)) {
             Toast.makeText(this, fileTypeError, Toast.LENGTH_SHORT).show();
             return;
         }
 
         persistDocumentReadPermission(fileUri);
-        setLoading(true);
-        managerDocumentStorageUploader.uploadDocument(
-                currentUser.getId(),
-                selectedFileType,
-                fileUri,
-                new RepositoryCallback<ManagerDocumentFileMetadata>() {
-                    @Override
-                    public void onSuccess(ManagerDocumentFileMetadata result) {
-                        saveDraftDocumentFile(selectedFileType, result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        setLoading(false);
-                        Toast.makeText(ManagerDocumentRegistrationActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
-    private void openDocumentPreview(ManagerDocumentFileMetadata metadata) {
-        setLoading(true);
-        managerDocumentPreviewResolver.resolvePreviewUri(
-                metadata,
-                new RepositoryCallback<Uri>() {
-                    @Override
-                    public void onSuccess(Uri result) {
-                        setLoading(false);
-                        if (!DocumentPreviewLauncher.open(
-                                ManagerDocumentRegistrationActivity.this,
-                                result,
-                                metadata.getContentType()
-                        )) {
-                            Toast.makeText(
-                                    ManagerDocumentRegistrationActivity.this,
-                                    R.string.manager_document_preview_open_failed,
-                                    Toast.LENGTH_SHORT
-                            ).show();
-                        }
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        setLoading(false);
-                        Toast.makeText(
-                                ManagerDocumentRegistrationActivity.this,
-                                message,
-                                Toast.LENGTH_SHORT
-                        ).show();
-                    }
-                }
-        );
+        if (!viewModel.uploadDocument(
+                selection.getManagerUserId(),
+                selection.getFileType(),
+                fileUri
+        )) {
+            showOperationInProgressMessage();
+        }
     }
 
     @Nullable
@@ -268,42 +289,10 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         }
     }
 
-    private void saveDraftDocumentFile(
-            ManagerDocumentFileType fileType,
-            ManagerDocumentFileMetadata documentFileMetadata
-    ) {
-        if (currentUser == null) {
-            setLoading(false);
-            showAuthState();
+    private void submitRegistrationRequest() {
+        if (operationInFlight) {
             return;
         }
-        managerRepository.saveManagerDocumentDraftFileMetadata(
-                currentUser.getId(),
-                documentFileMetadata,
-                new RepositoryCallback<ManagerHomeProfile>() {
-                    @Override
-                    public void onSuccess(ManagerHomeProfile result) {
-                        Toast.makeText(
-                                ManagerDocumentRegistrationActivity.this,
-                                getString(
-                                        R.string.manager_document_registration_upload_saved,
-                                        getDocumentTypeLabel(fileType)
-                                ),
-                                Toast.LENGTH_SHORT
-                        ).show();
-                        loadOverview();
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        setLoading(false);
-                        Toast.makeText(ManagerDocumentRegistrationActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
-    private void submitRegistrationRequest() {
         if (currentUser == null || currentOverview == null) {
             showAuthState();
             return;
@@ -329,28 +318,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
             return;
         }
 
-        setLoading(true);
-        managerRepository.saveManagerDocumentSummary(
-                currentUser.getId(),
-                summary,
-                new RepositoryCallback<ManagerHomeProfile>() {
-                    @Override
-                    public void onSuccess(ManagerHomeProfile result) {
-                        Toast.makeText(
-                                ManagerDocumentRegistrationActivity.this,
-                                R.string.manager_document_registration_request_success,
-                                Toast.LENGTH_SHORT
-                        ).show();
-                        loadOverview();
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        setLoading(false);
-                        Toast.makeText(ManagerDocumentRegistrationActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
+        if (!viewModel.submitRegistration(currentUser.getId(), summary)) {
+            showOperationInProgressMessage();
+        }
     }
 
     private void loadScreen() {
@@ -359,6 +329,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
+                if (!isActivityUsable()) {
+                    return;
+                }
                 if (AuthFlowRouter.requiresProfileCompletion(result)) {
                     openProfileCompletion();
                     return;
@@ -374,6 +347,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
 
             @Override
             public void onError(String message) {
+                if (!isActivityUsable()) {
+                    return;
+                }
                 setLoading(false);
                 showAuthState();
             }
@@ -391,7 +367,14 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
                 new RepositoryCallback<ManagerDocumentOverview>() {
                     @Override
                     public void onSuccess(ManagerDocumentOverview result) {
+                        if (!isActivityUsable()) {
+                            return;
+                        }
                         currentOverview = result;
+                        viewModel.reconcileRecoveredSubmission(
+                                currentUser.getId(),
+                                result.getProfile()
+                        );
                         setLoading(false);
                         hideBlockingState();
                         contentContainer.setVisibility(View.VISIBLE);
@@ -405,6 +388,9 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
 
                     @Override
                     public void onError(String message) {
+                        if (!isActivityUsable()) {
+                            return;
+                        }
                         setLoading(false);
                         showLoadErrorState(message);
                     }
@@ -413,7 +399,150 @@ public class ManagerDocumentRegistrationActivity extends AppCompatActivity
     }
 
     private void setLoading(boolean loading) {
-        progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+        screenLoading = loading;
+        updateProgressVisibility();
+    }
+
+    private void setOperationInFlight(boolean inFlight) {
+        operationInFlight = inFlight;
+        updateProgressVisibility();
+        buttonBack.setEnabled(!inFlight);
+        buttonClose.setEnabled(!inFlight);
+        buttonSkip.setEnabled(!inFlight);
+        buttonBack.setAlpha(inFlight ? 0.45f : 1f);
+        buttonClose.setAlpha(inFlight ? 0.45f : 1f);
+        buttonSkip.setAlpha(inFlight ? 0.45f : 1f);
+        binder.setInteractionsEnabled(!inFlight);
+    }
+
+    private void updateProgressVisibility() {
+        progressBar.setVisibility(
+                screenLoading || operationInFlight ? View.VISIBLE : View.GONE
+        );
+    }
+
+    private void requestExit() {
+        if (operationInFlight) {
+            showOperationInProgressMessage();
+            return;
+        }
+        finish();
+    }
+
+    private void showOperationInProgressMessage() {
+        Toast.makeText(
+                this,
+                R.string.manager_document_registration_operation_in_progress,
+                Toast.LENGTH_SHORT
+        ).show();
+    }
+
+    private void dispatchOperationEvent(
+            @Nullable ManagerDocumentRegistrationViewModel.UiEvent event
+    ) {
+        if (event == null
+                || !isActivityUsable()
+                || !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+            return;
+        }
+        ManagerDocumentRegistrationViewModel.UiEvent consumedEvent = event.consume();
+        if (consumedEvent == null) {
+            return;
+        }
+
+        if (consumedEvent.getType()
+                == ManagerDocumentRegistrationViewModel.EventType.UPLOAD_SAVED) {
+            applyLatestProfile(consumedEvent.getLatestProfile());
+            ManagerDocumentFileType fileType = consumedEvent.getFileType();
+            if (fileType != null) {
+                Toast.makeText(
+                        this,
+                        getString(
+                                R.string.manager_document_registration_upload_saved,
+                                getDocumentTypeLabel(fileType)
+                        ),
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            loadOverview();
+            return;
+        }
+
+        if (consumedEvent.getType()
+                == ManagerDocumentRegistrationViewModel.EventType.PREVIEW_READY) {
+            Uri previewUri = consumedEvent.getPreviewUri();
+            if (previewUri == null || !DocumentPreviewLauncher.open(
+                    this,
+                    previewUri,
+                    consumedEvent.getContentType()
+            )) {
+                Toast.makeText(
+                        this,
+                        R.string.manager_document_preview_open_failed,
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+            return;
+        }
+
+        if (consumedEvent.getType()
+                == ManagerDocumentRegistrationViewModel.EventType.SUBMISSION_SUCCEEDED) {
+            loadOverview();
+            return;
+        }
+
+        if (!TextUtils.isEmpty(consumedEvent.getMessage())) {
+            Toast.makeText(this, consumedEvent.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleUiState(
+            @Nullable ManagerDocumentRegistrationViewModel.UiEvent event
+    ) {
+        dispatchOperationEvent(event);
+        showCompletionDialogIfNeeded();
+    }
+
+    private void applyLatestProfile(@Nullable ManagerHomeProfile latestProfile) {
+        if (latestProfile == null || currentOverview == null) {
+            return;
+        }
+        currentOverview = new ManagerDocumentOverview(
+                currentOverview.getManager(),
+                latestProfile,
+                currentOverview.getHistoryEntries()
+        );
+        binder.bindScreen(
+                coordinator.createScreenModel(
+                        currentOverview,
+                        managerRepository.isFirebaseBacked()
+                )
+        );
+    }
+
+    private void showCompletionDialogIfNeeded() {
+        if (!isActivityUsable()
+                || !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)
+                || getSupportFragmentManager().isStateSaved()) {
+            return;
+        }
+        boolean dialogAlreadyAdded = getSupportFragmentManager().findFragmentByTag(
+                ManagerQualificationCompletionDialog.TAG
+        ) != null;
+        if (!completionDialogGate.tryEnqueue(
+                viewModel.isCompletionPending(),
+                dialogAlreadyAdded
+        )) {
+            return;
+        }
+        new ManagerQualificationCompletionDialog().show(
+                getSupportFragmentManager(),
+                ManagerQualificationCompletionDialog.TAG
+        );
+    }
+
+    private boolean isActivityUsable() {
+        return !isFinishing() && !isDestroyed();
     }
 
     private void showPermissionState() {

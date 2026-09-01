@@ -329,6 +329,7 @@ dependencies {
     debugImplementation(libs.firebase.appcheck.debug)
     testImplementation(libs.junit4)
     testImplementation(libs.json.test)
+    testImplementation(libs.arch.core.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.espresso.core)
 }

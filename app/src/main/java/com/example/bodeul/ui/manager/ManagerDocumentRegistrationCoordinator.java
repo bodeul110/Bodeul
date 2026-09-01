@@ -70,7 +70,6 @@ public final class ManagerDocumentRegistrationCoordinator {
         if (!hasRequiredFiles(profile)) {
             return "";
         }
-
         ManagerDocumentFileType qualificationType = isUploaded(
                 profile.getDocumentFile(ManagerDocumentFileType.NURSING_LICENSE)
         ) ? ManagerDocumentFileType.NURSING_LICENSE : ManagerDocumentFileType.LICENSE;

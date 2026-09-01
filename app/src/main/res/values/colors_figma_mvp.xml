@@ -15,4 +15,14 @@
     <color name="figma_mvp_patient_icon_background">#FEB64C</color>
     <color name="figma_mvp_kakao">#FEE500</color>
     <color name="figma_mvp_naver">#03C75A</color>
+    <color name="figma_mvp_hero_content">#CCFFFFFF</color>
+    <color name="figma_mvp_hero_overlay">#1AFFFFFF</color>
+    <color name="figma_mvp_hero_action_text">#291800</color>
+    <color name="figma_mvp_icon_blue_background">#EFF6FF</color>
+    <color name="figma_mvp_icon_yellow_background">#FFF7ED</color>
+    <color name="figma_mvp_icon_purple_background">#EEF2FF</color>
+    <color name="figma_mvp_icon_green_background">#F0FDF4</color>
+    <color name="figma_mvp_nav_inactive">#64748B</color>
+    <color name="figma_mvp_gold_text">#835500</color>
+    <color name="figma_mvp_card_outline">#1AC3C6D4</color>
 </resources>

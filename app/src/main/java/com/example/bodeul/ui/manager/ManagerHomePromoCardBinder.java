@@ -2,6 +2,7 @@ package com.example.bodeul.ui.manager;
 
 import android.content.Context;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
@@ -19,14 +20,13 @@ public final class ManagerHomePromoCardBinder {
     }
 
     public void bind(View itemView, ManagerHomePromoCardModel promoCardModel) {
-        View bannerView = itemView.findViewById(R.id.viewManagerPromoBanner);
+        ImageView bannerView = itemView.findViewById(R.id.imageManagerPromoBanner);
         TextView badgeView = itemView.findViewById(R.id.textManagerPromoBadge);
         TextView titleView = itemView.findViewById(R.id.textManagerPromoTitle);
         TextView bodyView = itemView.findViewById(R.id.textManagerPromoBody);
 
-        bannerView.setBackgroundResource(promoCardModel.getBannerBackgroundResId());
+        bannerView.setImageResource(promoCardModel.getBannerBackgroundResId());
         badgeView.setText(promoCardModel.getBadgeText());
-        badgeView.setBackgroundResource(promoCardModel.getBadgeBackgroundResId());
         badgeView.setTextColor(ContextCompat.getColor(context, promoCardModel.getBadgeTextColorResId()));
         titleView.setText(promoCardModel.getTitleText());
         bodyView.setText(promoCardModel.getBodyText());

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="figma_manager_qualification_privacy_card">#4DFFDDB4</color>
+    <color name="figma_manager_qualification_privacy_icon">#FFFFD27A</color>
+    <color name="figma_manager_qualification_upload_icon">#FFF2F5FA</color>
+    <color name="figma_manager_qualification_privacy_badge_bg">#FFFFE9E9</color>
+    <color name="figma_manager_qualification_privacy_badge_text">#FFC13B3B</color>
+    <color name="figma_manager_qualification_upload_outline">#FFD9DEE8</color>
+</resources>
