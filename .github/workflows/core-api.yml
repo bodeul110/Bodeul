@@ -159,3 +159,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: bash db/verification/verify_companion_completion_migration.sh
+
+      - name: 무통장입금 V22 상태, 권한, 멱등성과 fail-closed rollback 검증
+        env:
+          PGPASSWORD: postgres
+        run: bash db/verification/verify_bank_transfer_payment_migration.sh

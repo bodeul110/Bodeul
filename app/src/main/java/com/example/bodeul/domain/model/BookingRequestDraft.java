@@ -177,7 +177,7 @@ public final class BookingRequestDraft {
         private BookingMobilitySupport mobilitySupport = BookingMobilitySupport.INDEPENDENT;
         private BookingTripType tripType = BookingTripType.ONE_WAY;
         private BookingManagerGenderPreference managerGenderPreference = BookingManagerGenderPreference.ANY;
-        private BookingPaymentMethod paymentMethod = BookingPaymentMethod.CARD;
+        private BookingPaymentMethod paymentMethod = BookingPaymentMethod.UNKNOWN;
         private BookingCouponType couponType = BookingCouponType.NONE;
         private BookingPriceSummary priceSummary = BookingPriceSummary.empty();
         private BookingPaymentApproval paymentApproval = BookingPaymentApproval.empty();
@@ -262,7 +262,7 @@ public final class BookingRequestDraft {
         }
 
         public Builder paymentMethod(BookingPaymentMethod paymentMethod) {
-            this.paymentMethod = paymentMethod == null ? BookingPaymentMethod.CARD : paymentMethod;
+            this.paymentMethod = paymentMethod == null ? BookingPaymentMethod.UNKNOWN : paymentMethod;
             return this;
         }
 

@@ -97,6 +97,27 @@ final class AppointmentException extends RuntimeException {
                 "다른 변경이 먼저 반영되었습니다. 최신 예약 정보를 다시 확인해 주세요.");
     }
 
+    static AppointmentException idempotencyConflict() {
+        return new AppointmentException(
+                HttpStatus.CONFLICT,
+                "appointment_idempotency_conflict",
+                "같은 clientRequestId를 다른 예약 내용으로 다시 사용할 수 없습니다.");
+    }
+
+    static AppointmentException bankTransferTermsConflict() {
+        return new AppointmentException(
+                HttpStatus.CONFLICT,
+                "bank_transfer_terms_conflict",
+                "무통장입금 예약의 결제수단과 입금액은 생성 후 변경할 수 없습니다.");
+    }
+
+    static AppointmentException paymentOperationConflict() {
+        return new AppointmentException(
+                HttpStatus.CONFLICT,
+                "payment_operation_conflict",
+                "같은 결제 작업 ID를 다른 내용으로 다시 사용할 수 없습니다.");
+    }
+
     static AppointmentException publicCodeUnavailable() {
         return new AppointmentException(
                 HttpStatus.SERVICE_UNAVAILABLE,

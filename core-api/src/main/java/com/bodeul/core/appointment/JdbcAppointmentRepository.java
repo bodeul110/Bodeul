@@ -125,6 +125,22 @@ class JdbcAppointmentRepository implements AppointmentRepository {
     }
 
     @Override
+    public Optional<String> findCreateRequestFingerprint(UUID appointmentId) {
+        List<String> fingerprints = jdbcTemplate.query(
+                """
+                select create_request_fingerprint
+                from bodeul.appointment_requests
+                where id = :appointmentId
+                limit 1
+                """,
+                new MapSqlParameterSource("appointmentId", appointmentId),
+                (resultSet, rowNumber) -> resultSet.getString("create_request_fingerprint"));
+        return fingerprints.isEmpty()
+                ? Optional.empty()
+                : Optional.ofNullable(fingerprints.getFirst());
+    }
+
+    @Override
     public boolean hasCareEnded(UUID appointmentId) {
         String sql = """
                 select exists (
@@ -141,10 +157,14 @@ class JdbcAppointmentRepository implements AppointmentRepository {
     }
 
     @Override
-    public Optional<AppointmentRecord> insert(AppointmentMutation mutation, String publicCode) {
+    public Optional<AppointmentRecord> insert(
+            AppointmentMutation mutation,
+            String publicCode,
+            String createRequestFingerprint) {
         String sql = """
                 insert into bodeul.appointment_requests (
                     client_request_id,
+                    create_request_fingerprint,
                     public_code,
                     patient_user_id,
                     guardian_user_id,
@@ -187,6 +207,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     updated_at
                 ) values (
                     :clientRequestId,
+                    :createRequestFingerprint,
                     :publicCode,
                     :patientUserId,
                     :guardianUserId,
@@ -231,7 +252,11 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 on conflict do nothing
                 returning
                 """ + RETURNING_COLUMNS;
-        return queryOne(sql, parameters(mutation).addValue("publicCode", publicCode));
+        return queryOne(
+                sql,
+                parameters(mutation)
+                        .addValue("publicCode", publicCode)
+                        .addValue("createRequestFingerprint", createRequestFingerprint));
     }
 
     @Override
@@ -269,14 +294,26 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     final_price = :finalPrice,
                     payment_method_code = :paymentMethodCode,
                     coupon_code = :couponCode,
-                    payment_status_code = :paymentStatusCode,
-                    payment_approval_code = '',
-                    payment_approved_at = null,
-                    payment_provider_label = '',
+                    payment_status_code = case
+                        when payment_method_code = 'BANK_TRANSFER' then payment_status_code
+                        else :paymentStatusCode
+                    end,
+                    payment_approval_code = case
+                        when payment_method_code = 'BANK_TRANSFER' then payment_approval_code
+                        else ''
+                    end,
+                    payment_approved_at = case
+                        when payment_method_code = 'BANK_TRANSFER' then payment_approved_at
+                        else null
+                    end,
+                    payment_provider_label = case
+                        when payment_method_code = 'BANK_TRANSFER' then payment_provider_label
+                        else ''
+                    end,
                     updated_at = now(),
                     version = version + 1
                 where id = :appointmentId
-                  and status in ('REQUESTED', 'MATCHED')
+                  and status = 'REQUESTED'
                   and version = :expectedVersion
                 returning
                 """ + RETURNING_COLUMNS;
@@ -296,13 +333,13 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 where id = :appointmentId
                   and status in ('REQUESTED', 'MATCHED')
                   and version = :expectedVersion
-                returning
-                """ + RETURNING_COLUMNS;
-        return queryOne(
+                """;
+        int updated = jdbcTemplate.update(
                 sql,
                 new MapSqlParameterSource()
                         .addValue("appointmentId", appointmentId)
                         .addValue("expectedVersion", expectedVersion));
+        return updated == 1 ? findById(appointmentId) : Optional.empty();
     }
 
     @Override

@@ -36,6 +36,8 @@ class DefaultAccountDeletionReadinessServiceTests {
         assertThat(result.sources().getFirst().counts())
                 .containsEntry("appointments", 4L)
                 .containsEntry("activeAppointments", 2L)
+                .containsEntry("bankTransferPayments", 5L)
+                .containsEntry("paymentEvents", 6L)
                 .doesNotContainKey("activeLegalHolds");
         assertThat(result.sources().get(1).source())
                 .isEqualTo(AccountDeletionReadinessService.Source.FIRESTORE);
@@ -213,6 +215,8 @@ class DefaultAccountDeletionReadinessServiceTests {
                 2,
                 1,
                 4,
-                legalHoldCount);
+                legalHoldCount,
+                5,
+                6);
     }
 }

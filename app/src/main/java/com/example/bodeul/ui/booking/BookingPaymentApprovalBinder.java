@@ -59,5 +59,8 @@ public final class BookingPaymentApprovalBinder {
         textMeetingPlace.setText(screenModel.getMeetingPlace());
         checkConsent.setText(screenModel.getConsentText());
         buttonApprove.setText(screenModel.getApprovalButtonText());
+        checkConsent.setChecked(false);
+        checkConsent.setEnabled(screenModel.isConfirmable());
+        buttonApprove.setEnabled(screenModel.isConfirmable());
     }
 }

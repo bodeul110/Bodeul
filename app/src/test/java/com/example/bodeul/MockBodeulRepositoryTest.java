@@ -43,6 +43,7 @@ import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingManagerGenderPreference;
 import com.example.bodeul.domain.model.BookingMobilitySupport;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
+import com.example.bodeul.domain.model.BookingPaymentApproval;
 import com.example.bodeul.domain.model.BookingPriceSummary;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.BookingTripType;
@@ -195,6 +196,71 @@ public class MockBodeulRepositoryTest {
                 UserRole.PATIENT
         );
         assertEquals(created.getId(), requests.get(0).getId());
+    }
+
+    @Test
+    public void createAppointmentRequest_bankTransferKeepsSyntheticPendingEvidenceEmpty() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+
+        assertNotNull(patient);
+
+        BookingRequestDraft bankTransferDraft = createDraft(
+                "bank-hospital",
+                "internal",
+                "2026-09-03 10:30",
+                "main-lobby",
+                "guardian-bank",
+                "01012345678",
+                ""
+        ).toBuilder()
+                .paymentMethod(BookingPaymentMethod.BANK_TRANSFER)
+                .paymentApproval(BookingPaymentApproval.simulated("MVP 무통장입금 합성 안내"))
+                .build();
+
+        AppointmentRequest created = repository.createAppointmentRequest(patient, bankTransferDraft);
+
+        assertNotNull(created);
+        assertEquals("BANK_TRANSFER", created.getPaymentMethodCode());
+        assertEquals("PENDING", created.getPaymentStatusCode());
+        assertEquals("", created.getPaymentApprovalCode());
+        assertEquals("", created.getPaymentApprovedAt());
+    }
+
+    @Test
+    public void createAndUpdateAppointmentRequest_unknownPaymentMethodFailClosed() {
+        MockBodeulRepository repository = new MockBodeulRepository();
+        User patient = repository.findUserByEmail("patient@bodeul.app");
+
+        assertNotNull(patient);
+
+        BookingRequestDraft validDraft = createDraft(
+                "valid-hospital",
+                "internal",
+                "2026-09-04 11:00",
+                "main-lobby",
+                "guardian-valid",
+                "01087654321",
+                ""
+        );
+        BookingRequestDraft unknownDraft = validDraft.toBuilder()
+                .paymentMethod(BookingPaymentMethod.UNKNOWN)
+                .build();
+
+        assertNull(repository.createAppointmentRequest(patient, unknownDraft));
+
+        AppointmentRequest created = repository.createAppointmentRequest(patient, validDraft);
+        assertNotNull(created);
+        assertNull(repository.updateAppointmentRequest(patient, created.getId(), unknownDraft));
+        AppointmentRequest persisted = repository.getAppointmentRequestsForUser(
+                        patient.getId(),
+                        UserRole.PATIENT
+                ).stream()
+                .filter(request -> created.getId().equals(request.getId()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(persisted);
+        assertEquals("valid-hospital", persisted.getHospitalName());
     }
 
     @Test

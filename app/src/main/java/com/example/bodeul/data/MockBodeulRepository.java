@@ -24,6 +24,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingRequestDraft;
+import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.ClientSupportCategory;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.ClientSupportStatus;
@@ -1021,6 +1022,9 @@ public class MockBodeulRepository implements BodeulRepository {
             User currentUser,
             BookingRequestDraft bookingRequestDraft
     ) {
+        if (!hasSelectablePaymentMethod(bookingRequestDraft)) {
+            return null;
+        }
         if (currentUser.getRole() != UserRole.PATIENT && currentUser.getRole() != UserRole.GUARDIAN) {
             return null;
         }
@@ -1098,6 +1102,9 @@ public class MockBodeulRepository implements BodeulRepository {
             String requestId,
             BookingRequestDraft bookingRequestDraft
     ) {
+        if (!hasSelectablePaymentMethod(bookingRequestDraft)) {
+            return null;
+        }
         if (currentUser.getRole() != UserRole.PATIENT && currentUser.getRole() != UserRole.GUARDIAN) {
             return null;
         }
@@ -1174,6 +1181,14 @@ public class MockBodeulRepository implements BodeulRepository {
         int requestIndex = appointmentRequests.indexOf(existingRequest);
         appointmentRequests.set(requestIndex, updatedRequest);
         return updatedRequest;
+    }
+
+    private boolean hasSelectablePaymentMethod(@Nullable BookingRequestDraft bookingRequestDraft) {
+        if (bookingRequestDraft == null) {
+            return false;
+        }
+        BookingPaymentMethod paymentMethod = bookingRequestDraft.getPaymentMethod();
+        return paymentMethod != null && paymentMethod.isSelectableForRequest();
     }
 
     @Nullable

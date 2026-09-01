@@ -27,6 +27,7 @@ import com.example.bodeul.domain.model.AdminDashboard;
 import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
+import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.HospitalGuide;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
@@ -604,6 +605,15 @@ public class AdminActivity extends AppCompatActivity {
         if (currentUser == null || loading) {
             return;
         }
+        AppointmentRequest request = findAppointmentRequest(requestId);
+        if (!AdminSettlementActionPolicy.canUseLegacyFirestoreAction(request)) {
+            Toast.makeText(
+                    this,
+                    R.string.admin_settlement_server_managed_action_blocked,
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
         View dialogView = LayoutInflater.from(this).inflate(
                 R.layout.dialog_admin_document_review,
                 null,
@@ -639,6 +649,24 @@ public class AdminActivity extends AppCompatActivity {
                     saveSettlementRecord(requestId, status, note);
                 }));
         dialog.show();
+    }
+
+    @Nullable
+    private AppointmentRequest findAppointmentRequest(String requestId) {
+        if (adminDashboardSnapshot == null || TextUtils.isEmpty(requestId)) {
+            return null;
+        }
+        for (AdminRequestOverview overview : adminDashboardSnapshot.getPendingRequests()) {
+            if (requestId.equals(overview.getAppointmentRequest().getId())) {
+                return overview.getAppointmentRequest();
+            }
+        }
+        for (AdminRequestOverview overview : adminDashboardSnapshot.getManagedRequests()) {
+            if (requestId.equals(overview.getAppointmentRequest().getId())) {
+                return overview.getAppointmentRequest();
+            }
+        }
+        return null;
     }
 
     private void saveSettlementRecord(

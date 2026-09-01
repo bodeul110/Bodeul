@@ -7,6 +7,7 @@ import androidx.annotation.Nullable;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
+import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 
 import org.json.JSONArray;
@@ -296,6 +297,10 @@ final class CoreApiAppointmentClient {
         if (draft == null) {
             throw new JSONException("예약 입력값이 없습니다.");
         }
+        BookingPaymentMethod paymentMethod = draft.getPaymentMethod();
+        if (paymentMethod == null || !paymentMethod.isSelectableForRequest()) {
+            throw new JSONException("결제 수단을 다시 선택해 주세요.");
+        }
         JSONObject body = new JSONObject();
         body.put("linkedParticipantName", draft.getLinkedParticipantName());
         body.put("linkedParticipantPhone", draft.getLinkedParticipantPhone());
@@ -312,7 +317,7 @@ final class CoreApiAppointmentClient {
         body.put("mobilitySupportCode", draft.getMobilitySupport().name());
         body.put("tripTypeCode", draft.getTripType().name());
         body.put("managerGenderPreferenceCode", draft.getManagerGenderPreference().name());
-        body.put("paymentMethodCode", draft.getPaymentMethod().name());
+        body.put("paymentMethodCode", paymentMethod.name());
         body.put("couponCode", draft.getCouponType().name());
         return body;
     }

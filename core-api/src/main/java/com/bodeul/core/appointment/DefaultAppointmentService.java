@@ -130,13 +130,22 @@ class DefaultAppointmentService implements AppointmentService {
         }
 
         NormalizedDraft draft = normalizeDraft(command.draft());
+        String createRequestFingerprint = AppointmentCreateFingerprint.from(
+                toCreateFingerprintRequest(
+                        appUser,
+                        command.clientRequestId(),
+                        draft));
         var existing = appointmentRepository.findByClientRequestId(
                 appUser.id(),
                 command.clientRequestId());
         if (existing.isPresent()) {
+            requireIdempotentCreateFingerprintMatches(
+                    existing.get().id(),
+                    createRequestFingerprint);
             return toViewForReader(appUser, existing.get());
         }
 
+        requireFutureAppointment(draft);
         ParticipantPair participants = resolveParticipants(appUser, draft);
         Price price = calculatePrice(draft);
         AppointmentMutation mutation = toMutation(
@@ -148,7 +157,10 @@ class DefaultAppointmentService implements AppointmentService {
                 price);
 
         for (int attempt = 0; attempt < PUBLIC_CODE_MAX_ATTEMPTS; attempt++) {
-            var inserted = appointmentRepository.insert(mutation, publicCodeSupplier.get());
+            var inserted = appointmentRepository.insert(
+                    mutation,
+                    publicCodeSupplier.get(),
+                    createRequestFingerprint);
             if (inserted.isPresent()) {
                 return toViewForReader(appUser, inserted.get());
             }
@@ -156,6 +168,9 @@ class DefaultAppointmentService implements AppointmentService {
             var idempotentResult = appointmentRepository.findByClientRequestId(
                     appUser.id(), command.clientRequestId());
             if (idempotentResult.isPresent()) {
+                requireIdempotentCreateFingerprintMatches(
+                        idempotentResult.get().id(),
+                        createRequestFingerprint);
                 return toViewForReader(appUser, idempotentResult.get());
             }
         }
@@ -186,9 +201,17 @@ class DefaultAppointmentService implements AppointmentService {
         }
 
         NormalizedDraft draft = normalizeDraft(command.draft());
+        requireFutureAppointment(draft);
         ParticipantPair participants = resolveParticipants(appUser, draft);
         requireRequesterLink(existing, participants);
         Price price = calculatePrice(draft);
+        if ("BANK_TRANSFER".equals(existing.paymentMethodCode())
+                || "BANK_TRANSFER".equals(draft.paymentMethodCode())) {
+            if (!existing.paymentMethodCode().equals(draft.paymentMethodCode())
+                    || existing.finalPrice() != price.finalPrice()) {
+                throw AppointmentException.bankTransferTermsConflict();
+            }
+        }
         ParticipantSnapshot requester = existing.requesterRole() == AppUserRole.PATIENT
                 ? participants.patient()
                 : participants.guardian();
@@ -518,9 +541,6 @@ class DefaultAppointmentService implements AppointmentService {
         String meetingPlace = requireText(draft.meetingPlace(), "만남 장소", 300);
         String appointmentAtText = requireText(draft.appointmentAt(), "예약 일시", 16);
         Instant appointmentAt = parseAppointmentAt(appointmentAtText);
-        if (!appointmentAt.isAfter(clock.instant())) {
-            throw AppointmentException.invalidRequest("예약 일시는 현재보다 이후여야 합니다.");
-        }
         if (!Double.isFinite(draft.hospitalLatitude())
                 || !Double.isFinite(draft.hospitalLongitude())
                 || draft.hospitalLatitude() < -90 || draft.hospitalLatitude() > 90
@@ -563,12 +583,56 @@ class DefaultAppointmentService implements AppointmentService {
                 coupon);
     }
 
+    private void requireFutureAppointment(NormalizedDraft draft) {
+        if (!draft.appointmentAt().isAfter(clock.instant())) {
+            throw AppointmentException.invalidRequest("예약 일시는 현재보다 이후여야 합니다.");
+        }
+    }
+
     private Price calculatePrice(NormalizedDraft draft) {
         int optionSurcharge = MobilitySupport.valueOf(draft.mobilitySupportCode()).surcharge
                 + TripType.valueOf(draft.tripTypeCode()).surcharge;
         int subtotal = BASE_PRICE + optionSurcharge;
         int discount = Math.min(subtotal, Coupon.valueOf(draft.couponCode()).discount);
         return new Price(BASE_PRICE, optionSurcharge, discount, subtotal - discount);
+    }
+
+    private void requireIdempotentCreateFingerprintMatches(
+            UUID appointmentId,
+            String createRequestFingerprint) {
+        String storedFingerprint = appointmentRepository
+                .findCreateRequestFingerprint(appointmentId)
+                .orElseThrow(AppointmentException::idempotencyConflict);
+        if (!storedFingerprint.equals(createRequestFingerprint)) {
+            throw AppointmentException.idempotencyConflict();
+        }
+    }
+
+    private AppointmentCreateFingerprint.CreateRequest toCreateFingerprintRequest(
+            AppUserRepository.AppUser appUser,
+            UUID clientRequestId,
+            NormalizedDraft draft) {
+        return new AppointmentCreateFingerprint.CreateRequest(
+                appUser.id(),
+                appUser.role(),
+                clientRequestId,
+                draft.linkedParticipantName(),
+                draft.linkedParticipantPhone(),
+                draft.linkedParticipantEmail(),
+                draft.patientConditionSummary(),
+                draft.medicationSummary(),
+                draft.hospitalName(),
+                draft.departmentName(),
+                draft.hospitalLatitude(),
+                draft.hospitalLongitude(),
+                draft.appointmentAt(),
+                draft.meetingPlace(),
+                draft.specialNotes(),
+                draft.mobilitySupportCode(),
+                draft.tripTypeCode(),
+                draft.managerGenderPreferenceCode(),
+                draft.paymentMethodCode(),
+                draft.couponCode());
     }
 
     private AppointmentMutation toMutation(
@@ -628,7 +692,11 @@ class DefaultAppointmentService implements AppointmentService {
                 price.finalPrice(),
                 draft.paymentMethodCode(),
                 draft.couponCode(),
-                "ON_SITE".equals(draft.paymentMethodCode()) ? "DEFERRED" : "PENDING");
+                switch (draft.paymentMethodCode()) {
+                    case "ON_SITE" -> "DEFERRED";
+                    case "BANK_TRANSFER" -> "AWAITING_DEPOSIT";
+                    default -> "PENDING";
+                });
     }
 
     private AppointmentView toViewForReader(
@@ -843,7 +911,8 @@ class DefaultAppointmentService implements AppointmentService {
     private enum PaymentMethod {
         CARD,
         EASY_PAY,
-        ON_SITE
+        ON_SITE,
+        BANK_TRANSFER
     }
 
     private enum Coupon {

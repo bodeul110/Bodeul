@@ -20,6 +20,8 @@ interface AccountDeletionImpactRepository {
             long relatedChatAttachmentCount,
             long relatedChatReadReceiptCount,
             long relatedLocationCount,
-            long activeLegalHoldCount) {
+            long activeLegalHoldCount,
+            long bankTransferPaymentCount,
+            long paymentEventCount) {
     }
 }
