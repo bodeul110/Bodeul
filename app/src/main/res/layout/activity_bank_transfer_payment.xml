@@ -347,7 +347,8 @@
                             android:id="@+id/inputBankTransferDepositor"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="textPersonName"
+                            android:imeOptions="flagNoPersonalizedLearning"
+                            android:inputType="textPersonName|textNoSuggestions"
                             android:maxLength="100"
                             android:maxLines="1"
                             android:saveEnabled="false" />

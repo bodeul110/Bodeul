@@ -40,6 +40,7 @@
 - 알 수 없는 수단과 잘못된 금액·예약 ID·버전은 실패 처리한다. 새 결제 상태는 `UNKNOWN`으로 표시하고 변경 기능을 잠근다.
 - 계좌 안내가 비활성화된 동안 송금하지 말라는 안내를 표시하고, 예상 금액·입금 기한·실입금액·확인·환불 처리 시각은 서버 응답 범위에서만 보여준다.
 - 화면 재진입 시 이전 사용자 정보를 먼저 지우고 오래된 비동기 응답을 무시한다. 회전과 일시적인 백그라운드 전환 중 저장 전 입금자명은 유지한다.
+- 입금자명 입력은 이름 입력 방식을 유지하면서 키보드 추천 저장과 개인화 학습을 요청 수준에서 비활성화한다.
 
 ### Core API와 PostgreSQL
 
@@ -80,6 +81,7 @@ Firebase Rules, Functions와 별도 `bodeul-admin-web` 저장소는 변경하지
 | `yq e '.' .github/workflows/core-api.yml` | YAML 파싱 통과 |
 | migration 검증기 `bash -n` | 셸 구문 검사 통과 |
 | `git diff --check` | 공백·형식 검사 통과 |
+| debug APK 레이아웃 `aapt2 dump xmltree` | 입금자명 입력에 `textNoSuggestions`와 `flagNoPersonalizedLearning`, 자동 View 상태 저장 차단이 컴파일된 것을 확인 |
 | `.\gradlew.bat lintDebug --console=plain` | 이번 결제 화면·저장소 파일에는 지적이 없으나 기존 `GuardianSharingConsentActivity` 등의 API 26 `java.time` 사용 7건 때문에 전체 lint는 실패 |
 | PR #394 GitHub Actions | `preflight`, `scope`, Android/Core API `check`, CodeQL, Firestore emulator, PostgreSQL `migration-contract` 포함 8개 검사 통과 |
 | `SM-S921N` / Android 16 실기기 | 앱 데이터를 지우지 않고 debug APK를 갱신 설치했다. 기본 카드 선택 유지, 무통장입금 전환, 69,000원 표시, 동의 누락 차단, 합성 접수 완료, `실결제 미연동`, 승인 번호·승인 시각 미생성을 확인했으며 crash/ANR은 없었다. |
