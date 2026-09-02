@@ -15,9 +15,14 @@ interface AppointmentRepository {
 
     Optional<AppointmentRecord> findByClientRequestId(UUID requesterUserId, UUID clientRequestId);
 
+    Optional<String> findCreateRequestFingerprint(UUID appointmentId);
+
     boolean hasCareEnded(UUID appointmentId);
 
-    Optional<AppointmentRecord> insert(AppointmentMutation mutation, String publicCode);
+    Optional<AppointmentRecord> insert(
+            AppointmentMutation mutation,
+            String publicCode,
+            String createRequestFingerprint);
 
     Optional<AppointmentRecord> update(
             UUID appointmentId,

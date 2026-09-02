@@ -46,9 +46,51 @@ class AppointmentApiIntegrationTests {
     @Autowired
     private MutableAppointmentService appointmentService;
 
+    @Autowired
+    private MutableAppointmentPaymentService appointmentPaymentService;
+
     @BeforeEach
     void reset() {
         appointmentService.reset();
+        appointmentPaymentService.reset();
+    }
+
+    @Test
+    void patientCanReadBankTransferPaymentWithoutAccountInstructions() throws Exception {
+        appointmentPaymentService.result = payment();
+
+        mockMvc.perform(get("/api/appointments/{appointmentId}/payment", APPOINTMENT_ID)
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.paymentStatusCode").value("AWAITING_DEPOSIT"))
+                .andExpect(jsonPath("$.expectedAmount").value(96_000))
+                .andExpect(jsonPath("$.instructionAvailable").value(false));
+
+        assertThat(appointmentPaymentService.lastAppointmentId).isEqualTo(APPOINTMENT_ID);
+    }
+
+    @Test
+    void depositorPatchPassesOperationIdAndPaymentVersion() throws Exception {
+        UUID operationId = UUID.fromString("7c0e6412-34bf-47d2-a82d-ddc5f385b17f");
+        appointmentPaymentService.result = payment();
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/payment/depositor", APPOINTMENT_ID)
+                        .header("Authorization", "Bearer valid-token")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "operationId": "%s",
+                                  "paymentVersion": 0,
+                                  "depositorName": "홍길동"
+                                }
+                                """.formatted(operationId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"));
+
+        assertThat(appointmentPaymentService.lastCommand.operationId()).isEqualTo(operationId);
+        assertThat(appointmentPaymentService.lastCommand.paymentVersion()).isZero();
+        assertThat(appointmentPaymentService.lastCommand.depositorName()).isEqualTo("홍길동");
     }
 
     @Test
@@ -268,6 +310,22 @@ class AppointmentApiIntegrationTests {
                 2);
     }
 
+    private AppointmentPaymentService.BankTransferPaymentView payment() {
+        return new AppointmentPaymentService.BankTransferPaymentView(
+                APPOINTMENT_ID,
+                "BANK_TRANSFER",
+                "AWAITING_DEPOSIT",
+                96_000,
+                "",
+                "",
+                null,
+                "",
+                "",
+                "",
+                0,
+                false);
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class AppointmentApiTestConfiguration {
 
@@ -294,6 +352,45 @@ class AppointmentApiIntegrationTests {
         @Bean
         MutableAppointmentService appointmentService() {
             return new MutableAppointmentService();
+        }
+
+        @Bean
+        MutableAppointmentPaymentService appointmentPaymentService() {
+            return new MutableAppointmentPaymentService();
+        }
+    }
+
+    static final class MutableAppointmentPaymentService implements AppointmentPaymentService {
+        private BankTransferPaymentView result;
+        private AppUserRepository.AppUser lastUser;
+        private UUID lastAppointmentId;
+        private SetDepositorCommand lastCommand;
+
+        @Override
+        public BankTransferPaymentView getPayment(
+                AppUserRepository.AppUser appUser,
+                UUID appointmentId) {
+            lastUser = appUser;
+            lastAppointmentId = appointmentId;
+            return result;
+        }
+
+        @Override
+        public BankTransferPaymentView setDepositor(
+                AppUserRepository.AppUser appUser,
+                UUID appointmentId,
+                SetDepositorCommand command) {
+            lastUser = appUser;
+            lastAppointmentId = appointmentId;
+            lastCommand = command;
+            return result;
+        }
+
+        void reset() {
+            result = null;
+            lastUser = null;
+            lastAppointmentId = null;
+            lastCommand = null;
         }
     }
 

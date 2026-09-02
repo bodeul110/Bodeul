@@ -2,6 +2,19 @@ const crypto = require("crypto");
 
 const UUID_NAMESPACE = "8e884ace-2c0f-4a5b-9ddf-2ff3d8efb9d1";
 const TABLE_NAME = "bodeul.appointment_requests";
+const LEGACY_PAYMENT_STATUS_CODES = new Set(["PENDING", "AUTHORIZED", "DEFERRED"]);
+const BANK_TRANSFER_SEED_STATUS_CODES = new Set(["AWAITING_DEPOSIT"]);
+const BANK_TRANSFER_BACKFILL_STATUS_CODES = new Set([
+  "DEPOSIT_CONFIRMED",
+  "REVIEW_REQUIRED",
+  "REFUND_REQUESTED",
+  "REFUNDED",
+  "CANCELED",
+]);
+const BANK_TRANSFER_PAYMENT_STATUS_CODES = new Set([
+  ...BANK_TRANSFER_SEED_STATUS_CODES,
+  ...BANK_TRANSFER_BACKFILL_STATUS_CODES,
+]);
 
 const ALLOWED_VALUES = Object.freeze({
   requester_role: new Set(["PATIENT", "GUARDIAN"]),
@@ -9,9 +22,12 @@ const ALLOWED_VALUES = Object.freeze({
   trip_type_code: new Set(["ONE_WAY", "ROUND_TRIP"]),
   manager_gender_preference_code: new Set(["ANY", "FEMALE", "MALE"]),
   status: new Set(["REQUESTED", "MATCHED", "IN_PROGRESS", "COMPLETED", "CANCELED"]),
-  payment_method_code: new Set(["CARD", "EASY_PAY", "ON_SITE"]),
+  payment_method_code: new Set(["CARD", "EASY_PAY", "ON_SITE", "BANK_TRANSFER"]),
   coupon_code: new Set(["NONE", "FIRST_VISIT", "FAMILY"]),
-  payment_status_code: new Set(["PENDING", "AUTHORIZED", "DEFERRED"]),
+  payment_status_code: new Set([
+    ...LEGACY_PAYMENT_STATUS_CODES,
+    ...BANK_TRANSFER_PAYMENT_STATUS_CODES,
+  ]),
 });
 
 const ROW_COLUMNS = Object.freeze([
@@ -173,6 +189,21 @@ function buildAppointmentRow(document, userIds, errors) {
   if (!Array.isArray(reminderStages)) {
     errors.push(diagnostic(location, "reminderStages", "JSON 배열이 아닙니다."));
   }
+  const paymentMethodCode = requiredAllowedCode(
+      data.paymentMethodCode,
+      location,
+      "paymentMethodCode",
+      "payment_method_code",
+      errors,
+  );
+  const paymentStatusCode = requiredAllowedCode(
+      data.paymentStatusCode,
+      location,
+      "paymentStatusCode",
+      "payment_status_code",
+      errors,
+  );
+  validatePaymentStatusPair(paymentMethodCode, paymentStatusCode, location, errors);
 
   return {
     id: stableUuid("appointment_requests", document.id),
@@ -221,21 +252,9 @@ function buildAppointmentRow(document, userIds, errors) {
     option_surcharge_price: optionSurchargePrice,
     coupon_discount_price: couponDiscountPrice,
     final_price: finalPrice,
-    payment_method_code: requiredAllowedCode(
-        data.paymentMethodCode,
-        location,
-        "paymentMethodCode",
-        "payment_method_code",
-        errors,
-    ),
+    payment_method_code: paymentMethodCode,
     coupon_code: requiredAllowedCode(data.couponCode, location, "couponCode", "coupon_code", errors),
-    payment_status_code: requiredAllowedCode(
-        data.paymentStatusCode,
-        location,
-        "paymentStatusCode",
-        "payment_status_code",
-        errors,
-    ),
+    payment_status_code: paymentStatusCode,
     payment_approval_code: text(data.paymentApprovalCode),
     payment_approved_at: optionalTimestamp(
         data.paymentApprovedAt,
@@ -271,12 +290,21 @@ function buildAppointmentSeedSql(plan, {rollback = false} = {}) {
       lines.push("-- 삭제할 예약 요청이 없습니다.");
     } else {
       const firestoreIds = plan.rows.map((row) => quoteString(row.firestore_id));
+      const bankTransferFirestoreIds = plan.rows
+          .filter((row) => row.payment_method_code === "BANK_TRANSFER")
+          .map((row) => quoteString(row.firestore_id));
+      if (bankTransferFirestoreIds.length > 0) {
+        lines.push(buildBankTransferRollbackSql(bankTransferFirestoreIds));
+        lines.push("");
+      }
       lines.push(`delete from ${TABLE_NAME}`);
       lines.push(`where firestore_id in (${firestoreIds.join(", ")});`);
     }
   } else {
     for (const row of plan.rows) {
-      lines.push(buildUpsert(row));
+      lines.push(row.payment_method_code === "BANK_TRANSFER"
+        ? buildBankTransferInsert(row)
+        : buildNonBankUpsert(row));
       lines.push("");
     }
   }
@@ -286,7 +314,145 @@ function buildAppointmentSeedSql(plan, {rollback = false} = {}) {
   return lines.join("\n");
 }
 
-function buildUpsert(row) {
+function buildNonBankUpsert(row) {
+  const firestoreId = quoteString(row.firestore_id);
+  return [
+    "do $bodeul_non_bank_seed_guard$",
+    "begin",
+    `  perform 1 from ${TABLE_NAME}`,
+    `  where firestore_id = ${firestoreId}`,
+    "    and payment_method_code = 'BANK_TRANSFER'",
+    "  for update;",
+    "  if found then",
+    "    raise exception '기존 무통장입금 예약을 다른 결제수단 seed로 덮어쓸 수 없습니다.'",
+    "      using errcode = '55000';",
+    "  end if;",
+    "end",
+    "$bodeul_non_bank_seed_guard$;",
+    buildUpsertStatement(row),
+  ].join("\n");
+}
+
+function buildBankTransferInsert(row) {
+  const firestoreId = quoteString(row.firestore_id);
+  const matchingRow = buildBankTransferSeedMatch(row);
+  return [
+    "do $bodeul_bank_transfer_seed$",
+    "begin",
+    `  perform 1 from ${TABLE_NAME}`,
+    `  where firestore_id = ${firestoreId}`,
+    "  for update;",
+    "  if found and not (",
+    indentSql(matchingRow, 4),
+    "  ) then",
+    "    raise exception '기존 무통장입금 예약이 seed와 달라 재적용을 중단합니다.'",
+    "      using errcode = '55000';",
+    "  end if;",
+    "",
+    indentSql(buildInsertStatement(row, "on conflict (firestore_id) do nothing"), 2),
+    "",
+    `  perform 1 from ${TABLE_NAME}`,
+    `  where firestore_id = ${firestoreId}`,
+    "  for update;",
+    "  if not found or not (",
+    indentSql(matchingRow, 4),
+    "  ) then",
+    "    raise exception '무통장입금 seed 적용 뒤 예약 projection과 상세 원장이 일치하지 않습니다.'",
+    "      using errcode = '55000';",
+    "  end if;",
+    "end",
+    "$bodeul_bank_transfer_seed$;",
+  ].join("\n");
+}
+
+function buildBankTransferSeedMatch(row) {
+  const firestoreId = quoteString(row.firestore_id);
+  const columnMatches = ROW_COLUMNS.map((column) => (
+    `existing.${quoteIdentifier(column)} is not distinct from ${toSqlLiteral(row[column], column)}`
+  ));
+  return [
+    "exists (",
+    `  select 1 from ${TABLE_NAME} existing`,
+    `  where existing.firestore_id = ${firestoreId}`,
+    ...columnMatches.map((condition) => `    and ${condition}`),
+    "    and exists (",
+    "      select 1",
+    "      from bodeul.appointment_bank_transfer_payments payment",
+    "      where payment.appointment_request_id = existing.id",
+    "        and payment.expected_amount is not distinct from existing.final_price",
+    "    )",
+    ")",
+  ].join("\n");
+}
+
+function buildBankTransferRollbackSql(bankTransferFirestoreIds) {
+  const firestoreIds = bankTransferFirestoreIds.join(", ");
+  const targetSubquery = [
+    `select id from ${TABLE_NAME}`,
+    `where firestore_id in (${firestoreIds})`,
+    "  and payment_method_code = 'BANK_TRANSFER'",
+  ].join("\n");
+  return [
+    "do $bodeul_bank_transfer_rollback_guard$",
+    "declare",
+    "  target record;",
+    "begin",
+    `  for target in select id, firestore_id, payment_method_code, payment_status_code, final_price`,
+    `    from ${TABLE_NAME}`,
+    `    where firestore_id in (${firestoreIds})`,
+    "    for update",
+    "  loop",
+    "    if target.payment_method_code <> 'BANK_TRANSFER' then",
+    "      raise exception 'rollback 대상이 무통장입금 seed 예약과 일치하지 않습니다.'",
+    "        using errcode = '55000';",
+    "    end if;",
+    "    if target.payment_status_code <> 'AWAITING_DEPOSIT'",
+    "        or not exists (",
+    "          select 1 from bodeul.appointment_bank_transfer_payments payment",
+    "          where payment.appointment_request_id = target.id",
+    "            and payment.expected_amount = target.final_price",
+    "            and payment.depositor_name = ''",
+    "            and payment.payment_due_at is null",
+    "            and payment.received_amount is null",
+    "            and payment.confirmed_by_admin_user_id is null",
+    "            and payment.confirmed_at is null",
+    "            and payment.refund_requested_at is null",
+    "            and payment.refunded_at is null",
+    "            and payment.payment_version = 0",
+    "        )",
+    "        or (",
+    "          select count(*) from bodeul.appointment_payment_events event",
+    "          where event.appointment_request_id = target.id",
+    "        ) <> 1",
+    "        or not exists (",
+    "          select 1 from bodeul.appointment_payment_events event",
+    "          where event.appointment_request_id = target.id",
+    "            and event.operation_id is null",
+    "            and event.actor_user_id is null",
+    "            and event.actor_role = 'SYSTEM'",
+    "            and event.event_type = 'CREATED'",
+    "            and event.previous_status_code = 'AWAITING_DEPOSIT'",
+    "            and event.next_status_code = 'AWAITING_DEPOSIT'",
+    "            and event.expected_payment_version = 0",
+    "            and event.received_amount is null",
+    "            and event.reason = ''",
+    "            and event.depositor_name_fingerprint = ''",
+    "        ) then",
+    "      raise exception '결제 전이 또는 추가 이벤트가 있는 무통장입금 예약은 seed rollback할 수 없습니다.'",
+    "        using errcode = '55000';",
+    "    end if;",
+    "  end loop;",
+    "end",
+    "$bodeul_bank_transfer_rollback_guard$;",
+    "",
+    "delete from bodeul.appointment_payment_events",
+    `where appointment_request_id in (${targetSubquery});`,
+    "delete from bodeul.appointment_bank_transfer_payments",
+    `where appointment_request_id in (${targetSubquery});`,
+  ].join("\n");
+}
+
+function buildUpsertStatement(row) {
   const columns = ROW_COLUMNS.map(quoteIdentifier);
   const values = ROW_COLUMNS.map((column) => toSqlLiteral(row[column], column));
   const updateColumns = ROW_COLUMNS.filter((column) => !["id", "firestore_id"].includes(column));
@@ -300,6 +466,21 @@ function buildUpsert(row) {
     `values (${values.join(", ")})`,
     `on conflict (firestore_id) do update set ${updates.join(", ")};`,
   ].join("\n");
+}
+
+function buildInsertStatement(row, conflictClause) {
+  const columns = ROW_COLUMNS.map(quoteIdentifier);
+  const values = ROW_COLUMNS.map((column) => toSqlLiteral(row[column], column));
+  return [
+    `insert into ${TABLE_NAME} (${columns.join(", ")})`,
+    `values (${values.join(", ")})`,
+    `${conflictClause};`,
+  ].join("\n");
+}
+
+function indentSql(sql, spaces) {
+  const prefix = " ".repeat(spaces);
+  return sql.split("\n").map((line) => `${prefix}${line}`).join("\n");
 }
 
 function normalizeCollection(snapshot, collectionName) {
@@ -391,6 +572,32 @@ function requiredAllowedCode(value, location, field, allowedKey, errors) {
     errors.push(diagnostic(location, field, "현재 앱 계약에 없는 코드입니다."));
   }
   return normalized;
+}
+
+function validatePaymentStatusPair(paymentMethodCode, paymentStatusCode, location, errors) {
+  if (!ALLOWED_VALUES.payment_method_code.has(paymentMethodCode)
+      || !ALLOWED_VALUES.payment_status_code.has(paymentStatusCode)) {
+    return;
+  }
+  if (paymentMethodCode === "BANK_TRANSFER"
+      && BANK_TRANSFER_BACKFILL_STATUS_CODES.has(paymentStatusCode)) {
+    errors.push(diagnostic(
+        location,
+        "paymentStatusCode",
+        "상세 결제 원장과 이벤트 backfill 없이 예약 projection에 적용할 수 없는 서버 전이 상태입니다.",
+    ));
+    return;
+  }
+  const isAllowedPair = paymentMethodCode === "BANK_TRANSFER"
+    ? BANK_TRANSFER_SEED_STATUS_CODES.has(paymentStatusCode)
+    : LEGACY_PAYMENT_STATUS_CODES.has(paymentStatusCode);
+  if (!isAllowedPair) {
+    errors.push(diagnostic(
+        location,
+        "paymentStatusCode",
+        "결제 수단과 상태 조합이 현재 서버 계약과 일치하지 않습니다.",
+    ));
+  }
 }
 
 function requiredText(value, location, field, errors) {

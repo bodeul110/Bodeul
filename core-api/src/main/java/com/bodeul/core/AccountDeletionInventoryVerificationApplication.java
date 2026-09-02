@@ -31,7 +31,9 @@ public final class AccountDeletionInventoryVerificationApplication {
             "related_chat_attachment_count",
             "related_chat_read_receipt_count",
             "related_location_count",
-            "active_legal_hold_count");
+            "active_legal_hold_count",
+            "bank_transfer_payment_count",
+            "payment_event_count");
     private static final List<String> REQUIRED_CONTRACT_FLAGS = List.of(
             "transaction_is_read_only",
             "flyway_success",
@@ -107,7 +109,7 @@ public final class AccountDeletionInventoryVerificationApplication {
             from bodeul.flyway_schema_history history
             join pg_proc proc
               on proc.oid = 'bodeul.account_deletion_postgres_inventory(uuid)'::regprocedure
-            where history.version = '15'
+            where history.version = '22'
             order by history.installed_rank desc
             limit 1
             """;
@@ -160,7 +162,7 @@ public final class AccountDeletionInventoryVerificationApplication {
         try (PreparedStatement statement = connection.prepareStatement(VERIFY_CONTRACT);
              ResultSet resultSet = statement.executeQuery()) {
             if (!resultSet.next()) {
-                throw new IllegalStateException("Flyway V15 함수 계약을 찾을 수 없습니다.");
+                throw new IllegalStateException("Flyway V22 함수 계약을 찾을 수 없습니다.");
             }
             for (String flag : REQUIRED_CONTRACT_FLAGS) {
                 if (!resultSet.getBoolean(flag)) {
@@ -168,7 +170,7 @@ public final class AccountDeletionInventoryVerificationApplication {
                 }
             }
             if (resultSet.next()) {
-                throw new IllegalStateException("Flyway V15 함수 계약이 중복 조회됐습니다.");
+                throw new IllegalStateException("Flyway V22 함수 계약이 중복 조회됐습니다.");
             }
         }
     }

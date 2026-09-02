@@ -304,10 +304,24 @@ public final class BookingFollowUpCoordinator {
     private String buildSettlementStatus(AppointmentRequest request) {
         if (!TextUtils.isEmpty(request.getPaymentStatusCode())) {
             switch (BookingPaymentStatus.fromValue(request.getPaymentStatusCode())) {
+                case AWAITING_DEPOSIT:
+                    return context.getString(R.string.booking_follow_up_settlement_status_awaiting_deposit);
+                case DEPOSIT_CONFIRMED:
+                    return context.getString(R.string.booking_follow_up_settlement_status_deposit_confirmed);
+                case REVIEW_REQUIRED:
+                    return context.getString(R.string.booking_follow_up_settlement_status_review_required);
+                case REFUND_REQUESTED:
+                    return context.getString(R.string.booking_follow_up_settlement_status_refund_requested);
+                case REFUNDED:
+                    return context.getString(R.string.booking_follow_up_settlement_status_refunded);
+                case CANCELED:
+                    return context.getString(R.string.booking_follow_up_settlement_status_canceled);
                 case AUTHORIZED:
                     return context.getString(R.string.booking_follow_up_settlement_status_authorized);
                 case DEFERRED:
                     return context.getString(R.string.booking_follow_up_settlement_status_deferred);
+                case UNKNOWN:
+                    return context.getString(R.string.booking_follow_up_settlement_status_unknown);
                 case PENDING:
                 default:
                     return context.getString(R.string.booking_follow_up_settlement_status_pending);
@@ -315,6 +329,9 @@ public final class BookingFollowUpCoordinator {
         }
         if (BookingPaymentMethod.fromValue(request.getPaymentMethodCode()) == BookingPaymentMethod.ON_SITE) {
             return context.getString(R.string.booking_follow_up_settlement_status_on_site);
+        }
+        if (BookingPaymentMethod.fromValue(request.getPaymentMethodCode()) == BookingPaymentMethod.UNKNOWN) {
+            return context.getString(R.string.booking_follow_up_settlement_status_unknown);
         }
         return context.getString(R.string.booking_follow_up_settlement_status_pending);
     }

@@ -94,7 +94,7 @@ psql --dbname bodeul_appointment_public_code --set ON_ERROR_STOP=1 \
     --file db/verification/013_appointment_public_code_rollback_checks.sql
 
 bootstrap_database bodeul_admin_rbac
-migrate_database bodeul_admin_rbac
+migrate_database bodeul_admin_rbac 20
 psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \
     --file db/verification/012_admin_rbac_checks.sql
 psql --dbname bodeul_admin_rbac --set ON_ERROR_STOP=1 \

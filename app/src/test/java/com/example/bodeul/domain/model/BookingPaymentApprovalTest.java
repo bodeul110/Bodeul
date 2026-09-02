@@ -32,6 +32,19 @@ public class BookingPaymentApprovalTest {
     }
 
     @Test
+    public void bankTransferSyntheticConfirmation_doesNotMintServerDepositState() {
+        BookingPaymentApproval approval = BookingPaymentApproval.simulated(
+                "MVP 무통장입금 합성 안내"
+        );
+
+        assertTrue(approval.isCompleted());
+        assertEquals(BookingPaymentStatus.PENDING, approval.getStatus());
+        assertEquals("MVP 무통장입금 합성 안내", approval.getProviderLabel());
+        assertEquals("", approval.getApprovalCode());
+        assertEquals("", approval.getApprovedAt());
+    }
+
+    @Test
     public void authorized_keepsLegacyApprovalEvidence() {
         BookingPaymentApproval approval = BookingPaymentApproval.authorized(
                 "기존 승인 수단",

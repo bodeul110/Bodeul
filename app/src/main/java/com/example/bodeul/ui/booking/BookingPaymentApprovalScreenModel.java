@@ -15,7 +15,7 @@ public final class BookingPaymentApprovalScreenModel {
     private final String hospital;
     private final String meetingPlace;
     private final String consentText;
-    private final boolean deferredPayment;
+    private final BookingPaymentConfirmationMode confirmationMode;
     private final String providerLabel;
 
     public BookingPaymentApprovalScreenModel(
@@ -30,7 +30,7 @@ public final class BookingPaymentApprovalScreenModel {
             String hospital,
             String meetingPlace,
             String consentText,
-            boolean deferredPayment,
+            BookingPaymentConfirmationMode confirmationMode,
             String providerLabel
     ) {
         this.badge = badge;
@@ -44,7 +44,9 @@ public final class BookingPaymentApprovalScreenModel {
         this.hospital = hospital;
         this.meetingPlace = meetingPlace;
         this.consentText = consentText;
-        this.deferredPayment = deferredPayment;
+        this.confirmationMode = confirmationMode == null
+                ? BookingPaymentConfirmationMode.BLOCKED
+                : confirmationMode;
         this.providerLabel = providerLabel;
     }
 
@@ -93,7 +95,15 @@ public final class BookingPaymentApprovalScreenModel {
     }
 
     public boolean isDeferredPayment() {
-        return deferredPayment;
+        return confirmationMode == BookingPaymentConfirmationMode.DEFERRED;
+    }
+
+    public boolean isConfirmable() {
+        return confirmationMode.isConfirmable();
+    }
+
+    public BookingPaymentConfirmationMode getConfirmationMode() {
+        return confirmationMode;
     }
 
     public String getProviderLabel() {

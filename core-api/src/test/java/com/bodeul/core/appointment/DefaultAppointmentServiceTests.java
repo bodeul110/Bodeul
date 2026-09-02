@@ -30,6 +30,7 @@ class DefaultAppointmentServiceTests {
 
     private static final UUID PATIENT_ID = UUID.fromString("db7cc9f9-4f3e-4f73-b572-cf653564e887");
     private static final UUID GUARDIAN_ID = UUID.fromString("bfbc7b03-3f42-4016-85c0-0981097bf1f2");
+    private static final UUID SECOND_GUARDIAN_ID = UUID.fromString("1f80557d-bfb6-43ad-81d5-9c7532754ab8");
     private static final UUID MANAGER_ID = UUID.fromString("04e9b7fd-9727-4f81-af7b-ab3534339fd0");
     private static final UUID OTHER_PATIENT_ID = UUID.fromString("ced5cb21-c07d-4d0e-a151-2994b6d40793");
     private static final UUID APPOINTMENT_ID = UUID.fromString("27bf3a07-6605-48ab-adbf-c7b18551a639");
@@ -55,6 +56,12 @@ class DefaultAppointmentServiceTests {
                 "보호자 사용자",
                 "guardian@example.com",
                 "010-9876-5432"));
+        profileRepository.add(new AppUserProfile(
+                SECOND_GUARDIAN_ID,
+                AppUserRole.GUARDIAN,
+                "다른 보호자",
+                "other-guardian@example.com",
+                "010-2222-3333"));
         profileRepository.add(new AppUserProfile(
                 MANAGER_ID,
                 AppUserRole.MANAGER,
@@ -119,6 +126,167 @@ class DefaultAppointmentServiceTests {
 
         assertThat(second.id()).isEqualTo(first.id());
         assertThat(appointmentRepository.insertCount).isEqualTo(1);
+    }
+
+    @Test
+    void originalCreateRetryStillMatchesAfterAppointmentEdit() {
+        UUID clientRequestId = UUID.fromString("61328893-eacb-4b0c-a716-8b95fbe253ee");
+        var original = new AppointmentService.CreateAppointmentCommand(clientRequestId, draft());
+        var created = service.createAppointment(patient(), original);
+
+        service.updateAppointment(
+                patient(),
+                created.id(),
+                new AppointmentService.UpdateAppointmentCommand(
+                        created.version(),
+                        draftWithMeetingPlace("별관 2층")));
+
+        var retried = service.createAppointment(patient(), original);
+
+        assertThat(retried.id()).isEqualTo(created.id());
+        assertThat(retried.meetingPlace()).isEqualTo("별관 2층");
+        assertThat(appointmentRepository.insertCount).isEqualTo(1);
+    }
+
+    @Test
+    void exactCreateRetryDoesNotResolveChangedProfilesAgain() {
+        UUID clientRequestId = UUID.fromString("94ecb4f3-7a6c-4458-af68-8ec78a984d45");
+        var command = new AppointmentService.CreateAppointmentCommand(clientRequestId, draft());
+        var created = service.createAppointment(patient(), command);
+        int lookupCountAfterCreate = profileRepository.lookupCount;
+        profileRepository.add(new AppUserProfile(
+                PATIENT_ID,
+                AppUserRole.PATIENT,
+                "변경된 환자",
+                "changed-patient@example.com",
+                "010-0000-0001"));
+        profileRepository.add(new AppUserProfile(
+                GUARDIAN_ID,
+                AppUserRole.GUARDIAN,
+                "변경된 보호자",
+                "changed-guardian@example.com",
+                "010-0000-0002"));
+
+        var retried = service.createAppointment(patient(), command);
+
+        assertThat(retried.id()).isEqualTo(created.id());
+        assertThat(retried.patientName()).isEqualTo("환자 사용자");
+        assertThat(retried.guardianName()).isEqualTo("보호자 사용자");
+        assertThat(profileRepository.lookupCount).isEqualTo(lookupCountAfterCreate);
+        assertThat(appointmentRepository.insertCount).isEqualTo(1);
+    }
+
+    @Test
+    void exactCreateRetryAfterAppointmentTimeReturnsExisting() {
+        UUID clientRequestId = UUID.fromString("de0e43fb-7333-4f7c-8c05-a72eff342faf");
+        var command = new AppointmentService.CreateAppointmentCommand(clientRequestId, draft());
+        var created = service.createAppointment(patient(), command);
+        var laterService = new DefaultAppointmentService(
+                appointmentRepository,
+                profileRepository,
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true,
+                Clock.fixed(Instant.parse("2027-01-01T00:00:00Z"), ZoneOffset.UTC));
+
+        var retried = laterService.createAppointment(patient(), command);
+
+        assertThat(retried.id()).isEqualTo(created.id());
+        assertThat(appointmentRepository.insertCount).isEqualTo(1);
+    }
+
+    @Test
+    void editedValuesCannotReuseTheOriginalCreateRequestId() {
+        UUID clientRequestId = UUID.fromString("81434b49-5475-4437-80bf-df60269981ef");
+        var created = service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(clientRequestId, draft()));
+        AppointmentService.AppointmentDraft editedDraft = draftWithMeetingPlace("별관 2층");
+        service.updateAppointment(
+                patient(),
+                created.id(),
+                new AppointmentService.UpdateAppointmentCommand(created.version(), editedDraft));
+
+        assertThatThrownBy(() -> service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(clientRequestId, editedDraft)))
+                .isInstanceOf(AppointmentException.class)
+                .hasMessage("같은 clientRequestId를 다른 예약 내용으로 다시 사용할 수 없습니다.");
+    }
+
+    @Test
+    void legacyCreateWithoutFingerprintFailsClosed() {
+        UUID clientRequestId = UUID.fromString("d4c8eacf-c830-4568-aabb-4dc19696a540");
+        appointmentRepository.putLegacyClientRequest(
+                clientRequestId,
+                existingAppointment("REQUESTED", 0));
+
+        assertThatThrownBy(() -> service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(clientRequestId, draft())))
+                .isInstanceOf(AppointmentException.class)
+                .hasMessage("같은 clientRequestId를 다른 예약 내용으로 다시 사용할 수 없습니다.");
+    }
+
+    @Test
+    void bankTransferAppointmentStartsInAwaitingDeposit() {
+        var created = service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(
+                        UUID.randomUUID(),
+                        draftWithPaymentMethod("BANK_TRANSFER")));
+
+        assertThat(created.paymentMethodCode()).isEqualTo("BANK_TRANSFER");
+        assertThat(created.paymentStatusCode()).isEqualTo("AWAITING_DEPOSIT");
+    }
+
+    @Test
+    void repeatedClientRequestIdRejectsDifferentPaymentMethod() {
+        UUID clientRequestId = UUID.fromString("ecda4a53-fc5f-4128-98c6-6030acb19b08");
+        service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(clientRequestId, draft()));
+
+        assertThatThrownBy(() -> service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(
+                        clientRequestId,
+                        draftWithPaymentMethod("BANK_TRANSFER"))))
+                .isInstanceOf(AppointmentException.class)
+                .hasMessage("같은 clientRequestId를 다른 예약 내용으로 다시 사용할 수 없습니다.");
+    }
+
+    @Test
+    void repeatedClientRequestIdRejectsDifferentResolvedGuardian() {
+        UUID clientRequestId = UUID.fromString("193833c4-709a-487d-8310-32cab93888ce");
+        service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(clientRequestId, draft()));
+
+        assertThatThrownBy(() -> service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(
+                        clientRequestId,
+                        draftWithLinkedGuardian(
+                                "다른 보호자",
+                                "010-2222-3333",
+                                "other-guardian@example.com"))))
+                .isInstanceOf(AppointmentException.class)
+                .hasMessage("같은 clientRequestId를 다른 예약 내용으로 다시 사용할 수 없습니다.");
+    }
+
+    @Test
+    void bankTransferPaymentMethodCannotChangeDuringAppointmentEdit() {
+        var created = service.createAppointment(
+                patient(),
+                new AppointmentService.CreateAppointmentCommand(
+                        UUID.randomUUID(),
+                        draftWithPaymentMethod("BANK_TRANSFER")));
+
+        assertThatThrownBy(() -> service.updateAppointment(
+                patient(),
+                created.id(),
+                new AppointmentService.UpdateAppointmentCommand(created.version(), draft())))
+                .isInstanceOf(AppointmentException.class)
+                .hasMessage("무통장입금 예약의 결제수단과 입금액은 생성 후 변경할 수 없습니다.");
     }
 
     @Test
@@ -625,6 +793,75 @@ class DefaultAppointmentServiceTests {
                 "FAMILY");
     }
 
+    private AppointmentService.AppointmentDraft draftWithPaymentMethod(String paymentMethodCode) {
+        AppointmentService.AppointmentDraft source = draft();
+        return new AppointmentService.AppointmentDraft(
+                source.linkedParticipantName(),
+                source.linkedParticipantPhone(),
+                source.linkedParticipantEmail(),
+                source.patientConditionSummary(),
+                source.medicationSummary(),
+                source.hospitalName(),
+                source.departmentName(),
+                source.hospitalLatitude(),
+                source.hospitalLongitude(),
+                source.appointmentAt(),
+                source.meetingPlace(),
+                source.specialNotes(),
+                source.mobilitySupportCode(),
+                source.tripTypeCode(),
+                source.managerGenderPreferenceCode(),
+                paymentMethodCode,
+                source.couponCode());
+    }
+
+    private AppointmentService.AppointmentDraft draftWithMeetingPlace(String meetingPlace) {
+        AppointmentService.AppointmentDraft source = draft();
+        return new AppointmentService.AppointmentDraft(
+                source.linkedParticipantName(),
+                source.linkedParticipantPhone(),
+                source.linkedParticipantEmail(),
+                source.patientConditionSummary(),
+                source.medicationSummary(),
+                source.hospitalName(),
+                source.departmentName(),
+                source.hospitalLatitude(),
+                source.hospitalLongitude(),
+                source.appointmentAt(),
+                meetingPlace,
+                source.specialNotes(),
+                source.mobilitySupportCode(),
+                source.tripTypeCode(),
+                source.managerGenderPreferenceCode(),
+                source.paymentMethodCode(),
+                source.couponCode());
+    }
+
+    private AppointmentService.AppointmentDraft draftWithLinkedGuardian(
+            String name,
+            String phone,
+            String email) {
+        AppointmentService.AppointmentDraft source = draft();
+        return new AppointmentService.AppointmentDraft(
+                name,
+                phone,
+                email,
+                source.patientConditionSummary(),
+                source.medicationSummary(),
+                source.hospitalName(),
+                source.departmentName(),
+                source.hospitalLatitude(),
+                source.hospitalLongitude(),
+                source.appointmentAt(),
+                source.meetingPlace(),
+                source.specialNotes(),
+                source.mobilitySupportCode(),
+                source.tripTypeCode(),
+                source.managerGenderPreferenceCode(),
+                source.paymentMethodCode(),
+                source.couponCode());
+    }
+
     private AppointmentRecord existingAppointment(String status, long version) {
         return existingAppointment(status, version, null);
     }
@@ -673,6 +910,7 @@ class DefaultAppointmentServiceTests {
         private Optional<AppointmentRecord> current = Optional.empty();
         private Optional<AppointmentFollowUpRecord> followUp = Optional.empty();
         private final Map<String, AppointmentRecord> byClientRequest = new HashMap<>();
+        private final Map<UUID, String> createRequestFingerprints = new HashMap<>();
         private int insertCount;
         private int publicCodeCollisionsRemaining;
         private boolean sessionCanceled;
@@ -696,12 +934,20 @@ class DefaultAppointmentServiceTests {
         }
 
         @Override
+        public Optional<String> findCreateRequestFingerprint(UUID appointmentId) {
+            return Optional.ofNullable(createRequestFingerprints.get(appointmentId));
+        }
+
+        @Override
         public boolean hasCareEnded(UUID appointmentId) {
             return careEnded;
         }
 
         @Override
-        public Optional<AppointmentRecord> insert(AppointmentMutation mutation, String publicCode) {
+        public Optional<AppointmentRecord> insert(
+                AppointmentMutation mutation,
+                String publicCode,
+                String createRequestFingerprint) {
             insertCount++;
             if (publicCodeCollisionsRemaining > 0) {
                 publicCodeCollisionsRemaining--;
@@ -712,6 +958,7 @@ class DefaultAppointmentServiceTests {
             byClientRequest.put(
                     mutation.requesterUserId() + ":" + mutation.clientRequestId(),
                     inserted);
+            createRequestFingerprints.put(inserted.id(), createRequestFingerprint);
             return Optional.of(inserted);
         }
 
@@ -729,7 +976,14 @@ class DefaultAppointmentServiceTests {
                     "REQUESTED",
                     expectedVersion + 1);
             current = Optional.of(updated);
+            byClientRequest.replaceAll((key, appointment) ->
+                    appointment.id().equals(updated.id()) ? updated : appointment);
             return current;
+        }
+
+        void putLegacyClientRequest(UUID clientRequestId, AppointmentRecord appointment) {
+            current = Optional.of(appointment);
+            byClientRequest.put(PATIENT_ID + ":" + clientRequestId, appointment);
         }
 
         @Override

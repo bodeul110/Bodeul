@@ -13,6 +13,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingPaymentApproval;
+import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
 import com.example.bodeul.domain.model.CompanionChatMessage;
@@ -177,6 +178,10 @@ public class FirebaseBookingRepository implements BookingRepository {
             BookingRequestDraft bookingRequestDraft,
             RepositoryCallback<AppointmentRequest> callback
     ) {
+        if (!hasSelectablePaymentMethod(bookingRequestDraft)) {
+            callback.onError("결제 수단을 다시 선택해 주세요.");
+            return;
+        }
         if (!supportsRole(currentUser.getRole())) {
             callback.onError("환자 또는 보호자 계정으로 접근해 주세요.");
             return;
@@ -235,6 +240,10 @@ public class FirebaseBookingRepository implements BookingRepository {
             BookingRequestDraft bookingRequestDraft,
             RepositoryCallback<AppointmentRequest> callback
     ) {
+        if (!hasSelectablePaymentMethod(bookingRequestDraft)) {
+            callback.onError("결제 수단을 다시 선택해 주세요.");
+            return;
+        }
         if (!supportsRole(currentUser.getRole())) {
             callback.onError("환자 또는 보호자 계정으로 접근해 주세요.");
             return;
@@ -837,6 +846,14 @@ public class FirebaseBookingRepository implements BookingRepository {
         requestDocument.put("requesterPhone", currentParticipantSnapshot.phone);
         requestDocument.put("createdAt", FieldValue.serverTimestamp());
         return requestDocument;
+    }
+
+    private boolean hasSelectablePaymentMethod(@Nullable BookingRequestDraft bookingRequestDraft) {
+        if (bookingRequestDraft == null) {
+            return false;
+        }
+        BookingPaymentMethod paymentMethod = bookingRequestDraft.getPaymentMethod();
+        return paymentMethod != null && paymentMethod.isSelectableForRequest();
     }
 
     private void applyPatientFields(Map<String, Object> requestDocument, String patientUserId, ParticipantSnapshot patientSnapshot) {

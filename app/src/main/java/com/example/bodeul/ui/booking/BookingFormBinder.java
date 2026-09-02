@@ -6,6 +6,9 @@ import android.util.Patterns;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+
+import com.example.bodeul.BuildConfig;
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.BookingCouponType;
@@ -66,6 +69,7 @@ public final class BookingFormBinder {
     private final MaterialButton buttonSelectMeetingPlace;
     private final MaterialButton buttonSubmitBooking;
     private final MaterialButton buttonCancelBookingEdit;
+    private final MaterialButton buttonPaymentBankTransfer;
     private final BookingOptionGroupBinder<BookingMobilitySupport> mobilityGroupBinder;
     private final BookingOptionGroupBinder<BookingTripType> tripTypeGroupBinder;
     private final BookingOptionGroupBinder<BookingManagerGenderPreference> managerGenderGroupBinder;
@@ -75,6 +79,9 @@ public final class BookingFormBinder {
     private String selectedMeetingPointId = "";
     private double selectedHospitalLatitude = 0.0;
     private double selectedHospitalLongitude = 0.0;
+    private boolean loading;
+    private boolean bankTransferTermsLocked;
+    private BookingPriceSummary lockedPaymentPriceSummary;
 
     public BookingFormBinder(
             Context context,
@@ -121,6 +128,7 @@ public final class BookingFormBinder {
             MaterialButton buttonManagerGenderAny,
             MaterialButton buttonManagerGenderFemale,
             MaterialButton buttonManagerGenderMale,
+            MaterialButton buttonPaymentBankTransfer,
             MaterialButton buttonPaymentCard,
             MaterialButton buttonPaymentEasyPay,
             MaterialButton buttonPaymentOnSite,
@@ -164,6 +172,7 @@ public final class BookingFormBinder {
         this.buttonSelectMeetingPlace = buttonSelectMeetingPlace;
         this.buttonSubmitBooking = buttonSubmitBooking;
         this.buttonCancelBookingEdit = buttonCancelBookingEdit;
+        this.buttonPaymentBankTransfer = buttonPaymentBankTransfer;
 
         mobilityGroupBinder = new BookingOptionGroupBinder<>(
                 context,
@@ -182,8 +191,13 @@ public final class BookingFormBinder {
         );
         paymentMethodGroupBinder = new BookingOptionGroupBinder<>(
                 context,
-                buildPaymentButtons(buttonPaymentCard, buttonPaymentEasyPay, buttonPaymentOnSite),
-                BookingPaymentMethod.CARD
+                buildPaymentButtons(
+                        buttonPaymentBankTransfer,
+                        buttonPaymentCard,
+                        buttonPaymentEasyPay,
+                        buttonPaymentOnSite
+                ),
+                BookingPaymentSelectionPolicy.defaultCreateMethod()
         );
         couponTypeGroupBinder = new BookingOptionGroupBinder<>(
                 context,
@@ -197,10 +211,15 @@ public final class BookingFormBinder {
         managerGenderGroupBinder.setSelectionChangedListener(refreshEstimateAction);
         paymentMethodGroupBinder.setSelectionChangedListener(refreshEstimateAction);
         couponTypeGroupBinder.setSelectionChangedListener(refreshEstimateAction);
+        bindBankTransferVisibilityForCreate();
         refreshEstimate();
     }
 
     public void bindCreateMode(User currentUser) {
+        bankTransferTermsLocked = false;
+        lockedPaymentPriceSummary = null;
+        bindBankTransferVisibilityForCreate();
+        refreshPaymentTermControlState();
         bindLinkedParticipantSection(currentUser);
         textFormTitle.setText(R.string.booking_form_section);
         textFormBadge.setText(R.string.booking_form_badge);
@@ -211,6 +230,21 @@ public final class BookingFormBinder {
     }
 
     public void bindEditMode(User currentUser, AppointmentRequest request) {
+        BookingPaymentMethod paymentMethod = BookingPaymentMethod.fromValue(request.getPaymentMethodCode());
+        bankTransferTermsLocked = BookingPaymentSelectionPolicy.arePaymentTermsLockedForEdit(paymentMethod);
+        lockedPaymentPriceSummary = bankTransferTermsLocked
+                ? new BookingPriceSummary(
+                        request.getBasePrice(),
+                        request.getOptionSurchargePrice(),
+                        request.getCouponDiscountPrice(),
+                        request.getFinalPrice()
+                )
+                : null;
+        buttonPaymentBankTransfer.setVisibility(
+                BookingPaymentSelectionPolicy.isBankTransferVisibleForEdit(paymentMethod)
+                        ? View.VISIBLE
+                        : View.GONE
+        );
         bindLinkedParticipantSection(currentUser);
         textFormTitle.setText(R.string.booking_form_edit_section);
         textFormBadge.setText(R.string.booking_form_edit_badge);
@@ -245,8 +279,9 @@ public final class BookingFormBinder {
         managerGenderGroupBinder.setSelection(BookingManagerGenderPreference.fromValue(
                 request.getManagerGenderPreferenceCode()
         ));
-        paymentMethodGroupBinder.setSelection(BookingPaymentMethod.fromValue(request.getPaymentMethodCode()));
+        paymentMethodGroupBinder.setSelection(paymentMethod);
         couponTypeGroupBinder.setSelection(BookingCouponType.fromValue(request.getCouponCode()));
+        refreshPaymentTermControlState();
         refreshEstimate();
         clearErrors();
     }
@@ -273,16 +308,13 @@ public final class BookingFormBinder {
         isValid &= validateRequired(layoutMeetingPlace, meetingPlace);
         isValid &= validateLinkedPhone(linkedPhone);
         isValid &= validateLinkedEmail(linkedEmail);
+        isValid &= validatePaymentMethod();
 
         if (!isValid) {
             return null;
         }
 
-        BookingPriceSummary priceSummary = priceEstimator.estimate(
-                tripTypeGroupBinder.getSelection(),
-                mobilityGroupBinder.getSelection(),
-                couponTypeGroupBinder.getSelection()
-        );
+        BookingPriceSummary priceSummary = resolvePriceSummary();
 
         return BookingRequestDraft.builder()
                 .patientConditionSummary(healthSummary)
@@ -341,6 +373,7 @@ public final class BookingFormBinder {
     }
 
     public void setLoading(boolean loading) {
+        this.loading = loading;
         appointmentSelector.setEnabled(!loading);
         inputHealthSummary.setEnabled(!loading);
         inputMedicationSummary.setEnabled(!loading);
@@ -351,11 +384,8 @@ public final class BookingFormBinder {
         inputSpecialNotes.setEnabled(!loading);
         buttonSelectHospital.setEnabled(!loading);
         buttonSelectMeetingPlace.setEnabled(!loading);
-        mobilityGroupBinder.setEnabled(!loading);
-        tripTypeGroupBinder.setEnabled(!loading);
+        refreshPaymentTermControlState();
         managerGenderGroupBinder.setEnabled(!loading);
-        paymentMethodGroupBinder.setEnabled(!loading);
-        couponTypeGroupBinder.setEnabled(!loading);
         buttonSubmitBooking.setEnabled(!loading);
         buttonCancelBookingEdit.setEnabled(!loading);
     }
@@ -370,11 +400,7 @@ public final class BookingFormBinder {
     }
 
     private void refreshEstimate() {
-        BookingPriceSummary summary = priceEstimator.estimate(
-                tripTypeGroupBinder.getSelection(),
-                mobilityGroupBinder.getSelection(),
-                couponTypeGroupBinder.getSelection()
-        );
+        BookingPriceSummary summary = resolvePriceSummary();
 
         textEstimateBase.setText(context.getString(
                 R.string.booking_price_base_line,
@@ -395,11 +421,7 @@ public final class BookingFormBinder {
                 R.string.booking_price_final_line,
                 formatter.formatPrice(summary.getFinalPrice())
         ));
-        textPaymentHelper.setText(context.getString(
-                R.string.booking_payment_helper_format,
-                formatter.toPaymentMethodLabel(paymentMethodGroupBinder.getSelection().name()),
-                formatter.toManagerGenderPreferenceLabel(managerGenderGroupBinder.getSelection().name())
-        ));
+        bindPaymentHelper();
     }
 
     private void clearFormFields() {
@@ -419,7 +441,7 @@ public final class BookingFormBinder {
         mobilityGroupBinder.setSelection(BookingMobilitySupport.INDEPENDENT);
         tripTypeGroupBinder.setSelection(BookingTripType.ONE_WAY);
         managerGenderGroupBinder.setSelection(BookingManagerGenderPreference.ANY);
-        paymentMethodGroupBinder.setSelection(BookingPaymentMethod.CARD);
+        paymentMethodGroupBinder.setSelection(BookingPaymentSelectionPolicy.defaultCreateMethod());
         couponTypeGroupBinder.setSelection(BookingCouponType.NONE);
         clearErrors();
         refreshEstimate();
@@ -462,6 +484,61 @@ public final class BookingFormBinder {
         }
         layoutLinkedEmail.setError(context.getString(R.string.error_email_invalid));
         return false;
+    }
+
+    private boolean validatePaymentMethod() {
+        if (paymentMethodGroupBinder.getSelection().isSelectableForRequest()) {
+            return true;
+        }
+        bindPaymentHelper();
+        return false;
+    }
+
+    private void bindPaymentHelper() {
+        BookingPaymentMethod paymentMethod = paymentMethodGroupBinder.getSelection();
+        if (!paymentMethod.isSelectableForRequest()) {
+            textPaymentHelper.setText(R.string.booking_payment_unknown_selection_required);
+            textPaymentHelper.setTextColor(ContextCompat.getColor(context, R.color.bodeul_error));
+            return;
+        }
+        if (bankTransferTermsLocked) {
+            textPaymentHelper.setText(R.string.booking_payment_bank_transfer_edit_locked);
+            textPaymentHelper.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_secondary));
+            return;
+        }
+        textPaymentHelper.setText(context.getString(
+                R.string.booking_payment_helper_format,
+                formatter.toPaymentMethodLabel(paymentMethod.name()),
+                formatter.toManagerGenderPreferenceLabel(managerGenderGroupBinder.getSelection().name())
+        ));
+        textPaymentHelper.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_secondary));
+    }
+
+    private void bindBankTransferVisibilityForCreate() {
+        buttonPaymentBankTransfer.setVisibility(
+                BookingPaymentSelectionPolicy.isBankTransferVisibleForCreate(BuildConfig.DEBUG)
+                        ? View.VISIBLE
+                        : View.GONE
+        );
+    }
+
+    private void refreshPaymentTermControlState() {
+        boolean enabled = !loading && !bankTransferTermsLocked;
+        mobilityGroupBinder.setEnabled(enabled);
+        tripTypeGroupBinder.setEnabled(enabled);
+        paymentMethodGroupBinder.setEnabled(enabled);
+        couponTypeGroupBinder.setEnabled(enabled);
+    }
+
+    private BookingPriceSummary resolvePriceSummary() {
+        if (lockedPaymentPriceSummary != null) {
+            return lockedPaymentPriceSummary;
+        }
+        return priceEstimator.estimate(
+                tripTypeGroupBinder.getSelection(),
+                mobilityGroupBinder.getSelection(),
+                couponTypeGroupBinder.getSelection()
+        );
     }
 
     private void clearErrors() {
@@ -533,11 +610,13 @@ public final class BookingFormBinder {
     }
 
     private LinkedHashMap<BookingPaymentMethod, MaterialButton> buildPaymentButtons(
+            MaterialButton bankTransferButton,
             MaterialButton cardButton,
             MaterialButton easyPayButton,
             MaterialButton onSiteButton
     ) {
         LinkedHashMap<BookingPaymentMethod, MaterialButton> optionButtons = new LinkedHashMap<>();
+        optionButtons.put(BookingPaymentMethod.BANK_TRANSFER, bankTransferButton);
         optionButtons.put(BookingPaymentMethod.CARD, cardButton);
         optionButtons.put(BookingPaymentMethod.EASY_PAY, easyPayButton);
         optionButtons.put(BookingPaymentMethod.ON_SITE, onSiteButton);

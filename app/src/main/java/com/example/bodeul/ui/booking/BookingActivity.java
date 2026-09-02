@@ -207,6 +207,7 @@ public class BookingActivity extends AppCompatActivity {
                 findViewById(R.id.buttonBookingManagerGenderAny),
                 findViewById(R.id.buttonBookingManagerGenderFemale),
                 findViewById(R.id.buttonBookingManagerGenderMale),
+                findViewById(R.id.buttonBookingPaymentBankTransfer),
                 findViewById(R.id.buttonBookingPaymentCard),
                 findViewById(R.id.buttonBookingPaymentEasyPay),
                 findViewById(R.id.buttonBookingPaymentOnSite),

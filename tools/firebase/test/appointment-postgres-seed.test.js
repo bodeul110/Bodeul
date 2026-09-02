@@ -7,7 +7,7 @@ const {
   stableUuid,
 } = require("../lib/appointment-postgres-seed");
 
-test("예약 요청 백업을 private schema row로 변환한다", () => {
+test("예약 요청 백업을 PostgreSQL 예약 projection으로 변환한다", () => {
   const plan = buildAppointmentSeedPlan(createSnapshot());
 
   assert.equal(plan.status, "passed");
@@ -25,6 +25,99 @@ test("users 백업에 없는 참조가 있으면 SQL 생성을 차단한다", ()
 
   assert.equal(plan.status, "needs_review");
   assert.ok(plan.errors.some((error) => error.field === "managerUserId"));
+  assert.throws(() => buildAppointmentSeedSql(plan), /검증 오류/);
+});
+
+test("무통장입금 생성 상태를 PostgreSQL 예약 projection으로 보존한다", () => {
+  const snapshot = createSnapshot();
+  const request = snapshot.collections.appointmentRequests[0].data;
+  request.paymentMethodCode = "BANK_TRANSFER";
+  request.paymentStatusCode = "AWAITING_DEPOSIT";
+
+  const plan = buildAppointmentSeedPlan(snapshot);
+
+  assert.equal(plan.status, "passed");
+  assert.equal(plan.rows[0].payment_method_code, "BANK_TRANSFER");
+  assert.equal(plan.rows[0].payment_status_code, "AWAITING_DEPOSIT");
+});
+
+test("무통장입금 seed 재적용은 기존 projection과 상세 원장이 다르면 중단한다", () => {
+  const snapshot = createSnapshot();
+  const request = snapshot.collections.appointmentRequests[0].data;
+  request.paymentMethodCode = "BANK_TRANSFER";
+  request.paymentStatusCode = "AWAITING_DEPOSIT";
+
+  const sql = buildAppointmentSeedSql(buildAppointmentSeedPlan(snapshot));
+
+  assert.match(sql, /for update;/);
+  assert.match(sql, /기존 무통장입금 예약이 seed와 달라 재적용을 중단합니다/);
+  assert.match(sql, /existing\."payment_status_code" is not distinct from 'AWAITING_DEPOSIT'/);
+  assert.match(sql, /payment\.expected_amount is not distinct from existing\.final_price/);
+  assert.match(sql, /on conflict \(firestore_id\) do nothing;/);
+  assert.doesNotMatch(sql, /on conflict \(firestore_id\) do update set/);
+  assert.match(sql, /using errcode = '55000'/);
+});
+
+test("이미 전이된 무통장입금 상태는 상세 원장 backfill 없이는 차단한다", () => {
+  const transitionedStatuses = [
+    "DEPOSIT_CONFIRMED",
+    "REVIEW_REQUIRED",
+    "REFUND_REQUESTED",
+    "REFUNDED",
+    "CANCELED",
+  ];
+
+  for (const paymentStatusCode of transitionedStatuses) {
+    const snapshot = createSnapshot();
+    const request = snapshot.collections.appointmentRequests[0].data;
+    request.paymentMethodCode = "BANK_TRANSFER";
+    request.paymentStatusCode = paymentStatusCode;
+
+    const plan = buildAppointmentSeedPlan(snapshot);
+
+    assert.equal(plan.status, "needs_review", paymentStatusCode);
+    assert.ok(plan.errors.some((error) => (
+      error.field === "paymentStatusCode"
+        && /상세 결제 원장과 이벤트 backfill/.test(error.message)
+    )), paymentStatusCode);
+    assert.throws(() => buildAppointmentSeedSql(plan), /검증 오류/);
+  }
+});
+
+test("결제 수단과 상태가 서로 다른 계약이면 SQL 생성을 차단한다", () => {
+  const invalidPairs = [
+    {paymentMethodCode: "BANK_TRANSFER", paymentStatusCode: "PENDING"},
+    {paymentMethodCode: "CARD", paymentStatusCode: "AWAITING_DEPOSIT"},
+  ];
+
+  for (const invalidPair of invalidPairs) {
+    const snapshot = createSnapshot();
+    const request = snapshot.collections.appointmentRequests[0].data;
+    request.paymentMethodCode = invalidPair.paymentMethodCode;
+    request.paymentStatusCode = invalidPair.paymentStatusCode;
+
+    const plan = buildAppointmentSeedPlan(snapshot);
+
+    assert.equal(plan.status, "needs_review");
+    assert.ok(plan.errors.some((error) => (
+      error.field === "paymentStatusCode"
+        && /결제 수단과 상태 조합/.test(error.message)
+    )));
+    assert.throws(() => buildAppointmentSeedSql(plan), /검증 오류/);
+  }
+});
+
+test("현재 계약에 없는 결제 수단과 상태는 SQL 생성을 차단한다", () => {
+  const snapshot = createSnapshot();
+  const request = snapshot.collections.appointmentRequests[0].data;
+  request.paymentMethodCode = "UNKNOWN_METHOD";
+  request.paymentStatusCode = "UNKNOWN_STATUS";
+
+  const plan = buildAppointmentSeedPlan(snapshot);
+
+  assert.equal(plan.status, "needs_review");
+  assert.ok(plan.errors.some((error) => error.field === "paymentMethodCode"));
+  assert.ok(plan.errors.some((error) => error.field === "paymentStatusCode"));
   assert.throws(() => buildAppointmentSeedSql(plan), /검증 오류/);
 });
 
@@ -48,6 +141,31 @@ test("rollback SQL은 해당 백업의 Firestore 문서 ID만 삭제한다", () 
   assert.match(sql, /delete from bodeul\.appointment_requests/);
   assert.match(sql, /where firestore_id in \('request-1'\);/);
   assert.doesNotMatch(sql, /drop table/);
+});
+
+test("무통장입금 rollback은 초기 원장만 자식부터 삭제하고 전이 이력이 있으면 중단한다", () => {
+  const snapshot = createSnapshot();
+  const request = snapshot.collections.appointmentRequests[0].data;
+  request.paymentMethodCode = "BANK_TRANSFER";
+  request.paymentStatusCode = "AWAITING_DEPOSIT";
+  const sql = buildAppointmentSeedSql(
+      buildAppointmentSeedPlan(snapshot),
+      {rollback: true},
+  );
+
+  assert.match(sql, /target\.payment_status_code <> 'AWAITING_DEPOSIT'/);
+  assert.match(sql, /payment\.payment_version = 0/);
+  assert.match(sql, /event\.event_type = 'CREATED'/);
+  assert.match(sql, /select count\(\*\) from bodeul\.appointment_payment_events/);
+  assert.match(sql, /결제 전이 또는 추가 이벤트가 있는 무통장입금 예약은 seed rollback할 수 없습니다/);
+  assert.match(sql, /using errcode = '55000'/);
+
+  const eventDelete = sql.indexOf("delete from bodeul.appointment_payment_events");
+  const paymentDelete = sql.indexOf("delete from bodeul.appointment_bank_transfer_payments");
+  const appointmentDelete = sql.indexOf("delete from bodeul.appointment_requests");
+  assert.ok(eventDelete >= 0);
+  assert.ok(eventDelete < paymentDelete);
+  assert.ok(paymentDelete < appointmentDelete);
 });
 
 function createSnapshot() {

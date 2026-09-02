@@ -205,7 +205,7 @@ class FirestoreAccountDeletionImpactRepositoryEmulatorTests {
 
     private AccountDeletionImpactRepository.PostgreSqlImpact emptyPostgresImpact() {
         return new AccountDeletionImpactRepository.PostgreSqlImpact(
-                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     private record FixtureDocument(String id, Map<String, Object> data) {

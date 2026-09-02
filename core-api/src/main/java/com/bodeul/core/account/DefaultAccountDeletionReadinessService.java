@@ -151,7 +151,9 @@ class DefaultAccountDeletionReadinessService implements AccountDeletionReadiness
                 Map.entry("sentChatMessages", impact.sentChatMessageCount()),
                 Map.entry("relatedChatAttachments", impact.relatedChatAttachmentCount()),
                 Map.entry("relatedChatReadReceipts", impact.relatedChatReadReceiptCount()),
-                Map.entry("relatedLocations", impact.relatedLocationCount()));
+                Map.entry("relatedLocations", impact.relatedLocationCount()),
+                Map.entry("bankTransferPayments", impact.bankTransferPaymentCount()),
+                Map.entry("paymentEvents", impact.paymentEventCount()));
     }
 
     private SourceInventory notEvaluated(Source source) {

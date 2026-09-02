@@ -44,7 +44,9 @@ class JdbcAccountDeletionImpactRepository implements AccountDeletionImpactReposi
                         requiredCount(resultSet, "related_chat_attachment_count"),
                         requiredCount(resultSet, "related_chat_read_receipt_count"),
                         requiredCount(resultSet, "related_location_count"),
-                        requiredCount(resultSet, "active_legal_hold_count")));
+                        requiredCount(resultSet, "active_legal_hold_count"),
+                        requiredCount(resultSet, "bank_transfer_payment_count"),
+                        requiredCount(resultSet, "payment_event_count")));
         if (impact == null) {
             throw new DataRetrievalFailureException("계정 삭제 영향도 집계 결과를 확인할 수 없습니다.");
         }
