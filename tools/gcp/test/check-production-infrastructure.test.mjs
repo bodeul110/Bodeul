@@ -9,6 +9,7 @@ import {
   classifyAppCheckStage,
   combineAppCheckStage,
   classifyHttpStatus,
+  escapeMarkdownTableCell,
   exitCodeForReport,
   hasExactProjectLocalRoles,
   isExpectedAuditProvider,
@@ -112,6 +113,13 @@ test("Markdown과 JSON 결과에 원래 민감값을 남기지 않는다", () =>
   assert.doesNotMatch(serialized, /private-bucket/);
   assert.doesNotMatch(serialized, /versions\/2/);
   assert.doesNotMatch(serialized, /test-token-value/);
+});
+
+test("Markdown 표 셀의 역슬래시와 구분자를 모두 이스케이프한다", () => {
+  assert.equal(
+    escapeMarkdownTableCell(String.raw`왼쪽\|가운데|오른쪽`),
+    String.raw`왼쪽\\\|가운데\|오른쪽`,
+  );
 });
 
 test("expected 상태만 있으면 성공하고 drift, unavailable, error는 실패한다", () => {

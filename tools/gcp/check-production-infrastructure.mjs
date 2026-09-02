@@ -246,6 +246,12 @@ export function sanitizeText(value) {
     .trim();
 }
 
+export function escapeMarkdownTableCell(value) {
+  return sanitizeText(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|");
+}
+
 export function makeCheck({id, area, status, message}) {
   if (!Object.values(STATUS).includes(status)) {
     throw new Error("지원하지 않는 감사 상태입니다.");
@@ -1421,8 +1427,8 @@ function exactIamPolicy(policy, expectedBindings) {
 }
 
 function markdownRow(check) {
-  const id = sanitizeText(check.id).replace(/\|/g, "\\|");
-  const message = sanitizeText(check.message).replace(/\|/g, "\\|");
+  const id = escapeMarkdownTableCell(check.id);
+  const message = escapeMarkdownTableCell(check.message);
   return `| \`${id}\` | **${check.status}** | ${message} |`;
 }
 
