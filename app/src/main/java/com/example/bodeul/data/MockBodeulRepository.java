@@ -25,6 +25,7 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
+import com.example.bodeul.domain.model.BookingPaymentStatus;
 import com.example.bodeul.domain.model.ClientSupportCategory;
 import com.example.bodeul.domain.model.ClientSupportRequest;
 import com.example.bodeul.domain.model.ClientSupportStatus;
@@ -1972,11 +1973,17 @@ public class MockBodeulRepository implements BodeulRepository {
                 bookingRequestDraft.getPriceSummary().getOptionSurchargePrice(),
                 bookingRequestDraft.getPriceSummary().getCouponDiscountPrice(),
                 bookingRequestDraft.getPriceSummary().getFinalPrice(),
-                bookingRequestDraft.getPaymentApproval().getStatus().name(),
+                resolveInitialPaymentStatus(bookingRequestDraft),
                 normalizeText(bookingRequestDraft.getPaymentApproval().getApprovalCode()),
                 normalizeText(bookingRequestDraft.getPaymentApproval().getApprovedAt()),
                 normalizeText(bookingRequestDraft.getPaymentApproval().getProviderLabel())
         );
+    }
+
+    private String resolveInitialPaymentStatus(BookingRequestDraft bookingRequestDraft) {
+        return bookingRequestDraft.getPaymentMethod() == BookingPaymentMethod.BANK_TRANSFER
+                ? BookingPaymentStatus.AWAITING_DEPOSIT.name()
+                : bookingRequestDraft.getPaymentApproval().getStatus().name();
     }
 
     @Nullable
