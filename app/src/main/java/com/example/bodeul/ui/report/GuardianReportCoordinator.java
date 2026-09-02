@@ -16,6 +16,7 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.CompanionLocationAlertDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.MedicationComparisonDecisionDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonSummary;
@@ -32,10 +33,12 @@ import java.util.Locale;
 public final class GuardianReportCoordinator {
     private final Context context;
     private final GuardianReportPresentationFormatter formatter;
+    private final boolean legacyManagerLocationEnabled;
 
     public GuardianReportCoordinator(Context context, GuardianReportPresentationFormatter formatter) {
         this.context = context.getApplicationContext();
         this.formatter = formatter;
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public GuardianReportScreenModel createScreenModel(
@@ -106,9 +109,11 @@ public final class GuardianReportCoordinator {
 
         CompanionSession session = entry.getSession();
         String progressText = buildProgressText(entry);
-        String locationText = session == null || TextUtils.isEmpty(session.getLocationSummary())
-                ? context.getString(R.string.guardian_report_location_empty)
-                : session.getLocationSummary();
+        String locationText = !legacyManagerLocationEnabled
+                ? ""
+                : session == null || TextUtils.isEmpty(session.getLocationSummary())
+                        ? context.getString(R.string.guardian_report_location_empty)
+                        : session.getLocationSummary();
         String liveText = session == null || TextUtils.isEmpty(session.getGuardianUpdate())
                 ? context.getString(R.string.guardian_report_update_empty)
                 : session.getGuardianUpdate();
@@ -120,16 +125,26 @@ public final class GuardianReportCoordinator {
                         entry.getAppointmentRequest().getHospitalName(),
                         entry.getAppointmentRequest().getDepartmentName()
                 ),
-                context.getString(
-                        R.string.guardian_report_highlight_body_v2,
-                        count,
-                        buildPatientDisplay(entry),
-                        entry.getAppointmentRequest().getAppointmentAt(),
-                        formatter.buildManagerDisplay(entry.getManager()),
-                        progressText,
-                        locationText,
-                        liveText
-                ),
+                legacyManagerLocationEnabled
+                        ? context.getString(
+                                R.string.guardian_report_highlight_body_v2,
+                                count,
+                                buildPatientDisplay(entry),
+                                entry.getAppointmentRequest().getAppointmentAt(),
+                                formatter.buildManagerDisplay(entry.getManager()),
+                                progressText,
+                                locationText,
+                                liveText
+                        )
+                        : context.getString(
+                                R.string.guardian_report_highlight_body_without_location,
+                                count,
+                                buildPatientDisplay(entry),
+                                entry.getAppointmentRequest().getAppointmentAt(),
+                                formatter.buildManagerDisplay(entry.getManager()),
+                                progressText,
+                                liveText
+                        ),
                 entry.getAppointmentRequest().getId(),
                 context.getString(R.string.guardian_report_action_open_detail)
         );
@@ -184,31 +199,37 @@ public final class GuardianReportCoordinator {
                 buildProgressText(entry),
                 true
         ));
-        addOptionalLine(items, R.string.guardian_report_line_location, entry.getSession() == null
-                ? ""
-                : entry.getSession().getLocationSummary(), false);
-        items.add(new GuardianReportLineItem(
-                context.getString(R.string.guardian_report_line_live_status),
-                CompanionLocationDisplayHelper.buildLiveSharingStatus(context, entry.getSession()),
-                false
-        ));
-        items.add(new GuardianReportLineItem(
-                context.getString(R.string.guardian_report_line_location_alert),
-                CompanionLocationAlertDisplayHelper.buildAlertSummary(context, entry.getSession()),
-                false
-        ));
-        if (entry.getSession() != null && entry.getSession().getSharedLocationUpdatedAtMillis() > 0L) {
+        if (legacyManagerLocationEnabled) {
+            addOptionalLine(items, R.string.guardian_report_line_location, entry.getSession() == null
+                    ? ""
+                    : entry.getSession().getLocationSummary(), false);
             items.add(new GuardianReportLineItem(
-                    context.getString(R.string.guardian_report_line_location_updated_at),
-                    formatSharedLocationTime(entry.getSession().getSharedLocationUpdatedAtMillis()),
+                    context.getString(R.string.guardian_report_line_live_status),
+                    CompanionLocationDisplayHelper.buildLiveSharingStatus(context, entry.getSession()),
                     false
             ));
+            items.add(new GuardianReportLineItem(
+                    context.getString(R.string.guardian_report_line_location_alert),
+                    CompanionLocationAlertDisplayHelper.buildAlertSummary(context, entry.getSession()),
+                    false
+            ));
+            if (entry.getSession() != null
+                    && entry.getSession().getSharedLocationUpdatedAtMillis() > 0L) {
+                items.add(new GuardianReportLineItem(
+                        context.getString(R.string.guardian_report_line_location_updated_at),
+                        formatSharedLocationTime(entry.getSession().getSharedLocationUpdatedAtMillis()),
+                        false
+                ));
+            }
         }
         return items;
     }
 
     private List<GuardianReportLineItem> createHistoryLines(GuardianReportEntry entry) {
         List<GuardianReportLineItem> items = new ArrayList<>();
+        if (!legacyManagerLocationEnabled) {
+            return items;
+        }
         List<CompanionLocationHistoryEntry> history =
                 CompanionLocationDisplayHelper.resolveHistoryEntries(entry.getSession(), 6);
         if (history.isEmpty()) {

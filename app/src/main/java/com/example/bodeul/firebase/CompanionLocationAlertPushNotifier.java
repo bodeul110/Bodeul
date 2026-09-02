@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.ui.booking.BookingLiveLocationActivity;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.NotificationPermissionSupport;
 
 public final class CompanionLocationAlertPushNotifier {
@@ -20,6 +21,9 @@ public final class CompanionLocationAlertPushNotifier {
     }
 
     public static void showNotification(Context context, CompanionLocationAlertPushPayload payload) {
+        if (!LegacyManagerLocationSharingPolicy.isEnabled(context)) {
+            return;
+        }
         createChannelIfNeeded(context);
         Intent destinationIntent = BookingLiveLocationActivity.createIntent(
                 context,

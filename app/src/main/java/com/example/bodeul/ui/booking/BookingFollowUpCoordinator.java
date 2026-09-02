@@ -18,6 +18,7 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,10 +29,12 @@ import java.util.List;
 public final class BookingFollowUpCoordinator {
     private final Context context;
     private final BookingPresentationFormatter formatter;
+    private final boolean legacyManagerLocationEnabled;
 
     public BookingFollowUpCoordinator(Context context, BookingPresentationFormatter formatter) {
         this.context = context.getApplicationContext();
         this.formatter = formatter;
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public BookingFollowUpScreenModel buildScreenModel(
@@ -234,7 +237,9 @@ public final class BookingFollowUpCoordinator {
 
     private String buildEmergencyBody(AppointmentRequestDetail detail) {
         CompanionSession session = detail.getSession();
-        if (session != null && !TextUtils.isEmpty(session.getLocationSummary())) {
+        if (legacyManagerLocationEnabled
+                && session != null
+                && !TextUtils.isEmpty(session.getLocationSummary())) {
             return context.getString(
                     R.string.booking_follow_up_emergency_body_location,
                     session.getLocationSummary()

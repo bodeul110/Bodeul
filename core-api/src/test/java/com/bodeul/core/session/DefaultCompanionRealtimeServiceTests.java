@@ -10,6 +10,7 @@ import com.bodeul.core.auth.AppUserRepository;
 import com.bodeul.core.auth.AppUserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,6 +40,7 @@ class DefaultCompanionRealtimeServiceTests {
                 sessionRepository,
                 realtimeRepository,
                 events::add,
+                properties(true),
                 (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true);
     }
 
@@ -188,6 +190,7 @@ class DefaultCompanionRealtimeServiceTests {
                 sessionRepository,
                 realtimeRepository,
                 events::add,
+                properties(true),
                 (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
                         appUser.role() != AppUserRole.GUARDIAN);
 
@@ -255,6 +258,40 @@ class DefaultCompanionRealtimeServiceTests {
     }
 
     @Test
+    void disabledLegacyManagerLocationMasksCoordinatesWithoutRepositoryRead() {
+        realtimeRepository.locations = List.of(location());
+        var disabledService = new DefaultCompanionRealtimeService(
+                sessionRepository,
+                realtimeRepository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true);
+
+        var snapshot = disabledService.getSnapshot(patient(), SESSION_ID);
+
+        assertThat(snapshot.locations()).isEmpty();
+        assertThat(realtimeRepository.locationReadCount).isZero();
+    }
+
+    @Test
+    void disabledLegacyManagerLocationRejectsManagerWriteBeforeRepository() {
+        var disabledService = new DefaultCompanionRealtimeService(
+                sessionRepository,
+                realtimeRepository,
+                events::add,
+                properties(false),
+                (appUser, appointmentId, patientUserId, guardianUserId, scope) -> true);
+
+        assertThatThrownBy(() -> disabledService.postLocation(
+                        manager(), SESSION_ID, locationCommand()))
+                .isInstanceOfSatisfying(CompanionSessionException.class, exception -> {
+                    assertThat(exception.status()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(exception.error()).isEqualTo("companion_location_sharing_disabled");
+                });
+        assertThat(realtimeRepository.lastLocation).isNull();
+    }
+
+    @Test
     void missingReadMessageIsReportedAsNotFound() {
         realtimeRepository.receipt = Optional.empty();
 
@@ -300,6 +337,7 @@ class DefaultCompanionRealtimeServiceTests {
                 sessionRepository,
                 realtimeRepository,
                 events::add,
+                properties(true),
                 (appUser, appointmentId, patientUserId, guardianUserId, scope) -> false);
 
         assertThatThrownBy(() -> failClosedService.getSnapshot(guardian(), SESSION_ID))
@@ -324,6 +362,7 @@ class DefaultCompanionRealtimeServiceTests {
                 sessionRepository,
                 realtimeRepository,
                 events::add,
+                properties(true),
                 (appUser, appointmentId, patientUserId, guardianUserId, scope) ->
                         scope == com.bodeul.core.consent.AdultPatientGuardianSharingPolicy
                                 .InformationScope.CHAT);
@@ -342,6 +381,12 @@ class DefaultCompanionRealtimeServiceTests {
                 37.5665,
                 126.9780,
                 Instant.now().toString());
+    }
+
+    private CompanionSessionProperties properties(boolean legacyManagerLocationEnabled) {
+        CompanionSessionProperties properties = new CompanionSessionProperties();
+        properties.setLegacyManagerLocationEnabled(legacyManagerLocationEnabled);
+        return properties;
     }
 
     private AppUserRepository.AppUser patient() {
@@ -518,6 +563,7 @@ class DefaultCompanionRealtimeServiceTests {
         private Optional<AttachmentRecord> attachment = Optional.empty();
         private MessageMutation lastMessage;
         private LocationMutation lastLocation;
+        private int locationReadCount;
         private boolean forceDifferentPayload;
 
         @Override
@@ -532,6 +578,7 @@ class DefaultCompanionRealtimeServiceTests {
 
         @Override
         public List<LocationRecord> findRecentLocations(UUID sessionId, int limit) {
+            locationReadCount++;
             return locations;
         }
 

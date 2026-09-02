@@ -14,6 +14,7 @@ import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,9 +24,11 @@ import java.util.List;
  */
 public final class AppointmentProgressComposer {
     private final Context context;
+    private final boolean legacyManagerLocationEnabled;
 
     public AppointmentProgressComposer(Context context) {
         this.context = context.getApplicationContext();
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public AppointmentProgressOverviewModel create(
@@ -276,7 +279,9 @@ public final class AppointmentProgressComposer {
                 ));
             }
         }
-        addLine(lines, R.string.booking_status_line_live_location, session.getLocationSummary());
+        if (legacyManagerLocationEnabled) {
+            addLine(lines, R.string.booking_status_line_live_location, session.getLocationSummary());
+        }
         if (!TextUtils.isEmpty(session.getGuardianUpdate())) {
             lines.add(context.getString(
                     R.string.booking_status_progress_update_format,

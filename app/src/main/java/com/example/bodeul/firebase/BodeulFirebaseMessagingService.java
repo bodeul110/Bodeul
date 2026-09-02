@@ -7,6 +7,7 @@ import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.ui.health.HealthInfoActivity;
 import com.example.bodeul.ui.support.ClientSupportActivity;
 import com.example.bodeul.util.AppActivityTracker;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -37,6 +38,9 @@ public class BodeulFirebaseMessagingService extends FirebaseMessagingService {
 
         CompanionLocationAlertPushPayload locationAlertPayload = CompanionLocationAlertPushPayload.from(remoteMessage);
         if (locationAlertPayload != null) {
+            if (!LegacyManagerLocationSharingPolicy.isEnabled(this)) {
+                return;
+            }
             if (AppActivityTracker.isCurrentActivity(BookingLiveLocationActivity.class)) {
                 return;
             }

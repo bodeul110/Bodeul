@@ -37,6 +37,7 @@ import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -96,6 +97,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     private HospitalMapCoordinateResult currentCoordinateResult;
     private String currentCoordinateQueryKey = "";
     private boolean coordinateSearchInFlight;
+    private boolean legacyManagerLocationEnabled;
 
     public static Intent createIntent(Context context, String requestId) {
         Intent intent = new Intent(context, BookingLiveLocationActivity.class);
@@ -107,6 +109,7 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_booking_live_location);
+        legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(this);
 
         requestId = getIntent().getStringExtra(EXTRA_REQUEST_ID);
         authRepository = ServiceLocator.provideAuthRepository(this);
@@ -118,6 +121,14 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
         statePanel = findViewById(R.id.bookingLiveLocationStatePanel);
         contentContainer = findViewById(R.id.bookingLiveLocationContentContainer);
         progressBar = findViewById(R.id.progressBookingLiveLocation);
+        findViewById(R.id.buttonBackBookingLiveLocation).setOnClickListener(view -> finish());
+        contentContainer.setVisibility(View.GONE);
+
+        if (!legacyManagerLocationEnabled) {
+            setLoading(false);
+            showLegacyManagerLocationDisabledState();
+            return;
+        }
 
         binder = new BookingLiveLocationBinder(
                 this,
@@ -145,12 +156,9 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 new BookingLiveLocationMapActionBinder(this::openMapFallback)
         );
 
-        findViewById(R.id.buttonBackBookingLiveLocation).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBookingLiveLocationPrimary).setOnClickListener(view -> openBookingStatus());
         findViewById(R.id.buttonBookingLiveLocationRefresh).setOnClickListener(view -> startObserving());
         findViewById(R.id.buttonBookingLiveLocationChat).setOnClickListener(view -> openCompanionChat());
-        contentContainer.setVisibility(View.GONE);
-
         mapView = findViewById(R.id.mapViewBookingLiveLocation);
         mapView.start(new MapLifeCycleCallback() {
             @Override
@@ -179,7 +187,9 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        startObserving();
+        if (legacyManagerLocationEnabled) {
+            startObserving();
+        }
     }
 
     @Override
@@ -201,7 +211,9 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        stopObserving();
+        if (legacyManagerLocationEnabled) {
+            stopObserving();
+        }
     }
 
     private void stopObserving() {
@@ -221,6 +233,9 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (!legacyManagerLocationEnabled) {
+            return;
+        }
         if (requestCode == REQUEST_FINE_LOCATION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 if (kakaoMap != null) {
@@ -261,6 +276,10 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
     }
 
     private void startObserving() {
+        if (!legacyManagerLocationEnabled) {
+            showLegacyManagerLocationDisabledState();
+            return;
+        }
         if (TextUtils.isEmpty(requestId)) {
             showLoadErrorState(getString(R.string.booking_status_request_missing));
             return;
@@ -574,6 +593,19 @@ public class BookingLiveLocationActivity extends AppCompatActivity {
                 view -> openHome(),
                 getString(R.string.state_action_open_login),
                 view -> openRoleSelection()
+        );
+    }
+
+    private void showLegacyManagerLocationDisabledState() {
+        showBlockingState(
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.legacy_manager_location_disabled_badge),
+                getString(R.string.legacy_manager_location_disabled_title),
+                getString(R.string.legacy_manager_location_disabled_body),
+                getString(R.string.state_action_open_home),
+                view -> openHome(),
+                null,
+                null
         );
     }
 
