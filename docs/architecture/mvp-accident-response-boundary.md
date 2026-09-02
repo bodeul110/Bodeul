@@ -13,6 +13,9 @@
 - 관리자 긴급 이슈 보고·해결 저장 경로를 제거한다.
 - Core API는 값이 비어 있지 않은 신규 `supportEscalationStatus` PATCH를 `409 support_escalation_not_supported`로 거부한다.
 - JDBC, Firestore와 Mock 저장소의 신규 SOS 쓰기를 제거한다.
+- Firebase 샘플 seed와 운영 준비상태 검사도 신규 SOS·긴급 이슈를 만들거나 필수조건으로 요구하지 않는다. 기존 긴급 이슈 문서는 선택적 legacy 보고 대상으로만 읽는다.
+- 기존 `EMERGENCY` 관리자 알림은 조회만 허용한다. 카드에 읽음·해결·재오픈 액션을 노출하지 않고, Firebase와 Mock 저장소도 같은 변경 요청을 쓰기 전에 거부한다.
+- 과거 `PENDING`·`FAILED` 상태로 남은 `EMERGENCY` 전달 작업은 예약·수동 dispatcher 모두 provider 호출 전에 `SKIPPED`로 종료한다. 작업 문서의 source가 비어 있어도 연결된 전달 기록이 `EMERGENCY`이면 같은 경계를 적용하고, 전달 기록도 `skipped` 계약으로 맞춘다.
 - PostgreSQL·Firestore의 기존 열과 필드, 응답 DTO, 파서는 과거 데이터와 구버전 응답을 위한 legacy 읽기 호환으로 유지한다. 정산이나 후기를 갱신할 때도 기존 SOS 열을 덮어쓰지 않는다.
 - 현재 존재하는 `REQUESTED`·`MATCHED` 예약 취소와 정상 동행 종료·완료 흐름은 유지한다.
 

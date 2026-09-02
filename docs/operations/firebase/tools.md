@@ -206,8 +206,9 @@ npm run seed:sample:apply
 - 기본 시나리오는 `예약 대기`, `진행 중 동행`, `종료 후속 처리` 3개다.
 - 함께 생성되는 컬렉션은 `appointmentRequests`, `companionSessions`, `sessionReports`,
   `appointmentFollowUps`, `supportInquiries`, `adminSettlementRecords`,
-  `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`,
-  `adminActionDeliveries`, `adminActionDeliveryJobs`, `appointmentReminderJobs`다.
+  `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`,
+  `adminActionDeliveryJobs`, `appointmentReminderJobs`다.
+- MVP에서 제외한 SOS 상태와 `adminEmergencyIssues`는 새로 만들지 않는다. 기존 문서는 삭제하지 않고 운영 리포트에서 legacy 기록으로만 읽는다.
 
 ### 동행 세션 참가자 정보 보완
 

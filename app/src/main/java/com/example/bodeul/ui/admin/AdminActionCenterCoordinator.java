@@ -4,6 +4,7 @@ import com.example.bodeul.domain.model.AdminActionContract;
 import com.example.bodeul.domain.model.AdminActionNotification;
 import com.example.bodeul.domain.model.AdminActionNotificationFilterKey;
 import com.example.bodeul.domain.model.AdminActionNotificationLevel;
+import com.example.bodeul.domain.model.AdminActionNotificationMutationPolicy;
 import com.example.bodeul.domain.model.AdminActionOverview;
 import com.example.bodeul.domain.model.AdminActionNotificationPriority;
 import com.example.bodeul.domain.model.AdminActionNotificationState;
@@ -203,24 +204,46 @@ public final class AdminActionCenterCoordinator {
             AdminActionNotification notification
     ) {
         List<AdminActionCenterActionModel> actions = new ArrayList<>();
-        if (notification.getState() == AdminActionNotificationState.UNREAD) {
+        for (AdminActionCenterActionType actionType : resolveNotificationActionTypes(notification)) {
             actions.add(new AdminActionCenterActionModel(
-                    AdminActionCenterActionType.MARK_READ,
-                    formatter.getMarkReadActionText()
+                    actionType,
+                    resolveActionText(actionType)
             ));
+        }
+        return actions;
+    }
+
+    static List<AdminActionCenterActionType> resolveNotificationActionTypes(
+            AdminActionNotification notification
+    ) {
+        if (notification == null
+                || !AdminActionNotificationMutationPolicy.canMutate(
+                notification.getSourceType()
+        )) {
+            return java.util.Collections.emptyList();
+        }
+        List<AdminActionCenterActionType> actionTypes = new ArrayList<>();
+        if (notification.getState() == AdminActionNotificationState.UNREAD) {
+            actionTypes.add(AdminActionCenterActionType.MARK_READ);
         }
         if (notification.getState() == AdminActionNotificationState.RESOLVED) {
-            actions.add(new AdminActionCenterActionModel(
-                    AdminActionCenterActionType.REOPEN,
-                    formatter.getReopenActionText()
-            ));
-            return actions;
+            actionTypes.add(AdminActionCenterActionType.REOPEN);
+            return actionTypes;
         }
-        actions.add(new AdminActionCenterActionModel(
-                AdminActionCenterActionType.MARK_RESOLVED,
-                formatter.getResolveActionText()
-        ));
-        return actions;
+        actionTypes.add(AdminActionCenterActionType.MARK_RESOLVED);
+        return actionTypes;
+    }
+
+    private String resolveActionText(AdminActionCenterActionType actionType) {
+        switch (actionType) {
+            case MARK_READ:
+                return formatter.getMarkReadActionText();
+            case REOPEN:
+                return formatter.getReopenActionText();
+            case MARK_RESOLVED:
+            default:
+                return formatter.getResolveActionText();
+        }
     }
 
     private AdminActionCenterTone resolvePriorityTone(AdminActionNotificationPriority priority) {

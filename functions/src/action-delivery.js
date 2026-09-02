@@ -31,6 +31,8 @@ const ACTION_DELIVERY_SKIPPED_STATE = "SKIPPED";
 const ACTION_DELIVERY_FAILED_STATE = "FAILED";
 const ACTION_DELIVERY_CHANNEL_PUSH = "app_push";
 const ACTION_DELIVERY_BATCH_SIZE = 20;
+const LEGACY_EMERGENCY_SOURCE_TYPE = "EMERGENCY";
+const LEGACY_EMERGENCY_SKIP_REASON = "legacy_emergency_disabled";
 
 const deliverAdminActionDeliveryJobs = onSchedule(
     ACTION_DELIVERY_SCHEDULE_OPTIONS,
@@ -132,6 +134,21 @@ async function claimAdminActionDeliveryJob(firestore, actionDeliveryJobRef, sour
 
 async function deliverAdminActionDeliveryJob(firestore, actionDeliveryJob, source) {
   try {
+    const deliveryId = sanitizeText(actionDeliveryJob.deliveryId);
+    const deliverySnapshot = deliveryId ?
+      await firestore.collection("adminActionDeliveries").doc(deliveryId).get() :
+      null;
+    if (isLegacyEmergencyAdminActionDelivery(actionDeliveryJob, deliverySnapshot)) {
+      await markAdminActionDeliveryJobSkipped(
+          firestore,
+          actionDeliveryJob,
+          deliverySnapshot?.exists ? deliverySnapshot : null,
+          source,
+          LEGACY_EMERGENCY_SKIP_REASON,
+          "MVP에서 제외된 기존 긴급 알림이라 재발송하지 않고 종료했습니다.",
+      );
+      return ACTION_DELIVERY_SKIPPED_STATE;
+    }
     if (sanitizeText(actionDeliveryJob.channel) !== ACTION_DELIVERY_CHANNEL_PUSH) {
       await markAdminActionDeliveryJobSkipped(
           firestore,
@@ -143,11 +160,6 @@ async function deliverAdminActionDeliveryJob(firestore, actionDeliveryJob, sourc
       );
       return ACTION_DELIVERY_SKIPPED_STATE;
     }
-
-    const deliveryId = sanitizeText(actionDeliveryJob.deliveryId);
-    const deliverySnapshot = deliveryId ?
-      await firestore.collection("adminActionDeliveries").doc(deliveryId).get() :
-      null;
     if (!deliverySnapshot?.exists) {
       await markAdminActionDeliveryJobSkipped(
           firestore,
@@ -227,6 +239,15 @@ async function deliverAdminActionDeliveryJob(firestore, actionDeliveryJob, sourc
     );
     return ACTION_DELIVERY_FAILED_STATE;
   }
+}
+
+function isLegacyEmergencyAdminActionDelivery(actionDeliveryJob, deliverySnapshot) {
+  const jobSourceType = sanitizeText(actionDeliveryJob.sourceType).toUpperCase();
+  const deliverySourceType = deliverySnapshot?.exists ?
+    sanitizeText(deliverySnapshot.get("sourceType")).toUpperCase() :
+    "";
+  return jobSourceType === LEGACY_EMERGENCY_SOURCE_TYPE ||
+    deliverySourceType === LEGACY_EMERGENCY_SOURCE_TYPE;
 }
 
 async function resolveAdminActionDeliveryRecipients(firestore, actionDeliveryJob) {

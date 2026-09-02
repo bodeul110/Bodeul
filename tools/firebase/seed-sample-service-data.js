@@ -21,7 +21,6 @@ const SAMPLE_COLLECTIONS = Object.freeze([
   "supportInquiries",
   "clientSupportRequests",
   "adminSettlementRecords",
-  "adminEmergencyIssues",
   "adminActionNotifications",
   "adminAuditLogs",
   "adminActionDeliveries",
@@ -309,8 +308,6 @@ function buildSampleState(baselineUsers) {
         settlementFollowUpStatus: "NEEDS_HELP",
         settlementFollowUpNote: "현장 결제 영수증과 실제 청구 금액을 다시 확인하고 싶습니다.",
         settlementFollowUpSavedAt: completedUpdatedAt + (55 * 60 * 1000),
-        supportEscalationStatus: "MANAGER_CALLED",
-        supportEscalatedAt: completedUpdatedAt + (65 * 60 * 1000),
       },
     },
     {
@@ -390,17 +387,6 @@ function buildSampleState(baselineUsers) {
         note: "사용자가 현장 결제 내역 재확인을 요청해 운영 재검토 대상으로 표시했습니다.",
         handledByName: admin.name,
         handledAt: settlementNotificationCreatedAt,
-      },
-    },
-    {
-      collection: "adminEmergencyIssues",
-      path: "adminEmergencyIssues/request-seed-completed",
-      data: {
-        requestId: "request-seed-completed",
-        status: "REPORTED",
-        note: "SOS 후속 확인을 위해 매니저 재연락 기록을 남겼습니다.",
-        handledByName: admin.name,
-        handledAt: settlementNotificationCreatedAt + (8 * 60 * 1000),
       },
     },
     {
@@ -637,7 +623,7 @@ function buildSampleState(baselineUsers) {
       {
         label: "종료 후속 처리",
         requestId: "request-seed-completed",
-        summary: "리포트, 후기, 정산 재확인, SOS 후속이 남아 있는 완료 요청",
+        summary: "리포트, 후기와 정산 재확인이 남아 있는 완료 요청",
       },
     ],
     documents,
@@ -778,8 +764,15 @@ function toIsoString(epochMillis) {
   return new Date(epochMillis).toISOString();
 }
 
-main().catch((error) => {
-  console.error("샘플 서비스 데이터 스크립트 실행 중 오류가 발생했습니다.");
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error("샘플 서비스 데이터 스크립트 실행 중 오류가 발생했습니다.");
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  SAMPLE_COLLECTIONS,
+  buildSampleState,
+};

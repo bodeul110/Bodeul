@@ -174,8 +174,7 @@ function buildRoleReadiness(snapshot) {
   const completedFollowUpRequest = requests.find((request) =>
     request.status === "COMPLETED" &&
     followUpsByRequestId.has(request.id) &&
-    settlementByRequestId.has(request.id) &&
-    emergencyByRequestId.has(request.id),
+    settlementByRequestId.has(request.id),
   );
 
   const roles = [
@@ -206,7 +205,7 @@ function buildRoleReadiness(snapshot) {
           patientRequests.some((request) =>
             request.status === "COMPLETED" && followUpsByRequestId.has(request.id),
           ) ?
-            "완료 요청과 후기/정산/SOS 후속 문서가 연결되어 있습니다." :
+            "완료 요청과 후기/정산 후속 문서가 연결되어 있습니다." :
             "완료 요청 또는 appointmentFollowUps 문서가 부족합니다.",
       ),
       createCheck(
@@ -316,8 +315,8 @@ function buildRoleReadiness(snapshot) {
           "후속 처리 아티팩트",
           Boolean(completedFollowUpRequest),
           completedFollowUpRequest ?
-            `${completedFollowUpRequest.id} 요청에 follow-up/정산/SOS 기록이 연결되어 있습니다.` :
-            "completed 요청 또는 appointmentFollowUps/adminSettlementRecords/adminEmergencyIssues가 부족합니다.",
+            `${completedFollowUpRequest.id} 요청에 follow-up/정산 기록이 연결되어 있습니다.` :
+            "completed 요청 또는 appointmentFollowUps/adminSettlementRecords가 부족합니다.",
       ),
       createCheck(
           "action_center",
@@ -395,7 +394,6 @@ function buildRoleReadiness(snapshot) {
               report &&
               followUpsByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID) &&
               settlementByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID) &&
-              emergencyByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID) &&
               (notificationsByRequestId.get(SAMPLE_REQUEST_COMPLETED_ID) || []).length > 0 &&
               (deliveriesByRequestId.get(SAMPLE_REQUEST_COMPLETED_ID) || []).length > 0,
           );
@@ -406,7 +404,7 @@ function buildRoleReadiness(snapshot) {
             `report=${Boolean(session && reportsBySessionId.get(session.id))}`,
             `followUp=${followUpsByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID)}`,
             `settlement=${settlementByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID)}`,
-            `emergency=${emergencyByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID)}`,
+            `legacyEmergency=${emergencyByRequestId.has(SAMPLE_REQUEST_COMPLETED_ID)}`,
             `notifications=${(notificationsByRequestId.get(SAMPLE_REQUEST_COMPLETED_ID) || []).length}`,
             `deliveries=${(deliveriesByRequestId.get(SAMPLE_REQUEST_COMPLETED_ID) || []).length}`,
           ].join(", ");

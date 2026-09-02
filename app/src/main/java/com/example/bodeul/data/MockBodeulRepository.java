@@ -9,6 +9,7 @@ import com.example.bodeul.domain.model.AdminActionDeliveryRecord;
 import com.example.bodeul.domain.model.AdminActionDeliveryStatus;
 import com.example.bodeul.domain.model.AdminActionDeliveryTrigger;
 import com.example.bodeul.domain.model.AdminActionNotificationLevel;
+import com.example.bodeul.domain.model.AdminActionNotificationMutationPolicy;
 import com.example.bodeul.domain.model.AdminActionSourceType;
 import com.example.bodeul.domain.model.AdminAuditLogEntry;
 import com.example.bodeul.domain.model.AdminEmergencyIssueRecord;
@@ -290,6 +291,9 @@ public class MockBodeulRepository implements BodeulRepository {
             if (!notification.getId().equals(notificationId)) {
                 continue;
             }
+            if (!AdminActionNotificationMutationPolicy.canMutate(notification.getSourceType())) {
+                return null;
+            }
             if (notification.isRead()) {
                 return notification;
             }
@@ -334,6 +338,9 @@ public class MockBodeulRepository implements BodeulRepository {
             AdminActionNotification notification = adminActionNotifications.get(index);
             if (!notification.getId().equals(notificationId)) {
                 continue;
+            }
+            if (!AdminActionNotificationMutationPolicy.canMutate(notification.getSourceType())) {
+                return null;
             }
 
             long now = System.currentTimeMillis();
