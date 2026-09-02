@@ -74,7 +74,7 @@ jobs:
                   ;;
               esac
               case "$file" in
-                functions/*|tools/firebase/*|core-api/*.js|core-api/*.mjs|core-api/*.cjs|core-api/*.ts|core-api/*.tsx|.github/workflows/codeql.yml|.github/codeql/*)
+                functions/*|tools/firebase/*|tools/gcp/*|core-api/*.js|core-api/*.mjs|core-api/*.cjs|core-api/*.ts|core-api/*.tsx|.github/workflows/codeql.yml|.github/codeql/*)
                   javascript=true
                   ;;
               esac
