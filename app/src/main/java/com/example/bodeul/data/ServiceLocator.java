@@ -11,6 +11,7 @@ import com.example.bodeul.data.firebase.FirebaseManagerRepository;
 import com.example.bodeul.data.firebase.FirebaseNotificationTokenRegistrar;
 import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.example.bodeul.data.coreapi.CoreApiBookingRepository;
+import com.example.bodeul.data.coreapi.CoreApiBankTransferPaymentRepository;
 import com.example.bodeul.data.coreapi.CoreApiCompanionChatAttachmentPreviewResolver;
 import com.example.bodeul.data.coreapi.CoreApiCompanionChatAttachmentUploader;
 import com.example.bodeul.data.coreapi.CoreApiGuardianReportRepository;
@@ -21,6 +22,7 @@ import com.example.bodeul.data.mock.MockAuthRepository;
 import com.example.bodeul.data.mock.MockCompanionChatAttachmentPreviewResolver;
 import com.example.bodeul.data.mock.MockCompanionChatAttachmentUploader;
 import com.example.bodeul.data.mock.MockBookingRepository;
+import com.example.bodeul.data.mock.MockBankTransferPaymentRepository;
 import com.example.bodeul.data.mock.MockGuardianReportRepository;
 import com.example.bodeul.data.mock.MockGuardianSharingConsentRepository;
 import com.example.bodeul.data.mock.MockManagerDocumentPreviewResolver;
@@ -40,6 +42,7 @@ public final class ServiceLocator {
     private static MockBodeulRepository mockBodeulRepository;
     private static AuthRepository authRepository;
     private static BookingRepository bookingRepository;
+    private static BankTransferPaymentRepository bankTransferPaymentRepository;
     private static GuardianReportRepository guardianReportRepository;
     private static GuardianSharingConsentRepository guardianSharingConsentRepository;
     private static ClientSupportRepository clientSupportRepository;
@@ -159,6 +162,21 @@ public final class ServiceLocator {
             }
         }
         return bookingRepository;
+    }
+
+    public static synchronized BankTransferPaymentRepository provideBankTransferPaymentRepository(
+            Context context
+    ) {
+        if (bankTransferPaymentRepository == null) {
+            if (FirebaseSupport.isConfigured(context)) {
+                bankTransferPaymentRepository = new CoreApiBankTransferPaymentRepository(
+                        context.getApplicationContext());
+            } else {
+                bankTransferPaymentRepository = new MockBankTransferPaymentRepository(
+                        getMockBodeulRepository());
+            }
+        }
+        return bankTransferPaymentRepository;
     }
 
     public static synchronized GuardianReportRepository provideGuardianReportRepository(Context context) {

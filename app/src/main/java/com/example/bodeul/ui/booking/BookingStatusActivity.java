@@ -47,6 +47,7 @@ public class BookingStatusActivity extends AppCompatActivity {
     private ProgressBar progressBookingStatus;
     private MaterialButton buttonPrimary;
     private MaterialButton buttonSecondary;
+    private MaterialButton buttonBankTransferPayment;
     private MaterialButton buttonGuardianSharingConsent;
 
     private User currentUser;
@@ -80,6 +81,8 @@ public class BookingStatusActivity extends AppCompatActivity {
         progressBookingStatus = findViewById(R.id.progressBookingStatus);
         buttonPrimary = findViewById(R.id.buttonBookingStatusPrimary);
         buttonSecondary = findViewById(R.id.buttonBookingStatusSecondary);
+        buttonBankTransferPayment = findViewById(
+                R.id.buttonBookingStatusBankTransferPayment);
         buttonGuardianSharingConsent = findViewById(
                 R.id.buttonBookingStatusGuardianSharingConsent);
 
@@ -113,6 +116,7 @@ public class BookingStatusActivity extends AppCompatActivity {
         buttonSecondary.setOnClickListener(view -> handleAction(
                 currentScreenModel == null ? null : currentScreenModel.getSecondaryAction()
         ));
+        buttonBankTransferPayment.setOnClickListener(view -> openBankTransferPayment());
         buttonGuardianSharingConsent.setOnClickListener(view -> openGuardianSharingConsent());
         bookingStatusContentContainer.setVisibility(View.GONE);
     }
@@ -210,6 +214,12 @@ public class BookingStatusActivity extends AppCompatActivity {
                 followUpRecord
         );
         bookingStatusBinder.bindScreen(currentScreenModel);
+        buttonBankTransferPayment.setVisibility(
+                currentUser != null && BankTransferPaymentAccessPolicy.canOpen(
+                        currentUser.getRole(),
+                        detail.getAppointmentRequest().getPaymentMethodCode())
+                        ? View.VISIBLE
+                        : View.GONE);
         buttonGuardianSharingConsent.setVisibility(
                 currentUser != null && currentUser.getRole() == UserRole.PATIENT
                         ? View.VISIBLE
@@ -353,10 +363,23 @@ public class BookingStatusActivity extends AppCompatActivity {
         ));
     }
 
+    private void openBankTransferPayment() {
+        if (currentDetail == null || currentUser == null
+                || !BankTransferPaymentAccessPolicy.canOpen(
+                currentUser.getRole(),
+                currentDetail.getAppointmentRequest().getPaymentMethodCode())) {
+            return;
+        }
+        startActivity(BankTransferPaymentActivity.createIntent(
+                this,
+                currentDetail.getAppointmentRequest().getId()));
+    }
+
     private void setLoading(boolean loading) {
         progressBookingStatus.setVisibility(loading ? View.VISIBLE : View.GONE);
         buttonPrimary.setEnabled(!loading);
         buttonSecondary.setEnabled(!loading);
+        buttonBankTransferPayment.setEnabled(!loading);
         buttonGuardianSharingConsent.setEnabled(!loading);
     }
 
