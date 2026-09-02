@@ -50,18 +50,4 @@
     <string name="admin_settlement_action_saved_confirm">정산 확인 상태를 저장했습니다.</string>
     <string name="admin_settlement_action_saved_recheck">정산 재확인 요청을 저장했습니다.</string>
 
-    <string name="admin_monitoring_line_emergency_status">긴급 이슈 상태</string>
-    <string name="admin_monitoring_line_emergency_note">긴급 이슈 메모</string>
-    <string name="admin_monitoring_line_emergency_handled">최근 처리 기록</string>
-    <string name="admin_monitoring_card_summary_emergency">긴급 이슈: %1$s · %2$s</string>
-
-    <string name="admin_emergency_issue_empty">등록된 이슈 없음</string>
-    <string name="admin_emergency_issue_reported">이슈 보고됨</string>
-    <string name="admin_emergency_issue_resolved">이슈 해결됨</string>
-    <string name="admin_emergency_action_report">긴급 이슈 보고</string>
-    <string name="admin_emergency_action_resolve">긴급 이슈 해결 처리</string>
-    <string name="admin_emergency_action_report_helper">현장 이슈 상황과 필요한 후속 조치를 메모로 남깁니다.</string>
-    <string name="admin_emergency_action_resolve_helper">이슈 해결 결과와 후속 안내를 메모로 남깁니다.</string>
-    <string name="admin_emergency_action_saved_report">긴급 이슈를 저장했습니다.</string>
-    <string name="admin_emergency_action_saved_resolve">긴급 이슈 해결 처리를 저장했습니다.</string>
 </resources>

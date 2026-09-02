@@ -45,8 +45,6 @@ class DefaultAppointmentService implements AppointmentService {
             "excellent", "good", "ok", "disappointing", "need_help");
     private static final Set<String> SETTLEMENT_STATUSES = Set.of(
             "CONFIRMED", "NEEDS_HELP", "OVERTIME_REVIEW", "REFUND_REVIEW");
-    private static final Set<String> SUPPORT_ESCALATION_STATUSES = Set.of(
-            "GUIDE_VIEWED", "MANAGER_CALLED", "DIALED_119");
 
     private final AppointmentRepository appointmentRepository;
     private final AppUserProfileRepository profileRepository;
@@ -302,11 +300,11 @@ class DefaultAppointmentService implements AppointmentService {
                 command.reviewRatingCode(), REVIEW_RATINGS, false, "후기 만족도");
         String settlementStatus = normalizeOptionalCode(
                 command.settlementStatus(), SETTLEMENT_STATUSES, true, "정산 확인 상태");
-        String supportEscalationStatus = normalizeOptionalCode(
-                command.supportEscalationStatus(), SUPPORT_ESCALATION_STATUSES, true, "긴급 지원 상태");
+        if (!normalizeText(command.supportEscalationStatus()).isEmpty()) {
+            throw AppointmentException.supportEscalationNotSupported();
+        }
         if (reviewRatingCode == null
-                && settlementStatus == null
-                && supportEscalationStatus == null) {
+                && settlementStatus == null) {
             throw AppointmentException.invalidRequest("저장할 후속 기록이 필요합니다.");
         }
         String settlementNote = settlementStatus == null
@@ -324,8 +322,7 @@ class DefaultAppointmentService implements AppointmentService {
                 command.version(),
                 reviewRatingCode,
                 settlementStatus,
-                settlementNote,
-                supportEscalationStatus);
+                settlementNote);
         return (existing.isEmpty()
                         ? appointmentRepository.insertFollowUp(mutation)
                         : appointmentRepository.updateFollowUp(mutation))

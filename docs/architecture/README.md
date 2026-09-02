@@ -6,6 +6,8 @@ Android 앱, 관리자 웹, Core API, PostgreSQL, Firebase와 운영 도구의 �
 
 - [설계 판단 기록 규칙](decision-log.md)
   - 작업 목적, 선택 방식, 대안, 선택 이유, 리스크를 남기는 팀 운영 기준
+- [MVP SOS·사고 대응 비활성 경계](mvp-accident-response-boundary.md)
+  - 신규 SOS·자동 연락·사고 기록을 닫고 기존 필드를 읽기 호환으로 유지하는 기준
 - [현재 인프라 구성도](infra-overview.md)
   - Android, Next.js 관리자 서버, Spring Core API, Firebase와 Supabase PostgreSQL의 현재 흐름
 - [Firebase 선택 근거](why-firebase.md)

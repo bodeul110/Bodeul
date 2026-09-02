@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="admin_action_center_title">후속 알림 및 감사 로그</string>
-    <string name="admin_action_center_helper">정산, 긴급 대응, 문의 응답 이후의 후속 처리 이력을 시간순으로 확인합니다.</string>
+    <string name="admin_action_center_helper">정산, 문의 응답과 기존 긴급 기록의 후속 처리 이력을 시간순으로 확인합니다.</string>
     <string name="admin_action_center_summary_empty">등록된 후속 알림과 감사 로그가 아직 없습니다.</string>
     <string name="admin_action_center_summary">후속 알림 %1$d건 중 미확인 %2$d건, 해결 대기 %3$d건, 감사 로그 %4$d건</string>
     <string name="admin_action_center_empty">표시할 운영 이력이 아직 없습니다.</string>
     <string name="admin_action_center_badge_notification">후속 알림</string>
     <string name="admin_action_center_badge_audit">감사 로그</string>
     <string name="admin_action_center_source_settlement">정산 후속</string>
-    <string name="admin_action_center_source_emergency">긴급 대응</string>
+    <string name="admin_action_center_source_emergency">기존 긴급 기록</string>
     <string name="admin_action_center_source_support">문의 응답</string>
     <string name="admin_action_center_actor_fallback">관리자</string>
     <string name="admin_action_center_meta">%1$s · %2$s · %3$s</string>

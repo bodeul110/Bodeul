@@ -121,8 +121,7 @@ interface AppointmentRepository {
             long expectedVersion,
             String reviewRatingCode,
             String settlementStatus,
-            String settlementNote,
-            String supportEscalationStatus) {
+            String settlementNote) {
     }
 
     record AppointmentFollowUpRecord(

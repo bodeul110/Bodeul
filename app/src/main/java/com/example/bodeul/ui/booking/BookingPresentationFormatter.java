@@ -7,7 +7,6 @@ import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingCouponType;
@@ -226,25 +225,8 @@ public final class BookingPresentationFormatter {
         }
     }
 
-    public String formatFollowUpSupportEscalationStatus(
-            AppointmentFollowUpSupportEscalationStatus status
-    ) {
-        if (status == null) {
-            return context.getString(R.string.booking_follow_up_status_pending);
-        }
-        switch (status) {
-            case MANAGER_CALLED:
-                return context.getString(R.string.booking_follow_up_support_status_manager_called);
-            case DIALED_119:
-                return context.getString(R.string.booking_follow_up_support_status_dialed_119);
-            case GUIDE_VIEWED:
-            default:
-                return context.getString(R.string.booking_follow_up_support_status_guide_viewed);
-        }
-    }
-
     public String buildFollowUpSummary(AppointmentFollowUpRecord followUpRecord) {
-        if (followUpRecord == null || !followUpRecord.hasAnySavedAction()) {
+        if (!AppointmentFollowUpVisibilityPolicy.hasVisibleAction(followUpRecord)) {
             return context.getString(R.string.booking_follow_up_summary_pending);
         }
 
@@ -259,12 +241,6 @@ public final class BookingPresentationFormatter {
             parts.add(context.getString(
                     R.string.booking_follow_up_summary_settlement_format,
                     formatFollowUpSettlementStatus(followUpRecord.getSettlementStatus())
-            ));
-        }
-        if (followUpRecord.hasSavedSupportEscalation()) {
-            parts.add(context.getString(
-                    R.string.booking_follow_up_summary_support_format,
-                    formatFollowUpSupportEscalationStatus(followUpRecord.getSupportEscalationStatus())
             ));
         }
         if (parts.isEmpty()) {

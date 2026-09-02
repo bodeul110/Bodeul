@@ -24,7 +24,6 @@ import com.example.bodeul.data.ManagerDocumentPreviewResolver;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
@@ -299,14 +298,6 @@ public class AdminActivity extends AppCompatActivity {
                     @Override
                     public void onSaveSettlementRecord(String requestId, AdminSettlementStatus status) {
                         openSettlementActionDialog(requestId, status);
-                    }
-
-                    @Override
-                    public void onSaveEmergencyIssue(
-                            String requestId,
-                            AdminEmergencyIssueStatus status
-                    ) {
-                        openEmergencyActionDialog(requestId, status);
                     }
                 }
         );
@@ -689,84 +680,6 @@ public class AdminActivity extends AppCompatActivity {
                                 status == AdminSettlementStatus.CONFIRMED
                                         ? R.string.admin_settlement_action_saved_confirm
                                         : R.string.admin_settlement_action_saved_recheck,
-                                Toast.LENGTH_SHORT
-                        ).show();
-                        bindDashboard(result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        setLoading(false);
-                        Toast.makeText(AdminActivity.this, message, Toast.LENGTH_SHORT).show();
-                    }
-                }
-        );
-    }
-
-    private void openEmergencyActionDialog(
-            String requestId,
-            AdminEmergencyIssueStatus status
-    ) {
-        if (currentUser == null || loading) {
-            return;
-        }
-        View dialogView = LayoutInflater.from(this).inflate(
-                R.layout.dialog_admin_document_review,
-                null,
-                false
-        );
-        TextInputLayout inputLayout = dialogView.findViewById(R.id.layoutAdminDocumentReviewNote);
-        TextInputEditText inputEditText = dialogView.findViewById(R.id.inputAdminDocumentReviewNote);
-        inputLayout.setHint(getString(R.string.admin_operation_note_hint));
-        inputLayout.setHelperText(getString(
-                status == AdminEmergencyIssueStatus.REPORTED
-                        ? R.string.admin_emergency_action_report_helper
-                        : R.string.admin_emergency_action_resolve_helper
-        ));
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(status == AdminEmergencyIssueStatus.REPORTED
-                        ? R.string.admin_emergency_action_report
-                        : R.string.admin_emergency_action_resolve)
-                .setView(dialogView)
-                .setNegativeButton(R.string.admin_manager_document_review_cancel, null)
-                .setPositiveButton(R.string.admin_manager_document_review_confirm, null)
-                .create();
-
-        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(view -> {
-                    String note = valueOf(inputEditText);
-                    if (TextUtils.isEmpty(note)) {
-                        inputLayout.setError(getString(R.string.admin_operation_note_required));
-                        return;
-                    }
-                    inputLayout.setError(null);
-                    dialog.dismiss();
-                    saveEmergencyIssue(requestId, status, note);
-                }));
-        dialog.show();
-    }
-
-    private void saveEmergencyIssue(
-            String requestId,
-            AdminEmergencyIssueStatus status,
-            String note
-    ) {
-        setLoading(true);
-        adminRepository.saveEmergencyIssue(
-                currentUser,
-                requestId,
-                status,
-                note,
-                new RepositoryCallback<AdminDashboard>() {
-                    @Override
-                    public void onSuccess(AdminDashboard result) {
-                        setLoading(false);
-                        Toast.makeText(
-                                AdminActivity.this,
-                                status == AdminEmergencyIssueStatus.REPORTED
-                                        ? R.string.admin_emergency_action_saved_report
-                                        : R.string.admin_emergency_action_saved_resolve,
                                 Toast.LENGTH_SHORT
                         ).show();
                         bindDashboard(result);

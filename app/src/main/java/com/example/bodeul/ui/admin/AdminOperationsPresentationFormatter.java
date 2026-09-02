@@ -6,14 +6,11 @@ import android.text.TextUtils;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.R;
-import com.example.bodeul.domain.model.AdminEmergencyIssueRecord;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminSettlementRecord;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.BookingPaymentStatus;
@@ -179,16 +176,6 @@ public final class AdminOperationsPresentationFormatter {
         }
     }
 
-    public String formatEmergencyIssueStatus(@Nullable AdminEmergencyIssueStatus status) {
-        if (status == null) {
-            return context.getString(R.string.admin_emergency_issue_empty);
-        }
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return context.getString(R.string.admin_emergency_issue_resolved);
-        }
-        return context.getString(R.string.admin_emergency_issue_reported);
-    }
-
     public String formatFollowUpReview(@Nullable AppointmentFollowUpReviewRating rating) {
         return bookingFormatter.formatFollowUpReviewRating(rating);
     }
@@ -197,16 +184,8 @@ public final class AdminOperationsPresentationFormatter {
         return bookingFormatter.formatFollowUpSettlementStatus(status);
     }
 
-    public String formatFollowUpSupportStatus(
-            @Nullable AppointmentFollowUpSupportEscalationStatus status
-    ) {
-        return bookingFormatter.formatFollowUpSupportEscalationStatus(status);
-    }
-
     public String toMonitoringFilterLabel(AdminMonitoringFilter filter) {
         switch (filter) {
-            case EMERGENCY:
-                return context.getString(R.string.admin_monitoring_filter_emergency);
             case PAYMENT:
                 return context.getString(R.string.admin_monitoring_filter_payment);
             case MATCHED:
@@ -237,7 +216,6 @@ public final class AdminOperationsPresentationFormatter {
 
     public String buildMonitoringAlertSummary(
             int totalCount,
-            int emergencyCount,
             int paymentCount,
             int matchedCount,
             int inProgressCount,
@@ -249,7 +227,6 @@ public final class AdminOperationsPresentationFormatter {
         }
         return context.getString(
                 R.string.admin_monitoring_alert_summary,
-                emergencyCount,
                 paymentCount,
                 matchedCount,
                 inProgressCount,
@@ -261,7 +238,6 @@ public final class AdminOperationsPresentationFormatter {
 
     public String buildSettlementAlertSummary(
             int totalCount,
-            int urgentSupportCount,
             int userHelpCount,
             int adminPendingCount,
             int confirmedCount,
@@ -273,24 +249,12 @@ public final class AdminOperationsPresentationFormatter {
         }
         return context.getString(
                 R.string.admin_settlement_alert_summary,
-                urgentSupportCount,
                 userHelpCount,
                 adminPendingCount,
                 confirmedCount,
                 toSettlementFilterLabel(selectedFilter),
                 visibleCount,
                 totalCount
-        );
-    }
-
-    public String buildMonitoringActivityText(@Nullable AdminEmergencyIssueRecord issueRecord) {
-        if (issueRecord == null) {
-            return "";
-        }
-        return context.getString(
-                R.string.admin_operation_activity_format,
-                formatEmergencyIssueStatus(issueRecord.getStatus()),
-                formatTimestamp(issueRecord.getHandledAtMillis())
         );
     }
 
@@ -301,13 +265,6 @@ public final class AdminOperationsPresentationFormatter {
         String latestLabel = "";
         long latestTimestamp = 0L;
 
-        if (followUpRecord != null && followUpRecord.hasSavedSupportEscalation()) {
-            latestLabel = context.getString(
-                    R.string.admin_operation_activity_follow_up_support,
-                    formatFollowUpSupportStatus(followUpRecord.getSupportEscalationStatus())
-            );
-            latestTimestamp = followUpRecord.getSupportEscalatedAtMillis();
-        }
         if (followUpRecord != null && followUpRecord.hasSavedSettlement()
                 && followUpRecord.getSettlementSavedAtMillis() >= latestTimestamp) {
             latestLabel = context.getString(

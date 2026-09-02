@@ -399,9 +399,6 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     settlement_follow_up_note,
                     settlement_follow_up_saved_by_user_id,
                     settlement_follow_up_saved_at,
-                    support_escalation_status,
-                    support_escalated_by_user_id,
-                    support_escalated_at,
                     version,
                     updated_at
                 ) values (
@@ -413,9 +410,6 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     coalesce(:settlementNote, ''),
                     case when :settlementProvided then :actorUserId else null end,
                     case when :settlementProvided then now() else null end,
-                    coalesce(:supportEscalationStatus, ''),
-                    case when :supportProvided then :actorUserId else null end,
-                    case when :supportProvided then now() else null end,
                     1,
                     now()
                 )
@@ -453,18 +447,6 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                     end,
                     settlement_follow_up_saved_at = case
                         when not :settlementProvided then settlement_follow_up_saved_at
-                        else now()
-                    end,
-                    support_escalation_status = coalesce(
-                        :supportEscalationStatus,
-                        support_escalation_status
-                    ),
-                    support_escalated_by_user_id = case
-                        when not :supportProvided then support_escalated_by_user_id
-                        else :actorUserId
-                    end,
-                    support_escalated_at = case
-                        when not :supportProvided then support_escalated_at
                         else now()
                     end,
                     version = version + 1,
@@ -537,9 +519,7 @@ class JdbcAppointmentRepository implements AppointmentRepository {
                 .addValue("reviewProvided", mutation.reviewRatingCode() != null)
                 .addValue("settlementStatus", mutation.settlementStatus())
                 .addValue("settlementNote", mutation.settlementNote())
-                .addValue("settlementProvided", mutation.settlementStatus() != null)
-                .addValue("supportEscalationStatus", mutation.supportEscalationStatus())
-                .addValue("supportProvided", mutation.supportEscalationStatus() != null);
+                .addValue("settlementProvided", mutation.settlementStatus() != null);
     }
 
     private static AppointmentRecord mapAppointment(ResultSet resultSet) throws SQLException {

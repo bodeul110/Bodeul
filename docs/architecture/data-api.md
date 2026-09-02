@@ -108,7 +108,7 @@
 - `sharedLocationHistory`는 진행 중 위치 확인을 위한 최근 좌표 이력이며 세션당 최근 10건만 유지한다.
 - `sharedLatitude`, `sharedLongitude`는 마지막 공유 좌표이고 `sharedLocationUpdatedAtMillis`는 마지막 갱신 시각이다.
 - 위치 원본 이력은 장기 분석 데이터로 보관하지 않고, 보관 및 노출 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)을 따른다.
-- `CARE_ENDED`는 실제 돌봄 종료, `COMPLETED`는 선택 일지 제출을 포함한 업무 완료다. 사고·긴급상황은 이 정상 상태로 합치지 않고 #297에서 별도 처리한다.
+- `CARE_ENDED`는 실제 돌봄 종료, `COMPLETED`는 선택 일지 제출을 포함한 업무 완료다. #297은 별도 사고 상태를 만들지 않고 SOS·자동 연락·사고 기록을 MVP에서 비활성화한다. 기존 일반 취소와 정상 종료·완료 흐름만 유지한다.
 - 리포트 저장 실패는 세션 완료를 되돌리지 않는다. `FAILED` 또는 중단된 `PENDING` 상태만 재시도한다.
 
 ### CompanionSessionArtifact
@@ -227,9 +227,9 @@
 - 만남 위치는 별도 컬렉션을 저장하지 않고, 병원/진료과 기준 추천 후보 중 사용자가 선택한 `meetingPlace` 문자열만 `appointmentRequests`에 저장한다.
 - 결제 승인 단계는 `paymentStatusCode`, `paymentApprovalCode`, `paymentApprovedAt`, `paymentProviderLabel` 네 필드를 요청 스냅샷으로 함께 저장한다.
 - 카드/간편결제는 `AUTHORIZED`, 현장 결제는 `DEFERRED` 상태로 저장해 예약 상세와 완료 화면에서 같은 기준으로 표시한다.
-### 2026-04-23 종료 후 후기/정산/SOS 메모
+### 2026-04-23 종료 후 후기/정산/SOS 메모 (초기 이력)
 
-- 현재 앱은 완료된 예약의 후기, 정산 후속, SOS 기록을 `appointmentFollowUps` 저장소 흐름 기준으로 조회/저장한다.
+- 당시 앱은 완료된 예약의 후기, 정산 후속, SOS 기록을 `appointmentFollowUps` 저장소 흐름 기준으로 조회/저장했다. 2026-09-03 이후 신규 SOS 쓰기는 비활성화됐고 아래 API는 현재 계약이 아니다.
 - 서버 연동 시 초안 API:
   - `GET /appointments/{id}/follow-up`
   - 응답:
@@ -497,19 +497,20 @@
   - 아직 저장된 값이 없으면 각 상태가 빈 문자열이고 `version=0`인 응답을 반환한다.
 - `PATCH /api/appointments/{appointmentId}/follow-up`
   - 환자 본인만 사용할 수 있고 예약 상태가 `COMPLETED`여야 한다. 보호자 정보공유 동의는 후속 기록 저장 대리권을 부여하지 않는다.
-  - `version`과 함께 `reviewRatingCode`, `settlementFollowUpStatus`·`settlementFollowUpNote`, `supportEscalationStatus` 중 저장할 필드만 보낸다.
+  - `version`과 함께 `reviewRatingCode`, `settlementFollowUpStatus`·`settlementFollowUpNote` 중 저장할 필드만 보낸다.
+  - 과거 클라이언트가 값이 있는 `supportEscalationStatus`를 보내면 `409 support_escalation_not_supported`를 반환한다. 빈 값은 호환을 위해 무시한다.
   - 다른 요청이 먼저 저장해 version이 달라지면 `409 appointment_version_conflict`를 반환한다.
-- Core API는 Firebase ID token, App Check, PostgreSQL 사용자 role과 예약 참여 관계를 검증한 뒤 지정 열만 갱신한다.
+- Core API는 Firebase ID token, App Check, PostgreSQL 사용자 role과 예약 참여 관계를 검증한 뒤 후기·정산 지정 열만 갱신한다. 기존 `support_escalation_status`, `support_escalated_at`은 응답 호환용으로 읽되 갱신하지 않는다.
 - 이 후속 처리 계약은 채팅·첨부·위치 공유를 포함하지 않는다. 해당 경로는 #221에서 Core API·PostgreSQL로 전환했고 세부 계약은 [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)을 따른다.
 
 ### 2026-04-23 관리자 운영 필터/우선순위 메모
 
 - 현재 관리자 운영 화면의 필터는 클라이언트 조합 기준이다.
-  - 모니터링 필터: `ALL`, `EMERGENCY`, `PAYMENT`, `MATCHED`, `IN_PROGRESS`
+  - 모니터링 필터: `ALL`, `PAYMENT`, `MATCHED`, `IN_PROGRESS`
   - 정산 필터: `ALL`, `USER_HELP`, `ADMIN_PENDING`, `NEEDS_REVIEW`, `CONFIRMED`
 - 클라이언트 우선순위 규칙은 아래와 같다.
-  - 모니터링: `긴급 이슈 보고` > `수납 단계` > `현장 진행` > `매칭 완료`
-  - 정산: `SOS 연락 시도/119` > `정산 문의 필요` > `관리자 재확인` > `관리자 미처리` > `확인 완료`
+  - 모니터링: `수납 단계` > `현장 진행` > `매칭 완료`
+  - 정산: `정산 문의 필요` > `관리자 재확인` > `관리자 미처리` > `확인 완료`
 - 서버 API로 끌어올릴 때는 `GET /admin/appointments/actions` 응답에 아래 파생 필드를 포함하는 방식을 권장한다.
   - `monitoringPriority`
   - `settlementPriority`
@@ -522,7 +523,8 @@
 
 - 매니저 `과거 동행 이력` 화면은 완료된 요청 상세를 조합할 때 후속 데이터까지 함께 받아야 한다.
   - 권장 응답 구조: `AppointmentRequestDetail.followUpRecord`
-  - 포함 필드: `reviewRatingCode`, `reviewSavedAt`, `settlementFollowUpStatus`, `settlementFollowUpNote`, `settlementFollowUpSavedAt`, `supportEscalationStatus`, `supportEscalatedAt`
+  - 화면 표시 필드: `reviewRatingCode`, `reviewSavedAt`, `settlementFollowUpStatus`, `settlementFollowUpNote`, `settlementFollowUpSavedAt`
+  - legacy 응답의 `supportEscalationStatus`, `supportEscalatedAt`은 파싱할 수 있지만 매니저 이력 완료율·필터·배지·상세에는 표시하지 않는다.
 - Firebase 기준으로는 기존 `appointmentFollowUps/{requestId}` 문서를 그대로 읽고, 요청 상세 조합 시 `requestId` 기준으로 1:1 매핑하면 된다.
 - 서버 API로 정리할 때는 매니저 전용 이력 목록 응답에 아래 수준의 파생 값도 함께 내려주는 편이 안전하다.
   - `followUpSummaryLabel`

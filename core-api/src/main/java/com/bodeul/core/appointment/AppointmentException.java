@@ -118,6 +118,13 @@ final class AppointmentException extends RuntimeException {
                 "같은 결제 작업 ID를 다른 내용으로 다시 사용할 수 없습니다.");
     }
 
+    static AppointmentException supportEscalationNotSupported() {
+        return new AppointmentException(
+                HttpStatus.CONFLICT,
+                "support_escalation_not_supported",
+                "MVP에서는 긴급 지원 상태를 새로 저장하지 않습니다.");
+    }
+
     static AppointmentException publicCodeUnavailable() {
         return new AppointmentException(
                 HttpStatus.SERVICE_UNAVAILABLE,

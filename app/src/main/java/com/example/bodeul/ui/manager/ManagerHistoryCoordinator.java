@@ -10,6 +10,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.ui.booking.AppointmentFollowUpVisibilityPolicy;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
 
@@ -81,7 +82,6 @@ public final class ManagerHistoryCoordinator {
     private String buildSummaryText(List<AppointmentRequestDetail> details) {
         int reviewSavedCount = 0;
         int settlementSavedCount = 0;
-        int supportSavedCount = 0;
         int followUpPendingCount = 0;
         for (AppointmentRequestDetail detail : details) {
             AppointmentFollowUpRecord record = resolveFollowUpRecord(detail);
@@ -91,10 +91,7 @@ public final class ManagerHistoryCoordinator {
             if (record.hasSavedSettlement()) {
                 settlementSavedCount++;
             }
-            if (record.hasSavedSupportEscalation()) {
-                supportSavedCount++;
-            }
-            if (!record.hasAnySavedAction()) {
+            if (!hasVisibleFollowUpAction(record)) {
                 followUpPendingCount++;
             }
         }
@@ -103,7 +100,6 @@ public final class ManagerHistoryCoordinator {
                 details.size(),
                 reviewSavedCount,
                 settlementSavedCount,
-                supportSavedCount,
                 followUpPendingCount
         );
     }
@@ -132,17 +128,13 @@ public final class ManagerHistoryCoordinator {
     ) {
         int followUpSavedCount = 0;
         int settlementHelpCount = 0;
-        int supportSavedCount = 0;
         for (AppointmentRequestDetail detail : details) {
             AppointmentFollowUpRecord record = resolveFollowUpRecord(detail);
-            if (record.hasAnySavedAction()) {
+            if (hasVisibleFollowUpAction(record)) {
                 followUpSavedCount++;
             }
             if (needsSettlementHelp(record)) {
                 settlementHelpCount++;
-            }
-            if (record.hasSavedSupportEscalation()) {
-                supportSavedCount++;
             }
         }
 
@@ -173,14 +165,6 @@ public final class ManagerHistoryCoordinator {
                 settlementHelpCount > 0
                         ? ManagerHistoryBadgeTone.WARNING
                         : ManagerHistoryBadgeTone.SUCCESS
-        ));
-        cards.add(new ManagerHistoryMetricModel(
-                context.getString(R.string.manager_history_metric_support_label),
-                context.getString(R.string.manager_history_metric_support_value, supportSavedCount),
-                context.getString(R.string.manager_history_metric_support_helper),
-                supportSavedCount > 0
-                        ? ManagerHistoryBadgeTone.PURPLE
-                        : ManagerHistoryBadgeTone.PRIMARY
         ));
         return cards;
     }
@@ -214,13 +198,11 @@ public final class ManagerHistoryCoordinator {
     ) {
         switch (filter) {
             case FOLLOW_UP_PENDING:
-                return !followUpRecord.hasAnySavedAction();
+                return !hasVisibleFollowUpAction(followUpRecord);
             case REVIEW_SAVED:
                 return followUpRecord.hasSavedReview();
             case SETTLEMENT_SAVED:
                 return followUpRecord.hasSavedSettlement();
-            case SOS_RECORDED:
-                return followUpRecord.hasSavedSupportEscalation();
             case ALL:
             default:
                 return true;
@@ -280,17 +262,6 @@ public final class ManagerHistoryCoordinator {
             );
             latestTimestamp = followUpRecord.getSettlementSavedAtMillis();
         }
-        if (followUpRecord.hasSavedSupportEscalation()
-                && followUpRecord.getSupportEscalatedAtMillis() >= latestTimestamp) {
-            latestLabel = context.getString(
-                    R.string.manager_history_activity_support,
-                    bookingFormatter.formatFollowUpSupportEscalationStatus(
-                            followUpRecord.getSupportEscalationStatus()
-                    )
-            );
-            latestTimestamp = followUpRecord.getSupportEscalatedAtMillis();
-        }
-
         if (TextUtils.isEmpty(latestLabel)) {
             return "";
         }
@@ -302,12 +273,6 @@ public final class ManagerHistoryCoordinator {
     }
 
     private ManagerHistoryBadgeModel buildFollowUpBadge(AppointmentFollowUpRecord followUpRecord) {
-        if (followUpRecord.hasSavedSupportEscalation()) {
-            return new ManagerHistoryBadgeModel(
-                    context.getString(R.string.manager_history_badge_support),
-                    ManagerHistoryBadgeTone.WARNING
-            );
-        }
         if (needsSettlementHelp(followUpRecord)) {
             return new ManagerHistoryBadgeModel(
                     resolveSettlementHelpBadgeLabel(followUpRecord),
@@ -401,7 +366,7 @@ public final class ManagerHistoryCoordinator {
             ));
         }
 
-        if (!followUpRecord.hasAnySavedAction()) {
+        if (!AppointmentFollowUpVisibilityPolicy.hasVisibleAction(followUpRecord)) {
             items.add(new ManagerInfoLineItem(
                     context.getString(R.string.manager_history_line_follow_up_state),
                     context.getString(R.string.manager_history_follow_up_pending),
@@ -430,15 +395,6 @@ public final class ManagerHistoryCoordinator {
                         false
                 ));
             }
-        }
-        if (followUpRecord.hasSavedSupportEscalation()) {
-            items.add(new ManagerInfoLineItem(
-                    context.getString(R.string.manager_history_line_follow_up_support),
-                    bookingFormatter.formatFollowUpSupportEscalationStatus(
-                            followUpRecord.getSupportEscalationStatus()
-                    ),
-                    false
-            ));
         }
         return items;
     }
@@ -489,11 +445,13 @@ public final class ManagerHistoryCoordinator {
                 return context.getString(R.string.manager_history_filter_review_saved);
             case SETTLEMENT_SAVED:
                 return context.getString(R.string.manager_history_filter_settlement_saved);
-            case SOS_RECORDED:
-                return context.getString(R.string.manager_history_filter_support_recorded);
             case ALL:
             default:
                 return context.getString(R.string.manager_history_filter_all);
         }
+    }
+
+    private boolean hasVisibleFollowUpAction(AppointmentFollowUpRecord followUpRecord) {
+        return AppointmentFollowUpVisibilityPolicy.hasVisibleAction(followUpRecord);
     }
 }

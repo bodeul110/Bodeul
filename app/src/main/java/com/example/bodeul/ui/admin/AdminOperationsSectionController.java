@@ -8,7 +8,6 @@ import android.widget.TextView;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.google.android.material.button.MaterialButton;
 
@@ -24,8 +23,6 @@ final class AdminOperationsSectionController {
         void renderEmptyText(LinearLayout container, int titleResId, int messageResId);
 
         void onSaveSettlementRecord(String requestId, AdminSettlementStatus status);
-
-        void onSaveEmergencyIssue(String requestId, AdminEmergencyIssueStatus status);
     }
 
     private final LayoutInflater inflater;
@@ -203,13 +200,7 @@ final class AdminOperationsSectionController {
                 }
                 if (actionType == AdminOperationActionType.SAVE_SETTLEMENT_RECHECK) {
                     listener.onSaveSettlementRecord(requestId, AdminSettlementStatus.NEEDS_REVIEW);
-                    return;
                 }
-                if (actionType == AdminOperationActionType.RESOLVE_EMERGENCY) {
-                    listener.onSaveEmergencyIssue(requestId, AdminEmergencyIssueStatus.RESOLVED);
-                    return;
-                }
-                listener.onSaveEmergencyIssue(requestId, AdminEmergencyIssueStatus.REPORTED);
             });
             container.addView(itemView);
         }

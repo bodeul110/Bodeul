@@ -12,14 +12,12 @@ import com.example.bodeul.domain.model.AdminActionNotificationLevel;
 import com.example.bodeul.domain.model.AdminActionSourceType;
 import com.example.bodeul.domain.model.AdminAuditLogEntry;
 import com.example.bodeul.domain.model.AdminEmergencyIssueRecord;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestActionOverview;
 import com.example.bodeul.domain.model.AdminSettlementRecord;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
@@ -479,30 +477,6 @@ public class MockBodeulRepository implements BodeulRepository {
     }
 
     @Nullable
-    public synchronized AppointmentFollowUpRecord saveAppointmentFollowUpSupportEscalation(
-            String requestId,
-            AppointmentFollowUpSupportEscalationStatus escalationStatus
-    ) {
-        AppointmentRequest request = findAppointmentRequest(requestId);
-        if (request == null || request.getStatus() != AppointmentStatus.COMPLETED || escalationStatus == null) {
-            return null;
-        }
-        AppointmentFollowUpRecord currentRecord = getAppointmentFollowUpRecord(requestId);
-        AppointmentFollowUpRecord record = new AppointmentFollowUpRecord(
-                requestId,
-                currentRecord.getReviewRating(),
-                currentRecord.getReviewSavedAtMillis(),
-                currentRecord.getSettlementStatus(),
-                currentRecord.getSettlementNote(),
-                currentRecord.getSettlementSavedAtMillis(),
-                escalationStatus,
-                System.currentTimeMillis()
-        );
-        followUpRecordsByRequestId.put(requestId, record);
-        return record;
-    }
-
-    @Nullable
     public synchronized ManagerHomeProfile saveManagerDocumentSummary(String managerUserId, String documentSummary) {
         User manager = findUserById(managerUserId);
         if (manager == null || manager.getRole() != UserRole.MANAGER) {
@@ -715,42 +689,6 @@ public class MockBodeulRepository implements BodeulRepository {
                 buildSettlementNotificationTitle(status),
                 buildSettlementNotificationBody(request, status),
                 buildSettlementAuditSummary(status),
-                record.getNote(),
-                record.getHandledByName(),
-                record.getHandledAtMillis()
-        );
-        return record;
-    }
-
-    @Nullable
-    public synchronized AdminEmergencyIssueRecord saveEmergencyIssue(
-            String requestId,
-            AdminEmergencyIssueStatus status,
-            String note,
-            String handledByName
-    ) {
-        AppointmentRequest request = findAppointmentRequest(requestId);
-        if (request == null) {
-            return null;
-        }
-        AdminEmergencyIssueRecord record = new AdminEmergencyIssueRecord(
-                requestId,
-                status,
-                normalizeText(note),
-                normalizeText(handledByName),
-                System.currentTimeMillis()
-        );
-        emergencyIssuesByRequestId.put(requestId, record);
-        appendAdminActionArtifacts(
-                AdminActionSourceType.EMERGENCY,
-                status == AdminEmergencyIssueStatus.REPORTED
-                        ? AdminActionNotificationLevel.WARNING
-                        : AdminActionNotificationLevel.INFO,
-                requestId,
-                "",
-                buildEmergencyNotificationTitle(status),
-                buildEmergencyNotificationBody(request, status),
-                buildEmergencyAuditSummary(status),
                 record.getNote(),
                 record.getHandledByName(),
                 record.getHandledAtMillis()
@@ -1854,30 +1792,6 @@ public class MockBodeulRepository implements BodeulRepository {
             return "정산 후속 상태를 재확인으로 저장";
         }
         return "정산 후속 상태를 확인 완료로 저장";
-    }
-
-    private String buildEmergencyNotificationTitle(AdminEmergencyIssueStatus status) {
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return "긴급 이슈 해결 기록 저장";
-        }
-        return "긴급 대응 기록 저장";
-    }
-
-    private String buildEmergencyNotificationBody(
-            AppointmentRequest request,
-            AdminEmergencyIssueStatus status
-    ) {
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return buildActionRequestLabel(request) + "의 긴급 대응을 해결 완료로 저장했습니다.";
-        }
-        return buildActionRequestLabel(request) + "에 긴급 대응 기록을 남겼습니다.";
-    }
-
-    private String buildEmergencyAuditSummary(AdminEmergencyIssueStatus status) {
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return "긴급 이슈를 해결 상태로 저장";
-        }
-        return "긴급 이슈를 보고 상태로 저장";
     }
 
     String buildSupportNotificationBody(SupportInquiry inquiry) {

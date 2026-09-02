@@ -8,7 +8,6 @@ import com.example.bodeul.domain.model.AdminActionNotification;
 import com.example.bodeul.domain.model.AdminActionOverview;
 import com.example.bodeul.domain.model.AdminAuditLogEntry;
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
@@ -194,22 +193,6 @@ public final class MockAdminStore {
             return null;
         }
         if (repository.saveSettlementRecord(requestId, status, note, currentUser.getName()) == null) {
-            return null;
-        }
-        return getAdminDashboard(currentUser);
-    }
-
-    @Nullable
-    public AdminDashboard saveEmergencyIssue(
-            User currentUser,
-            String requestId,
-            AdminEmergencyIssueStatus status,
-            String note
-    ) {
-        if (currentUser.getRole() != UserRole.ADMIN) {
-            return null;
-        }
-        if (repository.saveEmergencyIssue(requestId, status, note, currentUser.getName()) == null) {
             return null;
         }
         return getAdminDashboard(currentUser);

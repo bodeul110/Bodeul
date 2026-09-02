@@ -2,9 +2,6 @@ package com.example.bodeul.ui.booking;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -23,7 +20,6 @@ import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.User;
@@ -35,7 +31,7 @@ import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
 /**
- * 완료된 동행의 후기, 정산, 긴급 안내를 한 화면에서 정리한다.
+ * 완료된 동행의 후기와 정산 확인을 한 화면에서 정리한다.
  */
 public class BookingFollowUpActivity extends AppCompatActivity
         implements BookingFollowUpRatingOptionBinder.Listener {
@@ -53,7 +49,6 @@ public class BookingFollowUpActivity extends AppCompatActivity
     private MaterialButton buttonReviewSave;
     private MaterialButton buttonSettlementConfirm;
     private MaterialButton buttonSettlementHelp;
-    private MaterialButton buttonCallManager;
 
     private String requestId;
     private User currentUser;
@@ -88,7 +83,6 @@ public class BookingFollowUpActivity extends AppCompatActivity
         buttonReviewSave = findViewById(R.id.buttonBookingFollowUpReviewSave);
         buttonSettlementConfirm = findViewById(R.id.buttonBookingFollowUpSettlementConfirm);
         buttonSettlementHelp = findViewById(R.id.buttonBookingFollowUpSettlementHelp);
-        buttonCallManager = findViewById(R.id.buttonBookingFollowUpCallManager);
 
         bookingFollowUpBinder = new BookingFollowUpBinder(
                 this,
@@ -106,12 +100,7 @@ public class BookingFollowUpActivity extends AppCompatActivity
                 findViewById(R.id.layoutBookingFollowUpSettlementContainer),
                 findViewById(R.id.textBookingFollowUpSettlementSavedState),
                 buttonSettlementConfirm,
-                buttonSettlementHelp,
-                findViewById(R.id.textBookingFollowUpEmergencyTitle),
-                findViewById(R.id.textBookingFollowUpEmergencyBody),
-                findViewById(R.id.layoutBookingFollowUpEmergencyContainer),
-                findViewById(R.id.textBookingFollowUpEmergencySavedState),
-                buttonCallManager
+                buttonSettlementHelp
         );
 
         if (savedInstanceState != null) {
@@ -125,16 +114,6 @@ public class BookingFollowUpActivity extends AppCompatActivity
         buttonSettlementConfirm.setOnClickListener(view ->
                 saveSettlementSelection(AppointmentFollowUpSettlementStatus.CONFIRMED));
         buttonSettlementHelp.setOnClickListener(view -> showSettlementInquiryDialog());
-        buttonCallManager.setOnClickListener(view -> callManager());
-        findViewById(R.id.buttonBookingFollowUpEmergencyDial).setOnClickListener(
-                view -> openDialer("119", AppointmentFollowUpSupportEscalationStatus.DIALED_119)
-        );
-        findViewById(R.id.buttonBookingFollowUpEmergencyGuide).setOnClickListener(
-                view -> {
-                    recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus.GUIDE_VIEWED);
-                    showEmergencyGuideDialog();
-                }
-        );
         findViewById(R.id.buttonBookingFollowUpDetail).setOnClickListener(view -> openBookingStatus());
         bookingFollowUpContentContainer.setVisibility(View.GONE);
     }
@@ -353,121 +332,6 @@ public class BookingFollowUpActivity extends AppCompatActivity
                 .show();
     }
 
-    private void recordSupportEscalation(AppointmentFollowUpSupportEscalationStatus escalationStatus) {
-        if (TextUtils.isEmpty(requestId) || !canMutateFollowUp()) {
-            return;
-        }
-        bookingRepository.saveAppointmentFollowUpSupportEscalation(
-                currentUser,
-                requestId,
-                escalationStatus,
-                new RepositoryCallback<AppointmentFollowUpRecord>() {
-                    @Override
-                    public void onSuccess(AppointmentFollowUpRecord result) {
-                        currentFollowUpRecord = result;
-                        bindScreen(result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        // SOS 안내 동작은 저장 실패와 무관하게 바로 진행한다.
-                    }
-                }
-        );
-    }
-
-    private void callManager() {
-        if (currentDetail == null || currentDetail.getManager() == null) {
-            return;
-        }
-        String phone = currentDetail.getManager().getPhone();
-        if (TextUtils.isEmpty(phone)) {
-            return;
-        }
-        openDialer(phone, AppointmentFollowUpSupportEscalationStatus.MANAGER_CALLED);
-    }
-
-    private void openDialer(String phoneNumber,
-                            AppointmentFollowUpSupportEscalationStatus escalationStatus) {
-        String dialablePhoneNumber = normalizeDialablePhoneNumber(phoneNumber);
-        if (TextUtils.isEmpty(dialablePhoneNumber)) {
-            new AlertDialog.Builder(this)
-                    .setTitle(R.string.booking_follow_up_dial_invalid_dialog_title)
-                    .setMessage(R.string.booking_follow_up_dial_invalid_dialog_body)
-                    .setPositiveButton(R.string.booking_follow_up_dialog_confirm, null)
-                    .show();
-            return;
-        }
-
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.booking_follow_up_dial_dialog_title)
-                .setMessage(getString(R.string.booking_follow_up_dial_dialog_body, dialablePhoneNumber))
-                .setPositiveButton(R.string.booking_follow_up_dial_dialog_action, (dialog, which) -> {
-                    Intent intent = createExplicitDialIntent(dialablePhoneNumber);
-                    if (intent == null) {
-                        showDialUnavailableDialog();
-                        return;
-                    }
-                    recordSupportEscalation(escalationStatus);
-                    startActivity(intent);
-                })
-                .setNegativeButton(R.string.booking_follow_up_dialog_cancel, null)
-                .show();
-    }
-
-    @Nullable
-    private Intent createExplicitDialIntent(String dialablePhoneNumber) {
-        Intent intent = new Intent(
-                Intent.ACTION_DIAL,
-                Uri.fromParts("tel", dialablePhoneNumber, null)
-        );
-        ResolveInfo dialerInfo = getPackageManager().resolveActivity(
-                intent,
-                PackageManager.MATCH_DEFAULT_ONLY
-        );
-        if (dialerInfo == null
-                || dialerInfo.activityInfo == null
-                || TextUtils.isEmpty(dialerInfo.activityInfo.packageName)) {
-            return null;
-        }
-        intent.setPackage(dialerInfo.activityInfo.packageName);
-        return intent;
-    }
-
-    private void showDialUnavailableDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.booking_follow_up_dial_unavailable_dialog_title)
-                .setMessage(R.string.booking_follow_up_dial_unavailable_dialog_body)
-                .setPositiveButton(R.string.booking_follow_up_dialog_confirm, null)
-                .show();
-    }
-
-    private String normalizeDialablePhoneNumber(String phoneNumber) {
-        if (TextUtils.isEmpty(phoneNumber)) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder();
-        boolean hasLeadingPlus = false;
-        for (int index = 0; index < phoneNumber.length(); index++) {
-            char current = phoneNumber.charAt(index);
-            if (Character.isDigit(current) || current == '*' || current == '#') {
-                builder.append(current);
-            } else if (current == '+' && builder.length() == 0 && !hasLeadingPlus) {
-                builder.append(current);
-                hasLeadingPlus = true;
-            }
-        }
-        return builder.toString();
-    }
-
-    private void showEmergencyGuideDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.booking_follow_up_emergency_dialog_title)
-                .setMessage(R.string.booking_follow_up_emergency_dialog_body)
-                .setPositiveButton(R.string.booking_follow_up_dialog_confirm, null)
-                .show();
-    }
-
     private void openBookingStatus() {
         if (TextUtils.isEmpty(requestId)) {
             return;
@@ -481,9 +345,6 @@ public class BookingFollowUpActivity extends AppCompatActivity
         buttonReviewSave.setEnabled(writable && selectedRating != null);
         buttonSettlementConfirm.setEnabled(writable);
         buttonSettlementHelp.setEnabled(writable);
-        buttonCallManager.setEnabled(!loading && currentDetail != null
-                && currentDetail.getManager() != null
-                && !TextUtils.isEmpty(currentDetail.getManager().getPhone()));
     }
 
     private boolean canMutateFollowUp() {

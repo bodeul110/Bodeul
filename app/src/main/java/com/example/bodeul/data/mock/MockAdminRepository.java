@@ -5,7 +5,6 @@ import com.example.bodeul.data.MockAdminStore;
 import com.example.bodeul.data.MockBodeulRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
@@ -164,26 +163,6 @@ public class MockAdminRepository implements AdminRepository {
         AdminDashboard dashboard = adminStore.saveSettlementRecord(currentUser, requestId, status, note);
         if (dashboard == null) {
             callback.onError("정산 후속 상태를 저장하지 못했습니다.");
-            return;
-        }
-        callback.onSuccess(dashboard);
-    }
-
-    @Override
-    public void saveEmergencyIssue(
-            User currentUser,
-            String requestId,
-            AdminEmergencyIssueStatus status,
-            String note,
-            RepositoryCallback<AdminDashboard> callback
-    ) {
-        if (currentUser.getRole() != UserRole.ADMIN) {
-            callback.onError("관리자 계정으로 접근해주세요.");
-            return;
-        }
-        AdminDashboard dashboard = adminStore.saveEmergencyIssue(currentUser, requestId, status, note);
-        if (dashboard == null) {
-            callback.onError("긴급 이슈 대응 상태를 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(dashboard);

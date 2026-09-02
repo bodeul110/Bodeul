@@ -1,7 +1,6 @@
 package com.example.bodeul.data;
 
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.ManagerDocumentStatus;
 import com.example.bodeul.domain.model.User;
@@ -53,15 +52,6 @@ public interface AdminRepository {
             User currentUser,
             String requestId,
             AdminSettlementStatus status,
-            String note,
-            RepositoryCallback<AdminDashboard> callback
-    );
-
-    // 진행 중 요청의 긴급 이슈 대응 상태와 메모를 저장한다.
-    void saveEmergencyIssue(
-            User currentUser,
-            String requestId,
-            AdminEmergencyIssueStatus status,
             String note,
             RepositoryCallback<AdminDashboard> callback
     );

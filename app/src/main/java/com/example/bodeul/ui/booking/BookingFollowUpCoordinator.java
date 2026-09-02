@@ -13,7 +13,6 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
 import com.example.bodeul.domain.model.BookingPaymentStatus;
-import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.domain.model.User;
 import com.example.bodeul.domain.model.UserRole;
@@ -23,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 완료된 예약 상세를 후기·정산·SOS 후속 화면 모델로 조합한다.
+ * 완료된 예약 상세를 후기·정산 후속 화면 모델로 조합한다.
  */
 public final class BookingFollowUpCoordinator {
     private final Context context;
@@ -69,12 +68,7 @@ public final class BookingFollowUpCoordinator {
                 context.getString(R.string.booking_follow_up_settlement_action_confirm),
                 writable,
                 context.getString(R.string.booking_follow_up_settlement_action_help),
-                writable,
-                context.getString(R.string.booking_follow_up_emergency_title),
-                buildEmergencyBody(detail),
-                createEmergencyLines(currentUser, detail),
-                buildEmergencySavedState(followUpRecord),
-                detail.getManager() != null && !TextUtils.isEmpty(detail.getManager().getPhone())
+                writable
         );
     }
 
@@ -232,75 +226,6 @@ public final class BookingFollowUpCoordinator {
         return items;
     }
 
-    private String buildEmergencyBody(AppointmentRequestDetail detail) {
-        CompanionSession session = detail.getSession();
-        if (session != null && !TextUtils.isEmpty(session.getLocationSummary())) {
-            return context.getString(
-                    R.string.booking_follow_up_emergency_body_location,
-                    session.getLocationSummary()
-            );
-        }
-        return context.getString(R.string.booking_follow_up_emergency_body_default);
-    }
-
-    private String buildEmergencySavedState(AppointmentFollowUpRecord followUpRecord) {
-        if (!followUpRecord.hasSavedSupportEscalation()) {
-            return context.getString(R.string.booking_follow_up_support_saved_empty);
-        }
-        return context.getString(
-                R.string.booking_follow_up_support_saved_value,
-                formatter.formatFollowUpSupportEscalationStatus(
-                        followUpRecord.getSupportEscalationStatus()
-                ),
-                formatter.formatTimestamp(followUpRecord.getSupportEscalatedAtMillis())
-        );
-    }
-
-    private List<BookingStatusLineItem> createEmergencyLines(
-            User currentUser,
-            AppointmentRequestDetail detail
-    ) {
-        AppointmentRequest request = detail.getAppointmentRequest();
-        List<BookingStatusLineItem> items = new ArrayList<>();
-        items.add(new BookingStatusLineItem(
-                context.getString(R.string.booking_status_line_manager),
-                buildContactText(detail.getManager(), context.getString(R.string.booking_status_manager_pending)),
-                true
-        ));
-        items.add(new BookingStatusLineItem(
-                currentUser.getRole() == UserRole.GUARDIAN
-                        ? context.getString(R.string.booking_status_line_patient)
-                        : context.getString(R.string.booking_status_line_guardian),
-                currentUser.getRole() == UserRole.GUARDIAN
-                        ? buildLinkedContact(
-                                detail.getPatient(),
-                                request.getPatientName(),
-                                request.getPatientPhone(),
-                                request.getPatientEmail()
-                        )
-                        : buildLinkedContact(
-                                detail.getGuardian(),
-                                request.getGuardianName(),
-                                request.getGuardianPhone(),
-                                request.getGuardianEmail()
-                        ),
-                false
-        ));
-        items.add(new BookingStatusLineItem(
-                context.getString(R.string.booking_follow_up_emergency_line_place),
-                TextUtils.isEmpty(request.getMeetingPlace())
-                        ? context.getString(R.string.booking_status_place_missing)
-                        : request.getMeetingPlace(),
-                false
-        ));
-        items.add(new BookingStatusLineItem(
-                context.getString(R.string.booking_follow_up_emergency_line_steps),
-                context.getString(R.string.booking_follow_up_emergency_steps_value),
-                false
-        ));
-        return items;
-    }
-
     private String buildSettlementStatus(AppointmentRequest request) {
         if (!TextUtils.isEmpty(request.getPaymentStatusCode())) {
             switch (BookingPaymentStatus.fromValue(request.getPaymentStatusCode())) {
@@ -355,48 +280,6 @@ public final class BookingFollowUpCoordinator {
             return request.getPatientName();
         }
         return context.getString(R.string.login_role_patient);
-    }
-
-    private String buildLinkedContact(
-            @Nullable User user,
-            String fallbackName,
-            String fallbackPhone,
-            String fallbackEmail
-    ) {
-        if (user != null) {
-            return buildContactText(user, context.getString(R.string.booking_status_contact_missing));
-        }
-        String value = buildContactValue(fallbackName, fallbackPhone, fallbackEmail);
-        return TextUtils.isEmpty(value)
-                ? context.getString(R.string.booking_status_contact_missing)
-                : value;
-    }
-
-    private String buildContactText(@Nullable User user, String emptyFallback) {
-        if (user == null) {
-            return emptyFallback;
-        }
-        String value = buildContactValue(user.getName(), user.getPhone(), user.getEmail());
-        return TextUtils.isEmpty(value) ? emptyFallback : value;
-    }
-
-    private String buildContactValue(String name, String phone, String email) {
-        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(phone)) {
-            return context.getString(R.string.booking_status_contact_name_phone, name, phone);
-        }
-        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(email)) {
-            return context.getString(R.string.booking_status_contact_name_phone, name, email);
-        }
-        if (!TextUtils.isEmpty(name)) {
-            return name;
-        }
-        if (!TextUtils.isEmpty(phone)) {
-            return phone;
-        }
-        if (!TextUtils.isEmpty(email)) {
-            return email;
-        }
-        return "";
     }
 
     private String getRatingTitle(AppointmentFollowUpReviewRating rating) {

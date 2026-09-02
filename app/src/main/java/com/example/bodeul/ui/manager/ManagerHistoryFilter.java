@@ -7,6 +7,5 @@ public enum ManagerHistoryFilter {
     ALL,
     FOLLOW_UP_PENDING,
     REVIEW_SAVED,
-    SETTLEMENT_SAVED,
-    SOS_RECORDED
+    SETTLEMENT_SAVED
 }

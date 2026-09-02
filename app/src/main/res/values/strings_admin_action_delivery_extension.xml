@@ -23,7 +23,7 @@
     <string name="admin_action_delivery_sla_attention">SLA 주의</string>
     <string name="admin_action_delivery_sla_completed">SLA 종료</string>
     <string name="admin_action_delivery_source_settlement">정산 후속</string>
-    <string name="admin_action_delivery_source_emergency">긴급 대응</string>
+    <string name="admin_action_delivery_source_emergency">기존 긴급 기록</string>
     <string name="admin_action_delivery_source_support">문의 응답</string>
     <string name="admin_action_delivery_trigger_created">알림 생성</string>
     <string name="admin_action_delivery_trigger_read">읽음 처리</string>

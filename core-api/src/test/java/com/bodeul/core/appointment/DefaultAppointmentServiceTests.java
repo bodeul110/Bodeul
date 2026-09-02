@@ -754,10 +754,68 @@ class DefaultAppointmentServiceTests {
                 patient(),
                 APPOINTMENT_ID,
                 new AppointmentService.UpdateAppointmentFollowUpCommand(
-                        1, null, null, null, "GUIDE_VIEWED")))
+                        1, "excellent", null, null, null)))
                 .isInstanceOf(AppointmentException.class)
                 .extracting(exception -> ((AppointmentException) exception).error())
                 .isEqualTo("appointment_version_conflict");
+    }
+
+    @Test
+    void supportEscalationWriteIsRejectedAndLegacyValueRemainsReadable() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+        appointmentRepository.followUp = Optional.of(new AppointmentFollowUpRecord(
+                APPOINTMENT_ID,
+                "good",
+                NOW,
+                "",
+                "",
+                null,
+                "DIALED_119",
+                NOW,
+                2));
+
+        assertThat(service.getAppointmentFollowUp(patient(), APPOINTMENT_ID)
+                .supportEscalationStatus()).isEqualTo("DIALED_119");
+        assertThatThrownBy(() -> service.updateAppointmentFollowUp(
+                patient(),
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        2, "excellent", null, null, "GUIDE_VIEWED")))
+                .isInstanceOf(AppointmentException.class)
+                .extracting(exception -> ((AppointmentException) exception).error())
+                .isEqualTo("support_escalation_not_supported");
+        assertThat(appointmentRepository.followUp).get()
+                .extracting(AppointmentFollowUpRecord::supportEscalationStatus)
+                .isEqualTo("DIALED_119");
+        assertThat(appointmentRepository.followUp).get()
+                .extracting(AppointmentFollowUpRecord::version)
+                .isEqualTo(2L);
+    }
+
+    @Test
+    void reviewUpdatePreservesLegacySupportEscalationColumns() {
+        appointmentRepository.current = Optional.of(existingAppointment("COMPLETED", 3));
+        appointmentRepository.followUp = Optional.of(new AppointmentFollowUpRecord(
+                APPOINTMENT_ID,
+                "good",
+                NOW,
+                "",
+                "",
+                null,
+                "MANAGER_CALLED",
+                NOW,
+                2));
+
+        var updated = service.updateAppointmentFollowUp(
+                patient(),
+                APPOINTMENT_ID,
+                new AppointmentService.UpdateAppointmentFollowUpCommand(
+                        2, "excellent", null, null, null));
+
+        assertThat(updated.reviewRatingCode()).isEqualTo("excellent");
+        assertThat(updated.supportEscalationStatus()).isEqualTo("MANAGER_CALLED");
+        assertThat(updated.supportEscalatedAt()).isNotEmpty();
+        assertThat(updated.version()).isEqualTo(3L);
     }
 
     private AppUserRepository.AppUser patient() {
@@ -1060,8 +1118,8 @@ class DefaultAppointmentServiceTests {
                     valueOrEmpty(mutation.settlementStatus()),
                     valueOrEmpty(mutation.settlementNote()),
                     mutation.settlementStatus() == null ? null : NOW,
-                    valueOrEmpty(mutation.supportEscalationStatus()),
-                    mutation.supportEscalationStatus() == null ? null : NOW,
+                    "",
+                    null,
                     1));
             return followUp;
         }
@@ -1085,12 +1143,8 @@ class DefaultAppointmentServiceTests {
                             ? currentFollowUp.settlementNote()
                             : valueOrEmpty(mutation.settlementNote()),
                     mutation.settlementStatus() == null ? currentFollowUp.settlementSavedAt() : NOW,
-                    mutation.supportEscalationStatus() == null
-                            ? currentFollowUp.supportEscalationStatus()
-                            : mutation.supportEscalationStatus(),
-                    mutation.supportEscalationStatus() == null
-                            ? currentFollowUp.supportEscalatedAt()
-                            : NOW,
+                    currentFollowUp.supportEscalationStatus(),
+                    currentFollowUp.supportEscalatedAt(),
                     currentFollowUp.version() + 1));
             return followUp;
         }
