@@ -1,6 +1,6 @@
 # Issue 27 무통장입금 MVP 구현·검증 기록
 
-기준일: 2026-09-01
+기준일: 2026-09-02
 
 ## 작업 목적
 
@@ -75,8 +75,14 @@ Firebase Rules, Functions와 별도 `bodeul-admin-web` 저장소는 변경하지
 | `yq e '.' .github/workflows/core-api.yml` | YAML 파싱 통과 |
 | migration 검증기 `bash -n` | 셸 구문 검사 통과 |
 | `git diff --check` | 공백·형식 검사 통과 |
+| PR #394 GitHub Actions | `preflight`, `scope`, Android/Core API `check`, CodeQL, Firestore emulator, PostgreSQL `migration-contract` 포함 8개 검사 통과 |
+| `SM-S921N` / Android 16 실기기 | 앱 데이터를 지우지 않고 debug APK를 갱신 설치했다. 기본 카드 선택 유지, 무통장입금 전환, 69,000원 표시, 동의 누락 차단, 합성 접수 완료, `실결제 미연동`, 승인 번호·승인 시각 미생성을 확인했으며 crash/ANR은 없었다. |
 
-로컬 Docker Desktop이 `dockerInference` reparse-point 오류로 시작되지 않아 PostgreSQL 컨테이너에서 V22 적용·rollback 검증기를 실제 실행하지 못했다. PR의 `migration-contract` 성공을 병합 필수 조건으로 둔다.
+로컬 Docker Desktop에서는 PostgreSQL 검증기를 실행하지 못했지만 PR의 PostgreSQL 17 `migration-contract`에서 V22 적용, 상태·권한 계약과 rollback을 실제 검증했다.
+
+실기기 APK는 작업 트리에 Firebase 설정 파일이 없는 Mock 모드였다. 따라서 Android 합성 화면은 검증했지만 preview PostgreSQL V22 적용과 같은 revision의 Core API 배포를 전제로 하는 실제 API 종단 흐름은 아직 검증하지 않았다.
+
+예약 입력 중 만남 위치 확인 버튼이 3버튼 시스템 탐색 영역에 가려지는 기존 화면 결함도 재현했다. #394가 해당 화면을 변경하지 않았으므로 무통장입금 PR에 섞지 않고 #395로 분리했다.
 
 ## 리스크
 
@@ -89,7 +95,6 @@ Firebase Rules, Functions와 별도 `bodeul-admin-web` 저장소는 변경하지
 
 ## 남은 범위
 
-- PR CI PostgreSQL `migration-contract`에서 V22 적용·rollback·권한·상태 전이 실검증
 - Android의 사용자 결제 조회·입금자명 제출 API 연결과 실제 계좌 없는 preview 종단 검증
 - 별도 관리자 서버와 관리자 웹의 제한 전이 함수 연결
 - 운영 명의 계좌, 현금영수증, 취소·환불 절차와 접근 책임자 승인 뒤 production 활성화
