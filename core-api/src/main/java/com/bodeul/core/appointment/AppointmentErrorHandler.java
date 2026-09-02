@@ -11,7 +11,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice(assignableTypes = AppointmentController.class)
+@RestControllerAdvice(assignableTypes = {
+    AppointmentController.class,
+    AppointmentPaymentController.class
+})
 @Profile({"database", "appointment-test"})
 class AppointmentErrorHandler {
 

@@ -5,17 +5,24 @@ package com.example.bodeul.domain.model;
  */
 public enum BookingPaymentStatus {
     PENDING,
+    AWAITING_DEPOSIT,
+    DEPOSIT_CONFIRMED,
+    REVIEW_REQUIRED,
+    REFUND_REQUESTED,
+    REFUNDED,
+    CANCELED,
     AUTHORIZED,
-    DEFERRED;
+    DEFERRED,
+    UNKNOWN;
 
     public static BookingPaymentStatus fromValue(String rawValue) {
         if (rawValue == null || rawValue.trim().isEmpty()) {
-            return PENDING;
+            return UNKNOWN;
         }
         try {
             return BookingPaymentStatus.valueOf(rawValue.trim());
         } catch (IllegalArgumentException exception) {
-            return PENDING;
+            return UNKNOWN;
         }
     }
 }

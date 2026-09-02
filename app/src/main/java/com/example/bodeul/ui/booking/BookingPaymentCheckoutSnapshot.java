@@ -41,7 +41,7 @@ public final class BookingPaymentCheckoutSnapshot {
         this.departmentName = normalize(departmentName);
         this.appointmentAt = normalize(appointmentAt);
         this.meetingPlace = normalize(meetingPlace);
-        this.paymentMethod = paymentMethod == null ? BookingPaymentMethod.CARD : paymentMethod;
+        this.paymentMethod = paymentMethod == null ? BookingPaymentMethod.UNKNOWN : paymentMethod;
         this.couponType = couponType == null ? BookingCouponType.NONE : couponType;
         this.finalPrice = Math.max(finalPrice, 0);
     }

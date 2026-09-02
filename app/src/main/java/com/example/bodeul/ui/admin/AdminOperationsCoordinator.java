@@ -514,7 +514,7 @@ public final class AdminOperationsCoordinator {
                     buildSettlementCardSummary(request, settlementRecord, followUpRecord),
                     formatter.buildSettlementActivityText(followUpRecord, settlementRecord),
                     items,
-                    buildSettlementActions(settlementRecord)
+                    buildSettlementActions(request, settlementRecord)
             ));
         }
         return cards;
@@ -564,7 +564,7 @@ public final class AdminOperationsCoordinator {
             BookingPaymentStatus paymentStatus = BookingPaymentStatus.fromValue(request.getPaymentStatusCode());
             if (paymentMethod == BookingPaymentMethod.ON_SITE) {
                 onSiteCount++;
-            } else if (paymentStatus == BookingPaymentStatus.AUTHORIZED) {
+            } else if (isCompletedPaymentStatus(paymentStatus)) {
                 completedCount++;
             } else {
                 pendingCount++;
@@ -581,6 +581,10 @@ public final class AdminOperationsCoordinator {
 
     private boolean shouldShowSettlement(AdminRequestOverview overview) {
         AppointmentRequest request = overview.getAppointmentRequest();
+        BookingPaymentStatus paymentStatus = BookingPaymentStatus.fromValue(request.getPaymentStatusCode());
+        if (isServerManagedPaymentStatus(paymentStatus)) {
+            return true;
+        }
         if (request.getStatus() == AppointmentStatus.CANCELED) {
             return false;
         }
@@ -596,7 +600,8 @@ public final class AdminOperationsCoordinator {
         if (BookingPaymentMethod.fromValue(request.getPaymentMethodCode()) == BookingPaymentMethod.ON_SITE) {
             return true;
         }
-        return BookingPaymentStatus.fromValue(request.getPaymentStatusCode()) == BookingPaymentStatus.DEFERRED;
+        return paymentStatus == BookingPaymentStatus.DEFERRED
+                || paymentStatus == BookingPaymentStatus.UNKNOWN;
     }
 
     private boolean matchesMonitoringFilter(
@@ -717,7 +722,7 @@ public final class AdminOperationsCoordinator {
                     AdminOperationBadgeTone.WARNING
             );
         }
-        if (paymentStatus == BookingPaymentStatus.AUTHORIZED) {
+        if (isCompletedPaymentStatus(paymentStatus)) {
             return new AdminOperationBadgeModel(
                     formatter.formatSettlementStatus(request),
                     AdminOperationBadgeTone.SUCCESS
@@ -729,10 +734,40 @@ public final class AdminOperationsCoordinator {
                     AdminOperationBadgeTone.PURPLE
             );
         }
+        if (paymentStatus == BookingPaymentStatus.AWAITING_DEPOSIT
+                || paymentStatus == BookingPaymentStatus.REVIEW_REQUIRED
+                || paymentStatus == BookingPaymentStatus.CANCELED
+                || paymentStatus == BookingPaymentStatus.UNKNOWN
+                || paymentMethod == BookingPaymentMethod.UNKNOWN) {
+            return new AdminOperationBadgeModel(
+                    formatter.formatSettlementStatus(request),
+                    AdminOperationBadgeTone.WARNING
+            );
+        }
         return new AdminOperationBadgeModel(
                 formatter.formatSettlementStatus(request),
                 AdminOperationBadgeTone.PRIMARY
         );
+    }
+
+    private boolean isCompletedPaymentStatus(BookingPaymentStatus paymentStatus) {
+        return paymentStatus == BookingPaymentStatus.AUTHORIZED
+                || paymentStatus == BookingPaymentStatus.DEPOSIT_CONFIRMED
+                || paymentStatus == BookingPaymentStatus.REFUNDED;
+    }
+
+    private boolean isServerManagedPaymentStatus(BookingPaymentStatus paymentStatus) {
+        switch (paymentStatus) {
+            case AWAITING_DEPOSIT:
+            case DEPOSIT_CONFIRMED:
+            case REVIEW_REQUIRED:
+            case REFUND_REQUESTED:
+            case REFUNDED:
+            case CANCELED:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private AdminOperationBadgeModel buildMonitoringPriorityBadge(
@@ -973,9 +1008,13 @@ public final class AdminOperationsCoordinator {
     }
 
     private List<AdminOperationActionModel> buildSettlementActions(
+            AppointmentRequest request,
             AdminSettlementRecord settlementRecord
     ) {
         List<AdminOperationActionModel> actions = new ArrayList<>();
+        if (!AdminSettlementActionPolicy.canUseLegacyFirestoreAction(request)) {
+            return actions;
+        }
         if (settlementRecord != null && settlementRecord.getStatus() == AdminSettlementStatus.CONFIRMED) {
             actions.add(new AdminOperationActionModel(
                     AdminOperationActionType.SAVE_SETTLEMENT_RECHECK,

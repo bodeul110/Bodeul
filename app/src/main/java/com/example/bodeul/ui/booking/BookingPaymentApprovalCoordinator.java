@@ -18,22 +18,57 @@ public final class BookingPaymentApprovalCoordinator {
     }
 
     public BookingPaymentApprovalScreenModel createScreenModel(BookingPaymentCheckoutSnapshot snapshot) {
-        boolean deferredPayment = snapshot.getPaymentMethod() == BookingPaymentMethod.ON_SITE;
+        BookingPaymentConfirmationMode confirmationMode = BookingPaymentConfirmationMode.fromPaymentMethod(
+                snapshot.getPaymentMethod()
+        );
         String providerLabel = resolveProviderLabel(snapshot.getPaymentMethod());
-        return new BookingPaymentApprovalScreenModel(
-                context.getString(R.string.booking_payment_approval_badge),
-                context.getString(deferredPayment
-                        ? R.string.booking_payment_approval_title_deferred
-                        : R.string.booking_payment_approval_title_authorized),
-                context.getString(
-                        deferredPayment
-                                ? R.string.booking_payment_approval_body_deferred
-                                : R.string.booking_payment_approval_body_authorized,
+        String badge;
+        String title;
+        String body;
+        String approvalButtonText;
+        String consentText;
+        switch (confirmationMode) {
+            case BANK_TRANSFER_SYNTHETIC:
+                badge = context.getString(R.string.booking_payment_approval_badge_bank_transfer);
+                title = context.getString(R.string.booking_payment_approval_title_bank_transfer);
+                body = context.getString(R.string.booking_payment_approval_body_bank_transfer);
+                approvalButtonText = context.getString(R.string.booking_payment_approval_button_bank_transfer);
+                consentText = context.getString(R.string.booking_payment_approval_consent_bank_transfer);
+                break;
+            case DEFERRED:
+                badge = context.getString(R.string.booking_payment_approval_badge);
+                title = context.getString(R.string.booking_payment_approval_title_deferred);
+                body = context.getString(R.string.booking_payment_approval_body_deferred, providerLabel);
+                approvalButtonText = context.getString(R.string.booking_payment_approval_button_deferred);
+                consentText = context.getString(
+                        R.string.booking_payment_approval_consent_deferred,
                         providerLabel
-                ),
-                context.getString(deferredPayment
-                        ? R.string.booking_payment_approval_button_deferred
-                        : R.string.booking_payment_approval_button_authorized),
+                );
+                break;
+            case BLOCKED:
+                badge = context.getString(R.string.booking_payment_approval_badge_blocked);
+                title = context.getString(R.string.booking_payment_approval_title_blocked);
+                body = context.getString(R.string.booking_payment_approval_body_blocked);
+                approvalButtonText = context.getString(R.string.booking_payment_approval_button_blocked);
+                consentText = context.getString(R.string.booking_payment_approval_consent_blocked);
+                break;
+            case SIMULATION:
+            default:
+                badge = context.getString(R.string.booking_payment_approval_badge);
+                title = context.getString(R.string.booking_payment_approval_title_authorized);
+                body = context.getString(R.string.booking_payment_approval_body_authorized, providerLabel);
+                approvalButtonText = context.getString(R.string.booking_payment_approval_button_authorized);
+                consentText = context.getString(
+                        R.string.booking_payment_approval_consent_authorized,
+                        providerLabel
+                );
+                break;
+        }
+        return new BookingPaymentApprovalScreenModel(
+                badge,
+                title,
+                body,
+                approvalButtonText,
                 formatter.toPaymentMethodLabel(snapshot.getPaymentMethod().name()),
                 formatter.toCouponLabel(snapshot.getCouponType().name()),
                 formatter.formatPrice(snapshot.getFinalPrice()),
@@ -44,23 +79,22 @@ public final class BookingPaymentApprovalCoordinator {
                         snapshot.getDepartmentName()
                 ),
                 snapshot.getMeetingPlace(),
-                context.getString(
-                        deferredPayment
-                                ? R.string.booking_payment_approval_consent_deferred
-                                : R.string.booking_payment_approval_consent_authorized,
-                        providerLabel
-                ),
-                deferredPayment,
+                consentText,
+                confirmationMode,
                 providerLabel
         );
     }
 
     private String resolveProviderLabel(BookingPaymentMethod paymentMethod) {
         switch (paymentMethod) {
+            case BANK_TRANSFER:
+                return context.getString(R.string.booking_payment_provider_bank_transfer_simulation);
             case EASY_PAY:
                 return context.getString(R.string.booking_payment_provider_easy_pay_simulation);
             case ON_SITE:
                 return context.getString(R.string.booking_payment_provider_on_site);
+            case UNKNOWN:
+                return context.getString(R.string.booking_payment_provider_unknown);
             case CARD:
             default:
                 return context.getString(R.string.booking_payment_provider_card_simulation);

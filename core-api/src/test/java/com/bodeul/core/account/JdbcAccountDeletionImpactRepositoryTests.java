@@ -46,6 +46,8 @@ class JdbcAccountDeletionImpactRepositoryTests {
         assertThat(impact.assignmentAuditCount()).isEqualTo(8L);
         assertThat(impact.relatedChatAttachmentCount()).isEqualTo(11L);
         assertThat(impact.activeLegalHoldCount()).isEqualTo(14L);
+        assertThat(impact.bankTransferPaymentCount()).isEqualTo(15L);
+        assertThat(impact.paymentEventCount()).isEqualTo(16L);
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<MapSqlParameterSource> parameters = ArgumentCaptor.forClass(MapSqlParameterSource.class);
@@ -98,6 +100,8 @@ class JdbcAccountDeletionImpactRepositoryTests {
         when(resultSet.getObject("related_chat_read_receipt_count", Long.class)).thenReturn(12L);
         when(resultSet.getObject("related_location_count", Long.class)).thenReturn(13L);
         when(resultSet.getObject("active_legal_hold_count", Long.class)).thenReturn(14L);
+        when(resultSet.getObject("bank_transfer_payment_count", Long.class)).thenReturn(15L);
+        when(resultSet.getObject("payment_event_count", Long.class)).thenReturn(16L);
     }
 
     @SuppressWarnings("unchecked")

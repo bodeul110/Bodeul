@@ -97,6 +97,9 @@ public class BookingPaymentApprovalActivity extends AppCompatActivity {
     }
 
     private void finishWithApproval(BookingPaymentApprovalScreenModel screenModel) {
+        if (!screenModel.isConfirmable()) {
+            return;
+        }
         Intent resultIntent = new Intent();
         resultIntent.putExtra(
                 EXTRA_PAYMENT_STATUS,

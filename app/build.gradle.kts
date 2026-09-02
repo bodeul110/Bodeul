@@ -251,6 +251,8 @@ android {
     buildFeatures {
         // defaultConfig의 resValue를 사용하므로 명시적으로 활성화한다.
         resValues = true
+        // 무통장입금 신규 선택을 디버그 빌드로 제한하는 데 사용한다.
+        buildConfig = true
     }
 
     compileOptions {

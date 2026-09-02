@@ -72,6 +72,27 @@ public final class AdminOperationsPresentationFormatter {
     public String formatSettlementStatus(AppointmentRequest request) {
         BookingPaymentMethod paymentMethod = BookingPaymentMethod.fromValue(request.getPaymentMethodCode());
         BookingPaymentStatus paymentStatus = BookingPaymentStatus.fromValue(request.getPaymentStatusCode());
+        if (paymentMethod == BookingPaymentMethod.UNKNOWN || paymentStatus == BookingPaymentStatus.UNKNOWN) {
+            return context.getString(R.string.booking_follow_up_settlement_status_unknown);
+        }
+        if (paymentStatus == BookingPaymentStatus.AWAITING_DEPOSIT) {
+            return context.getString(R.string.booking_follow_up_settlement_status_awaiting_deposit);
+        }
+        if (paymentStatus == BookingPaymentStatus.DEPOSIT_CONFIRMED) {
+            return context.getString(R.string.booking_follow_up_settlement_status_deposit_confirmed);
+        }
+        switch (paymentStatus) {
+            case REVIEW_REQUIRED:
+                return context.getString(R.string.booking_follow_up_settlement_status_review_required);
+            case REFUND_REQUESTED:
+                return context.getString(R.string.booking_follow_up_settlement_status_refund_requested);
+            case REFUNDED:
+                return context.getString(R.string.booking_follow_up_settlement_status_refunded);
+            case CANCELED:
+                return context.getString(R.string.booking_follow_up_settlement_status_canceled);
+            default:
+                break;
+        }
         if (paymentMethod == BookingPaymentMethod.ON_SITE) {
             return context.getString(R.string.booking_follow_up_settlement_status_on_site);
         }
@@ -87,6 +108,30 @@ public final class AdminOperationsPresentationFormatter {
     public String formatSettlementNote(AppointmentRequest request) {
         BookingPaymentMethod paymentMethod = BookingPaymentMethod.fromValue(request.getPaymentMethodCode());
         BookingPaymentStatus paymentStatus = BookingPaymentStatus.fromValue(request.getPaymentStatusCode());
+        if (paymentMethod == BookingPaymentMethod.UNKNOWN || paymentStatus == BookingPaymentStatus.UNKNOWN) {
+            return context.getString(R.string.booking_follow_up_settlement_note_unknown);
+        }
+        switch (paymentStatus) {
+            case REVIEW_REQUIRED:
+                return context.getString(R.string.booking_follow_up_settlement_note_review_required);
+            case REFUND_REQUESTED:
+                return context.getString(R.string.booking_follow_up_settlement_note_refund_requested);
+            case REFUNDED:
+                return context.getString(R.string.booking_follow_up_settlement_note_refunded);
+            case CANCELED:
+                return context.getString(R.string.booking_follow_up_settlement_note_canceled);
+            default:
+                break;
+        }
+        if (paymentMethod == BookingPaymentMethod.BANK_TRANSFER) {
+            if (paymentStatus == BookingPaymentStatus.DEPOSIT_CONFIRMED) {
+                return context.getString(R.string.booking_follow_up_settlement_note_deposit_confirmed);
+            }
+            if (paymentStatus == BookingPaymentStatus.AWAITING_DEPOSIT) {
+                return context.getString(R.string.booking_follow_up_settlement_note_awaiting_deposit);
+            }
+            return context.getString(R.string.booking_follow_up_settlement_note_bank_transfer_simulation);
+        }
         if (paymentMethod == BookingPaymentMethod.ON_SITE) {
             return context.getString(R.string.booking_follow_up_settlement_note_on_site);
         }
