@@ -59,6 +59,8 @@ public final class BookingLocationOptionAdapter extends BaseAdapter {
         ViewHolder holder;
         if (convertView == null) {
             convertView = inflater.inflate(R.layout.item_booking_location_option, parent, false);
+            // 선택은 ListView가 맡아 터치와 키보드 입력을 같은 경로로 처리한다.
+            convertView.setLongClickable(false);
             holder = new ViewHolder(
                     convertView.findViewById(R.id.cardBookingLocationOption),
                     convertView.findViewById(R.id.textBookingLocationOptionBadge),

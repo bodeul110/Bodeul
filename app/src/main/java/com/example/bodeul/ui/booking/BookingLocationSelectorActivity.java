@@ -3,11 +3,16 @@ package com.example.bodeul.ui.booking;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.BookingHospitalSelection;
@@ -25,6 +30,7 @@ public class BookingLocationSelectorActivity extends AppCompatActivity {
     private static final String EXTRA_DEPARTMENT_NAME = "departmentName";
     private static final String EXTRA_POINT_ID = "pointId";
     private static final String EXTRA_MEETING_PLACE = "meetingPlace";
+    private static final String STATE_SELECTED_POINT_ID = "selectedPointId";
 
     private BookingLocationOptionAdapter optionAdapter;
     @Nullable
@@ -69,30 +75,61 @@ public class BookingLocationSelectorActivity extends AppCompatActivity {
         BookingLocationSelectorScreenModel screenModel = new BookingLocationSelectorCoordinator(this)
                 .createScreenModel(hospitalSelection, currentSelection);
 
-        optionAdapter = new BookingLocationOptionAdapter(this);
-        BookingLocationMapView mapView = findViewById(R.id.viewBookingLocationMap);
         ListView listView = findViewById(R.id.listBookingLocationOptions);
+        View headerView = LayoutInflater.from(this).inflate(
+                R.layout.header_booking_location_selector,
+                listView,
+                false
+        );
+        listView.addHeaderView(headerView, null, false);
+
+        optionAdapter = new BookingLocationOptionAdapter(this);
+        BookingLocationMapView mapView = headerView.findViewById(R.id.viewBookingLocationMap);
         MaterialButton confirmButton = findViewById(R.id.buttonBookingLocationConfirm);
 
-        ((TextView) findViewById(R.id.textBookingLocationBadge)).setText(screenModel.getBadge());
-        ((TextView) findViewById(R.id.textBookingLocationTitle)).setText(screenModel.getTitle());
-        ((TextView) findViewById(R.id.textBookingLocationBody)).setText(screenModel.getBody());
-        ((TextView) findViewById(R.id.textBookingLocationHelper)).setText(screenModel.getHelper());
-        findViewById(R.id.buttonBackBookingLocation).setOnClickListener(view -> finish());
+        ((TextView) headerView.findViewById(R.id.textBookingLocationBadge)).setText(screenModel.getBadge());
+        ((TextView) headerView.findViewById(R.id.textBookingLocationTitle)).setText(screenModel.getTitle());
+        ((TextView) headerView.findViewById(R.id.textBookingLocationBody)).setText(screenModel.getBody());
+        ((TextView) headerView.findViewById(R.id.textBookingLocationHelper)).setText(screenModel.getHelper());
+        headerView.findViewById(R.id.buttonBackBookingLocation).setOnClickListener(view -> finish());
 
         List<BookingMeetingPointOption> pointOptions = screenModel.getPointOptions();
+        String candidatePointId = savedInstanceState == null
+                ? screenModel.getSelectedPointId()
+                : savedInstanceState.getString(
+                        STATE_SELECTED_POINT_ID,
+                        screenModel.getSelectedPointId()
+                );
+        selectedPointOption = findSelectedPoint(candidatePointId, pointOptions);
+        String selectedPointId = selectedPointOption == null ? "" : selectedPointOption.getId();
         optionAdapter.submitList(pointOptions);
-        optionAdapter.setSelectedPointId(screenModel.getSelectedPointId());
+        optionAdapter.setSelectedPointId(selectedPointId);
         listView.setAdapter(optionAdapter);
-        listView.setOnItemClickListener((parent, view, position, id) ->
-                selectPoint(optionAdapter.getItem(position), mapView));
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            int adapterPosition = position - listView.getHeaderViewsCount();
+            if (adapterPosition >= 0 && adapterPosition < optionAdapter.getCount()) {
+                selectPoint(optionAdapter.getItem(adapterPosition), mapView);
+            }
+        });
 
         mapView.setPointOptions(pointOptions);
-        mapView.setSelectedPointId(screenModel.getSelectedPointId());
+        mapView.setSelectedPointId(selectedPointId);
         mapView.setOnPointSelectedListener(option -> selectPoint(option, mapView));
 
-        selectedPointOption = findSelectedPoint(screenModel.getSelectedPointId(), pointOptions);
         confirmButton.setOnClickListener(view -> finishWithSelection());
+        configureSystemBarInsets(
+                listView,
+                findViewById(R.id.bookingLocationBottomAction)
+        );
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(
+                STATE_SELECTED_POINT_ID,
+                selectedPointOption == null ? "" : selectedPointOption.getId()
+        );
     }
 
     private void selectPoint(BookingMeetingPointOption option, BookingLocationMapView mapView) {
@@ -123,5 +160,45 @@ public class BookingLocationSelectorActivity extends AppCompatActivity {
         resultIntent.putExtra(EXTRA_MEETING_PLACE, selectedPointOption.getMeetingPlace());
         setResult(RESULT_OK, resultIntent);
         finish();
+    }
+
+    private void configureSystemBarInsets(ListView listView, View bottomAction) {
+        int listLeft = listView.getPaddingLeft();
+        int listTop = listView.getPaddingTop();
+        int listRight = listView.getPaddingRight();
+        int listBottom = listView.getPaddingBottom();
+        int actionLeft = bottomAction.getPaddingLeft();
+        int actionTop = bottomAction.getPaddingTop();
+        int actionRight = bottomAction.getPaddingRight();
+        int actionBottom = bottomAction.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(listView, (view, windowInsets) -> {
+            Insets systemInsets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            | WindowInsetsCompat.Type.displayCutout()
+            );
+            view.setPadding(
+                    listLeft + systemInsets.left,
+                    listTop + systemInsets.top,
+                    listRight + systemInsets.right,
+                    listBottom
+            );
+            return windowInsets;
+        });
+        ViewCompat.setOnApplyWindowInsetsListener(bottomAction, (view, windowInsets) -> {
+            Insets systemInsets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.navigationBars()
+                            | WindowInsetsCompat.Type.displayCutout()
+            );
+            view.setPadding(
+                    actionLeft + systemInsets.left,
+                    actionTop,
+                    actionRight + systemInsets.right,
+                    actionBottom + systemInsets.bottom
+            );
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(listView);
+        ViewCompat.requestApplyInsets(bottomAction);
     }
 }
