@@ -35,6 +35,12 @@
 - Mock, Firebase, Core API 저장 경계에서 알 수 없는 결제 수단을 거부한다.
 - 입금 대기, 확인 완료, 검토, 환불 요청, 환불 완료, 취소 상태를 예약·운영 화면에서 구분한다.
 - 기존 무통장입금 예약 편집에서는 결제 수단과 금액에 영향을 주는 옵션을 잠그고, 서버 상태와 무관한 Firestore 정산 완료 동작은 숨긴 뒤 실행 시점에도 다시 차단한다.
+- 환자 본인의 무통장입금 예약에만 결제 정보 버튼을 표시하고, 전용 저장소에서 사용자 결제 조회와 입금자명 제출 API를 호출한다.
+- 조회한 결제 버전과 새 작업 ID를 PATCH에 포함하고, 통신 오류 재시도에는 같은 본문과 작업 ID를 한 번만 재사용한다.
+- 알 수 없는 수단과 잘못된 금액·예약 ID·버전은 실패 처리한다. 새 결제 상태는 `UNKNOWN`으로 표시하고 변경 기능을 잠근다.
+- 계좌 안내가 비활성화된 동안 송금하지 말라는 안내를 표시하고, 예상 금액·입금 기한·실입금액·확인·환불 처리 시각은 서버 응답 범위에서만 보여준다.
+- 화면 재진입 시 이전 사용자 정보를 먼저 지우고 오래된 비동기 응답을 무시한다. 회전과 일시적인 백그라운드 전환 중 저장 전 입금자명은 유지한다.
+- 입금자명 입력은 이름 입력 방식을 유지하면서 키보드 추천 저장과 개인화 학습을 요청 수준에서 비활성화한다.
 
 ### Core API와 PostgreSQL
 
@@ -57,7 +63,7 @@
 
 ## 변경된 범위
 
-- `app/`: 결제 수단·상태 모델, 예약·확인·운영 화면, 저장 경계와 회귀 테스트
+- `app/`: 결제 수단·상태 모델, 예약·결제·운영 화면, Core API 저장 경계와 회귀 테스트
 - `core-api/`: 사용자 결제 API, 예약 서비스 계약, V22 migration·rollback·검증기와 테스트
 - `tools/firebase/`: Firestore 예약 seed의 무통장입금 이관·재적용·rollback 보호
 - `.github/workflows/core-api.yml`: PostgreSQL migration-contract 검증 단계
@@ -69,12 +75,14 @@ Firebase Rules, Functions와 별도 `bodeul-admin-web` 저장소는 변경하지
 
 | 검증 | 결과 |
 | --- | --- |
-| `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain` | Android 단위 테스트 180개 통과, debug APK 생성 |
+| `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain` | Android 단위 테스트 206개 통과, debug APK 생성 |
 | `.\core-api\gradlew.bat -p core-api check --rerun-tasks --console=plain` | Core API 테스트 387개 통과 |
 | `npm --prefix tools/firebase run test:toolkit` | Firebase 도구 테스트 73개 통과 |
 | `yq e '.' .github/workflows/core-api.yml` | YAML 파싱 통과 |
 | migration 검증기 `bash -n` | 셸 구문 검사 통과 |
 | `git diff --check` | 공백·형식 검사 통과 |
+| debug APK 레이아웃 `aapt2 dump xmltree` | 입금자명 입력에 `textNoSuggestions`와 `flagNoPersonalizedLearning`, 자동 View 상태 저장 차단이 컴파일된 것을 확인 |
+| `.\gradlew.bat lintDebug --console=plain` | 이번 결제 화면·저장소 파일에는 지적이 없으나 기존 `GuardianSharingConsentActivity` 등의 API 26 `java.time` 사용 7건 때문에 전체 lint는 실패 |
 | PR #394 GitHub Actions | `preflight`, `scope`, Android/Core API `check`, CodeQL, Firestore emulator, PostgreSQL `migration-contract` 포함 8개 검사 통과 |
 | `SM-S921N` / Android 16 실기기 | 앱 데이터를 지우지 않고 debug APK를 갱신 설치했다. 기본 카드 선택 유지, 무통장입금 전환, 69,000원 표시, 동의 누락 차단, 합성 접수 완료, `실결제 미연동`, 승인 번호·승인 시각 미생성을 확인했으며 crash/ANR은 없었다. |
 
@@ -95,6 +103,6 @@ Firebase Rules, Functions와 별도 `bodeul-admin-web` 저장소는 변경하지
 
 ## 남은 범위
 
-- Android의 사용자 결제 조회·입금자명 제출 API 연결과 실제 계좌 없는 preview 종단 검증
+- preview PostgreSQL V22 적용, 같은 revision의 Core API 배포와 실제 계좌 없는 Android 종단 검증
 - 별도 관리자 서버와 관리자 웹의 제한 전이 함수 연결
 - 운영 명의 계좌, 현금영수증, 취소·환불 절차와 접근 책임자 승인 뒤 production 활성화

@@ -199,7 +199,7 @@ public class MockBodeulRepositoryTest {
     }
 
     @Test
-    public void createAppointmentRequest_bankTransferKeepsSyntheticPendingEvidenceEmpty() {
+    public void createAppointmentRequest_bankTransferStartsAwaitingDepositWithoutApprovalEvidence() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");
 
@@ -222,7 +222,7 @@ public class MockBodeulRepositoryTest {
 
         assertNotNull(created);
         assertEquals("BANK_TRANSFER", created.getPaymentMethodCode());
-        assertEquals("PENDING", created.getPaymentStatusCode());
+        assertEquals("AWAITING_DEPOSIT", created.getPaymentStatusCode());
         assertEquals("", created.getPaymentApprovalCode());
         assertEquals("", created.getPaymentApprovedAt());
     }

@@ -87,7 +87,18 @@ class DefaultAppointmentPaymentServiceTests {
                 .isInstanceOf(AppointmentException.class)
                 .hasMessage("이 예약을 조회하거나 변경할 권한이 없습니다.");
 
+        assertThatThrownBy(() -> service.setDepositor(
+                patient(OTHER_PATIENT_ID),
+                APPOINTMENT_ID,
+                new AppointmentPaymentService.SetDepositorCommand(
+                        OPERATION_ID,
+                        0,
+                        "홍길동")))
+                .isInstanceOf(AppointmentException.class)
+                .hasMessage("이 예약을 조회하거나 변경할 권한이 없습니다.");
+
         verify(paymentRepository, never()).findForPatient(any(), any());
+        verify(paymentRepository, never()).setDepositor(any(), any(), any(), any(Long.class), any());
     }
 
     @Test
