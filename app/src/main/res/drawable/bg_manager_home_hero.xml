@@ -4,5 +4,5 @@
         android:angle="315"
         android:endColor="@color/figma_mvp_primary_end"
         android:startColor="@color/figma_mvp_primary" />
-    <corners android:radius="32dp" />
+    <corners android:radius="48dp" />
 </shape>

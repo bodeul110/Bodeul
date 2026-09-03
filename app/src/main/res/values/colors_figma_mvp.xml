@@ -22,7 +22,7 @@
     <color name="figma_mvp_icon_yellow_background">#FFF7ED</color>
     <color name="figma_mvp_icon_purple_background">#EEF2FF</color>
     <color name="figma_mvp_icon_green_background">#F0FDF4</color>
-    <color name="figma_mvp_nav_inactive">#64748B</color>
+    <color name="figma_mvp_nav_inactive">#94A3B8</color>
     <color name="figma_mvp_gold_text">#835500</color>
     <color name="figma_mvp_card_outline">#1AC3C6D4</color>
 </resources>
