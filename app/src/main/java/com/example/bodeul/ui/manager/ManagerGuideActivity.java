@@ -222,6 +222,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.viewGuideHospitalMap),
                 findViewById(R.id.guideMapActionContainer),
                 new ManagerGuideMapActionBinder(this::openMapFallback),
+                new ManagerGuideMeetingOverviewBinder(findViewById(android.R.id.content)),
                 (LinearLayout) findViewById(R.id.guideStageRailContainer),
                 findViewById(R.id.textGuideFocusBadge),
                 findViewById(R.id.textGuideFocusTitle),
@@ -267,6 +268,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
+        findViewById(R.id.navGuideHome).setOnClickListener(view -> openManagerHome());
+        findViewById(R.id.navGuideHistory).setOnClickListener(view ->
+                startActivity(new Intent(this, ManagerHistoryActivity.class)));
+        findViewById(R.id.navGuideProfile).setOnClickListener(view ->
+                startActivity(new Intent(this, ManagerProfileActivity.class)));
         buttonAdvanceGuide.setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));

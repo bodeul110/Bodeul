@@ -63,13 +63,16 @@ public final class ManagerGuideCoordinator {
 
         return new ManagerGuideScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
-                context.getString(R.string.guide_progress_title),
+                buildToolbarTitle(focusStep),
                 context.getString(R.string.guide_progress_subtitle),
                 formatter.toSessionStatusLabel(session.getStatus()),
                 context.getString(R.string.guide_hero_title_format, dashboard.getPatient().getName()),
                 formatter.buildHeroBody(dashboard),
                 formatter.buildHeroNote(dashboard),
-                createMapActions(dashboard),
+                valueOrFallback(dashboard.getPatient().getName()),
+                resolveMeetingPlace(dashboard),
+                valueOrFallback(dashboard.getAppointmentRequest().getDepartmentName()),
+                createMapActions(dashboard, focusStep),
                 buildHospitalMapPreviewModel(dashboard),
                 stages,
                 createFocusModel(focusStep, session, advanceDecision),
@@ -122,6 +125,9 @@ public final class ManagerGuideCoordinator {
                 context.getString(R.string.guide_hero_title_empty),
                 context.getString(R.string.guide_hero_body_empty),
                 context.getString(R.string.guide_hero_note_empty),
+                "",
+                "",
+                "",
                 Collections.emptyList(),
                 new HospitalMapPreviewModel(Collections.emptyList(), "", ""),
                 Collections.emptyList(),
@@ -167,20 +173,33 @@ public final class ManagerGuideCoordinator {
         );
     }
 
-    private List<ManagerGuideMapActionModel> createMapActions(ManagerDashboard dashboard) {
+    private List<ManagerGuideMapActionModel> createMapActions(
+            ManagerDashboard dashboard,
+            GuideStep focusStep
+    ) {
         String hospitalName = dashboard.getAppointmentRequest().getHospitalName();
         String departmentName = dashboard.getAppointmentRequest().getDepartmentName();
-        String meetingPlace = dashboard.getAppointmentRequest().getMeetingPlace();
+        String meetingPlace = resolveMeetingPlace(dashboard);
         CompanionSession session = dashboard.getSession();
-        if (TextUtils.isEmpty(meetingPlace)) {
-            meetingPlace = context.getString(R.string.guide_map_default_meeting_place, hospitalName);
-        }
 
         double hospitalLat = dashboard.getAppointmentRequest().getHospitalLatitude();
         double hospitalLng = dashboard.getAppointmentRequest().getHospitalLongitude();
         boolean hasCoordinates = hospitalLat != 0.0 || hospitalLng != 0.0;
+        String meetingMapUrl = hasCoordinates
+                ? buildKakaoMapUrl(hospitalName + " " + meetingPlace, hospitalLat, hospitalLng)
+                : null;
 
         List<ManagerGuideMapActionModel> actions = new ArrayList<>();
+        if (isMeetingStep(focusStep)) {
+            actions.add(new ManagerGuideMapActionModel(
+                    context.getString(R.string.guide_map_action_meeting_title),
+                    context.getString(R.string.guide_map_action_meeting_body, meetingPlace),
+                    context.getString(R.string.guide_meeting_map_action),
+                    hospitalName + " " + meetingPlace,
+                    meetingMapUrl
+            ));
+            return actions;
+        }
         if (legacyManagerLocationEnabled
                 && (!TextUtils.isEmpty(session.getLocationSummary())
                 || session.hasSharedLocationCoordinates())) {
@@ -207,10 +226,6 @@ public final class ManagerGuideCoordinator {
                 hospitalMapUrl
         ));
 
-        String meetingMapUrl = hasCoordinates
-                ? buildKakaoMapUrl(hospitalName + " " + meetingPlace, hospitalLat, hospitalLng)
-                : null;
-
         actions.add(new ManagerGuideMapActionModel(
                 context.getString(R.string.guide_map_action_meeting_title),
                 context.getString(R.string.guide_map_action_meeting_body, meetingPlace),
@@ -227,6 +242,40 @@ public final class ManagerGuideCoordinator {
             ));
         }
         return actions;
+    }
+
+    private String buildToolbarTitle(GuideStep focusStep) {
+        if (focusStep == null || focusStep.getOrder() <= 0) {
+            return context.getString(R.string.guide_progress_title);
+        }
+        return context.getString(
+                R.string.guide_step_toolbar_title,
+                focusStep.getOrder(),
+                valueOrFallback(focusStep.getTitle())
+        );
+    }
+
+    private String resolveMeetingPlace(ManagerDashboard dashboard) {
+        String meetingPlace = dashboard.getAppointmentRequest().getMeetingPlace();
+        if (!TextUtils.isEmpty(meetingPlace)) {
+            return meetingPlace;
+        }
+        return context.getString(
+                R.string.guide_map_default_meeting_place,
+                valueOrFallback(dashboard.getAppointmentRequest().getHospitalName())
+        );
+    }
+
+    private boolean isMeetingStep(GuideStep step) {
+        return step != null && "MEETING_CONFIRMATION".equals(
+                step.getCode() == null ? "" : step.getCode().trim()
+        );
+    }
+
+    private String valueOrFallback(String value) {
+        return TextUtils.isEmpty(value)
+                ? context.getString(R.string.guide_meeting_value_missing)
+                : value.trim();
     }
 
     static boolean shouldShowPharmacyRouteAction(CompanionSession session) {

@@ -48,7 +48,7 @@ final class ManagerGuideSectionVisibility {
         }
         switch (code) {
             case "MEETING_CONFIRMATION":
-                return only();
+                return of(true, false, false, false, false, false, false, false, false);
             case "HOSPITAL_ROUTE":
                 return of(true, true, false, false, false, false, false, false, false);
             case "RECEPTION_QUEUE":
