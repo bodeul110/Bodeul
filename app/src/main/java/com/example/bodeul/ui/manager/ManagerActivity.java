@@ -426,7 +426,7 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
                         showAuthState();
                         return;
                     }
-                    hideBlockingState();
+                    showDashboardLoadingState();
                     loadManagerHomeProfile();
                     loadDashboard();
                 },
