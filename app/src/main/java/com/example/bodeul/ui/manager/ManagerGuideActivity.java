@@ -298,6 +298,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
+        findViewById(R.id.buttonGuideMeetingOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
         findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
