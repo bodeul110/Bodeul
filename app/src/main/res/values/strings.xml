@@ -903,7 +903,10 @@
     <string name="manager_home_waiting_body">배정된 동행이 있는지 새로고침으로 확인할 수 있습니다.
 새 일정이 배정되면 이곳에서 바로 안내합니다.</string>
     <string name="manager_home_waiting_button">배정 현황 새로고침</string>
-    <string name="manager_home_matching_refresh_toast">배정 현황을 새로고침했습니다.</string>
+    <string name="manager_home_matching_refresh_toast">배정 현황을 확인하고 있습니다.</string>
+    <string name="manager_home_loading_badge">동행 확인</string>
+    <string name="manager_home_loading_title">배정된 동행을 확인하고 있습니다.</string>
+    <string name="manager_home_loading_body">최신 동행 상태를 불러오는 동안 잠시만 기다려 주세요.</string>
     <string name="manager_home_live_section_title">오늘 연결된 동행 일정</string>
     <string name="manager_home_live_title">%1$s 환자 동행</string>
     <string name="manager_home_live_subtitle">%1$s · %2$s</string>

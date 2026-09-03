@@ -40,17 +40,17 @@
                 android:lineSpacingExtra="2dp"
                 android:text="@string/manager_home_greeting_default"
                 android:textColor="@color/figma_mvp_text_primary"
-                android:textSize="34sp" />
+                android:textSize="36sp" />
 
             <TextView
                 android:id="@+id/textManagerSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:fontFamily="@font/pretendard_semibold"
                 android:text="@string/manager_home_subtitle"
                 android:textColor="@color/figma_mvp_text_secondary"
-                android:textSize="16sp" />
+                android:textSize="18sp" />
 
             <include
                 android:id="@+id/managerStatePanel"
@@ -66,9 +66,9 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="32dp"
                     app:cardBackgroundColor="@android:color/transparent"
-                    app:cardCornerRadius="32dp"
+                    app:cardCornerRadius="48dp"
                     app:cardElevation="8dp">
 
                     <LinearLayout
@@ -99,7 +99,7 @@
                                 android:paddingBottom="6dp"
                                 android:text="@string/manager_home_waiting_badge"
                                 android:textColor="@color/white"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
 
                             <Space
                                 android:layout_width="0dp"
@@ -150,7 +150,7 @@
                             android:lineSpacingExtra="2dp"
                             android:text="@string/manager_home_waiting_body"
                             android:textColor="@color/figma_mvp_hero_content"
-                            android:textSize="13sp" />
+                            android:textSize="14sp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/buttonManagerHeroPrimary"
@@ -161,7 +161,7 @@
                             android:text="@string/manager_home_waiting_button"
                             android:textAllCaps="false"
                             android:textColor="@color/figma_mvp_hero_action_text"
-                            android:textSize="15sp"
+                            android:textSize="16sp"
                             app:backgroundTint="@color/figma_mvp_patient_icon_background"
                             app:cornerRadius="28dp"
                             app:icon="@drawable/manager_home_icon_arrow"
@@ -175,7 +175,7 @@
                     android:id="@+id/managerActionContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
+                    android:layout_marginTop="32dp"
                     android:orientation="vertical" />
 
                 <LinearLayout
