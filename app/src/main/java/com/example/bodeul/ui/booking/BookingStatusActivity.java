@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -28,6 +29,7 @@ import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.report.GuardianReportActivity;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 
@@ -329,6 +331,14 @@ public class BookingStatusActivity extends AppCompatActivity {
     }
 
     private void openLiveTracking() {
+        if (!LegacyManagerLocationSharingPolicy.isEnabled(this)) {
+            Toast.makeText(
+                    this,
+                    R.string.legacy_manager_location_disabled_body,
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
         if (currentDetail == null) {
             return;
         }

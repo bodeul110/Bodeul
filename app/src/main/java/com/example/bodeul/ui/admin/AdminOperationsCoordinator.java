@@ -21,6 +21,7 @@ import com.example.bodeul.domain.model.BookingPaymentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.SessionReport;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.domain.model.SessionStatus;
 
 import java.util.ArrayList;
@@ -34,10 +35,12 @@ import java.util.Map;
 public final class AdminOperationsCoordinator {
     private final Context context;
     private final AdminOperationsPresentationFormatter formatter;
+    private final boolean legacyManagerLocationEnabled;
 
     public AdminOperationsCoordinator(Context context, AdminOperationsPresentationFormatter formatter) {
         this.context = context.getApplicationContext();
         this.formatter = formatter;
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public AdminOperationsDashboardModel createDashboardModel(
@@ -317,22 +320,24 @@ public final class AdminOperationsCoordinator {
                             : formatter.formatFallbackValue(session.getGuardianUpdate()),
                     false
             ));
-            items.add(new AdminOperationLineItem(
-                    context.getString(R.string.admin_monitoring_line_location),
-                    session == null ? formatter.formatFallbackValue(null)
-                            : formatter.formatFallbackValue(session.getLocationSummary()),
-                    false
-            ));
-            items.add(new AdminOperationLineItem(
-                    context.getString(R.string.admin_monitoring_line_live_status),
-                    CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
-                    false
-            ));
-            items.add(new AdminOperationLineItem(
-                    context.getString(R.string.admin_monitoring_line_location_history),
-                    CompanionLocationDisplayHelper.buildLocationHistory(context, session, 2),
-                    false
-            ));
+            if (legacyManagerLocationEnabled) {
+                items.add(new AdminOperationLineItem(
+                        context.getString(R.string.admin_monitoring_line_location),
+                        session == null ? formatter.formatFallbackValue(null)
+                                : formatter.formatFallbackValue(session.getLocationSummary()),
+                        false
+                ));
+                items.add(new AdminOperationLineItem(
+                        context.getString(R.string.admin_monitoring_line_live_status),
+                        CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
+                        false
+                ));
+                items.add(new AdminOperationLineItem(
+                        context.getString(R.string.admin_monitoring_line_location_history),
+                        CompanionLocationDisplayHelper.buildLocationHistory(context, session, 2),
+                        false
+                ));
+            }
             items.add(new AdminOperationLineItem(
                     context.getString(R.string.admin_monitoring_line_field_photo),
                     session == null ? formatter.formatFallbackValue(null)
@@ -882,7 +887,9 @@ public final class AdminOperationsCoordinator {
                     session.getGuardianUpdate()
             );
         }
-        if (session != null && !TextUtils.isEmpty(session.getLocationSummary())) {
+        if (legacyManagerLocationEnabled
+                && session != null
+                && !TextUtils.isEmpty(session.getLocationSummary())) {
             return context.getString(
                     R.string.admin_monitoring_card_summary_location,
                     session.getLocationSummary()

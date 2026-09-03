@@ -44,16 +44,19 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     private final CompanionRealtimeRepository realtimeRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final GuardianSharingConsentAccess consentAccess;
+    private final boolean legacyManagerLocationEnabled;
 
     DefaultCompanionRealtimeService(
             CompanionSessionRepository sessionRepository,
             CompanionRealtimeRepository realtimeRepository,
             ApplicationEventPublisher eventPublisher,
+            CompanionSessionProperties properties,
             GuardianSharingConsentAccess consentAccess) {
         this.sessionRepository = sessionRepository;
         this.realtimeRepository = realtimeRepository;
         this.eventPublisher = eventPublisher;
         this.consentAccess = consentAccess;
+        this.legacyManagerLocationEnabled = properties.isLegacyManagerLocationEnabled();
     }
 
     @Override
@@ -66,7 +69,8 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
         Set<InformationScope> allowedScopes = allowedScopes(appUser, session);
         boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT);
         boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT);
-        boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION);
+        boolean locationAllowed = legacyManagerLocationEnabled
+                && allowedScopes.contains(InformationScope.LOCATION);
         if (!chatAllowed && !locationAllowed) {
             throw CompanionSessionException.permissionDenied();
         }
@@ -185,6 +189,7 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
             UUID sessionId,
             PostLocationCommand command) {
         requireManager(appUser);
+        requireLegacyManagerLocationEnabled();
         SessionRecord session = findSession(sessionId);
         requireReader(appUser, session);
         requireRealtimeWriteAllowed(session);
@@ -347,6 +352,12 @@ class DefaultCompanionRealtimeService implements CompanionRealtimeService {
     private void requireManager(AppUserRepository.AppUser appUser) {
         if (appUser == null || appUser.role() != AppUserRole.MANAGER) {
             throw CompanionSessionException.managerRequired();
+        }
+    }
+
+    private void requireLegacyManagerLocationEnabled() {
+        if (!legacyManagerLocationEnabled) {
+            throw CompanionSessionException.locationSharingDisabled();
         }
     }
 

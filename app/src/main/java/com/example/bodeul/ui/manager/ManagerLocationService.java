@@ -21,6 +21,7 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.data.ServiceLocator;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 public class ManagerLocationService extends Service {
     private static final String ACTION_START = "ACTION_START";
@@ -35,6 +36,9 @@ public class ManagerLocationService extends Service {
     private String currentManagerUserId;
 
     public static void start(Context context) {
+        if (!LegacyManagerLocationSharingPolicy.isEnabled(context)) {
+            return;
+        }
         Intent intent = new Intent(context, ManagerLocationService.class);
         intent.setAction(ACTION_START);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -62,6 +66,12 @@ public class ManagerLocationService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (!LegacyManagerLocationSharingPolicy.isEnabled(this)) {
+            stopTracking();
+            stopForegroundCompat();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         if (intent != null) {
             String action = intent.getAction();
             if (ACTION_START.equals(action)) {

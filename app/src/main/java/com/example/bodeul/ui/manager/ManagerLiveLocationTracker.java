@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 import java.util.List;
 
@@ -38,6 +39,10 @@ public final class ManagerLiveLocationTracker {
 
     public boolean start(@NonNull Context context, @NonNull Callback callback) {
         stop();
+        if (!LegacyManagerLocationSharingPolicy.isEnabled(context)) {
+            callback.onError(context.getString(R.string.legacy_manager_location_disabled_body));
+            return false;
+        }
         if (!ManagerLocationSupport.hasFineLocationPermission(context)) {
             callback.onError(context.getString(R.string.guide_share_location_permission_denied));
             return false;

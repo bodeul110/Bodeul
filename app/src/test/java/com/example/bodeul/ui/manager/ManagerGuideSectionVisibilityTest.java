@@ -74,6 +74,20 @@ public class ManagerGuideSectionVisibilityTest {
         assertTrue(extension.isNextVisitVisible());
     }
 
+    @Test
+    public void withoutLocation_hidesOnlyLegacyLocationAndKeepsGuardianUpdate() {
+        ManagerGuideSectionVisibility consultation = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("CONSULTATION_SUPPORT", 5, "진료 동행", ""));
+        ManagerGuideSectionVisibility route = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("HOSPITAL_ROUTE", 2, "병원 이동", ""));
+
+        assertTrue(consultation.isGuardianVisible());
+        assertTrue(consultation.withoutLocation().isGuardianVisible());
+        assertTrue(route.isLocationVisible());
+        assertFalse(route.withoutLocation().isLocationVisible());
+        assertTrue(route.withoutLocation().isMapVisible());
+    }
+
     private void assertCommonFieldNoteOnly(ManagerGuideSectionVisibility visibility) {
         assertTrue(visibility.isFieldNoteVisible());
         assertFalse(visibility.isMapVisible());

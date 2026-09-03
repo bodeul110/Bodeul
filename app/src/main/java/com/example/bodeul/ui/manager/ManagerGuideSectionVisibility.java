@@ -149,6 +149,19 @@ final class ManagerGuideSectionVisibility {
                 true
         );
     }
+    ManagerGuideSectionVisibility withoutLocation() {
+        return of(
+                mapVisible,
+                false,
+                guardianVisible,
+                fieldNoteVisible,
+                medicationNoteVisible,
+                pharmacyVisible,
+                reportSummaryVisible,
+                reportMedicationVisible,
+                nextVisitVisible
+        );
+    }
     boolean isMapVisible() { return mapVisible; }
     boolean isLocationVisible() { return locationVisible; }
     boolean isGuardianVisible() { return guardianVisible; }

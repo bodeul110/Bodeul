@@ -16,6 +16,7 @@ import com.example.bodeul.ui.booking.BookingMeetingPointCatalog;
 import com.example.bodeul.ui.common.HospitalMapPreviewModel;
 import com.example.bodeul.util.CompanionLocationDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
 
 import java.util.ArrayList;
@@ -29,10 +30,12 @@ import java.util.Locale;
 public final class ManagerGuideCoordinator {
     private final Context context;
     private final ManagerGuidePresentationFormatter formatter;
+    private final boolean legacyManagerLocationEnabled;
 
     public ManagerGuideCoordinator(Context context, ManagerGuidePresentationFormatter formatter) {
         this.context = context.getApplicationContext();
         this.formatter = formatter;
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public ManagerGuideScreenModel createScreenModel(@Nullable ManagerDashboard dashboard, boolean isFirebaseBacked) {
@@ -54,6 +57,9 @@ public final class ManagerGuideCoordinator {
                 focusStep.getCode());
         ManagerGuideSectionVisibility sectionVisibility =
                 resolveSectionVisibility(focusStep, primaryAction);
+        if (!legacyManagerLocationEnabled) {
+            sectionVisibility = sectionVisibility.withoutLocation();
+        }
 
         return new ManagerGuideScreenModel(
                 EnvironmentModeBadgeHelper.resolveUserFacingLabel(context, isFirebaseBacked),
@@ -69,9 +75,13 @@ public final class ManagerGuideCoordinator {
                 createFocusModel(focusStep, session, advanceDecision),
                 sectionVisibility,
                 focusStep.getCode(),
-                CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session),
-                CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3),
-                session.getLocationSummary(),
+                legacyManagerLocationEnabled
+                        ? CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session)
+                        : "",
+                legacyManagerLocationEnabled
+                        ? CompanionLocationDisplayHelper.buildLocationHistory(context, session, 3)
+                        : "",
+                legacyManagerLocationEnabled ? session.getLocationSummary() : "",
                 session.getGuardianUpdate(),
                 session.getFieldPhotoNote(),
                 session.isPreConsultationConfirmed(),
@@ -98,7 +108,7 @@ public final class ManagerGuideCoordinator {
                         : (report == null
                                 ? R.string.guide_report_submit
                                 : R.string.guide_report_update)),
-                session.isLiveLocationSharingActive(),
+                legacyManagerLocationEnabled && session.isLiveLocationSharingActive(),
                 isStepInputEnabled(advanceDecision)
         );
     }
@@ -171,7 +181,9 @@ public final class ManagerGuideCoordinator {
         boolean hasCoordinates = hospitalLat != 0.0 || hospitalLng != 0.0;
 
         List<ManagerGuideMapActionModel> actions = new ArrayList<>();
-        if (!TextUtils.isEmpty(session.getLocationSummary()) || session.hasSharedLocationCoordinates()) {
+        if (legacyManagerLocationEnabled
+                && (!TextUtils.isEmpty(session.getLocationSummary())
+                || session.hasSharedLocationCoordinates())) {
             actions.add(new ManagerGuideMapActionModel(
                     context.getString(R.string.guide_map_action_shared_title),
                     buildSharedLocationBody(session, meetingPlace),

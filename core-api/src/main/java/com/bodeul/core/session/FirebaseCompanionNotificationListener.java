@@ -50,14 +50,17 @@ class FirebaseCompanionNotificationListener {
 
     private final AppUserRepository appUserRepository;
     private final String firebaseProjectId;
+    private final boolean legacyManagerLocationEnabled;
     private volatile Firestore firestore;
     private volatile FirebaseMessaging messaging;
 
     FirebaseCompanionNotificationListener(
             AppUserRepository appUserRepository,
-            @Value("${FIREBASE_PROJECT_ID:}") String firebaseProjectId) {
+            @Value("${FIREBASE_PROJECT_ID:}") String firebaseProjectId,
+            CompanionSessionProperties properties) {
         this.appUserRepository = appUserRepository;
         this.firebaseProjectId = firebaseProjectId.trim();
+        this.legacyManagerLocationEnabled = properties.isLegacyManagerLocationEnabled();
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -82,7 +85,7 @@ class FirebaseCompanionNotificationListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void onLocationAlert(CompanionLocationAlertChangedEvent event) {
-        if ("none".equals(event.alertStage())) {
+        if (!legacyManagerLocationEnabled || "none".equals(event.alertStage())) {
             return;
         }
         String title = "pharmacy_near".equals(event.alertStage())

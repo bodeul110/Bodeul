@@ -7,6 +7,7 @@ const {
   resolveLegacyChatRecipientUserIds,
   resolveLegacyLocationRecipientUserIds,
 } = require("./guardian-delivery-policy");
+const {isLegacyManagerLocationEnabled} = require("./location-feature-policy");
 
 const CLIENT_SUPPORT_NOTIFICATION_OPTIONS = {
   region: "asia-northeast3",
@@ -150,6 +151,9 @@ const notifyCompanionChatMessage = onDocumentWritten(
 const notifyCompanionLocationAlert = onDocumentWritten(
     COMPANION_LOCATION_ALERT_NOTIFICATION_OPTIONS,
     async (event) => {
+      if (!isLegacyManagerLocationEnabled()) {
+        return;
+      }
       if (!event.data?.after?.exists) {
         return;
       }

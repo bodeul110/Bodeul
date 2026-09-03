@@ -7,6 +7,7 @@ public class CompanionSessionProperties {
 
     private boolean preConsultationEnforcement;
     private boolean completionEnforcement;
+    private boolean legacyManagerLocationEnabled;
 
     public boolean isPreConsultationEnforcement() {
         return preConsultationEnforcement;
@@ -22,5 +23,13 @@ public class CompanionSessionProperties {
 
     public void setCompletionEnforcement(boolean completionEnforcement) {
         this.completionEnforcement = completionEnforcement;
+    }
+
+    public boolean isLegacyManagerLocationEnabled() {
+        return legacyManagerLocationEnabled;
+    }
+
+    public void setLegacyManagerLocationEnabled(boolean legacyManagerLocationEnabled) {
+        this.legacyManagerLocationEnabled = legacyManagerLocationEnabled;
     }
 }

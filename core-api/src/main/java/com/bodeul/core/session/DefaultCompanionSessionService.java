@@ -60,6 +60,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
     private final GuardianSharingConsentAccess consentAccess;
     private final boolean preConsultationEnforcement;
     private final boolean completionEnforcement;
+    private final boolean legacyManagerLocationEnabled;
 
     DefaultCompanionSessionService(
             CompanionSessionRepository sessionRepository,
@@ -71,6 +72,7 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         this.consentAccess = consentAccess;
         this.preConsultationEnforcement = properties.isPreConsultationEnforcement();
         this.completionEnforcement = properties.isCompletionEnforcement();
+        this.legacyManagerLocationEnabled = properties.isLegacyManagerLocationEnabled();
     }
 
     @Override
@@ -105,6 +107,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         }
         if (isEmptyPatch(command)) {
             throw CompanionSessionException.invalidRequest("변경할 동행 정보가 필요합니다.");
+        }
+        if (!legacyManagerLocationEnabled && containsLegacyManagerLocationPatch(command)) {
+            throw CompanionSessionException.locationSharingDisabled();
         }
 
         SessionRecord existing = findSession(sessionId);
@@ -427,6 +432,12 @@ class DefaultCompanionSessionService implements CompanionSessionService {
                 && command.locationAlertStage() == null;
     }
 
+    private boolean containsLegacyManagerLocationPatch(UpdateSessionCommand command) {
+        return command.locationSummary() != null
+                || command.liveLocationSharingActive() != null
+                || command.locationAlertStage() != null;
+    }
+
     private String normalizeLocationAlertStage(String value) {
         if (value == null) {
             return null;
@@ -515,7 +526,9 @@ class DefaultCompanionSessionService implements CompanionSessionService {
         boolean managerCareEnded = appUser.role() == AppUserRole.MANAGER
                 && hasCareEnded(session);
         boolean chatAllowed = allowedScopes.contains(InformationScope.CHAT) && !managerCareEnded;
-        boolean locationAllowed = allowedScopes.contains(InformationScope.LOCATION) && !managerCareEnded;
+        boolean locationAllowed = legacyManagerLocationEnabled
+                && allowedScopes.contains(InformationScope.LOCATION)
+                && !managerCareEnded;
         boolean attachmentAllowed = allowedScopes.contains(InformationScope.ATTACHMENT)
                 && !managerCareEnded;
         boolean reportAllowed = allowedScopes.contains(InformationScope.REPORT);

@@ -9,6 +9,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.R;
+import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.appcheck.AppCheckToken;
@@ -63,15 +64,26 @@ public final class KakaoLocalPlaceSearchClient {
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final String coreApiBaseUrl;
+    private final boolean firebaseConfigured;
 
     public KakaoLocalPlaceSearchClient(Context context) {
         this.context = context.getApplicationContext();
         this.coreApiBaseUrl = normalizeBaseUrl(
                 context.getString(R.string.bodeul_core_api_base_url));
+        this.firebaseConfigured = FirebaseSupport.isConfigured(this.context);
     }
 
     public boolean isConfigured() {
-        return !TextUtils.isEmpty(coreApiBaseUrl);
+        return hasAuthenticatedCoreSearchConfiguration(coreApiBaseUrl, firebaseConfigured);
+    }
+
+    static boolean hasAuthenticatedCoreSearchConfiguration(
+            @Nullable String coreApiBaseUrl,
+            boolean firebaseConfigured
+    ) {
+        return firebaseConfigured
+                && coreApiBaseUrl != null
+                && !coreApiBaseUrl.trim().isEmpty();
     }
 
     public void searchHospitalAndPharmacy(HospitalMapCoordinateQuery query, Callback callback) {
@@ -173,11 +185,18 @@ public final class KakaoLocalPlaceSearchClient {
     private <T> void executeCoreSearch(
             CoreSearchOperation<T> coreOperation,
             SearchResultHandler<T> resultHandler) {
-        if (TextUtils.isEmpty(coreApiBaseUrl)) {
+        if (!isConfigured()) {
             resultHandler.onError();
             return;
         }
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        FirebaseUser currentUser;
+        try {
+            currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        } catch (IllegalStateException exception) {
+            Log.w(TAG, "Firebase 인증이 준비되지 않아 Core API 장소 검색을 건너뜁니다.");
+            resultHandler.onError();
+            return;
+        }
         if (currentUser == null) {
             Log.w(TAG, "로그인 사용자가 없어 Core API 장소 검색을 건너뜁니다.");
             resultHandler.onError();
@@ -192,24 +211,29 @@ public final class KakaoLocalPlaceSearchClient {
                 resultHandler.onError();
                 return;
             }
-            FirebaseAppCheck.getInstance().getAppCheckToken(false).addOnCompleteListener(appCheckTask -> {
-                AppCheckToken tokenResult = appCheckTask.isSuccessful()
-                        ? appCheckTask.getResult()
-                        : null;
-                String appCheckToken = tokenResult == null ? "" : tokenResult.getToken();
-                if (TextUtils.isEmpty(appCheckToken)) {
-                    Log.w(TAG, "App Check 토큰 없이 Core API 장소 검색을 시도합니다.");
-                }
-
-                EXECUTOR.execute(() -> {
-                    try {
-                        resultHandler.onSuccess(coreOperation.run(idToken, appCheckToken));
-                    } catch (Exception exception) {
-                        Log.w(TAG, "Core API 장소 검색 실패: " + exception.getClass().getSimpleName());
-                        resultHandler.onError();
+            try {
+                FirebaseAppCheck.getInstance().getAppCheckToken(false).addOnCompleteListener(appCheckTask -> {
+                    AppCheckToken tokenResult = appCheckTask.isSuccessful()
+                            ? appCheckTask.getResult()
+                            : null;
+                    String appCheckToken = tokenResult == null ? "" : tokenResult.getToken();
+                    if (TextUtils.isEmpty(appCheckToken)) {
+                        Log.w(TAG, "App Check 토큰 없이 Core API 장소 검색을 시도합니다.");
                     }
+
+                    EXECUTOR.execute(() -> {
+                        try {
+                            resultHandler.onSuccess(coreOperation.run(idToken, appCheckToken));
+                        } catch (Exception exception) {
+                            Log.w(TAG, "Core API 장소 검색 실패: " + exception.getClass().getSimpleName());
+                            resultHandler.onError();
+                        }
+                    });
                 });
-            });
+            } catch (IllegalStateException exception) {
+                Log.w(TAG, "App Check가 준비되지 않아 Core API 장소 검색을 건너뜁니다.");
+                resultHandler.onError();
+            }
         });
     }
 
