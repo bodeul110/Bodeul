@@ -36,6 +36,7 @@ Android debug opt-in은 로컬 또는 Gradle property `bodeulLegacyManagerLocati
 | --- | --- |
 | Android debug | 기본 `OFF`, 개발자가 명시적으로 opt-in한 경우에만 legacy 매니저 위치 경로 사용 |
 | Android release | 하드코딩 `false`, 위치 권한 요청·1회 공유·연속 공유 시작 차단 |
+| Android Firebase 미설정 환경 | Core API 장소 검색과 Supabase Realtime 인증 경로를 시작하지 않고 Mock 경로로 안전하게 대체 |
 | Core API 로컬 | `BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED=false`가 기본값 |
 | Core API Preview | 기본 `false`, 허용된 boolean 값을 명시적으로 넣은 경우에만 opt-in |
 | Core API production | workflow와 런타임 환경 모두 `false`로 고정 |
@@ -55,7 +56,7 @@ DB schema와 보존 데이터는 변경하지 않는다. 기존 좌표의 실제
 
 ## 검증
 
-- `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain`: 성공, Android 단위 테스트 210개 통과
+- `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain`: 성공, Android 단위 테스트 212개 통과
 - 기본 debug 생성 리소스: `bodeul_legacy_manager_location_enabled=false` 확인
 - `-PbodeulLegacyManagerLocationEnabled=true` debug 빌드: 성공, 명시적 개발 opt-in 경로 유지 확인
 - 테스트 서명을 사용한 `assembleRelease -PbodeulLegacyManagerLocationEnabled=true --no-configuration-cache`: 성공, 입력값과 무관하게 release 생성 리소스가 `false`임을 확인
@@ -64,7 +65,10 @@ DB schema와 보존 데이터는 변경하지 않는다. 기존 좌표의 실제
 - `yq e '.' .github/workflows/core-api-preview-deploy.yml`: 성공
 - `yq e '.' .github/workflows/core-api-production-deploy.yml`: 성공
 - `git diff --check`: 성공
-- 실기기 검증: `adb devices -l`에 USB/ADB 기기가 나타나지 않아 APK 설치와 UI 확인을 실행하지 못함
+- 실기기 검증: Samsung `SM-S921N`, Android 16(API 36)에 기본 `OFF` debug APK 설치 및 매니저 데모 로그인 성공
+- 실기기 권한·서비스 검증: `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`가 모두 미승인 상태로 유지됐고 `ManagerLocationService`, 앱의 시스템 위치 등록, crash 로그가 없음을 확인
+- 실기기 UI 검증: 매니저 가이드 상단부터 하단까지 이동하며 `위치`, `GPS`, `좌표`, `실시간 공유` 문구가 없고 병원 안내·현장 메모 등 비위치 기능은 정상 진입함을 확인
+- Firebase 설정 파일이 없는 debug 환경에서 Core API 장소 검색이 `FirebaseApp`을 직접 열어 가이드가 종료되는 기존 문제를 발견해, Firebase 설정 확인 후에만 인증 경로를 시작하도록 보완하고 동일 실기기에서 재현되지 않음을 확인
 - Preview 배포·실호출: 미실행
 - production 배포·실데이터 검증: 미실행
 
@@ -79,8 +83,8 @@ DB schema와 보존 데이터는 변경하지 않는다. 기존 좌표의 실제
 
 ## 남은 범위
 
-- 실기기 USB/ADB 연결을 복구한 뒤 기본 `OFF`에서 위치 권한을 요청하지 않고 공유 UI·전송·알림이 시작되지 않는지 확인
 - 필요할 때만 Preview에서 명시적 opt-in 후 legacy 회귀 시나리오 확인
+- production 배포 뒤 release 빌드와 실제 Core API를 조합해 위치 API·알림이 계속 차단되는지 확인
 - 환자 단말 1분 위치 경로를 동의·철회·인가·즉시 파기와 함께 별도 설계·구현
 
 관련 문서:

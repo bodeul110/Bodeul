@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.bodeul.R;
+import com.example.bodeul.data.firebase.FirebaseSupport;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -37,6 +38,7 @@ public final class SupabaseCompanionRealtimeSubscriber {
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final String realtimeWebSocketUrl;
+    private final boolean firebaseConfigured;
     private final AtomicLong referenceSequence = new AtomicLong(1L);
 
     @Nullable
@@ -53,13 +55,17 @@ public final class SupabaseCompanionRealtimeSubscriber {
         realtimeWebSocketUrl = buildWebSocketUrl(
                 appContext.getString(R.string.bodeul_supabase_url),
                 appContext.getString(R.string.bodeul_supabase_publishable_key));
+        firebaseConfigured = FirebaseSupport.isConfigured(appContext);
     }
 
     public void subscribe(String companionSessionId, Runnable changedCallback) {
         stop();
         topic = "companion-session:" + normalize(companionSessionId);
         onChanged = changedCallback;
-        stopped = topic.endsWith(":") || realtimeWebSocketUrl.isEmpty();
+        stopped = !hasAuthenticatedRealtimeConfiguration(
+                realtimeWebSocketUrl,
+                firebaseConfigured)
+                || topic.endsWith(":");
         if (!stopped) {
             connect();
         }
@@ -83,7 +89,17 @@ public final class SupabaseCompanionRealtimeSubscriber {
     }
 
     private void connect() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (!hasAuthenticatedRealtimeConfiguration(realtimeWebSocketUrl, firebaseConfigured)) {
+            stopped = true;
+            return;
+        }
+        FirebaseUser user;
+        try {
+            user = FirebaseAuth.getInstance().getCurrentUser();
+        } catch (IllegalStateException exception) {
+            stopped = true;
+            return;
+        }
         if (stopped || user == null) {
             scheduleReconnect();
             return;
@@ -102,6 +118,15 @@ public final class SupabaseCompanionRealtimeSubscriber {
             Request request = new Request.Builder().url(realtimeWebSocketUrl).build();
             webSocket = CLIENT.newWebSocket(request, new Listener(token));
         });
+    }
+
+    static boolean hasAuthenticatedRealtimeConfiguration(
+            @Nullable String realtimeWebSocketUrl,
+            boolean firebaseConfigured
+    ) {
+        return firebaseConfigured
+                && realtimeWebSocketUrl != null
+                && !realtimeWebSocketUrl.trim().isEmpty();
     }
 
     private void scheduleReconnect() {
