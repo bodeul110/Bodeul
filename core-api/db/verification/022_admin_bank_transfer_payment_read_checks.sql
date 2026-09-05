@@ -87,7 +87,8 @@ end;
 $$;
 
 set local role bodeul_migration;
-update bodeul.admin_role_assignments set revoked_at = now()
+update bodeul.admin_role_assignments
+set revoked_at = now(), revoked_by_admin_user_id = '10000000-0000-0000-0000-000000000005'
 where admin_user_id = '10000000-0000-0000-0000-000000000004';
 set local role bodeul_admin_runtime;
 do $$
