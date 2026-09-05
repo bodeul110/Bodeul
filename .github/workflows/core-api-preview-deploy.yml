@@ -38,6 +38,7 @@ jobs:
       FIREBASE_PROJECT_NUMBER: ${{ vars.FIREBASE_PROJECT_NUMBER }}
       BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT: ${{ vars.BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT || 'false' }}
       BODEUL_SESSION_COMPLETION_ENFORCEMENT: ${{ vars.BODEUL_SESSION_COMPLETION_ENFORCEMENT || 'false' }}
+      BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED: ${{ vars.BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED || 'false' }}
 
     steps:
       - name: 저장소 체크아웃
@@ -113,6 +114,11 @@ jobs:
             exit 1
           fi
 
+          if [[ "${BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED}" != "false" && "${BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED}" != "true" ]]; then
+            echo "Preview의 기존 매니저 위치 공유 설정은 false 또는 true여야 합니다." >&2
+            exit 1
+          fi
+
           registry="${GCP_REGION}-docker.pkg.dev"
           image="${registry}/${GCP_PROJECT_ID}/${CLOUD_RUN_ARTIFACT_REPOSITORY}/bodeul-core-api"
 
@@ -185,6 +191,7 @@ jobs:
             BODEUL_APP_CHECK_MODE=observe
             BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=${{ env.BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT }}
             BODEUL_SESSION_COMPLETION_ENFORCEMENT=${{ env.BODEUL_SESSION_COMPLETION_ENFORCEMENT }}
+            BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED=${{ env.BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED }}
             CORE_DB_POOL_MAX=5
           env_vars_update_strategy: overwrite
           secrets: |-

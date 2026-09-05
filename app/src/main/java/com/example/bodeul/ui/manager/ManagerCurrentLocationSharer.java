@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 /**
  * 가이드 화면에서 현재 위치를 한 번 읽어 세션에 공유할 때 쓰는 보조 객체다.
@@ -25,6 +26,10 @@ public final class ManagerCurrentLocationSharer {
 
     @android.annotation.SuppressLint("MissingPermission")
     public static void share(@NonNull AppCompatActivity activity, @NonNull Callback callback) {
+        if (!LegacyManagerLocationSharingPolicy.isEnabled(activity)) {
+            callback.onError(activity.getString(R.string.legacy_manager_location_disabled_body));
+            return;
+        }
         LocationManager locationManager = ContextCompat.getSystemService(activity, LocationManager.class);
         if (locationManager == null) {
             callback.onError(activity.getString(R.string.guide_share_location_error));

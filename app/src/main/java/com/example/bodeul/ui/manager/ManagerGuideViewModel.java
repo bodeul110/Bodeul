@@ -99,6 +99,7 @@ public class ManagerGuideViewModel extends ViewModel {
     private final ManagerGuideCoordinator coordinator;
     private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
     private final SavedStateHandle savedStateHandle;
+    private final boolean legacyManagerLocationEnabled;
 
     private User currentUser;
     private boolean liveLocationShareInFlight = false;
@@ -111,13 +112,15 @@ public class ManagerGuideViewModel extends ViewModel {
             ManagerRepository managerRepository,
             ManagerGuideCoordinator coordinator,
             SupabaseCompanionRealtimeSubscriber realtimeSubscriber,
-            SavedStateHandle savedStateHandle
+            SavedStateHandle savedStateHandle,
+            boolean legacyManagerLocationEnabled
     ) {
         this.authRepository = authRepository;
         this.managerRepository = managerRepository;
         this.coordinator = coordinator;
         this.realtimeSubscriber = realtimeSubscriber;
         this.savedStateHandle = savedStateHandle;
+        this.legacyManagerLocationEnabled = legacyManagerLocationEnabled;
     }
 
     public void reload() {
@@ -259,7 +262,7 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     public void saveLocationSummary(String summary) {
-        if (currentUser == null) return;
+        if (!legacyManagerLocationEnabled || currentUser == null) return;
         if (TextUtils.isEmpty(summary)) {
             _toastMessage.setValue("내용을 입력해 주세요.");
             return;
@@ -730,7 +733,7 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     public void shareCurrentLocation(double latitude, double longitude, String summary) {
-        if (currentUser == null) return;
+        if (!legacyManagerLocationEnabled || currentUser == null) return;
         managerRepository.shareCurrentLocation(
                 currentUser.getId(),
                 latitude,
@@ -752,6 +755,14 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     public void updateLiveLocationSharingState(boolean active, Runnable onActivationComplete, Runnable onActivationFailed) {
+        if (!legacyManagerLocationEnabled) {
+            if (active) {
+                if (onActivationFailed != null) onActivationFailed.run();
+            } else if (onActivationComplete != null) {
+                onActivationComplete.run();
+            }
+            return;
+        }
         if (currentUser == null) {
             if (onActivationFailed != null) onActivationFailed.run();
             return;
@@ -781,7 +792,7 @@ public class ManagerGuideViewModel extends ViewModel {
     }
 
     public void enqueueLiveLocationShare(double latitude, double longitude, String summary, boolean isTrackerRunning) {
-        if (currentUser == null) return;
+        if (!legacyManagerLocationEnabled || currentUser == null) return;
         PendingLocationUpdate update = new PendingLocationUpdate(latitude, longitude, summary);
         if (liveLocationShareInFlight) {
             pendingLiveLocationUpdate = update;
@@ -895,19 +906,22 @@ public class ManagerGuideViewModel extends ViewModel {
         private final ManagerRepository managerRepository;
         private final ManagerGuideCoordinator coordinator;
         private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
+        private final boolean legacyManagerLocationEnabled;
 
         public Factory(
                 androidx.savedstate.SavedStateRegistryOwner owner,
                 AuthRepository authRepository,
                 ManagerRepository managerRepository,
                 ManagerGuideCoordinator coordinator,
-                SupabaseCompanionRealtimeSubscriber realtimeSubscriber
+                SupabaseCompanionRealtimeSubscriber realtimeSubscriber,
+                boolean legacyManagerLocationEnabled
         ) {
             super(owner, null);
             this.authRepository = authRepository;
             this.managerRepository = managerRepository;
             this.coordinator = coordinator;
             this.realtimeSubscriber = realtimeSubscriber;
+            this.legacyManagerLocationEnabled = legacyManagerLocationEnabled;
         }
 
         @androidx.annotation.NonNull
@@ -923,7 +937,8 @@ public class ManagerGuideViewModel extends ViewModel {
                         managerRepository,
                         coordinator,
                         realtimeSubscriber,
-                        handle);
+                        handle,
+                        legacyManagerLocationEnabled);
             }
             throw new IllegalArgumentException("Unknown ViewModel class");
         }

@@ -43,6 +43,7 @@ jobs:
       BODEUL_APP_CHECK_MODE: ${{ vars.BODEUL_APP_CHECK_MODE }}
       BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT: ${{ vars.BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT || 'false' }}
       BODEUL_SESSION_COMPLETION_ENFORCEMENT: ${{ vars.BODEUL_SESSION_COMPLETION_ENFORCEMENT || 'false' }}
+      BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED: "false"
 
     steps:
       - name: 저장소 체크아웃
@@ -144,6 +145,11 @@ jobs:
 
           if [[ "${BODEUL_SESSION_COMPLETION_ENFORCEMENT}" != "false" && "${BODEUL_SESSION_COMPLETION_ENFORCEMENT}" != "true" ]]; then
             echo "동행 종료·완료 분리 강제 설정은 false 또는 true여야 합니다." >&2
+            exit 1
+          fi
+
+          if [[ "${BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED}" != "false" ]]; then
+            echo "production의 기존 매니저 위치 공유는 false로 고정해야 합니다." >&2
             exit 1
           fi
 
@@ -279,6 +285,7 @@ jobs:
             BODEUL_APP_CHECK_MODE=${{ env.BODEUL_APP_CHECK_MODE }}
             BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT=${{ env.BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT }}
             BODEUL_SESSION_COMPLETION_ENFORCEMENT=${{ env.BODEUL_SESSION_COMPLETION_ENFORCEMENT }}
+            BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED=false
             CORE_DB_POOL_MAX=2
           env_vars_update_strategy: overwrite
           secrets: |-

@@ -43,6 +43,7 @@ import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.StatePanelHelper;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.checkbox.MaterialCheckBox;
@@ -81,6 +82,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean pharmacySearchNavigationInProgress;
     private boolean bindingPreConsultationConfirmation;
     private boolean mutationInFlight;
+    private boolean legacyManagerLocationEnabled;
     private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
     private String currentStepCode = "";
 
@@ -126,6 +128,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_guide);
+        legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(this);
 
         paymentEvidencePicker = registerForActivityResult(
                 new ActivityResultContracts.OpenDocument(),
@@ -172,7 +175,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 authRepository,
                 managerRepository,
                 coordinator,
-                new SupabaseCompanionRealtimeSubscriber(this)
+                new SupabaseCompanionRealtimeSubscriber(this),
+                legacyManagerLocationEnabled
         );
         viewModel = new ViewModelProvider(this, factory).get(ManagerGuideViewModel.class);
 
@@ -218,6 +222,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.viewGuideHospitalMap),
                 findViewById(R.id.guideMapActionContainer),
                 new ManagerGuideMapActionBinder(this::openMapFallback),
+                new ManagerGuideMeetingOverviewBinder(findViewById(android.R.id.content)),
                 (LinearLayout) findViewById(R.id.guideStageRailContainer),
                 findViewById(R.id.textGuideFocusBadge),
                 findViewById(R.id.textGuideFocusTitle),
@@ -263,6 +268,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
+        findViewById(R.id.navGuideHome).setOnClickListener(view -> openManagerHome());
+        findViewById(R.id.navGuideHistory).setOnClickListener(view ->
+                startActivity(new Intent(this, ManagerHistoryActivity.class)));
+        findViewById(R.id.navGuideProfile).setOnClickListener(view ->
+                startActivity(new Intent(this, ManagerProfileActivity.class)));
         buttonAdvanceGuide.setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
@@ -288,6 +298,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
+        findViewById(R.id.buttonGuideMeetingOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
         findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
@@ -308,7 +319,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 kakaoMap = map;
                 mapView.setVisibility(View.VISIBLE);
                 updateMapMarker();
-                if (hasLocationPermission()) {
+                if (legacyManagerLocationEnabled && hasLocationPermission()) {
                     startMapTracking();
                 }
             }
@@ -602,7 +613,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
         // 장소 검색은 지도 SDK 인증 상태와 독립적으로 Core API까지 검증한다.
         updateHospitalAndPharmacyMarkers();
-        if (kakaoMap != null) {
+        if (legacyManagerLocationEnabled && kakaoMap != null) {
             updateSharedLocationMarker();
         }
     }
@@ -756,7 +767,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void startMapTracking() {
-        if (kakaoMap == null) return;
+        if (!legacyManagerLocationEnabled || kakaoMap == null) return;
         if (trackingLabel == null) {
             android.graphics.Bitmap trackingBitmap = getBitmapFromVectorDrawable(this, R.drawable.ic_tracking_dot);
             LabelOptions options = LabelOptions.from("tracking", LatLng.from(0, 0));
@@ -813,6 +824,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void shareCurrentLocation() {
+        if (!legacyManagerLocationEnabled) {
+            showLegacyManagerLocationDisabledNotice();
+            return;
+        }
         if (!hasLocationPermission()) {
             requestLocationPermission(LOCATION_ACTION_SHARE_ONCE);
             return;
@@ -821,6 +836,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void startLiveLocationSharing() {
+        if (!legacyManagerLocationEnabled) {
+            showLegacyManagerLocationDisabledNotice();
+            return;
+        }
         if (!hasLocationPermission()) {
             requestLocationPermission(LOCATION_ACTION_START_LIVE);
             return;
@@ -829,6 +848,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void performSingleLocationShare() {
+        if (!legacyManagerLocationEnabled) {
+            return;
+        }
         ManagerCurrentLocationSharer.share(this, new ManagerCurrentLocationSharer.Callback() {
             @Override
             public void onSuccess(double latitude, double longitude, String summary) {
@@ -843,6 +865,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void performStartLiveLocationSharing() {
+        if (!legacyManagerLocationEnabled) {
+            return;
+        }
         ManagerLocationService.start(this);
         liveLocationActivationInFlight = true;
         viewModel.updateLiveLocationSharingState(true, () -> {
@@ -877,6 +902,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void requestLocationPermission(int action) {
+        if (!legacyManagerLocationEnabled) {
+            pendingLocationPermissionAction = LOCATION_ACTION_NONE;
+            showLegacyManagerLocationDisabledNotice();
+            return;
+        }
         pendingLocationPermissionAction = action;
         requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_FINE_LOCATION);
     }
@@ -889,6 +919,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
         int action = pendingLocationPermissionAction;
         pendingLocationPermissionAction = LOCATION_ACTION_NONE;
+        if (!legacyManagerLocationEnabled) {
+            stopTrackerOnly();
+            return;
+        }
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             if (kakaoMap != null) {
                 startMapTracking();
@@ -958,6 +992,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void syncLiveLocationTrackingWithDashboard(@Nullable ManagerDashboard dashboard) {
+        if (!legacyManagerLocationEnabled) {
+            stopTrackerOnly();
+            return;
+        }
         CompanionSession session = dashboard == null ? null : dashboard.getSession();
         if (!activityVisible) {
             if (!pharmacySearchNavigationInProgress) {
@@ -975,6 +1013,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (!liveLocationActivationInFlight) {
             ManagerLocationService.start(this);
         }
+    }
+
+    private void showLegacyManagerLocationDisabledNotice() {
+        Toast.makeText(
+                this,
+                R.string.legacy_manager_location_disabled_body,
+                Toast.LENGTH_SHORT
+        ).show();
     }
 
     private void showPermissionState() {

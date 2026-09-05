@@ -45,4 +45,22 @@ class CompanionSessionPropertiesTests {
                                 .isCompletionEnforcement())
                         .isTrue());
     }
+
+    @Test
+    void legacyManagerLocationDefaultsToDisabled() {
+        contextRunner.run(context -> assertThat(
+                context.getBean(CompanionSessionProperties.class)
+                        .isLegacyManagerLocationEnabled())
+                .isFalse());
+    }
+
+    @Test
+    void legacyManagerLocationCanBeEnabledExplicitly() {
+        contextRunner
+                .withPropertyValues("bodeul.session.legacy-manager-location-enabled=true")
+                .run(context -> assertThat(
+                        context.getBean(CompanionSessionProperties.class)
+                                .isLegacyManagerLocationEnabled())
+                        .isTrue());
+    }
 }

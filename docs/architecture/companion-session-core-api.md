@@ -2,7 +2,7 @@
 
 기준일: 2026-07-19
 
-최종 갱신: 2026-08-29
+최종 갱신: 2026-09-03
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -20,6 +20,7 @@
 - 배정 함수는 관리자와 매니저 role, 예약 상태, 예약 버전을 검증한 뒤 예약 `MATCHED`, 세션 `READY`, 감사 기록을 한 트랜잭션에서 생성한다.
 - 앱과 서버의 동시 수정을 검출할 수 있도록 세션·리포트·후속 처리에 `version`을 둔다.
 - Core API는 세션 조회·현장 메모·단계 전환·리포트·예약 후속 처리 endpoint를 소유하고, Android가 PostgreSQL에 직접 연결하지 않는다.
+- 기존 매니저 단말의 1회·연속 위치 경로는 `BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED`가 명시적으로 `true`인 개발·Preview에서만 사용한다. 기본값과 production은 `false`이며 Android release도 같은 경로를 활성화하지 않는다.
 - 진행 단계는 세션 생성 시 V14가 고정한 `guide_steps_snapshot`에서 계산한다. 이후 `hospital_guides` 수정은 진행 중 세션 응답과 진행 한계를 바꾸지 않는다.
 - 가이드 12의 실제 동행 종료는 `CARE_ENDED`, 가이드 13의 업무 완료는 `COMPLETED`로 분리한다. 최초 종료 시각은 서버가 한 번만 기록하고 중복 요청에는 같은 값을 반환한다.
 - 가이드 8 결제 증빙과 가이드 10 처방 이미지는 원본과 SHA-256 객체 메타데이터를 Firebase Storage에, 용도·경로·크기·재시도 식별자는 PostgreSQL `companion_session_artifacts`에 저장한다.
@@ -65,7 +66,9 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 - `CARE_ENDED` 이후에는 새 채팅·채팅 첨부·위치와 가이드 첨부·운영 메모를 저장하지 않는다. 배정 매니저의 기존 채팅·첨부·가이드 첨부·리포트·건강정보·위치 원문 조회도 회수하고, 가이드 13 완료와 이력 확인에 필요한 본인 `managerJournal`, 리포트 생성 상태와 완료 메타데이터만 세션 응답에 남긴다.
 - 종료 후 환자는 보관기간 안의 기존 채팅과 첨부를 읽을 수 있다. 보호자의 범위별 인가는 `CHAT`=채팅 본문·읽음 상태, `CHAT+ATTACHMENT`=채팅 첨부, `ATTACHMENT`=가이드 8·10 첨부 목록·원본, `REPORT`=최종 리포트·건강정보로 구분한다. 위치는 역할과 동의 여부에 관계없이 종료 즉시 응답에서 숨긴다.
 - 읽음 위치는 `(companion_session_id, user_id)` 한 행으로 관리하고 같은 세션 메시지만 참조할 수 있다.
-- 위치는 배정된 매니저와 진행 가능한 세션을 확인하는 `record_companion_location` 함수만 기록한다. 15분보다 오래됐거나 5분보다 미래인 좌표는 거부하고 세션별 최근 10건만 유지한다.
+- legacy 위치 기능을 명시적으로 켠 debug·Preview에서는 배정된 매니저와 진행 가능한 세션을 확인하는 `record_companion_location` 함수만 좌표를 기록한다. 15분보다 오래됐거나 5분보다 미래인 좌표는 거부하고 세션별 최근 10건만 유지한다.
+- legacy 위치 기능이 `OFF`이면 Core API는 좌표 기록과 조회, `locationSummary`·`liveLocationSharingActive`·`locationAlertStage` PATCH를 거부한다. 세션과 Realtime 응답에 이미 저장된 위치 값이 있어도 역할과 동의만으로 노출하지 않고 마스킹한다.
+- 이 플래그는 기존 매니저 단말 경로의 운영 노출을 차단하는 임시 호환 경계다. 제품 목표인 환자 단말 1분 GPS 수집·공유 계약을 구현하거나 활성화하지 않는다.
 - 최초 `care_ended_at`은 채팅 180일, 첨부 30일, 정밀 위치 24시간 뒤로 `expires_at`을 예약한다. 최종 `COMPLETED`가 지연돼도 이 기준은 이동하지 않으며, 취소 세션만 기존 `canceled_at`을 사용한다. 위치는 `CARE_ENDED`부터 응답에서 즉시 숨기고 실제 삭제와 Storage 정리는 #222 일일 job이 수행한다.
 - 보호자 동의는 최초 `care_ended_at + 7일`로 확정하며 종료 후 재부여로 범위·만료일을 다시 열 수 없다. 환자 본인의 즉시 철회는 계속 허용한다.
 - 브라우저와 Android의 `anon`, `authenticated`, `service_role`에는 업무 table 권한을 부여하지 않는다. 관리자 runtime은 조회만 가능하고 쓰기는 Core runtime만 수행한다.
@@ -89,7 +92,7 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | --- | --- | --- |
 | `GET /api/companion-sessions` | 환자·보호자·매니저 | 보호자는 `APPOINTMENT` 동의가 있는 세션만 포함 |
 | `GET /api/companion-sessions/{id}` | 환자·보호자·매니저 | 보호자는 `APPOINTMENT` 동의 후 범위별 필드 마스킹 |
-| `PATCH /api/companion-sessions/{id}` | 배정 매니저 | 현장 메모·약국 진행 상태를 `version` 조건으로 부분 갱신 |
+| `PATCH /api/companion-sessions/{id}` | 배정 매니저 | 현장 메모·약국 진행 상태를 `version` 조건으로 부분 갱신. legacy 위치 필드는 위치 기능 `OFF`에서 거부 |
 | `POST /api/companion-sessions/{id}/advance` | 배정 매니저 | 고정 snapshot의 코드·순서·현재 범위와 `version`을 확인하고 예약 `IN_PROGRESS`와 세션 단계를 한 트랜잭션으로 갱신 |
 | `GET /api/companion-sessions/{id}/report` | 환자·`REPORT` 동의 보호자·종료 전 배정 매니저 | `care_ended_at` 이후 배정 매니저의 리포트 원문 조회는 거부 |
 | `PUT /api/companion-sessions/{id}/report` | 배정 매니저 | 선택 일지를 검증하고 세션 완료를 먼저 확정한 뒤 리포트를 저장·재시도하며, 응답은 식별자와 version만 남긴 확인용 형태로 마스킹 |
@@ -97,12 +100,12 @@ V8은 Firestore의 `chatMessages`, `sharedLocationHistory`, 좌표와 읽음 시
 | `PUT /api/companion-sessions/{id}/artifacts` | 배정 매니저 | 현재 가이드 8·10에서 용도별 파일 전체를 멱등 교체 |
 | `DELETE /api/companion-sessions/{id}/artifacts?purpose=...` | 배정 매니저 | 현재 단계의 해당 용도 메타데이터를 지우고 Storage 원본을 정리 |
 | `GET /api/companion-sessions/{id}/artifacts/{artifactId}` | 환자·`ATTACHMENT` 동의 보호자·종료 전 배정 매니저 | `care_ended_at` 이후 배정 매니저의 가이드 첨부 원문 조회는 거부 |
-| `GET /api/companion-sessions/{id}/realtime` | 환자·동의 보호자·종료 전 배정 매니저 | 보호자 채팅은 `CHAT`, 채팅 첨부 metadata는 `CHAT+ATTACHMENT`; 종료 후 위치와 매니저 snapshot은 거부 |
+| `GET /api/companion-sessions/{id}/realtime` | 환자·동의 보호자·종료 전 배정 매니저 | 보호자 채팅은 `CHAT`, 채팅 첨부 metadata는 `CHAT+ATTACHMENT`; legacy 위치 기능 `OFF` 또는 종료 후에는 위치와 매니저 위치 snapshot을 반환하지 않음 |
 | `POST /api/companion-sessions/{id}/messages` JSON | 환자·보호자·배정 매니저 | `care_ended_at` 전까지만 허용하며 보호자는 `CHAT`, 첨부 metadata가 있으면 `ATTACHMENT`도 필수 |
 | `POST /api/companion-sessions/{id}/messages` multipart | 환자·보호자·배정 매니저 | `care_ended_at` 전 `CHAT`과 `ATTACHMENT` 동의를 확인한 뒤 서버 중계 업로드 |
 | `GET /api/companion-sessions/{id}/attachments/{attachmentId}` | 환자·동의 보호자·종료 전 배정 매니저 | 보호자는 `CHAT`·`ATTACHMENT`, 만료·삭제 상태를 모두 확인 |
 | `PUT /api/companion-sessions/{id}/read-receipt` | 환자·`CHAT` 동의 보호자·종료 전 배정 매니저 | 보관 채팅을 읽는 환자와 동의 보호자는 종료 후에도 읽음 위치 갱신 가능 |
-| `POST /api/companion-sessions/{id}/locations` | 배정 매니저 | 좌표·수집 시각·진행 상태 검증 후 최근 위치 기록 |
+| `POST /api/companion-sessions/{id}/locations` | 배정 매니저 | legacy 위치 기능을 명시적으로 켠 debug·Preview에서만 좌표·수집 시각·진행 상태 검증 후 최근 위치 기록. 기본값과 production은 거부 |
 | `GET /api/appointments/{id}/follow-up` | 환자·보호자·배정 매니저 | 보호자는 별도 `REPORT` 동의 필수 |
 | `PATCH /api/appointments/{id}/follow-up` | 환자·보호자 | 보호자는 `REPORT` 동의, 완료 상태와 `version` 필수 |
 
@@ -127,6 +130,8 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - 가이드 8은 결제 증빙 JPEG·PNG·PDF 1개, 가이드 10은 JPEG·PNG 0~3개를 Android Storage Access Framework로 선택하며 미첨부 진행을 허용한다.
 - 후기·정산 확인 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다. 값이 있는 신규 `supportEscalationStatus` 요청은 Core API가 거부하고 기존 값은 덮어쓰지 않는다.
 - 채팅, 첨부 원본·metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 첨부 미리보기는 인증된 API 응답을 앱 전용 단기 캐시에 저장한 뒤 `FileProvider` URI로 연다. 환자·매니저 화면은 진행 중에만 private Broadcast를 변경 신호로 받고 Core API snapshot으로 복구한다. 매니저 Android는 상태 문자열뿐 아니라 `careEndedAt`도 확인해 종료 세션의 Realtime 보강 요청을 생략하고 기존 구독을 닫는다. DB publisher는 종료 뒤 신호를 만들지 않으며 bootstrap 006은 신규·재인가 연결을 거부한다. 완료 이력은 `GET /report`를 호출하지 않고 세션 응답의 본인 `managerJournal`과 완료 메타데이터만 표시한다. 보호자 화면은 연결 권한 캐시로 철회 즉시성을 보장할 수 없어 Broadcast를 구독하지 않고 Core API polling만 사용한다.
+- 기존 매니저 위치 UI와 전송은 Android에서 기본 `OFF`다. debug 빌드는 개발자가 명시적으로 opt-in한 경우에만 기존 경로를 열 수 있고, release 빌드는 하드코딩 `false`로 권한 요청·1회 공유·연속 공유를 시작하지 않는다. 이 경계는 향후 환자 단말 1분 위치 기능의 구현 상태를 의미하지 않는다.
+- Core API의 위치 FCM listener와 Firestore legacy 위치 알림 Functions도 같은 기본 거부 경계를 사용한다. `OFF`에서는 수신자·token 조회나 notification payload 생성을 시작하지 않고, production Functions 프로젝트에서는 설정값과 무관하게 기존 알림을 차단한다.
 - Firestore Rules는 예약·세션 진행·리포트·후속 처리뿐 아니라 `companionSessions`의 채팅·위치·읽음 client 쓰기도 거부한다. 기존 문서는 rollback 비교 자료로만 남고 환자·관리자 읽기만 유지한다. 매니저와 보호자는 종료 경계·마스킹·범위별 동의를 적용하는 Core API를 거친다.
 - 예약 상세 observer는 Firestore 보조 데이터 listener와 10초 Core API 갱신을 함께 사용한다. 세션 원본을 Firestore에 다시 쓰지 않는다.
 - 매니저 홈·이력과 보호자 진행 현황은 Core API 예약·세션 목록을 시작점으로 사용한다. 예약 응답의 배정 매니저 프로필도 PostgreSQL `app_users`에서 조합하므로 Firestore 예약·세션·리포트 문서가 없어도 운영 화면 모델을 만들 수 있다.
@@ -149,6 +154,10 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 ## 리스크와 전환 조건
 
 - 개발 환경은 Core API와 관리자 서버가 PostgreSQL을 사용하고 Android의 대응 Firestore 쓰기를 중지해 전환 조건을 충족했다. production은 같은 migration과 역할별 종단 검증을 통과해야 전환 완료로 본다.
+- 기존 매니저 위치 기능은 서버와 앱을 모두 `OFF`로 맞춰야 한다. Preview는 명시적 opt-in을 허용하지만 production workflow와 Android release는 `false`를 우회할 수 없게 유지한다. 서버만 또는 앱만 켜는 구성은 지원하지 않는다.
+- 저장된 legacy 좌표는 게이트를 끈다고 삭제되지 않는다. 응답 마스킹과 신규 접근 차단 뒤 실제 만료·파기는 #222의 별도 보존 작업이 담당한다.
+- HTTP 게이트와 별개로 `record_companion_location` DB 함수와 위치 변경 trigger는 schema 호환을 위해 남아 있다. Core runtime 자격 증명의 DB 직접 실행과 좌표 없는 변경 이벤트까지 차단하려면 production 활성화 전 DB 권한·trigger 게이트를 별도로 적용해야 한다.
+- 환자 단말 1분 GPS 제품 목표는 수집 주체, 동의·철회, 보호자별 인가와 종료 즉시 파기 계약을 별도로 설계·구현해야 한다. 이번 legacy 게이트에 환자 경로를 연결하지 않는다.
 - Core API snapshot 응답은 V14 열을 전제로 하므로 V14 migration을 먼저 적용한 뒤 API를 배포한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 의미를 추정하지 않고 진행을 차단하므로, 신규 배정 전에 운영 가이드를 코드 계약 v1으로 승격해야 한다.
 - V18 코드가 새 열을 항상 읽으므로 DB migration을 Core API 배포보다 먼저 적용한다. 기존 `COMPLETED` 행은 리포트가 있으면 `READY`, 없으면 `FAILED`로 backfill하고 `care_ended_at`은 기존 완료·갱신·시작 시각 순으로 보존한다. V18은 세션 행 잠금과 DB trigger로 종료와 동시에 들어오는 채팅·첨부·위치·동의 재부여를 직렬화하고, `care_ended_at` 기준 TTL을 먼저 확정해 늦은 `COMPLETED` 전환이 보존 시각을 덮어쓰지 않게 한다. Flyway 뒤에는 postgres 권한으로 bootstrap 006과 권한 시나리오 015를 실행해야 기존 Realtime helper도 갱신된다.
 - 구버전 Android의 마지막 단계 직접 완료는 `BODEUL_SESSION_COMPLETION_ENFORCEMENT=false` 동안만 허용한다. 이 혼합 버전 기간의 돌봄 종료는 `care_ended_at`과 단계만 저장하고 기존 `current_status` 문자열을 유지해 구버전 enum 파서를 깨뜨리지 않는다. 플래그를 켠 뒤에만 `CARE_ENDED`를 DB와 응답에 노출한다.

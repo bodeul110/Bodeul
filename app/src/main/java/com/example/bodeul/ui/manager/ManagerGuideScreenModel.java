@@ -18,6 +18,9 @@ public final class ManagerGuideScreenModel {
     private final String heroTitle;
     private final String heroBody;
     private final String heroNote;
+    private final String meetingPatient;
+    private final String meetingPlace;
+    private final String meetingDepartment;
     private final List<ManagerGuideMapActionModel> mapActions;
     private final HospitalMapPreviewModel hospitalMapPreviewModel;
     private final List<ManagerGuideStageModel> stages;
@@ -60,6 +63,9 @@ public final class ManagerGuideScreenModel {
             String heroTitle,
             String heroBody,
             String heroNote,
+            String meetingPatient,
+            String meetingPlace,
+            String meetingDepartment,
             List<ManagerGuideMapActionModel> mapActions,
             HospitalMapPreviewModel hospitalMapPreviewModel,
             List<ManagerGuideStageModel> stages,
@@ -100,6 +106,9 @@ public final class ManagerGuideScreenModel {
         this.heroTitle = heroTitle;
         this.heroBody = heroBody;
         this.heroNote = heroNote;
+        this.meetingPatient = meetingPatient;
+        this.meetingPlace = meetingPlace;
+        this.meetingDepartment = meetingDepartment;
         this.mapActions = mapActions;
         this.hospitalMapPreviewModel = hospitalMapPreviewModel;
         this.stages = stages;
@@ -160,6 +169,22 @@ public final class ManagerGuideScreenModel {
 
     public String getHeroNote() {
         return heroNote;
+    }
+
+    public String getMeetingPatient() {
+        return meetingPatient;
+    }
+
+    public String getMeetingPlace() {
+        return meetingPlace;
+    }
+
+    public String getMeetingDepartment() {
+        return meetingDepartment;
+    }
+
+    public boolean isMeetingStep() {
+        return "MEETING_CONFIRMATION".equals(currentStepCode);
     }
 
     public List<ManagerGuideMapActionModel> getMapActions() {

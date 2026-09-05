@@ -107,12 +107,13 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
         findViewById(R.id.navManagerGuide).setOnClickListener(view -> openGuide());
         findViewById(R.id.navManagerProfile).setOnClickListener(view -> openProfileScreen());
         bindModeOnly();
+        showDashboardLoadingState();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        hideBlockingState();
+        showDashboardLoadingState();
         authRepository.getCurrentUser(new RepositoryCallback<User>() {
             @Override
             public void onSuccess(User result) {
@@ -128,8 +129,7 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
                 currentUser = result;
                 currentDashboard = null;
                 managerHomeProfile = new ManagerHomeProfile("", "");
-                hideBlockingState();
-                renderHome();
+                showDashboardLoadingState();
                 loadManagerHomeProfile();
                 loadDashboard();
             }
@@ -222,6 +222,7 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
         }
 
         if (currentDashboard == null) {
+            showDashboardLoadingState();
             loadDashboard();
             Toast.makeText(this, R.string.manager_home_matching_refresh_toast, Toast.LENGTH_SHORT).show();
             return;
@@ -425,12 +426,25 @@ public class ManagerActivity extends AppCompatActivity implements ManagerHomeDas
                         showAuthState();
                         return;
                     }
-                    hideBlockingState();
+                    showDashboardLoadingState();
                     loadManagerHomeProfile();
                     loadDashboard();
                 },
                 getString(R.string.state_action_open_home),
                 view -> openHome()
+        );
+    }
+
+    private void showDashboardLoadingState() {
+        showBlockingState(
+                StatePanelHelper.Tone.INFO,
+                getString(R.string.manager_home_loading_badge),
+                getString(R.string.manager_home_loading_title),
+                getString(R.string.manager_home_loading_body),
+                null,
+                null,
+                null,
+                null
         );
     }
 

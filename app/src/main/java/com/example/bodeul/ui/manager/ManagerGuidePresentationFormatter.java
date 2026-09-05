@@ -9,15 +9,18 @@ import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.domain.model.User;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 /**
  * 동행 가이드 화면에서 반복되는 표시 문구 조합을 담당한다.
  */
 public final class ManagerGuidePresentationFormatter {
     private final Context context;
+    private final boolean legacyManagerLocationEnabled;
 
     public ManagerGuidePresentationFormatter(Context context) {
         this.context = context.getApplicationContext();
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public String toSessionStatusLabel(SessionStatus status) {
@@ -106,10 +109,14 @@ public final class ManagerGuidePresentationFormatter {
         String summary;
         switch (resolvePresentationType(step)) {
             case MEETING:
-                summary = firstNonEmpty(session.getLocationSummary(), session.getGuardianUpdate());
+                summary = legacyManagerLocationEnabled
+                        ? firstNonEmpty(session.getLocationSummary(), session.getGuardianUpdate())
+                        : firstNonEmpty(session.getGuardianUpdate());
                 return context.getString(R.string.guide_focus_preview_meeting, fallback(summary));
             case DOCUMENT:
-                summary = firstNonEmpty(session.getFieldPhotoNote(), session.getLocationSummary());
+                summary = legacyManagerLocationEnabled
+                        ? firstNonEmpty(session.getFieldPhotoNote(), session.getLocationSummary())
+                        : firstNonEmpty(session.getFieldPhotoNote());
                 return context.getString(R.string.guide_focus_preview_document, fallback(summary));
             case TREATMENT:
                 summary = firstNonEmpty(session.getGuardianUpdate(), session.getFieldPhotoNote());

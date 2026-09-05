@@ -30,4 +30,10 @@ public final class ManagerGuideMapActionBinder {
         buttonView.setText(model.getButtonLabel());
         buttonView.setOnClickListener(v -> listener.onMapActionClick(model));
     }
+
+    public void bindMeeting(View view, ManagerGuideMapActionModel model) {
+        MaterialButton buttonView = view.findViewById(R.id.buttonGuideMeetingMapAction);
+        buttonView.setText(model.getButtonLabel());
+        buttonView.setOnClickListener(v -> listener.onMapActionClick(model));
+    }
 }

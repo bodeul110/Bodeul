@@ -56,7 +56,7 @@ public class PermissionGuideActivity extends AppCompatActivity {
         );
 
         permissionGuidePreferences = new PermissionGuidePreferences(this);
-        permissionGuideCatalog = new PermissionGuideCatalog();
+        permissionGuideCatalog = new PermissionGuideCatalog(this);
 
         ViewGroup permissionContainer = findViewById(R.id.layoutPermissionItems);
         PermissionGuideItemBinder itemBinder = new PermissionGuideItemBinder(getLayoutInflater());

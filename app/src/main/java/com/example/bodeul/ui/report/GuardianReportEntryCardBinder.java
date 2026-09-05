@@ -56,10 +56,18 @@ public final class GuardianReportEntryCardBinder {
         tintStatusBadge(textStatus, model.getStatus());
         textHeroBody.setText(model.getHeroBodyText());
         textLiveTitle.setText(model.getLiveSectionTitleText());
-        textHistoryTitle.setText(model.getHistorySectionTitleText());
         textReportTitle.setText(model.getReportSectionTitleText());
         bindLines(liveContainer, model.getLiveLines());
-        bindLines(historyContainer, model.getHistoryLines());
+        if (model.getHistoryLines().isEmpty()) {
+            textHistoryTitle.setVisibility(View.GONE);
+            historyContainer.setVisibility(View.GONE);
+            historyContainer.removeAllViews();
+        } else {
+            textHistoryTitle.setVisibility(View.VISIBLE);
+            historyContainer.setVisibility(View.VISIBLE);
+            textHistoryTitle.setText(model.getHistorySectionTitleText());
+            bindLines(historyContainer, model.getHistoryLines());
+        }
         if (model.getMemoLines().isEmpty()) {
             textMemoTitle.setVisibility(View.GONE);
             memoContainer.setVisibility(View.GONE);

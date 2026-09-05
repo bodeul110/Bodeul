@@ -19,6 +19,7 @@ import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
 import com.example.bodeul.util.MedicationComparisonDecisionDisplayHelper;
 import com.example.bodeul.util.EnvironmentModeBadgeHelper;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 import com.example.bodeul.util.MedicationComparisonDisplayHelper;
 import com.example.bodeul.util.MedicationComparisonSummary;
 import com.example.bodeul.util.PharmacyProgressDisplayHelper;
@@ -33,6 +34,7 @@ public final class BookingStatusCoordinator {
     private final Context context;
     private final BookingPresentationFormatter formatter;
     private final AppointmentProgressComposer progressComposer;
+    private final boolean legacyManagerLocationEnabled;
 
     public BookingStatusCoordinator(
             Context context,
@@ -42,6 +44,7 @@ public final class BookingStatusCoordinator {
         this.context = context.getApplicationContext();
         this.formatter = formatter;
         this.progressComposer = progressComposer;
+        this.legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
     }
 
     public BookingStatusScreenModel createScreenModel(
@@ -283,7 +286,13 @@ public final class BookingStatusCoordinator {
                     false
             ));
         }
-        addOptionalLine(items, R.string.booking_status_line_live_location, session.getLocationSummary(), false);
+        if (legacyManagerLocationEnabled) {
+            addOptionalLine(
+                    items,
+                    R.string.booking_status_line_live_location,
+                    session.getLocationSummary(),
+                    false);
+        }
         addOptionalLine(items, R.string.booking_status_line_guardian_update, session.getGuardianUpdate(), false);
         addOptionalLine(items, R.string.booking_status_line_live_photo, session.getFieldPhotoNote(), false);
         addOptionalLine(items, R.string.booking_status_line_live_medication, session.getMedicationNote(), false);
@@ -452,9 +461,13 @@ public final class BookingStatusCoordinator {
                 );
                 break;
             case IN_PROGRESS:
+                BookingStatusActionType inProgressActionType =
+                        resolveInProgressPrimaryActionType(legacyManagerLocationEnabled);
                 action = new BookingStatusActionModel(
-                        BookingStatusActionType.OPEN_LIVE_TRACKING,
-                        context.getString(R.string.booking_status_action_open_live_tracking)
+                        inProgressActionType,
+                        context.getString(inProgressActionType == BookingStatusActionType.OPEN_LIVE_TRACKING
+                                ? R.string.booking_status_action_open_live_tracking
+                                : R.string.booking_status_action_refresh)
                 );
                 break;
             case COMPLETED:
@@ -473,6 +486,14 @@ public final class BookingStatusCoordinator {
         }
         return BookingMutationPolicy.isStatusActionAllowed(
                 currentUser.getRole(), action.getActionType()) ? action : null;
+    }
+
+    static BookingStatusActionType resolveInProgressPrimaryActionType(
+            boolean legacyManagerLocationEnabled
+    ) {
+        return legacyManagerLocationEnabled
+                ? BookingStatusActionType.OPEN_LIVE_TRACKING
+                : BookingStatusActionType.REFRESH;
     }
 
     @Nullable
@@ -495,6 +516,10 @@ public final class BookingStatusCoordinator {
                             context.getString(R.string.booking_status_action_open_report)
                     );
                 }
+                if (!shouldShowInProgressRefreshSecondary(
+                        currentUser.getRole(), legacyManagerLocationEnabled)) {
+                    return null;
+                }
                 return new BookingStatusActionModel(
                         BookingStatusActionType.REFRESH,
                         context.getString(R.string.booking_status_action_refresh)
@@ -514,6 +539,13 @@ public final class BookingStatusCoordinator {
             default:
                 return null;
         }
+    }
+
+    static boolean shouldShowInProgressRefreshSecondary(
+            UserRole role,
+            boolean legacyManagerLocationEnabled
+    ) {
+        return legacyManagerLocationEnabled && role != UserRole.GUARDIAN;
     }
 
     private void addOptionalLine(List<BookingStatusLineItem> items, int titleResId, String value, boolean emphasized) {
