@@ -36,6 +36,7 @@ public final class ManagerGuideDashboardBinder {
     private final BookingLocationMapView viewGuideHospitalMap;
     private final LinearLayout guideMapActionContainer;
     private final ManagerGuideMapActionBinder mapActionBinder;
+    private final ManagerGuideMeetingOverviewBinder meetingOverviewBinder;
     private final LinearLayout guideStageRailContainer;
     private final TextView textGuideFocusBadge;
     private final TextView textGuideFocusTitle;
@@ -92,6 +93,7 @@ public final class ManagerGuideDashboardBinder {
             BookingLocationMapView viewGuideHospitalMap,
             LinearLayout guideMapActionContainer,
             ManagerGuideMapActionBinder mapActionBinder,
+            ManagerGuideMeetingOverviewBinder meetingOverviewBinder,
             LinearLayout guideStageRailContainer,
             TextView textGuideFocusBadge,
             TextView textGuideFocusTitle,
@@ -147,6 +149,7 @@ public final class ManagerGuideDashboardBinder {
         this.viewGuideHospitalMap = viewGuideHospitalMap;
         this.guideMapActionContainer = guideMapActionContainer;
         this.mapActionBinder = mapActionBinder;
+        this.meetingOverviewBinder = meetingOverviewBinder;
         this.guideStageRailContainer = guideStageRailContainer;
         this.textGuideFocusBadge = textGuideFocusBadge;
         this.textGuideFocusTitle = textGuideFocusTitle;
@@ -199,9 +202,10 @@ public final class ManagerGuideDashboardBinder {
         textGuideHeroTitle.setText(screenModel.getHeroTitle());
         textGuideHeroBody.setText(screenModel.getHeroBody());
         textGuideHeroNote.setText(screenModel.getHeroNote());
+        meetingOverviewBinder.bind(screenModel);
 
         bindHospitalMap(screenModel.getHospitalMapPreviewModel());
-        bindMapActions(screenModel.getMapActions());
+        bindMapActions(screenModel.getMapActions(), screenModel.isMeetingStep());
         bindStages(screenModel.getStages());
         bindFocus(screenModel.getFocusModel());
         stepSectionsBinder.bind(
@@ -329,16 +333,22 @@ public final class ManagerGuideDashboardBinder {
         viewGuideHospitalMap.setOnPointSelectedListener(null);
     }
 
-    private void bindMapActions(List<ManagerGuideMapActionModel> actions) {
+    private void bindMapActions(List<ManagerGuideMapActionModel> actions, boolean meetingStep) {
         guideMapActionContainer.removeAllViews();
         guideMapActionContainer.setVisibility(actions.isEmpty() ? View.GONE : View.VISIBLE);
         for (ManagerGuideMapActionModel action : actions) {
             View actionView = inflater.inflate(
-                    R.layout.item_manager_guide_map_action,
+                    meetingStep
+                            ? R.layout.item_manager_guide_meeting_map_action
+                            : R.layout.item_manager_guide_map_action,
                     guideMapActionContainer,
                     false
             );
-            mapActionBinder.bind(actionView, action);
+            if (meetingStep) {
+                mapActionBinder.bindMeeting(actionView, action);
+            } else {
+                mapActionBinder.bind(actionView, action);
+            }
             guideMapActionContainer.addView(actionView);
         }
     }
