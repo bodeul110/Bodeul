@@ -3,6 +3,7 @@ package com.bodeul.core.consent;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Optional;
@@ -145,9 +146,10 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                 .param("scopesJson", writeScopes(requestedGrant.scopes()))
                 .param("policyVersion", requestedGrant.policyVersion())
                 .param("grantedByUserId", requestedGrant.grantedByUserId())
-                .param("adultSelfDeclaredAt", requestedGrant.grantedAt())
-                .param("grantedAt", requestedGrant.grantedAt())
-                .param("expiresAt", requestedGrant.expiresAt())
+                // PostgreSQL JDBC는 Instant를 직접 지원하지 않아 UTC 시각으로 바인딩한다.
+                .param("adultSelfDeclaredAt", requestedGrant.grantedAt().atOffset(ZoneOffset.UTC))
+                .param("grantedAt", requestedGrant.grantedAt().atOffset(ZoneOffset.UTC))
+                .param("expiresAt", requestedGrant.expiresAt().atOffset(ZoneOffset.UTC))
                 .query(this::mapGrant)
                 .optional()
                 .orElseThrow(GuardianSharingConsentException::stateConflict);
@@ -171,7 +173,7 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                           and version = :expectedVersion
                         """ + RETURNING_COLUMNS)
                 .param("actorUserId", actorUserId)
-                .param("revokedAt", revokedAt)
+                .param("revokedAt", revokedAt.atOffset(ZoneOffset.UTC))
                 .param("appointmentRequestId", appointmentRequestId)
                 .param("expectedVersion", expectedVersion)
                 .query(this::mapGrant)
@@ -193,7 +195,7 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                           and not expiry_finalized
                         """)
                 .param("appointmentRequestId", appointmentRequestId)
-                .param("careEndedAt", careEndedAt)
+                .param("careEndedAt", careEndedAt.atOffset(ZoneOffset.UTC))
                 .update();
     }
 
@@ -222,8 +224,8 @@ class JdbcGuardianSharingConsentRepository implements GuardianSharingConsentRepo
                 .param("scopesJson", writeScopes(grant.scopes()))
                 .param("policyVersion", grant.policyVersion())
                 .param("actorUserId", actorUserId)
-                .param("adultSelfDeclaredAt", grant.grantedAt())
-                .param("occurredAt", occurredAt)
+                .param("adultSelfDeclaredAt", grant.grantedAt().atOffset(ZoneOffset.UTC))
+                .param("occurredAt", occurredAt.atOffset(ZoneOffset.UTC))
                 .param("consentVersion", grant.version())
                 .update();
     }
