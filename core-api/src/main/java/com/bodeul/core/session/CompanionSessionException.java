@@ -69,6 +69,13 @@ final class CompanionSessionException extends RuntimeException {
                 "현재 동행 상태에서는 요청한 변경을 적용할 수 없습니다.");
     }
 
+    static CompanionSessionException locationSharingDisabled() {
+        return new CompanionSessionException(
+                HttpStatus.CONFLICT,
+                "companion_location_sharing_disabled",
+                "현재 환경에서는 위치 공유 기능을 사용할 수 없습니다.");
+    }
+
     static CompanionSessionException idempotencyConflict() {
         return new CompanionSessionException(
                 HttpStatus.CONFLICT,

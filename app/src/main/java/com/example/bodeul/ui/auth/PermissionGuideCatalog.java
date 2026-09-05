@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.util.NotificationPermissionSupport;
+import com.example.bodeul.util.LegacyManagerLocationSharingPolicy;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -22,8 +23,10 @@ public final class PermissionGuideCatalog {
     private static final String POST_NOTIFICATIONS_PERMISSION = "android.permission.POST_NOTIFICATIONS";
 
     private final List<PermissionGuideItem> items;
+    private final boolean legacyManagerLocationEnabled;
 
-    public PermissionGuideCatalog() {
+    public PermissionGuideCatalog(Context context) {
+        legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(context);
         items = createItems();
     }
 
@@ -99,14 +102,16 @@ public final class PermissionGuideCatalog {
                 R.string.permission_document_description,
                 false
         ));
-        result.add(new PermissionGuideItem(
-                android.R.drawable.ic_lock_lock,
-                R.color.bodeul_soft_green,
-                R.string.permission_item_badge_future,
-                R.string.permission_future_title,
-                R.string.permission_future_description,
-                false
-        ));
+        if (legacyManagerLocationEnabled) {
+            result.add(new PermissionGuideItem(
+                    android.R.drawable.ic_lock_lock,
+                    R.color.bodeul_soft_green,
+                    R.string.permission_item_badge_future,
+                    R.string.permission_future_title,
+                    R.string.permission_future_description,
+                    false
+            ));
+        }
         return result;
     }
 

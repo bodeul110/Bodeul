@@ -27,4 +27,23 @@ public class BookingStatusCoordinatorPolicyTest {
         assertTrue(BookingMutationPolicy.isStatusActionAllowed(
                 UserRole.PATIENT, BookingStatusActionType.CANCEL));
     }
+
+    @Test
+    public void inProgressAction_hidesLegacyLocationWhenDisabledAndKeepsDevelopmentOptIn() {
+        assertTrue(
+                BookingStatusCoordinator.resolveInProgressPrimaryActionType(false)
+                        == BookingStatusActionType.REFRESH);
+        assertTrue(
+                BookingStatusCoordinator.resolveInProgressPrimaryActionType(true)
+                        == BookingStatusActionType.OPEN_LIVE_TRACKING);
+        assertFalse(BookingStatusCoordinator.shouldShowInProgressRefreshSecondary(
+                UserRole.PATIENT,
+                false));
+        assertTrue(BookingStatusCoordinator.shouldShowInProgressRefreshSecondary(
+                UserRole.PATIENT,
+                true));
+        assertFalse(BookingStatusCoordinator.shouldShowInProgressRefreshSecondary(
+                UserRole.GUARDIAN,
+                true));
+    }
 }

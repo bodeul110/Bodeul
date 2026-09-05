@@ -188,6 +188,8 @@ val bodeulCoreApiBaseUrl = localOrGradleProperty("bodeulCoreApiBaseUrl")
 val bodeulCoreApiDebugBaseUrl = localOrGradleProperty("bodeulCoreApiDebugBaseUrl")
 val effectiveBodeulCoreApiDebugBaseUrl = bodeulCoreApiBaseUrl.ifEmpty { bodeulCoreApiDebugBaseUrl }
 check(effectiveBodeulCoreApiDebugBaseUrl.isNotEmpty()) { "Debug Core API 주소가 비어 있습니다." }
+val bodeulLegacyManagerLocationEnabled =
+    localOrGradleProperty("bodeulLegacyManagerLocationEnabled").equals("true", ignoreCase = true)
 val bodeulSupabaseUrl = localOrGradleProperty("bodeulSupabaseUrl")
 val bodeulSupabasePublishableKey = localOrGradleProperty("bodeulSupabasePublishableKey")
 val naverClientId = localOrGradleProperty("naverClientId")
@@ -235,10 +237,18 @@ android {
                 "bodeul_core_api_base_url",
                 effectiveBodeulCoreApiDebugBaseUrl
             )
+            // 기존 매니저 위치 공유는 명시적으로 활성화한 개발 환경에서만 검증한다.
+            resValue(
+                "bool",
+                "bodeul_legacy_manager_location_enabled",
+                bodeulLegacyManagerLocationEnabled.toString()
+            )
         }
         release {
             // 운영 앱이 개발 서버를 바라보지 않도록 Preview 기본값을 상속하지 않는다.
             resValue("string", "bodeul_core_api_base_url", bodeulCoreApiBaseUrl)
+            // 환자 단말 위치 계약이 준비되기 전에는 운영에서 기존 매니저 위치 경로를 강제로 닫는다.
+            resValue("bool", "bodeul_legacy_manager_location_enabled", "false")
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = false
             proguardFiles(

@@ -13,6 +13,7 @@ import com.bodeul.core.consent.AdultPatientGuardianSharingPolicy.InformationScop
 import com.bodeul.core.consent.GuardianSharingConsentAccess;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -232,6 +233,13 @@ class DefaultCompanionSessionServiceTests {
     private CompanionSessionProperties properties(boolean preConsultationEnforcement) {
         CompanionSessionProperties properties = new CompanionSessionProperties();
         properties.setPreConsultationEnforcement(preConsultationEnforcement);
+        properties.setLegacyManagerLocationEnabled(true);
+        return properties;
+    }
+
+    private CompanionSessionProperties locationProperties(boolean enabled) {
+        CompanionSessionProperties properties = properties(false);
+        properties.setLegacyManagerLocationEnabled(enabled);
         return properties;
     }
 
@@ -911,6 +919,70 @@ class DefaultCompanionSessionServiceTests {
                 .isInstanceOf(CompanionSessionException.class)
                 .extracting(exception -> ((CompanionSessionException) exception).error())
                 .isEqualTo("invalid_companion_session_request");
+    }
+
+    @Test
+    void enabledLegacyManagerLocationKeepsExistingSessionFieldsVisible() {
+        repository.session = Optional.of(withSensitiveCareData(
+                session("IN_TREATMENT", 2, 5, 3)));
+
+        var result = service.getSession(manager(), SESSION_ID);
+
+        assertThat(result.locationSummary()).isEqualTo("병원 도착 위치");
+        assertThat(result.liveLocationSharingActive()).isTrue();
+        assertThat(result.liveLocationSharingStartedAt()).isEqualTo("2026-07-18T00:20:00Z");
+        assertThat(result.locationAlertStage()).isEqualTo("hospital_near");
+        assertThat(result.locationAlertSentAt()).isEqualTo("2026-07-18T00:21:00Z");
+    }
+
+    @Test
+    void disabledLegacyManagerLocationMasksExistingSessionFields() {
+        repository.session = Optional.of(withSensitiveCareData(
+                session("IN_TREATMENT", 2, 5, 3)));
+        var disabledService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                locationProperties(false),
+                consentAccess);
+
+        var result = disabledService.getSession(manager(), SESSION_ID);
+
+        assertThat(result.locationSummary()).isEmpty();
+        assertThat(result.liveLocationSharingActive()).isFalse();
+        assertThat(result.liveLocationSharingStartedAt()).isEmpty();
+        assertThat(result.locationAlertStage()).isEmpty();
+        assertThat(result.locationAlertSentAt()).isEmpty();
+    }
+
+    @Test
+    void disabledLegacyManagerLocationRejectsMixedPatchWithoutWriteOrNotification() {
+        var disabledService = new DefaultCompanionSessionService(
+                repository,
+                events::add,
+                locationProperties(false),
+                consentAccess);
+        var command = new CompanionSessionService.UpdateSessionCommand(
+                3,
+                "일반 변경도 함께 보냄",
+                "병원 로비",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                true,
+                "hospital_near");
+
+        assertThatThrownBy(() -> disabledService.updateSession(manager(), SESSION_ID, command))
+                .isInstanceOfSatisfying(CompanionSessionException.class, exception -> {
+                    assertThat(exception.status()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(exception.error()).isEqualTo("companion_location_sharing_disabled");
+                });
+        assertThat(repository.session.orElseThrow().version()).isEqualTo(3);
+        assertThat(repository.session.orElseThrow().guardianUpdate()).isEmpty();
+        assertThat(events).isEmpty();
     }
 
     @Test

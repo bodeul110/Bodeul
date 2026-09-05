@@ -38,6 +38,7 @@ bodeul:
   session:
     pre-consultation-enforcement: ${BODEUL_SESSION_PRE_CONSULTATION_ENFORCEMENT:false}
     completion-enforcement: ${BODEUL_SESSION_COMPLETION_ENFORCEMENT:false}
+    legacy-manager-location-enabled: ${BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED:false}
   app-check:
     mode: ${BODEUL_APP_CHECK_MODE:off}
     project-number: ${FIREBASE_PROJECT_NUMBER:}

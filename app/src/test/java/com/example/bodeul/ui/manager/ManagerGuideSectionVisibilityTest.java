@@ -10,12 +10,17 @@ import org.junit.Test;
 public class ManagerGuideSectionVisibilityTest {
     @Test
     public void forStep_limitsActionsToExactCurrentStep() {
+        ManagerGuideSectionVisibility meeting = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("MEETING_CONFIRMATION", 1, "매칭 및 상봉", ""));
         ManagerGuideSectionVisibility pharmacyRoute = ManagerGuideSectionVisibility.forStep(
                 new GuideStep("PHARMACY_ROUTE", 9, "약국 이동", ""));
         ManagerGuideSectionVisibility medication = ManagerGuideSectionVisibility.forStep(
                 new GuideStep("MEDICATION_CONFIRMATION", 11, "복약 확인", ""));
         ManagerGuideSectionVisibility journal = ManagerGuideSectionVisibility.forStep(
                 new GuideStep("MANAGER_JOURNAL", 13, "매니저 일지", ""));
+
+        assertTrue(meeting.isMapVisible());
+        assertFalse(meeting.hasActionSection());
 
         assertTrue(pharmacyRoute.isMapVisible());
         assertFalse(pharmacyRoute.hasNotesSection());
@@ -72,6 +77,20 @@ public class ManagerGuideSectionVisibilityTest {
         assertTrue(extension.isReportSummaryVisible());
         assertTrue(extension.isReportMedicationVisible());
         assertTrue(extension.isNextVisitVisible());
+    }
+
+    @Test
+    public void withoutLocation_hidesOnlyLegacyLocationAndKeepsGuardianUpdate() {
+        ManagerGuideSectionVisibility consultation = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("CONSULTATION_SUPPORT", 5, "진료 동행", ""));
+        ManagerGuideSectionVisibility route = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("HOSPITAL_ROUTE", 2, "병원 이동", ""));
+
+        assertTrue(consultation.isGuardianVisible());
+        assertTrue(consultation.withoutLocation().isGuardianVisible());
+        assertTrue(route.isLocationVisible());
+        assertFalse(route.withoutLocation().isLocationVisible());
+        assertTrue(route.withoutLocation().isMapVisible());
     }
 
     private void assertCommonFieldNoteOnly(ManagerGuideSectionVisibility visibility) {
