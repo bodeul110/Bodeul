@@ -41,6 +41,22 @@ psql --dbname bodeul_bank_transfer_payment --set ON_ERROR_STOP=1 \
     --file db/verification/018_bank_transfer_payment_checks.sql
 psql --dbname bodeul_bank_transfer_payment --set ON_ERROR_STOP=1 \
     --file db/verification/020_bank_transfer_payment_rollback_failure_fixture.sql
+psql --dbname bodeul_bank_transfer_payment --set ON_ERROR_STOP=1 \
+    --file db/rollback/V23__remove_admin_bank_transfer_payment_read.sql
+psql --dbname bodeul_bank_transfer_payment --set ON_ERROR_STOP=1 <<'SQL'
+do $$
+begin
+    if to_regprocedure('bodeul.get_admin_bank_transfer_payment(uuid,uuid)') is not null
+            or to_regclass('bodeul.appointment_bank_transfer_payments') is null
+            or to_regclass('bodeul.appointment_payment_events') is null
+            or to_regclass('bodeul.admin_access_audits') is null
+            or not exists (select 1 from bodeul.appointment_bank_transfer_payments)
+            or not exists (select 1 from bodeul.appointment_payment_events) then
+        raise exception 'V23 rollback이 조회 함수 외의 저장 계약을 변경했습니다.';
+    end if;
+end;
+$$;
+SQL
 
 if psql --dbname bodeul_bank_transfer_payment --set ON_ERROR_STOP=1 \
     --file db/rollback/V22__remove_bank_transfer_payment_contract.sql; then
