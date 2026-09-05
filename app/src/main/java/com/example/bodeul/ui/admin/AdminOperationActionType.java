@@ -5,7 +5,5 @@ package com.example.bodeul.ui.admin;
  */
 public enum AdminOperationActionType {
     SAVE_SETTLEMENT_CONFIRMED,
-    SAVE_SETTLEMENT_RECHECK,
-    REPORT_EMERGENCY,
-    RESOLVE_EMERGENCY
+    SAVE_SETTLEMENT_RECHECK
 }

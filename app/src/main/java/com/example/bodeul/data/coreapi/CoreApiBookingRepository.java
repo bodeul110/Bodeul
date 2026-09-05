@@ -13,7 +13,6 @@ import com.example.bodeul.data.firebase.FirebaseBookingRepository;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.BookingHospitalOption;
@@ -262,21 +261,6 @@ public final class CoreApiBookingRepository implements BookingRepository {
                         requestId,
                         settlementStatus,
                         settlementNote,
-                        callback));
-    }
-
-    @Override
-    public void saveAppointmentFollowUpSupportEscalation(
-            User currentUser,
-            String requestId,
-            AppointmentFollowUpSupportEscalationStatus escalationStatus,
-            RepositoryCallback<AppointmentFollowUpRecord> callback
-    ) {
-        withCoreId(requestId, callback, coreId ->
-                followUpClient.saveSupportEscalation(
-                        coreId,
-                        requestId,
-                        escalationStatus,
                         callback));
     }
 

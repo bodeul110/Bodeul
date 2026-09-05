@@ -5,7 +5,6 @@ import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.BookingHospitalOption;
 import com.example.bodeul.domain.model.BookingRequestDraft;
 import com.example.bodeul.domain.model.CompanionChatAttachment;
@@ -70,13 +69,6 @@ public interface BookingRepository {
             String requestId,
             AppointmentFollowUpSettlementStatus settlementStatus,
             String settlementNote,
-            RepositoryCallback<AppointmentFollowUpRecord> callback
-    );
-
-    void saveAppointmentFollowUpSupportEscalation(
-            User currentUser,
-            String requestId,
-            AppointmentFollowUpSupportEscalationStatus escalationStatus,
             RepositoryCallback<AppointmentFollowUpRecord> callback
     );
 

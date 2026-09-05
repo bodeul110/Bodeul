@@ -176,26 +176,6 @@ public class FirebaseAdminRepository implements AdminRepository {
                         return FirebaseAdminRepository.this.buildSettlementAuditSummary(status);
                     }
 
-                    @Override
-                    public String buildEmergencyNotificationTitle(AdminEmergencyIssueStatus status) {
-                        return FirebaseAdminRepository.this.buildEmergencyNotificationTitle(status);
-                    }
-
-                    @Override
-                    public String buildEmergencyNotificationBody(
-                            String requestId,
-                            AdminEmergencyIssueStatus status
-                    ) {
-                        return FirebaseAdminRepository.this.buildEmergencyNotificationBody(
-                                requestId,
-                                status
-                        );
-                    }
-
-                    @Override
-                    public String buildEmergencyAuditSummary(AdminEmergencyIssueStatus status) {
-                        return FirebaseAdminRepository.this.buildEmergencyAuditSummary(status);
-                    }
                 }
         );
         this.actionCenterStore = new FirebaseAdminActionCenterStore(
@@ -459,38 +439,6 @@ public class FirebaseAdminRepository implements AdminRepository {
         }
 
         adminOperationsStore.saveSettlementRecord(
-                currentUser,
-                requestId,
-                status,
-                note,
-                new FirebaseAdminOperationsStore.CompletionListener() {
-                    @Override
-                    public void onSuccess() {
-                        loadDashboardWithArtifacts(currentUser, callback);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        callback.onError(message);
-                    }
-                }
-        );
-    }
-
-@Override
-    public void saveEmergencyIssue(
-            User currentUser,
-            String requestId,
-            AdminEmergencyIssueStatus status,
-            String note,
-            RepositoryCallback<AdminDashboard> callback
-    ) {
-        if (currentUser.getRole() != UserRole.ADMIN) {
-            callback.onError("관리자 계정으로 접근해 주세요.");
-            return;
-        }
-
-        adminOperationsStore.saveEmergencyIssue(
                 currentUser,
                 requestId,
                 status,
@@ -2190,30 +2138,6 @@ public class FirebaseAdminRepository implements AdminRepository {
             return "정산 후속 상태를 재확인으로 저장";
         }
         return "정산 후속 상태를 확인 완료로 저장";
-    }
-
-    private String buildEmergencyNotificationTitle(AdminEmergencyIssueStatus status) {
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return "긴급 이슈 해결 기록 저장";
-        }
-        return "긴급 대응 기록 저장";
-    }
-
-    private String buildEmergencyNotificationBody(
-            String requestId,
-            AdminEmergencyIssueStatus status
-    ) {
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return "요청 " + normalizeText(requestId) + "의 긴급 대응을 해결 완료로 저장했습니다.";
-        }
-        return "요청 " + normalizeText(requestId) + "에 긴급 대응 기록을 남겼습니다.";
-    }
-
-    private String buildEmergencyAuditSummary(AdminEmergencyIssueStatus status) {
-        if (status == AdminEmergencyIssueStatus.RESOLVED) {
-            return "긴급 이슈를 해결 상태로 저장";
-        }
-        return "긴급 이슈를 보고 상태로 저장";
     }
 
     private Map<String, Object> buildNotificationContractFields(

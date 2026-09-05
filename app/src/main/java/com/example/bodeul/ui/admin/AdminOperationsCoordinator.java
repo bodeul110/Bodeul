@@ -5,15 +5,12 @@ import android.text.TextUtils;
 
 import com.example.bodeul.R;
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueRecord;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestActionOverview;
 import com.example.bodeul.domain.model.AdminRequestOverview;
 import com.example.bodeul.domain.model.AdminSettlementRecord;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
@@ -74,7 +71,6 @@ public final class AdminOperationsCoordinator {
                 buildMonitoringSummary(monitoringTargets),
                 formatter.buildMonitoringAlertSummary(
                         monitoringTargets.size(),
-                        countMonitoringTargets(monitoringTargets, actionsByRequestId, AdminMonitoringFilter.EMERGENCY),
                         countMonitoringTargets(monitoringTargets, actionsByRequestId, AdminMonitoringFilter.PAYMENT),
                         countMonitoringTargets(monitoringTargets, actionsByRequestId, AdminMonitoringFilter.MATCHED),
                         countMonitoringTargets(monitoringTargets, actionsByRequestId, AdminMonitoringFilter.IN_PROGRESS),
@@ -87,7 +83,6 @@ public final class AdminOperationsCoordinator {
                 buildSettlementSummary(settlementTargets),
                 formatter.buildSettlementAlertSummary(
                         settlementTargets.size(),
-                        countUrgentSupportTargets(settlementTargets, actionsByRequestId),
                         countSettlementTargets(settlementTargets, actionsByRequestId, AdminSettlementFilter.USER_HELP),
                         countSettlementTargets(settlementTargets, actionsByRequestId, AdminSettlementFilter.ADMIN_PENDING),
                         countSettlementTargets(settlementTargets, actionsByRequestId, AdminSettlementFilter.CONFIRMED),
@@ -123,8 +118,8 @@ public final class AdminOperationsCoordinator {
         }
         targets.sort((left, right) -> {
             int priorityCompare = Integer.compare(
-                    resolveMonitoringPriority(left, findEmergencyIssueRecord(actionsByRequestId, left)),
-                    resolveMonitoringPriority(right, findEmergencyIssueRecord(actionsByRequestId, right))
+                    resolveMonitoringPriority(left),
+                    resolveMonitoringPriority(right)
             );
             if (priorityCompare != 0) {
                 return priorityCompare;
@@ -178,7 +173,6 @@ public final class AdminOperationsCoordinator {
         for (AdminRequestOverview overview : targets) {
             if (matchesMonitoringFilter(
                     overview,
-                    findEmergencyIssueRecord(actionsByRequestId, overview),
                     filter
             )) {
                 filteredTargets.add(overview);
@@ -254,7 +248,6 @@ public final class AdminOperationsCoordinator {
         for (AdminRequestOverview overview : targets) {
             if (matchesMonitoringFilter(
                     overview,
-                    findEmergencyIssueRecord(actionsByRequestId, overview),
                     filter
             )) {
                 count++;
@@ -281,19 +274,6 @@ public final class AdminOperationsCoordinator {
         return count;
     }
 
-    private int countUrgentSupportTargets(
-            List<AdminRequestOverview> targets,
-            Map<String, AdminRequestActionOverview> actionsByRequestId
-    ) {
-        int count = 0;
-        for (AdminRequestOverview overview : targets) {
-            if (hasUrgentSupportEscalation(findFollowUpRecord(actionsByRequestId, overview))) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     private List<AdminOperationCardModel> buildMonitoringCards(
             List<AdminRequestOverview> targets,
             Map<String, AdminRequestActionOverview> actionsByRequestId
@@ -302,7 +282,6 @@ public final class AdminOperationsCoordinator {
         for (AdminRequestOverview overview : targets) {
             AppointmentRequest request = overview.getAppointmentRequest();
             CompanionSession session = overview.getSession();
-            AdminEmergencyIssueRecord issueRecord = findEmergencyIssueRecord(actionsByRequestId, overview);
             List<AdminOperationLineItem> items = new ArrayList<>();
             items.add(new AdminOperationLineItem(
                     context.getString(R.string.admin_monitoring_line_manager),
@@ -350,34 +329,10 @@ public final class AdminOperationsCoordinator {
                             : formatter.formatFallbackValue(session.getMedicationNote()),
                     false
             ));
-            items.add(new AdminOperationLineItem(
-                    context.getString(R.string.admin_monitoring_line_emergency_status),
-                    formatter.formatEmergencyIssueStatus(
-                            issueRecord == null ? null : issueRecord.getStatus()
-                    ),
-                    false
-            ));
-            addOptionalLine(
-                    items,
-                    R.string.admin_monitoring_line_emergency_note,
-                    issueRecord == null ? "" : issueRecord.getNote()
-            );
-            addOptionalLine(
-                    items,
-                    R.string.admin_monitoring_line_emergency_handled,
-                    issueRecord == null
-                            ? ""
-                            : context.getString(
-                                    R.string.admin_operation_action_handled_value,
-                                    formatter.formatFallbackValue(issueRecord.getHandledByName()),
-                                    formatter.formatTimestamp(issueRecord.getHandledAtMillis())
-                            )
-            );
-
             cards.add(new AdminOperationCardModel(
                     request.getId(),
                     buildMonitoringStatusBadge(overview),
-                    buildMonitoringPriorityBadge(overview, issueRecord),
+                    buildMonitoringPriorityBadge(overview),
                     context.getString(R.string.admin_operation_card_title, buildPatientName(overview)),
                     context.getString(
                             R.string.admin_operation_card_subtitle,
@@ -385,10 +340,10 @@ public final class AdminOperationsCoordinator {
                             request.getDepartmentName(),
                             request.getAppointmentAt()
                     ),
-                    buildMonitoringCardSummary(overview, issueRecord),
-                    formatter.buildMonitoringActivityText(issueRecord),
+                    buildMonitoringCardSummary(overview),
+                    "",
                     items,
-                    buildMonitoringActions(issueRecord)
+                    new ArrayList<>()
             ));
         }
         return cards;
@@ -476,19 +431,6 @@ public final class AdminOperationsCoordinator {
                         R.string.admin_settlement_line_follow_up_note,
                         followUpRecord.getSettlementNote()
                 );
-            }
-            if (followUpRecord != null && followUpRecord.hasSavedSupportEscalation()) {
-                items.add(new AdminOperationLineItem(
-                        context.getString(R.string.admin_settlement_line_follow_up_support),
-                        context.getString(
-                                R.string.admin_follow_up_value_format,
-                                formatter.formatFollowUpSupportStatus(
-                                        followUpRecord.getSupportEscalationStatus()
-                                ),
-                                formatter.formatTimestamp(followUpRecord.getSupportEscalatedAtMillis())
-                        ),
-                        false
-                ));
             }
             if (report != null && !TextUtils.isEmpty(report.getNextVisitAt())) {
                 items.add(new AdminOperationLineItem(
@@ -611,14 +553,11 @@ public final class AdminOperationsCoordinator {
 
     private boolean matchesMonitoringFilter(
             AdminRequestOverview overview,
-            AdminEmergencyIssueRecord issueRecord,
             AdminMonitoringFilter filter
     ) {
         AppointmentStatus status = overview.getAppointmentRequest().getStatus();
         CompanionSession session = overview.getSession();
         switch (filter) {
-            case EMERGENCY:
-                return issueRecord != null && issueRecord.getStatus() == AdminEmergencyIssueStatus.REPORTED;
             case PAYMENT:
                 return session != null && session.getStatus() == SessionStatus.PAYMENT;
             case MATCHED:
@@ -654,23 +593,19 @@ public final class AdminOperationsCoordinator {
     }
 
     private int resolveMonitoringPriority(
-            AdminRequestOverview overview,
-            AdminEmergencyIssueRecord issueRecord
+            AdminRequestOverview overview
     ) {
-        if (issueRecord != null && issueRecord.getStatus() == AdminEmergencyIssueStatus.REPORTED) {
-            return 0;
-        }
         CompanionSession session = overview.getSession();
         if (session != null && session.getStatus() == SessionStatus.PAYMENT) {
-            return 1;
+            return 0;
         }
         if (overview.getAppointmentRequest().getStatus() == AppointmentStatus.IN_PROGRESS) {
-            return 2;
+            return 1;
         }
         if (overview.getAppointmentRequest().getStatus() == AppointmentStatus.MATCHED) {
-            return 3;
+            return 2;
         }
-        return 4;
+        return 3;
     }
 
     private int resolveSettlementPriority(
@@ -678,24 +613,21 @@ public final class AdminOperationsCoordinator {
             AdminSettlementRecord settlementRecord,
             AppointmentFollowUpRecord followUpRecord
     ) {
-        if (hasUrgentSupportEscalation(followUpRecord)) {
+        if (needsSettlementHelp(followUpRecord)) {
             return 0;
         }
-        if (needsSettlementHelp(followUpRecord)) {
+        if (settlementRecord != null && settlementRecord.getStatus() == AdminSettlementStatus.NEEDS_REVIEW) {
             return 1;
         }
-        if (settlementRecord != null && settlementRecord.getStatus() == AdminSettlementStatus.NEEDS_REVIEW) {
-            return 2;
-        }
         if (settlementRecord == null || settlementRecord.getStatus() == AdminSettlementStatus.PENDING) {
-            return 3;
+            return 2;
         }
         if (BookingPaymentMethod.fromValue(
                 overview.getAppointmentRequest().getPaymentMethodCode()
         ) == BookingPaymentMethod.ON_SITE) {
-            return 4;
+            return 3;
         }
-        return 5;
+        return 4;
     }
 
     private AdminOperationBadgeModel buildMonitoringStatusBadge(AdminRequestOverview overview) {
@@ -776,21 +708,8 @@ public final class AdminOperationsCoordinator {
     }
 
     private AdminOperationBadgeModel buildMonitoringPriorityBadge(
-            AdminRequestOverview overview,
-            AdminEmergencyIssueRecord issueRecord
+            AdminRequestOverview overview
     ) {
-        if (issueRecord != null && issueRecord.getStatus() == AdminEmergencyIssueStatus.REPORTED) {
-            return new AdminOperationBadgeModel(
-                    context.getString(R.string.admin_monitoring_priority_emergency),
-                    AdminOperationBadgeTone.WARNING
-            );
-        }
-        if (issueRecord != null && issueRecord.getStatus() == AdminEmergencyIssueStatus.RESOLVED) {
-            return new AdminOperationBadgeModel(
-                    context.getString(R.string.admin_monitoring_priority_resolved),
-                    AdminOperationBadgeTone.SUCCESS
-            );
-        }
         if (overview.getSession() != null && overview.getSession().getStatus() == SessionStatus.PAYMENT) {
             return new AdminOperationBadgeModel(
                     context.getString(R.string.admin_monitoring_priority_payment),
@@ -813,12 +732,6 @@ public final class AdminOperationsCoordinator {
             AdminSettlementRecord settlementRecord,
             AppointmentFollowUpRecord followUpRecord
     ) {
-        if (hasUrgentSupportEscalation(followUpRecord)) {
-            return new AdminOperationBadgeModel(
-                    context.getString(R.string.admin_settlement_priority_support),
-                    AdminOperationBadgeTone.WARNING
-            );
-        }
         if (needsSettlementHelp(followUpRecord)) {
             return new AdminOperationBadgeModel(
                     resolveSettlementHelpPriorityLabel(followUpRecord),
@@ -844,7 +757,7 @@ public final class AdminOperationsCoordinator {
     }
 
     private boolean hasUserHelpRequest(AppointmentFollowUpRecord followUpRecord) {
-        return needsSettlementHelp(followUpRecord) || hasAnySupportEscalation(followUpRecord);
+        return needsSettlementHelp(followUpRecord);
     }
 
     private boolean needsSettlementHelp(AppointmentFollowUpRecord followUpRecord) {
@@ -854,31 +767,9 @@ public final class AdminOperationsCoordinator {
                 && followUpRecord.getSettlementStatus().requiresAdminFollowUp();
     }
 
-    private boolean hasAnySupportEscalation(AppointmentFollowUpRecord followUpRecord) {
-        return followUpRecord != null && followUpRecord.hasSavedSupportEscalation();
-    }
-
-    private boolean hasUrgentSupportEscalation(AppointmentFollowUpRecord followUpRecord) {
-        if (followUpRecord == null || !followUpRecord.hasSavedSupportEscalation()) {
-            return false;
-        }
-        AppointmentFollowUpSupportEscalationStatus status = followUpRecord.getSupportEscalationStatus();
-        return status == AppointmentFollowUpSupportEscalationStatus.MANAGER_CALLED
-                || status == AppointmentFollowUpSupportEscalationStatus.DIALED_119;
-    }
-
     private String buildMonitoringCardSummary(
-            AdminRequestOverview overview,
-            AdminEmergencyIssueRecord issueRecord
+            AdminRequestOverview overview
     ) {
-        if (issueRecord != null && !TextUtils.isEmpty(issueRecord.getNote())) {
-            return context.getString(
-                    R.string.admin_monitoring_card_summary_emergency,
-                    formatter.formatEmergencyIssueStatus(issueRecord.getStatus()),
-                    issueRecord.getNote()
-            );
-        }
-
         CompanionSession session = overview.getSession();
         SessionReport report = overview.getSessionReport();
         if (session != null && !TextUtils.isEmpty(session.getGuardianUpdate())) {
@@ -915,13 +806,6 @@ public final class AdminOperationsCoordinator {
             AdminSettlementRecord settlementRecord,
             AppointmentFollowUpRecord followUpRecord
     ) {
-        if (hasUrgentSupportEscalation(followUpRecord)) {
-            return context.getString(
-                    R.string.admin_settlement_card_summary_support,
-                    formatter.formatPrice(request.getFinalPrice()),
-                    formatter.formatFollowUpSupportStatus(followUpRecord.getSupportEscalationStatus())
-            );
-        }
         if (needsSettlementHelp(followUpRecord)) {
             return context.getString(
                     resolveSettlementHelpSummaryText(followUpRecord),
@@ -996,15 +880,6 @@ public final class AdminOperationsCoordinator {
         return actionOverview == null ? null : actionOverview.getSettlementRecord();
     }
 
-    private AdminEmergencyIssueRecord findEmergencyIssueRecord(
-            Map<String, AdminRequestActionOverview> actionsByRequestId,
-            AdminRequestOverview overview
-    ) {
-        AdminRequestActionOverview actionOverview =
-                actionsByRequestId.get(overview.getAppointmentRequest().getId());
-        return actionOverview == null ? null : actionOverview.getEmergencyIssueRecord();
-    }
-
     private AppointmentFollowUpRecord findFollowUpRecord(
             Map<String, AdminRequestActionOverview> actionsByRequestId,
             AdminRequestOverview overview
@@ -1032,24 +907,6 @@ public final class AdminOperationsCoordinator {
         actions.add(new AdminOperationActionModel(
                 AdminOperationActionType.SAVE_SETTLEMENT_CONFIRMED,
                 context.getString(R.string.admin_settlement_action_confirm)
-        ));
-        return actions;
-    }
-
-    private List<AdminOperationActionModel> buildMonitoringActions(
-            AdminEmergencyIssueRecord issueRecord
-    ) {
-        List<AdminOperationActionModel> actions = new ArrayList<>();
-        if (issueRecord != null && issueRecord.getStatus() == AdminEmergencyIssueStatus.REPORTED) {
-            actions.add(new AdminOperationActionModel(
-                    AdminOperationActionType.RESOLVE_EMERGENCY,
-                    context.getString(R.string.admin_emergency_action_resolve)
-            ));
-            return actions;
-        }
-        actions.add(new AdminOperationActionModel(
-                AdminOperationActionType.REPORT_EMERGENCY,
-                context.getString(R.string.admin_emergency_action_report)
         ));
         return actions;
     }

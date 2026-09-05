@@ -405,7 +405,7 @@ public final class BookingStatusCoordinator {
             return;
         }
 
-        if (!followUpRecord.hasAnySavedAction()) {
+        if (!AppointmentFollowUpVisibilityPolicy.hasVisibleAction(followUpRecord)) {
             items.add(new BookingStatusLineItem(
                     context.getString(R.string.booking_status_line_follow_up_state),
                     context.getString(R.string.booking_follow_up_summary_pending),
@@ -441,19 +441,6 @@ public final class BookingStatusCoordinator {
                     followUpRecord.getSettlementNote(),
                     false
             );
-        }
-        if (followUpRecord.hasSavedSupportEscalation()) {
-            items.add(new BookingStatusLineItem(
-                    context.getString(R.string.booking_status_line_follow_up_support),
-                    context.getString(
-                            R.string.booking_status_follow_up_value_format,
-                            formatter.formatFollowUpSupportEscalationStatus(
-                                    followUpRecord.getSupportEscalationStatus()
-                            ),
-                            formatter.formatTimestamp(followUpRecord.getSupportEscalatedAtMillis())
-                    ),
-                    false
-            ));
         }
     }
 

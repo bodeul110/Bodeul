@@ -6,6 +6,7 @@ import com.example.bodeul.domain.model.AdminActionDeliveryStatus;
 import com.example.bodeul.domain.model.AdminActionDeliveryTrigger;
 import com.example.bodeul.domain.model.AdminActionNotification;
 import com.example.bodeul.domain.model.AdminActionNotificationLevel;
+import com.example.bodeul.domain.model.AdminActionNotificationMutationPolicy;
 import com.example.bodeul.domain.model.AdminActionSourceType;
 import com.example.bodeul.domain.model.User;
 import com.google.firebase.firestore.DocumentReference;
@@ -81,6 +82,10 @@ final class FirebaseAdminActionCenterStore {
                         listener.onError("읽음 처리할 알림을 찾지 못했습니다.");
                         return;
                     }
+                    if (!canMutateNotification(notification)) {
+                        listener.onError("기존 긴급 알림 상태는 변경할 수 없습니다.");
+                        return;
+                    }
                     if (notification.isRead()) {
                         listener.onSuccess();
                         return;
@@ -129,6 +134,10 @@ final class FirebaseAdminActionCenterStore {
                     AdminActionNotification notification = mapper.toAdminActionNotification(documentSnapshot);
                     if (notification == null) {
                         listener.onError("상태를 변경할 알림을 찾지 못했습니다.");
+                        return;
+                    }
+                    if (!canMutateNotification(notification)) {
+                        listener.onError("기존 긴급 알림 상태는 변경할 수 없습니다.");
                         return;
                     }
 
@@ -185,6 +194,11 @@ final class FirebaseAdminActionCenterStore {
                 })
                 .addOnFailureListener(exception ->
                         listener.onError("알림 정보를 불러오지 못했습니다."));
+    }
+
+    static boolean canMutateNotification(@Nullable AdminActionNotification notification) {
+        return notification != null
+                && AdminActionNotificationMutationPolicy.canMutate(notification.getSourceType());
     }
 
     private static String normalizeText(@Nullable String value) {

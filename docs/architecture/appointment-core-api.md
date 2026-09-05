@@ -106,7 +106,7 @@ Android의 환자·보호자 예약 기본 경로는 다음 방식으로 전환�
 3. PostgreSQL에서 새로 만든 예약은 Firestore 문서를 만들지 않으며 매칭 전 기본 상세만 표시한다.
 4. Core API 오류가 나도 Firestore 예약 쓰기로 자동 대체하지 않는다.
 5. 수정·취소 직전에 API 상세를 다시 읽어 최신 `version`으로 낙관적 잠금을 수행한다.
-6. 보호자 화면은 예약 관계만으로 열리지 않으며 환자가 부여한 `APPOINTMENT` 범위를 Core API가 확인한다. 후기·정산·긴급 지원은 별도 `REPORT` 범위를 요구한다.
+6. 보호자 화면은 예약 관계만으로 열리지 않으며 환자가 부여한 `APPOINTMENT` 범위를 Core API가 확인한다. 후기·정산 조회는 별도 `REPORT` 범위를 요구한다. 신규 긴급 지원 저장은 MVP에서 제공하지 않는다.
 
 개발 환경에서는 V4~V12 적용, preview 배포, 실제 Firebase ID token 기반 역할별 API와 Android 예약·매칭·동행·채팅·위치 흐름을 확인했다. Firestore 신규 예약·세션·채팅·위치 쓰기는 차단했다. production 사용자 트래픽 전환은 별도 Go/No-Go와 migration 검증 뒤 수행한다.
 

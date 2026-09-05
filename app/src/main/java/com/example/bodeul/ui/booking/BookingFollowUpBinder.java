@@ -16,7 +16,7 @@ import com.google.android.material.button.MaterialButton;
 import java.util.List;
 
 /**
- * 종료 후 후기·정산·SOS 화면 모델을 실제 뷰에 바인딩한다.
+ * 종료 후 후기·정산 화면 모델을 실제 뷰에 바인딩한다.
  */
 public final class BookingFollowUpBinder {
     private final Context context;
@@ -35,11 +35,6 @@ public final class BookingFollowUpBinder {
     private final TextView textSettlementSavedState;
     private final MaterialButton buttonSettlementConfirm;
     private final MaterialButton buttonSettlementHelp;
-    private final TextView textEmergencyTitle;
-    private final TextView textEmergencyBody;
-    private final LinearLayout emergencyContainer;
-    private final TextView textEmergencySavedState;
-    private final MaterialButton buttonCallManager;
     private final BookingFollowUpRatingOptionBinder ratingOptionBinder;
 
     public BookingFollowUpBinder(
@@ -58,12 +53,7 @@ public final class BookingFollowUpBinder {
             LinearLayout settlementContainer,
             TextView textSettlementSavedState,
             MaterialButton buttonSettlementConfirm,
-            MaterialButton buttonSettlementHelp,
-            TextView textEmergencyTitle,
-            TextView textEmergencyBody,
-            LinearLayout emergencyContainer,
-            TextView textEmergencySavedState,
-            MaterialButton buttonCallManager
+            MaterialButton buttonSettlementHelp
     ) {
         this.context = context;
         this.inflater = inflater;
@@ -81,11 +71,6 @@ public final class BookingFollowUpBinder {
         this.textSettlementSavedState = textSettlementSavedState;
         this.buttonSettlementConfirm = buttonSettlementConfirm;
         this.buttonSettlementHelp = buttonSettlementHelp;
-        this.textEmergencyTitle = textEmergencyTitle;
-        this.textEmergencyBody = textEmergencyBody;
-        this.emergencyContainer = emergencyContainer;
-        this.textEmergencySavedState = textEmergencySavedState;
-        this.buttonCallManager = buttonCallManager;
         this.ratingOptionBinder = new BookingFollowUpRatingOptionBinder(context);
     }
 
@@ -103,7 +88,6 @@ public final class BookingFollowUpBinder {
         textReviewSavedState.setText(screenModel.getReviewSavedStateText());
         buttonReviewSave.setText(screenModel.getReviewButtonText());
         buttonReviewSave.setEnabled(screenModel.isReviewButtonEnabled());
-        buttonCallManager.setEnabled(screenModel.isManagerCallEnabled());
         bindRatingOptions(screenModel.getRatingOptions(), listener);
         bindLines(settlementContainer, screenModel.getSettlementLines());
         textSettlementSavedState.setText(screenModel.getSettlementSavedStateText());
@@ -111,10 +95,6 @@ public final class BookingFollowUpBinder {
         buttonSettlementConfirm.setEnabled(screenModel.isSettlementConfirmButtonEnabled());
         buttonSettlementHelp.setText(screenModel.getSettlementHelpButtonText());
         buttonSettlementHelp.setEnabled(screenModel.isSettlementHelpButtonEnabled());
-        textEmergencyTitle.setText(screenModel.getEmergencyTitleText());
-        textEmergencyBody.setText(screenModel.getEmergencyBodyText());
-        bindLines(emergencyContainer, screenModel.getEmergencyLines());
-        textEmergencySavedState.setText(screenModel.getEmergencySavedStateText());
     }
 
     private void bindRatingOptions(

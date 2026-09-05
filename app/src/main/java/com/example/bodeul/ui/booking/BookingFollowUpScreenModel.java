@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 종료 후 후기·정산·SOS 화면의 표시 데이터를 전달한다.
+ * 종료 후 후기·정산 화면의 표시 데이터를 전달한다.
  */
 public final class BookingFollowUpScreenModel {
     private final String modeText;
@@ -24,11 +24,6 @@ public final class BookingFollowUpScreenModel {
     private final boolean settlementConfirmButtonEnabled;
     private final String settlementHelpButtonText;
     private final boolean settlementHelpButtonEnabled;
-    private final String emergencyTitleText;
-    private final String emergencyBodyText;
-    private final List<BookingStatusLineItem> emergencyLines;
-    private final String emergencySavedStateText;
-    private final boolean managerCallEnabled;
 
     public BookingFollowUpScreenModel(
             String modeText,
@@ -47,12 +42,7 @@ public final class BookingFollowUpScreenModel {
             String settlementConfirmButtonText,
             boolean settlementConfirmButtonEnabled,
             String settlementHelpButtonText,
-            boolean settlementHelpButtonEnabled,
-            String emergencyTitleText,
-            String emergencyBodyText,
-            List<BookingStatusLineItem> emergencyLines,
-            String emergencySavedStateText,
-            boolean managerCallEnabled
+            boolean settlementHelpButtonEnabled
     ) {
         this.modeText = modeText;
         this.heroBadgeText = heroBadgeText;
@@ -71,11 +61,6 @@ public final class BookingFollowUpScreenModel {
         this.settlementConfirmButtonEnabled = settlementConfirmButtonEnabled;
         this.settlementHelpButtonText = settlementHelpButtonText;
         this.settlementHelpButtonEnabled = settlementHelpButtonEnabled;
-        this.emergencyTitleText = emergencyTitleText;
-        this.emergencyBodyText = emergencyBodyText;
-        this.emergencyLines = Collections.unmodifiableList(emergencyLines);
-        this.emergencySavedStateText = emergencySavedStateText;
-        this.managerCallEnabled = managerCallEnabled;
     }
 
     public String getModeText() {
@@ -146,23 +131,4 @@ public final class BookingFollowUpScreenModel {
         return settlementHelpButtonEnabled;
     }
 
-    public String getEmergencyTitleText() {
-        return emergencyTitleText;
-    }
-
-    public String getEmergencyBodyText() {
-        return emergencyBodyText;
-    }
-
-    public List<BookingStatusLineItem> getEmergencyLines() {
-        return emergencyLines;
-    }
-
-    public String getEmergencySavedStateText() {
-        return emergencySavedStateText;
-    }
-
-    public boolean isManagerCallEnabled() {
-        return managerCallEnabled;
-    }
 }

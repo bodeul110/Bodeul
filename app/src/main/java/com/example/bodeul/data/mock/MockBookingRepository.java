@@ -7,7 +7,6 @@ import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
@@ -223,39 +222,6 @@ public class MockBookingRepository implements BookingRepository {
         );
         if (record == null) {
             callback.onError("정산 후속 상태를 저장하지 못했습니다.");
-            return;
-        }
-        callback.onSuccess(record);
-    }
-
-    @Override
-    public void saveAppointmentFollowUpSupportEscalation(
-            User currentUser,
-            String requestId,
-            AppointmentFollowUpSupportEscalationStatus escalationStatus,
-            RepositoryCallback<AppointmentFollowUpRecord> callback
-    ) {
-        if (!supportsRole(currentUser.getRole())) {
-            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
-            return;
-        }
-
-        AppointmentRequestDetail detail = repository.getAppointmentRequestDetail(requestId);
-        if (detail == null || !isRequestOwner(currentUser, detail.getAppointmentRequest())) {
-            callback.onError("SOS 후속 권한이 없습니다.");
-            return;
-        }
-        if (detail.getAppointmentRequest().getStatus() != AppointmentStatus.COMPLETED) {
-            callback.onError("완료된 예약에서만 SOS 후속 기록을 저장할 수 있습니다.");
-            return;
-        }
-
-        AppointmentFollowUpRecord record = repository.saveAppointmentFollowUpSupportEscalation(
-                requestId,
-                escalationStatus
-        );
-        if (record == null) {
-            callback.onError("SOS 후속 기록을 저장하지 못했습니다.");
             return;
         }
         callback.onSuccess(record);

@@ -15,7 +15,7 @@
 
 - `appointment_requests`와 1:1인 `companion_sessions`를 둔다.
 - 동행 종료 리포트는 세션과 1:1인 `session_reports`로 관리한다.
-- 후기·정산 확인·긴급 지원은 예약과 1:1인 `appointment_follow_ups`에 통합한다.
+- 후기·정산 확인은 예약과 1:1인 `appointment_follow_ups`에 통합한다. 기존 긴급 지원 열은 과거 데이터 읽기 호환용으로만 유지한다.
 - 관리자 배정은 테이블의 광범위한 쓰기 권한 대신 `assign_companion_session` DB 함수만 실행한다.
 - 배정 함수는 관리자와 매니저 role, 예약 상태, 예약 버전을 검증한 뒤 예약 `MATCHED`, 세션 `READY`, 감사 기록을 한 트랜잭션에서 생성한다.
 - 앱과 서버의 동시 수정을 검출할 수 있도록 세션·리포트·후속 처리에 `version`을 둔다.
@@ -44,7 +44,7 @@
 | --- | --- | --- | --- |
 | `companion_sessions` | `companionSessions` | 예약 1:1, 매니저 N:1 | 배정, 동행 상태와 현장 메모 |
 | `session_reports` | `sessionReports` | 세션 1:1 | 종료 리포트와 복약 비교 |
-| `appointment_follow_ups` | `appointmentFollowUps` | 예약 1:1 | 후기, 정산 확인, 긴급 지원 |
+| `appointment_follow_ups` | `appointmentFollowUps` | 예약 1:1 | 후기, 정산 확인과 legacy 긴급 지원 읽기 호환 |
 | `companion_session_assignment_audits` | 기존 복원 불가 | 예약·세션 N:1 | 전환 이후 관리자 배정 감사 |
 | `companion_chat_messages` | `companionSessions.chatMessages` | 세션 N:1 | 본문, 발신자와 재시도 중복 제거 |
 | `companion_chat_attachments` | 채팅 첨부 배열 | 메시지 N:1 | Firebase Storage 경로와 만료 상태 |
@@ -128,7 +128,7 @@ V6~V8은 Core API에 테이블 전체 권한이 아니라 실제 endpoint가 사
 - 매니저 세션 변경과 리포트 제출은 Core API의 `version` 조건부 요청으로 처리한다.
 - 새 Android는 `CARE_COMPLETION`에서 `/care-end`를 호출하고, `CARE_ENDED`에서 선택 일지를 제출한다. 리포트가 `FAILED` 또는 `PENDING`이면 완료 세션을 다시 열어 리포트 저장만 재시도한다.
 - 가이드 8은 결제 증빙 JPEG·PNG·PDF 1개, 가이드 10은 JPEG·PNG 0~3개를 Android Storage Access Framework로 선택하며 미첨부 진행을 허용한다.
-- 후기·정산 확인·긴급 지원 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다.
+- 후기·정산 확인 저장은 최신 후속 레코드를 조회한 뒤 해당 `version`으로 부분 갱신하며 Firestore `appointmentFollowUps`에 다시 쓰지 않는다. 값이 있는 신규 `supportEscalationStatus` 요청은 Core API가 거부하고 기존 값은 덮어쓰지 않는다.
 - 채팅, 첨부 원본·metadata, 위치 좌표·이력·읽음 시각은 Core API를 사용한다. 첨부 미리보기는 인증된 API 응답을 앱 전용 단기 캐시에 저장한 뒤 `FileProvider` URI로 연다. 환자·매니저 화면은 진행 중에만 private Broadcast를 변경 신호로 받고 Core API snapshot으로 복구한다. 매니저 Android는 상태 문자열뿐 아니라 `careEndedAt`도 확인해 종료 세션의 Realtime 보강 요청을 생략하고 기존 구독을 닫는다. DB publisher는 종료 뒤 신호를 만들지 않으며 bootstrap 006은 신규·재인가 연결을 거부한다. 완료 이력은 `GET /report`를 호출하지 않고 세션 응답의 본인 `managerJournal`과 완료 메타데이터만 표시한다. 보호자 화면은 연결 권한 캐시로 철회 즉시성을 보장할 수 없어 Broadcast를 구독하지 않고 Core API polling만 사용한다.
 - 기존 매니저 위치 UI와 전송은 Android에서 기본 `OFF`다. debug 빌드는 개발자가 명시적으로 opt-in한 경우에만 기존 경로를 열 수 있고, release 빌드는 하드코딩 `false`로 권한 요청·1회 공유·연속 공유를 시작하지 않는다. 이 경계는 향후 환자 단말 1분 위치 기능의 구현 상태를 의미하지 않는다.
 - Core API의 위치 FCM listener와 Firestore legacy 위치 알림 Functions도 같은 기본 거부 경계를 사용한다. `OFF`에서는 수신자·token 조회나 notification payload 생성을 시작하지 않고, production Functions 프로젝트에서는 설정값과 무관하게 기존 알림을 차단한다.
@@ -161,7 +161,7 @@ npm --prefix tools/firebase run postgres:sessions:sql -- --file backups/<백업 
 - Core API snapshot 응답은 V14 열을 전제로 하므로 V14 migration을 먼저 적용한 뒤 API를 배포한다. 코드 없는 `LEGACY_HOSPITAL_GUIDE_V0`는 의미를 추정하지 않고 진행을 차단하므로, 신규 배정 전에 운영 가이드를 코드 계약 v1으로 승격해야 한다.
 - V18 코드가 새 열을 항상 읽으므로 DB migration을 Core API 배포보다 먼저 적용한다. 기존 `COMPLETED` 행은 리포트가 있으면 `READY`, 없으면 `FAILED`로 backfill하고 `care_ended_at`은 기존 완료·갱신·시작 시각 순으로 보존한다. V18은 세션 행 잠금과 DB trigger로 종료와 동시에 들어오는 채팅·첨부·위치·동의 재부여를 직렬화하고, `care_ended_at` 기준 TTL을 먼저 확정해 늦은 `COMPLETED` 전환이 보존 시각을 덮어쓰지 않게 한다. Flyway 뒤에는 postgres 권한으로 bootstrap 006과 권한 시나리오 015를 실행해야 기존 Realtime helper도 갱신된다.
 - 구버전 Android의 마지막 단계 직접 완료는 `BODEUL_SESSION_COMPLETION_ENFORCEMENT=false` 동안만 허용한다. 이 혼합 버전 기간의 돌봄 종료는 `care_ended_at`과 단계만 저장하고 기존 `current_status` 문자열을 유지해 구버전 enum 파서를 깨뜨리지 않는다. 플래그를 켠 뒤에만 `CARE_ENDED`를 DB와 응답에 노출한다.
-- 사고·긴급상황은 #297의 별도 중단·지원 상태 계약 대상이며 정상 `CARE_ENDED`나 `COMPLETED`로 합치지 않는다.
+- MVP에서는 사고·긴급상황 전용 중단·지원 상태와 자동 연락을 제공하지 않는다. 향후 도입할 경우 정상 `CARE_ENDED`·`COMPLETED`와 구분한 새 계약으로 설계하고, 기존 legacy 값을 기능 계약으로 재사용하지 않는다.
 - 가이드 첨부 교체가 DB 반영 전에 실패하면 생성한 Storage 객체를 즉시 삭제하지 않고 orphan으로 남긴다. 동시 요청의 승자 객체를 지우지 않는 fail-safe이며, 최종 orphan 회수와 보존 만료는 #222에서 커밋된 DB 참조 집합을 기준으로 처리해야 한다.
 - 기존 배정의 관리자 actor는 Firestore에 없으므로 감사 기록을 추정해 만들지 않는다. 전환 이후 배정부터 기록한다.
 - 기존 Firestore 세션 문서는 rollback 비교 자료로 남아 있으므로 운영 화면이 이를 업무 원본으로 다시 사용하지 않는지 회귀 검증한다.

@@ -500,59 +500,6 @@ public class FirebaseBookingRepository implements BookingRepository {
     }
 
     @Override
-    public void saveAppointmentFollowUpSupportEscalation(
-            User currentUser,
-            String requestId,
-            AppointmentFollowUpSupportEscalationStatus escalationStatus,
-            RepositoryCallback<AppointmentFollowUpRecord> callback
-    ) {
-        if (!supportsRole(currentUser.getRole())) {
-            callback.onError("환자 또는 보호자 계정으로 로그인해 주세요.");
-            return;
-        }
-
-        firestore.collection("appointmentRequests")
-                .document(requestId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    AppointmentRequest request = toAppointmentRequest(documentSnapshot);
-                    if (request == null || !isRequestOwner(currentUser, request)) {
-                        callback.onError("SOS 후속 저장 권한이 없습니다.");
-                        return;
-                    }
-                    if (request.getStatus() != AppointmentStatus.COMPLETED) {
-                        callback.onError("완료된 예약에서만 SOS 후속 기록을 저장할 수 있습니다.");
-                        return;
-                    }
-
-                    Map<String, Object> followUpDocument = new HashMap<>();
-                    followUpDocument.put("requestId", requestId);
-                    followUpDocument.put("supportEscalationStatus", escalationStatus.getValue());
-                    followUpDocument.put("supportEscalatedByUserId", currentUser.getId());
-                    followUpDocument.put("supportEscalatedAt", FieldValue.serverTimestamp());
-                    followUpDocument.put("updatedAt", FieldValue.serverTimestamp());
-
-                    firestore.collection("appointmentFollowUps")
-                            .document(requestId)
-                            .set(followUpDocument, SetOptions.merge())
-                            .addOnSuccessListener(unused ->
-                                    firestore.collection("appointmentFollowUps")
-                                            .document(requestId)
-                                            .get()
-                                            .addOnSuccessListener(followUpSnapshot ->
-                                                    callback.onSuccess(
-                                                            toAppointmentFollowUpRecord(followUpSnapshot, requestId)
-                                                    ))
-                                            .addOnFailureListener(exception ->
-                                                    callback.onError("SOS 후속 결과를 다시 불러오지 못했습니다.")))
-                            .addOnFailureListener(exception ->
-                                    callback.onError("SOS 후속 기록을 저장하지 못했습니다."));
-                })
-                .addOnFailureListener(exception ->
-                        callback.onError("SOS 후속 저장 대상을 확인하지 못했습니다."));
-    }
-
-    @Override
     public void sendCompanionChatMessage(
             User currentUser,
             String requestId,

@@ -19,7 +19,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/** 완료된 예약의 후기, 정산 확인, 긴급 지원 기록을 Core API에서 관리한다. */
+/** 완료된 예약의 후기와 정산 확인 기록을 Core API에서 관리한다. */
 final class CoreApiFollowUpClient {
     private final CoreApiAuthenticatedClient authenticatedClient;
 
@@ -75,21 +75,6 @@ final class CoreApiFollowUpClient {
                 "settlementFollowUpStatus",
                 settlementStatus == null ? "" : settlementStatus.getValue(),
                 settlementNote,
-                callback);
-    }
-
-    void saveSupportEscalation(
-            String coreAppointmentId,
-            String externalAppointmentId,
-            AppointmentFollowUpSupportEscalationStatus escalationStatus,
-            RepositoryCallback<AppointmentFollowUpRecord> callback
-    ) {
-        mutate(
-                coreAppointmentId,
-                externalAppointmentId,
-                "supportEscalationStatus",
-                escalationStatus == null ? "" : escalationStatus.getValue(),
-                null,
                 callback);
     }
 

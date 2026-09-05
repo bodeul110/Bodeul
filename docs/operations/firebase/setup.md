@@ -136,6 +136,8 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 
 ### `appointmentFollowUps`
 
+> `supportEscalationStatus`, `supportEscalatedAt`은 기존 문서 읽기 호환을 위한 legacy 필드다. 현재 seed와 앱은 이 필드를 새로 저장하지 않는다.
+
 ```json
 {
   "requestId": "request-doc-id",
@@ -180,6 +182,8 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 
 ### `adminEmergencyIssues`
 
+> 기존 운영 기록 조회용 legacy 컬렉션이다. 현재 seed와 관리자 앱은 새 문서를 만들거나 상태를 변경하지 않는다.
+
 ```json
 {
   "requestId": "request-doc-id",
@@ -191,6 +195,8 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 ```
 
 ### `adminActionNotifications`
+
+> 아래 `EMERGENCY` 예시는 legacy 조회 호환용이다. 관리자 카드는 이 소스의 읽음·해결·재오픈 액션을 노출하지 않는다.
 
 ```json
 {
@@ -221,6 +227,8 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 
 ### `adminActionDeliveries`
 
+> `EMERGENCY` 전달 기록은 기존 데이터 조회용으로만 유지하며 신규 전달·푸시를 생성하지 않는다.
+
 ```json
 {
   "notificationId": "notification-doc-id",
@@ -246,6 +254,8 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 ```
 
 ### `adminActionDeliveryJobs`
+
+> `EMERGENCY` 작업 예시는 legacy 조회 호환용이며 신규 작업은 생성하지 않는다. 과거 `PENDING`·`FAILED` 작업이 남아 있으면 Functions가 작업 또는 연결 전달 기록의 `sourceType`을 확인해 provider 호출 전에 job을 `SKIPPED`(`skipReason=legacy_emergency_disabled`)로 종료하고, 연결 전달 기록도 `status=skipped`로 맞춘다.
 
 ```json
 {
@@ -402,6 +412,7 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - Firestore를 비우고 `users`, `hospitalGuides`만 기준선으로 다시 맞추는 절차는 [reset-baseline.md](reset-baseline.md)에 정리했다.
 - 실행 스크립트는 [reset-firestore-baseline.js](../../../tools/firebase/reset-firestore-baseline.js)이며, `tools/firebase` 폴더에서 `npm run reset:baseline:dry-run`, `npm run reset:baseline:apply`로 사용할 수 있다.
 - 기준선만으로 화면 검증이 어려울 때는 [seed-sample-service-data.js](../../../tools/firebase/seed-sample-service-data.js)로 `npm run seed:sample:dry-run`, `npm run seed:sample:apply`를 실행해 예약/세션/후속 처리 샘플을 함께 주입할 수 있다.
+- 샘플 seed는 MVP에서 제외한 SOS 상태와 `adminEmergencyIssues`를 새로 만들지 않는다. 기존 legacy 문서는 삭제하지 않으며 운영 리포트에서 선택적으로 읽는다.
 - 이 스크립트는 배포 대상인 `functions/`가 아니라 운영 도구 디렉터리에서 관리한다.
 - 이 스크립트는 `Firebase Authentication`은 삭제하지 않고, 기준선 Auth 계정을 확인한 뒤 기존 Auth UID에 맞춰 `users/{uid}` 문서를 다시 만든다.
 - 백업 구조 점검과 현재 상태 diff가 필요할 때는 `npm run validate:backup -- --file ...`, `npm run diff:state -- --file ...`로 관리 대상 컬렉션 변화를 비교할 수 있다.

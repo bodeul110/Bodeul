@@ -27,13 +27,11 @@ import com.example.bodeul.domain.model.AdminActionDeliveryTrigger;
 import com.example.bodeul.domain.model.AdminActionSourceType;
 import com.example.bodeul.domain.model.AdminAuditLogEntry;
 import com.example.bodeul.domain.model.AdminDashboard;
-import com.example.bodeul.domain.model.AdminEmergencyIssueStatus;
 import com.example.bodeul.domain.model.AdminRequestActionOverview;
 import com.example.bodeul.domain.model.AdminSettlementStatus;
 import com.example.bodeul.domain.model.AppointmentFollowUpRecord;
 import com.example.bodeul.domain.model.AppointmentFollowUpReviewRating;
 import com.example.bodeul.domain.model.AppointmentFollowUpSettlementStatus;
-import com.example.bodeul.domain.model.AppointmentFollowUpSupportEscalationStatus;
 import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
@@ -483,7 +481,7 @@ public class MockBodeulRepositoryTest {
     }
 
     @Test
-    public void adminActionRecords_saveSettlementAndEmergency_recordsAppearInOverview() {
+    public void adminActionRecords_saveSettlement_recordAppearsInOverview() {
         MockBodeulRepository repository = new MockBodeulRepository();
         User patient = repository.findUserByEmail("patient@bodeul.app");
         User guardian = repository.findUserByEmail("guardian@bodeul.app");
@@ -508,26 +506,15 @@ public class MockBodeulRepositoryTest {
                 "결제 승인과 금액을 확인했습니다.",
                 "관리자"
         ));
-        assertNotNull(repository.saveEmergencyIssue(
-                linkedRequest.getId(),
-                AdminEmergencyIssueStatus.REPORTED,
-                "현장 보호자 연락 요청이 접수됐습니다.",
-                "관리자"
-        ));
-
         List<AdminRequestActionOverview> overviews = repository.getAdminRequestActionOverviews();
 
         assertEquals(1, overviews.size());
         assertEquals(linkedRequest.getId(), overviews.get(0).getRequestId());
         assertNotNull(overviews.get(0).getSettlementRecord());
-        assertNotNull(overviews.get(0).getEmergencyIssueRecord());
+        assertNull(overviews.get(0).getEmergencyIssueRecord());
         assertEquals(
                 AdminSettlementStatus.CONFIRMED,
                 overviews.get(0).getSettlementRecord().getStatus()
-        );
-        assertEquals(
-                AdminEmergencyIssueStatus.REPORTED,
-                overviews.get(0).getEmergencyIssueRecord().getStatus()
         );
     }
 
@@ -577,12 +564,6 @@ public class MockBodeulRepositoryTest {
                 "Settlement recheck note.",
                 "관리자A"
         ));
-        assertNotNull(repository.saveEmergencyIssue(
-                linkedRequest.getId(),
-                AdminEmergencyIssueStatus.REPORTED,
-                "Emergency reported note.",
-                "관리자A"
-        ));
         assertNotNull(repository.respondSupportInquiry(
                 inquiry.getId(),
                 "Support response note.",
@@ -593,31 +574,25 @@ public class MockBodeulRepositoryTest {
         List<AdminAuditLogEntry> auditLogs = repository.getAdminAuditLogs();
         List<AdminActionDeliveryRecord> deliveries = repository.getAdminActionDeliveries();
         AdminActionNotification supportNotification = null;
-        AdminActionNotification emergencyNotification = null;
         AdminActionNotification settlementNotification = null;
         for (AdminActionNotification notification : notifications) {
             if (notification.getSourceType() == AdminActionSourceType.SUPPORT) {
                 supportNotification = notification;
-            } else if (notification.getSourceType() == AdminActionSourceType.EMERGENCY) {
-                emergencyNotification = notification;
             } else if (notification.getSourceType() == AdminActionSourceType.SETTLEMENT) {
                 settlementNotification = notification;
             }
         }
 
-        assertEquals(initialNotificationCount + 3, notifications.size());
-        assertEquals(initialAuditCount + 3, auditLogs.size());
-        assertEquals(initialDeliveryCount + 6, deliveries.size());
+        assertEquals(initialNotificationCount + 2, notifications.size());
+        assertEquals(initialAuditCount + 2, auditLogs.size());
+        assertEquals(initialDeliveryCount + 4, deliveries.size());
         assertNotNull(supportNotification);
-        assertNotNull(emergencyNotification);
         assertNotNull(settlementNotification);
         assertEquals(AdminActionNotificationLevel.INFO, supportNotification.getLevel());
         assertEquals(AdminActionNotificationState.UNREAD, supportNotification.getState());
         assertEquals(AdminActionNotificationPriority.ACTION_REQUIRED, supportNotification.getPriority());
         assertTrue(supportNotification.hasFilterKey(AdminActionNotificationFilterKey.UNREAD));
         assertTrue(supportNotification.hasFilterKey(AdminActionNotificationFilterKey.UNRESOLVED));
-        assertEquals(AdminActionNotificationLevel.WARNING, emergencyNotification.getLevel());
-        assertEquals(AdminActionNotificationPriority.IMMEDIATE, emergencyNotification.getPriority());
         assertEquals(linkedRequest.getId(), settlementNotification.getRequestId());
         assertEquals(AdminActionNotificationPriority.IMMEDIATE, settlementNotification.getPriority());
         assertEquals(AdminActionSourceType.SUPPORT, auditLogs.get(0).getSourceType());
@@ -691,13 +666,6 @@ public class MockBodeulRepositoryTest {
                 "Shared overview settlement note.",
                 "관리자B"
         ));
-        assertNotNull(repository.saveEmergencyIssue(
-                linkedRequest.getId(),
-                AdminEmergencyIssueStatus.REPORTED,
-                "Shared overview emergency note.",
-                "관리자B"
-        ));
-
         final AdminDashboard[] dashboardHolder = new AdminDashboard[1];
         final String[] errorHolder = new String[1];
         adminRepository.getAdminDashboard(admin, new RepositoryCallback<AdminDashboard>() {
@@ -1052,7 +1020,7 @@ public class MockBodeulRepositoryTest {
     }
 
     @Test
-    public void bookingRepository_followUpSettlementAndSupportPersistForCompletedRequest() {
+    public void bookingRepository_followUpSettlementPersistsForCompletedRequest() {
         MockBodeulRepository repository = new MockBodeulRepository();
         MockBookingRepository bookingRepository = new MockBookingRepository(repository);
         User patient = repository.findUserByEmail("patient@bodeul.app");
@@ -1118,32 +1086,9 @@ public class MockBodeulRepositoryTest {
                 settlementRecordRef.get().getSettlementNote()
         );
 
-        AtomicReference<AppointmentFollowUpRecord> supportRecordRef = new AtomicReference<>();
-        bookingRepository.saveAppointmentFollowUpSupportEscalation(
-                patient,
-                completedRequest.getId(),
-                AppointmentFollowUpSupportEscalationStatus.DIALED_119,
-                new RepositoryCallback<AppointmentFollowUpRecord>() {
-                    @Override
-                    public void onSuccess(AppointmentFollowUpRecord result) {
-                        supportRecordRef.set(result);
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                    }
-                }
-        );
-
-        assertNotNull(supportRecordRef.get());
-        assertTrue(supportRecordRef.get().hasSavedSupportEscalation());
-        assertEquals(
-                AppointmentFollowUpSupportEscalationStatus.DIALED_119,
-                supportRecordRef.get().getSupportEscalationStatus()
-        );
         assertEquals(
                 AppointmentFollowUpSettlementStatus.CONFIRMED,
-                supportRecordRef.get().getSettlementStatus()
+                settlementRecordRef.get().getSettlementStatus()
         );
     }
 

@@ -5,7 +5,6 @@ package com.example.bodeul.ui.admin;
  */
 public enum AdminMonitoringFilter {
     ALL,
-    EMERGENCY,
     PAYMENT,
     MATCHED,
     IN_PROGRESS
