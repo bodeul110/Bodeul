@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [PR 399 최신 변경 통합 검증 (2026-09-05)](pr-399-integration-verification-2026-09-05.md)
 - [Issue 222 production 위치 게이트 구현 (2026-09-03)](issue-222-production-location-gate-2026-09-03.md)
 - [Notion 정책 충돌 해소 결과 (2026-08-30)](notion-policy-conflict-resolution-2026-08-30.md)
 - [Issue 296 성인 환자 보호자 동의·철회 구현 (2026-08-29)](issue-296-adult-patient-guardian-consent-2026-08-29.md)
