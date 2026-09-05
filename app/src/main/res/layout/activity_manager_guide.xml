@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_screen_glow"
+    android:background="@color/figma_mvp_background"
     android:orientation="vertical">
 
     <ScrollView
@@ -21,38 +21,36 @@
         android:paddingEnd="24dp"
         android:paddingBottom="28dp">
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_height="48dp">
 
-            <ImageView
-                android:layout_width="94dp"
-                android:layout_height="wrap_content"
-                android:adjustViewBounds="true"
-                android:contentDescription="@string/app_name"
-                android:src="@drawable/bodeul_logo_full" />
-
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/buttonBackGuide"
-                style="@style/BodeulOutlinedButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="start|center_vertical"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/guide_back"
+                android:padding="16dp"
+                android:src="@drawable/ic_figma_guide_back_vector" />
+
+            <TextView
+                android:id="@+id/textGuideTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:text="@string/guide_back" />
-        </LinearLayout>
+                android:layout_gravity="center"
+                android:fontFamily="@font/pretendard_bold"
+                android:gravity="center"
+                android:textColor="@color/figma_mvp_text_primary"
+                android:textSize="18sp" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/textGuideMode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="8dp"
             android:background="@drawable/bg_surface_pill"
             android:paddingStart="14dp"
             android:paddingTop="8dp"
@@ -60,15 +58,6 @@
             android:paddingBottom="8dp"
             android:textColor="@color/bodeul_primary"
             android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/textGuideTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:textColor="@color/bodeul_text_primary"
-            android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
@@ -90,7 +79,12 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <include
+                android:id="@+id/managerGuideMeetingOverview"
+                layout="@layout/include_manager_guide_meeting_overview" />
+
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardGuideLegacySummary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
@@ -162,6 +156,7 @@
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardGuideLegacyFocus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
@@ -340,36 +335,41 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="22dp">
+                    android:orientation="vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/guide_map_section_title"
-                        android:textColor="@color/bodeul_text_primary"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
+                    <LinearLayout
+                        android:id="@+id/layoutGuideMapHeader"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/guide_map_section_helper"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="13sp" />
+                        android:orientation="vertical"
+                        android:padding="22dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/guide_map_section_title"
+                            android:textColor="@color/bodeul_text_primary"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/guide_map_section_helper"
+                            android:textColor="@color/bodeul_text_secondary"
+                            android:textSize="13sp" />
+                    </LinearLayout>
 
                     <com.kakao.vectormap.MapView
                         android:id="@+id/mapViewManagerGuide"
                         android:layout_width="match_parent"
-                        android:layout_height="250dp"
-                        android:layout_marginTop="16dp" />
+                        android:layout_height="250dp" />
 
                     <LinearLayout
                         android:id="@+id/guideMapActionContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
                         android:orientation="vertical" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -407,22 +407,41 @@
     </LinearLayout>
     </ScrollView>
 
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/managerGuideBottomAction"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/bodeul_surface"
+        android:background="@android:color/transparent"
         android:elevation="12dp"
-        android:paddingStart="24dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="18dp"
+        android:orientation="vertical"
         android:visibility="gone">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonAdvanceGuide"
-            style="@style/BodeulHomeButton"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-    </FrameLayout>
+            android:layout_height="wrap_content"
+            android:background="@color/figma_mvp_background"
+            android:paddingStart="24dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="10dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonAdvanceGuide"
+                android:layout_width="match_parent"
+                android:layout_height="62dp"
+                android:fontFamily="@font/pretendard_medium"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                app:backgroundTint="@color/figma_mvp_primary"
+                app:cornerRadius="48dp"
+                app:icon="@drawable/ic_figma_guide_arrow_vector"
+                app:iconGravity="textEnd"
+                app:iconPadding="12dp"
+                app:iconSize="16dp"
+                app:iconTint="@null" />
+        </FrameLayout>
+
+        <include layout="@layout/include_manager_guide_bottom_nav" />
+    </LinearLayout>
 </LinearLayout>

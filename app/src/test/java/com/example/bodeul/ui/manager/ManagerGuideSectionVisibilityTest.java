@@ -10,12 +10,17 @@ import org.junit.Test;
 public class ManagerGuideSectionVisibilityTest {
     @Test
     public void forStep_limitsActionsToExactCurrentStep() {
+        ManagerGuideSectionVisibility meeting = ManagerGuideSectionVisibility.forStep(
+                new GuideStep("MEETING_CONFIRMATION", 1, "매칭 및 상봉", ""));
         ManagerGuideSectionVisibility pharmacyRoute = ManagerGuideSectionVisibility.forStep(
                 new GuideStep("PHARMACY_ROUTE", 9, "약국 이동", ""));
         ManagerGuideSectionVisibility medication = ManagerGuideSectionVisibility.forStep(
                 new GuideStep("MEDICATION_CONFIRMATION", 11, "복약 확인", ""));
         ManagerGuideSectionVisibility journal = ManagerGuideSectionVisibility.forStep(
                 new GuideStep("MANAGER_JOURNAL", 13, "매니저 일지", ""));
+
+        assertTrue(meeting.isMapVisible());
+        assertFalse(meeting.hasActionSection());
 
         assertTrue(pharmacyRoute.isMapVisible());
         assertFalse(pharmacyRoute.hasNotesSection());
