@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
@@ -124,6 +125,19 @@ class BankTransferPaymentMigrationContractTests {
         assertThat(rollbackAtomicityChecks)
                 .contains("50000000-0000-0000-0000-000000000002")
                 .contains("일부 객체 또는 운영 자료를 제거했습니다.");
+    }
+
+    @Test
+    void domainRejectionChecksDoNotSwallowTheirOwnAssertionFailures() throws IOException {
+        String checks = fileText("db/verification/018_bank_transfer_payment_checks.sql");
+        long guardedAssertions = Pattern.compile(
+                "raise exception '[^']+'\\s+using errcode = 'p0004';"
+                        + "\\s+exception\\s+when sqlstate 'p0001' then null;")
+                .matcher(checks)
+                .results()
+                .count();
+
+        assertThat(guardedAssertions).isEqualTo(3);
     }
 
     @Test

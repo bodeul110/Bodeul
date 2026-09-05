@@ -103,6 +103,6 @@ Firebase Rules, Functions와 별도 `bodeul-admin-web` 저장소는 변경하지
 
 ## 남은 범위
 
-- preview PostgreSQL V22 적용, 같은 revision의 Core API 배포와 실제 계좌 없는 Android 종단 검증
+- Preview DB·API의 후속 적용 결과는 [2026-09-05 Preview 검증 기록](issue-27-preview-payment-validation-2026-09-05.md)을 따른다. 실제 계좌 없는 Android 종단 검증은 아직 남아 있다.
 - 별도 관리자 서버와 관리자 웹의 제한 전이 함수 연결
 - 운영 명의 계좌, 현금영수증, 취소·환불 절차와 접근 책임자 승인 뒤 production 활성화

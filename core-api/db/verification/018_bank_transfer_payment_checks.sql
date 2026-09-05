@@ -328,7 +328,9 @@ begin
             0,
             '입금 전 매칭 차단 검증'
         );
-        raise exception '입금 확인 전 무통장입금 예약이 매칭됐습니다.';
+        -- 검증 실패를 예상한 도메인 오류(P0001)로 삼키지 않는다.
+        raise exception '입금 확인 전 무통장입금 예약이 매칭됐습니다.'
+            using errcode = 'P0004';
     exception
         when sqlstate 'P0001' then null;
     end;
@@ -476,7 +478,8 @@ begin
             null,
             '환불 요청 이전 완료 차단 검증'
         );
-        raise exception '환불 요청 이전 REFUNDED 전이가 허용됐습니다.';
+        raise exception '환불 요청 이전 REFUNDED 전이가 허용됐습니다.'
+            using errcode = 'P0004';
     exception
         when sqlstate 'P0001' then null;
     end;
@@ -543,7 +546,8 @@ begin
             69000,
             '취소 예약의 지연 입금 확인 완료 차단'
         );
-        raise exception '취소된 예약의 지연 입금이 확인 완료 상태로 변경됐습니다.';
+        raise exception '취소된 예약의 지연 입금이 확인 완료 상태로 변경됐습니다.'
+            using errcode = 'P0004';
     exception
         when sqlstate 'P0001' then null;
     end;
