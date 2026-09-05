@@ -38,3 +38,5 @@
 3. production 계좌 노출·금전 수취·환불은 #27의 운영 gate 전까지 활성화하지 않는다.
 
 V23 rollback은 조회 함수만 제거한다. 원장·결제 이벤트·관리자 감사는 보존하며 V22 rollback보다 먼저 실행한다. 사용자 Core API 계약과 Android에는 변경이 없다.
+
+2026-09-05 개발 DB V23 적용, 승인된 최초 관리자 역할 부여와 실제 Preview의 관리자 조회 `200`·일반 사용자 거부 `403`·쓰기 잠금 `423`을 확인했다. [개발 DB 적용·연동 검증 기록](../reports/issue-27-admin-payment-integration-2026-09-05.md)에 근거와 남은 상태 변경·MFA/App Check 검증 범위를 기록했다. 코드 병합·DB 적용과 Production 결제 활성화는 별도다.
