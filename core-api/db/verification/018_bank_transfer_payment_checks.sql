@@ -586,4 +586,6 @@ begin
 end;
 $$;
 
+\ir 022_admin_bank_transfer_payment_read_checks.sql
+
 rollback;
