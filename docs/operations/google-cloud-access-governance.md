@@ -70,6 +70,14 @@ Google Cloud에는 `bodeul326-org`와 `bodeul.kr` 두 조직이 보인다. 현�
 
 계정 삭제, 이메일 별칭 제거와 프로젝트 조직 이동을 먼저 실행하지 않는다. Google Admin Console 검증 결과 `bodeul.official@gmail.com`과 `scp@bodeul.kr` 사이의 Workspace 별칭이나 비관리 계정 충돌은 없다. 로그인 시 `scp@bodeul.kr`로 전환되는 현상은 두 계정을 합친 서버 설정이 아니라 브라우저 프로필과 Google 계정 선택 세션을 분리해 확인한다.
 
+## 공용 결제 전환 경계
+
+공용 계정으로 로그인하는 것과 Cloud Billing 계정·결제 수단을 이전하는 것은 별개다. 이번 접근 권한 정리를 이유로 기존 개인 결제 계정을 자동 재개하거나 개인 결제 수단을 다시 등록하지 않는다.
+
+팀의 청구·납부 주체와 승인된 결제 수단을 준비한 뒤 공용 관리 체계의 결제 계정을 별도로 구성한다. 관리자·복구 담당자의 접근을 확인하고, 기존 `bodeul-dev`와 `bodeul-prod-110`의 연결만 변경한다. 프로젝트 자체를 다시 만들거나 이동하는 작업과 묶지 않는다.
+
+전환 완료는 결제 계정의 `open=true`, 각 프로젝트의 예상 결제 계정 연결과 `billingEnabled=true`를 확인한 뒤 판단한다. 그 후 필요한 개발 배포와 서비스 접근을 별도로 검증한다. 결제 등록·약관·카드 입력은 담당자가 직접 완료하며, 결제 계정과 Google Payments 권한을 동일한 것으로 취급하지 않는다.
+
 ## 점검 명령
 
 현재 로컬 보들 설정 이름은 `bodeul-ops`다. 기본 계정이나 기본 프로젝트를 추정하지 않고 설정 이름과 대상 프로젝트를 명시한다. 복구 관리자 점검은 `--account=<복구 관리자 계정>`을 추가해 수행하며, 활성 계정이나 다른 프로젝트의 인증을 교체하지 않는다.
@@ -93,3 +101,5 @@ gcloud organizations list --configuration=bodeul-ops
 - [Google Workspace 관리자 계정 보안 권장사항](https://knowledge.workspace.google.com/admin/users/security-best-practices-for-administrator-accounts)
 - [Google Cloud 서비스 계정 보안 권장사항](https://cloud.google.com/iam/docs/best-practices-service-accounts)
 - [Google Cloud 프로젝트 조직 간 이동](https://cloud.google.com/resource-manager/docs/project-migration)
+- [Cloud Billing과 Google Payments 접근 권한](https://docs.cloud.google.com/billing/docs/how-to/billing-access)
+- [기존 프로젝트의 Cloud Billing 계정 변경](https://docs.cloud.google.com/billing/docs/how-to/modify-project)
