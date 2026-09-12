@@ -25,4 +25,6 @@
     <color name="figma_mvp_nav_inactive">#94A3B8</color>
     <color name="figma_mvp_gold_text">#835500</color>
     <color name="figma_mvp_card_outline">#1AC3C6D4</color>
+    <color name="figma_mvp_subtle_divider">#F2F4F7</color>
+    <color name="figma_mvp_bottom_surface">#E6F7F9FC</color>
 </resources>
