@@ -359,6 +359,10 @@ public final class BookingFormBinder {
         applyHospitalSelection(selection, true);
     }
 
+    public void applyAppointmentAt(String appointmentAt) {
+        appointmentSelector.setAppointmentAt(appointmentAt);
+    }
+
     public BookingMeetingLocationSelection getMeetingLocationSelection() {
         return new BookingMeetingLocationSelection(
                 selectedMeetingPointId,
