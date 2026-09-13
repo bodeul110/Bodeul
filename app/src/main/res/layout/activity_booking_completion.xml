@@ -1,268 +1,473 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/bookingCompletionRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_screen_glow"
-    android:fillViewport="true">
+    android:background="@color/figma_mvp_background"
+    android:orientation="vertical">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingTop="24dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="28dp">
+        android:layout_height="64dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/buttonBackBookingCompletion"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="8dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/guide_back"
+            android:padding="15dp"
+            android:src="@drawable/ic_booking_completion_back" />
+
+        <TextView
+            android:id="@+id/textBookingCompletionScreenTitle"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_gravity="center"
+            android:fontFamily="@font/pretendard_medium"
+            android:includeFontPadding="false"
+            android:textColor="@color/figma_mvp_text_primary"
+            android:textSize="16sp"
+            tools:text="예약 신청 완료" />
+    </FrameLayout>
 
-            <ImageView
-                android:layout_width="94dp"
-                android:layout_height="wrap_content"
-                android:adjustViewBounds="true"
-                android:contentDescription="@string/app_name"
-                android:src="@drawable/bodeul_logo_full" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <TextView
-                android:id="@+id/buttonBackBookingCompletion"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_surface_pill"
-                android:paddingStart="14dp"
-                android:paddingTop="9dp"
-                android:paddingEnd="14dp"
-                android:paddingBottom="9dp"
-                android:text="@string/guide_back"
-                android:textColor="@color/bodeul_primary"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <com.google.android.material.card.MaterialCardView
+        <ScrollView
+            android:id="@+id/scrollBookingCompletion"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            app:cardBackgroundColor="@color/bodeul_surface"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="6dp"
-            app:strokeColor="@color/bodeul_outline"
-            app:strokeWidth="1dp">
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:paddingBottom="160dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="22dp">
-
-                <TextView
-                    android:id="@+id/textBookingCompletionBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_badge_green"
-                    android:paddingStart="10dp"
-                    android:paddingTop="5dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="5dp"
-                    android:textColor="@color/bodeul_success"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textBookingCompletionTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textBookingCompletionBody"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:lineSpacingExtra="4dp"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="14sp" />
+                android:paddingStart="24dp"
+                android:paddingTop="32dp"
+                android:paddingEnd="24dp"
+                android:paddingBottom="160dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:background="@drawable/bg_surface_pill"
+                    android:gravity="center_horizontal"
                     android:orientation="vertical"
-                    android:padding="18dp">
+                    android:paddingTop="24dp"
+                    android:paddingBottom="48dp">
+
+                    <FrameLayout
+                        android:layout_width="96dp"
+                        android:layout_height="96dp"
+                        android:background="@drawable/bg_booking_completion_success_circle"
+                        android:elevation="2dp">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_booking_completion_success" />
+                    </FrameLayout>
 
                     <TextView
+                        android:id="@+id/textBookingCompletionTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/booking_completion_request_id_label"
-                        android:textColor="@color/bodeul_text_secondary"
-                        android:textSize="12sp" />
+                        android:layout_marginTop="24dp"
+                        android:fontFamily="@font/pretendard_regular"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:textColor="@color/figma_mvp_text_primary"
+                        android:textSize="24sp"
+                        tools:text="동행 신청이 완료되었어요." />
 
                     <TextView
-                        android:id="@+id/textBookingCompletionRequestId"
-                        android:layout_width="match_parent"
+                        android:id="@+id/textBookingCompletionBody"
+                        android:layout_width="280dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textColor="@color/bodeul_text_primary"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="@font/pretendard_regular"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="@color/figma_mvp_text_secondary"
                         android:textSize="16sp"
-                        android:textStyle="bold" />
+                        tools:text="보들이 조건에 맞는 매니저를 찾고 있어요." />
                 </LinearLayout>
 
-                <TextView
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:text="@string/booking_completion_summary_section"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="17sp"
-                    android:textStyle="bold" />
+                    android:layout_height="72dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="40dp">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/booking_status_line_schedule"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="12sp" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:layout_gravity="top"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginTop="14dp"
+                        android:layout_marginEnd="16dp"
+                        android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/textBookingCompletionSchedule"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="4dp"
+                            android:layout_weight="1"
+                            android:background="@color/figma_mvp_primary" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/booking_status_line_hospital"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="12sp" />
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="4dp"
+                            android:layout_weight="1"
+                            android:background="@color/figma_mvp_input" />
+                    </LinearLayout>
 
-                <TextView
-                    android:id="@+id/textBookingCompletionHospital"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/booking_status_line_place"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="12sp" />
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/textBookingCompletionMeetingPlace"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                            <FrameLayout
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@drawable/bg_booking_completion_step_complete"
+                                android:elevation="1dp">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/booking_option_section"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="12sp" />
+                                <ImageView
+                                    android:layout_width="10dp"
+                                    android:layout_height="8dp"
+                                    android:layout_gravity="center"
+                                    android:contentDescription="@null"
+                                    android:src="@drawable/ic_booking_completion_step_check" />
+                            </FrameLayout>
 
-                <TextView
-                    android:id="@+id/textBookingCompletionOption"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_progress_submitted"
+                                android:textColor="@color/figma_mvp_primary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/booking_payment_section"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="12sp" />
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/textBookingCompletionPayment"
+                            <FrameLayout
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@drawable/bg_booking_completion_step_active"
+                                android:elevation="1dp">
+
+                                <ImageView
+                                    android:layout_width="10dp"
+                                    android:layout_height="10dp"
+                                    android:layout_gravity="center"
+                                    android:contentDescription="@null"
+                                    android:src="@drawable/ic_booking_completion_step_loading" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_progress_matching"
+                                android:textColor="@color/figma_mvp_text_primary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center_horizontal"
+                            android:orientation="vertical">
+
+                            <FrameLayout
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@drawable/bg_booking_completion_step_pending">
+
+                                <ImageView
+                                    android:layout_width="13dp"
+                                    android:layout_height="12dp"
+                                    android:layout_gravity="center"
+                                    android:contentDescription="@null"
+                                    android:src="@drawable/ic_booking_completion_step_match" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_progress_matched"
+                                android:textColor="@color/figma_mvp_text_secondary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </FrameLayout>
+
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:layout_marginBottom="32dp"
+                    app:cardBackgroundColor="@color/figma_mvp_surface"
+                    app:cardCornerRadius="48dp"
+                    app:cardElevation="6dp"
+                    app:cardUseCompatPadding="false"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="24dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_booking_completion_calendar" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_detail_title"
+                                android:textColor="@color/figma_mvp_text_primary"
+                                android:textSize="16sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="24dp"
+                            android:gravity="top"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_hospital_department_label"
+                                android:textColor="@color/figma_mvp_text_secondary"
+                                android:textSize="16sp" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/textBookingCompletionHospital"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/pretendard_regular"
+                                    android:gravity="end"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/figma_mvp_text_primary"
+                                    android:textSize="16sp"
+                                    tools:text="서울대학교병원" />
+
+                                <TextView
+                                    android:id="@+id/textBookingCompletionDepartment"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/pretendard_regular"
+                                    android:gravity="end"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/figma_mvp_primary"
+                                    android:textSize="16sp"
+                                    tools:text="신경과" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="20dp"
+                            android:background="@color/figma_mvp_subtle_divider" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:gravity="top"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_date_time_label"
+                                android:textColor="@color/figma_mvp_text_secondary"
+                                android:textSize="16sp" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/textBookingCompletionDate"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/pretendard_bold"
+                                    android:gravity="end"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/figma_mvp_text_primary"
+                                    android:textSize="16sp"
+                                    tools:text="2026. 08. 20 (목)" />
+
+                                <TextView
+                                    android:id="@+id/textBookingCompletionTime"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/pretendard_regular"
+                                    android:gravity="end"
+                                    android:includeFontPadding="false"
+                                    android:textColor="@color/figma_mvp_text_secondary"
+                                    android:textSize="16sp"
+                                    tools:text="오전 09:30" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="20dp"
+                            android:background="@color/figma_mvp_subtle_divider" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:gravity="top"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/pretendard_medium"
+                                android:includeFontPadding="false"
+                                android:text="@string/booking_completion_note_label"
+                                android:textColor="@color/figma_mvp_text_secondary"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:id="@+id/textBookingCompletionNote"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:fontFamily="@font/pretendard_regular"
+                                android:gravity="end"
+                                android:includeFontPadding="false"
+                                android:lineSpacingExtra="4dp"
+                                android:maxLines="2"
+                                android:textColor="@color/figma_mvp_text_primary"
+                                android:textSize="16sp"
+                                tools:text="어머니께서 거동이 조금 불편하십니다. 휠체어 대여 및" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+        </ScrollView>
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/layoutBookingCompletionNote"
+        <LinearLayout
+            android:id="@+id/layoutBookingCompletionBottomAction"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="@color/bodeul_surface"
-            app:cardCornerRadius="28dp"
-            app:cardElevation="6dp"
-            app:strokeColor="@color/bodeul_outline"
-            app:strokeWidth="1dp">
+            android:layout_gravity="bottom"
+            android:background="@drawable/bg_booking_completion_bottom_action"
+            android:elevation="16dp"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="24dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="22dp">
+                android:layout_height="24dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_booking_completion_bell" />
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/booking_note_section"
-                    android:textColor="@color/bodeul_text_primary"
-                    android:textSize="17sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textBookingCompletionNote"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:lineSpacingExtra="4dp"
-                    android:textColor="@color/bodeul_text_secondary"
-                    android:textSize="14sp" />
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/pretendard_medium"
+                    android:includeFontPadding="false"
+                    android:text="@string/booking_completion_notification_notice"
+                    android:textColor="@color/figma_mvp_text_secondary"
+                    android:textSize="16sp" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonBookingCompletionDetail"
-            style="@style/BodeulHomeButton"
-            android:layout_marginTop="20dp"
-            android:text="@string/booking_completion_action_detail" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/buttonBookingCompletionList"
-            style="@style/BodeulOutlinedButton"
-            android:layout_marginTop="10dp"
-            android:text="@string/booking_completion_action_list" />
-
-    </LinearLayout>
-</ScrollView>
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/buttonBookingCompletionList"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_figma_primary_button"
+                android:backgroundTint="@null"
+                android:elevation="3dp"
+                android:fontFamily="@font/pretendard_medium"
+                android:gravity="center"
+                android:stateListAnimator="@null"
+                android:text="@string/booking_completion_action_list"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>
