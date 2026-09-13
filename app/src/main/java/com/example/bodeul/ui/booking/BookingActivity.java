@@ -161,7 +161,8 @@ public class BookingActivity extends AppCompatActivity {
                 findViewById(R.id.buttonBookingQuickMorning),
                 findViewById(R.id.buttonBookingQuickAfternoon),
                 findViewById(R.id.buttonBookingQuickLateAfternoon),
-                appointmentSelectorLauncher
+                appointmentSelectorLauncher,
+                () -> preserveFormOnNextDashboardBind = true
         );
 
         dashboardBinder = new BookingDashboardBinder(
