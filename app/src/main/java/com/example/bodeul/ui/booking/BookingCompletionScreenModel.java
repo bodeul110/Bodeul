@@ -1,49 +1,40 @@
 package com.example.bodeul.ui.booking;
 
 /**
- * 예약 완료 화면에 필요한 문구 묶음이다.
+ * 예약 완료 화면에 표시할 Figma 기준 정보 묶음이다.
  */
 public final class BookingCompletionScreenModel {
-    private final String badge;
+    private final String screenTitle;
     private final String title;
     private final String body;
-    private final String requestId;
-    private final String schedule;
     private final String hospital;
-    private final String meetingPlace;
-    private final String optionSummary;
-    private final String paymentSummary;
+    private final String department;
+    private final String date;
+    private final String time;
     private final String note;
-    private final boolean noteVisible;
 
     public BookingCompletionScreenModel(
-            String badge,
+            String screenTitle,
             String title,
             String body,
-            String requestId,
-            String schedule,
             String hospital,
-            String meetingPlace,
-            String optionSummary,
-            String paymentSummary,
-            String note,
-            boolean noteVisible
+            String department,
+            String date,
+            String time,
+            String note
     ) {
-        this.badge = badge;
+        this.screenTitle = screenTitle;
         this.title = title;
         this.body = body;
-        this.requestId = requestId;
-        this.schedule = schedule;
         this.hospital = hospital;
-        this.meetingPlace = meetingPlace;
-        this.optionSummary = optionSummary;
-        this.paymentSummary = paymentSummary;
+        this.department = department;
+        this.date = date;
+        this.time = time;
         this.note = note;
-        this.noteVisible = noteVisible;
     }
 
-    public String getBadge() {
-        return badge;
+    public String getScreenTitle() {
+        return screenTitle;
     }
 
     public String getTitle() {
@@ -54,35 +45,23 @@ public final class BookingCompletionScreenModel {
         return body;
     }
 
-    public String getRequestId() {
-        return requestId;
-    }
-
-    public String getSchedule() {
-        return schedule;
-    }
-
     public String getHospital() {
         return hospital;
     }
 
-    public String getMeetingPlace() {
-        return meetingPlace;
+    public String getDepartment() {
+        return department;
     }
 
-    public String getOptionSummary() {
-        return optionSummary;
+    public String getDate() {
+        return date;
     }
 
-    public String getPaymentSummary() {
-        return paymentSummary;
+    public String getTime() {
+        return time;
     }
 
     public String getNote() {
         return note;
-    }
-
-    public boolean isNoteVisible() {
-        return noteVisible;
     }
 }
