@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="booking_health_profile_app_bar_title">환자 건강 프로필 등록</string>
+    <string name="booking_health_profile_back">이전 화면</string>
+    <string name="booking_health_profile_step">STEP 02. 건강 정보</string>
+    <string name="booking_health_profile_heading">정확한 동행을 위해\n건강 상태를 알려주세요.</string>
+    <string name="booking_health_profile_heading_accent">건강 상태</string>
+    <string name="booking_health_profile_helper">입력하신 정보는 보호자님의 동의 없이 외부로 유출되지 않으며,\n최적의 매칭을 위한 자료로만 활용됩니다.</string>
+    <string name="booking_health_profile_mobility_title">현재 거동 상태</string>
+    <string name="booking_health_profile_mobility_independent">자유로운 보행</string>
+    <string name="booking_health_profile_mobility_aid">보조기구 필요</string>
+    <string name="booking_health_profile_mobility_wheelchair">휠체어/와상</string>
+    <string name="booking_health_profile_history_title">기저질환 및 복용하고 있는 약</string>
+    <string name="booking_health_profile_condition_hint">당뇨, 고혈압 등 진단받으신 질환을 입력해 주세요.</string>
+    <string name="booking_health_profile_medication_hint">복용 중인 약 또는 챙겨야 할 물품을 입력해 주세요.</string>
+    <string name="booking_health_profile_precautions_title">매칭 시 주의사항</string>
+    <string name="booking_health_profile_precautions_helper">매니저가 꼭 알아야 할 환자분의 특이사항이나 생활 습관이 있나요?</string>
+    <string name="booking_health_profile_precautions_hint">예: 낯가림이 심함, 특정 음식 알레르기, 특정 대화 주제 기피 등</string>
+    <string name="booking_health_profile_complete">건강 정보 저장하기</string>
+    <string name="booking_health_profile_footer">언제든 예약 수정 화면에서 정보를 변경할 수 있습니다.</string>
+    <string name="booking_health_profile_main_summary_empty">건강 정보가 아직 등록되지 않았습니다.</string>
+    <string name="booking_health_profile_main_summary_format">%1$s · %2$s</string>
+    <string name="booking_health_profile_main_action">건강 정보 등록/수정</string>
+    <string name="booking_health_profile_main_error">필수 건강 정보를 등록해 주세요.</string>
+</resources>
