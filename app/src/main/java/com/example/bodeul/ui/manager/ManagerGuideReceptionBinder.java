@@ -36,6 +36,7 @@ final class ManagerGuideReceptionBinder {
     private final AppCompatButton share;
     private final MaterialButton toggleFieldNote;
     private boolean fieldNoteExpanded;
+    private String boundSessionId = "";
 
     ManagerGuideReceptionBinder(View root) {
         receptionContent = root.findViewById(R.id.managerGuideReceptionContent);
@@ -74,6 +75,15 @@ final class ManagerGuideReceptionBinder {
             EnvironmentModeBadgeHelper.bind(mode, model.getModeLabel());
             return;
         }
+
+        String sessionId = dashboard == null || dashboard.getSession() == null
+                ? "" : dashboard.getSession().getId();
+        if (ManagerGuideReceptionDraftPolicy.shouldClear(boundSessionId, sessionId)) {
+            queue.setText(null);
+            waitMinutes.setText(null);
+            fieldNoteExpanded = false;
+        }
+        boundSessionId = sessionId;
 
         mode.setVisibility(View.GONE);
         subtitle.setVisibility(View.GONE);

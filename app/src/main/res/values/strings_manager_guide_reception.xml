@@ -2,7 +2,7 @@
 <resources>
     <string name="guide_reception_stage_badge">현재 진행 단계</string>
     <string name="guide_reception_hero_title">접수 확인 및\n대기 정보 입력</string>
-    <string name="guide_reception_hero_body">병원 접수 후 받은 대기번호와 예상 대기 시간을 입력해 보호자에게 알려주세요.</string>
+    <string name="guide_reception_hero_body">병원 접수 후 받은 대기번호와 예상 대기 시간을 기록해 보호자 공유 내용에 반영하세요.</string>
     <string name="guide_reception_queue_label">대기번호</string>
     <string name="guide_reception_queue_hint">번호 입력</string>
     <string name="guide_reception_wait_label">예상 대기 시간</string>
@@ -12,8 +12,8 @@
     <string name="guide_reception_patient_name_format">%1$s 환자</string>
     <string name="guide_reception_hospital_format">%1$s · %2$s</string>
     <string name="guide_reception_bell_decoration">접수 단계 안내</string>
-    <string name="guide_reception_share_action">대기 시간 보호자에게 전달하기</string>
-    <string name="guide_reception_share_helper">전송하면 기존 보호자 공유 메시지가 새 내용으로 교체됩니다.</string>
+    <string name="guide_reception_share_action">대기 정보 저장하기</string>
+    <string name="guide_reception_share_helper">저장하면 기존 보호자 공유 내용이 교체됩니다. 보호자 화면 반영은 계정 연결과 공유 권한에 따릅니다.</string>
     <string name="guide_reception_share_format">접수 대기 정보 · 대기번호 %1$s · 예상 대기 %2$d분</string>
     <string name="guide_reception_last_share_format">최근 보호자 공유: %1$s</string>
     <string name="guide_reception_queue_required">대기번호를 입력해 주세요.</string>
