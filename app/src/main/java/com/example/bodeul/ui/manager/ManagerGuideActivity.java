@@ -76,6 +76,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private ManagerGuideViewModel viewModel;
     private ManagerGuideDashboardBinder managerGuideDashboardBinder;
     private ManagerGuideReceptionBinder managerGuideReceptionBinder;
+    private ManagerGuidePreConsultationBinder managerGuidePreConsultationBinder;
 
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
@@ -268,9 +269,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonSubmitReport)
         );
         managerGuideReceptionBinder = new ManagerGuideReceptionBinder(findViewById(android.R.id.content));
+        managerGuidePreConsultationBinder = new ManagerGuidePreConsultationBinder(
+                findViewById(android.R.id.content));
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuidePreConsultation).setOnClickListener(view -> finish());
         findViewById(R.id.buttonGuideReceptionShare).setOnClickListener(view -> {
             if (!"RECEPTION_QUEUE".equals(currentStepCode) || mutationInFlight) {
                 return;
@@ -285,6 +289,16 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 startActivity(new Intent(this, ManagerHistoryActivity.class)));
         findViewById(R.id.navGuideProfile).setOnClickListener(view ->
                 startActivity(new Intent(this, ManagerProfileActivity.class)));
+        findViewById(R.id.buttonGuidePreConsultationComplete).setOnClickListener(view -> {
+            if ("PRE_CONSULTATION".equals(currentStepCode)
+                    && !managerGuidePreConsultationBinder.isConfirmed()) {
+                if (managerGuidePreConsultationBinder.canConfirm() && !mutationInFlight) {
+                    viewModel.updatePreConsultationConfirmed(true);
+                }
+                return;
+            }
+            performPrimaryAction();
+        });
         buttonAdvanceGuide.setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
@@ -379,6 +393,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
             managerGuideReceptionBinder.hideForState();
+            managerGuidePreConsultationBinder.hideForState();
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             currentStepCode = "";
             managerGuideContentContainer.setVisibility(View.GONE);
@@ -411,6 +426,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     managerGuideDashboardBinder.bindScreen(state.screenModel);
                     managerGuideReceptionBinder.bind(
                             state.screenModel, state.dashboard, mutationInFlight);
+                    managerGuidePreConsultationBinder.bind(
+                            state.screenModel, state.dashboard, mutationInFlight);
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
@@ -424,6 +441,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 updateMapMarker();
             } else {
                 managerGuideReceptionBinder.hideForState();
+                managerGuidePreConsultationBinder.hideForState();
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 currentStepCode = "";
                 managerGuideContentContainer.setVisibility(View.GONE);
@@ -482,6 +500,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void disableMutationActions() {
         managerGuideReceptionBinder.setShareEnabled(false);
+        findViewById(R.id.buttonGuidePreConsultationComplete).setEnabled(false);
         buttonAdvanceGuide.setEnabled(false);
         buttonSubmitReport.setEnabled(false);
         buttonSelectGuideSessionArtifact.setEnabled(false);

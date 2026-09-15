@@ -374,12 +374,14 @@ public class ManagerGuideViewModel extends ViewModel {
 
     public void updatePreConsultationConfirmed(boolean confirmed) {
         if (currentUser == null) return;
+        if (!beginMutation()) return;
         managerRepository.updatePreConsultationConfirmed(
                 currentUser.getId(),
                 confirmed,
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override
                     public void onSuccess(ManagerDashboard result) {
+                        finishMutation();
                         _toastMessage.setValue(confirmed
                                 ? "진료 전 확인을 완료했습니다."
                                 : "진료 전 확인을 해제했습니다.");
@@ -388,6 +390,7 @@ public class ManagerGuideViewModel extends ViewModel {
 
                     @Override
                     public void onError(String message) {
+                        finishMutation();
                         _toastMessage.setValue(message);
                         loadDashboard();
                     }
