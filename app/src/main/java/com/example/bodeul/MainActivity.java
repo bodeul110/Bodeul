@@ -6,6 +6,8 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bodeul.data.AuthRepository;
@@ -18,11 +20,13 @@ import com.example.bodeul.ui.auth.ProfileCompletionActivity;
 import com.example.bodeul.ui.auth.RoleSelectionActivity;
 import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
+import com.example.bodeul.ui.booking.ClientBookingHistoryActivity;
 import com.example.bodeul.ui.common.AppointmentProgressComposer;
 import com.example.bodeul.ui.health.HealthInfoActivity;
 import com.example.bodeul.ui.home.ClientHomeCoordinator;
 import com.example.bodeul.ui.home.ClientHomeDashboard;
 import com.example.bodeul.ui.home.ClientHomeDashboardBinder;
+import com.example.bodeul.ui.home.ClientHomeInsets;
 import com.example.bodeul.ui.home.ClientHomeNoticeProvider;
 import com.example.bodeul.ui.navigation.ClientBottomNavigationBinder;
 import com.example.bodeul.ui.navigation.ClientBottomNavigationRouter;
@@ -51,7 +55,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_client_home_figma);
 
         authRepository = ServiceLocator.provideAuthRepository(this);
         clientHomeCoordinator = new ClientHomeCoordinator(
@@ -84,24 +89,30 @@ public class MainActivity extends AppCompatActivity {
                 findViewById(R.id.textHomeProgressBody),
                 findViewById(R.id.layoutHomeProgressStageContainer),
                 findViewById(R.id.buttonHomeProgressDetail),
-                findViewById(R.id.textActionSecondaryBadge),
-                findViewById(R.id.textActionSecondaryCounter),
                 findViewById(R.id.textActionSecondaryTitle),
                 findViewById(R.id.textActionSecondaryBody),
-                findViewById(R.id.textRecentBadge),
-                findViewById(R.id.textRecentTitle),
-                findViewById(R.id.textRecentBody),
-                findViewById(R.id.buttonOpenRecent),
+                findViewById(R.id.textActionHistoryBody),
+                findViewById(R.id.textActionSupportBody),
+                findViewById(R.id.textActionSupportCounter),
+                findViewById(R.id.layoutHomeProgressSection),
                 findViewById(R.id.layoutHomeNoticeContainer)
         );
         findViewById(R.id.buttonHomeHeroPrimary).setOnClickListener(view -> openHeroAction());
         findViewById(R.id.buttonHomeProgressDetail).setOnClickListener(view -> openProgressAction());
         findViewById(R.id.cardActionBooking).setOnClickListener(view -> openBooking());
-        findViewById(R.id.cardActionSecondary).setOnClickListener(view -> openSecondaryAction());
-        findViewById(R.id.buttonOpenRecent).setOnClickListener(view -> openRecentAction());
+        findViewById(R.id.cardActionSecondary).setOnClickListener(view -> openHealthInfo());
+        findViewById(R.id.cardActionHistory).setOnClickListener(view -> openBookingHistory());
+        findViewById(R.id.cardActionSupport).setOnClickListener(view -> openSupport());
+        findViewById(R.id.buttonHomeSupport).setOnClickListener(view -> openSupport());
+        findViewById(R.id.textHomeNoticeMore).setOnClickListener(view -> showServiceIntroduction());
         findViewById(R.id.buttonHomeSignOut).setOnClickListener(view -> signOut());
         dashboardBinder.setOnSupportBannerClickListener(view -> openSupport());
         bottomNavigation = findViewById(R.id.clientBottomNavigation);
+        ClientHomeInsets.apply(
+                findViewById(R.id.scrollClientHome),
+                findViewById(R.id.layoutClientHomeTopBar),
+                bottomNavigation
+        );
         bottomNavigation.setVisibility(View.GONE);
         ClientBottomNavigationBinder.bind(
                 bottomNavigation,
@@ -214,20 +225,12 @@ public class MainActivity extends AppCompatActivity {
         openPrimaryAction();
     }
 
-    private void openRecentAction() {
-        if (currentDashboard != null && currentDashboard.isGuardianUser()) {
-            openGuardianReport();
-            return;
-        }
-        openPrimaryAction();
-    }
-
-    private void openSecondaryAction() {
-        openHealthInfo();
-    }
-
     private void openBooking() {
         startActivity(new Intent(this, BookingActivity.class));
+    }
+
+    private void openBookingHistory() {
+        startActivity(new Intent(this, ClientBookingHistoryActivity.class));
     }
 
     private void openPrimaryRequestDetail() {
@@ -262,6 +265,14 @@ public class MainActivity extends AppCompatActivity {
             requestId = currentDashboard.getPrimaryRequest().getId();
         }
         startActivity(ClientSupportActivity.createIntent(this, requestId));
+    }
+
+    private void showServiceIntroduction() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.client_home_notice_title)
+                .setMessage(R.string.client_home_service_intro_dialog_body)
+                .setPositiveButton(R.string.permission_guide_confirm, null)
+                .show();
     }
 
     private void signOut() {
