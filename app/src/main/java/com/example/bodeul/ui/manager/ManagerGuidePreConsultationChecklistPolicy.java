@@ -10,10 +10,10 @@ final class ManagerGuidePreConsultationChecklistPolicy {
             boolean inputsEnabled,
             boolean mutationInFlight,
             boolean medicationChecked,
-            boolean guardianChecked,
+            boolean requestChecked,
             boolean documentsChecked
     ) {
         return !alreadyConfirmed && inputsEnabled && !mutationInFlight
-                && medicationChecked && guardianChecked && documentsChecked;
+                && medicationChecked && requestChecked && documentsChecked;
     }
 }

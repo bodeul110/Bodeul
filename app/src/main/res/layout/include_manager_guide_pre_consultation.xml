@@ -18,7 +18,7 @@
         android:paddingBottom="5dp"
         android:text="@string/guide_pre_consultation_step_badge"
         android:textColor="@color/figma_mvp_primary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:layout_width="match_parent"
@@ -163,11 +163,11 @@
             android:padding="20dp">
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/checkGuidePreConsultationMedication"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:buttonTint="@color/figma_mvp_primary"
-                android:minWidth="32dp"
-                android:minHeight="32dp"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
                 android:contentDescription="@string/guide_pre_consultation_medication_title" />
             <LinearLayout
                 android:layout_width="0dp"
@@ -209,13 +209,13 @@
             android:orientation="horizontal"
             android:padding="20dp">
             <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/checkGuidePreConsultationGuardian"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:id="@+id/checkGuidePreConsultationRequest"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:buttonTint="@color/figma_mvp_primary"
-                android:minWidth="32dp"
-                android:minHeight="32dp"
-                android:contentDescription="@string/guide_pre_consultation_guardian_title" />
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:contentDescription="@string/guide_pre_consultation_request_check_title" />
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -226,11 +226,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/pretendard_semibold"
-                    android:text="@string/guide_pre_consultation_guardian_title"
+                    android:text="@string/guide_pre_consultation_request_check_title"
                     android:textColor="@color/figma_mvp_text_primary"
                     android:textSize="14sp" />
                 <TextView
-                    android:id="@+id/textGuidePreConsultationGuardianHint"
+                    android:id="@+id/textGuidePreConsultationRequestHint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
@@ -257,11 +257,11 @@
             android:padding="20dp">
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/checkGuidePreConsultationDocuments"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:buttonTint="@color/figma_mvp_primary"
-                android:minWidth="32dp"
-                android:minHeight="32dp"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
                 android:contentDescription="@string/guide_pre_consultation_documents_title" />
             <LinearLayout
                 android:layout_width="0dp"

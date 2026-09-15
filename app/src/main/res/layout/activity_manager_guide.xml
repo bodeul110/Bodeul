@@ -72,7 +72,7 @@
             android:contentDescription="@string/guide_back"
             android:padding="16dp"
             android:src="@drawable/ic_figma_guide_back_vector"
-            android:tint="@color/figma_mvp_primary" />
+            app:tint="@color/figma_mvp_primary" />
 
         <TextView
             android:layout_width="wrap_content"

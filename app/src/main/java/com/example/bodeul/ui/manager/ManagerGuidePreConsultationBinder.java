@@ -32,10 +32,10 @@ final class ManagerGuidePreConsultationBinder {
     private final TextView patient;
     private final TextView request;
     private final TextView medication;
-    private final TextView guardianHint;
+    private final TextView requestHint;
     private final TextView footerHint;
     private final MaterialCheckBox checkMedication;
-    private final MaterialCheckBox checkGuardian;
+    private final MaterialCheckBox checkRequest;
     private final MaterialCheckBox checkDocuments;
     private final AppCompatButton footerButton;
     private final MaterialButton legacyAdvanceButton;
@@ -65,16 +65,16 @@ final class ManagerGuidePreConsultationBinder {
         patient = root.findViewById(R.id.textGuidePreConsultationPatient);
         request = root.findViewById(R.id.textGuidePreConsultationRequest);
         medication = root.findViewById(R.id.textGuidePreConsultationMedication);
-        guardianHint = root.findViewById(R.id.textGuidePreConsultationGuardianHint);
+        requestHint = root.findViewById(R.id.textGuidePreConsultationRequestHint);
         footerHint = root.findViewById(R.id.textGuidePreConsultationFooterHint);
         checkMedication = root.findViewById(R.id.checkGuidePreConsultationMedication);
-        checkGuardian = root.findViewById(R.id.checkGuidePreConsultationGuardian);
+        checkRequest = root.findViewById(R.id.checkGuidePreConsultationRequest);
         checkDocuments = root.findViewById(R.id.checkGuidePreConsultationDocuments);
         footerButton = root.findViewById(R.id.buttonGuidePreConsultationComplete);
         legacyAdvanceButton = root.findViewById(R.id.buttonAdvanceGuide);
         toggleFieldNote = root.findViewById(R.id.buttonGuidePreConsultationFieldNote);
         checkMedication.setOnCheckedChangeListener((button, checked) -> updateFooterEnabled());
-        checkGuardian.setOnCheckedChangeListener((button, checked) -> updateFooterEnabled());
+        checkRequest.setOnCheckedChangeListener((button, checked) -> updateFooterEnabled());
         checkDocuments.setOnCheckedChangeListener((button, checked) -> updateFooterEnabled());
         toggleFieldNote.setOnClickListener(view -> {
             fieldNoteExpanded = !fieldNoteExpanded;
@@ -130,7 +130,7 @@ final class ManagerGuidePreConsultationBinder {
                 ? request.getContext().getString(R.string.guide_pre_consultation_request_empty)
                 : request.getContext().getString(
                         R.string.guide_pre_consultation_request_quote, specialNotes));
-        guardianHint.setText(R.string.guide_pre_consultation_guardian_hint);
+        requestHint.setText(R.string.guide_pre_consultation_request_check_hint);
         String medicationSummary = appointment == null ? "" : appointment.getMedicationSummary();
         medication.setText(TextUtils.isEmpty(medicationSummary)
                 ? medication.getContext().getString(R.string.guide_pre_consultation_medication_empty)
@@ -152,7 +152,7 @@ final class ManagerGuidePreConsultationBinder {
         this.mutationInFlight = mutationInFlight;
         boolean checkboxesEnabled = inputsEnabled && !mutationInFlight && !confirmed;
         checkMedication.setEnabled(checkboxesEnabled);
-        checkGuardian.setEnabled(checkboxesEnabled);
+        checkRequest.setEnabled(checkboxesEnabled);
         checkDocuments.setEnabled(checkboxesEnabled);
         toggleFieldNote.setEnabled(inputsEnabled && !mutationInFlight);
         bindFieldNote();
@@ -183,7 +183,7 @@ final class ManagerGuidePreConsultationBinder {
                 inputsEnabled,
                 mutationInFlight,
                 checkMedication.isChecked(),
-                checkGuardian.isChecked(),
+                checkRequest.isChecked(),
                 checkDocuments.isChecked());
     }
 
@@ -200,7 +200,7 @@ final class ManagerGuidePreConsultationBinder {
 
     private void setAllChecked(boolean checked) {
         checkMedication.setChecked(checked);
-        checkGuardian.setChecked(checked);
+        checkRequest.setChecked(checked);
         checkDocuments.setChecked(checked);
     }
 
