@@ -287,15 +287,18 @@ public class ManagerGuideViewModel extends ViewModel {
             _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
+        if (!beginMutation()) return;
         managerRepository.saveGuardianUpdate(currentUser.getId(), message, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                finishMutation();
                 _toastMessage.setValue("보호자 공유 메시지를 저장했습니다.");
                 bindDashboard(result);
             }
 
             @Override
             public void onError(String errorMessage) {
+                finishMutation();
                 _toastMessage.setValue(errorMessage);
             }
         });
