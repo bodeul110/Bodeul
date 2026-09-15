@@ -53,6 +53,9 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
     private ProgressBar progressHospitalSelector;
     private View statePanel;
     private View contentContainer;
+    private View[] regionShortcutViews;
+    private int contentHeightPx;
+    private boolean keyboardVisible;
     private ListView listHospitalOptions;
     private MaterialButton buttonManualInput;
     private BookingHospitalCatalog catalog = BookingHospitalCatalog.empty();
@@ -149,12 +152,15 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
                     WindowInsetsCompat.Type.systemBars()
                             | WindowInsetsCompat.Type.displayCutout()
             );
+            Insets imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+            keyboardVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
             view.setPadding(
                     rootLeft + systemInsets.left,
                     rootTop + systemInsets.top,
                     rootRight + systemInsets.right,
-                    rootBottom + systemInsets.bottom
+                    rootBottom + Math.max(systemInsets.bottom, imeInsets.bottom)
             );
+            applyAdaptiveRegionShortcuts();
             return windowInsets;
         });
         WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
@@ -197,24 +203,32 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
     }
 
     private void bindAdaptiveRegionShortcuts() {
-        View regionTitle = findViewById(R.id.textBookingHospitalRegionTitle);
-        View[] regionCards = {
+        regionShortcutViews = new View[]{
+                findViewById(R.id.layoutBookingHospitalRegionHeader),
                 findViewById(R.id.cardBookingHospitalRegionAll),
                 findViewById(R.id.cardBookingHospitalRegionJongno),
                 findViewById(R.id.cardBookingHospitalRegionGangnam)
         };
         contentContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> {
-            boolean showRegions = BookingHospitalSelectorLayoutPolicy.showRegionShortcuts(
-                    bottom - top,
-                    getResources().getDisplayMetrics().density,
-                    getResources().getConfiguration().fontScale);
-            int visibility = showRegions ? View.VISIBLE : View.GONE;
-            regionTitle.setVisibility(visibility);
-            for (View card : regionCards) {
-                card.setVisibility(visibility);
-            }
+            contentHeightPx = bottom - top;
+            applyAdaptiveRegionShortcuts();
         });
+    }
+
+    private void applyAdaptiveRegionShortcuts() {
+        if (regionShortcutViews == null) {
+            return;
+        }
+        boolean showRegions = BookingHospitalSelectorLayoutPolicy.showRegionShortcuts(
+                contentHeightPx,
+                getResources().getDisplayMetrics().density,
+                getResources().getConfiguration().fontScale,
+                keyboardVisible);
+        int visibility = showRegions ? View.VISIBLE : View.GONE;
+        for (View shortcut : regionShortcutViews) {
+            shortcut.setVisibility(visibility);
+        }
     }
 
     private void bindRegionShortcut(int viewId, int queryResId) {
