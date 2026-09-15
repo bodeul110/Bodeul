@@ -101,6 +101,7 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
 
         styleSearchView();
         bindRegionShortcuts();
+        bindAdaptiveRegionShortcuts();
         listHospitalOptions.setAdapter(optionAdapter);
         listHospitalOptions.setEmptyView(textEmpty);
         listHospitalOptions.setOnItemClickListener((parent, view, position, id) ->
@@ -193,6 +194,27 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
                 R.id.cardBookingHospitalRegionGangnam,
                 R.string.booking_hospital_selector_region_gangnam_query
         );
+    }
+
+    private void bindAdaptiveRegionShortcuts() {
+        View regionTitle = findViewById(R.id.textBookingHospitalRegionTitle);
+        View[] regionCards = {
+                findViewById(R.id.cardBookingHospitalRegionAll),
+                findViewById(R.id.cardBookingHospitalRegionJongno),
+                findViewById(R.id.cardBookingHospitalRegionGangnam)
+        };
+        contentContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            boolean showRegions = BookingHospitalSelectorLayoutPolicy.showRegionShortcuts(
+                    bottom - top,
+                    getResources().getDisplayMetrics().density,
+                    getResources().getConfiguration().fontScale);
+            int visibility = showRegions ? View.VISIBLE : View.GONE;
+            regionTitle.setVisibility(visibility);
+            for (View card : regionCards) {
+                card.setVisibility(visibility);
+            }
+        });
     }
 
     private void bindRegionShortcut(int viewId, int queryResId) {
