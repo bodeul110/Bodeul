@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="booking_appointment_schedule_app_bar_title">보들 (Bodeul)</string>
+    <string name="booking_appointment_schedule_back">예약 작성으로 돌아가기</string>
+    <string name="booking_appointment_schedule_heading">동행 일정을\n선택해주세요</string>
+    <string name="booking_appointment_schedule_helper">환자분의 편안한 일정을 위해 방문 날짜와 희망 시간을 선택합니다.</string>
+    <string name="booking_appointment_schedule_date_title">방문 날짜</string>
+    <string name="booking_appointment_schedule_month">%1$d년 %2$d월</string>
+    <string name="booking_appointment_schedule_previous_month">이전 달</string>
+    <string name="booking_appointment_schedule_next_month">다음 달</string>
+    <string name="booking_appointment_schedule_time_title">방문 시간</string>
+    <string name="booking_appointment_schedule_time_badge">예약 희망 시간</string>
+    <string name="booking_appointment_schedule_time_value">%1$02d:%2$02d</string>
+    <string name="booking_appointment_schedule_custom_time">다른 시간 선택</string>
+    <string name="booking_appointment_schedule_selected_time">선택 시간 %1$02d:%2$02d</string>
+    <string name="booking_appointment_schedule_info_title">안심 동행 안내</string>
+    <string name="booking_appointment_schedule_info_body">선택한 시간은 예약 희망 시간입니다. 매니저 배정과 예약 확정 후 최종 일정을 안내합니다.</string>
+    <string name="booking_appointment_schedule_image_description">병원 내부 모습</string>
+    <string name="booking_appointment_schedule_image_text">함께하면 더 안전한\n병원의 동반자, 보들</string>
+    <string name="booking_appointment_schedule_complete">선택 완료</string>
+    <string name="booking_appointment_schedule_date_description">%1$d년 %2$d월 %3$d일</string>
+    <string name="booking_appointment_schedule_date_selected_description">%1$s, 선택됨</string>
+    <string-array name="booking_appointment_schedule_weekdays">
+        <item>일</item>
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
+    </string-array>
+</resources>
