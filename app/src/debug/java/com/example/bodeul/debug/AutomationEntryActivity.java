@@ -29,6 +29,7 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentRequestDetail;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.BookingCouponType;
+import com.example.bodeul.domain.model.BookingHospitalSelection;
 import com.example.bodeul.domain.model.BookingManagerGenderPreference;
 import com.example.bodeul.domain.model.BookingMobilitySupport;
 import com.example.bodeul.domain.model.BookingPaymentMethod;
@@ -49,6 +50,7 @@ import com.example.bodeul.ui.admin.AdminActivity;
 import com.example.bodeul.ui.auth.AuthFlowRouter;
 import com.example.bodeul.ui.booking.BookingActivity;
 import com.example.bodeul.ui.booking.BookingFollowUpActivity;
+import com.example.bodeul.ui.booking.BookingHospitalSelectorActivity;
 import com.example.bodeul.ui.booking.BookingStatusActivity;
 import com.example.bodeul.ui.chat.CompanionChatActivity;
 import com.example.bodeul.ui.manager.ManagerActivity;
@@ -1138,6 +1140,11 @@ public class AutomationEntryActivity extends AppCompatActivity {
                 return new Intent(this, MainActivity.class);
             case BOOKING:
                 return new Intent(this, BookingActivity.class);
+            case BOOKING_HOSPITAL_SELECTOR:
+                return BookingHospitalSelectorActivity.createIntent(
+                        this,
+                        new BookingHospitalSelection("", "")
+                );
             case BOOKING_STATUS:
                 return BookingStatusActivity.createIntent(this, resolveRequestId(false));
             case BOOKING_FOLLOW_UP:
@@ -1302,6 +1309,7 @@ public class AutomationEntryActivity extends AppCompatActivity {
         HOME,
         CLIENT_HOME,
         BOOKING,
+        BOOKING_HOSPITAL_SELECTOR,
         BOOKING_API_SMOKE,
         BOOKING_STATUS,
         BOOKING_FOLLOW_UP,
