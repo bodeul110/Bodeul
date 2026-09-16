@@ -49,6 +49,10 @@
             android:name=".ui.booking.BookingCompletionActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.booking.BookingHealthProfileActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".ui.booking.BookingFollowUpActivity"
             android:exported="false" />
         <activity

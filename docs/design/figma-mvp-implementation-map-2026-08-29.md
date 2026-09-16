@@ -50,7 +50,7 @@
 | 환자 홈 화면 `8:194` | 390×1458 | `MainActivity`, `activity_main.xml` | 직접 대응 | 환자/보호자 서버 상태에 따라 hero와 진행 카드를 유지하면서 시각을 맞춘다. |
 | 환자 예약 `8:305` | 390×1657 | `BookingActivity`, `activity_booking.xml` | 직접 대응 | 현재 한 화면에 모인 입력을 Figma의 단계 위계에 맞춰 분리한다. |
 | 병원 검색 화면 `8:398` | 390×1033 | `BookingHospitalSelectorActivity`, `activity_booking_hospital_selector.xml` | 직접 대응 | 실제 검색·선택 결과 연결을 유지한다. |
-| 예약신청하기 `8:520` | 390×2065 | `BookingActivity`의 예약 폼 | 부분 대응 | 건강정보, 장소, 옵션, 결제 요약의 화면 책임을 Figma와 대조한다. |
+| 예약신청하기 `8:520` | 390×2065 | `BookingHealthProfileActivity` + `BookingFormBinder` | 직접 대응(계약 범위) | 건강·복약·이동 보조·주의사항은 실제 예약 값에 연결한다. 성년후견, 복수 전달사항, 별도 긴급연락처는 API 계약 확정 전까지 제외한다. |
 | 예약 날짜 `8:632` | 390×884 | `BookingAppointmentSelector`가 `BookingActivity` 안에서 처리 | 상태 대응 | 별도 Activity보다 날짜 선택 상태/다이얼로그로 재사용한다. |
 | 예약 (하) 선택 알림창 `8:775` | 390×891 | 정확한 대응 미확정 | 디자인 확인 | node 컨텍스트에서 열기 조건, 확인 결과와 취소 동작을 먼저 확인한다. |
 | 예약 (하) 선택 알림창 `8:2691` | 390×891 | 정확한 대응 미확정 | 디자인 확인 | `8:775`와 중복/상태 변형인지 확인한 뒤 하나의 공용 다이얼로그로 설계한다. |
