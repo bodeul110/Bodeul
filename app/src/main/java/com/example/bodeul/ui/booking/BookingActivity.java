@@ -60,6 +60,7 @@ public class BookingActivity extends AppCompatActivity {
     private AppointmentRequest editingRequest;
     private String pendingEditRequestId;
     private boolean preserveFormOnNextDashboardBind;
+    private ActivityResultLauncher<Intent> appointmentSelectorLauncher;
     private ActivityResultLauncher<Intent> hospitalSelectorLauncher;
     private ActivityResultLauncher<Intent> locationSelectorLauncher;
     private ActivityResultLauncher<Intent> paymentApprovalLauncher;
@@ -81,6 +82,20 @@ public class BookingActivity extends AppCompatActivity {
         authRepository = ServiceLocator.provideAuthRepository(this);
         bookingRepository = ServiceLocator.provideBookingRepository(this);
         bookingCoordinator = new BookingCoordinator(bookingRepository);
+        appointmentSelectorLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+                        return;
+                    }
+                    String appointmentAt = BookingAppointmentSelectorActivity.parseResult(
+                            result.getData()
+                    );
+                    if (!TextUtils.isEmpty(appointmentAt) && formBinder != null) {
+                        formBinder.applyAppointmentAt(appointmentAt);
+                    }
+                }
+        );
         hospitalSelectorLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -145,7 +160,9 @@ public class BookingActivity extends AppCompatActivity {
                 findViewById(R.id.buttonBookingQuickDayAfterTomorrow),
                 findViewById(R.id.buttonBookingQuickMorning),
                 findViewById(R.id.buttonBookingQuickAfternoon),
-                findViewById(R.id.buttonBookingQuickLateAfternoon)
+                findViewById(R.id.buttonBookingQuickLateAfternoon),
+                appointmentSelectorLauncher,
+                () -> preserveFormOnNextDashboardBind = true
         );
 
         dashboardBinder = new BookingDashboardBinder(
