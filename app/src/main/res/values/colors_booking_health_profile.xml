@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="figma_booking_health_top_bar">#CCF7F9FC</color>
+    <color name="figma_booking_health_on_primary_secondary">#CCFFFFFF</color>
+    <color name="figma_booking_health_on_primary_hint">#66FFFFFF</color>
+</resources>
