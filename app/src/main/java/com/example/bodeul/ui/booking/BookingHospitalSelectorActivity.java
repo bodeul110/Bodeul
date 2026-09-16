@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.view.View;
+import android.widget.AutoCompleteTextView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -15,6 +17,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bodeul.R;
 import com.example.bodeul.data.RepositoryCallback;
@@ -46,6 +53,9 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
     private ProgressBar progressHospitalSelector;
     private View statePanel;
     private View contentContainer;
+    private View[] regionShortcutViews;
+    private int contentHeightPx;
+    private boolean keyboardVisible;
     private ListView listHospitalOptions;
     private MaterialButton buttonManualInput;
     private BookingHospitalCatalog catalog = BookingHospitalCatalog.empty();
@@ -77,6 +87,7 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_booking_hospital_selector);
+        configureSystemBars();
 
         coordinator = new BookingHospitalSelectorCoordinator(ServiceLocator.provideBookingRepository(this));
         optionAdapter = new BookingHospitalOptionAdapter(this);
@@ -91,6 +102,9 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
         listHospitalOptions = findViewById(R.id.listBookingHospitalOptions);
         buttonManualInput = findViewById(R.id.buttonBookingHospitalManualInput);
 
+        styleSearchView();
+        bindRegionShortcuts();
+        bindAdaptiveRegionShortcuts();
         listHospitalOptions.setAdapter(optionAdapter);
         listHospitalOptions.setEmptyView(textEmpty);
         listHospitalOptions.setOnItemClickListener((parent, view, position, id) ->
@@ -124,6 +138,104 @@ public class BookingHospitalSelectorActivity extends AppCompatActivity {
         }
 
         loadCatalog();
+    }
+
+    private void configureSystemBars() {
+        View root = findViewById(R.id.bookingHospitalSelectorRoot);
+        int rootLeft = root.getPaddingLeft();
+        int rootTop = root.getPaddingTop();
+        int rootRight = root.getPaddingRight();
+        int rootBottom = root.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets systemInsets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+                            | WindowInsetsCompat.Type.displayCutout()
+            );
+            Insets imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+            keyboardVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
+            view.setPadding(
+                    rootLeft + systemInsets.left,
+                    rootTop + systemInsets.top,
+                    rootRight + systemInsets.right,
+                    rootBottom + Math.max(systemInsets.bottom, imeInsets.bottom)
+            );
+            applyAdaptiveRegionShortcuts();
+            return windowInsets;
+        });
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightStatusBars(true);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightNavigationBars(true);
+        ViewCompat.requestApplyInsets(root);
+    }
+
+    private void styleSearchView() {
+        AutoCompleteTextView queryInput = searchView.findViewById(
+                androidx.appcompat.R.id.search_src_text
+        );
+        queryInput.setTextColor(ContextCompat.getColor(this, R.color.figma_mvp_text_primary));
+        queryInput.setHintTextColor(ContextCompat.getColor(this, R.color.figma_mvp_text_secondary));
+        queryInput.setTextSize(16);
+
+        ImageView searchIcon = searchView.findViewById(androidx.appcompat.R.id.search_mag_icon);
+        searchIcon.setImageResource(R.drawable.ic_figma_hospital_search_search);
+        ImageView closeIcon = searchView.findViewById(androidx.appcompat.R.id.search_close_btn);
+        closeIcon.setImageResource(R.drawable.ic_figma_hospital_search_clear);
+
+        View searchPlate = searchView.findViewById(androidx.appcompat.R.id.search_plate);
+        searchPlate.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+    }
+
+    private void bindRegionShortcuts() {
+        bindRegionShortcut(
+                R.id.cardBookingHospitalRegionAll,
+                R.string.booking_hospital_selector_region_all_query
+        );
+        bindRegionShortcut(
+                R.id.cardBookingHospitalRegionJongno,
+                R.string.booking_hospital_selector_region_jongno_query
+        );
+        bindRegionShortcut(
+                R.id.cardBookingHospitalRegionGangnam,
+                R.string.booking_hospital_selector_region_gangnam_query
+        );
+    }
+
+    private void bindAdaptiveRegionShortcuts() {
+        regionShortcutViews = new View[]{
+                findViewById(R.id.layoutBookingHospitalRegionHeader),
+                findViewById(R.id.cardBookingHospitalRegionAll),
+                findViewById(R.id.cardBookingHospitalRegionJongno),
+                findViewById(R.id.cardBookingHospitalRegionGangnam)
+        };
+        contentContainer.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            contentHeightPx = bottom - top;
+            applyAdaptiveRegionShortcuts();
+        });
+    }
+
+    private void applyAdaptiveRegionShortcuts() {
+        if (regionShortcutViews == null) {
+            return;
+        }
+        boolean showRegions = BookingHospitalSelectorLayoutPolicy.showRegionShortcuts(
+                contentHeightPx,
+                getResources().getDisplayMetrics().density,
+                getResources().getConfiguration().fontScale,
+                keyboardVisible);
+        int visibility = showRegions ? View.VISIBLE : View.GONE;
+        for (View shortcut : regionShortcutViews) {
+            shortcut.setVisibility(visibility);
+        }
+    }
+
+    private void bindRegionShortcut(int viewId, int queryResId) {
+        findViewById(viewId).setOnClickListener(view -> {
+            searchView.setQuery(getString(queryResId), true);
+            searchView.clearFocus();
+        });
     }
 
     private void loadCatalog() {
