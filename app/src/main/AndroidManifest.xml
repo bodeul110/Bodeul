@@ -64,6 +64,9 @@
             android:name=".ui.booking.BookingLocationSelectorActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.booking.BookingAppointmentSelectorActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.booking.BookingHospitalSelectorActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
