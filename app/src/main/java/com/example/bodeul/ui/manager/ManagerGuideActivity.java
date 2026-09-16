@@ -75,6 +75,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private ManagerGuideViewModel viewModel;
     private ManagerGuideDashboardBinder managerGuideDashboardBinder;
+    private ManagerGuideReceptionBinder managerGuideReceptionBinder;
 
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
@@ -266,8 +267,19 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonToggleMedicationGuidanceCompleted),
                 (MaterialButton) findViewById(R.id.buttonSubmitReport)
         );
+        managerGuideReceptionBinder = new ManagerGuideReceptionBinder(findViewById(android.R.id.content));
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonGuideReceptionShare).setOnClickListener(view -> {
+            if (!"RECEPTION_QUEUE".equals(currentStepCode) || mutationInFlight) {
+                return;
+            }
+            String message = managerGuideReceptionBinder.buildGuardianUpdate();
+            if (message != null) {
+                viewModel.saveGuardianUpdate(message);
+            }
+        });
         findViewById(R.id.navGuideHome).setOnClickListener(view -> openManagerHome());
         findViewById(R.id.navGuideHistory).setOnClickListener(view ->
                 startActivity(new Intent(this, ManagerHistoryActivity.class)));
@@ -366,6 +378,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
 
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
+            managerGuideReceptionBinder.hideForState();
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             currentStepCode = "";
             managerGuideContentContainer.setVisibility(View.GONE);
@@ -396,6 +409,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 bindingPreConsultationConfirmation = true;
                 try {
                     managerGuideDashboardBinder.bindScreen(state.screenModel);
+                    managerGuideReceptionBinder.bind(
+                            state.screenModel, state.dashboard, mutationInFlight);
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
@@ -408,6 +423,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 }
                 updateMapMarker();
             } else {
+                managerGuideReceptionBinder.hideForState();
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 currentStepCode = "";
                 managerGuideContentContainer.setVisibility(View.GONE);
@@ -465,6 +481,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void disableMutationActions() {
+        managerGuideReceptionBinder.setShareEnabled(false);
         buttonAdvanceGuide.setEnabled(false);
         buttonSubmitReport.setEnabled(false);
         buttonSelectGuideSessionArtifact.setEnabled(false);
