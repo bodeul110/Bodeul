@@ -68,7 +68,8 @@
             android:exported="false" />
         <activity
             android:name=".ui.booking.BookingHospitalSelectorActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.manager.ManagerSupportActivity"
             android:exported="false" />
