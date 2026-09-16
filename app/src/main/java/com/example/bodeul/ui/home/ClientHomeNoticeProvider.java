@@ -13,13 +13,13 @@ public final class ClientHomeNoticeProvider {
     public List<ClientHomeNotice> createNotices(UserRole role) {
         List<ClientHomeNotice> notices = new ArrayList<>();
         notices.add(new ClientHomeNotice(
-                R.drawable.bg_service_thumb_warm,
+                R.drawable.manager_service_intro_safe,
                 R.string.client_home_notice_prepare_eyebrow,
                 R.string.client_home_notice_prepare_title,
                 R.string.client_home_notice_prepare_body
         ));
         notices.add(new ClientHomeNotice(
-                R.drawable.bg_service_thumb_cool,
+                R.drawable.manager_service_intro_ai,
                 role == UserRole.GUARDIAN
                         ? R.string.client_home_notice_guardian_eyebrow
                         : R.string.client_home_notice_patient_eyebrow,
