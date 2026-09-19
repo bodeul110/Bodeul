@@ -46,6 +46,7 @@ public final class ManagerGuideDashboardBinder {
     private final View viewGuideFocusPreview;
     private final ManagerGuideVideoGuidanceBinder videoGuidanceBinder;
     private final ManagerGuideStepSectionsBinder stepSectionsBinder;
+    private final ManagerGuideMemoSummaryBinder memoSummaryBinder;
     private final TextView textGuideLiveLocationStatus;
     private final TextView textGuideLiveLocationHistory;
     private final TextInputEditText inputGuideLocationSummary;
@@ -103,6 +104,7 @@ public final class ManagerGuideDashboardBinder {
             View viewGuideFocusPreview,
             ManagerGuideVideoGuidanceBinder videoGuidanceBinder,
             ManagerGuideStepSectionsBinder stepSectionsBinder,
+            ManagerGuideMemoSummaryBinder memoSummaryBinder,
             TextView textGuideLiveLocationStatus,
             TextView textGuideLiveLocationHistory,
             TextInputEditText inputGuideLocationSummary,
@@ -159,6 +161,7 @@ public final class ManagerGuideDashboardBinder {
         this.viewGuideFocusPreview = viewGuideFocusPreview;
         this.videoGuidanceBinder = videoGuidanceBinder;
         this.stepSectionsBinder = stepSectionsBinder;
+        this.memoSummaryBinder = memoSummaryBinder;
         this.textGuideLiveLocationStatus = textGuideLiveLocationStatus;
         this.textGuideLiveLocationHistory = textGuideLiveLocationHistory;
         this.inputGuideLocationSummary = inputGuideLocationSummary;
@@ -212,6 +215,9 @@ public final class ManagerGuideDashboardBinder {
                 screenModel.getSectionVisibility(),
                 screenModel.getCurrentStepCode()
         );
+        memoSummaryBinder.bind(
+                screenModel.getMemoSummaryItems(),
+                screenModel.getPrimaryAction() == ManagerGuidePrimaryAction.SUBMIT_REPORT);
         textGuideLiveLocationStatus.setText(screenModel.getLiveLocationStatus());
         textGuideLiveLocationHistory.setText(screenModel.getLiveLocationHistory());
 
