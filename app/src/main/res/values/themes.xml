@@ -10,6 +10,16 @@
         <item name="android:windowBackground">@color/bodeul_background</item>
     </style>
 
+    <style name="Theme.Bodeul.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@color/figma_mvp_background</item>
+        <item name="android:colorAccent">@color/figma_mvp_primary</item>
+        <item name="android:statusBarColor">@color/figma_mvp_background</item>
+        <item name="android:navigationBarColor">@color/figma_mvp_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
     <style name="BodeulHomeButton">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>

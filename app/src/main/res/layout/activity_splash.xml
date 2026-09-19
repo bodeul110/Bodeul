@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layoutSplashRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/figma_mvp_background"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <View
+        android:layout_width="384dp"
+        android:layout_height="384dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="-96dp"
+        android:layout_marginEnd="-96dp"
+        android:background="@drawable/bg_figma_splash_cool_glow"
+        android:importantForAccessibility="no" />
+
+    <View
+        android:layout_width="480dp"
+        android:layout_height="480dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="-128dp"
+        android:layout_marginBottom="-128dp"
+        android:background="@drawable/bg_figma_splash_warm_glow"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp">
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="254" />
+
+        <ImageView
+            android:layout_width="336dp"
+            android:layout_height="238dp"
+            android:contentDescription="@string/app_name"
+            android:scaleType="fitCenter"
+            android:src="@drawable/bodeul_logo_figma" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/pretendard_medium"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.0225"
+            android:lineSpacingExtra="4dp"
+            android:text="@string/figma_splash_tagline"
+            android:textAlignment="center"
+            android:textColor="@color/figma_mvp_text_tertiary"
+            android:textSize="20sp" />
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="248" />
+
+        <FrameLayout
+            android:layout_width="192dp"
+            android:layout_height="6dp"
+            android:accessibilityLiveRegion="polite"
+            android:background="@drawable/bg_figma_splash_progress_track"
+            android:contentDescription="@string/figma_splash_loading_description">
+
+            <View
+                android:layout_width="64dp"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_figma_splash_progress_fill"
+                android:importantForAccessibility="no" />
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:fontFamily="@font/pretendard_regular"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.1"
+            android:lineSpacingExtra="5dp"
+            android:text="@string/figma_splash_footer"
+            android:textColor="#99737784"
+            android:textSize="10sp"
+            tools:ignore="SmallSp" />
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="177" />
+    </LinearLayout>
+</FrameLayout>
