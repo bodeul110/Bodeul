@@ -746,6 +746,14 @@
     <string name="medication_compare_schedule_missing">빠짐 %1$s</string>
     <string name="guide_report_section">진료 리포트</string>
     <string name="guide_report_summary_hint">매니저 일지</string>
+    <string name="guide_memo_summary_title">단계별 기록 모아보기</string>
+    <string name="guide_memo_summary_helper">기존 단계에서 저장된 최신 원문입니다. 공통 필드를 함께 쓰는 단계는 마지막 저장본만 표시되며, 아래 최종 일지와는 별도로 유지됩니다.</string>
+    <string name="guide_memo_route_title">Step 02 · 병원 이동 메모</string>
+    <string name="guide_memo_guardian_title">Step 03·06·12 · 보호자 공유 메모 최신본</string>
+    <string name="guide_memo_field_title">Step 03~10 · 현장 확인 메모 공통 최신본</string>
+    <string name="guide_memo_medication_title">Step 11 · 복약 확인 메모</string>
+    <string name="guide_memo_pharmacy_title">Step 11 · 약국 처리 메모</string>
+    <string name="guide_memo_empty">작성된 메모 없음</string>
     <string name="guide_report_treatment_hint">진료 메모</string>
     <string name="guide_report_next_visit_hint">다음 방문 일정</string>
     <string name="guide_report_submit">진료 리포트 전송</string>

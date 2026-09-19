@@ -17,6 +17,43 @@
         android:padding="22dp">
 
         <LinearLayout
+            android:id="@+id/groupGuideMemoSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/guide_memo_summary_title"
+                android:textColor="@color/bodeul_text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:lineSpacingExtra="3dp"
+                android:text="@string/guide_memo_summary_helper"
+                android:textColor="@color/bodeul_text_secondary"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:id="@+id/guideMemoSummaryContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="18dp"
+                android:layout_marginBottom="18dp"
+                android:background="@color/bodeul_outline" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/groupGuideReportSummary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
