@@ -471,6 +471,21 @@
                         android:layout_width="match_parent"
                         android:layout_height="250dp" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/buttonGuideShowCurrentLocation"
+                        style="@style/BodeulOutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="22dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginEnd="22dp"
+                        android:layout_marginBottom="6dp"
+                        android:text="@string/guide_current_location_action"
+                        android:visibility="gone"
+                        app:icon="@drawable/ic_tracking_dot"
+                        app:iconGravity="textStart"
+                        app:iconTint="@null" />
+
                     <LinearLayout
                         android:id="@+id/guideMapActionContainer"
                         android:layout_width="match_parent"

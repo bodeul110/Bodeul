@@ -184,7 +184,7 @@ public final class ManagerGuideScreenModel {
     }
 
     public boolean isMeetingStep() {
-        return "MEETING_CONFIRMATION".equals(currentStepCode);
+        return ManagerGuideCurrentLocationPolicy.isAvailableFor(currentStepCode);
     }
 
     public List<ManagerGuideMapActionModel> getMapActions() {
