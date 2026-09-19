@@ -26,6 +26,7 @@ public final class ManagerGuideScreenModel {
     private final List<ManagerGuideStageModel> stages;
     private final ManagerGuideFocusModel focusModel;
     private final ManagerGuideSectionVisibility sectionVisibility;
+    private final List<ManagerGuideMemoItem> memoSummaryItems;
     private final String currentStepCode;
     private final String liveLocationStatus;
     private final String liveLocationHistory;
@@ -71,6 +72,7 @@ public final class ManagerGuideScreenModel {
             List<ManagerGuideStageModel> stages,
             ManagerGuideFocusModel focusModel,
             ManagerGuideSectionVisibility sectionVisibility,
+            List<ManagerGuideMemoItem> memoSummaryItems,
             String currentStepCode,
             String liveLocationStatus,
             String liveLocationHistory,
@@ -114,6 +116,7 @@ public final class ManagerGuideScreenModel {
         this.stages = stages;
         this.focusModel = focusModel;
         this.sectionVisibility = sectionVisibility;
+        this.memoSummaryItems = memoSummaryItems;
         this.currentStepCode = currentStepCode;
         this.liveLocationStatus = liveLocationStatus;
         this.liveLocationHistory = liveLocationHistory;
@@ -205,6 +208,10 @@ public final class ManagerGuideScreenModel {
 
     ManagerGuideSectionVisibility getSectionVisibility() {
         return sectionVisibility;
+    }
+
+    public List<ManagerGuideMemoItem> getMemoSummaryItems() {
+        return memoSummaryItems;
     }
 
     String getCurrentStepCode() {
