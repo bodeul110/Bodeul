@@ -119,7 +119,11 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.auth.RoleSelectionActivity"
-            android:exported="true">
+            android:exported="false" />
+        <activity
+            android:name=".ui.auth.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Bodeul.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
