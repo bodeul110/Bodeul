@@ -15,6 +15,7 @@ final class ManagerGuideMeetingOverviewBinder {
     private final View mapHeader;
     private final MaterialCardView mapCard;
     private final View mapView;
+    private final View currentLocationAction;
     private final TextView patient;
     private final TextView meetingPlace;
     private final TextView department;
@@ -31,6 +32,7 @@ final class ManagerGuideMeetingOverviewBinder {
         mapHeader = root.findViewById(R.id.layoutGuideMapHeader);
         mapCard = root.findViewById(R.id.cardGuideMap);
         mapView = root.findViewById(R.id.mapViewManagerGuide);
+        currentLocationAction = root.findViewById(R.id.buttonGuideShowCurrentLocation);
         patient = root.findViewById(R.id.textGuideMeetingPatient);
         meetingPlace = root.findViewById(R.id.textGuideMeetingPlace);
         department = root.findViewById(R.id.textGuideMeetingDepartment);
@@ -48,6 +50,7 @@ final class ManagerGuideMeetingOverviewBinder {
         legacyFocus.setVisibility(meetingStep ? View.GONE : View.VISIBLE);
         guideSubtitle.setVisibility(meetingStep ? View.GONE : View.VISIBLE);
         mapHeader.setVisibility(meetingStep ? View.GONE : View.VISIBLE);
+        currentLocationAction.setVisibility(meetingStep ? View.VISIBLE : View.GONE);
         mapCard.setRadius(meetingStep ? meetingMapRadius : legacyMapRadius);
         android.view.ViewGroup.LayoutParams mapLayoutParams = mapView.getLayoutParams();
         mapLayoutParams.height = meetingStep ? meetingMapHeight : legacyMapHeight;
