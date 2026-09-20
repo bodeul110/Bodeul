@@ -322,6 +322,76 @@ public class ManagerGuideViewModel extends ViewModel {
         });
     }
 
+    /** 기초 측정 메모 저장 성공을 확인한 뒤 같은 세션의 다음 단계로 이동한다. */
+    public void saveVitalsAndAdvance(String note) {
+        UiState state = _uiState.getValue();
+        ManagerDashboard dashboard = state == null ? null : state.dashboard;
+        if (currentUser == null || dashboard == null || dashboard.getSession() == null) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
+            return;
+        }
+        String expectedSessionId = dashboard.getSession().getId();
+        String expectedStepCode = dashboard.getSession().getCurrentStepCode();
+        if (!"VITALS_CHECK".equals(expectedStepCode)) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+            return;
+        }
+        if (!beginMutation()) return;
+        managerRepository.saveFieldPhotoNote(
+                currentUser.getId(),
+                note,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard savedDashboard) {
+                        if (!ManagerRepository.matchesAdvanceExpectation(
+                                savedDashboard.getSession(),
+                                expectedSessionId,
+                                expectedStepCode)) {
+                            finishMutation();
+                            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                            bindDashboard(savedDashboard);
+                            return;
+                        }
+                        advanceAfterVitalsSave(
+                                savedDashboard,
+                                expectedSessionId,
+                                expectedStepCode);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        finishMutation();
+                        _toastMessage.setValue(message);
+                    }
+                });
+    }
+
+    private void advanceAfterVitalsSave(
+            ManagerDashboard savedDashboard,
+            String expectedSessionId,
+            String expectedStepCode
+    ) {
+        managerRepository.advanceCurrentStep(
+                currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        finishMutation();
+                        _toastMessage.setValue("측정 결과를 저장하고 다음 단계로 이동했습니다.");
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        finishMutation();
+                        _toastMessage.setValue(message);
+                        bindDashboard(savedDashboard);
+                    }
+                });
+    }
+
     public void replaceSessionArtifacts(String purpose, List<Uri> fileUris) {
         if (currentUser == null) return;
         String requestFingerprint = artifactRequestFingerprint(purpose, fileUris);
