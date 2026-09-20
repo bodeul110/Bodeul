@@ -211,13 +211,16 @@ public final class ManagerGuideDashboardBinder {
         bindMapActions(screenModel.getMapActions(), screenModel.isMeetingStep());
         bindStages(screenModel.getStages());
         bindFocus(screenModel.getFocusModel());
+        boolean showMemoSummary = ManagerGuideMemoSummaryDisplayPolicy.shouldShow(
+                screenModel.getPrimaryAction());
         stepSectionsBinder.bind(
                 screenModel.getSectionVisibility(),
-                screenModel.getCurrentStepCode()
+                screenModel.getCurrentStepCode(),
+                showMemoSummary
         );
         memoSummaryBinder.bind(
                 screenModel.getMemoSummaryItems(),
-                screenModel.getPrimaryAction() == ManagerGuidePrimaryAction.SUBMIT_REPORT);
+                showMemoSummary);
         textGuideLiveLocationStatus.setText(screenModel.getLiveLocationStatus());
         textGuideLiveLocationHistory.setText(screenModel.getLiveLocationHistory());
 
