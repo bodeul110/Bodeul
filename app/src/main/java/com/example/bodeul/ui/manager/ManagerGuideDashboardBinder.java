@@ -46,6 +46,7 @@ public final class ManagerGuideDashboardBinder {
     private final View viewGuideFocusPreview;
     private final ManagerGuideVideoGuidanceBinder videoGuidanceBinder;
     private final ManagerGuideStepSectionsBinder stepSectionsBinder;
+    private final ManagerGuideMemoSummaryBinder memoSummaryBinder;
     private final TextView textGuideLiveLocationStatus;
     private final TextView textGuideLiveLocationHistory;
     private final TextInputEditText inputGuideLocationSummary;
@@ -103,6 +104,7 @@ public final class ManagerGuideDashboardBinder {
             View viewGuideFocusPreview,
             ManagerGuideVideoGuidanceBinder videoGuidanceBinder,
             ManagerGuideStepSectionsBinder stepSectionsBinder,
+            ManagerGuideMemoSummaryBinder memoSummaryBinder,
             TextView textGuideLiveLocationStatus,
             TextView textGuideLiveLocationHistory,
             TextInputEditText inputGuideLocationSummary,
@@ -159,6 +161,7 @@ public final class ManagerGuideDashboardBinder {
         this.viewGuideFocusPreview = viewGuideFocusPreview;
         this.videoGuidanceBinder = videoGuidanceBinder;
         this.stepSectionsBinder = stepSectionsBinder;
+        this.memoSummaryBinder = memoSummaryBinder;
         this.textGuideLiveLocationStatus = textGuideLiveLocationStatus;
         this.textGuideLiveLocationHistory = textGuideLiveLocationHistory;
         this.inputGuideLocationSummary = inputGuideLocationSummary;
@@ -208,10 +211,16 @@ public final class ManagerGuideDashboardBinder {
         bindMapActions(screenModel.getMapActions(), screenModel.isMeetingStep());
         bindStages(screenModel.getStages());
         bindFocus(screenModel.getFocusModel());
+        boolean showMemoSummary = ManagerGuideMemoSummaryDisplayPolicy.shouldShow(
+                screenModel.getPrimaryAction());
         stepSectionsBinder.bind(
                 screenModel.getSectionVisibility(),
-                screenModel.getCurrentStepCode()
+                screenModel.getCurrentStepCode(),
+                showMemoSummary
         );
+        memoSummaryBinder.bind(
+                screenModel.getMemoSummaryItems(),
+                showMemoSummary);
         textGuideLiveLocationStatus.setText(screenModel.getLiveLocationStatus());
         textGuideLiveLocationHistory.setText(screenModel.getLiveLocationHistory());
 

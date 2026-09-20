@@ -240,6 +240,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.viewGuideFocusPreview),
                 new ManagerGuideVideoGuidanceBinder(findViewById(android.R.id.content)),
                 new ManagerGuideStepSectionsBinder(this, findViewById(android.R.id.content)),
+                new ManagerGuideMemoSummaryBinder(
+                        LayoutInflater.from(this),
+                        findViewById(android.R.id.content)),
                 findViewById(R.id.textGuideLiveLocationStatus),
                 findViewById(R.id.textGuideLiveLocationHistory),
                 inputGuideLocationSummary,

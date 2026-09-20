@@ -77,6 +77,7 @@ public final class ManagerGuideCoordinator {
                 stages,
                 createFocusModel(focusStep, session, advanceDecision),
                 sectionVisibility,
+                buildMemoSummary(session),
                 focusStep.getCode(),
                 legacyManagerLocationEnabled
                         ? CompanionLocationDisplayHelper.buildLiveSharingStatus(context, session)
@@ -143,6 +144,7 @@ public final class ManagerGuideCoordinator {
                         ""
                 ),
                 ManagerGuideSectionVisibility.hidden(),
+                Collections.emptyList(),
                 "",
                 context.getString(R.string.live_location_status_inactive_empty),
                 context.getString(R.string.live_location_history_empty),
@@ -276,6 +278,27 @@ public final class ManagerGuideCoordinator {
         return TextUtils.isEmpty(value)
                 ? context.getString(R.string.guide_meeting_value_missing)
                 : value.trim();
+    }
+
+    private List<ManagerGuideMemoItem> buildMemoSummary(CompanionSession session) {
+        return ManagerGuideMemoSummaryBuilder.build(
+                List.of(
+                        new ManagerGuideMemoSummaryBuilder.Candidate(
+                                context.getString(R.string.guide_memo_route_title),
+                                legacyManagerLocationEnabled ? session.getLocationSummary() : ""),
+                        new ManagerGuideMemoSummaryBuilder.Candidate(
+                                context.getString(R.string.guide_memo_guardian_title),
+                                session.getGuardianUpdate()),
+                        new ManagerGuideMemoSummaryBuilder.Candidate(
+                                context.getString(R.string.guide_memo_field_title),
+                                session.getFieldPhotoNote()),
+                        new ManagerGuideMemoSummaryBuilder.Candidate(
+                                context.getString(R.string.guide_memo_medication_title),
+                                session.getMedicationNote()),
+                        new ManagerGuideMemoSummaryBuilder.Candidate(
+                                context.getString(R.string.guide_memo_pharmacy_title),
+                                session.getPharmacySummary())),
+                context.getString(R.string.guide_memo_empty));
     }
 
     static boolean shouldShowPharmacyRouteAction(CompanionSession session) {

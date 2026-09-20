@@ -52,7 +52,11 @@ final class ManagerGuideStepSectionsBinder {
         groupReportNextVisit = root.findViewById(R.id.groupGuideReportNextVisit);
     }
 
-    void bind(ManagerGuideSectionVisibility visibility, String stepCode) {
+    void bind(
+            ManagerGuideSectionVisibility visibility,
+            String stepCode,
+            boolean showMemoSummary
+    ) {
         setVisible(cardMap, visibility.isMapVisible());
         setVisible(cardLocation, visibility.hasLocationSection());
         setVisible(groupLocation, visibility.isLocationVisible());
@@ -68,7 +72,7 @@ final class ManagerGuideStepSectionsBinder {
                 "PRE_CONSULTATION".equals(stepCode == null ? "" : stepCode.trim()));
         setVisible(groupMedicationNote, visibility.isMedicationNoteVisible());
         setVisible(groupPharmacy, visibility.isPharmacyVisible());
-        setVisible(cardReport, visibility.hasReportSection());
+        setVisible(cardReport, visibility.hasReportSection() || showMemoSummary);
         setVisible(groupReportSummary, visibility.isReportSummaryVisible());
         setVisible(groupReportMedication, visibility.isReportMedicationVisible());
         setVisible(groupReportNextVisit, visibility.isNextVisitVisible());
