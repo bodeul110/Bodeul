@@ -81,6 +81,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private ManagerGuideReceptionBinder managerGuideReceptionBinder;
     private ManagerGuidePreConsultationBinder managerGuidePreConsultationBinder;
     private ManagerGuideVitalsBinder managerGuideVitalsBinder;
+    private ManagerGuidePrescriptionBinder managerGuidePrescriptionBinder;
 
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
@@ -284,11 +285,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(android.R.id.content));
         managerGuideVitalsBinder = new ManagerGuideVitalsBinder(
                 findViewById(android.R.id.content), viewModel::saveVitalsDraft);
+        managerGuidePrescriptionBinder = new ManagerGuidePrescriptionBinder(
+                findViewById(android.R.id.content));
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuidePreConsultation).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuideVitals).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuidePrescription).setOnClickListener(view -> finish());
         findViewById(R.id.buttonGuideReceptionShare).setOnClickListener(view -> {
             if (!"RECEPTION_QUEUE".equals(currentStepCode) || mutationInFlight) {
                 return;
@@ -319,6 +323,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
         buttonSelectGuideSessionArtifact.setOnClickListener(view -> selectCurrentStepArtifact());
         buttonClearGuideSessionArtifact.setOnClickListener(view -> clearCurrentStepArtifact());
+        findViewById(R.id.buttonGuidePrescriptionSelect).setOnClickListener(
+                view -> selectCurrentStepArtifact());
+        findViewById(R.id.buttonGuidePrescriptionClear).setOnClickListener(
+                view -> clearCurrentStepArtifact());
         checkGuidePreConsultationConfirmed.setOnCheckedChangeListener((button, checked) -> {
             if (!bindingPreConsultationConfirmation) {
                 checkGuidePreConsultationConfirmed.setEnabled(false);
@@ -435,6 +443,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
             managerGuideReceptionBinder.hideForState();
             managerGuidePreConsultationBinder.hideForState();
             managerGuideVitalsBinder.hideForState();
+            managerGuidePrescriptionBinder.hideForState();
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             currentStepCode = "";
             clearCurrentLocationMarkerOutsideMeetingStep();
@@ -473,6 +482,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     managerGuideVitalsBinder.bind(
                             state.screenModel, state.dashboard, mutationInFlight,
                             viewModel.getVitalsDraft(state.dashboard.getSession().getId()));
+                    managerGuidePrescriptionBinder.bind(
+                            state.screenModel, state.dashboard, mutationInFlight);
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
@@ -489,6 +500,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 managerGuideReceptionBinder.hideForState();
                 managerGuidePreConsultationBinder.hideForState();
                 managerGuideVitalsBinder.hideForState();
+                managerGuidePrescriptionBinder.hideForState();
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 currentStepCode = "";
                 clearCurrentLocationMarkerOutsideMeetingStep();
@@ -549,6 +561,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private void disableMutationActions() {
         managerGuideReceptionBinder.setShareEnabled(false);
         managerGuideVitalsBinder.setInputsEnabled(false);
+        managerGuidePrescriptionBinder.setActionsEnabled(false);
         findViewById(R.id.buttonGuidePreConsultationComplete).setEnabled(false);
         buttonAdvanceGuide.setEnabled(false);
         buttonSubmitReport.setEnabled(false);
