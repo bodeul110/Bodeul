@@ -4,6 +4,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,6 +31,42 @@ final class ManagerCurrentLocationReader {
         void onSuccess(@NonNull Location location);
 
         void onFailure(@NonNull Failure failure);
+    }
+
+    interface LegacyListenerCallback {
+        void onLocationChanged(@NonNull LocationListener listener, @NonNull Location location);
+
+        void onProviderDisabled(@NonNull LocationListener listener);
+    }
+
+    /** API 24~29에서도 모든 추상 콜백을 직접 구현하는 단발 위치 리스너다. */
+    static final class LegacySingleUpdateListener implements LocationListener {
+        private final LegacyListenerCallback callback;
+
+        LegacySingleUpdateListener(@NonNull LegacyListenerCallback callback) {
+            this.callback = callback;
+        }
+
+        @Override
+        public void onLocationChanged(@NonNull Location location) {
+            callback.onLocationChanged(this, location);
+        }
+
+        @Override
+        public void onProviderDisabled(@NonNull String provider) {
+            callback.onProviderDisabled(this);
+        }
+
+        @Override
+        public void onProviderEnabled(@NonNull String provider) {
+            // 단발 조회는 provider 활성화 이후 다음 위치 콜백을 그대로 기다린다.
+        }
+
+        @Override
+        @SuppressWarnings("deprecation")
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+            // API 29 이하에서 호출될 수 있으므로 호환성을 위해 명시적으로 구현한다.
+        }
     }
 
     private ManagerCurrentLocationReader() {
@@ -125,32 +162,35 @@ final class ManagerCurrentLocationReader {
         AtomicBoolean completed = new AtomicBoolean(false);
         Handler mainHandler = new Handler(Looper.getMainLooper());
         Runnable[] timeoutHolder = new Runnable[1];
-        LocationListener listener = new LocationListener() {
+        LocationListener listener = new LegacySingleUpdateListener(new LegacyListenerCallback() {
             @Override
-            public void onLocationChanged(@NonNull Location location) {
+            public void onLocationChanged(
+                    @NonNull LocationListener source,
+                    @NonNull Location location
+            ) {
                 if (!completed.compareAndSet(false, true)) {
                     return;
                 }
                 mainHandler.removeCallbacks(timeoutHolder[0]);
-                locationManager.removeUpdates(this);
+                removeLegacyUpdates(locationManager, source);
                 callback.onSuccess(location);
             }
 
             @Override
-            public void onProviderDisabled(@NonNull String disabledProvider) {
+            public void onProviderDisabled(@NonNull LocationListener source) {
                 if (!completed.compareAndSet(false, true)) {
                     return;
                 }
                 mainHandler.removeCallbacks(timeoutHolder[0]);
-                locationManager.removeUpdates(this);
+                removeLegacyUpdates(locationManager, source);
                 callback.onFailure(Failure.LOCATION_SERVICE_DISABLED);
             }
-        };
+        });
         timeoutHolder[0] = () -> {
             if (!completed.compareAndSet(false, true)) {
                 return;
             }
-            locationManager.removeUpdates(listener);
+            removeLegacyUpdates(locationManager, listener);
             Location fallback = findFreshFallback(activity, locationManager);
             if (fallback != null) {
                 callback.onSuccess(fallback);
@@ -167,6 +207,17 @@ final class ManagerCurrentLocationReader {
             if (completed.compareAndSet(false, true)) {
                 callback.onFailure(Failure.UNAVAILABLE);
             }
+        }
+    }
+
+    private static void removeLegacyUpdates(
+            LocationManager locationManager,
+            LocationListener listener
+    ) {
+        try {
+            locationManager.removeUpdates(listener);
+        } catch (RuntimeException ignored) {
+            // 조회 도중 권한이나 provider 상태가 바뀌어도 완료 콜백은 계속 전달한다.
         }
     }
 
