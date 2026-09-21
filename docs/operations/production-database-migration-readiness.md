@@ -1,5 +1,7 @@
 # Production DB migration 사전 점검
 
+기준 범위 확인: 2026-09-21. 현재 소스 migration은 V23까지지만 이 readiness 도구의 도메인별 영향 집계는 V14·V15 가이드 전환 중심이다. 통과했다고 V16~V23 업무 계약·권한·데이터 이관 전체가 검증된 것은 아니다. [Migration 목록](../architecture/database-migration-catalog.md)과 각 버전 검증을 함께 적용한다.
+
 ## 작업 목적
 
 Production PostgreSQL migration 전후에 연결 대상, 현재 schema 버전, 실패 이력과 영향 건수를 쓰기 없이 확인한다.

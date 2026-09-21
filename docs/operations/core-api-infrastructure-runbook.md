@@ -1,6 +1,6 @@
 # Spring Core API Cloud Run 인프라 런북
 
-기준일: 2026-08-26
+기준일: 2026-09-21
 
 이 문서는 `core-api/`를 Google Cloud Run에 배포하고 Supabase PostgreSQL, Firebase Auth, Kakao 서버 API를 연결하는 개발 환경 기준을 정한다. 실제 secret 값은 저장소와 공개 GitHub 대화에 남기지 않는다.
 
@@ -15,11 +15,13 @@
 
 Cloud Run은 현재 Spring 애플리케이션을 컨테이너로 유지하고, 요청이 없을 때 인스턴스를 0으로 줄일 수 있다. Firebase와 같은 Google Cloud 프로젝트의 서비스 계정 ADC를 사용할 수 있어 장기 서비스 계정 JSON 파일도 필요하지 않다. 단점은 첫 요청의 cold start와 결제 계정 등록이 필요하다는 점이다.
 
-## 현재 상태
+## 현재 코드와 과거 검증 기록
+
+소스 migration은 V1~V23이다. 아래 run·revision은 당시 증적이며 최신 서비스 상태가 아니다. Preview 오류 재확인 #429와 운영 DB 일시정지(9월 21일)를 별도로 확인한다. [Migration 목록](../architecture/database-migration-catalog.md)과 [관리자 웹 환경](admin-web-environments.md)을 함께 본다.
 
 - Java 21, Spring Boot 3.5.16, `/health`, `preview` DB profile이 구현돼 있다.
 - Firebase ID token 검증과 PostgreSQL `app_users.role` 인가가 구현돼 있다.
-- 개발 DB의 V1~V12 migration과 세션 백필, RLS, Core/Admin runtime 최소 권한 검증이 완료됐다.
+- V1~V12와 세션 백필·RLS는 초기 개발 전환 검증 기록이다. 이후 관리자 RBAC·영상 메타데이터·결제 계약이 V20~V23으로 추가됐다.
 - 세션 진행·리포트용 V6 최소 컬럼 쓰기 권한은 개발 DB run `29639792606`에서 검증했다. Core API Preview 배포, 무인증 경계와 실제 token 역할 검증을 완료했다.
 - 예약 후속 처리용 V7 최소 컬럼 쓰기 권한과 Core API·Android 연결을 완료했다. 개발 DB migration run `29642658596`, Cloud Run Preview run `29642778613`, SM-S921N 실기기 후기·정산·긴급 지원 저장을 검증했다.
 - `core-api/Dockerfile`과 `Core API Preview Deploy` workflow를 배포 기준으로 사용한다.
@@ -27,7 +29,7 @@ Cloud Run은 현재 Spring 애플리케이션을 컨테이너로 유지하고, �
 - 실제 Firebase ID token과 PostgreSQL role 연결은 Issue #157에서 검증했다.
 - Kakao Local REST Secret 버전 `1`과 인증된 장소 검색 실호출은 Issue #158 검증 기록에서 확인했다.
 - Android App Check header 전달과 Spring `off/observe/enforce` 검증을 구현했다. preview는 Android 실기기 `valid`를 확인했지만 release Play Integrity와 rollback 검증 전까지 `observe`로 운용한다.
-- 채팅·읽음·위치 Core API와 Supabase private Realtime 전환을 배포했다. 최신 리비전 `bodeul-core-api-preview-00014-wnr`에서 실제 세션, FCM 실기기 알림과 10개 동시 연결을 검증했다.
+- 채팅·읽음·위치 Core API와 Supabase private Realtime 전환을 배포했다. 당시 리비전 `bodeul-core-api-preview-00014-wnr`에서 실제 세션, FCM 실기기 알림과 10개 동시 연결을 검증했다.
 - production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 생성했다. Artifact Registry, WIF, deploy/runtime 서비스 계정과 DB Secret Manager version을 준비했다. 2026-08-26 Supabase project를 재개하고 Flyway V15, 읽기 전용 상태 점검과 migration 전후 격리 복원을 완료했다. Cloud Run 서비스는 Kakao production Secret version을 기다리는 첫 승인 배포 전 상태다.
 
 실제 revision, image digest, 응답과 로그 검사 결과는 [Issue 156 Cloud Run preview 검증 기록](../reports/issue-156-core-api-cloud-run-preview-2026-07-16.md)에 정리한다.

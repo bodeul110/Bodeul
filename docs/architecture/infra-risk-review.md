@@ -1,6 +1,6 @@
 # 인프라 리스크와 보완 계획
 
-기준일: 2026-08-26
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -9,20 +9,21 @@
 
 현재 가장 큰 리스크는 개발에서 검증한 PostgreSQL Core 업무 원본 경계와 자동 파기를 production에서 그대로 재현하는 것이다. 목표 구조는 Core 업무 도메인의 Supabase PostgreSQL 단일 원본, Spring Core API와 Next.js 관리자 서버의 분리된 접근, Firebase Auth·FCM·App Check·Storage와 일부 Firestore 결합 데이터 유지다.
 
-개발 Android의 예약·동행·리포트·후속 처리·채팅·읽음·위치는 PostgreSQL 단일 쓰기로 전환했고 Firestore client 쓰기를 차단했다. 매칭 배정은 관리자 서버의 admin-only 함수가 담당한다. production schema와 PostgreSQL 복원 경로는 준비됐으며, Go/No-Go 전까지 실제 데이터 cutover, 파기 fixture, release App Check와 rollback을 검증한다.
+개발 Android의 예약·동행·리포트·후속 처리·채팅·읽음·위치는 PostgreSQL 단일 쓰기로 전환했고 Firestore client 쓰기를 차단했다. 매칭 배정은 관리자 서버의 admin-only 함수가 담당한다. 소스 schema는 V23까지 있지만 운영 DB는 9월 21일 일시정지 상태이며 최신 migration 적용을 재확인해야 한다. 과거 fixture·복원 기록을 현재 운영 검증 완료로 대체하지 않는다. 기존 매니저 위치는 기본 OFF이고 환자 중심 위치 정책의 구현·실검증은 별도다.
 
 ## 리스크 요약
 
 | 리스크 | 현재 상태 | 보완 계획 |
 | --- | --- | --- |
 | 이중 데이터 원본 | 개발 Core 업무 쓰기는 PostgreSQL로 단일화했고 해당 Firestore 문서는 rollback 비교 자료다. production은 아직 사용자 트래픽을 받지 않는다. | production 전환 뒤 최대 30일 비교 기간을 두고 관련 Firestore Core 업무 경로를 제거한다. |
-| 권한 기준 분기 | 인증은 Firebase이고 Core API·관리자 관계형 요청의 최종 role은 PostgreSQL `app_users.role`이다. Firebase 유지 기능은 Firestore·Storage Rules role을 사용한다. | Firebase UID를 공통 키로 유지하고 각 요청 경계가 해당 저장소의 role을 확인한다. |
-| 실시간 운영 | 개발 위치·채팅은 PostgreSQL 영속 저장과 Supabase private Broadcast로 전환했다. | production 부하, 재연결, FCM 실패율과 durable retry 필요성을 확인한다. |
-| DB 연결 고갈 | Cloud Run과 Vercel이 같은 DB를 사용한다. | Core pool 2, Admin pool 1, runtime role connection limit 5와 최대 인스턴스 2를 유지한다. |
+| 권한 기준 분기 | Core는 PostgreSQL 역할·참여 관계, 관리자는 ADMIN과 활성 세부 역할을 확인한다. 브라우저 ADMIN의 Firebase 직접 접근은 차단한다. | Firebase UID를 연결 키로 쓰되 인증과 업무 인가를 분리하고 서버·Rules 경계를 각각 검증한다. |
+| 개발 API 가용성 | #429에 Preview 500/503 재확인 항목이 남아 있다. 최근 앱 PR 병합은 서버 복구 증명이 아니다. | health와 인증된 예약·세션 요청, DB 연결을 재검증한다. |
+| 실시간 운영 | 채팅·읽음·상태 이벤트는 PostgreSQL과 private Broadcast 계약을 사용한다. legacy 위치는 기본 OFF다. | 재연결·동의 회수·종료 후 접근과 환자 위치 흐름을 따로 검증한다. |
+| DB 연결 고갈 | Cloud Run과 Vercel이 같은 DB를 사용한다. | Core pool은 Preview 5·Production 2이며 인스턴스 수와 Admin·retention·migration 연결을 합산해 한도를 검증한다. |
 | App Check | 개발 Android valid 검증과 관리자 웹 Production client·서버 `observe` 배포를 완료했다. release Play Integrity와 인증된 Web `VALID`·enforcement는 남았다. | release Play Integrity와 Android·Web 실제 요청을 확인한 뒤 서비스별 observe에서 enforce로 전환한다. |
-| 민감 데이터 보관 | V13, Core 첨부와 개발 Firestore 전환 문서·매니저 증빙 fixture APPLY·cleanup을 완료했다. Notion의 보관기간끼리 충돌하고 production 쓰기 권한은 비활성 상태다. | 보관기간 충돌, 개인정보 처리방침과 위치기반서비스 이용약관을 먼저 승인한 뒤 production 격리 fixture를 검증한다. |
+| 민감 데이터 보관 | 과거 fixture APPLY·cleanup 기록이 있다. 현재 적용 기준은 후속 기획 답변을 반영한 보관 정책이며 모든 정책 충돌을 미결정으로 취급하지 않는다. | 현재 정책과 실제 파기 job·고지를 대조하고 최신 운영 schema에서 격리 fixture를 검증한다. |
 | 복구 | production PostgreSQL 격리 복원은 완료했다. | Cloud Run·Vercel rollback을 리허설하고 분기별 DB 복원을 반복한다. |
-| 비용 | GCP budget은 있으나 Supabase와 Vercel은 아직 무료 등급이다. | 월 150,000 KRW 한도 안에서 2026-11-16까지 Supabase/Vercel Pro로 전환한다. |
+| 비용 | 과거 budget·플랜 기록과 현재 청구 상태는 다르다. 이번 작업에서는 결제를 재조회하지 않았다. | 월 150,000 KRW 계획 한도 안에서 실제 운영 전 플랜·백업·사용량·결제 연결을 확인한다. |
 | 외부 API | Kakao Local은 Core API로 이동했지만 production key가 없다. | Secret Manager version을 추가하고 429, timeout과 fallback을 production 후보에서 검증한다. |
 | 운영자 의존 | 실명 운영자와 rollback 승인자가 확정되지 않았다. | 출시 전 최소 2명과 장애 연락·승인 경로를 지정한다. |
 
@@ -60,7 +61,7 @@ Realtime 이벤트는 누락, 중복 또는 순서 변경이 발생할 수 있�
 - 실제 사용자 데이터 전에는 Supabase Pro의 일일 7일 백업을 활성화한다.
 - 외부 logical dump는 GCS에 4주 순환 보관하고 분기마다 복원한다.
 - Supabase spend cap을 유지하고 초기에는 PITR과 Log Drain을 구매하지 않는다.
-- GCP budget은 자동 지출 차단이 아니므로 최대 인스턴스, API quota와 Storage 업로드 제한을 같이 유지한다.
+- 기존 GCP 알림용 budget은 자동 지출 차단을 보장하지 않으므로 최대 인스턴스, API quota와 Storage 업로드 제한을 같이 유지한다.
 
 ## 출시 차단 조건
 

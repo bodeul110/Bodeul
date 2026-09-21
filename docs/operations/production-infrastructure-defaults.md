@@ -1,8 +1,16 @@
 # Production 인프라 기본값
 
-기준일: 2026-08-26
+기준일: 2026-09-21
 
-이 문서는 BoDeul production 리소스의 실제 식별자, 리전, 배포 경계와 운영 기준을 고정한다. 2026-07-17에 Google Cloud/Firebase와 Supabase production 기반을 생성했으며, 도메인 구매와 실명 담당자 지정은 별도 운영 결정으로 남긴다.
+이 문서는 BoDeul production 리소스의 식별자, 리전, 배포 경계와 운영 기준을 관리한다. 리소스 생성 기록과 현재 사용 가능 상태는 구분한다. 도메인은 보유 여부와 실제 연결을 확인하고, 새로 구매해야 한다고 단정하지 않는다.
+
+## 현재 확인 요약
+
+- 2026-09-21 운영 Supabase는 일시정지 상태로 확인했으며 재개하지 않았다. 8월 26일 재개·V15 복원 기록이 현재 가동을 의미하지 않는다.
+- 운영 관리자 웹 배포와 Firebase Auth 계정 등록은 확인 기록이 있다. DB 연결·세부 역할·MFA·실제 업무 흐름 완료와는 별개다.
+- 현재 소스는 Flyway V1~V23이다. 운영 적용 이력은 [migration 목록](../architecture/database-migration-catalog.md)과 해당 환경 조회로 확인한다.
+- 결제 연결·비밀값·IAM은 이번 문서 작업에서 변경하거나 재조회하지 않았다. 아래 생성 기록을 현재 권한·청구 상태로 해석하지 않는다.
+- 실제 전환일과 유료 전환일은 미정이다. 최신 확인 범위는 [관리자 웹 환경](admin-web-environments.md)을 따른다.
 
 ## 결정 요약
 
@@ -16,7 +24,7 @@
 - 사람의 Google Cloud 권한은 역할별 Cloud Identity 보안 그룹으로 관리하고, CI와 런타임은 WIF와 서비스 계정을 사용한다.
 - Production 구성 드리프트는 배포·백업 계정을 재사용하지 않고 전용 읽기 전용 감사 계정과 보호된 수동 workflow로 확인한다.
 - 개발 Preview를 출시 전 검증 환경으로 사용하고, 현재 규모에서는 세 번째 staging 환경을 만들지 않는다.
-- 목표 production 전환일은 2026-12-15 10:00 KST로 둔다.
+- 연말은 초기 목표이며 이전 2026-12-15는 임시 일정이다. 운영 게이트를 통과한 뒤 실제 전환일을 정한다.
 - 월 반복 비용 승인 한도는 150,000 KRW, 정상 목표는 100,000~130,000 KRW로 둔다.
 
 ## 리소스 기준
@@ -24,7 +32,7 @@
 | 범위 | 확정값 | 비고 |
 | --- | --- | --- |
 | Google Cloud/Firebase 표시 이름 | `BoDeul Production` | 하나의 Google Cloud 프로젝트에서 Firebase를 활성화한다. |
-| Google Cloud project ID / number | `bodeul-prod-110` / `649312328770` | 결제 연결과 Firebase 활성화 완료 |
+| Google Cloud project ID / number | `bodeul-prod-110` / `649312328770` | Firebase 생성 기록 있음. 현재 결제 연결은 별도 재확인 |
 | Google Cloud/Cloud Run 리전 | `asia-northeast1` | Tokyo |
 | Cloud Run 서비스 | `bodeul-core-api` | preview 접미사를 사용하지 않는다. |
 | Artifact Registry/이미지 | `bodeul-core-api` | 개발 프로젝트와 이름은 같아도 프로젝트 경계로 분리된다. |
@@ -41,8 +49,8 @@
 | Vercel 프로젝트 | `bodeul-admin-web` | 기존 프로젝트를 유지한다. |
 | Vercel production branch | `master` | 보호된 PR 병합만 허용한다. |
 | Vercel Functions 리전 | `hnd1` | Tokyo |
-| 관리자 도메인 | `admin.<기준-도메인>` | 기준 도메인 구매 후 연결한다. |
-| Core API 도메인 | `api.<기준-도메인>` | 기준 도메인 구매 후 연결한다. |
+| 관리자 도메인 | `admin.<기준-도메인>` | 목표 호스트 예시. 현재 배포 주소는 관리자 웹 환경 문서 기준 |
+| Core API 도메인 | `api.<기준-도메인>` | 목표 호스트 예시. 실제 연결 전 DNS·인증서 확인 |
 
 ## 환경 분리
 
@@ -53,7 +61,7 @@
 
 Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Production에는 production 값만 두며, 값이 없을 때 서버 API가 설정 오류로 종료되는 fail-closed 상태를 유지한다. Firebase authorized domain에는 실제 관리자 도메인과 출시 전 검증에 필요한 Vercel 도메인만 정확한 호스트명으로 등록하고 wildcard를 사용하지 않는다.
 
-Production Supabase Free project는 2026-08-26 재개했고 읽기 전용 DB 점검, Flyway V15와 migration 전후 백업·격리 복원을 통과했다. Free 등급의 자동 일시 중지 위험은 남으므로 실제 사용자 데이터 투입 전 Pro 전환을 계속 출시 게이트로 둔다.
+Production Supabase는 2026-08-26 재개 후 V15 migration 전후 백업·격리 복원을 통과한 기록이 있다. 이후 2026-09-21 일시정지가 확인됐다. 재개와 최신 schema 검증, 실제 사용자 데이터 투입 전 운영용 백업 등급 전환은 별도 게이트다.
 
 동시 릴리스가 늘거나 production과 같은 데이터 규모·외부 연동으로 장기간 QA해야 할 때 세 번째 staging 프로젝트를 검토한다. 현재 MVP 규모에서는 비용과 운영 대상을 늘리는 효과가 더 크므로 추가하지 않는다.
 
@@ -99,7 +107,8 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 | --- | --- | --- |
 | `bodeul_migration` / `bodeul_migrator` | Flyway와 schema 변경 | migration에만 사용 |
 | `bodeul_core_runtime` / `bodeul_core_service` | 사용자 서비스 | 전환한 도메인의 필요한 DML만 부여 |
-| `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 서버 | 초기 SELECT-only, 쓰기 기능별 별도 검토 |
+| `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 서버 | 제한된 조회와 배정·결제·감사 함수 실행, 일반 테이블 직접 쓰기 금지 |
+| `bodeul_retention_runtime` / `bodeul_retention_service` | 보존 worker | 승인된 후보 조회·파기 함수만 실행 |
 
 - `anon`, `authenticated`, `service_role`을 애플리케이션 DB 접속 계정으로 사용하지 않는다.
 - 브라우저와 APK에서 Supabase Data API나 PostgreSQL에 직접 연결하지 않는다.
@@ -128,23 +137,25 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - 출시 전 최소 2명의 실명 운영자를 정해 한 명의 계정 잠금이 전체 운영 중단으로 이어지지 않게 한다.
 - `gcp-admins@bodeul.kr`에 주 관리자와 복구용 관리자 두 소유자 계정을 등록하고, 두 조직 및 개발·production 프로젝트 조회를 그룹 경유로 각각 검증했다. 이후 두 프로젝트와 두 조직의 `scp@bodeul.kr` 직접 관리자 IAM binding을 모두 제거해 0건으로 만들었다.
 - 개발자는 `developers@bodeul.kr`, production 조회 담당자는 `prod-operators@bodeul.kr`로 관리한다. 팀에서 제외된 이전 개발자의 `bodeul-dev` 직접 Editor 권한은 제거했으며, 현재 개발자의 직접 Editor 권한은 개별 그룹 경유 접근 검증 전까지만 유지한다. production 조회 그룹에는 로그·모니터링·Cloud Run·Secret 메타데이터 조회만 허용한다.
-- Google Cloud budget 알림 임계값은 50%, 80%, 100%로 고정한다. 개발 10,000 KRW, production 30,000 KRW를 유지한다.
+- 알림용 Google Cloud budget은 개발 10,000 KRW, production 30,000 KRW와 50%·80%·100%를 계획 기준으로 둔다. 현재 결제 연결·알림 수신 설정은 [비용 모니터링](cost-monitoring.md)에 따라 재확인한다.
 - 실제 사용자 데이터 투입 전 Supabase 조직을 Pro로, 실제 운영 전 Vercel을 개발자 좌석 2개의 Pro로 전환한다.
 - Supabase spend cap을 유지하고 PITR, custom domain과 Log Drain은 초기 운영 비용에 포함하지 않는다.
 - Cloud Run 오류율·지연·인스턴스 수, PostgreSQL 연결 수·용량·백업, Vercel 실패 배포와 Firebase Auth 오류를 확인한다.
 
 ## 생성과 출시 순서
 
-1. 월 150,000 KRW 운영 한도와 2026-12-15 목표 일정을 기준으로 한다. 결제 책임자, 기준 도메인과 운영자 2명은 출시 전에 확정한다.
+1. 월 150,000 KRW 계획 한도와 게이트 기반 전환을 기준으로 한다. 결제 책임자, 사용할 도메인·주소, 운영자와 실제 일정은 출시 전에 확인한다.
 2. production Google Cloud 프로젝트를 만들고 Firebase를 활성화한다. 완료.
-3. production Supabase 프로젝트와 DB role을 만들고 Flyway migration을 실행한다. 완료.
+3. production Supabase와 DB role의 생성 기록은 있다. 현재 일시정지 상태와 소스 V23까지의 실제 적용 여부를 재확인한다.
 4. WIF, 서비스 계정, Artifact Registry와 Secret Manager를 만든다. 완료. Cloud Run 서비스 생성은 첫 승인 배포에서 수행한다.
 5. Vercel Production 환경변수와 도메인을 연결한다.
 6. Firebase authorized domain, App Check, 관리자 MFA와 최소 권한을 검증한다.
 7. backup/restore, Cloud Run revision과 Vercel deployment rollback을 리허설한다.
 8. smoke test와 운영 담당자 확인 뒤 트래픽을 전환한다.
 
-## 현재 준비 상태
+## 기반 구축·검증 이력
+
+다음은 2026년 7~8월 구축·검증 당시 기록이다. 최신 DB 가동·Rules revision·secret version·권한·요금제를 다시 확인한 결과가 아니며, 현재 상태는 위 요약과 환경별 보고서를 우선한다.
 
 - `.github/workflows/core-api-production-deploy.yml`에 보호된 수동 배포, 대상 재확인과 smoke 실패 rollback을 준비했다.
 - `.github/workflows/core-api-migration.yml`의 production 경로에 `master` SHA, 백업 증적과 사전 Core API 검사를 적용했다.
@@ -154,7 +165,7 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 - production Firestore와 Storage에는 저장소의 현재 Rules를 배포했다. Firestore는 Tokyo, 삭제 방지와 7일 PITR version 보존을 사용하고 App Check는 아직 강제하지 않는다.
 - production Firebase Storage는 bucket 수준 Public Access Prevention을 강제했다. UBLA는 조직 정책 아래 즉시 되돌릴 수 없으므로 개발 버킷의 업로드·미리보기·삭제 실검증 전까지 보류한다.
 - production Supabase는 빈 데이터 상태로 Flyway V15와 계정 삭제 영향도 DB 계약을 갖는다. 최소 권한 role과 공개 role table grant 0건을 유지하며 migration 후 Security Advisor 경고도 0건이다.
-- production Supabase 조직은 현재 Free다. 2026-11-16까지 Pro로 전환하고 spend cap과 일일 7일 백업을 확인한다.
+- 당시 production Supabase 조직은 Free였다. 임시 유료 전환일에 자동 결제하지 않고 실제 운영 전 현재 플랜·백업·사용량 상한 조건을 확인한다.
 - production Core API의 초기 Kakao outbound 정책은 `dynamic`이다. 저장소의 배포 설정에는 VPC와 Cloud NAT를 연결하지 않으며 production workflow가 기존 서비스의 실제 VPC 연결을 조회해 정책과 다르면 배포를 중단한다. Kakao 호출 허용 IP의 실제 콘솔 상태는 production 키 등록 때 별도로 확인한다.
 - 기존 migration 전·V12·V13 검증 dump와 2026-08-26 V14·V15 적용 전후 검증 dump를 비공개 GCS bucket에 28일 보존으로 저장했다. 최신 V15 restore 리허설을 완료했고, 실제 데이터 규모의 복구 시간 측정은 출시 후 분기 리허설에서 반복한다.
 - production logical dump 전용 서비스 계정, WIF provider와 GitHub Environment 변수를 구성했다. 2026-07-18 당시 V3 dump를 격리 PostgreSQL에 복원해 owner, ACL, row 수, RLS, 정책, 인덱스, 제약과 Flyway 이력 일치를 확인했다.
@@ -163,9 +174,9 @@ production DB도 개발 DB와 같은 역할 경계를 사용하되 자격 증명
 
 ## 사람 결정이 필요한 항목
 
-- 구매할 기준 도메인
+- 보유 도메인과 사용할 호스트·DNS 관리 주체
 - 실명 운영자 2명, 장애 대응 책임자와 rollback 승인자
-- 2026-12-15 전환에 맞춘 사용자 공지 내용과 최종 점검 시간
+- 실제 전환일에 맞춘 사용자 공지와 최종 점검 시간
 
 나머지 리소스 이름, 리전, 환경 경계, 배포·백업·보안 기본값은 이 문서를 기준으로 진행한다.
 

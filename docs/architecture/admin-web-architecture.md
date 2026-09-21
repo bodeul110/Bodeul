@@ -60,7 +60,7 @@
 - 분리된 production 기반의 실제 DB 접속·최소 권한·관리자 업무 검증. 프로젝트 생성과 웹 배포는 이미 완료
 - 최종 서비스 도메인과 Firebase Auth authorized domain 대조
 - reCAPTCHA Enterprise 기반 App Check와 enforcement 기준 검증
-- Firestore 직접 접근 화면을 도메인별 서버 계약으로 이전하고 이전이 끝난 경로부터 브라우저 Rules 권한 제거
+- 현재 차단한 브라우저 ADMIN의 Firestore/Storage 직접 권한을 유지하고 신규 업무도 서버 세부 역할·감사 경유로만 확장
 - production 역할 bootstrap, MFA 확인과 긴급 권한 회수 리허설
 
 Vite 빌드는 별도 저장소에 rollback 자산으로 남아 있다. 메인 저장소의 중복 `admin-web/`은 제거했으므로 웹 변경과 배포는 별도 저장소에서만 진행한다.

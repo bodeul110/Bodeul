@@ -1,6 +1,6 @@
 # 관리자 웹 데이터 계약
 
-기준일: 2026-08-30
+기준일: 2026-09-21
 
 관리자 웹 source of truth는 별도 [bodeul-admin-web 저장소](https://github.com/bodeul110/bodeul-admin-web)다. 이 문서는 메인 저장소의 Firebase Rules·Storage·PostgreSQL schema 변경이 관리자 웹에 미치는 공용 계약만 관리한다.
 
@@ -27,7 +27,7 @@ Firestore role은 로그인 화면의 진입 자격만 확인한다. 서버는 `
 | `users` 중 `role == MANAGER` | 서버 읽기 | 서버에서 이름·연락처를 마스킹하고 경로는 반환하지 않음 |
 | 매니저 심사 결과 | 서버 쓰기 | 상태, 검토 메모, 검토 시각·관리자 UUID, 이력 |
 
-매니저 심사, 병원 가이드 조회와 배정은 서버 API 계약을 먼저 구현한 뒤 브라우저 `ADMIN` 권한을 차단한다. 새 관리자 기능도 같은 순서를 따른다.
+매니저 심사, 병원 가이드 조회와 배정은 서버 API를 사용하며 현재 Rules는 브라우저 `ADMIN` 직접 권한을 차단한다. 새 관리자 기능도 서버 인가·감사 경계를 거친다.
 
 ## Storage 계약
 
@@ -42,13 +42,13 @@ Firestore role은 로그인 화면의 진입 자격만 확인한다. 서버는 `
 
 ## PostgreSQL 관리자 API 계약
 
-현재 첫 서버 경계는 `GET /admin/hospital-guides?limit=50`이며, 세부 역할 도입 뒤 모든 관리자 route가 같은 권한 판정을 재사용한다.
+초기 서버 경계는 `GET /admin/hospital-guides?limit=50`이었다. 현재 심사·배정·결제·감사 route도 같은 세부 역할 판정을 재사용한다. 전체 서버 계약은 [관리자 서버 문서](https://github.com/bodeul110/bodeul-admin-web/blob/master/docs/nextjs-admin-server.md), 결제는 [무통장입금 계약](admin-bank-transfer-payment-contract.md)을 따른다.
 
 - Authorization이 없으면 401
 - 유효한 token이지만 `ADMIN`이 아니거나 활성 세부 역할이 없으면 403
 - 관리자이면 200과 병원 가이드 목록
 - DB 접속은 서버 전용 `bodeul_admin_service`를 사용
-- 현재 runtime 권한은 필요한 SELECT만 허용
+- runtime은 필요한 조회와 배정·결제·감사용 제한된 함수 실행만 허용하며 일반 테이블 직접 쓰기는 허용하지 않음
 
 관리자 쓰기 API를 추가할 때는 table DML을 직접 부여하지 않고 검증된 `security definer` 함수, 감사 로그, 입력 검증, idempotency와 rollback을 함께 정의한다. 세부 계약은 [관리자 RBAC](admin-rbac.md)를 따른다.
 

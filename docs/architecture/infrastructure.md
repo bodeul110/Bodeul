@@ -1,13 +1,13 @@
 # 인프라 개요
 
-기준일: 2026-08-22
+기준일: 2026-09-21
 
 ## 런타임
 
 | 영역 | 구현 | 배포 |
 | --- | --- | --- |
 | Android | Java + XML | 로컬·실기기, GitHub Android Preflight |
-| 관리자 웹/서버 | 별도 저장소 React + Next.js | Vercel Preview, Production target은 운영값 미연결 |
+| 관리자 웹/서버 | 별도 저장소 React + Next.js | Vercel Preview·Production 웹 배포와 환경 표시. 운영 DB 업무 검증은 별도 |
 | 사용자 Core API | Java 21 + Spring Boot | Cloud Run Tokyo preview, production 배포 기반 준비 |
 | 공용 DB | PostgreSQL | Supabase Tokyo 개발·production 분리 |
 | 실시간 전달 | Supabase Realtime private Broadcast | 개발 검증 후 production 전환 |
@@ -38,8 +38,11 @@
 
 ## 현재 리스크
 
+- Preview 500/503 관찰의 현재 상태 재확인(#429), production DB 일시정지와 관리자 DB 연결 게이트
+- 소스 V1~V23과 환경별 DB 적용 버전의 차이. [migration 목록](database-migration-catalog.md)과 대상 DB 이력을 대조
+
 - Firestore와 PostgreSQL 병행 도메인의 데이터 불일치
-- 자동 파기는 개발 환경 PostgreSQL·Storage dry-run·apply 리허설을 마쳤지만, Firestore fixture와 법률 문서 대조 후 production 활성화가 필요함
+- 자동 파기는 개발 PostgreSQL·Storage·Firestore 격리 fixture 리허설 기록이 있으나 production 적용과 현재 정책·처리방침 대조는 별도임
 - production 도메인과 실명 운영자 미확정
 - 관리자 App Check 미강제
 - production DB restore는 완료했지만 Cloud Run·Vercel rollback 리허설 미완료

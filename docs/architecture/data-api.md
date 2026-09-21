@@ -4,6 +4,8 @@
 
 이 문서는 초기 데이터·API 초안과 날짜별 전환 이력을 함께 보관한다. 현재 예약·세션·채팅·위치 계약은 [예약 Core API 전환 계약](appointment-core-api.md)과 [매칭·동행·리포트 PostgreSQL 전환 계약](companion-session-core-api.md)을 우선한다.
 
+2026-09-21 기준 전체 SQL 버전은 [migration 목록](database-migration-catalog.md), 관리자 권한은 [RBAC](admin-rbac.md), 결제는 [무통장입금 계약](admin-bank-transfer-payment-contract.md)을 따른다. 아래 초안·날짜별 이력의 Firestore 직접 쓰기나 이전 역할 설명을 신규 구현 기준으로 사용하지 않는다.
+
 ## 엔티티
 
 ### User
