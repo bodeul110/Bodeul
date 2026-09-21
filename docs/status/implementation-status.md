@@ -2,6 +2,8 @@
 
 기준: 2026-09-03
 
+관리자 웹 항목은 2026-09-21 코드·배포 기준으로 별도 갱신했다. 다른 영역을 같은 날짜에 재검증한 것은 아니다.
+
 이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
 
 ## 1. 현재 동작하는 기능
@@ -53,12 +55,15 @@
 
 ### 관리자 웹
 
-- Firebase Auth 기준 관리자 로그인과 `users/{uid}.role == ADMIN` 검증
-- 매니저 서류 목록, 상세 심사 모달, Storage 원본 파일 미리보기
-- 승인 / 반려 저장, 검토 메모 저장
-- 목록 기본 마스킹, 상세 모달에서만 원문 확인
+- Firebase Auth 로그인 뒤 Next.js 서버가 PostgreSQL `ADMIN` 진입 자격과 활성 세부 역할을 검증
+- 매니저 서류 목록과 상세 심사 모달. 서버가 Storage 원본을 검증한 뒤 워터마크 이미지 파생본만 제공하며 PDF는 차단
+- 문서 증거 token을 대조하는 승인 / 반려 저장, 검토 메모와 감사 기록
+- 목록 기본 마스킹, 상세 접근 사유와 역할별 인가
 - 15분 유휴 세션 자동 로그아웃
+- 로그인·세션 확인·2차 인증·관리 화면의 개발/운영 환경 표시. 실제 Preview·Production 로그인 화면과 모바일 표시 확인
 - Production reCAPTCHA Enterprise client와 `X-Firebase-AppCheck` 전달, Next.js 서버 `observe` 검증. 인증된 `VALID` 요청과 `enforce`는 미완료
+
+웹 배포 완료와 운영 관리자 업무 개방은 다르다. 운영 로그인 계정은 Firebase Auth 등록까지만 진행했으며 DB 재개·역할 부여·실제 운영 로그인은 이 작업에서 검증하지 않았다. 현재 준비 상태는 [관리자 웹 환경 기준](../operations/admin-web-environments.md)을 본다.
 
 ### 알림 / 서버 / 운영 도구
 
@@ -105,6 +110,7 @@
 
 ## 5. 최근 세부 기록 위치
 
+- 관리자 웹의 개발/운영 표시와 실제 배포 검증은 [관리자 웹 환경 표시 검증 기록 (2026-09-21)](../reports/admin-web-environment-display-2026-09-21.md)에 둔다.
 - Firestore 쿼리와 인덱스 운영 점검 결과는 [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](../reports/firestore-query-index-review-2026-06-26.md)에 둔다.
 - 2026-06-20 이후 장문 점검과 실기기 확인 기록은 `../reports/` 아래 성격별 보고서에 둔다.
 - 최신 정책·법률 상태는 [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](../reports/notion-policy-legal-alignment-2026-08-25.md), 화면 기준은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 본다.
