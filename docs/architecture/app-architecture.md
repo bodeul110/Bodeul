@@ -1,6 +1,6 @@
 # Android 앱 구조 설명
 
-기준일: 2026-06-25
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -21,9 +21,14 @@ Activity, Coordinator, Binder, Repository, Mock 모드가 왜 있는지 설명�
 | Coordinator | 도메인 데이터를 화면 모델로 조합하고 상태별 표시 정책을 결정 |
 | Binder | XML View에 ScreenModel 값을 바인딩하고 반복 카드 렌더링을 담당 |
 | Formatter | 날짜, 상태, 금액, 안내 문구처럼 표현 문자열을 조합 |
-| Repository | Firebase/Mock 데이터 접근 계약을 감춘다 |
+| Repository | Core API/Firebase/Mock 데이터 접근 계약을 감춘다 |
 | Mock 구현 | Firebase 설정이 없거나 데모/테스트가 필요한 환경에서 같은 화면 흐름을 유지 |
 | Firebase 구현 | 실제 Auth, Firestore, Storage, FCM과 연결 |
+| Core API 구현 | 예약·결제 조회·동행·채팅·읽음·리포트·동의 계약을 Spring API로 호출 |
+
+`ServiceLocator`는 Firebase 설정이 있으면 실제 인증과 Core API 저장소를 선택한다. 예약·동행 업무는 PostgreSQL이 원본이며, 매니저 프로필·자격 서류·지원 등 Firebase에 남은 기능만 Firebase 저장소로 합성한다. Core API 오류나 URL 누락 시 Firestore 쓰기 또는 Mock으로 자동 우회하지 않는다. Firebase 설정이 없는 데모 경로에서만 Mock을 사용한다.
+
+개발은 Codex/CLI로 진행할 수 있다. Gradle 실행에는 JDK 21과 Android SDK 37을 준비하고 앱의 Java 소스 호환성 17과 구분한다. Android Studio는 필수 편집기가 아니다.
 
 ## 대안
 
@@ -37,7 +42,7 @@ Activity, Coordinator, Binder, Repository, Mock 모드가 왜 있는지 설명�
 
 - 현재 앱은 환자, 보호자, 매니저, 관리자 역할별 화면이 많다.
 - Activity는 Android 프레임워크와 연결되는 지점만 맡기고, 화면 정책은 Coordinator/Binder로 밀어내는 편이 변경 범위를 줄인다.
-- Repository 계약을 두면 Firebase 모드와 Mock 모드가 같은 화면 코드를 공유할 수 있다.
+- Repository 계약을 두면 Core API/Firebase 조합과 Mock 모드가 같은 화면 코드를 공유할 수 있다.
 - Mock 모드는 `google-services.json`이 없는 CI/Dependabot 환경에서도 컴파일과 화면 흐름 검증을 가능하게 한다.
 
 ## Mock 모드가 필요한 이유
@@ -51,11 +56,10 @@ Activity, Coordinator, Binder, Repository, Mock 모드가 왜 있는지 설명�
 
 - Coordinator, Binder, Model 파일이 많아져 처음 보는 사람에게 구조가 복잡해 보일 수 있다.
 - 같은 역할 분리 기준을 지키지 않으면 화면마다 구조가 달라질 수 있다.
-- Mock 데이터가 실제 Firestore 계약과 어긋나면 데모는 되지만 운영 검증이 약해질 수 있다.
+- Mock 데이터가 실제 Core API·Firebase 계약과 어긋나면 데모는 되지만 운영 검증이 약해질 수 있다. Mock 화면 통과는 서버 인가·DB·Storage·Realtime 검증을 대체하지 않는다.
 
 ## 보완 계획
 
 - 새 화면은 Activity, Coordinator, Binder, Repository 역할을 PR에서 명시한다.
-- Mock/Firebase 양쪽 계약이 바뀌면 같은 PR에서 함께 갱신한다.
+- Core API/Firebase/Mock의 공용 계약이 바뀌면 같은 PR에서 함께 갱신한다.
 - 화면 구조가 복잡해진 기능은 `docs/status/implementation-status.md`와 architecture 문서에 요약을 남긴다.
-

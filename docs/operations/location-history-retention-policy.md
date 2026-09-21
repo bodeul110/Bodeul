@@ -1,10 +1,10 @@
 # 위치 이력 보관 및 노출 정책
 
-기준일: 2026-09-01
+기준일: 2026-09-21
 
 ## 목적
 
-최신 제품 목표는 환자 GPS 좌표를 1분 주기로 공유하는 것이다. 현재 코드는 매니저 단말 위치를 더 짧은 주기로 공유하므로 목표와 구현이 다르다. 이 문서는 제품 목표, production 활성화 조건과 이미 구현된 기술 안전망을 구분한다.
+최신 제품 목표는 환자 GPS 좌표를 1분 주기로 공유하는 것이다. legacy 코드는 매니저 단말 위치를 더 짧은 주기로 공유하지만 현재 기본값은 OFF이므로 목표·보존된 코드·실제 활성화를 구분한다. 이 문서는 제품 목표, production 활성화 조건과 이미 구현된 기술 안전망을 구분한다.
 
 ## 제품 정책 상태
 
@@ -14,7 +14,9 @@
 
 ## 현재 코드 기준
 
-- Android는 배정 매니저 단말 위치를 Spring Core API를 통해 기록하고 PostgreSQL을 업무 원본으로 사용한다.
+- legacy 공유는 Android `bodeulLegacyManagerLocationEnabled`와 서버 `BODEUL_SESSION_LEGACY_MANAGER_LOCATION_ENABLED`가 모두 필요한 개발 검증 경로다. 기본값은 false이며 Android release·Production workflow는 비활성으로 고정한다.
+- #430의 내 현재 위치 보기는 기기에서 위치를 확인하는 기능이며 서버 위치 공유를 활성화하지 않는다.
+- 명시적으로 켠 개발 legacy 경로만 배정 매니저 위치를 Core API로 기록한다.
 - `ManagerLiveLocationTracker`는 10초 또는 15m 이동을 전송 기준으로 사용한다. 이는 환자 GPS 1분 공유 목표와 주체·주기가 모두 다르다.
 - `companion_session_locations`는 세션별 최근 10건과 최신 위치 snapshot을 유지한다.
 - Supabase Realtime private Broadcast는 PostgreSQL 커밋 알림이며 재연결 시 Core API snapshot을 다시 읽는다.

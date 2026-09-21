@@ -1,6 +1,6 @@
 # PostgreSQL 운영 전환 결정
 
-기준일: 2026-08-25
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -29,9 +29,9 @@ Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도�
 | 예약 요청 PostgreSQL read model 백필 | 완료 |
 | 예약 생성·수정·취소 PostgreSQL 쓰기 전환 | 개발 환경 완료, Core API 단일 쓰기 |
 | 매칭·동행·리포트·후속 처리 전환 | 개발 환경 완료, 관리자 배정과 Core API 경계 분리 |
-| 채팅·읽음·위치와 Realtime 전환 | 개발 환경 완료, Firestore client 쓰기 차단 |
+| 채팅·읽음·legacy 위치와 Realtime 전환 | 코드·개발 검증 기록 있음, Firestore client 쓰기 차단. legacy 위치 기본 OFF, 환자 GPS 목표는 별도 구현 |
 | 세션 첨부 Core API 중계 | 개발 환경과 실기기 검증 완료, production 게이트 대기 |
-| 자동 파기 | Core 중첩 첨부와 Firestore 전환 문서·매니저 증빙의 개발 fixture APPLY·cleanup 완료. 정책 충돌 해소와 production 게이트 대기 |
+| 자동 파기 | Core 중첩 첨부와 Firestore 전환 문서·매니저 증빙의 개발 fixture APPLY·cleanup 완료. 현재 정책과 실제 파기 동작의 대조 및 production 게이트 대기 |
 | production 프로젝트 분리 | 완료 |
 | production PostgreSQL 복원 리허설 | 완료 |
 | production 유료 등급과 실제 트래픽 | 미전환 |
@@ -55,7 +55,7 @@ Firebase를 한 번에 제거하지 않고 관계형 데이터가 필요한 도�
 - 관리자 서버의 매니저 배정
 - 동행 세션·리포트·후속 처리
 - 환자·보호자·매니저 직접 채팅과 읽음 상태
-- 위치 공유와 최근 10건 이력
+- legacy 매니저 위치와 최근 이력의 서버 계약. 기본 OFF이며 환자 GPS 1분 공유와 이력 미보관 목표를 충족한 것으로 보지 않는다.
 - 세션 채팅 첨부 메타데이터와 만료 상태
 
 예약·동행·채팅·위치 쓰기는 Android에서 Firestore로 fallback하지 않는다. Realtime은 PostgreSQL 커밋 알림이고 재연결 시 Core API snapshot을 다시 읽는다.
@@ -74,7 +74,7 @@ Firebase에 남은 도메인을 PostgreSQL로 자동 이전하지 않는다. 각
 
 ### 3. production 전환 대기
 
-개발 환경의 Core 도메인 전환과 실기기 검증, Core 중첩 첨부·Firestore 전환 문서·매니저 증빙 파기 리허설은 완료했다. production에서는 보관기간 충돌 해소, Kakao 키, Cloud Run·Vercel 자격 증명, App Check, custom domain, rollback과 법률 문서 대조를 Go/No-Go에서 다시 확인한다.
+Core 도메인 전환과 첨부·파기의 과거 개발 검증 기록은 유지한다. 다만 #429의 Preview 오류 재확인과 production DB 재개·최신 migration·역할별 업무 검증이 남아 있어 현재 운영 완료로 표시하지 않는다. production에서는 Kakao 키, Cloud Run·Vercel 자격 증명, App Check, 도메인, rollback과 실제 처리방침·파기 동작을 Go/No-Go에서 대조한다.
 
 ## 대안
 

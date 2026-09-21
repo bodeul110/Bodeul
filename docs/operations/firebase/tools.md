@@ -1,8 +1,22 @@
 # Firebase 운영 도구
 
-기준일: 2026-07-18
+기준일: 2026-09-21
 
-`tools/firebase`는 앱 런타임 코드와 분리된 Firebase 운영용 로컬 스크립트를 모아두는 디렉터리다.
+`tools/firebase`는 앱 런타임 코드와 분리된 Firebase 점검·전환 산출물 도구다. `check:state`와 `check:readiness`는 Firestore·기존 seed 경계이며 PostgreSQL·Core API·관리자 권한 전체의 준비 완료를 보장하지 않는다.
+
+## 현재 명령 분류
+
+| 사용 시점 | 명령 | 실행 경계 |
+| --- | --- | --- |
+| Firebase 상태·서류·App Check | `check:state`, `check:readiness`, `check:manager-storage`, `check:app-check` | 로컬 인증 필요, 대상 프로젝트 확인 |
+| 코드·CI 점검 | `preflight:local`, `preflight:ci`, `test:toolkit`, `test:rules` | 빌드·에뮬레이터와 외부 서비스 검증 결과를 구분 |
+| 백업·복원 | `backup:state`, `validate:backup`, `rehearse:restore:emulator`, `restore:state:dry-run` | 실제 복원 apply는 별도 승인 |
+| 데이터 재구성 | `reset:baseline:dry-run`, `seed:sample:dry-run`, `seed:manager-docs:dry-run` | Firebase 전용. 실제 apply는 대상·백업 확인 뒤 별도 승인 |
+| PostgreSQL 전환 산출물 | `postgres:seed:*`, `postgres:appointment-requests:*`, `postgres:sessions:*` | SQL/check/rollback 생성. 실제 migration은 Core API 경계 |
+| 서류 정리·이관 | `cleanup:manager-storage:dry-run`, `migrate:manager-health-certificate:dry-run` | legal hold·참조 확인, apply 별도 승인 |
+| 증적·리포트 | `capture:app`, `diff:state`, `report:ops`, `workflow:ops` | 원본·비밀값·개인정보를 공개 산출물에 싣지 않음 |
+
+명령 존재 여부는 [package.json](../../../tools/firebase/package.json) 기준으로 대조했다. 이번 문서 작업에서 데이터 명령을 실행하지 않았다.
 
 관리자 웹/앱 권한 검증 순서는 [관리자 권한 QA 체크리스트](../admin-access-qa-checklist.md)를 기준으로 맞춘다.
 
@@ -318,14 +332,14 @@ node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispat
 
 ```powershell
 cd D:\BoDeul
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:JAVA_HOME = "<설치된 JDK 21 경로>"
 $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 npm --prefix tools/firebase run test:rules
 ```
 
 - [rules-emulator-tests/run-rules-tests.js](../../../tools/firebase/rules-emulator-tests/run-rules-tests.js)는 Firebase emulator를 띄운 뒤 Firestore/Storage Rules 허용/거부 시나리오를 실행한다.
 - 테스트 대상은 `users`, `appointmentRequests`, `companionSessions`, `sessionReports`, 관리자 운영 컬렉션, `manager-documents`, `companion-chat-attachments`다.
-- Firebase CLI 15.22.3 emulator는 Java 21 이상이 필요하다. Android Studio JBR 21 또는 CI의 `setup-java@v5` Java 21을 사용한다.
+- Firebase CLI 15.22.3 emulator는 Java 21 이상이 필요하다. 로컬 JDK 21 또는 CI에 설정된 Java 21을 사용한다. Android Studio 설치를 전제로 하지 않는다.
 - GitHub Actions에서는 [.github/workflows/firebase-rules.yml](../../../.github/workflows/firebase-rules.yml)이 같은 테스트를 실행한다.
 ## 2026-05-04 추가된 도구
 

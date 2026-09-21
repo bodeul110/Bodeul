@@ -9,7 +9,7 @@
 - [내부 테스트 가이드](internal-test-guide.md)
   - 테스트 계정, 더미 데이터, 역할별 테스트 순서
 - [관리자 권한 QA 체크리스트](admin-access-qa-checklist.md)
-  - 관리자 앱/웹 권한 검증 시나리오
+  - Firebase 연동 앱 관리자 업무 차단과 웹 세부 역할 검증
 - [GitHub self-hosted runner 운영 기준](github-self-hosted-runner.md)
   - 수동 프리플라이트용 자체 실행기 등록, 라벨, 보안 기준
 - [App Check 적용 로드맵](app-check-enforcement-roadmap.md)
@@ -23,8 +23,13 @@
 - [PostgreSQL 운영 전환 런북](postgres-operational-transition-runbook.md)
   - Supabase, Cloud Run, GitHub Environment, API 서버 전환 준비 절차
 - [Spring Core API Cloud Run 인프라 런북](core-api-infrastructure-runbook.md)
-- [Production 인프라 읽기 전용 점검](production-infrastructure-audit.md)
   - Core API 컨테이너, WIF, Secret Manager, 배포와 rollback 절차
+- [Production 인프라 읽기 전용 점검](production-infrastructure-audit.md)
+  - metadata-only 감사와 기대 구성 대조
+- [Google Cloud 접근 관리](google-cloud-access-governance.md)
+  - 사람 계정·그룹과 CI·서비스 계정 경계
+- [Android 릴리스 서명](android-release-signing.md)
+  - 팀 소유 서명과 release 검증 준비
 - [Core API 가이드 실기기 fixture](core-api-guide-device-fixture.md)
   - preview 13단계 가이드의 setup, status, cleanup과 실기기 검증 기준
 - [인프라 운영 기준](infrastructure-operations-baseline.md)
@@ -34,13 +39,13 @@
 - [Production DB migration 사전 점검](production-database-migration-readiness.md)
   - 운영 Supabase 연결 대상, Flyway version과 V14·V15 영향 건수의 읽기 전용 확인 절차
 - [2026년 Production 운영 전환 계획](production-transition-plan-2026.md)
-  - 2026-12-15 목표 일정, 월 비용 한도, 도메인별 전환 순서와 Go/No-Go 기준
+  - 임시 일정과 실제 전환 게이트 구분, 월 비용 한도와 환경별 준비 순서
 - [비용과 쿼터 모니터링](cost-monitoring.md)
   - Google Cloud budget, Firebase/Cloud Run metric, Kakao Local 쿼터와 알림 대응
 - [데이터 보관 및 파기 정책](data-retention-policy.md)
   - 위치, 채팅, 첨부와 매니저 증빙의 보관 기간, legal hold와 자동 파기 기준
 - [위치 이력 보관 및 노출 정책](location-history-retention-policy.md)
-  - 실시간 위치 공유 좌표, 최근 이력, 화면 노출, 장기 보관 기준
+  - 환자 위치 목표, legacy 공유 기본 OFF, 로컬 위치 보기와 서버 공유 구분
 
 ## Firebase 운영
 

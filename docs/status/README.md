@@ -9,12 +9,13 @@
 
 ## 같이 볼 문서
 
-- [프로젝트 전체 점검 보고서](../reports/project-check-2026-06-23.md)
+- [전체 문서 최신화 확인 범위](../reports/document-refresh-2026-09-21.md)
+- [과거 프로젝트 점검 (2026-06-23)](../reports/project-check-2026-06-23.md)
 - [화면 개편 목표 정리](../planning/screen-restructure-target.md)
 - [데이터 및 API 문서](../architecture/data-api.md)
 
 ## 갱신 원칙
 
-- 완료된 작업만 요약해서 기록한다.
+- 코드 병합, 배포, 실제 연동 검증과 남은 작업을 구분해 요약한다. 미실행을 완료로 쓰지 않는다.
 - 장문의 점검 상세는 `../reports/`로 분리하고 여기에는 링크만 남긴다.
 - 과거 섹션의 당시 기준 문구가 최신 상태와 충돌하면 문서 상단 최신 요약을 우선한다.

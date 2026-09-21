@@ -1,6 +1,8 @@
 # App Check 적용 로드맵
 
-기준일: 2026-08-26
+기준일: 2026-09-21 (코드·기록 대조)
+
+아래 날짜별 provider·메트릭은 당시 관측값이다. 이번 작업에서는 Firebase Console 설정이나 최근 요청을 재조회하지 않았으며, 아직 남은 #190·#192의 release·인증된 웹·enforce/rollback 검증을 완료로 바꾸지 않는다.
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -40,7 +42,7 @@ App Check enforcement를 켜면 유효한 App Check 토큰이 없는 요청은 �
 | 관리자 웹 | Next.js에서 reCAPTCHA Enterprise provider와 header 전달을 구현하고 Vercel Production에서 client를 활성화 | [`bodeul-admin-web` PR #37](https://github.com/bodeul110/bodeul-admin-web/pull/37) |
 | 관리자 웹 rollback | Vite build도 공용 Enterprise provider를 사용하며 빌드·런타임 rollback 자산으로만 유지 | `bodeul-admin-web` |
 | callable Functions | `ENABLE_APPCHECK_ENFORCEMENT=true`일 때 `enforceAppCheck` 활성화 | `functions/src/auth.js`, `functions/src/action-delivery.js`, `functions/src/reminders.js` |
-| Spring Core API | `off/observe/enforce` 검증 구현, Cloud Run preview 리비전 `00007-8hk`에 observe 배포 완료 | `core-api/`, `core-api-preview-deploy.yml` |
+| Spring Core API | `off/observe/enforce` 검증 구현, 초기 preview 리비전 `00007-8hk`의 observe 배포 기록. 현재 배포 revision과 모드는 별도 조회 | `core-api/`, `core-api-preview-deploy.yml` |
 | Next.js 관리자 서버 | Firebase ID token·DB role 검증에 App Check `off/observe/enforce`, 허용 Web App ID와 rollback 경계를 추가하고 Production에 `observe` 배포 | [`bodeul-admin-web` PR #37](https://github.com/bodeul110/bodeul-admin-web/pull/37) |
 | Firestore/Storage/Authentication | production은 모두 기본 `OFF`, 개발은 관찰 설정 유지 | Firebase Console, App Check REST API |
 
@@ -60,7 +62,7 @@ App Check enforcement를 켜면 유효한 App Check 토큰이 없는 요청은 �
 
 현재 판단은 `HOLD`다. Android debug 실기기의 주요 화면 15건, 채팅 첨부, Kakao Map, Core API `valid`는 확인했다. Gradle에는 누락·부분 입력 상태의 릴리스 산출물을 차단하는 [서명 운영 계약](android-release-signing.md)을 추가했다. 관리자 웹은 production Enterprise provider, header 전달과 서버 `observe`까지 배포했지만 인증된 관리자 세션의 `VALID` 요청은 아직 확인하지 않았다. 팀 소유 release key와 인증서 등록, release Play Integrity, Web `VALID` 요청, #192의 enforce/rollback 재현이 남아 있어 아직 강제하지 않는다. 상세 Android 결과는 [Issue 190 ARM 실기기 검증 기록](../reports/issue-190-arm-device-validation-2026-07-17.md)에 남겼다.
 
-## 2026-08-26 production 감사 기준과 현재 상태
+## 2026-08-26 production 감사 기준과 당시 상태
 
 Production 감사는 provider metadata만 보지 않고 앱 식별자, release 인증서, provider API, Firebase 서비스 모드, callable Functions와 실제 최근 요청을 함께 확인한다.
 
