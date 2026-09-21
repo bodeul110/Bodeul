@@ -67,8 +67,8 @@ flowchart LR
 
 | 경계 | 현재 상태 | 검증 |
 | --- | --- | --- |
-| 관리자 웹 | 별도 `bodeul-admin-web` 저장소, Next.js, Vercel | Preview 루트 200, 무인증 401, 비관리자 403, 관리자 200과 DB 조회 확인 |
-| 관리자 DB 접속 | `bodeul_admin_service`, transaction pooler, 최대 연결 5 | Preview 전용 자격 증명과 Supabase Root CA 검증, 쓰기 권한 없음 확인 |
+| 관리자 웹 | 별도 `bodeul-admin-web` 저장소, Next.js, Vercel | 2026-09-21 Production 웹 배포와 실제 Preview·Production 로그인 화면의 환경 표시 확인. 운영 로그인·DB 업무 검증은 별개 |
+| 관리자 DB 접속 | `bodeul_admin_service`, transaction pooler, 최대 연결 5 | 개발 DB 조회·TLS 검증 기록이 있음. 제한된 조회와 허용된 업무 함수 사용, 테이블 직접 쓰기는 금지. 운영 접속 준비 상태는 [환경 기준](../operations/admin-web-environments.md) 참조 |
 | 사용자 Core API | `core-api/`, Java 21, Spring Boot, Cloud Run Tokyo | `/health` 200, Firebase token, PostgreSQL role, App Check observe, rollback, 실세션 API와 FCM 확인 |
 | Kakao Local | Core API의 `/api/places/search` 뒤에 배치 | Android 직접 REST 키 제거, 인증된 실제 호출 확인 |
 | 공용 DB | 개발·production Supabase PostgreSQL을 Tokyo에 분리 | production Flyway V15, migration 전후 격리 복원 성공, 전용 role·RLS·공개 grant 0건, Security Advisor 경고 0건 |
@@ -102,7 +102,7 @@ flowchart LR
 
 ## 남은 운영 전환
 
-- Vercel Production에 production Firebase와 SELECT-only 관리자 DB 값을 등록하고 Cloud Run 첫 승인을 배포한다.
+- Vercel Production 웹 배포·Firebase 설정과 별도로 운영 관리자 DB 접속·역할별 업무를 검증하고 Cloud Run 첫 승인을 배포한다. 관리자 DB 재개와 자격 증명 적용 범위는 [관리자 웹 환경 기준](../operations/admin-web-environments.md)을 따른다.
 - 관리자 웹 custom domain, Auth authorized domain, App Check enforcement와 live 승인 조건을 확정한다.
 - 개발에서 전환한 예약·매칭·동행·채팅·위치 domain을 production 데이터 cutover와 함께 재검증한다.
 - Cloud Run과 Vercel rollback을 실제 격리 환경에서 검증한다. PostgreSQL V15 restore는 2026-08-26 완료했다.
