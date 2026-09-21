@@ -104,6 +104,7 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
         );
 
         findViewById(R.id.buttonBackManagerProfile).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonManagerProfileSignOut).setOnClickListener(view -> signOut());
         findViewById(R.id.buttonManagerProfileDocumentEdit).setOnClickListener(view ->
                 quickNoteDialogController.show(
                         ManagerQuickNoteType.DOCUMENT,
@@ -421,6 +422,11 @@ public class ManagerProfileActivity extends AppCompatActivity implements Manager
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
+    }
+
+    private void signOut() {
+        authRepository.signOut();
+        openRoleSelection();
     }
 
     private void openRoleSelection() {
