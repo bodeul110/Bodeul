@@ -93,8 +93,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_REPOSITORY}" != "bodeul110/Bodeul" || "${GITHUB_REF}" != "refs/heads/master" ]]; then
-            echo "production 파기 픽스처는 bodeul110/Bodeul의 master에서만 실행할 수 있습니다." >&2
+          if [[ "${GITHUB_REPOSITORY}" != "bodeul110/bodeul-platform" || "${GITHUB_REF}" != "refs/heads/master" ]]; then
+            echo "production 파기 픽스처는 bodeul110/bodeul-platform의 master에서만 실행할 수 있습니다." >&2
             exit 1
           fi
           if [[ ! "${CONFIRM_COMMIT}" =~ ^[0-9a-f]{40}$ || "${CONFIRM_COMMIT}" != "${GITHUB_SHA}" ]]; then
@@ -150,7 +150,7 @@ jobs:
             fi
           fi
           if [[ "${ACTION}" == "apply" ]]; then
-            policy_pattern='^https://((app\.notion\.com|www\.notion\.so)/[A-Za-z0-9._~:/?#=&%-]+|github\.com/bodeul110/Bodeul/issues/222#issuecomment-[0-9]+)$'
+            policy_pattern='^https://((app\.notion\.com|www\.notion\.so)/[A-Za-z0-9._~:/?#=&%-]+|github\.com/bodeul110/(Bodeul|bodeul-platform)/issues/222#issuecomment-[0-9]+)$'
             if [[ "${CONFIRM_APPLY}" != "${APPLY_CONFIRMATION}" ]]; then
               echo "APPLY 확인 문구가 일치하지 않습니다." >&2
               exit 1

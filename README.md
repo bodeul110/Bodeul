@@ -4,12 +4,12 @@
 
 **환자·보호자·매니저·운영자를 연결하는 병원 동행 플랫폼**
 
-[![Android Preflight](https://github.com/bodeul110/Bodeul/actions/workflows/android-preflight.yml/badge.svg?branch=master)](https://github.com/bodeul110/Bodeul/actions/workflows/android-preflight.yml)
-[![Core API](https://github.com/bodeul110/Bodeul/actions/workflows/core-api.yml/badge.svg?branch=master)](https://github.com/bodeul110/Bodeul/actions/workflows/core-api.yml)
-[![Firebase Rules](https://github.com/bodeul110/Bodeul/actions/workflows/firebase-rules.yml/badge.svg?branch=master)](https://github.com/bodeul110/Bodeul/actions/workflows/firebase-rules.yml)
-[![CodeQL](https://github.com/bodeul110/Bodeul/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/bodeul110/Bodeul/actions/workflows/codeql.yml)
+[![Android Preflight](https://github.com/bodeul110/bodeul-platform/actions/workflows/android-preflight.yml/badge.svg?branch=master)](https://github.com/bodeul110/bodeul-platform/actions/workflows/android-preflight.yml)
+[![Core API](https://github.com/bodeul110/bodeul-platform/actions/workflows/core-api.yml/badge.svg?branch=master)](https://github.com/bodeul110/bodeul-platform/actions/workflows/core-api.yml)
+[![Firebase Rules](https://github.com/bodeul110/bodeul-platform/actions/workflows/firebase-rules.yml/badge.svg?branch=master)](https://github.com/bodeul110/bodeul-platform/actions/workflows/firebase-rules.yml)
+[![CodeQL](https://github.com/bodeul110/bodeul-platform/actions/workflows/codeql.yml/badge.svg?branch=master)](https://github.com/bodeul110/bodeul-platform/actions/workflows/codeql.yml)
 
-[문서](docs/README.md) · [아키텍처](docs/architecture/infra-overview.md) · [관리자 웹 저장소](https://github.com/bodeul110/bodeul-admin-web) · [이슈](https://github.com/bodeul110/Bodeul/issues)
+[문서](docs/README.md) · [아키텍처](docs/architecture/infra-overview.md) · [관리자 웹 저장소](https://github.com/bodeul110/bodeul-admin-web) · [이슈](https://github.com/bodeul110/bodeul-platform/issues)
 
 </div>
 
@@ -157,4 +157,4 @@ npm --prefix tools/firebase run preflight:local
 | [보안 문서](docs/security/README.md) | 권한, Rules, App Check와 보안 원칙 |
 | [협업 규칙](docs/operations/collaboration-rules.md) | 브랜치, PR, 검증과 문서화 방식 |
 
-작업은 [GitHub Issues](https://github.com/bodeul110/Bodeul/issues)와 `BoDeul 작업 백로그`에서 관리합니다.
+작업은 [GitHub Issues](https://github.com/bodeul110/bodeul-platform/issues)와 `BoDeul 작업 백로그`에서 관리합니다.

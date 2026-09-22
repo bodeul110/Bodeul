@@ -2,16 +2,16 @@
 
 기준일: 2026-09-22
 
-배포·실기기·복원 성공은 각 날짜의 증적이다. 9월 22일에는 Google Cloud 조직 이전과 설정·접근을 실조회했다. 다른 서비스의 모든 가동 상태를 다시 검증한 것은 아니다.
+배포·실기기·복원 성공은 각 날짜의 증적이다. 9월 22일에는 Google Cloud 조직 이전과 설정·접근을 실조회했고, [명칭 기준](resource-naming.md)에 따라 Cloud/Firebase·DB·Vercel 팀의 표시 이름을 정리했다. 다른 서비스의 모든 가동 상태를 다시 검증한 것은 아니다.
 
 ## 개발 인프라 기준선
 
 | 범위 | 기준 |
 | --- | --- |
-| Google Cloud 조직·결제 | 개발·운영 프로젝트 모두 공식 `bodeul.kr` 소속. 공용 `bodeul-shared-billing1` 연결·결제 활성 유지. [이전 기록](google-cloud-organization-migration.md) |
+| Google Cloud 조직·결제 | 개발·운영 프로젝트 모두 공식 `bodeul.kr` 소속. 공용 `bodeul-billing` 연결·결제 활성 유지. [이전 기록](google-cloud-organization-migration.md) |
 | 관리자 웹 | 별도 저장소 Next.js, Vercel Preview/Production 환경 표시. 개발 DB 401·403·200 검증 기록과 운영 로그인 준비 상태는 별도 |
 | Core API | Cloud Run `bodeul-core-api-preview`, Spring Boot, WIF 배포와 revision rollback |
-| 공용 DB | 환경별 Supabase Tokyo 프로젝트, migration/core/admin/retention 역할 분리. 소스 V1~V23 |
+| 공용 DB | Supabase Tokyo `bodeul-db-dev` / `bodeul-db-prod`, migration/core/admin/retention 역할 분리. 소스 V1~V23 |
 | Firebase | `bodeul-dev`, Auth·Storage·Functions·FCM 유지. Firestore Core 업무 문서 client 쓰기 차단, 인증 프로필·지원·매니저 서류 메타데이터 유지 |
 | Kakao | Local REST 키는 Secret Manager, 호출은 Core API 뒤에서 수행 |
 | production | 기반 구축 기록 있음. 9월 21일 운영 DB 일시정지, Auth 등록만 진행. 서버 DB·권한·실제 업무 활성화와 별도 |
