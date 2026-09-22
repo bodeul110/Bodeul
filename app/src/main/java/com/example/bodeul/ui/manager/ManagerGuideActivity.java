@@ -282,7 +282,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         managerGuidePreConsultationBinder = new ManagerGuidePreConsultationBinder(
                 findViewById(android.R.id.content));
         managerGuideVitalsBinder = new ManagerGuideVitalsBinder(
-                findViewById(android.R.id.content));
+                findViewById(android.R.id.content), viewModel::saveVitalsDraft);
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
@@ -447,7 +447,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     managerGuidePreConsultationBinder.bind(
                             state.screenModel, state.dashboard, mutationInFlight);
                     managerGuideVitalsBinder.bind(
-                            state.screenModel, state.dashboard, mutationInFlight);
+                            state.screenModel, state.dashboard, mutationInFlight,
+                            viewModel.getVitalsDraft(state.dashboard.getSession().getId()));
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;

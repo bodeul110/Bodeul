@@ -42,4 +42,14 @@ public class ManagerGuideVitalsDraftTest {
         assertTrue(ManagerGuideVitalsDraft.isPositiveDecimal("68.5"));
         assertFalse(ManagerGuideVitalsDraft.isPositiveDecimal("-1"));
     }
+
+    @Test
+    public void fromInputs_preservesUnfinishedBloodPressureAndDecimal() {
+        ManagerGuideVitalsDraft draft =
+                ManagerGuideVitalsDraft.fromInputs("12", "", "", "68.");
+
+        assertEquals("12", draft.systolic);
+        assertEquals("", draft.diastolic);
+        assertEquals("68.", draft.weight);
+    }
 }

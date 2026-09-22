@@ -35,6 +35,17 @@ final class ManagerGuideVitalsDraft {
         return new ManagerGuideVitalsDraft("", "", "", "", false);
     }
 
+    /** 입력 중인 값을 검증·정규화하지 않고 보존한다. 혈압 한쪽만 입력된 초안도 유지해야 한다. */
+    static ManagerGuideVitalsDraft fromInputs(
+            @Nullable String systolic,
+            @Nullable String diastolic,
+            @Nullable String heartRate,
+            @Nullable String weight
+    ) {
+        return new ManagerGuideVitalsDraft(
+                raw(systolic), raw(diastolic), raw(heartRate), raw(weight), true);
+    }
+
     static ManagerGuideVitalsDraft parse(@Nullable String rawNote) {
         String note = normalize(rawNote);
         if (!note.startsWith(HEADER)) {
@@ -135,5 +146,9 @@ final class ManagerGuideVitalsDraft {
 
     private static String normalize(@Nullable String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static String raw(@Nullable String value) {
+        return value == null ? "" : value;
     }
 }

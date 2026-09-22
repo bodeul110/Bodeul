@@ -1,6 +1,8 @@
 package com.example.bodeul.ui.manager;
 
 import android.text.TextUtils;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -12,6 +14,10 @@ import com.google.android.material.textfield.TextInputEditText;
 
 /** Figma Step 04 기초 측정 전용 위계와 현장 메모 직렬화를 담당한다. */
 final class ManagerGuideVitalsBinder {
+    interface DraftListener {
+        void onChanged(String sessionId, ManagerGuideVitalsDraft draft);
+    }
+
     private final View content;
     private final View toolbar;
     private final View defaultToolbar;
@@ -29,11 +35,14 @@ final class ManagerGuideVitalsBinder {
     private final TextInputEditText diastolic;
     private final TextInputEditText heartRate;
     private final TextInputEditText weight;
+    private final DraftListener draftListener;
 
     private String boundSessionId = "";
     private String boundNote = "";
+    private boolean bindingDraft;
 
-    ManagerGuideVitalsBinder(View root) {
+    ManagerGuideVitalsBinder(View root, DraftListener draftListener) {
+        this.draftListener = draftListener;
         content = root.findViewById(R.id.managerGuideVitalsContent);
         toolbar = root.findViewById(R.id.guideVitalsToolbar);
         defaultToolbar = root.findViewById(R.id.guideDefaultToolbar);
@@ -51,13 +60,33 @@ final class ManagerGuideVitalsBinder {
         diastolic = root.findViewById(R.id.inputGuideVitalsDiastolic);
         heartRate = root.findViewById(R.id.inputGuideVitalsHeartRate);
         weight = root.findViewById(R.id.inputGuideVitalsWeight);
+        TextWatcher watcher = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) {
+                if (!bindingDraft && !boundSessionId.isEmpty()) {
+                    draftListener.onChanged(boundSessionId, currentDraft());
+                }
+            }
+        };
+        systolic.addTextChangedListener(watcher);
+        diastolic.addTextChangedListener(watcher);
+        heartRate.addTextChangedListener(watcher);
+        weight.addTextChangedListener(watcher);
     }
 
-    void bind(ManagerGuideScreenModel model, ManagerDashboard dashboard, boolean mutationInFlight) {
+    void bind(
+            ManagerGuideScreenModel model,
+            ManagerDashboard dashboard,
+            boolean mutationInFlight,
+            ManagerGuideVitalsDraft savedDraft
+    ) {
         boolean vitalsStep = "VITALS_CHECK".equals(model.getCurrentStepCode());
         content.setVisibility(vitalsStep ? View.VISIBLE : View.GONE);
         toolbar.setVisibility(vitalsStep ? View.VISIBLE : View.GONE);
         if (!vitalsStep) {
+            boundSessionId = "";
+            boundNote = "";
             return;
         }
 
@@ -85,8 +114,9 @@ final class ManagerGuideVitalsBinder {
         String sessionId = dashboard == null || dashboard.getSession() == null
                 ? "" : dashboard.getSession().getId();
         String note = model.getFieldPhotoNote() == null ? "" : model.getFieldPhotoNote().trim();
-        if (!TextUtils.equals(boundSessionId, sessionId) || !TextUtils.equals(boundNote, note)) {
-            bindDraft(ManagerGuideVitalsDraft.parse(note));
+        if (!TextUtils.equals(boundSessionId, sessionId)
+                || (savedDraft == null && !TextUtils.equals(boundNote, note))) {
+            bindDraft(savedDraft == null ? ManagerGuideVitalsDraft.parse(note) : savedDraft);
             boundSessionId = sessionId;
             boundNote = note;
         }
@@ -97,8 +127,6 @@ final class ManagerGuideVitalsBinder {
     void hideForState() {
         content.setVisibility(View.GONE);
         toolbar.setVisibility(View.GONE);
-        boundSessionId = "";
-        boundNote = "";
     }
 
     void setInputsEnabled(boolean enabled) {
@@ -150,10 +178,25 @@ final class ManagerGuideVitalsBinder {
     }
 
     private void bindDraft(ManagerGuideVitalsDraft draft) {
-        setTextIfDifferent(systolic, draft.systolic);
-        setTextIfDifferent(diastolic, draft.diastolic);
-        setTextIfDifferent(heartRate, draft.heartRate);
-        setTextIfDifferent(weight, draft.weight);
+        bindingDraft = true;
+        try {
+            setTextIfDifferent(systolic, draft.systolic);
+            setTextIfDifferent(diastolic, draft.diastolic);
+            setTextIfDifferent(heartRate, draft.heartRate);
+            setTextIfDifferent(weight, draft.weight);
+        } finally {
+            bindingDraft = false;
+        }
+    }
+
+    private ManagerGuideVitalsDraft currentDraft() {
+        return ManagerGuideVitalsDraft.fromInputs(
+                rawValueOf(systolic), rawValueOf(diastolic),
+                rawValueOf(heartRate), rawValueOf(weight));
+    }
+
+    private String rawValueOf(TextInputEditText input) {
+        return input.getText() == null ? "" : input.getText().toString();
     }
 
     private void setTextIfDifferent(TextInputEditText input, String value) {

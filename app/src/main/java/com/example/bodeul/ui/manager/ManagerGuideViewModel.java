@@ -29,6 +29,7 @@ public class ManagerGuideViewModel extends ViewModel {
     private static final String REPORT_DRAFT_PRESENT = "managerGuide.reportDraft.present";
     private static final String REPORT_DRAFT_PREFIX = "managerGuide.reportDraft.";
     private static final String ARTIFACT_REQUEST_PREFIX = "managerGuide.artifactRequest.";
+    private static final String VITALS_DRAFT_PREFIX = "managerGuide.vitalsDraft.";
 
     public enum StatePanelType {
         NONE,
@@ -180,6 +181,7 @@ public class ManagerGuideViewModel extends ViewModel {
         if (isRealtimeClosed(dashboard)) {
             stopRealtimeSubscription();
         }
+        retainVitalsDraftFor(dashboard);
         _uiState.setValue(UiState.screen(dashboard, coordinator.createScreenModel(
                 dashboard,
                 managerRepository.isFirebaseBacked()
@@ -337,12 +339,15 @@ public class ManagerGuideViewModel extends ViewModel {
             return;
         }
         if (!beginMutation()) return;
-        managerRepository.saveFieldPhotoNote(
+        managerRepository.saveVitalsNote(
                 currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
                 note,
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override
                     public void onSuccess(ManagerDashboard savedDashboard) {
+                        clearVitalsDraft(expectedSessionId);
                         if (!ManagerRepository.matchesAdvanceExpectation(
                                 savedDashboard.getSession(),
                                 expectedSessionId,
@@ -390,6 +395,71 @@ public class ManagerGuideViewModel extends ViewModel {
                         bindDashboard(savedDashboard);
                     }
                 });
+    }
+
+    @Nullable
+    ManagerGuideVitalsDraft getVitalsDraft(String sessionId) {
+        return restoreVitalsDraft(savedStateHandle, sessionId);
+    }
+
+    void saveVitalsDraft(String sessionId, ManagerGuideVitalsDraft draft) {
+        saveVitalsDraft(savedStateHandle, sessionId, draft);
+    }
+
+    static void saveVitalsDraft(
+            SavedStateHandle state,
+            String sessionId,
+            ManagerGuideVitalsDraft draft
+    ) {
+        state.set(VITALS_DRAFT_PREFIX + "sessionId", sessionId);
+        state.set(VITALS_DRAFT_PREFIX + "systolic", draft.systolic);
+        state.set(VITALS_DRAFT_PREFIX + "diastolic", draft.diastolic);
+        state.set(VITALS_DRAFT_PREFIX + "heartRate", draft.heartRate);
+        state.set(VITALS_DRAFT_PREFIX + "weight", draft.weight);
+    }
+
+    @Nullable
+    static ManagerGuideVitalsDraft restoreVitalsDraft(
+            SavedStateHandle state,
+            String sessionId
+    ) {
+        String savedSessionId = state.get(VITALS_DRAFT_PREFIX + "sessionId");
+        if (sessionId == null || sessionId.isEmpty() || !sessionId.equals(savedSessionId)) {
+            return null;
+        }
+        return ManagerGuideVitalsDraft.fromInputs(
+                state.get(VITALS_DRAFT_PREFIX + "systolic"),
+                state.get(VITALS_DRAFT_PREFIX + "diastolic"),
+                state.get(VITALS_DRAFT_PREFIX + "heartRate"),
+                state.get(VITALS_DRAFT_PREFIX + "weight"));
+    }
+
+    private void clearVitalsDraft(String sessionId) {
+        clearVitalsDraft(savedStateHandle, sessionId);
+    }
+
+    static void clearVitalsDraft(SavedStateHandle state, String sessionId) {
+        String savedSessionId = state.get(VITALS_DRAFT_PREFIX + "sessionId");
+        if (sessionId != null && sessionId.equals(savedSessionId)) {
+            state.remove(VITALS_DRAFT_PREFIX + "sessionId");
+            state.remove(VITALS_DRAFT_PREFIX + "systolic");
+            state.remove(VITALS_DRAFT_PREFIX + "diastolic");
+            state.remove(VITALS_DRAFT_PREFIX + "heartRate");
+            state.remove(VITALS_DRAFT_PREFIX + "weight");
+        }
+    }
+
+    private void retainVitalsDraftFor(ManagerDashboard dashboard) {
+        String savedSessionId = savedStateHandle.get(VITALS_DRAFT_PREFIX + "sessionId");
+        if (savedSessionId == null || dashboard.getSession() == null) {
+            return;
+        }
+        String activeSessionId = dashboard.getSession().getId();
+        String activeStepCode = dashboard.getSession().getCurrentStepCode();
+        if (!savedSessionId.equals(activeSessionId)
+                || !"VITALS_CHECK".equals(activeStepCode)) {
+            clearVitalsDraft(savedStateHandle, savedSessionId);
+        }
     }
 
     public void replaceSessionArtifacts(String purpose, List<Uri> fileUris) {
