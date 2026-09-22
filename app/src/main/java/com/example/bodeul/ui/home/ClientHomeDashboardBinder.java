@@ -5,6 +5,7 @@ import android.content.res.ColorStateList;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -16,7 +17,6 @@ import com.example.bodeul.domain.model.AppointmentRequest;
 import com.example.bodeul.domain.model.AppointmentStatus;
 import com.example.bodeul.domain.model.CompanionSession;
 import com.example.bodeul.domain.model.GuardianReportEntry;
-import com.example.bodeul.domain.model.SessionStatus;
 import com.example.bodeul.ui.booking.BookingPresentationFormatter;
 import com.example.bodeul.ui.common.AttentionBannerBinder;
 import com.example.bodeul.ui.common.AppointmentProgressOverviewModel;
@@ -43,14 +43,12 @@ public final class ClientHomeDashboardBinder {
     private final TextView textProgressBody;
     private final LinearLayout progressStageContainer;
     private final MaterialButton buttonOpenProgress;
-    private final TextView textActionSecondaryBadge;
-    private final TextView textActionSecondaryCounter;
     private final TextView textActionSecondaryTitle;
     private final TextView textActionSecondaryBody;
-    private final TextView textRecentBadge;
-    private final TextView textRecentTitle;
-    private final TextView textRecentBody;
-    private final MaterialButton buttonOpenRecent;
+    private final TextView textActionHistoryBody;
+    private final TextView textActionSupportBody;
+    private final TextView textActionSupportCounter;
+    private final View progressSection;
     private final LinearLayout noticeContainer;
     private final AppointmentProgressStageItemBinder stageItemBinder;
     private final BookingPresentationFormatter bookingPresentationFormatter;
@@ -71,14 +69,12 @@ public final class ClientHomeDashboardBinder {
             TextView textProgressBody,
             LinearLayout progressStageContainer,
             MaterialButton buttonOpenProgress,
-            TextView textActionSecondaryBadge,
-            TextView textActionSecondaryCounter,
             TextView textActionSecondaryTitle,
             TextView textActionSecondaryBody,
-            TextView textRecentBadge,
-            TextView textRecentTitle,
-            TextView textRecentBody,
-            MaterialButton buttonOpenRecent,
+            TextView textActionHistoryBody,
+            TextView textActionSupportBody,
+            TextView textActionSupportCounter,
+            View progressSection,
             LinearLayout noticeContainer
     ) {
         this.context = context;
@@ -96,14 +92,12 @@ public final class ClientHomeDashboardBinder {
         this.textProgressBody = textProgressBody;
         this.progressStageContainer = progressStageContainer;
         this.buttonOpenProgress = buttonOpenProgress;
-        this.textActionSecondaryBadge = textActionSecondaryBadge;
-        this.textActionSecondaryCounter = textActionSecondaryCounter;
         this.textActionSecondaryTitle = textActionSecondaryTitle;
         this.textActionSecondaryBody = textActionSecondaryBody;
-        this.textRecentBadge = textRecentBadge;
-        this.textRecentTitle = textRecentTitle;
-        this.textRecentBody = textRecentBody;
-        this.buttonOpenRecent = buttonOpenRecent;
+        this.textActionHistoryBody = textActionHistoryBody;
+        this.textActionSupportBody = textActionSupportBody;
+        this.textActionSupportCounter = textActionSupportCounter;
+        this.progressSection = progressSection;
         this.noticeContainer = noticeContainer;
         this.stageItemBinder = new AppointmentProgressStageItemBinder(context);
         this.bookingPresentationFormatter = new BookingPresentationFormatter(context);
@@ -115,8 +109,7 @@ public final class ClientHomeDashboardBinder {
         supportBannerBinder.bind(dashboard.getSupportBanner());
         bindHero(dashboard);
         bindProgress(dashboard);
-        bindSecondaryAction(dashboard);
-        bindRecentRequest(dashboard);
+        bindQuickActions(dashboard);
         bindNotices(dashboard);
     }
 
@@ -188,14 +181,8 @@ public final class ClientHomeDashboardBinder {
             return;
         }
 
-        textHeroBadge.setText(dashboard.hasActiveRequest()
-                ? R.string.client_home_hero_badge_active
-                : R.string.client_home_hero_badge_history);
-        textHeroTitle.setText(context.getString(
-                R.string.client_home_hero_active_title,
-                primaryRequest.getHospitalName(),
-                primaryRequest.getDepartmentName()
-        ));
+        textHeroBadge.setText(toStatusLabel(primaryRequest.getStatus()));
+        textHeroTitle.setText(resolveHeroTitleResId(primaryRequest.getStatus()));
         textHeroBody.setText(buildHeroBody(dashboard, primaryRequest));
         buttonHeroPrimary.setText(dashboard.isGuardianUser()
                 ? R.string.client_home_hero_report_button
@@ -205,6 +192,7 @@ public final class ClientHomeDashboardBinder {
     private void bindProgress(ClientHomeDashboard dashboard) {
         AppointmentProgressOverviewModel progressOverview = dashboard.getProgressOverview();
         if (progressOverview == null || dashboard.getPrimaryRequest() == null) {
+            progressSection.setVisibility(View.GONE);
             textProgressBadge.setText(R.string.client_home_progress_empty_badge);
             tintProgressBadge(R.color.bodeul_soft_blue, R.color.bodeul_primary);
             textProgressTitle.setText(R.string.client_home_progress_empty_title);
@@ -214,6 +202,7 @@ public final class ClientHomeDashboardBinder {
             return;
         }
 
+        progressSection.setVisibility(View.VISIBLE);
         textProgressBadge.setText(progressOverview.getBadgeText());
         tintProgressBadge(
                 resolveRecentBadgeBackground(dashboard.getPrimaryRequest().getStatus()),
@@ -240,136 +229,32 @@ public final class ClientHomeDashboardBinder {
         );
     }
 
-    private void bindSecondaryAction(ClientHomeDashboard dashboard) {
-        bindSecondaryBadge(dashboard);
-        textActionSecondaryTitle.setText(R.string.client_home_action_manage_title);
-        String body = context.getString(
-                dashboard.isGuardianUser()
-                        ? R.string.client_home_action_manage_body_guardian
-                        : R.string.client_home_action_manage_body_patient,
+    private void bindQuickActions(ClientHomeDashboard dashboard) {
+        textActionSecondaryTitle.setText(R.string.client_home_action_health_title);
+        textActionSecondaryBody.setText(dashboard.isGuardianUser()
+                ? R.string.client_home_action_health_body_guardian
+                : R.string.client_home_action_health_body_patient);
+        textActionHistoryBody.setText(context.getString(
+                R.string.client_home_action_history_body,
                 dashboard.getRequestCount(),
-                dashboard.getActiveRequestCount(),
                 dashboard.getCompletedRequestCount()
-        );
-        if (dashboard.hasUnreadSupportResponses()) {
-            body = body + "\n\n" + context.getString(
-                    R.string.client_home_action_manage_support_unread,
-                    dashboard.getUnreadSupportResponseCount()
-            );
-        }
-        if (dashboard.hasStaleUnreadSupportResponses()) {
-            body = body + "\n" + context.getString(
-                    R.string.client_home_action_manage_support_overdue,
-                    dashboard.getStaleUnreadSupportResponseCount()
-            );
-        }
-        textActionSecondaryBody.setText(body);
-    }
-
-    private void bindSecondaryBadge(ClientHomeDashboard dashboard) {
-        if (dashboard.hasStaleUnreadSupportResponses()) {
-            textActionSecondaryBadge.setVisibility(View.VISIBLE);
-            textActionSecondaryCounter.setVisibility(View.VISIBLE);
-            textActionSecondaryBadge.setText(context.getString(
-                    R.string.client_home_action_manage_badge_overdue,
-                    dashboard.getStaleUnreadSupportResponseCount()
-            ));
-            textActionSecondaryCounter.setText(context.getString(
-                    R.string.client_home_action_manage_counter_overdue,
-                    dashboard.getStaleUnreadSupportResponseCount()
-            ));
-            ViewCompat.setBackgroundTintList(
-                    textActionSecondaryBadge,
-                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_soft_red))
-            );
-            textActionSecondaryBadge.setTextColor(ContextCompat.getColor(context, R.color.bodeul_error));
-            ViewCompat.setBackgroundTintList(
-                    textActionSecondaryCounter,
-                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_error))
-            );
-            textActionSecondaryCounter.setTextColor(ContextCompat.getColor(context, R.color.white));
-            return;
-        }
-        if (dashboard.hasUnreadSupportResponses()) {
-            textActionSecondaryBadge.setVisibility(View.VISIBLE);
-            textActionSecondaryCounter.setVisibility(View.VISIBLE);
-            textActionSecondaryBadge.setText(context.getString(
-                    R.string.client_home_action_manage_badge_unread,
-                    dashboard.getUnreadSupportResponseCount()
-            ));
-            textActionSecondaryCounter.setText(context.getString(
-                    R.string.client_home_action_manage_counter_unread,
-                    dashboard.getUnreadSupportResponseCount()
-            ));
-            ViewCompat.setBackgroundTintList(
-                    textActionSecondaryBadge,
-                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_warning))
-            );
-            textActionSecondaryBadge.setTextColor(ContextCompat.getColor(context, R.color.bodeul_text_primary));
-            ViewCompat.setBackgroundTintList(
-                    textActionSecondaryCounter,
-                    ColorStateList.valueOf(ContextCompat.getColor(context, R.color.bodeul_primary))
-            );
-            textActionSecondaryCounter.setTextColor(ContextCompat.getColor(context, R.color.white));
-            return;
-        }
-        textActionSecondaryBadge.setVisibility(View.GONE);
-        textActionSecondaryCounter.setVisibility(View.GONE);
-    }
-
-    private void bindRecentRequest(ClientHomeDashboard dashboard) {
-        AppointmentRequest primaryRequest = dashboard.getPrimaryRequest();
-        if (primaryRequest == null) {
-            textRecentBadge.setText(R.string.client_home_recent_empty_badge);
-            tintRecentBadge(R.color.bodeul_soft_blue, R.color.bodeul_primary);
-            textRecentTitle.setText(R.string.client_home_recent_empty_title);
-            textRecentBody.setText(R.string.client_home_recent_empty_body);
-            buttonOpenRecent.setText(R.string.client_home_hero_request_button);
-            return;
-        }
-
-        textRecentBadge.setText(toStatusLabel(primaryRequest.getStatus()));
-        tintRecentBadge(resolveRecentBadgeBackground(primaryRequest.getStatus()), resolveRecentBadgeTextColor(primaryRequest.getStatus()));
-        textRecentTitle.setText(context.getString(
-                R.string.client_home_recent_request_title,
-                primaryRequest.getHospitalName(),
-                primaryRequest.getDepartmentName()
         ));
-        textRecentBody.setText(context.getString(
-                R.string.client_home_recent_request_body,
-                primaryRequest.getAppointmentAt(),
-                TextUtils.isEmpty(primaryRequest.getMeetingPlace())
-                        ? context.getString(R.string.booking_status_place_missing)
-                        : primaryRequest.getMeetingPlace(),
-                buildRecentStatusLine(dashboard, primaryRequest)
-        ));
-        buttonOpenRecent.setText(dashboard.isGuardianUser()
-                ? R.string.client_home_hero_report_button
-                : R.string.client_home_recent_open);
-    }
 
-    private String buildRecentStatusLine(ClientHomeDashboard dashboard, AppointmentRequest primaryRequest) {
-        if (primaryRequest.getStatus() == AppointmentStatus.COMPLETED
-                && dashboard.getPrimaryFollowUpRecord() != null) {
-            return bookingPresentationFormatter.buildFollowUpSummary(
-                    dashboard.getPrimaryFollowUpRecord()
-            );
+        int supportCount = dashboard.hasStaleUnreadSupportResponses()
+                ? dashboard.getStaleUnreadSupportResponseCount()
+                : dashboard.getUnreadSupportResponseCount();
+        textActionSupportCounter.setVisibility(supportCount > 0 ? View.VISIBLE : View.GONE);
+        if (supportCount > 0) {
+            textActionSupportCounter.setText(String.valueOf(supportCount));
+            textActionSupportBody.setText(context.getString(
+                    dashboard.hasStaleUnreadSupportResponses()
+                            ? R.string.client_home_action_support_body_overdue
+                            : R.string.client_home_action_support_body_unread,
+                    supportCount
+            ));
+            return;
         }
-        GuardianReportEntry highlightEntry = dashboard.getHighlightGuardianEntry();
-        if (highlightEntry == null || highlightEntry.getAppointmentRequest().getId().equals(primaryRequest.getId())) {
-            if (highlightEntry != null && highlightEntry.getSession() != null) {
-                return toSessionStatusLabel(highlightEntry.getSession());
-            }
-        }
-        return toStatusLabel(primaryRequest.getStatus());
-    }
-
-    private void tintRecentBadge(int backgroundColorResId, int textColorResId) {
-        ViewCompat.setBackgroundTintList(
-                textRecentBadge,
-                ColorStateList.valueOf(ContextCompat.getColor(context, backgroundColorResId))
-        );
-        textRecentBadge.setTextColor(ContextCompat.getColor(context, textColorResId));
+        textActionSupportBody.setText(R.string.client_home_action_support_body);
     }
 
     private void tintProgressBadge(int backgroundColorResId, int textColorResId) {
@@ -411,13 +296,13 @@ public final class ClientHomeDashboardBinder {
     private void bindNotices(ClientHomeDashboard dashboard) {
         noticeContainer.removeAllViews();
         for (ClientHomeNotice notice : dashboard.getNotices()) {
-            View itemView = layoutInflater.inflate(R.layout.item_client_home_notice, noticeContainer, false);
-            View bannerView = itemView.findViewById(R.id.viewNoticeBanner);
+            View itemView = layoutInflater.inflate(R.layout.item_client_home_promo, noticeContainer, false);
+            ImageView bannerView = itemView.findViewById(R.id.imageNoticeBanner);
             TextView eyebrowView = itemView.findViewById(R.id.textNoticeEyebrow);
             TextView titleView = itemView.findViewById(R.id.textNoticeTitle);
             TextView bodyView = itemView.findViewById(R.id.textNoticeBody);
 
-            bannerView.setBackgroundResource(notice.getBannerBackgroundResId());
+            bannerView.setImageResource(notice.getBannerBackgroundResId());
             eyebrowView.setText(notice.getEyebrowResId());
             titleView.setText(notice.getTitleResId());
             bodyView.setText(notice.getBodyResId());
@@ -475,26 +360,19 @@ public final class ClientHomeDashboardBinder {
         }
     }
 
-    private String toSessionStatusLabel(CompanionSession session) {
-        SessionStatus status = session.getStatus();
+    private int resolveHeroTitleResId(AppointmentStatus status) {
         switch (status) {
-            case READY:
-                return context.getString(R.string.guardian_report_session_ready);
-            case WAITING:
-                return context.getString(R.string.guardian_report_session_waiting);
-            case IN_TREATMENT:
-                return context.getString(R.string.guardian_report_session_treatment);
-            case PAYMENT:
-                return context.getString(R.string.guardian_report_session_payment);
-            case CARE_ENDED:
-                return context.getString(R.string.guardian_report_session_care_ended);
-            case CANCELED:
-                return context.getString(R.string.guardian_report_session_canceled);
+            case MATCHED:
+                return R.string.client_home_hero_matched_title;
+            case IN_PROGRESS:
+                return R.string.client_home_hero_in_progress_title;
             case COMPLETED:
-                return context.getString(R.string.guardian_report_session_completed);
-            case MEETING:
+                return R.string.client_home_hero_completed_title;
+            case CANCELED:
+                return R.string.client_home_hero_canceled_title;
+            case REQUESTED:
             default:
-                return context.getString(R.string.guardian_report_session_meeting);
+                return R.string.client_home_hero_requested_title;
         }
     }
 }

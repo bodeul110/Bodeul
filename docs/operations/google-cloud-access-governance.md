@@ -1,6 +1,6 @@
 # Google Cloud 계정 및 IAM 운영 기준
 
-IAM 재확인일: 2026-09-06. Google Workspace 사용자·라이선스 항목은 별도 표시한 2026-08-23 확인 기록이다.
+조직·관리자 접근 재확인일: 2026-09-22. Google Workspace 사용자·라이선스 항목은 별도 표시한 2026-08-23 확인 기록이다.
 
 이 문서는 BoDeul의 Google Cloud, Firebase, Cloud Identity 접근 주체를 사람, 역할 그룹, 자동화 계정으로 분리하는 기준과 현재 전환 상태를 기록한다. 공개 사이트의 문의 주소를 개발 또는 운영 로그인으로 사용하지 않는다.
 
@@ -24,18 +24,17 @@ Google 계정 비밀번호를 여러 사람이 공유하지 않는다. 사람의
 
 - Cloud Identity API를 `bodeul-dev`에서 활성화했다.
 - `bodeul.kr` Cloud Identity 디렉터리에 세 보안 그룹을 만들었다.
-- `gcp-admins@bodeul.kr`에는 서로 다른 두 Google 계정이 `OWNER`와 `MEMBER`로 등록돼 있다.
+- `gcp-admins@bodeul.kr`의 구성원은 두 명이다. 공식 관리자와 개인 개발 관리자 모두의 그룹 등록 및 실제 접근을 2026-09-22에 확인했다.
 - 관리자 그룹에는 두 Google Cloud 조직과 개발·production 프로젝트에서 기존 관리자 주체와 같은 권한을 병행 부여했다.
 - `developers@bodeul.kr`에는 현재 활동 중인 개발자 계정을 등록하고 `bodeul-dev`의 `roles/editor`를 병행 부여했다.
 - `prod-operators@bodeul.kr`에는 `bodeul-prod-110`의 Logging Viewer, Monitoring Viewer, Cloud Run Viewer, Secret Manager Viewer만 부여했다. Secret payload, Firestore 데이터와 Storage 객체 읽기 권한은 포함하지 않는다.
-- 2026-09-06 주 관리자와 복구용 관리자에 해당하는 두 그룹 소유자 계정으로 개발·production 프로젝트와 두 조직의 IAM 조회를 각각 다시 검증했다.
-- 같은 날 기존 조직에서 `scp@bodeul.kr`에 직접 부여된 관리자 역할 4건을 발견해, 동일한 `gcp-admins` 역할과 복구 계정의 접근을 확인한 뒤 제거했다. 조직 관리자, 결제 관리자, 프로젝트 생성자·이동자 역할의 그룹 binding은 유지했다.
-- 현재 두 프로젝트와 두 조직에서 해당 계정의 직접 관리자 역할 중복은 없다. 기존 조직의 별도 조회 역할 `roles/iam.denyReviewer`는 유지했다. 이 결과를 결제 계정 자체의 IAM이나 다른 사용자 권한까지 모두 정리됐다는 뜻으로 확대하지 않는다.
+- 2026-09-22 공식 관리자 재인증 후 두 계정의 조직·프로젝트 IAM 조회를 확인했고, 조직 이동 뒤에도 두 계정으로 개발·production 프로젝트 접근을 다시 확인했다.
+- 2026-09-06에는 공식 관리자에게 직접 부여된 기존 조직의 관리자 역할 4건을 제거한 기록이 있다. 2026-09-22 실조회에서는 기존 조직에 공식 관리자의 직접 `roles/resourcemanager.organizationAdmin`과 `roles/iam.denyReviewer`가 존재한다. 조직 이전과 추가 권한 회수를 섞지 않고 복구 접근으로 보존했다. 과거 중복 제거 기록을 현재의 직접 권한 부재로 해석하지 않는다.
 - 팀에서 제외된 이전 개발자 계정의 `bodeul-dev` 직접 `roles/editor` binding을 제거했다.
 - 현재 활동 중인 개발자 두 명의 기존 `bodeul-dev` 직접 `roles/editor` binding은 유지했다. 그룹 명단은 일치하지만 Policy Troubleshooter의 해당 그룹 판정이 `MEMBERSHIP_UNKNOWN_INFO`이므로, 직접 권한이 포함된 `CAN_ACCESS` 결과만으로 그룹 경유 검증이 끝났다고 판단하지 않는다.
-- 저장소의 로컬 Git 작성자 정보는 공용 Gmail이 아니라 GitHub `bodeul110`의 비공개 noreply 주소를 사용한다.
+- Git 작성자와 GitHub 작업 계정은 작업 시 실제 인증된 사용자 및 사용자의 계정 지정에 맞춘다. Google Cloud 관리자 계정과 GitHub 작성자를 같은 계정으로 강제하지 않는다.
 
-세부 변경과 검증 범위는 [2026-09-06 재정비 기록](../reports/google-cloud-access-realignment-2026-09-06.md)을 따른다.
+과거 권한 정리는 [2026-09-06 재정비 기록](../reports/google-cloud-access-realignment-2026-09-06.md), 최신 소속과 검증은 [공식 조직 이전 기록](google-cloud-organization-migration.md)을 따른다.
 
 ### Google Workspace 확인 결과 (2026-08-23)
 
@@ -49,15 +48,16 @@ Google 계정 비밀번호를 여러 사람이 공유하지 않는다. 사람의
 
 ## 조직 경계
 
-Google Cloud에는 `bodeul326-org`와 `bodeul.kr` 두 조직이 보인다. 현재 `bodeul-dev`와 `bodeul-prod-110`의 parent는 모두 기존 `bodeul326-org`이며, 새 `bodeul.kr` 조직으로 이동하지 않았다.
+2026-09-22 기존 `bodeul326-org`에서 공식 `bodeul.kr`로 개발·production 프로젝트를 순차 이전했다. 두 프로젝트의 ID와 번호는 유지했다.
 
-프로젝트 이동은 IAM과 조직 정책 상속, 결제, WIF, 서비스 계정과 배포 검증을 포함하는 별도 변경이다. 계정 정리와 동시에 실행하지 않으며 다음 조건을 모두 확인한 뒤 수행한다.
+| 프로젝트 | 현재 상위 조직 | 프로젝트 번호 |
+| --- | --- | --- |
+| `bodeul-dev` | `bodeul.kr` (`1038381475908`) | `533563500316` |
+| `bodeul-prod-110` | `bodeul.kr` (`1038381475908`) | `649312328770` |
 
-1. 출발지와 도착지 조직의 관리자 및 Project Mover 권한 확인
-2. 두 조직의 IAM과 Organization Policy 차이 대조
-3. 결제 계정 연결과 budget 알림 영향 확인
-4. WIF provider, 서비스 계정, Cloud Run, Firebase와 Secret Manager 목록 저장
-5. 이동 후 배포, Firebase Auth, 백업과 rollback smoke test 준비
+기존 조직 `766471701894`는 즉시 삭제하지 않는다. 남은 자산·감사 기록과 복구 필요성을 별도 확인한다. 프로젝트를 새로 만들거나 데이터·비밀값을 복사하지 않았고, 관리자 웹의 Vercel·Supabase 소유권과 설정도 변경하지 않았다.
+
+공식 조직의 IAM·조직 정책 상속은 이전 조직과 다르다. 기존 공개 Cloud Run 접근과 새 공개 서비스 IAM 부여를 구분하며, 신규 production 배포 시 도메인 제한과 공개 접근 방식을 검증한다. 이전 절차·비교 항목·복귀 경계는 [공식 조직 이전 기록](google-cloud-organization-migration.md)을 따른다.
 
 ## 계정 전환 절차
 
@@ -74,9 +74,9 @@ Google Cloud에는 `bodeul326-org`와 `bodeul.kr` 두 조직이 보인다. 현�
 
 공용 계정으로 로그인하는 것과 Cloud Billing 계정·결제 수단을 이전하는 것은 별개다. 이번 접근 권한 정리를 이유로 기존 개인 결제 계정을 자동 재개하거나 개인 결제 수단을 다시 등록하지 않는다.
 
-팀의 청구·납부 주체와 승인된 결제 수단을 준비한 뒤 공용 관리 체계의 결제 계정을 별도로 구성한다. 관리자·복구 담당자의 접근을 확인하고, 기존 `bodeul-dev`와 `bodeul-prod-110`의 연결만 변경한다. 프로젝트 자체를 다시 만들거나 이동하는 작업과 묶지 않는다.
+2026-09-22 조회 기준 공식 조직 소속 `bodeul-billing`은 `open=true`이며, 두 프로젝트 모두 이 계정에 연결돼 `billingEnabled=true`다. 기존 개인 결제 계정은 닫힌 상태이며 프로젝트 연결이 없다. 조직 이전 후 [명칭 정리](resource-naming.md)에서 기존 `bodeul-shared-billing1`의 표시 이름만 변경했고, 결제 계정 ID·연결·결제 수단은 유지했다.
 
-전환 완료는 결제 계정의 `open=true`, 각 프로젝트의 예상 결제 계정 연결과 `billingEnabled=true`를 확인한 뒤 판단한다. 그 후 필요한 개발 배포와 서비스 접근을 별도로 검증한다. 결제 등록·약관·카드 입력은 담당자가 직접 완료하며, 결제 계정과 Google Payments 권한을 동일한 것으로 취급하지 않는다.
+향후 결제 전환도 계정의 `open=true`, 각 프로젝트의 예상 연결과 `billingEnabled=true`로 확인한다. 결제 활성 확인은 카드의 상세 내역·다음 청구 성공이나 앱 업무 기능 검증을 대신하지 않는다. 결제 등록·약관·카드 입력은 담당자가 직접 완료하며, 결제 계정과 Google Payments 권한을 동일한 것으로 취급하지 않는다.
 
 ## 점검 명령
 

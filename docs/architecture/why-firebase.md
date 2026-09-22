@@ -1,13 +1,13 @@
 # Firebase 선택 근거
 
-기준일: 2026-08-22
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
 
 ## 결론
 
-Firebase 전체를 제거하지는 않지만 Firebase 중심 Core 업무 데이터 구조도 유지하지 않는다. Firebase는 Auth, FCM, App Check, Storage와 인증 프로필·지원·매니저 서류 심사 메타데이터에 집중한다. 예약·세션·채팅·읽음·위치·리포트·후속 처리와 해당 Core API·관리자 관계형 요청의 최종 role 인가는 Supabase PostgreSQL과 서버 계층이 담당한다. Firebase에 남긴 기능은 계속 `users/{uid}.role`과 Rules로 인가한다.
+Firebase 전체를 제거하지는 않지만 Firebase 중심 Core 업무 데이터 구조도 유지하지 않는다. Firebase는 Auth, FCM, App Check, Storage와 인증 프로필·지원·매니저 서류 심사 메타데이터에 집중한다. 예약·세션·채팅·읽음·위치·리포트·후속 처리와 해당 Core API·관리자 관계형 요청의 최종 role 인가는 Supabase PostgreSQL과 서버 계층이 담당한다. 본인 Firebase 경로는 `users/{uid}.role`과 Rules로 인가하고, 관리자 접근은 PostgreSQL 세부 역할·감사를 확인하는 Next.js 서버를 거친다. 브라우저 ADMIN 직접 접근은 차단한다.
 
 ## 작업 목적
 
@@ -18,7 +18,7 @@ PostgreSQL과 서버 계층을 도입한 뒤에도 Firebase의 어떤 기능을 
 - Firebase Auth로 사용자 로그인과 세션을 관리한다.
 - Cloud Firestore는 인증 프로필·지원·매니저 서류 심사 메타데이터에 유지한다. 전환된 예약·세션 업무 문서는 30일 읽기 전용 rollback 비교 자료로만 사용한다.
 - Firebase Storage에 매니저 서류와 세션 채팅 첨부 원본을 저장한다. Core-only 세션 첨부는 Android가 직접 쓰지 않고 Spring Core API를 거친다.
-- Cloud Functions는 Firebase Auth·FCM·Storage와 직접 결합된 작업만 맡기고 업무 규칙은 Spring 또는 Next.js 서버로 옮긴다.
+- Cloud Functions는 Firebase 결합 작업과 보존 worker를 맡는다. 보존 worker는 별도 PostgreSQL retention role로 제한된 파기 함수를 호출한다. 사용자 업무 규칙은 Spring 또는 Next.js 서버에 둔다.
 - FCM은 앱 푸시 알림에 사용한다.
 - 관리자 웹 배포는 Vercel로 분리했으며 Firebase Hosting은 현재 메인 저장소의 운영 대상이 아니다.
 

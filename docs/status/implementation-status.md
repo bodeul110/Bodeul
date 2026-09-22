@@ -1,120 +1,81 @@
-# 구현 상태
+# 현재 구현 상태
 
-기준: 2026-09-03
+코드·문서·GitHub 확인일: 2026-09-21
 
-이 문서의 상단은 최신 코드 기준 요약이다. 하단의 날짜별 섹션은 당시 작업 기록이므로, 과거 섹션의 남은 범위가 최신 요약과 충돌하면 이 상단 요약과 관련 상세 문서를 우선한다. 삭제된 `api/`, `admin-web/` 링크는 당시 구현 이력을 가리키며 현재 source of truth가 아니다.
+이 문서의 1~5장은 현재 기준이다. 6장 이후는 날짜별 누적 이력이며 당시 결과를 보존한다. **코드 병합, 특정 환경에서의 검증, 실제 운영 개방은 서로 다르다.**
 
-## 1. 현재 동작하는 기능
+## 1. 구현한 내용
 
-### 인증
+| 영역 | 현재 코드 | 근거와 경계 |
+| --- | --- | --- |
+| 진입·인증 | 브랜드 시작, 권한 안내, 역할 선택, 이메일·Google·Kakao 인증 | #385·#432. Launcher는 SplashActivity이며 기존 진입 흐름으로 연결. Naver 로그인은 비활성 |
+| 환자·보호자 화면 | 공통 하단 탭, 홈, 병원 검색, 날짜 선택, 건강정보, 예약 완료·상태 | #414~#417·#426 병합. 화면별 실기기·API 왕복 범위는 각 구현 기록을 따름 |
+| 예약 | 환자 본인 생성·수정·취소, 공개 예약 코드, 보호자 범위별 조회 | Core API·PostgreSQL 단일 쓰기. 보호자 예약 생성은 #419 후속이며 동의만으로 쓰기를 허용하지 않음 |
+| 매칭 | 관리자 서버의 제한 DB 함수로 매니저 배정 | 매니저 self-accept·선착순 공고는 MVP 제외 |
+| 매니저 화면 | 홈·자격 인증, 가이드 상봉·접수/대기·문진 준비 | #386·#404·#427·#428 병합. 고정 Activity 13개가 아니라 세션 snapshot의 stepCode 사용 |
+| 내부 테스트 개선 | 자기 위치 지도 확인, 마지막 단계 메모 모아보기 | #430·#431 병합. #423·#424 이슈는 열려 있으며 코드 반영과 후속 확인을 구분. 서버 위치 공유·AI 요약이 아님 |
+| 동행·리포트 | 현장 종료 CARE_ENDED, 일지·리포트 후 COMPLETED, 실패·재시도 분리 | V18 계약. 메모 모아보기는 300자 최종 일지를 대체하지 않음 |
+| 채팅·읽음 | 직접 메시지·읽음·첨부, FCM·Supabase private Broadcast | PostgreSQL 원본. 종료 뒤 신규 입력·매니저 열람 차단, 보호자 동의 범위별 접근 |
+| 위치 | legacy 매니저 위치 API·수집 차단 설정 | 기본 OFF, release·production 고정 OFF. 환자 GPS 1분 공유는 목표이며 자기 위치 확인과 별개 |
+| 파일 | Core API 세션 첨부·증빙 중계, Storage 원본, PostgreSQL 메타데이터 | 업로드·과거 fixture 성공과 운영 보존·파기 검증을 구분 |
+| 무통장입금 | V22 원장·감사, V23 관리자 조회, Android 입금자명, 관리자 수동 전이 | 메인 #394·#397·#405~#407, 웹 #51·#52. 실제 계좌 노출·금전 수취·환불 실행 승인은 아님 |
+| 매니저 서류 | JPEG/PNG/WebP 1개·10 MiB 자격 증빙, 관리자 심사 | 메인 #383·웹 #44 병합. Firestore 심사 상태·Storage 원본 유지, legacy 정리는 #313 |
+| 관리자 보안 | PostgreSQL ADMIN·세부 3역할, 감사, MFA·세션 경계 | 실제 운영 계정의 역할·MFA·업무 검증은 별도 |
+| 관리자 환경 표시 | 로그인·MFA·세션 화면과 상단의 개발/운영 표시 | 웹 #64·#65. 실제 Preview·Production 표시 확인은 [9월 21일 기록](../reports/admin-web-environment-display-2026-09-21.md) |
+| 삭제 준비 | PostgreSQL·일부 Firestore 영향도 읽기 전용 집계 | 실제 삭제·Storage 전체·백업·법정 보존 분리는 #348 후속 |
 
-- 이메일 로그인 / 회원가입 / 비밀번호 재설정
-- Google 로그인, Kakao 로그인
-- Naver 로그인 코드 경로와 Functions callable은 남아 있으나, 앱에는 클라이언트 시크릿을 포함하지 않기 위해 `naver_login_enabled=false` 상태로 버튼을 숨긴다.
-- 이메일 인증, 프로필 보완
-- Firebase 미설정 시 목업 모드 자동 전환
-- Android 13+ 알림 권한 안내와 거부 후 재설정 진입 경로
-
-### 환자 / 보호자
-
-- `홈 / 일정·이력 / 동행방 / 내 정보` 공통 하단 내비게이션과 화면별 초기 선택·빈 상태
-- 환자 본인의 병원 동행 신청 생성·목록 조회와 `REQUESTED` 상태 수정·취소, `MATCHED` 상태 취소
-- `APPOINTMENT` 동의를 받은 보호자의 일정·병원·상태 제한 조회. 보호자 예약 생성·수정·취소는 차단
-- 신청 단계에서 환자-보호자 연결 정보 입력과 이메일/전화번호 기준 자동 연결
-- 계정이 없어도 신청 시점 이름 / 전화번호 / 이메일 스냅샷 저장
-- 환자/보호자 홈, 예약 진행 상태, 후속 처리, 보호자 진행 현황 조회
-- 건강정보 읽기 화면
-- 카카오 지도 기반 실시간 위치 확인, 위치 이력, 병원/약국 실좌표 마커 표시
-- 위치 이력은 세션당 최근 10건 유지와 원본 좌표 장기 보관 금지 기준을 문서화함
-- 환자·보호자·매니저 직접 안심 채팅, 채팅 푸시, 읽음 상태, 이미지/PDF 첨부와 다건 첨부
-- 최종 진료 리포트 조회, 후기와 정산 후속 처리. legacy SOS 값은 읽기 호환만 유지하고 화면과 신규 쓰기에서는 제외
-- 문의 접수와 관리자 응답 조회
-
-### 매니저
-
-- 매니저 홈, 과거 이력, 내 페이지, 문의 화면
-- 원본 서류 업로드, 미리보기, 재제출, 심사 상태 확인
-- 활동 가능 일정 저장
-- 병원 동행 가이드 진행, 보호자 공유 메시지, 복약 메모, 진료 리포트 저장
-- 백그라운드 위치 서비스와 카카오 지도 기반 위치 공유
-- 위치 권한 / 로그인 / 불러오기 실패 상태 패널 표시
-
-실시간 위치와 이동경로는 코드와 개발 검증에 존재한다. 현재 구현은 매니저 단말 위치를 10초 또는 15m 기준으로 전송하며, 최신 제품 목표인 환자 GPS 1분 공유와 주체·주기가 다르다. 4자리 상봉번호는 제품 목표에서 제외했다. 현재 `종료+24시간` 만료와 일 1회 정리는 24시간 내 최종 삭제를 보장하지 못하므로, 환자 위치 수집 동의·즉시 철회·역할별 인가·즉시 삭제 시도와 24시간 상한, production 전역 `off`를 종단 검증하기 전에는 운영 기능으로 표시하지 않는다.
-
-### 관리자 앱 (레거시 운영 화면)
-
-- 기존 Firestore 운영 데이터 조회. 수동 매칭 쓰기는 차단됐으며 실제 배정은 별도 관리자 웹 서버 API를 사용
-- 운영 중 요청 조회, 상태/날짜 필터, 요청 상세 펼침
-- 매니저 서류 심사, 심사 이력, 파일 미리보기
-- 병원 가이드 등록 / 수정 / 삭제
-- 환자/보호자 문의와 매니저 문의 통합 조회, 응답 저장
-- 후속 알림 액션 센터, 읽음/해결, 액션 전달 이력 조회
-- 관리자 전용 숨김 진입과 이메일 로그인
-
-### 관리자 웹
-
-- Firebase Auth 기준 관리자 로그인과 `users/{uid}.role == ADMIN` 검증
-- 매니저 서류 목록, 상세 심사 모달, Storage 원본 파일 미리보기
-- 승인 / 반려 저장, 검토 메모 저장
-- 목록 기본 마스킹, 상세 모달에서만 원문 확인
-- 15분 유휴 세션 자동 로그아웃
-- Production reCAPTCHA Enterprise client와 `X-Firebase-AppCheck` 전달, Next.js 서버 `observe` 검증. 인증된 `VALID` 요청과 `enforce`는 미완료
-
-### 알림 / 서버 / 운영 도구
-
-- 예약 시 `appointmentAtEpochMillis`, `appointmentDateKey`, `reminderStages` 저장
-- 매일 오전 9시 기준 `D7`, `D3`, `D1` 알림 작업 생성
-- 알림 작업 큐 처리 및 시뮬레이션 / 실발송 상태 기록
-- 사용자 문서 생성 / 수정 시 기존 신청 문서 자동 재연결
-- 예약 취소 / 삭제 / 일정 변경 시 남아 있는 `appointmentReminderJobs` 자동 정리
-- 관리자 후속 알림 전달 작업 생성, 큐 처리, 수동 재실행
-- FCM 토큰 수명주기 저장과 채팅/위치/문의 푸시 표시
-- Firebase 기준선 초기화, 샘플 데이터 주입, 백업/복원, 상태 점검, 프리플라이트, 운영 리포트
+Firebase Auth·FCM·App Check·Storage와 인증 프로필·지원·서류 관련 Functions는 유지한다. legacy 예약 알림·Firestore 도구가 PostgreSQL 업무를 자동 처리한다고 해석하지 않는다. 대상은 [Firebase 운영 도구](../operations/firebase/tools.md)를 따른다.
 
 ## 2. 현재 구조 기준
 
-- Android 앱은 `Java + XML` 기반이며 `Activity -> Coordinator -> Binder -> ScreenModel/Formatter -> Repository` 경계를 유지한다.
-- 예약·취소·동행 상태·리포트·후속 처리와 채팅·읽음·위치는 `ServiceLocator`가 Core API 저장소를 선택한다. 인증·매니저 서류·지원 기능은 Firebase 저장소를 사용하고, Firebase 미설정 환경은 Mock 저장소를 사용한다.
-- `functions/index.js`는 `initializeApp()`과 모듈 export 집계만 맡고, 실제 함수는 `functions/src/` 아래 기능별 파일로 분리돼 있다.
-- 관리자 앱의 주요 섹션은 `SectionController`와 기능별 Firebase store로 분리돼 있다.
-- 관리자 웹은 인증 화면, 셸, 심사 목록, 심사 모달, 유휴 세션 훅, 미리보기 훅으로 분리돼 있다.
+- Android는 Java/XML, Activity·Coordinator·Binder·Repository 경계를 유지한다. Codex/CLI로 개발하며 Android Studio는 필수가 아니다.
+- ServiceLocator는 실제 인증 설정이 있으면 Core API와 Firebase 잔존 기능을 조합한다. Firebase 미설정 데모는 Mock이며 API 실패를 Firestore 쓰기로 우회하지 않는다.
+- 사용자·매니저는 Spring Core API, 관리자는 별도 Next.js 서버로 같은 환경의 PostgreSQL을 사용한다. 서버 사이 proxy는 없다.
+- DDL은 메인 core-api의 Flyway V1~V23만 소유한다. [migration 소스 목록](../architecture/database-migration-catalog.md)과 실제 적용 버전은 별도다.
+- 두 저장소 기본 브랜치는 master다. Core Preview·production 배포와 migration은 수동 workflow 경계다. 제안된 dev/main 전략이 적용됐다고 적지 않는다.
 
 ## 3. 남은 범위
 
-- 실제 무통장입금 계약과 운영 주체 명의 계좌·입금 확인·환불·노쇼·정산. 목표 방식은 확정했지만 운영 게이트 전 계좌 노출·실제 수취·입금 완료 처리는 비활성
-- 환자 GPS 1분 공유 API·DB·Android 전환과 동의·철회·인가·파기 종단 검증
-- [#391](https://github.com/bodeul110/Bodeul/issues/391) 가이드 2 영상 계약과 승인된 자산·촬영 및 사용 권리·비식별 검수
-- 카드·간편결제 PG 연동과 초과 시간 자동 추가 결제
-- AI 음성 녹음 기반 진료 리포트 자동 생성
-- OCR 기반 처방전/약봉투 인식과 자동 복약 비교
-- 건강정보 별도 프로필 영속 저장
-- 실운영용 카카오 알림톡/외부 메시지 채널 연동값 확정
-- 의사결정능력이 제한된 환자의 대리권 증빙·승인·철회와 감사 정책. 성인 환자 본인 동의·철회는 구현 완료
-- 시스템 이벤트형 동행방의 별도 제품 결정. 관리자 배정과 매니저 self-accept 제외는 확정
-- production Kakao 키, Cloud Run·Vercel 운영 자격 증명, App Check 강제와 rollback 검증
-- 승인된 처리방침과 보관기간·위치·결제·영상 production 게이트 최종 대조
-- 탈퇴·삭제 실행, 법정 보존 분리와 백업 삭제 재적용 구현. PostgreSQL과 Firestore 사용자·지원·예약·세션 필드별 직접 참조의 읽기 전용 부분 영향도만 완료
-- production 세션 첨부·보관 정책 적용, production fixture 파기 리허설과 승인된 약관 대조
+| 작업 | 현재 판단 |
+| --- | --- |
+| Preview API #429 | 이전 500/503 관찰 후 재확인 과제로 열림. 이번에 health·로그를 재검증하지 않았으므로 현재 장애·복구를 단정하지 않음 |
+| 보호자 예약 #419 | 정책 채택, 현재 환자 전용 쓰기와의 차이 구현 필요 |
+| 내부 STT #420 | Naver Cloud 연동·녹음 저장 목표. 실제 환자 음성·AI 요약·OCR와 분리 |
+| 가이드 진입 #422 | 신규·기존 세션의 stepCode와 재진입 상태를 구분해 재현 확인 |
+| 가이드 영상 #391 | V21 메타데이터·fallback 계약은 있음. 승인 영상·재생 UI·권리·비식별 검증은 별도 |
+| 위치·파기 #222 | 환자 GPS, 동의·철회·중지·파기 종단 검증과 production fixture |
+| 자격 서류 #313 | legacy 파일 정리·접근 검증. 신규 최소수집 코드와 구분 |
+| App Check #190·#192 | release Play Integrity, 인증된 Web VALID, enforce/rollback |
+| 탈퇴 #348·법률 #347 | 실제 삭제, 법정 보존·백업 재적용, 대리권 등 추가 자문 |
+| 운영 #134·#223·결제 #27 | production DB·migration·역할별 업무, 배포·rollback·실제 수취 운영과 Go/No-Go |
+
+카드·간편결제 PG, OCR, AI 자동 리포트, 시스템 이벤트형 채팅, SOS·자동119·사고 전용 상태는 현재 MVP의 필수 미완료 목록에 다시 넣지 않는다. 새 요구가 생기면 별도 변경으로 다룬다.
+
+운영 로그인 계정은 Firebase Auth 등록까지만 진행했다. 비밀번호 설정·DB 역할·MFA·실제 업무 성공은 확인하지 않았다. production DB는 9월 21일 일시정지 확인 후 재개하지 않았으며 [관리자 웹 환경 기준](../operations/admin-web-environments.md)을 따른다.
 
 ## 4. 검증 기준
 
-- 새 기능 또는 동작 변경 후 기본 검증은 `.\gradlew.bat assembleDebug`로 한다.
-- 영향 범위가 테스트에 걸리면 `.\gradlew.bat testDebugUnitTest`를 함께 실행한다.
-- 관리자 웹 변경은 별도 `bodeul-admin-web` 저장소의 현재 package script와 CI 기준을 따른다.
-- 문서 전용 변경은 Markdown 링크와 프로젝트 기준 문서 정합성을 우선 확인한다.
+- Android: `.\gradlew.bat assembleDebug --console=plain`, 영향 범위에 따라 `testDebugUnitTest`
+- Core API: `.\core-api\gradlew.bat -p core-api check --console=plain`, DB 변경은 격리 migration 검증
+- Functions: `npm --prefix functions test`
+- Firebase Rules·도구: `npm --prefix tools/firebase run test:rules` 및 관련 toolkit/preflight
+- 관리자 웹: 별도 저장소의 test·lint·Next build·Vite rollback build·CI
+- 문서: UTF-8, Markdown 링크·경로·앵커, 코드·원본·GitHub와의 정합성
+
+문서 수정만으로 앱·실기기 검증을 재수행했다고 기록하지 않는다. Mock·화면 fixture·개발 API·production 검증을 분리한다. 이번 문서 작업에서는 배포·DB 쓰기·파기를 실행하지 않았다.
 
 ## 5. 최근 세부 기록 위치
 
-- Firestore 쿼리와 인덱스 운영 점검 결과는 [Firestore 쿼리/인덱스 운영 점검 (2026-06-26)](../reports/firestore-query-index-review-2026-06-26.md)에 둔다.
-- 2026-06-20 이후 장문 점검과 실기기 확인 기록은 `../reports/` 아래 성격별 보고서에 둔다.
-- 최신 정책·법률 상태는 [Notion 정책 답변·법률 검토 정합성 점검 (2026-08-25)](../reports/notion-policy-legal-alignment-2026-08-25.md), 화면 기준은 [Notion·Figma 문서 정합성 점검 (2026-08-22)](../reports/notion-figma-document-alignment-2026-08-22.md)을 본다.
-- 과거 전체 점검과 문서 정리는 [프로젝트 전체 점검 기록 (2026-06-23)](../reports/project-check-2026-06-23.md)과 [문서 정합성 점검 기록 (2026-06-23)](../reports/document-alignment-2026-06-23.md)에 보관한다.
-- 위치 이력 운영 기준은 [위치 이력 보관 및 노출 정책](../operations/location-history-retention-policy.md)에 둔다.
-- 계정 삭제의 현재 읽기 전용 경계는 [계정 탈퇴·삭제 준비 상태](../operations/account-deletion-readiness.md)에 둔다.
-- 최신 Firestore 역할별 직접 참조 검증은 [Issue 348 Firestore 예약·세션 직접 참조 영향도](../reports/issue-348-firestore-participant-inventory-2026-08-27.md)에 둔다.
-- 환자·보호자 공통 탭과 예약별 동행방 진입 경계는 [환자·보호자 공통 하단 내비게이션](../design/client-bottom-navigation.md)에 둔다.
+- [전체 문서 최신화 기록](../reports/document-refresh-2026-09-21.md)
+- [Notion 제품 기준 정합성](../planning/notion-product-alignment.md)
+- [Figma MVP 화면·Android 매핑](../design/figma-mvp-implementation-map-2026-08-29.md)
+- [관리자 웹 환경 표시 검증](../reports/admin-web-environment-display-2026-09-21.md)
+- [목표 인프라](../architecture/target-infrastructure.md)와 [migration 목록](../architecture/database-migration-catalog.md)
+- [계정 삭제 준비 상태](../operations/account-deletion-readiness.md)와 [데이터 보관 정책](../operations/data-retention-policy.md)
 
 ## 6. 누적 변경 이력
+
+아래는 당시 날짜의 작업 기록이다. 과거의 미구현·열린 PR·배포 상태와 버전은 현재 상태를 뜻하지 않는다. 현재 기준은 위 1~5장을 따른다.
 
 ## 7. 2026-04-15 추가 업데이트
 
@@ -551,10 +512,10 @@
 
 ### 구현
 
-- 루트/앱 빌드 스크립트의 하드코딩된 플러그인과 라이브러리 버전을 [gradle/libs.versions.toml](../../gradle/libs.versions.toml:1) 기준의 version catalog로 옮겼다.
-- [build.gradle.kts](../../build.gradle.kts:1), [app/build.gradle.kts](../../app/build.gradle.kts:1)는 catalog alias를 사용하도록 바꿨고, 실제 버전 값은 유지했다.
+- 루트/앱 빌드 스크립트의 하드코딩된 플러그인과 라이브러리 버전을 [gradle/libs.versions.toml](../../gradle/libs.versions.toml) 기준의 version catalog로 옮겼다.
+- [build.gradle.kts](../../build.gradle.kts), [app/build.gradle.kts](../../app/build.gradle.kts)는 catalog alias를 사용하도록 바꿨고, 실제 버전 값은 유지했다.
 - 관리자 병원 가이드 영역은 `AdminGuideCoordinator`, `AdminGuideCardBinder`, `AdminGuideFormBinder`와 가이드 카드/폼 모델들로 분리했다.
-- [AdminActivity.java](../../app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java:68)는 이제 병원 가이드 목록 카드와 폼 모드 문자열을 직접 조합하지 않고, 가이드 코디네이터와 바인더를 통해 렌더링한다.
+- [AdminActivity.java](../../app/src/main/java/com/example/bodeul/ui/admin/AdminActivity.java)는 이제 병원 가이드 목록 카드와 폼 모드 문자열을 직접 조합하지 않고, 가이드 코디네이터와 바인더를 통해 렌더링한다.
 - `assembleDebug --console=plain`, `testDebugUnitTest --console=plain` 검증을 완료했다.
 
 ### 변경 범위
@@ -1046,7 +1007,7 @@
 
 - [backup-validator.js](../../tools/firebase/lib/backup-validator.js)로 백업 검증 로직을 공용 helper로 분리하고, [validate-firestore-backup.js](../../tools/firebase/validate-firestore-backup.js)도 같은 로직을 재사용하도록 정리했다.
 - [run-operations-workflow.js](../../tools/firebase/run-operations-workflow.js)를 추가해 현재 Firebase 상태 수집, 역할별 화면 진입 점검, 백업 검증, diff 계산, HTML 리포트 생성, JSON 요약 저장을 한 번에 수행할 수 있게 했다.
-- 워크플로는 [firebase-toolkit.js](../../tools/firebase/lib/firebase-toolkit.js:9)에서 `firebase login` 저장 토큰이 만료되면 자동으로 refresh token으로 갱신하도록 보강한 뒤 실행되도록 맞췄다. 그래서 Studio 재시작이나 시간이 지난 뒤에도 운영 스크립트가 다시 401로 끊기지 않게 했다.
+- 워크플로는 [firebase-toolkit.js](../../tools/firebase/lib/firebase-toolkit.js)에서 `firebase login` 저장 토큰이 만료되면 자동으로 refresh token으로 갱신하도록 보강한 뒤 실행되도록 맞췄다. 그래서 Studio 재시작이나 시간이 지난 뒤에도 운영 스크립트가 다시 401로 끊기지 않게 했다.
 - [tools/firebase/package.json](../../tools/firebase/package.json)에 `workflow:ops` 실행점을 추가했고, [../operations/firebase/tools.md](../operations/firebase/tools.md), [../operations/firebase/setup.md](../operations/firebase/setup.md)에 `--strict`, `--json` 포함 사용 절차를 반영했다.
 - 워크플로 산출물인 JSON 요약도 `tools/firebase/reports/` 아래에 저장하고 [.gitignore](../../.gitignore)에 HTML/JSON 산출물을 Git 추적 대상에서 제외하도록 정리했다.
 - 검증은 `npm run validate:backup -- --file backups/firestore-backup-20260424-015754.json`, `npm run workflow:ops -- --file backups/firestore-backup-20260424-015754.json`, `.\gradlew.bat assembleDebug --console=plain` 순서로 다시 확인한다.
@@ -1155,7 +1116,7 @@
 ## 52. 2026-04-24 실기기 프리셋 자동 진입 및 화면 증적 실측
 ### 구현
 
-- 연결된 실기기 `SM-S921N (Android 16)`에 [installDebug](../../app/build/outputs/apk/debug/app-debug.apk) 기준 최신 debug 앱을 다시 설치한 뒤 프리셋 전체를 실측했다.
+- 연결된 실기기 `SM-S921N (Android 16)`에 `installDebug`로 당시 로컬 산출물 `app/build/outputs/apk/debug/app-debug.apk`를 다시 설치한 뒤 프리셋 전체를 실측했다.
 - 자동 진입 실측 과정에서 `adb shell am start`만으로는 현재 태스크에 인텐트가 재전달되며 포커스 검증이 흔들리는 문제가 있어, [android-toolkit.js](../../tools/firebase/lib/android-toolkit.js)에서 프리셋 자동 진입 시 `-S` 강제 재시작을 붙이도록 수정했다.
 - [app-navigation-routes.js](../../tools/firebase/lib/app-navigation-routes.js)의 기본 대기 시간을 10초로 늘렸고, [capture-app-navigation-evidence.js](../../tools/firebase/capture-app-navigation-evidence.js)에서는 `com.example.bodeul/.MainActivity`처럼 축약된 액티비티 표기도 정상 비교하도록 포커스 판정을 보강했다.
 - 프리셋 `patient-home`, `guardian-home`, `patient-booking`, `guardian-booking-status`, `patient-booking-follow-up`, `guardian-report`, `manager-home`, `manager-history`, `manager-guide`, `manager-support`, `manager-profile`, `admin-dashboard`를 모두 실행했고, 당시 로컬 `app-navigation-evidence-latest.json`에 `통과 12 / 경고 0 / 실패 0`으로 기록했다.

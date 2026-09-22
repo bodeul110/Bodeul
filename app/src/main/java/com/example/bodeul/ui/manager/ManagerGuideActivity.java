@@ -3,6 +3,7 @@ package com.example.bodeul.ui.manager;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputFilter;
@@ -72,9 +73,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private static final int LOCATION_ACTION_NONE = 0;
     private static final int LOCATION_ACTION_SHARE_ONCE = 1;
     private static final int LOCATION_ACTION_START_LIVE = 2;
+    private static final int LOCATION_ACTION_SHOW_CURRENT_ON_MAP = 3;
 
     private ManagerGuideViewModel viewModel;
     private ManagerGuideDashboardBinder managerGuideDashboardBinder;
+    private ManagerGuideReceptionBinder managerGuideReceptionBinder;
+    private ManagerGuidePreConsultationBinder managerGuidePreConsultationBinder;
 
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
@@ -82,6 +86,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean pharmacySearchNavigationInProgress;
     private boolean bindingPreConsultationConfirmation;
     private boolean mutationInFlight;
+    private boolean currentLocationReadInFlight;
     private boolean legacyManagerLocationEnabled;
     private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
     private String currentStepCode = "";
@@ -109,6 +114,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private MaterialButton buttonSelectGuideSessionArtifact;
     private MaterialButton buttonClearGuideSessionArtifact;
     private MaterialButton buttonSubmitReport;
+    private MaterialButton buttonShowCurrentLocation;
     private ActivityResultLauncher<String[]> paymentEvidencePicker;
     private ActivityResultLauncher<String[]> prescriptionImagePicker;
 
@@ -118,6 +124,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private Label hospitalMarker;
     private Label pharmacyMarker;
     private Label trackingLabel;
+    private Label currentLocationMarker;
     private ManagerDashboard currentDashboard;
     private KakaoLocalPlaceSearchClient placeSearchClient;
     private HospitalMapCoordinateResult currentCoordinateResult;
@@ -208,6 +215,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         buttonClearGuideSessionArtifact = findViewById(
                 R.id.buttonClearGuideSessionArtifact);
         buttonSubmitReport = findViewById(R.id.buttonSubmitReport);
+        buttonShowCurrentLocation = findViewById(R.id.buttonGuideShowCurrentLocation);
 
         managerGuideDashboardBinder = new ManagerGuideDashboardBinder(
                 LayoutInflater.from(this),
@@ -232,6 +240,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(R.id.viewGuideFocusPreview),
                 new ManagerGuideVideoGuidanceBinder(findViewById(android.R.id.content)),
                 new ManagerGuideStepSectionsBinder(this, findViewById(android.R.id.content)),
+                new ManagerGuideMemoSummaryBinder(
+                        LayoutInflater.from(this),
+                        findViewById(android.R.id.content)),
                 findViewById(R.id.textGuideLiveLocationStatus),
                 findViewById(R.id.textGuideLiveLocationHistory),
                 inputGuideLocationSummary,
@@ -266,13 +277,37 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 (MaterialButton) findViewById(R.id.buttonToggleMedicationGuidanceCompleted),
                 (MaterialButton) findViewById(R.id.buttonSubmitReport)
         );
+        managerGuideReceptionBinder = new ManagerGuideReceptionBinder(findViewById(android.R.id.content));
+        managerGuidePreConsultationBinder = new ManagerGuidePreConsultationBinder(
+                findViewById(android.R.id.content));
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuidePreConsultation).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonGuideReceptionShare).setOnClickListener(view -> {
+            if (!"RECEPTION_QUEUE".equals(currentStepCode) || mutationInFlight) {
+                return;
+            }
+            String message = managerGuideReceptionBinder.buildGuardianUpdate();
+            if (message != null) {
+                viewModel.saveGuardianUpdate(message);
+            }
+        });
         findViewById(R.id.navGuideHome).setOnClickListener(view -> openManagerHome());
         findViewById(R.id.navGuideHistory).setOnClickListener(view ->
                 startActivity(new Intent(this, ManagerHistoryActivity.class)));
         findViewById(R.id.navGuideProfile).setOnClickListener(view ->
                 startActivity(new Intent(this, ManagerProfileActivity.class)));
+        findViewById(R.id.buttonGuidePreConsultationComplete).setOnClickListener(view -> {
+            if ("PRE_CONSULTATION".equals(currentStepCode)
+                    && !managerGuidePreConsultationBinder.isConfirmed()) {
+                if (managerGuidePreConsultationBinder.canConfirm() && !mutationInFlight) {
+                    viewModel.updatePreConsultationConfirmed(true);
+                }
+                return;
+            }
+            performPrimaryAction();
+        });
         buttonAdvanceGuide.setOnClickListener(view -> performPrimaryAction());
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
@@ -299,6 +334,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
         findViewById(R.id.buttonGuideOpenChat).setOnClickListener(view -> openCompanionChat());
         findViewById(R.id.buttonGuideMeetingOpenChat).setOnClickListener(view -> openCompanionChat());
+        buttonShowCurrentLocation.setOnClickListener(view -> showCurrentLocationOnMap());
         findViewById(R.id.buttonShareCurrentLocation).setOnClickListener(view -> shareCurrentLocation());
         findViewById(R.id.buttonStartLiveLocationSharing).setOnClickListener(view -> startLiveLocationSharing());
         findViewById(R.id.buttonStopLiveLocationSharing).setOnClickListener(view -> stopLiveLocationSharing(true, true));
@@ -307,6 +343,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
         mapView.start(new MapLifeCycleCallback() {
             @Override
             public void onMapDestroy() {
+                kakaoMap = null;
+                currentLocationMarker = null;
             }
 
             @Override
@@ -366,8 +404,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
 
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
+            managerGuideReceptionBinder.hideForState();
+            managerGuidePreConsultationBinder.hideForState();
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             currentStepCode = "";
+            clearCurrentLocationMarkerOutsideMeetingStep();
             managerGuideContentContainer.setVisibility(View.GONE);
             managerGuideBottomAction.setVisibility(View.GONE);
             switch (state.statePanelType) {
@@ -396,20 +437,28 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 bindingPreConsultationConfirmation = true;
                 try {
                     managerGuideDashboardBinder.bindScreen(state.screenModel);
+                    managerGuideReceptionBinder.bind(
+                            state.screenModel, state.dashboard, mutationInFlight);
+                    managerGuidePreConsultationBinder.bind(
+                            state.screenModel, state.dashboard, mutationInFlight);
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
                 }
                 currentPrimaryAction = state.screenModel.getPrimaryAction();
                 currentStepCode = state.screenModel.getCurrentStepCode();
+                clearCurrentLocationMarkerOutsideMeetingStep();
                 bindSessionArtifactSection(state.screenModel.isInputsEnabled());
                 if (mutationInFlight) {
                     disableMutationActions();
                 }
                 updateMapMarker();
             } else {
+                managerGuideReceptionBinder.hideForState();
+                managerGuidePreConsultationBinder.hideForState();
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 currentStepCode = "";
+                clearCurrentLocationMarkerOutsideMeetingStep();
                 managerGuideContentContainer.setVisibility(View.GONE);
                 managerGuideBottomAction.setVisibility(View.GONE);
             }
@@ -465,6 +514,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void disableMutationActions() {
+        managerGuideReceptionBinder.setShareEnabled(false);
+        findViewById(R.id.buttonGuidePreConsultationComplete).setEnabled(false);
         buttonAdvanceGuide.setEnabled(false);
         buttonSubmitReport.setEnabled(false);
         buttonSelectGuideSessionArtifact.setEnabled(false);
@@ -781,6 +832,101 @@ public class ManagerGuideActivity extends AppCompatActivity {
         kakaoMap.getTrackingManager().startTracking(trackingLabel);
     }
 
+    private void showCurrentLocationOnMap() {
+        if (!ManagerGuideCurrentLocationPolicy.isAvailableFor(currentStepCode)
+                || currentLocationReadInFlight) {
+            return;
+        }
+        if (kakaoMap == null) {
+            Toast.makeText(this, R.string.guide_current_location_map_preparing, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!hasLocationPermission()) {
+            requestLocationPermission(LOCATION_ACTION_SHOW_CURRENT_ON_MAP);
+            return;
+        }
+
+        currentLocationReadInFlight = true;
+        buttonShowCurrentLocation.setEnabled(false);
+        ManagerCurrentLocationReader.read(this, new ManagerCurrentLocationReader.Callback() {
+            @Override
+            public void onSuccess(@androidx.annotation.NonNull Location location) {
+                finishCurrentLocationRead();
+                if (isFinishing() || isDestroyed()
+                        || !ManagerGuideCurrentLocationPolicy.isAvailableFor(currentStepCode)
+                        || kakaoMap == null) {
+                    return;
+                }
+                upsertCurrentLocationMarker(location);
+                Toast.makeText(
+                        ManagerGuideActivity.this,
+                        R.string.guide_current_location_displayed,
+                        Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(@androidx.annotation.NonNull ManagerCurrentLocationReader.Failure failure) {
+                finishCurrentLocationRead();
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                Toast.makeText(
+                        ManagerGuideActivity.this,
+                        currentLocationFailureMessage(failure),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void finishCurrentLocationRead() {
+        currentLocationReadInFlight = false;
+        if (!isFinishing() && !isDestroyed()) {
+            buttonShowCurrentLocation.setEnabled(true);
+        }
+    }
+
+    private int currentLocationFailureMessage(ManagerCurrentLocationReader.Failure failure) {
+        switch (failure) {
+            case PERMISSION_REQUIRED:
+                return R.string.guide_current_location_permission_denied;
+            case LOCATION_SERVICE_DISABLED:
+                return R.string.guide_current_location_service_disabled;
+            case TIMED_OUT:
+                return R.string.guide_current_location_timeout;
+            case UNAVAILABLE:
+            default:
+                return R.string.guide_current_location_unavailable;
+        }
+    }
+
+    private void upsertCurrentLocationMarker(Location location) {
+        LatLng position = LatLng.from(location.getLatitude(), location.getLongitude());
+        if (currentLocationMarker == null) {
+            android.graphics.Bitmap markerBitmap = getBitmapFromVectorDrawable(
+                    this,
+                    R.drawable.ic_tracking_dot);
+            LabelOptions options = LabelOptions.from("guide-current-location", position);
+            if (markerBitmap != null) {
+                options.setStyles(LabelStyle.from(markerBitmap).setAnchorPoint(0.5f, 0.5f));
+            } else {
+                options.setStyles(LabelStyle.from(R.drawable.ic_tracking_dot).setAnchorPoint(0.5f, 0.5f));
+            }
+            currentLocationMarker = kakaoMap.getLabelManager().getLayer().addLabel(options);
+        } else {
+            currentLocationMarker.moveTo(position);
+        }
+        kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position));
+    }
+
+    private void clearCurrentLocationMarkerOutsideMeetingStep() {
+        if (ManagerGuideCurrentLocationPolicy.isAvailableFor(currentStepCode)
+                || currentLocationMarker == null) {
+            return;
+        }
+        currentLocationMarker.remove();
+        currentLocationMarker = null;
+    }
+
     private android.graphics.Bitmap getBitmapFromVectorDrawable(android.content.Context context, int drawableId) {
         android.graphics.drawable.Drawable drawable = androidx.core.content.ContextCompat.getDrawable(context, drawableId);
         if (drawable == null) return null;
@@ -902,7 +1048,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void requestLocationPermission(int action) {
-        if (!legacyManagerLocationEnabled) {
+        if (!legacyManagerLocationEnabled && action != LOCATION_ACTION_SHOW_CURRENT_ON_MAP) {
             pendingLocationPermissionAction = LOCATION_ACTION_NONE;
             showLegacyManagerLocationDisabledNotice();
             return;
@@ -919,11 +1065,15 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
         int action = pendingLocationPermissionAction;
         pendingLocationPermissionAction = LOCATION_ACTION_NONE;
-        if (!legacyManagerLocationEnabled) {
+        if (!legacyManagerLocationEnabled && action != LOCATION_ACTION_SHOW_CURRENT_ON_MAP) {
             stopTrackerOnly();
             return;
         }
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (action == LOCATION_ACTION_SHOW_CURRENT_ON_MAP) {
+                showCurrentLocationOnMap();
+                return;
+            }
             if (kakaoMap != null) {
                 startMapTracking();
             }
@@ -937,7 +1087,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
             }
         }
         if (action != LOCATION_ACTION_NONE) {
-            Toast.makeText(this, R.string.guide_share_location_permission_denied, Toast.LENGTH_SHORT).show();
+            int messageResId = action == LOCATION_ACTION_SHOW_CURRENT_ON_MAP
+                    ? R.string.guide_current_location_permission_denied
+                    : R.string.guide_share_location_permission_denied;
+            Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
         }
     }
 

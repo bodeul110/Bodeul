@@ -60,6 +60,8 @@ public class BookingActivity extends AppCompatActivity {
     private AppointmentRequest editingRequest;
     private String pendingEditRequestId;
     private boolean preserveFormOnNextDashboardBind;
+    private ActivityResultLauncher<Intent> healthProfileLauncher;
+    private ActivityResultLauncher<Intent> appointmentSelectorLauncher;
     private ActivityResultLauncher<Intent> hospitalSelectorLauncher;
     private ActivityResultLauncher<Intent> locationSelectorLauncher;
     private ActivityResultLauncher<Intent> paymentApprovalLauncher;
@@ -81,6 +83,34 @@ public class BookingActivity extends AppCompatActivity {
         authRepository = ServiceLocator.provideAuthRepository(this);
         bookingRepository = ServiceLocator.provideBookingRepository(this);
         bookingCoordinator = new BookingCoordinator(bookingRepository);
+        healthProfileLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+                        return;
+                    }
+                    BookingHealthProfileSelection selection = BookingHealthProfileActivity.parseResult(
+                            result.getData()
+                    );
+                    if (formBinder != null && selection.hasRequiredCondition()) {
+                        formBinder.applyHealthProfileSelection(selection);
+                    }
+                }
+        );
+        appointmentSelectorLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+                        return;
+                    }
+                    String appointmentAt = BookingAppointmentSelectorActivity.parseResult(
+                            result.getData()
+                    );
+                    if (!TextUtils.isEmpty(appointmentAt) && formBinder != null) {
+                        formBinder.applyAppointmentAt(appointmentAt);
+                    }
+                }
+        );
         hospitalSelectorLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -145,7 +175,9 @@ public class BookingActivity extends AppCompatActivity {
                 findViewById(R.id.buttonBookingQuickDayAfterTomorrow),
                 findViewById(R.id.buttonBookingQuickMorning),
                 findViewById(R.id.buttonBookingQuickAfternoon),
-                findViewById(R.id.buttonBookingQuickLateAfternoon)
+                findViewById(R.id.buttonBookingQuickLateAfternoon),
+                appointmentSelectorLauncher,
+                () -> preserveFormOnNextDashboardBind = true
         );
 
         dashboardBinder = new BookingDashboardBinder(
@@ -177,6 +209,8 @@ public class BookingActivity extends AppCompatActivity {
                 findViewById(R.id.textBookingEstimateDiscount),
                 findViewById(R.id.textBookingEstimateFinal),
                 findViewById(R.id.textBookingPaymentHelper),
+                findViewById(R.id.textBookingHealthProfileSummary),
+                findViewById(R.id.textBookingHealthProfileError),
                 findViewById(R.id.layoutBookingHealthSummary),
                 findViewById(R.id.layoutBookingMedicationSummary),
                 findViewById(R.id.layoutBookingLinkedName),
@@ -199,6 +233,7 @@ public class BookingActivity extends AppCompatActivity {
                 findViewById(R.id.buttonBookingSelectMeetingPlace),
                 findViewById(R.id.buttonSubmitBooking),
                 findViewById(R.id.buttonCancelBookingEdit),
+                findViewById(R.id.buttonBookingHealthProfile),
                 findViewById(R.id.buttonBookingMobilityIndependent),
                 findViewById(R.id.buttonBookingMobilityWalkingAid),
                 findViewById(R.id.buttonBookingMobilityWheelchair),
@@ -217,6 +252,7 @@ public class BookingActivity extends AppCompatActivity {
         );
 
         findViewById(R.id.buttonBackBooking).setOnClickListener(view -> finish());
+        formBinder.setOnHealthProfileSelectorClickListener(view -> openHealthProfile());
         formBinder.setOnHospitalSelectorClickListener(view -> openHospitalSelector());
         formBinder.setOnMeetingPlaceSelectorClickListener(view -> openLocationSelector());
         ((MaterialButton) findViewById(R.id.buttonSubmitBooking)).setOnClickListener(view -> submitAppointmentRequest());
@@ -602,6 +638,14 @@ public class BookingActivity extends AppCompatActivity {
         hospitalSelectorLauncher.launch(BookingHospitalSelectorActivity.createIntent(
                 this,
                 formBinder.getHospitalSelection()
+        ));
+    }
+
+    private void openHealthProfile() {
+        preserveFormOnNextDashboardBind = true;
+        healthProfileLauncher.launch(BookingHealthProfileActivity.createIntent(
+                this,
+                formBinder.getHealthProfileSelection()
         ));
     }
 

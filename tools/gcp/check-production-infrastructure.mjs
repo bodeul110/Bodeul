@@ -17,7 +17,7 @@ const FIXED = Object.freeze({
   projectId: "bodeul-prod-110",
   projectNumber: "649312328770",
   region: "asia-northeast1",
-  firebaseDisplayName: "BoDeul Production",
+  firebaseDisplayName: "bodeul-prod",
   androidAppId: "1:649312328770:android:b0698534ff92da7fdea1db",
   androidAppDisplayName: "BoDeul Android Production",
   androidPackageName: "com.example.bodeul",
@@ -174,7 +174,7 @@ const SERVICE_ACCOUNT_LABELS = Object.freeze({
   retention: "보존 정책 계정",
 });
 
-const AUDIT_PROVIDER_CONDITION = "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'production-infrastructure-audit' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/production-infrastructure-audit.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'";
+const AUDIT_PROVIDER_CONDITION = "assertion.repository == 'bodeul110/bodeul-platform' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'production-infrastructure-audit' && assertion.workflow_ref == 'bodeul110/bodeul-platform/.github/workflows/production-infrastructure-audit.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'";
 
 const COMMON_OPERATION_MAPPING = Object.freeze({
   "google.subject": "assertion.sub",
@@ -190,19 +190,19 @@ const OPERATION_WIF = Object.freeze([
   Object.freeze({
     id: "deploy",
     provider: "bodeul-core-api-production",
-    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/core-api-production-deploy.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
+    condition: "assertion.repository == 'bodeul110/bodeul-platform' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production' && assertion.workflow_ref == 'bodeul110/bodeul-platform/.github/workflows/core-api-production-deploy.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
     mapping: COMMON_OPERATION_MAPPING,
   }),
   Object.freeze({
     id: "backup",
     provider: "bodeul-db-backup-production",
-    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-migration-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/postgres-production-backup-restore.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
+    condition: "assertion.repository == 'bodeul110/bodeul-platform' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-migration-production' && assertion.workflow_ref == 'bodeul110/bodeul-platform/.github/workflows/postgres-production-backup-restore.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
     mapping: COMMON_OPERATION_MAPPING,
   }),
   Object.freeze({
     id: "retention",
     provider: "bodeul-retention-prod",
-    condition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.ref == 'refs/heads/master' && assertion.environment == 'firebase-retention-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/firebase-retention-production.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
+    condition: "assertion.repository == 'bodeul110/bodeul-platform' && assertion.repository_id == '1209358990' && assertion.ref == 'refs/heads/master' && assertion.environment == 'firebase-retention-production' && assertion.workflow_ref == 'bodeul110/bodeul-platform/.github/workflows/firebase-retention-production.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
     mapping: Object.freeze({
       ...COMMON_OPERATION_MAPPING,
       "attribute.repository_id": "assertion.repository_id",
@@ -652,7 +652,7 @@ async function auditIam(client, checks) {
       const members = asArray(policy.bindings)
         .filter((binding) => binding.role === "roles/iam.workloadIdentityUser")
         .flatMap((binding) => asArray(binding.members));
-      const expected = `principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/Bodeul:environment:production-infrastructure-audit`;
+      const expected = `principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/bodeul-platform:environment:production-infrastructure-audit`;
       const bindings = asArray(policy.bindings);
       const valid = bindings.length === 1 &&
         bindings[0].role === "roles/iam.workloadIdentityUser" &&
@@ -667,7 +667,7 @@ async function auditIam(client, checks) {
       account: FIXED.serviceAccounts.deploy,
       bindings: [{
         role: "roles/iam.workloadIdentityUser",
-        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/Bodeul:environment:core-api-production`],
+        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/bodeul-platform:environment:core-api-production`],
       }],
     },
     {
@@ -683,7 +683,7 @@ async function auditIam(client, checks) {
       account: FIXED.serviceAccounts.backup,
       bindings: [{
         role: "roles/iam.workloadIdentityUser",
-        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/Bodeul:environment:core-api-migration-production`],
+        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/bodeul-platform:environment:core-api-migration-production`],
       }],
     },
     {
@@ -691,7 +691,7 @@ async function auditIam(client, checks) {
       account: FIXED.serviceAccounts.retention,
       bindings: [{
         role: "roles/iam.workloadIdentityUser",
-        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/Bodeul:environment:firebase-retention-production`],
+        members: [`principal://iam.googleapis.com/projects/${FIXED.projectNumber}/locations/global/workloadIdentityPools/github-actions/subject/repo:bodeul110/bodeul-platform:environment:firebase-retention-production`],
       }],
     },
   ];

@@ -1,14 +1,14 @@
 # 디자인 문서
 
-기준일: 2026-08-29
+기준일: 2026-09-21
 
 Figma 원본의 현재 화면 구조, 구현에 적용할 수 있는 시각 기준과 불일치를 관리한다.
 
 ## 현재 기준
 
 - [Figma MVP 화면 인벤토리와 Android 구현 매핑](figma-mvp-implementation-map-2026-08-29.md)
-  - 새 `보들 MVP` 파일 `Page 1(0:1)`의 41개 frame, 현재 Android 대응과 PR 충돌 회피 순서
-- [Figma 현행 화면 지도](figma-current-screen-map.md)
+  - 현재 `보들 MVP` Page 1의 8월 화면 인벤토리와 9월 21일 metadata·병합 코드 대조. 화면 수와 픽셀을 새로 실측한 기록은 아님
+- [이전 Figma 화면 지도](figma-current-screen-map.md)
   - 이전 `보들 가이드` 파일 `Page 2(460:2)`의 38개 화면, prototype 흐름과 과거 비교 기준
 - [환자·보호자 공통 하단 내비게이션](client-bottom-navigation.md)
   - 홈, 일정·이력, 동행방, 내 정보 탭과 서버 인가 소비 경계
@@ -18,6 +18,23 @@ Figma 원본의 현재 화면 구조, 구현에 적용할 수 있는 시각 기�
   - 제품 흐름을 반영한 화면 정보 구조
 - [소셜 로그인 브랜드 자산](social-login-brand-assets.md)
   - 로그인 버튼의 공식 출처, 적용 기준과 파일 무결성
+
+## 최근 화면 구현 근거
+
+- [브랜드 스플래시](figma-brand-splash-implementation-2026-09-19.md)
+- [환자 홈](figma-patient-home-implementation-2026-09-12.md)
+- [병원 검색](figma-patient-hospital-search-implementation-2026-09-12.md)
+- [예약 날짜·시간](figma-patient-appointment-schedule-implementation-2026-09-12.md)
+- [예약 접수 완료](figma-patient-booking-completion-implementation-2026-09-12.md)
+- [매니저 홈](figma-manager-home-implementation-2026-08-30.md)
+- [매니저 자격 증빙](figma-manager-qualification-implementation-2026-08-30.md)
+- [가이드 1](figma-manager-guide-step-one-implementation-2026-09-03.md)
+- [가이드 3 접수](figma-manager-guide-reception-implementation-2026-09-15.md)
+- [가이드 4~5](figma-manager-guide-pre-consultation-implementation-2026-09-15.md)
+- [내 현재 위치 보기](manager-guide-current-location-implementation-2026-09-19.md)
+- [단계 자유 메모 모음](manager-guide-step-memo-summary-2026-09-19.md)
+
+각 문서는 해당 구현 당시 근거다. 병합 여부와 재시험 필요 사항은 현재 구현 상태의 최신 요약을 함께 확인한다.
 
 ## 과거 감사 이력
 

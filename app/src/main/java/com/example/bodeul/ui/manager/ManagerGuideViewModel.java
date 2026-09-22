@@ -287,15 +287,18 @@ public class ManagerGuideViewModel extends ViewModel {
             _toastMessage.setValue("내용을 입력해 주세요.");
             return;
         }
+        if (!beginMutation()) return;
         managerRepository.saveGuardianUpdate(currentUser.getId(), message, new RepositoryCallback<ManagerDashboard>() {
             @Override
             public void onSuccess(ManagerDashboard result) {
+                finishMutation();
                 _toastMessage.setValue("보호자 공유 메시지를 저장했습니다.");
                 bindDashboard(result);
             }
 
             @Override
             public void onError(String errorMessage) {
+                finishMutation();
                 _toastMessage.setValue(errorMessage);
             }
         });
@@ -371,12 +374,14 @@ public class ManagerGuideViewModel extends ViewModel {
 
     public void updatePreConsultationConfirmed(boolean confirmed) {
         if (currentUser == null) return;
+        if (!beginMutation()) return;
         managerRepository.updatePreConsultationConfirmed(
                 currentUser.getId(),
                 confirmed,
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override
                     public void onSuccess(ManagerDashboard result) {
+                        finishMutation();
                         _toastMessage.setValue(confirmed
                                 ? "진료 전 확인을 완료했습니다."
                                 : "진료 전 확인을 해제했습니다.");
@@ -385,6 +390,7 @@ public class ManagerGuideViewModel extends ViewModel {
 
                     @Override
                     public void onError(String message) {
+                        finishMutation();
                         _toastMessage.setValue(message);
                         loadDashboard();
                     }

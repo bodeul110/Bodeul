@@ -4,6 +4,10 @@
 
 ## 최신 점검
 
+- [전체 문서 정합성 갱신 (2026-09-21)](document-refresh-2026-09-21.md)
+- [관리자 웹 개발·운영 환경 표시 (2026-09-21)](admin-web-environment-display-2026-09-21.md)
+- [관리자 결제 조회·상태 연동 (2026-09-05)](issue-27-admin-payment-integration-2026-09-05.md)
+
 - [PR 399 최신 변경 통합 검증 (2026-09-05)](pr-399-integration-verification-2026-09-05.md)
 - [Issue 222 production 위치 게이트 구현 (2026-09-03)](issue-222-production-location-gate-2026-09-03.md)
 - [Notion 정책 충돌 해소 결과 (2026-08-30)](notion-policy-conflict-resolution-2026-08-30.md)

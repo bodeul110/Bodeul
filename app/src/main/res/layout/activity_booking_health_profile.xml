@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bookingHealthProfileRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/figma_mvp_background">
+
+    <ScrollView
+        android:id="@+id/scrollBookingHealthProfile"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:paddingTop="64dp"
+        android:paddingBottom="28dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingTop="32dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="40dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/pretendard_bold"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.05"
+                android:text="@string/booking_health_profile_step"
+                android:textAllCaps="true"
+                android:textColor="@color/figma_mvp_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/textBookingHealthProfileHeading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/pretendard_semibold"
+                android:includeFontPadding="false"
+                android:lineSpacingExtra="1dp"
+                android:text="@string/booking_health_profile_heading"
+                android:textColor="@color/figma_mvp_text_primary"
+                android:textSize="30sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/pretendard_medium"
+                android:includeFontPadding="false"
+                android:lineSpacingExtra="6dp"
+                android:text="@string/booking_health_profile_helper"
+                android:textColor="@color/figma_mvp_text_secondary"
+                android:textSize="16sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                app:cardBackgroundColor="@color/figma_mvp_surface"
+                app:cardCornerRadius="48dp"
+                app:cardElevation="2dp"
+                app:strokeColor="@color/figma_mvp_card_outline"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="32dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_figma_booking_health_icon">
+
+                            <ImageView
+                                android:layout_width="13dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_figma_booking_health_section" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:fontFamily="@font/pretendard_semibold"
+                            android:includeFontPadding="false"
+                            android:text="@string/booking_health_profile_mobility_title"
+                            android:textColor="@color/figma_mvp_text_primary"
+                            android:textSize="20sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="86dp"
+                        android:layout_marginTop="24dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonBookingHealthProfileIndependent"
+                            android:layout_width="0dp"
+                            android:layout_height="86dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/pretendard_medium"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:lineSpacingExtra="2dp"
+                            android:text="@string/booking_health_profile_mobility_independent"
+                            android:textAllCaps="false"
+                            android:textSize="11sp"
+                            app:backgroundTint="@color/figma_mvp_primary"
+                            app:cornerRadius="32dp"
+                            app:icon="@drawable/ic_figma_booking_health_independent"
+                            app:iconGravity="textTop"
+                            app:iconPadding="8dp"
+                            app:iconSize="14dp"
+                            app:iconTint="@color/white" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonBookingHealthProfileWalkingAid"
+                            android:layout_width="0dp"
+                            android:layout_height="86dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/pretendard_medium"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:lineSpacingExtra="2dp"
+                            android:text="@string/booking_health_profile_mobility_aid"
+                            android:textAllCaps="false"
+                            android:textSize="11sp"
+                            app:backgroundTint="@color/figma_mvp_input"
+                            app:cornerRadius="32dp"
+                            app:icon="@drawable/ic_figma_booking_health_aid"
+                            app:iconGravity="textTop"
+                            app:iconPadding="8dp"
+                            app:iconSize="14dp"
+                            app:iconTint="@color/figma_mvp_text_secondary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonBookingHealthProfileWheelchair"
+                            android:layout_width="0dp"
+                            android:layout_height="86dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/pretendard_medium"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:lineSpacingExtra="2dp"
+                            android:text="@string/booking_health_profile_mobility_wheelchair"
+                            android:textAllCaps="false"
+                            android:textSize="11sp"
+                            app:backgroundTint="@color/figma_mvp_input"
+                            app:cornerRadius="32dp"
+                            app:icon="@drawable/ic_figma_booking_health_wheelchair"
+                            app:iconGravity="textTop"
+                            app:iconPadding="8dp"
+                            app:iconSize="14dp"
+                            app:iconTint="@color/figma_mvp_text_secondary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:background="@drawable/bg_figma_booking_health_summary"
+                android:orientation="vertical"
+                android:padding="32dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_figma_booking_health_history" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/pretendard_semibold"
+                        android:includeFontPadding="false"
+                        android:text="@string/booking_health_profile_history_title"
+                        android:textColor="@color/figma_mvp_text_primary"
+                        android:textSize="18sp" />
+                </LinearLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutBookingHealthProfileCondition"
+                    style="@style/BodeulFigmaFilledInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="@string/booking_health_profile_condition_hint"
+                    app:boxBackgroundColor="@color/figma_mvp_background">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputBookingHealthProfileCondition"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/pretendard_medium"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:minHeight="112dp"
+                        android:minLines="3"
+                        android:textColor="@color/figma_mvp_text_primary"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutBookingHealthProfileMedication"
+                    style="@style/BodeulFigmaFilledInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/booking_health_profile_medication_hint"
+                    app:boxBackgroundColor="@color/figma_mvp_background">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/inputBookingHealthProfileMedication"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/pretendard_medium"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:minHeight="88dp"
+                        android:minLines="2"
+                        android:textColor="@color/figma_mvp_text_primary"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:background="@drawable/bg_figma_booking_health_precautions"
+                android:elevation="4dp"
+                android:orientation="vertical"
+                android:padding="32dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="19dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_figma_booking_health_warning" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/pretendard_semibold"
+                        android:includeFontPadding="false"
+                        android:text="@string/booking_health_profile_precautions_title"
+                        android:textColor="@color/white"
+                        android:textSize="20sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:fontFamily="@font/pretendard_medium"
+                    android:includeFontPadding="false"
+                    android:lineSpacingExtra="4dp"
+                    android:text="@string/booking_health_profile_precautions_helper"
+                    android:textColor="@color/figma_booking_health_on_primary_secondary"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/inputBookingHealthProfileSpecialNotes"
+                    android:layout_width="match_parent"
+                    android:layout_height="96dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_figma_booking_health_precautions_input"
+                    android:fontFamily="@font/pretendard_medium"
+                    android:gravity="top|start"
+                    android:hint="@string/booking_health_profile_precautions_hint"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:padding="16dp"
+                    android:textColor="@color/white"
+                    android:textColorHint="@color/figma_booking_health_on_primary_hint"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonBookingHealthProfileComplete"
+                android:layout_width="match_parent"
+                android:layout_height="68dp"
+                android:layout_marginTop="40dp"
+                android:fontFamily="@font/pretendard_semibold"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:text="@string/booking_health_profile_complete"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                app:backgroundTint="@color/figma_mvp_primary"
+                app:cornerRadius="34dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/pretendard_medium"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/booking_health_profile_footer"
+                android:textColor="@color/figma_mvp_text_tertiary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/layoutBookingHealthProfileTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="top"
+        android:background="@color/figma_booking_health_top_bar"
+        android:elevation="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp">
+
+        <ImageButton
+            android:id="@+id/buttonBookingHealthProfileBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/booking_health_profile_back"
+            android:padding="12dp"
+            android:src="@drawable/ic_figma_booking_health_back" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/pretendard_semibold"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/booking_health_profile_app_bar_title"
+            android:textColor="@color/figma_mvp_primary"
+            android:textSize="18sp" />
+
+        <ImageButton
+            android:id="@+id/buttonBookingHealthProfileClose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/common_close"
+            android:padding="13dp"
+            android:src="@drawable/ic_figma_booking_health_close" />
+    </LinearLayout>
+</FrameLayout>

@@ -56,14 +56,14 @@ Environment secret `FIREBASE_RETENTION_EXECUTION_TOKEN`은 등록 완료 상태�
 
 서비스 계정 JSON key는 만들지 않는다. GCP service account ID는 30자, WIF provider ID는 32자 제한을 지키며, 실제 등록값을 workflow에서도 동일하게 확인한다. WIF provider는 다음 조건을 모두 만족하는 OIDC token만 허용한다.
 
-- 저장소: `bodeul110/Bodeul`
+- 저장소: `bodeul110/bodeul-platform`
 - 저장소 불변 ID: `1209358990`
 - ref: `refs/heads/master`
 - Environment: `firebase-retention-production`
-- workflow: `bodeul110/Bodeul/.github/workflows/firebase-retention-production.yml@refs/heads/master`
+- workflow: `bodeul110/bodeul-platform/.github/workflows/firebase-retention-production.yml@refs/heads/master`
 - event: `workflow_dispatch`
 
-서비스 계정 impersonation은 `repo:bodeul110/Bodeul:environment:firebase-retention-production` exact subject 하나에만 `roles/iam.workloadIdentityUser`를 부여한다.
+서비스 계정 impersonation은 `repo:bodeul110/bodeul-platform:environment:firebase-retention-production` exact subject 하나에만 `roles/iam.workloadIdentityUser`를 부여한다.
 
 현재 전용 서비스 계정의 권한은 다음 조회 범위로 제한한다.
 

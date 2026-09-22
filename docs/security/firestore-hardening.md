@@ -1,5 +1,7 @@
 # Firestore 보안 정리
 
+이 문서는 날짜별 변경·검증 이력이다. 초기의 관리자·참여자 직접 접근 설명은 이후 변경됐으므로 현재 권한 판단에는 [Firestore/Storage Rules 경계](firebase-rules-validation.md)와 [관리자 RBAC](../architecture/admin-rbac.md)를 사용한다.
+
 ## 2026-05-04 1차 정리
 
 ### 반영한 내용

@@ -1,13 +1,13 @@
 # 디자인 참조 정리
 
-기준일: 2026-08-22
+기준일: 2026-09-21
 
 ## 현재 기준
 
-- 디자인 원본은 [Figma 보들 가이드](https://www.figma.com/design/E2EaCod0aNjnI1uGXZQKok/%EB%B3%B4%EB%93%A4-%EA%B0%80%EC%9D%B4%EB%93%9C?node-id=460-2)다.
-- file key는 `E2EaCod0aNjnI1uGXZQKok`, 기준 페이지 node는 `460:2`다.
-- 현재 파일은 `Page 2` 한 페이지와 최상위 모바일 화면 38개로 구성된다.
-- 화면별 node와 prototype 흐름은 [Figma 현행 화면 지도](../docs/design/figma-current-screen-map.md)에 정리한다.
+- 디자인 원본은 [Figma 보들 MVP](https://www.figma.com/design/NX07k3Tu4cLc6YgAV82RXp?node-id=0-1)다.
+- file key는 `NX07k3Tu4cLc6YgAV82RXp`, 기준 페이지는 `Page 1`, node `0:1`이다.
+- 화면별 node와 Android 구현은 [Figma MVP 구현 매핑](../docs/design/figma-mvp-implementation-map-2026-08-29.md)에 정리한다. 화면 개수는 집계 시점과 중첩 frame 포함 여부를 함께 기록한다.
+- 이전 `보들 가이드`의 38개 화면 기록은 [이전 Figma 화면 지도](../docs/design/figma-current-screen-map.md)에 보존하며 현행 디자인으로 사용하지 않는다.
 - `design_refs/local/`은 Git에 올리지 않는 일회성 export·비교 캐시로만 쓴다.
 
 ## 사용 원칙

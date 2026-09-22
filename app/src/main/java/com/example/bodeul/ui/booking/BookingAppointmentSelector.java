@@ -1,34 +1,27 @@
 package com.example.bodeul.ui.booking;
 
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.text.TextUtils;
-import android.text.format.DateFormat;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.example.bodeul.R;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
-import com.google.android.material.timepicker.MaterialTimePicker;
-import com.google.android.material.timepicker.TimeFormat;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.regex.Pattern;
 
 /**
  * 방문 날짜와 시간 선택 로직을 화면 밖으로 분리한다.
  */
 public final class BookingAppointmentSelector {
-    private static final Pattern APPOINTMENT_AT_PATTERN =
-            Pattern.compile("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$");
     private static final String SEOUL_TIME_ZONE = "Asia/Seoul";
 
     private final AppCompatActivity activity;
@@ -40,6 +33,8 @@ public final class BookingAppointmentSelector {
     private final MaterialButton buttonQuickMorning;
     private final MaterialButton buttonQuickAfternoon;
     private final MaterialButton buttonQuickLateAfternoon;
+    private final ActivityResultLauncher<Intent> appointmentSelectorLauncher;
+    private final Runnable beforeOpenListener;
 
     public BookingAppointmentSelector(
             AppCompatActivity activity,
@@ -50,7 +45,9 @@ public final class BookingAppointmentSelector {
             MaterialButton buttonQuickDayAfterTomorrow,
             MaterialButton buttonQuickMorning,
             MaterialButton buttonQuickAfternoon,
-            MaterialButton buttonQuickLateAfternoon
+            MaterialButton buttonQuickLateAfternoon,
+            ActivityResultLauncher<Intent> appointmentSelectorLauncher,
+            Runnable beforeOpenListener
     ) {
         this.activity = activity;
         this.layoutAppointmentAt = layoutAppointmentAt;
@@ -61,6 +58,8 @@ public final class BookingAppointmentSelector {
         this.buttonQuickMorning = buttonQuickMorning;
         this.buttonQuickAfternoon = buttonQuickAfternoon;
         this.buttonQuickLateAfternoon = buttonQuickLateAfternoon;
+        this.appointmentSelectorLauncher = appointmentSelectorLauncher;
+        this.beforeOpenListener = beforeOpenListener;
 
         configureAppointmentPicker();
         configureQuickAppointmentButtons();
@@ -100,7 +99,7 @@ public final class BookingAppointmentSelector {
             layoutAppointmentAt.setError(activity.getString(R.string.error_required_field));
             return false;
         }
-        if (!APPOINTMENT_AT_PATTERN.matcher(appointmentAt).matches()) {
+        if (BookingAppointmentDateTime.parse(appointmentAt) == null) {
             layoutAppointmentAt.setError(activity.getString(R.string.error_booking_appointment_format));
             return false;
         }
@@ -109,11 +108,11 @@ public final class BookingAppointmentSelector {
     }
 
     private void configureAppointmentPicker() {
-        inputAppointmentAt.setOnClickListener(view -> openAppointmentDatePicker());
+        inputAppointmentAt.setOnClickListener(view -> openAppointmentSelector());
         layoutAppointmentAt.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
         layoutAppointmentAt.setEndIconDrawable(android.R.drawable.ic_menu_my_calendar);
-        layoutAppointmentAt.setEndIconOnClickListener(view -> openAppointmentDatePicker());
-        layoutAppointmentAt.setOnClickListener(view -> openAppointmentDatePicker());
+        layoutAppointmentAt.setEndIconOnClickListener(view -> openAppointmentSelector());
+        layoutAppointmentAt.setOnClickListener(view -> openAppointmentSelector());
     }
 
     private void configureQuickAppointmentButtons() {
@@ -126,55 +125,12 @@ public final class BookingAppointmentSelector {
         refreshQuickAppointmentButtons();
     }
 
-    private void openAppointmentDatePicker() {
-        Long initialSelection = resolveInitialAppointmentDateSelection();
-        MaterialDatePicker<Long> datePicker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText(R.string.booking_date_picker_title)
-                .setSelection(initialSelection == null
-                        ? MaterialDatePicker.todayInUtcMilliseconds()
-                        : initialSelection)
-                .build();
-
-        datePicker.addOnPositiveButtonClickListener(selection ->
-                openAppointmentTimePicker(selection == null
-                        ? MaterialDatePicker.todayInUtcMilliseconds()
-                        : selection));
-        datePicker.show(activity.getSupportFragmentManager(), "bookingAppointmentDatePicker");
-    }
-
-    private void openAppointmentTimePicker(long selectedDateUtcMillis) {
-        Calendar initialCalendar = resolveInitialTimeCalendar(selectedDateUtcMillis);
-        MaterialTimePicker timePicker = new MaterialTimePicker.Builder()
-                .setTimeFormat(DateFormat.is24HourFormat(activity) ? TimeFormat.CLOCK_24H : TimeFormat.CLOCK_12H)
-                .setHour(initialCalendar.get(Calendar.HOUR_OF_DAY))
-                .setMinute(initialCalendar.get(Calendar.MINUTE))
-                .setTitleText(R.string.booking_time_picker_title)
-                .build();
-
-        timePicker.addOnPositiveButtonClickListener(view -> applyAppointmentDateTime(
-                selectedDateUtcMillis,
-                timePicker.getHour(),
-                timePicker.getMinute()
+    private void openAppointmentSelector() {
+        beforeOpenListener.run();
+        appointmentSelectorLauncher.launch(BookingAppointmentSelectorActivity.createIntent(
+                activity,
+                getAppointmentAt()
         ));
-        timePicker.show(activity.getSupportFragmentManager(), "bookingAppointmentTimePicker");
-    }
-
-    private void applyAppointmentDateTime(long selectedDateUtcMillis, int hourOfDay, int minute) {
-        Calendar utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.KOREA);
-        utcCalendar.setTimeInMillis(selectedDateUtcMillis);
-
-        Calendar seoulCalendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
-        seoulCalendar.set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR));
-        seoulCalendar.set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH));
-        seoulCalendar.set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH));
-        seoulCalendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
-        seoulCalendar.set(Calendar.MINUTE, minute);
-        seoulCalendar.set(Calendar.SECOND, 0);
-        seoulCalendar.set(Calendar.MILLISECOND, 0);
-
-        inputAppointmentAt.setText(formatAppointmentAt(seoulCalendar.getTimeInMillis()));
-        layoutAppointmentAt.setError(null);
-        refreshQuickAppointmentButtons();
     }
 
     private void applyQuickAppointmentDate(int dayOffset) {
@@ -291,64 +247,11 @@ public final class BookingAppointmentSelector {
     }
 
     @Nullable
-    private Long resolveInitialAppointmentDateSelection() {
-        Calendar parsedCalendar = parseAppointmentCalendar(getAppointmentAt());
-        if (parsedCalendar == null) {
-            return null;
-        }
-
-        Calendar utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.KOREA);
-        utcCalendar.set(Calendar.YEAR, parsedCalendar.get(Calendar.YEAR));
-        utcCalendar.set(Calendar.MONTH, parsedCalendar.get(Calendar.MONTH));
-        utcCalendar.set(Calendar.DAY_OF_MONTH, parsedCalendar.get(Calendar.DAY_OF_MONTH));
-        utcCalendar.set(Calendar.HOUR_OF_DAY, 0);
-        utcCalendar.set(Calendar.MINUTE, 0);
-        utcCalendar.set(Calendar.SECOND, 0);
-        utcCalendar.set(Calendar.MILLISECOND, 0);
-        return utcCalendar.getTimeInMillis();
-    }
-
-    private Calendar resolveInitialTimeCalendar(long selectedDateUtcMillis) {
-        Calendar parsedCalendar = parseAppointmentCalendar(getAppointmentAt());
-        if (parsedCalendar != null) {
-            return parsedCalendar;
-        }
-
-        Calendar utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.KOREA);
-        utcCalendar.setTimeInMillis(selectedDateUtcMillis);
-
-        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
-        calendar.set(Calendar.YEAR, utcCalendar.get(Calendar.YEAR));
-        calendar.set(Calendar.MONTH, utcCalendar.get(Calendar.MONTH));
-        calendar.set(Calendar.DAY_OF_MONTH, utcCalendar.get(Calendar.DAY_OF_MONTH));
-        calendar.set(Calendar.HOUR_OF_DAY, 10);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar;
-    }
-
-    @Nullable
     private Calendar parseAppointmentCalendar(String appointmentAt) {
-        if (!APPOINTMENT_AT_PATTERN.matcher(appointmentAt).matches()) {
-            return null;
-        }
-
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
-        formatter.setLenient(false);
-        formatter.setTimeZone(TimeZone.getTimeZone(SEOUL_TIME_ZONE));
-        try {
-            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(SEOUL_TIME_ZONE), Locale.KOREA);
-            calendar.setTime(formatter.parse(appointmentAt));
-            return calendar;
-        } catch (ParseException exception) {
-            return null;
-        }
+        return BookingAppointmentDateTime.parse(appointmentAt);
     }
 
     private String formatAppointmentAt(long appointmentAtMillis) {
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.KOREA);
-        formatter.setTimeZone(TimeZone.getTimeZone(SEOUL_TIME_ZONE));
-        return formatter.format(appointmentAtMillis);
+        return BookingAppointmentDateTime.format(appointmentAtMillis);
     }
 }

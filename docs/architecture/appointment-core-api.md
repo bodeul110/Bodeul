@@ -2,7 +2,7 @@
 
 기준일: 2026-07-19
 
-최종 갱신: 2026-09-01
+최종 갱신: 2026-09-21
 
 ## 작업 목적
 
@@ -35,8 +35,8 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 | `GET` | `/api/appointments` | 환자·배정 매니저 예약 목록. 보호자는 유효한 `APPOINTMENT` 동의가 있는 예약만 포함 | 200 |
 | `GET` | `/api/appointments/{id}` | 예약 상세. 보호자는 `APPOINTMENT` 동의 필수 | 200 |
 | `POST` | `/api/appointments` | 환자 예약 생성. 보호자 신규 생성은 환자 프로필 조회 전에 거부 | 201 / 403 |
-| `PUT` | `/api/appointments/{id}` | `REQUESTED` 예약 수정. 보호자는 `APPOINTMENT` 동의 필수 | 200 |
-| `POST` | `/api/appointments/{id}/cancel` | `REQUESTED` 예약 취소. 보호자는 `APPOINTMENT` 동의 필수 | 200 |
+| `PUT` | `/api/appointments/{id}` | 환자 본인의 `REQUESTED` 예약 수정. 보호자 쓰기는 거부 | 200 / 403 |
+| `POST` | `/api/appointments/{id}/cancel` | 환자 본인의 `REQUESTED`, `MATCHED` 예약 취소. 보호자 쓰기는 거부 | 200 / 403 |
 | `GET` | `/api/appointments/{id}/guardian-sharing-consent` | 해당 환자·지정 보호자의 동의 상태 조회 | 200 |
 | `PUT` | `/api/appointments/{id}/guardian-sharing-consent` | 성인 환자 본인의 범위별 동의 생성·갱신 | 200 |
 | `DELETE` | `/api/appointments/{id}/guardian-sharing-consent` | 성인 환자 본인의 즉시 철회 | 200 |
@@ -61,10 +61,10 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 | 결제 상태 | 의미 | 변경 주체 |
 | --- | --- | --- |
 | `AWAITING_DEPOSIT` | 예약은 생성됐지만 입금을 확인하지 않은 상태 | 예약 생성 시 Core API |
-| `DEPOSIT_CONFIRMED` | 운영자가 입금액과 예약을 확인한 상태 | 제한 전이 함수. 향후 관리자 서버가 호출 |
-| `REVIEW_REQUIRED` | 입금자명·금액·시점 또는 취소 상태가 맞지 않아 수동 확인이 필요한 상태 | 제한 전이 함수. 향후 관리자 서버가 호출 |
-| `REFUND_REQUESTED` | 고객센터에서 환불 요청을 접수한 상태 | 제한 전이 함수. 향후 관리자 서버가 호출 |
-| `REFUNDED` | 운영자가 환불 완료를 기록한 상태 | 제한 전이 함수. 향후 관리자 서버가 호출 |
+| `DEPOSIT_CONFIRMED` | 운영자가 입금액과 예약을 확인한 상태 | Next.js 관리자 서버가 제한 전이 함수 호출 |
+| `REVIEW_REQUIRED` | 입금자명·금액·시점 또는 취소 상태가 맞지 않아 수동 확인이 필요한 상태 | Next.js 관리자 서버가 제한 전이 함수 호출 |
+| `REFUND_REQUESTED` | 고객센터에서 환불 요청을 접수한 상태 | Next.js 관리자 서버가 제한 전이 함수 호출 |
+| `REFUNDED` | 운영자가 환불 완료를 기록한 상태 | Next.js 관리자 서버가 제한 전이 함수 호출 |
 | `CANCELED` | 해당 예약의 입금 처리 흐름을 취소한 상태 | Core API 취소 경계 또는 제한 전이 함수 |
 
 예약 업무 상태와 결제 상태는 서로 다른 값이다. `DEPOSIT_CONFIRMED`여도 예약 상태는 매칭 전까지 `REQUESTED`를 유지하며, Android의 `예약 접수 완료` 문구는 두 값을 조합한 표시 결과다. 일반 사용자는 결제 상태를 직접 변경할 수 없고, 입금 확인·검토·환불 변경에는 처리자와 처리 시각, 변경 사유를 감사 기록으로 남긴다.
@@ -75,7 +75,7 @@ Firestore `appointmentRequests`에 직접 쓰던 예약 기본 흐름을 Spring 
 
 Android는 환자 본인의 `BANK_TRANSFER` 예약에만 결제 화면을 노출한다. 전용 저장소가 Firebase ID token과 App Check token을 포함해 `GET /api/appointments/{appointmentId}/payment`를 호출하고, 입금 대기 또는 검토 상태에서만 `PATCH /api/appointments/{appointmentId}/payment/depositor`로 입금자명을 제출한다. PATCH에는 직전 조회의 `paymentVersion`과 새 `operationId`를 함께 보내며, 네트워크 오류 재시도는 같은 요청 본문과 작업 ID를 한 번만 재사용한다. 알 수 없는 결제 수단, 누락되거나 음수인 금액, 잘못된 예약 ID와 버전은 화면 값으로 보정하지 않고 실패 처리한다. 서버가 새 결제 상태를 반환하면 `UNKNOWN`으로 표시하고 변경 기능을 잠가 이전 상태로 오인하지 않게 한다.
 
-결제 원장은 PostgreSQL과 Core API 응답이다. `appointment_requests.payment_status_code`는 목록·매칭용 현재 상태 projection이며, 1:1 `appointment_bank_transfer_payments`가 예상 금액·입금자명·선택 기한·실입금액·확인·환불 정보를 보관한다. append-only `appointment_payment_events`는 처리자·시각·사유를 기록한다. Firestore 결제 필드는 전환 전 백필과 rollback 비교에만 사용하며 새 상태를 이중 쓰지 않는다. 이번 main 저장소 범위는 제한 전이 함수, 사용자 조회·입금자명 제출 API와 Android 환자 화면까지 연결한다. 관리자 웹과 관리자 서버는 별도 `bodeul-admin-web` 저장소에서 입금 확인·검토·환불 호출 경계를 연결하는 후속 작업으로 진행하고 브라우저가 PostgreSQL이나 Firestore 결제 상태를 직접 수정하지 않는다.
+결제 원장은 PostgreSQL이다. `appointment_requests.payment_status_code`는 목록·매칭용 projection이며, `appointment_bank_transfer_payments`는 상세 원장, append-only `appointment_payment_events`는 감사 이력이다. Firestore 결제 필드는 백필과 rollback 비교에만 사용한다. 메인 저장소는 V22·V23 함수, 사용자 조회·입금자명 API와 Android 환자 화면을 소유한다. 별도 관리자 웹의 PR #51·#52로 입금 확인·검토·환불 UI와 Preview 검증이 반영됐다. 브라우저가 DB에 직접 쓰지 않으며, 개발 fixture 통과는 실제 계좌 노출·금전 수취 승인과 다르다. 관리자 계약은 [무통장입금 관리자 계약](admin-bank-transfer-payment-contract.md)을 따른다.
 
 Firestore 예약 seed는 V22 생성 trigger가 상세 원장을 완전하게 초기화할 수 있는 `BANK_TRANSFER` + `AWAITING_DEPOSIT` 조합만 SQL 생성 대상으로 허용한다. `DEPOSIT_CONFIRMED`, `REVIEW_REQUIRED`, `REFUND_REQUESTED`, `REFUNDED`, `CANCELED`인 기존 예약은 projection만 옮기면 상세 원장과 이벤트가 불완전해지므로 `needs_review`로 차단한다. 이 다섯 상태는 현재 projection, `appointment_bank_transfer_payments`와 `appointment_payment_events`를 함께 검증하는 별도 backfill로 이관해야 한다. 무통장입금 seed를 재적용할 때 기존 PostgreSQL 예약이 seed와 다르면 SQLSTATE `55000`으로 전체 작업을 중단하며, 일치하는 행도 Firestore 값으로 다시 갱신하지 않는다.
 

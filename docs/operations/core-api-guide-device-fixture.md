@@ -29,7 +29,7 @@
 
 ```powershell
 gh workflow run core-api-migration.yml `
-  --repo bodeul110/Bodeul `
+  --repo bodeul110/bodeul-platform `
   --ref master `
   -f target=preview `
   -f confirm_target=preview `
@@ -41,7 +41,7 @@ gh workflow run core-api-migration.yml `
 
 ```powershell
 gh workflow run core-api-migration.yml `
-  --repo bodeul110/Bodeul `
+  --repo bodeul110/bodeul-platform `
   --ref master `
   -f target=preview `
   -f confirm_target=preview `
@@ -55,7 +55,7 @@ gh workflow run core-api-migration.yml `
 
 ```powershell
 gh workflow run core-api-migration.yml `
-  --repo bodeul110/Bodeul `
+  --repo bodeul110/bodeul-platform `
   --ref master `
   -f target=preview `
   -f confirm_target=preview `
