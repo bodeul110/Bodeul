@@ -1,10 +1,10 @@
 # PostgreSQL API 경계
 
-기준일: 2026-07-18
+기준일: 2026-09-21
 
 ## 원칙
 
-Android, 웹 브라우저와 Firebase Functions가 PostgreSQL 접속 문자열을 소유하지 않는다. 사용자 요청은 Spring Core API, 관리자 요청은 Next.js 관리자 서버를 통해서만 PostgreSQL에 접근한다.
+Android와 웹 브라우저는 PostgreSQL 접속 문자열을 소유하지 않는다. 사용자 요청은 Spring Core API, 관리자 요청은 Next.js 관리자 서버를 통해 PostgreSQL에 접근한다. 예외적으로 서버의 예약 파기 Functions는 전용 `bodeul_retention_service` 자격 증명으로 허용된 파기 함수만 실행한다. Core/Admin 자격 증명을 재사용하거나 사용자 API를 우회하지 않는다.
 
 ```text
 관리자 브라우저 ─ Next.js 관리자 서버 ─┐
@@ -31,6 +31,7 @@ App Check는 이 흐름을 대체하지 않는다. App Check가 유효해도 ID 
 | `bodeul_migration` / `bodeul_migrator` | Flyway DDL과 소유권 | migration workflow에서만 사용 |
 | `bodeul_core_runtime` / `bodeul_core_service` | 사용자 서비스 | Core API에 필요한 DML만 허용 |
 | `bodeul_admin_runtime` / `bodeul_admin_service` | 관리자 서비스 | 운영 조회와 검증된 관리자 전용 함수만 허용 |
+| `bodeul_retention_runtime` / `bodeul_retention_service` | 서버 예약 파기 작업 | V13·V20 보존·감사 파기 함수만 실행, 테이블 직접 DML 금지 |
 
 브라우저, APK, 공개 `NEXT_PUBLIC_*`/`VITE_*` 값에는 DB 접속 정보를 넣지 않는다.
 
@@ -39,7 +40,7 @@ App Check는 이 흐름을 대체하지 않는다. App Check가 유효해도 ID 
 | 실행 환경 | 연결 |
 | --- | --- |
 | Vercel Next.js | Supavisor transaction mode 6543, pool max 1, Supabase Root CA 검증 |
-| Cloud Run Spring | Supavisor session mode 5432, Hikari pool max 5 |
+| Cloud Run Spring | Supavisor session mode 5432. 현재 Preview workflow pool 5, production workflow pool 2 |
 | migration·복구 | runtime과 분리한 migration 접속, transaction과 검증 SQL 사용 |
 
 관리자 DB 계정의 PostgreSQL connection limit은 5이며 애플리케이션 pool은 1로 더 좁게 제한한다. TLS 인증서 검증을 끄지 않는다.

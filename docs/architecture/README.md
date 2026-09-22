@@ -32,6 +32,12 @@ Android 앱, 관리자 웹, Core API, PostgreSQL, Firebase와 운영 도구의 �
   - Figma 화면, 안정적인 단계 코드, 완료 이벤트와 PostgreSQL·Core API·Android 차이
 - [PostgreSQL API 경계 기준](postgres-api-boundary.md)
   - Supabase PostgreSQL을 앱/관리자 웹에서 직접 쓰지 않고 얇은 API 서버로 연결하는 기준
+- [DB migration 목록과 환경별 적용 기준](database-migration-catalog.md)
+  - V1~V23의 소스 계약, 운영 적용 증적과 rollback 경계
+- [관리자 RBAC와 감사 계약](admin-rbac.md)
+  - SUPER_ADMIN·OPERATIONS·DEVELOPER, 원문 접근과 역할 변경
+- [관리자 무통장입금 계약](admin-bank-transfer-payment-contract.md)
+  - V22 상태 전이와 V23 조회, 실제 송금과 분리한 개발 검증
 - [PostgreSQL schema 초안](postgres-schema-draft.sql)
   - Firestore 운영 데이터를 PostgreSQL로 옮기기 위한 초기 테이블 초안
 - [Android 앱 구조 설명](app-architecture.md)
@@ -39,7 +45,7 @@ Android 앱, 관리자 웹, Core API, PostgreSQL, Firebase와 운영 도구의 �
 - [관리자 웹 역할 설명](admin-web-architecture.md)
   - 관리자 웹을 서비스 신뢰성 운영 도구로 둔 이유
 - [관리자 웹 데이터 계약](admin-web-data-contract.md)
-  - 레포 분리 전 고정해야 하는 Auth, Firestore, Storage, Functions 계약
+  - 별도 관리자 저장소와 공유하는 Auth·Rules·Storage·PostgreSQL 계약
 - [관리자 API 초기 응답 계약](admin-api-contract.md)
   - 종료된 Node prototype에서 Next.js로 이관한 초기 인증과 응답 계약 기록
 - [인프라 리스크와 보완 계획](infra-risk-review.md)
@@ -61,5 +67,5 @@ Android 앱, 관리자 웹, Core API, PostgreSQL, Firebase와 운영 도구의 �
 
 - [Firebase 설정](../operations/firebase/setup.md)
 - [Spring Core API 인프라 런북](../operations/core-api-infrastructure-runbook.md)
-- [Firestore 보안 정리](../security/firestore-hardening.md)
+- [현재 Firestore/Storage 권한 경계](../security/firebase-rules-validation.md)
 - [현재 구현 상태](../status/implementation-status.md)

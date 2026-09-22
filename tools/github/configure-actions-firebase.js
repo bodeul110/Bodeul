@@ -200,8 +200,8 @@ function printUsage() {
     "  --help                       도움말 출력",
     "",
     "예시:",
-    "  node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dry-run",
-    "  node tools/github/configure-actions-firebase.js --repo bodeul110/Bodeul --dispatch",
+    "  node tools/github/configure-actions-firebase.js --repo bodeul110/bodeul-platform --dry-run",
+    "  node tools/github/configure-actions-firebase.js --repo bodeul110/bodeul-platform --dispatch",
   ].join("\n"));
 }
 

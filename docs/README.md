@@ -1,6 +1,6 @@
 # 문서 홈
 
-기준일: 2026-08-28
+기준일: 2026-09-21
 
 이 문서는 현재 저장소 문서의 단일 진입점이다. `docs/` 루트에는 이 색인만 두고 실제 문서는 주제별 하위 디렉터리에 둔다.
 
@@ -9,7 +9,7 @@
 1. [기획·디자인·구현 기준](planning/source-of-truth.md)
 2. [현재 구현 상태](status/implementation-status.md)
 3. [Notion 제품 기준 정합성](planning/notion-product-alignment.md)
-4. [Figma 현행 화면 지도](design/figma-current-screen-map.md)
+4. [Figma MVP 구현 매핑](design/figma-mvp-implementation-map-2026-08-29.md)
 5. [목표 인프라 구조](architecture/target-infrastructure.md)
 
 자료가 충돌하면 단일 순서로 판단하지 않는다. 제품 범위는 Notion, 화면 위계는 Figma, 현재 구현은 코드와 검증 기록, 기술 계약은 `architecture/`와 migration을 따른다. 자세한 규칙은 첫 번째 문서에 있다.
@@ -19,8 +19,8 @@
 | 작업 | 먼저 볼 문서 |
 | --- | --- |
 | 기능 추가·범위 판단 | [MVP 범위](planning/mvp-scope.md), [MVP 임시 정책값 결정 경계](planning/mvp-policy-default-boundary.md), [Notion 제품 기준 정합성](planning/notion-product-alignment.md) |
-| Android 화면 수정 | [Figma 현행 화면 지도](design/figma-current-screen-map.md), [화면 개편 목표](planning/screen-restructure-target.md) |
-| API·DB 변경 | [목표 인프라 구조](architecture/target-infrastructure.md), [데이터 및 API 문서](architecture/data-api.md) |
+| Android 화면 수정 | [Figma MVP 구현 매핑](design/figma-mvp-implementation-map-2026-08-29.md), [화면 개편 목표](planning/screen-restructure-target.md) |
+| API·DB 변경 | [Core API](../core-api/README.md), [예약 계약](architecture/appointment-core-api.md), [동행 계약](architecture/companion-session-core-api.md), [DB migration 목록](architecture/database-migration-catalog.md) |
 | 인프라·배포 | [인프라 개요](architecture/infrastructure.md), [Production 인프라 기본값](operations/production-infrastructure-defaults.md) |
 | Firebase 운영 | [Firebase 설정](operations/firebase/setup.md), [운영 문서](operations/README.md) |
 | 보안·권한 | [보안 문서](security/README.md), [데이터 보관 및 파기 정책](operations/data-retention-policy.md) |
@@ -46,7 +46,7 @@
 
 - Notion은 제품 의도와 미결 정책을 관리한다. 비공개 URL, 페이지 ID, 계정 정보와 개인정보를 공개 저장소에 기록하지 않는다.
 - 답변이 작성됐더라도 확정자·확정일이 없거나 다른 정책 문서와 충돌하면 최종 승인으로 보지 않는다.
-- Figma `보들 가이드`의 `Page 2(460:2)`는 현재 화면 구조와 시각 위계의 원본이다.
+- Figma `보들 MVP`의 `Page 1(0:1)`은 현재 화면 구조와 시각 위계의 원본이다. 이전 `보들 가이드`는 비교 기록으로만 사용한다.
 - `docs/local/`의 기능설명서 PDF와 `design_refs/local/`의 export는 과거 또는 임시 스냅샷이다.
 - Figma나 Notion의 `구현 완료` 표기는 코드와 검증 기록 없이 현재 구현 근거로 쓰지 않는다.
 
@@ -56,3 +56,5 @@
 - 과거 판단을 설명하는 문서는 삭제하지 않고 `당시 감사 이력`으로 표시한다.
 - 기능·보안·인프라 변경이 들어가면 관련 계약과 `status/implementation-status.md`를 같은 작업에서 갱신한다.
 - 링크가 없는 비공개 자료는 제목과 역할만 적고 팀 워크스페이스에서 검색한다.
+- `구현`, `당시 검증`, `현재 운영 가능`을 구분한다. PR 병합과 과거 성공 기록만으로 서버·DB의 현재 가용성을 보장하지 않는다.
+- 날짜가 붙은 보고서와 누적 이력은 당시 결과를 보존한다. 현재 기준과 전수 점검 범위는 [문서 최신화 기록](reports/document-refresh-2026-09-21.md)을 본다.

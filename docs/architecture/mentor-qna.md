@@ -1,6 +1,6 @@
 # 멘토 Q&A 준비
 
-기준일: 2026-07-19
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -21,9 +21,9 @@
 
 ### 나중에 어떻게 바꿀 수 있나?
 
-Firestore 백업을 PostgreSQL로 import하고 row count, 외래키, 주요 필드와 역할별 권한 비교가 통과한 도메인부터 source of truth를 옮긴다. 개발 환경은 이 절차로 예약·매칭·동행·리포트·후속 처리·채팅·읽음·위치를 전환했고, production은 연말 승인 뒤 같은 절차를 반복한다.
+Firestore 백업을 PostgreSQL로 import하고 row count, 외래키, 주요 필드와 역할별 권한 비교가 통과한 도메인부터 source of truth를 옮긴다. 개발 환경은 이 절차로 예약·매칭·동행·리포트·후속 처리·채팅·읽음·위치를 전환했고, production은 별도 백업·검증·전환 승인을 거쳐 같은 절차를 반복한다. 연말은 초기 목표이며 실제 운영 전환일은 확정하지 않았다.
 
-2026-07-19 기준 개발 Supabase에는 V1~V12 migration이 적용돼 있다. Android와 관리자 웹이 각 서버를 통해 같은 PostgreSQL을 사용하며, 실제 세션 채팅·읽음·위치·재연결, FCM과 private Realtime 10개 연결까지 확인했다.
+2026-09-21 코드에는 V1~V23 migration이 있다. 개발 결제 검증은 V23까지 진행된 기록이 있지만, 운영 DB는 9월 21일 일시정지 상태로 확인되어 재개하지 않았다. 소스에 migration이 있다는 사실과 환경별 적용 완료는 다르다. 이전 실기기·Realtime 검증 기록과 현재 Preview API 오류 재확인 이슈 #429도 구분한다. [Migration 목록](database-migration-catalog.md)과 [운영·개발 환경](../operations/admin-web-environments.md)을 기준으로 설명한다.
 
 ### 멘토 피드백 이후에는 어떻게 전환하나?
 
@@ -31,7 +31,7 @@ Firestore 백업을 PostgreSQL로 import하고 row count, 외래키, 주요 필�
 
 ### 왜 Supabase를 1순위로 잡았나?
 
-PostgreSQL을 쓰면서도 Realtime 기능을 검토할 수 있기 때문이다. Neon도 PostgreSQL 대안으로 좋지만, 실시간 구독은 별도 WebSocket/SSE 서버 구현 부담이 더 크다. 현재 멘토님이 지적한 “RDBMS 전환”과 “실시간 가능성”을 같이 설명하기에는 Supabase PostgreSQL이 더 맞다.
+PostgreSQL의 관계·트랜잭션과 private Realtime Broadcast를 같은 기반에서 사용할 수 있기 때문이다. 현재 채팅·읽음·상태 이벤트는 서버가 확정하고 클라이언트가 구독하는 계약을 구현했다. 별도 DB와 실시간 서버를 조합하는 대안보다 현재 팀의 운영 부담이 작다고 판단했으며, 실제 비용·동시 연결 요구가 달라지면 재평가한다.
 
 ### 왜 Firebase와 Supabase를 섞어서 쓰나?
 
@@ -59,11 +59,11 @@ XML View에 ScreenModel을 반복적으로 연결하는 코드를 Activity에서
 
 ### Repository는 왜 있는가?
 
-Firebase 구현과 Mock 구현을 같은 화면 코드에서 교체하기 위해 있다. 데이터 접근 계약을 숨기면 화면 코드는 Firebase 여부를 몰라도 된다.
+Core API, Firebase 결합 기능과 Mock 구현을 화면 흐름에서 분리하기 위해 있다. 데이터 접근 계약을 숨기면 화면이 HTTP·Firebase SDK 세부 사항을 직접 관리하지 않아도 된다.
 
 ### Mock 모드는 왜 있는가?
 
-Firebase 설정이 없거나 네트워크가 불안한 환경에서도 데모와 테스트를 할 수 있게 하기 위해 있다. CI/Dependabot 환경에서도 `google-services.json` 없이 컴파일이 깨지지 않는 장점이 있다.
+Firebase 설정이 없는 환경에서 화면 데모와 테스트를 할 수 있게 하기 위해 있다. CI/Dependabot 환경에서도 `google-services.json` 없이 컴파일할 수 있다. Firebase 연동 모드의 Core API 오류가 Mock이나 Firestore 쓰기로 자동 우회되는 구조는 아니다.
 
 ## 관리자 웹
 
@@ -79,7 +79,7 @@ Firebase 설정이 없거나 네트워크가 불안한 환경에서도 데모와
 
 ### 관리자는 어떻게 구분하나?
 
-관리자 웹은 Firebase Auth 로그인으로 받은 ID token을 Next.js 서버에서 검증하고 PostgreSQL `bodeul.app_users.role == ADMIN`을 확인한다. 관리자 DB role은 SELECT만 가능하다. Firebase에 남긴 프로필·지원·서류 경로는 기존 Rules 역할 검증을 유지하며 custom claims는 사용하지 않는다.
+Next.js 서버가 Firebase ID token, PostgreSQL `app_users.ADMIN`과 활성 `SUPER_ADMIN`·`OPERATIONS`·`DEVELOPER` 세부 역할을 확인한다. 일반 테이블 직접 쓰기는 제한하고 배정·결제·감사 등 허용된 DB 함수만 실행한다. 브라우저 ADMIN의 Firestore/Storage 직접 접근은 차단한다. Realtime용 `role: authenticated` claim은 관리자 권한이 아니다. [관리자 RBAC](admin-rbac.md)와 [Rules 경계](../security/firebase-rules-validation.md)를 함께 본다.
 
 ### App Check는 왜 아직 강제하지 않았나?
 

@@ -354,7 +354,18 @@ final class CoreApiCompanionSessionClient {
             String value,
             RepositoryCallback<SessionSnapshot> callback
     ) {
-        updateSession(externalSessionId, field, value == null ? "" : value, callback);
+        updateSession(externalSessionId, field, value == null ? "" : value, null, callback);
+    }
+
+    void updateText(
+            String externalSessionId,
+            String field,
+            String value,
+            String expectedStepCode,
+            RepositoryCallback<SessionSnapshot> callback
+    ) {
+        updateSession(externalSessionId, field, value == null ? "" : value,
+                expectedStepCode, callback);
     }
 
     void updateBoolean(
@@ -363,7 +374,7 @@ final class CoreApiCompanionSessionClient {
             boolean value,
             RepositoryCallback<SessionSnapshot> callback
     ) {
-        updateSession(externalSessionId, field, value, callback);
+        updateSession(externalSessionId, field, value, null, callback);
     }
 
     void advance(
@@ -610,11 +621,17 @@ final class CoreApiCompanionSessionClient {
             String externalSessionId,
             String field,
             Object value,
+            String expectedStepCode,
             RepositoryCallback<SessionSnapshot> callback
     ) {
         resolveSession(externalSessionId, new RepositoryCallback<SessionSnapshot>() {
             @Override
             public void onSuccess(SessionSnapshot session) {
+                if (expectedStepCode != null
+                        && !matchesExpectedStep(expectedStepCode, session.currentStepCode)) {
+                    callback.onError(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                    return;
+                }
                 JSONObject body = new JSONObject();
                 try {
                     body.put("version", session.version);

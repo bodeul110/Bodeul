@@ -4,9 +4,12 @@
 
 ## 핵심 문서
 
-- [Firestore 보안 정리](firestore-hardening.md)
+- [과거 Firestore 보강 기록](firestore-hardening.md)
 - [Firestore/Storage Rules 검증 정리](firebase-rules-validation.md)
-- [보안 리뷰 최신화 메모](review-2026-04-29.md)
+- [2026년 4~5월 보안 리뷰 이력](review-2026-04-29.md)
+- [현재 관리자 세부 역할·감사](../architecture/admin-rbac.md)
+- [App Check 적용 게이트](../operations/app-check-enforcement-roadmap.md)
+- [Google Cloud IAM 운영 기준](../operations/google-cloud-access-governance.md)
 - [AES 적용 범위 판단](aes-scope-assessment.md)
 - [FCM 토큰 수명주기 정책](fcm-token-lifecycle-policy.md)
 - [CodeQL/code scanning 운영 기준](codeql-code-scanning.md)

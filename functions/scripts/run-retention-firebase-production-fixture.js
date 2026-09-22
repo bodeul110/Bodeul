@@ -25,7 +25,7 @@ const STORAGE_INVENTORY_PATTERN =
   /^gs:\/\/bodeul-prod-110-db-backups\/storage-inventory\/verified\/[A-Za-z0-9._~/-]+\.json$/;
 const POLICY_REVIEW_PATTERN = new RegExp(
     "^https://(?:(?:app\\.notion\\.com|www\\.notion\\.so)/" +
-    "[A-Za-z0-9._~:/?#=&%-]+|github\\.com/bodeul110/Bodeul/" +
+    "[A-Za-z0-9._~:/?#=&%-]+|github\\.com/bodeul110/(?:Bodeul|bodeul-platform)/" +
     "issues/222#issuecomment-[0-9]+)$",
 );
 
@@ -169,7 +169,7 @@ function assertProductionExecutionBoundary(
 
 function assertWorkflowExecutionContext(options, env, expectedTokenSha256) {
   if (String(env.GITHUB_ACTIONS || "") !== "true" ||
-      String(env.GITHUB_REPOSITORY || "") !== "bodeul110/Bodeul" ||
+      String(env.GITHUB_REPOSITORY || "") !== "bodeul110/bodeul-platform" ||
       String(env.GITHUB_REF || "") !== "refs/heads/master" ||
       String(env.FIREBASE_RETENTION_ENVIRONMENT || "") !==
         "firebase-retention-production") {

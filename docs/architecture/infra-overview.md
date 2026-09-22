@@ -1,6 +1,6 @@
 # 현재 인프라 구성도
 
-기준일: 2026-08-26
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -45,12 +45,13 @@ flowchart LR
   Admin --> Auth
   Android --> Auth
   UserWeb --> Auth
-  AdminNext -->|"ID token + ADMIN role"| Postgres
+  AdminNext -->|"ADMIN + 세부 역할·제한 함수"| Postgres
   CoreApi -->|"ID token + core role"| Postgres
   Postgres --> Realtime
   Realtime --> Android
   Realtime --> UserWeb
   Realtime --> Admin
+  AdminNext -->|"서류 심사·outbox"| Firestore
   AdminNext --> Storage
   CoreApi -->|"세션 첨부"| Storage
   Android -->|"비이전 Firebase 기능"| Firestore
@@ -67,11 +68,11 @@ flowchart LR
 
 | 경계 | 현재 상태 | 검증 |
 | --- | --- | --- |
-| 관리자 웹 | 별도 `bodeul-admin-web` 저장소, Next.js, Vercel | Preview 루트 200, 무인증 401, 비관리자 403, 관리자 200과 DB 조회 확인 |
-| 관리자 DB 접속 | `bodeul_admin_service`, transaction pooler, 최대 연결 5 | Preview 전용 자격 증명과 Supabase Root CA 검증, 쓰기 권한 없음 확인 |
-| 사용자 Core API | `core-api/`, Java 21, Spring Boot, Cloud Run Tokyo | `/health` 200, Firebase token, PostgreSQL role, App Check observe, rollback, 실세션 API와 FCM 확인 |
+| 관리자 웹 | 별도 `bodeul-admin-web` 저장소, Next.js, Vercel | 2026-09-21 Production 웹 배포와 실제 Preview·Production 로그인 화면의 환경 표시 확인. 운영 로그인·DB 업무 검증은 별개 |
+| 관리자 DB 접속 | `bodeul_admin_service`, transaction pooler, 최대 연결 5 | 개발 DB 조회·TLS 검증 기록이 있음. 제한된 조회와 허용된 업무 함수 사용, 테이블 직접 쓰기는 금지. 운영 접속 준비 상태는 [환경 기준](../operations/admin-web-environments.md) 참조 |
+| 사용자 Core API | `core-api/`, Java 21, Spring Boot, Cloud Run Tokyo | 과거 인증·DB·FCM·rollback 검증 기록 있음. 현재 Preview 500/503 재확인은 #429에서 추적하며 이번 문서 작업에서 health 재검증은 하지 않음 |
 | Kakao Local | Core API의 `/api/places/search` 뒤에 배치 | Android 직접 REST 키 제거, 인증된 실제 호출 확인 |
-| 공용 DB | 개발·production Supabase PostgreSQL을 Tokyo에 분리 | production Flyway V15, migration 전후 격리 복원 성공, 전용 role·RLS·공개 grant 0건, Security Advisor 경고 0건 |
+| 공용 DB | 개발·production Supabase PostgreSQL을 Tokyo에 분리 | 소스는 V1~V23. production V15 복원·권한 점검은 과거 기록이며 9월 21일 일시정지를 확인함. 재개·최신 적용 버전 검증은 별도 |
 | 실시간 | Supabase Realtime private Broadcast | 실제 참여·비참여 인가, 재연결, 10개 동시 join과 Broadcast 10/10 수신 확인 |
 | Firebase | 개발·production Auth, Firestore, Storage를 분리 | production Rules 배포, Firestore 삭제 방지, App Check는 미강제 |
 
@@ -79,7 +80,7 @@ flowchart LR
 
 | 저장소 | 소유 범위 |
 | --- | --- |
-| `bodeul110/Bodeul` | Android, Spring Core API, DB migration, Firebase Rules·Functions, 공용 계약과 운영 문서 |
+| `bodeul110/bodeul-platform` | Android, Spring Core API, DB migration, Firebase Rules·Functions, 공용 계약과 운영 문서 |
 | `bodeul110/bodeul-admin-web` | Next.js 관리자 UI·서버, Vercel 배포, Vite rollback, 관리자 전용 문서와 CI |
 
 기존 메인 저장소의 `api/` Node 프로토타입과 `admin-web/` 중복본은 대체 계약의 실제 검증 후 제거했다. 종료 근거는 [Issue 159 기록](../reports/issue-159-node-api-retirement-audit-2026-07-16.md)에 남긴다.
@@ -89,7 +90,8 @@ flowchart LR
 | 도메인 | 현재 기준 | 전환 원칙 |
 | --- | --- | --- |
 | 인증 | Firebase Auth | 유지하고 두 서버가 ID token을 검증한다. |
-| 예약·세션·채팅·읽음·위치·리포트·후속 처리 | 개발 PostgreSQL | Android는 Core API로만 쓰고 Realtime 이벤트 뒤 API snapshot을 다시 읽는다. |
+| 예약·세션·결제·채팅·읽음·리포트·후속 처리 | 개발 PostgreSQL | Android는 Core API, 관리자 배정·결제는 Next.js의 제한 함수. Realtime 이벤트 뒤 API snapshot 재조회 |
+| 위치 | legacy PostgreSQL 계약은 기본 OFF | 환자 GPS 1분 공유는 목표이며 기존 매니저 위치 경로와 별도 구현·검증이 필요함 |
 | 인증 프로필·지원·매니저 서류 | Firestore | Firebase 결합 기능으로 유지하며 PostgreSQL 업무 원본과 섞어 쓰지 않는다. |
 | 기존 예약·세션 문서 | Firestore rollback 비교 자료 | client 업무 쓰기를 차단하고 전환 결과 비교와 제한적 조회에만 사용한다. |
 | 병원 가이드 관리자 조회 | PostgreSQL | Next.js 관리자 서버를 통해 읽는다. |
@@ -102,11 +104,11 @@ flowchart LR
 
 ## 남은 운영 전환
 
-- Vercel Production에 production Firebase와 SELECT-only 관리자 DB 값을 등록하고 Cloud Run 첫 승인을 배포한다.
+- Vercel Production 웹 배포·Firebase 설정과 별도로 운영 관리자 DB 접속·역할별 업무를 검증하고 Cloud Run 첫 승인을 배포한다. 관리자 DB 재개와 자격 증명 적용 범위는 [관리자 웹 환경 기준](../operations/admin-web-environments.md)을 따른다.
 - 관리자 웹 custom domain, Auth authorized domain, App Check enforcement와 live 승인 조건을 확정한다.
 - 개발에서 전환한 예약·매칭·동행·채팅·위치 domain을 production 데이터 cutover와 함께 재검증한다.
 - Cloud Run과 Vercel rollback을 실제 격리 환경에서 검증한다. PostgreSQL V15 restore는 2026-08-26 완료했다.
-- 2026-11-16까지 Supabase와 Vercel을 Pro로 전환하고 2026-12-15 Go/No-Go를 수행한다.
+- 실제 운영 전에 플랜·비용·백업 조건을 확인하고 Go/No-Go를 수행한다. 이전 문서의 11월·12월 일정은 계획용 가정이며 확정 운영일이 아니다.
 
 이 항목은 구현 미완료와 운영 의사결정을 구분한다. 현재 개발 경계의 인증·인가·DB 연결과 production 복원은 검증됐지만 production 트래픽 전환 완료를 뜻하지 않는다.
 

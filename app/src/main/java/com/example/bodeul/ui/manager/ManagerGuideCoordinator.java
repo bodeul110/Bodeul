@@ -523,7 +523,7 @@ public final class ManagerGuideCoordinator {
             case "RECEPTION_QUEUE":
                 return context.getString(R.string.guide_action_reception_complete);
             case "VITALS_CHECK":
-                return context.getString(R.string.guide_action_vitals_complete);
+                return context.getString(R.string.guide_vitals_save_and_continue);
             case "PRE_CONSULTATION":
                 return context.getString(R.string.guide_action_consultation_ready);
             case "CONSULTATION_SUPPORT":

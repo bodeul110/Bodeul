@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guide_vitals_toolbar_title">동행 가이드 04: 기초 측정</string>
+    <string name="guide_vitals_step">STEP 04</string>
+    <string name="guide_vitals_title">기초 측정</string>
+    <string name="guide_vitals_helper">%1$s 님의 진료 보고서 작성을 위해 수치를 입력해 주세요.</string>
+    <string name="guide_vitals_helper_unknown">환자님의 진료 보고서 작성을 위해 수치를 입력해 주세요.</string>
+    <string name="guide_vitals_blood_pressure">혈압</string>
+    <string name="guide_vitals_blood_pressure_caption">mmHg · 진료 전 측정</string>
+    <string name="guide_vitals_systolic">수축기</string>
+    <string name="guide_vitals_diastolic">이완기</string>
+    <string name="guide_vitals_systolic_hint">120</string>
+    <string name="guide_vitals_diastolic_hint">80</string>
+    <string name="guide_vitals_heart_rate">심박수</string>
+    <string name="guide_vitals_heart_rate_caption">BPM · 안정 시 측정</string>
+    <string name="guide_vitals_heart_rate_hint">72</string>
+    <string name="guide_vitals_heart_rate_unit">bpm</string>
+    <string name="guide_vitals_weight">체중</string>
+    <string name="guide_vitals_weight_caption">kg · 진료 전 측정</string>
+    <string name="guide_vitals_weight_hint">68.5</string>
+    <string name="guide_vitals_weight_unit">kg</string>
+    <string name="guide_vitals_pair_required">수축기와 이완기를 함께 입력해 주세요.</string>
+    <string name="guide_vitals_number_invalid">올바른 측정값을 입력해 주세요.</string>
+    <string name="guide_vitals_save_and_continue">측정 결과 저장하기</string>
+</resources>
