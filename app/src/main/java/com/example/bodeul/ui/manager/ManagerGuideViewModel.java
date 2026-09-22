@@ -29,6 +29,7 @@ public class ManagerGuideViewModel extends ViewModel {
     private static final String REPORT_DRAFT_PRESENT = "managerGuide.reportDraft.present";
     private static final String REPORT_DRAFT_PREFIX = "managerGuide.reportDraft.";
     private static final String ARTIFACT_REQUEST_PREFIX = "managerGuide.artifactRequest.";
+    private static final String VITALS_DRAFT_PREFIX = "managerGuide.vitalsDraft.";
 
     public enum StatePanelType {
         NONE,
@@ -180,6 +181,7 @@ public class ManagerGuideViewModel extends ViewModel {
         if (isRealtimeClosed(dashboard)) {
             stopRealtimeSubscription();
         }
+        retainVitalsDraftFor(dashboard);
         _uiState.setValue(UiState.screen(dashboard, coordinator.createScreenModel(
                 dashboard,
                 managerRepository.isFirebaseBacked()
@@ -320,6 +322,144 @@ public class ManagerGuideViewModel extends ViewModel {
                 _toastMessage.setValue(message);
             }
         });
+    }
+
+    /** 기초 측정 메모 저장 성공을 확인한 뒤 같은 세션의 다음 단계로 이동한다. */
+    public void saveVitalsAndAdvance(String note) {
+        UiState state = _uiState.getValue();
+        ManagerDashboard dashboard = state == null ? null : state.dashboard;
+        if (currentUser == null || dashboard == null || dashboard.getSession() == null) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
+            return;
+        }
+        String expectedSessionId = dashboard.getSession().getId();
+        String expectedStepCode = dashboard.getSession().getCurrentStepCode();
+        if (!"VITALS_CHECK".equals(expectedStepCode)) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+            return;
+        }
+        if (!beginMutation()) return;
+        managerRepository.saveVitalsNote(
+                currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
+                note,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard savedDashboard) {
+                        clearVitalsDraft(expectedSessionId);
+                        if (!ManagerRepository.matchesAdvanceExpectation(
+                                savedDashboard.getSession(),
+                                expectedSessionId,
+                                expectedStepCode)) {
+                            finishMutation();
+                            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+                            bindDashboard(savedDashboard);
+                            return;
+                        }
+                        advanceAfterVitalsSave(
+                                savedDashboard,
+                                expectedSessionId,
+                                expectedStepCode);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        finishMutation();
+                        _toastMessage.setValue(message);
+                    }
+                });
+    }
+
+    private void advanceAfterVitalsSave(
+            ManagerDashboard savedDashboard,
+            String expectedSessionId,
+            String expectedStepCode
+    ) {
+        managerRepository.advanceCurrentStep(
+                currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        finishMutation();
+                        _toastMessage.setValue("측정 결과를 저장하고 다음 단계로 이동했습니다.");
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        finishMutation();
+                        _toastMessage.setValue(message);
+                        bindDashboard(savedDashboard);
+                    }
+                });
+    }
+
+    @Nullable
+    ManagerGuideVitalsDraft getVitalsDraft(String sessionId) {
+        return restoreVitalsDraft(savedStateHandle, sessionId);
+    }
+
+    void saveVitalsDraft(String sessionId, ManagerGuideVitalsDraft draft) {
+        saveVitalsDraft(savedStateHandle, sessionId, draft);
+    }
+
+    static void saveVitalsDraft(
+            SavedStateHandle state,
+            String sessionId,
+            ManagerGuideVitalsDraft draft
+    ) {
+        state.set(VITALS_DRAFT_PREFIX + "sessionId", sessionId);
+        state.set(VITALS_DRAFT_PREFIX + "systolic", draft.systolic);
+        state.set(VITALS_DRAFT_PREFIX + "diastolic", draft.diastolic);
+        state.set(VITALS_DRAFT_PREFIX + "heartRate", draft.heartRate);
+        state.set(VITALS_DRAFT_PREFIX + "weight", draft.weight);
+    }
+
+    @Nullable
+    static ManagerGuideVitalsDraft restoreVitalsDraft(
+            SavedStateHandle state,
+            String sessionId
+    ) {
+        String savedSessionId = state.get(VITALS_DRAFT_PREFIX + "sessionId");
+        if (sessionId == null || sessionId.isEmpty() || !sessionId.equals(savedSessionId)) {
+            return null;
+        }
+        return ManagerGuideVitalsDraft.fromInputs(
+                state.get(VITALS_DRAFT_PREFIX + "systolic"),
+                state.get(VITALS_DRAFT_PREFIX + "diastolic"),
+                state.get(VITALS_DRAFT_PREFIX + "heartRate"),
+                state.get(VITALS_DRAFT_PREFIX + "weight"));
+    }
+
+    private void clearVitalsDraft(String sessionId) {
+        clearVitalsDraft(savedStateHandle, sessionId);
+    }
+
+    static void clearVitalsDraft(SavedStateHandle state, String sessionId) {
+        String savedSessionId = state.get(VITALS_DRAFT_PREFIX + "sessionId");
+        if (sessionId != null && sessionId.equals(savedSessionId)) {
+            state.remove(VITALS_DRAFT_PREFIX + "sessionId");
+            state.remove(VITALS_DRAFT_PREFIX + "systolic");
+            state.remove(VITALS_DRAFT_PREFIX + "diastolic");
+            state.remove(VITALS_DRAFT_PREFIX + "heartRate");
+            state.remove(VITALS_DRAFT_PREFIX + "weight");
+        }
+    }
+
+    private void retainVitalsDraftFor(ManagerDashboard dashboard) {
+        String savedSessionId = savedStateHandle.get(VITALS_DRAFT_PREFIX + "sessionId");
+        if (savedSessionId == null || dashboard.getSession() == null) {
+            return;
+        }
+        String activeSessionId = dashboard.getSession().getId();
+        String activeStepCode = dashboard.getSession().getCurrentStepCode();
+        if (!savedSessionId.equals(activeSessionId)
+                || !"VITALS_CHECK".equals(activeStepCode)) {
+            clearVitalsDraft(savedStateHandle, savedSessionId);
+        }
     }
 
     public void replaceSessionArtifacts(String purpose, List<Uri> fileUris) {

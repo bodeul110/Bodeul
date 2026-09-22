@@ -9,6 +9,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class ManagerGuideViewModelSavedStateTest {
 
@@ -59,5 +60,35 @@ public class ManagerGuideViewModelSavedStateTest {
 
         assertEquals(first, retry);
         assertNotEquals(first, replacement);
+    }
+
+    @Test
+    public void vitalsDraftSurvivesReloadAndRecreationOnlyForItsSession() {
+        SavedStateHandle state = new SavedStateHandle();
+        ManagerGuideViewModel.saveVitalsDraft(state, "session-a",
+                ManagerGuideVitalsDraft.fromInputs("12", "", "7", "68."));
+
+        ManagerGuideVitalsDraft restored =
+                ManagerGuideViewModel.restoreVitalsDraft(state, "session-a");
+        assertNotNull(restored);
+        assertEquals("12", restored.systolic);
+        assertEquals("", restored.diastolic);
+        assertEquals("7", restored.heartRate);
+        assertEquals("68.", restored.weight);
+        assertNull(ManagerGuideViewModel.restoreVitalsDraft(state, "session-b"));
+
+        ManagerGuideViewModel.clearVitalsDraft(state, "session-a");
+        assertNull(ManagerGuideViewModel.restoreVitalsDraft(state, "session-a"));
+    }
+
+    @Test
+    public void vitalsDraftIsNotClearedByAnotherSessionSave() {
+        SavedStateHandle state = new SavedStateHandle();
+        ManagerGuideViewModel.saveVitalsDraft(state, "session-a",
+                ManagerGuideVitalsDraft.fromInputs("120", "80", "", ""));
+
+        ManagerGuideViewModel.clearVitalsDraft(state, "session-b");
+
+        assertNotNull(ManagerGuideViewModel.restoreVitalsDraft(state, "session-a"));
     }
 }
