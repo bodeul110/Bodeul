@@ -47,6 +47,8 @@ public final class BookingFormBinder {
     private final TextView textEstimateDiscount;
     private final TextView textEstimateFinal;
     private final TextView textPaymentHelper;
+    private final TextView textHealthProfileSummary;
+    private final TextView textHealthProfileError;
     private final TextInputLayout layoutHealthSummary;
     private final TextInputLayout layoutMedicationSummary;
     private final TextInputLayout layoutLinkedName;
@@ -69,6 +71,7 @@ public final class BookingFormBinder {
     private final MaterialButton buttonSelectMeetingPlace;
     private final MaterialButton buttonSubmitBooking;
     private final MaterialButton buttonCancelBookingEdit;
+    private final MaterialButton buttonHealthProfile;
     private final MaterialButton buttonPaymentBankTransfer;
     private final BookingOptionGroupBinder<BookingMobilitySupport> mobilityGroupBinder;
     private final BookingOptionGroupBinder<BookingTripType> tripTypeGroupBinder;
@@ -98,6 +101,8 @@ public final class BookingFormBinder {
             TextView textEstimateDiscount,
             TextView textEstimateFinal,
             TextView textPaymentHelper,
+            TextView textHealthProfileSummary,
+            TextView textHealthProfileError,
             TextInputLayout layoutHealthSummary,
             TextInputLayout layoutMedicationSummary,
             TextInputLayout layoutLinkedName,
@@ -120,6 +125,7 @@ public final class BookingFormBinder {
             MaterialButton buttonSelectMeetingPlace,
             MaterialButton buttonSubmitBooking,
             MaterialButton buttonCancelBookingEdit,
+            MaterialButton buttonHealthProfile,
             MaterialButton buttonMobilityIndependent,
             MaterialButton buttonMobilityWalkingAid,
             MaterialButton buttonMobilityWheelchair,
@@ -150,6 +156,8 @@ public final class BookingFormBinder {
         this.textEstimateDiscount = textEstimateDiscount;
         this.textEstimateFinal = textEstimateFinal;
         this.textPaymentHelper = textPaymentHelper;
+        this.textHealthProfileSummary = textHealthProfileSummary;
+        this.textHealthProfileError = textHealthProfileError;
         this.layoutHealthSummary = layoutHealthSummary;
         this.layoutMedicationSummary = layoutMedicationSummary;
         this.layoutLinkedName = layoutLinkedName;
@@ -172,6 +180,7 @@ public final class BookingFormBinder {
         this.buttonSelectMeetingPlace = buttonSelectMeetingPlace;
         this.buttonSubmitBooking = buttonSubmitBooking;
         this.buttonCancelBookingEdit = buttonCancelBookingEdit;
+        this.buttonHealthProfile = buttonHealthProfile;
         this.buttonPaymentBankTransfer = buttonPaymentBankTransfer;
 
         mobilityGroupBinder = new BookingOptionGroupBinder<>(
@@ -283,6 +292,7 @@ public final class BookingFormBinder {
         couponTypeGroupBinder.setSelection(BookingCouponType.fromValue(request.getCouponCode()));
         refreshPaymentTermControlState();
         refreshEstimate();
+        refreshHealthProfileSummary();
         clearErrors();
     }
 
@@ -299,7 +309,7 @@ public final class BookingFormBinder {
         String meetingPlace = valueOf(inputMeetingPlace);
 
         boolean isValid = true;
-        isValid &= validateRequired(layoutHealthSummary, healthSummary);
+        isValid &= validateHealthProfile(healthSummary);
         isValid &= validateRequired(layoutLinkedName, linkedName);
         isValid &= validateRequired(layoutLinkedPhone, linkedPhone);
         isValid &= validateRequired(layoutHospitalName, hospitalName);
@@ -342,6 +352,10 @@ public final class BookingFormBinder {
         buttonSelectHospital.setOnClickListener(listener);
     }
 
+    public void setOnHealthProfileSelectorClickListener(View.OnClickListener listener) {
+        buttonHealthProfile.setOnClickListener(listener);
+    }
+
     public void setOnMeetingPlaceSelectorClickListener(View.OnClickListener listener) {
         buttonSelectMeetingPlace.setOnClickListener(listener);
     }
@@ -357,6 +371,33 @@ public final class BookingFormBinder {
 
     public void applyHospitalSelection(BookingHospitalSelection selection) {
         applyHospitalSelection(selection, true);
+    }
+
+    public void applyAppointmentAt(String appointmentAt) {
+        appointmentSelector.setAppointmentAt(appointmentAt);
+    }
+
+    public BookingHealthProfileSelection getHealthProfileSelection() {
+        return new BookingHealthProfileSelection(
+                valueOf(inputHealthSummary),
+                valueOf(inputMedicationSummary),
+                valueOf(inputSpecialNotes),
+                mobilityGroupBinder.getSelection()
+        );
+    }
+
+    public void applyHealthProfileSelection(BookingHealthProfileSelection selection) {
+        if (selection == null) {
+            return;
+        }
+        inputHealthSummary.setText(selection.getPatientConditionSummary());
+        inputMedicationSummary.setText(selection.getMedicationSummary());
+        inputSpecialNotes.setText(selection.getSpecialNotes());
+        mobilityGroupBinder.setSelection(selection.getMobilitySupport());
+        layoutHealthSummary.setError(null);
+        textHealthProfileError.setVisibility(View.GONE);
+        refreshHealthProfileSummary();
+        refreshEstimate();
     }
 
     public BookingMeetingLocationSelection getMeetingLocationSelection() {
@@ -382,6 +423,7 @@ public final class BookingFormBinder {
         inputLinkedEmail.setEnabled(!loading);
         inputMeetingPlace.setEnabled(!loading);
         inputSpecialNotes.setEnabled(!loading);
+        buttonHealthProfile.setEnabled(!loading);
         buttonSelectHospital.setEnabled(!loading);
         buttonSelectMeetingPlace.setEnabled(!loading);
         refreshPaymentTermControlState();
@@ -443,6 +485,7 @@ public final class BookingFormBinder {
         managerGenderGroupBinder.setSelection(BookingManagerGenderPreference.ANY);
         paymentMethodGroupBinder.setSelection(BookingPaymentSelectionPolicy.defaultCreateMethod());
         couponTypeGroupBinder.setSelection(BookingCouponType.NONE);
+        refreshHealthProfileSummary();
         clearErrors();
         refreshEstimate();
     }
@@ -468,6 +511,25 @@ public final class BookingFormBinder {
             return false;
         }
         return true;
+    }
+
+    private boolean validateHealthProfile(String healthSummary) {
+        boolean valid = validateRequired(layoutHealthSummary, healthSummary);
+        textHealthProfileError.setVisibility(valid ? View.GONE : View.VISIBLE);
+        return valid;
+    }
+
+    private void refreshHealthProfileSummary() {
+        String condition = valueOf(inputHealthSummary);
+        if (TextUtils.isEmpty(condition)) {
+            textHealthProfileSummary.setText(R.string.booking_health_profile_main_summary_empty);
+            return;
+        }
+        textHealthProfileSummary.setText(context.getString(
+                R.string.booking_health_profile_main_summary_format,
+                formatter.toMobilityLabel(mobilityGroupBinder.getSelection().name()),
+                condition
+        ));
     }
 
     private boolean validateLinkedPhone(String phone) {
@@ -551,6 +613,7 @@ public final class BookingFormBinder {
         layoutDepartmentName.setError(null);
         layoutMeetingPlace.setError(null);
         layoutSpecialNotes.setError(null);
+        textHealthProfileError.setVisibility(View.GONE);
     }
 
     private String resolveLinkedName(User user, AppointmentRequest request) {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="figma_booking_schedule_sunday">#BA1A1A</color>
+    <color name="figma_booking_schedule_calendar_outline">#4DE0E3E6</color>
+    <color name="figma_booking_schedule_slot_outline">#4DC3C6D4</color>
+    <color name="figma_booking_schedule_info_text">#CC704800</color>
+    <color name="figma_booking_schedule_top_bar">#CCF7F9FC</color>
+    <color name="figma_booking_schedule_footer">#E6F7F9FC</color>
+</resources>

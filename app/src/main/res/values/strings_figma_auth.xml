@@ -16,4 +16,7 @@
     <string name="figma_permission_title">권한 안내</string>
     <string name="figma_permission_description">보들 서비스를 원활하게 이용하기 위해\n다음의 접근 권한을 안내합니다.</string>
     <string name="figma_permission_confirm">확인</string>
+    <string name="figma_splash_tagline">병원 동행, 마음을 잇는 따뜻한 발걸음</string>
+    <string name="figma_splash_footer" translatable="false">HIGH-END CARE SERVICE PORTFOLIO</string>
+    <string name="figma_splash_loading_description">앱을 준비하는 중</string>
 </resources>

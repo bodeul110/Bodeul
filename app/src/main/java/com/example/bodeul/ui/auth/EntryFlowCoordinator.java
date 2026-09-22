@@ -59,7 +59,8 @@ public final class EntryFlowCoordinator {
         });
     }
 
-    private Intent createSignedOutIntent() {
+    @NonNull
+    Intent createSignedOutIntent() {
         return wrapWithPermissionGuide(new Intent(appContext, RoleSelectionActivity.class));
     }
 

@@ -49,6 +49,10 @@
             android:name=".ui.booking.BookingCompletionActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.booking.BookingHealthProfileActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".ui.booking.BookingFollowUpActivity"
             android:exported="false" />
         <activity
@@ -64,8 +68,12 @@
             android:name=".ui.booking.BookingLocationSelectorActivity"
             android:exported="false" />
         <activity
-            android:name=".ui.booking.BookingHospitalSelectorActivity"
+            android:name=".ui.booking.BookingAppointmentSelectorActivity"
             android:exported="false" />
+        <activity
+            android:name=".ui.booking.BookingHospitalSelectorActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.manager.ManagerSupportActivity"
             android:exported="false" />
@@ -111,7 +119,11 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ui.auth.RoleSelectionActivity"
-            android:exported="true">
+            android:exported="false" />
+        <activity
+            android:name=".ui.auth.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Bodeul.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

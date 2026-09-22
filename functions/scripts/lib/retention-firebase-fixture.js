@@ -11,6 +11,7 @@ const {
   runRetentionJob,
 } = require("../../src/retention");
 
+// 기존 격리 데이터의 소유 표식이므로 저장소 이름 변경과 별도로 유지한다.
 const FIXTURE_OWNER = "bodeul110/Bodeul";
 const FIXTURE_ISSUE = "222";
 const DAY_IN_MILLIS = 24 * 60 * 60 * 1000;

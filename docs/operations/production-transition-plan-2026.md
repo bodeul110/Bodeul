@@ -1,107 +1,75 @@
-# 2026년 Production 운영 전환 계획
+# 개발·운영 환경 전환 계획
 
-기준일: 2026-07-18
-기술 진행 상태 갱신: 2026-08-22
-목표 전환일: 2026-12-15 10:00 KST
+최초 계획: 2026-07-18. 현재 코드·문서 대조: 2026-09-21
 
-## 목표
+## 목표와 일정
 
-2026년 말까지 Supabase PostgreSQL을 예약·세션·채팅·읽음·위치·리포트·후속 처리의 단일 source of truth로 전환한다. Android와 사용자 웹은 Spring Core API를, 관리자 웹은 Next.js 관리자 서버를 거쳐 같은 PostgreSQL을 사용한다. Firebase는 Auth, FCM, App Check, 파일 저장소와 인증 프로필·지원·매니저 서류 심사 메타데이터 역할을 유지한다.
+관리자 웹은 Next.js 관리자 서버를, 사용자·매니저 앱과 향후 사용자 웹은 Spring Core API를 거쳐 **환경별 공용 PostgreSQL**을 사용한다. 개발과 운영은 Firebase 프로젝트·DB·서버·비밀값을 분리하며, 한 환경 안에서 관리자 서버와 Core 서버가 같은 DB를 사용한다.
 
-운영 전환은 연말에 한 번에 구현하는 작업이 아니다. 2026년 11월까지 개발 환경의 도메인 전환과 보안 검증을 끝내고, 12월에는 production migration, rollback, smoke test와 트래픽 전환만 수행한다.
+초기 목표는 2026년 말 운영 전환이었다. 이전 문서의 `2026-12-15` 전환일과 `2026-11-16` 유료 전환일은 임시 일정이며 확정된 실행일이 아니다. 아래 게이트를 통과한 뒤 실제 일정을 정한다. 임시 날짜만으로 결제 변경·데이터 이관·운영 배포를 실행하지 않는다.
 
-## 운영 비용 승인 기준
+## 현재 확인 범위
 
-월 반복 비용의 권장 승인 한도는 세금과 환율 변동을 포함해 **150,000 KRW**다. 정상 운영 목표는 **월 100,000~130,000 KRW**이며, 150,000 KRW는 정상 목표가 아니라 추가 승인 없이 대응할 수 있는 상한이다.
-
-| 항목 | 권장 등급과 수량 | 예상 비용 | 적용 시점 |
-| --- | --- | ---: | --- |
-| Supabase | Pro 조직, Tokyo Micro 2개(개발·production) | USD 35/월 예상 | 2026-11-16까지 |
-| Vercel | Pro 개발자 좌석 2개 | USD 40/월 | 2026-11-16까지 |
-| Google Cloud/Firebase | production budget 30,000 KRW | 사용량 기준, 30,000 KRW 알림 | 이미 적용 |
-| Google Cloud/Firebase | 개발 budget 10,000 KRW | 사용량 기준, 10,000 KRW 알림 | 이미 적용 |
-| 기준 도메인 | 도메인 1개와 `admin`, `api` 서브도메인 | 연 50,000 KRW 이내 권장 | 2026-10-16까지 |
-
-- Supabase Pro는 월 USD 25와 USD 10 compute credit을 제공한다. 현재처럼 Micro 프로젝트 2개를 유지하면 월 USD 35를 기준으로 잡는다.
-- Supabase spend cap은 켠 상태로 시작하며 PITR, custom domain, Log Drain은 초기 운영 범위에 포함하지 않는다.
-- Vercel Pro는 저장소 소유자와 웹 담당자 두 명을 개발자 좌석으로 계산한다. 열람만 필요한 인원은 무료 Viewer를 사용한다.
-- Vercel Hobby는 비상업적 개인 용도로 제한되므로 실제 운영 전환 전에 Pro로 바꾼다.
-- Google Cloud budget은 지출을 자동 차단하지 않는다. 50%, 80%, 100% 알림과 Cloud Run 최대 인스턴스 2, 인스턴스당 DB pool 2를 함께 유지한다.
-- 월 예상액이 2개월 연속 130,000 KRW를 넘거나 단일 서비스가 자체 예산의 80%를 넘으면 용량 증설 전에 원인을 검토한다.
-
-## 목표 데이터 경계
-
-| 범위 | source of truth | 접근 경로 |
+| 구분 | 코드·기록 기준 상태 | 남은 확인 |
 | --- | --- | --- |
-| 예약·동행·채팅·읽음·위치·리포트·후속 처리 | Supabase PostgreSQL `bodeul` schema | Spring Core API |
-| 매니저 배정 | Supabase PostgreSQL `bodeul` schema | Next.js 관리자 서버의 admin-only 함수 |
-| 인증 프로필·지원·매니저 서류 심사 메타데이터 | Cloud Firestore | Firebase 결합 저장소와 Rules |
-| 실시간 채팅·위치·상태 알림 | PostgreSQL 커밋 후 Supabase Realtime private Broadcast | Supabase Third-Party Auth가 검증한 Firebase JWT로 구독, 클라이언트 DB 쓰기 금지 |
-| 사용자 인증 | Firebase Auth | Firebase ID token을 서버에서 검증 |
-| 백그라운드 알림 | Firebase FCM | 서버에서 발송 |
-| 앱·웹 요청 출처 검증 | Firebase App Check | Core API와 관리자 서버에서 검증 |
-| 세션 채팅 첨부 원본 | Firebase Storage | Spring Core API 중계와 PostgreSQL 참여 관계 인가 |
-| 매니저 증빙 원본 | Firebase Storage | Android 전용 경로 직접 업로드와 Firebase Storage Rules 인가 |
-| 전환된 Core 업무의 Firestore 문서 | 읽기 전용 rollback 비교 자료 | 신규 Core 업무 쓰기 금지, 안정화 후 해당 legacy 경로 제거 |
+| 저장소 | Android/Core/Firebase 공용 계약은 메인, 관리자 웹·서버는 별도 저장소 | 변경되는 공용 계약을 두 저장소에서 함께 검증 |
+| 브랜치·배포 | 두 저장소 기본 브랜치는 `master`. Core Preview/Production은 수동 workflow 경계, Vercel은 Git target 구분 | 멘토가 제안한 `dev`/운영 브랜치 전략은 아직 적용 완료로 보지 않음 |
+| 데이터 전환 | Core 업무의 PostgreSQL 계약과 Firestore 직접 쓰기 차단 구현. 소스 migration V1~V23 | 환경별 실제 적용 버전·정합성은 [migration 목록](../architecture/database-migration-catalog.md) 기준 재확인 |
+| 관리자 웹 | 개발·운영 환경 표시와 로그인 화면 배포 기록 있음 | 운영 Auth 계정 등록은 DB 역할·MFA·업무 검증 완료가 아님 |
+| 운영 DB | 2026-09-21 일시정지 확인. 사용자 요청에 따라 재개하지 않음 | DB 재개, 최신 migration, 서버 비밀값과 역할을 각각 확인 |
+| 개발 API | [#429](https://github.com/bodeul110/Bodeul/issues/429)에 Preview 500/503 재확인 필요 | 관련 앱 수정 병합만으로 서버 복구를 단정하지 않음 |
+| 보관·복원 | 개발/운영 fixture와 격리 복원 기록 존재 | 과거 실행 기록은 최신 schema·실제 운영 데이터 복원 검증을 대신하지 않음 |
 
-Supabase Data API를 업무 데이터 쓰기 경로로 사용하지 않는다. Realtime은 커밋된 사건을 전달하는 채널이며, 권위 있는 조회와 명령은 계속 서버를 거친다.
+최신 배포·계정 구분은 [관리자 웹 환경](admin-web-environments.md)과 [9월 21일 검증 기록](../reports/admin-web-environment-display-2026-09-21.md)에 둔다.
 
-Realtime 전환 전에 개발·production Supabase에 각각 Firebase Third-Party Auth integration을 등록한다. Firebase 사용자의 ID token에는 `role: authenticated` custom claim을 부여하고, `realtime.messages` RLS에서 Firebase 프로젝트 ID, 채널 주제와 예약·동행 참여 관계를 함께 검증한다. 기존 사용자 claim 백필과 token 강제 갱신도 전환 범위에 포함한다.
+## 데이터 경계
 
-## 일정
-
-| 기간 | 완료 목표 | 종료 조건 |
+| 범위 | 원본 | 접근 경로 |
 | --- | --- | --- |
-| 2026-07-18~08-31 | 예약·세션·Realtime 개발 전환 | 완료: Core CRUD, 관리자 배정, Android API, 채팅·위치·Realtime과 실기기 검증 |
-| 2026-07-19~07-28 | 보관·첨부 개발 검증 | 부분 완료: V13, Core 첨부 중계·실기기·fixture APPLY 완료. Firestore 전환 문서·매니저 증빙 fixture APPLY 대기 |
-| 2026-11-16~11-30 | 운영 등급·production 사전 검증 | Supabase/Vercel 유료 전환, production secret, full rehearsal 완료 |
-| 2026-12-01~12-11 | 출시 후보 동결 | release 빌드, App Check, backup/restore, rollback, 부하·권한 smoke 통과 |
-| 2026-12-14 | Go/No-Go | 차단 항목 0건, 운영자 확인, 전환·복구 명령 재확인 |
-| 2026-12-15 | production 전환 | 10:00 KST migration과 배포, 핵심 사용자 흐름 smoke 통과 |
-| 2026-12-15~2027-01-14 | 안정화 기간 | Firestore 읽기 전용 rollback 자료 유지, 일일 오류·비용·정합성 확인 |
-| 2027-01-15 이후 | legacy 제거 | 보존 예외를 제외한 전환 대상 Core 업무 Firestore 데이터와 관련 Functions 제거 |
+| 예약·동행·채팅·읽음·리포트·후속 처리·결제 상태 | Supabase PostgreSQL `bodeul` | Spring Core API, 관리자 업무는 Next.js 서버의 제한된 DB 함수 |
+| 위치 | 정책 목표는 환자 1분 주기·동의한 보호자 조회 | 기존 매니저 GPS 경로는 기본 OFF. 환자 중심 흐름과 운영 검증은 별도 진행 |
+| 인증 프로필·지원·서류 심사 메타데이터 | Firestore | 본인 경로는 Rules, 관리자 업무는 서버 인가·감사 경유 |
+| 사용자 인증·푸시 | Firebase Auth / FCM | 각 서버의 ID token 검증과 서버 발송 |
+| 채팅 첨부·매니저 증빙 원본 | Firebase Storage | Core 첨부 중계 또는 제한된 본인 업로드·관리자 서버 원문 조회 |
+| 실시간 알림 | PostgreSQL 커밋 후 private Realtime Broadcast | Firebase Third-Party Auth와 채널 RLS. 클라이언트 DB 쓰기 금지 |
+| 전환된 업무의 Firestore 문서 | 과거 읽기 전용 비교 자료 | 신규 업무 쓰기 금지. 보존·복구 필요를 확인한 뒤 별도 정리 |
 
-## 도메인 전환 공통 게이트
+Realtime의 `role: authenticated` claim은 관리자 역할이 아니다. App Check도 인증·업무 인가를 대체하지 않는다. [목표 인프라](../architecture/target-infrastructure.md), [관리자 RBAC](../architecture/admin-rbac.md), [보관 정책](data-retention-policy.md)을 함께 적용한다.
 
-각 도메인은 다음 조건을 모두 충족해야 source of truth를 바꾼다.
+## 단계별 실행 게이트
 
-1. Flyway migration과 역방향 보정 절차가 있다.
-2. Core와 Admin runtime role에 필요한 DML만 부여한다.
-3. 개발 DB backfill 후 row 수, 필수 필드와 핵심 API 응답을 비교한다.
-4. Firebase ID token과 PostgreSQL role 기준의 정상·401·403 테스트가 있다.
-5. Android 또는 관리자 웹이 PostgreSQL 경로만 사용하는 것을 확인한다.
-6. cutover 시점부터 한 도메인에 쓰기 주체를 하나만 둔다.
-7. rollback 시 손실될 수 있는 데이터와 허용 시간을 기록한다.
-8. 보관 기간과 자동 파기 방식이 적용된다.
+| 순서 | 작업 | 종료 조건 |
+| --- | --- | --- |
+| 1 | 접근·환경·비용 확인 | 공용 관리 주체와 개인 개발자 최소권한 확인, 개발/운영별 실제 결제 연결·DB 상태·서버 접근 확인 |
+| 2 | 개발 환경 안정화 | #429 재현·복구 확인, 최신 migration과 역할별 API·앱·관리자 검증, 실패 시 복구 경로 확인 |
+| 3 | 개발·운영 배포 전략 정착 | 브랜치와 GitHub Environment, WIF, Vercel target, 비밀값·DB가 서로 뒤섞이지 않음 |
+| 4 | 운영 DB 준비 | 재개 승인, 최신 백업, 개발에서 검증한 migration과 역할 적용, 최신 schema의 격리 복원·권한 검증 |
+| 5 | 운영 서버·앱 준비 | 운영 비밀값, 관리자 MFA·세부 역할, Auth 도메인·Kakao·App Check release 검증, 실제 업무 smoke |
+| 6 | Go/No-Go와 전환 | 운영자·복구 담당자 확인, 차단 항목 해소, 실제 전환일 결정 후 명시적 실행 |
+| 7 | 안정화·legacy 정리 | 오류·비용·정합성 점검 후 비교 자료의 필요성과 보존 예외를 확인하고 별도 삭제 승인 |
 
-## 12월 Go/No-Go 기준
+소스 변경, DB migration, 앱 배포를 한 작업으로 묶지 않는다. Core 운영 배포·migration·백업 복원은 각 `workflow_dispatch`와 `master`의 실제 commit SHA 확인 경계를 유지한다.
 
-다음 항목 중 하나라도 충족하지 못하면 12월 15일 전환을 연기한다.
+## 비용 기준
 
-- production Supabase가 Pro이고 일일 7일 백업과 외부 주간 dump가 모두 정상이다.
-- Cloud Run과 Vercel의 직전 정상 배포 rollback을 실제로 재현했다.
-- 예약, 매칭, 동행, 채팅, 위치와 관리자 심사 핵심 흐름이 production 격리 데이터로 통과했다.
-- release Android의 Firebase Auth, App Check Play Integrity와 Kakao 플랫폼 설정이 통과했다.
-- production Supabase가 production Firebase만 신뢰하고, `role: authenticated` claim이 없거나 다른 프로젝트가 발급한 token은 Realtime 구독을 거부한다.
-- DB 공개 role 권한 0건, Supabase Security Advisor 오류 0건이다.
-- 실명 운영자 2명과 rollback 승인자, 장애 연락 경로가 지정되어 있다.
-- 개인정보 처리방침과 위치기반서비스 이용약관에 실제 보관 기간과 파기 절차가 반영되어 있다.
+기존 승인 기준은 월 **150,000 KRW 이내**, 정상 계획 범위는 **100,000~130,000 KRW**다. 이는 청구액 보증이나 플랫폼의 자동 지출 차단 설정이 아니다. 현재 가입 등급·결제 연결은 별도로 조회한다.
 
-## Rollback 기준
+Supabase Pro/Micro 2개와 Vercel Pro 개발자 2석의 계획 비용, 사용량·환율·세금 가정은 [비용 모니터링](cost-monitoring.md) 한 곳에서 관리한다. 유료 전환은 실제 운영 시점과 서비스 이용 조건을 확인해 실행하고 임시 달력 날짜에 맞춰 자동 활성화하지 않는다.
 
-- 배포 오류는 Cloud Run revision 또는 Vercel deployment를 직전 정상 버전으로 돌린다.
-- DB migration 오류는 호환 가능한 이전 애플리케이션을 먼저 복구하고, 파괴적 migration은 별도 정비 시간에만 수행한다.
-- source of truth 전환 후에는 Firestore 이중 쓰기로 복구하지 않는다. PostgreSQL 백업 복원 또는 검증된 역방향 보정 스크립트를 사용한다.
-- Firestore 읽기 전용 자료는 2027-01-14까지만 rollback 비교용으로 유지한다.
+## 운영 전환 조건
 
-## 근거
+- 개발·운영 Firebase, Supabase, 서버와 비밀값이 분리되고, 각 관리자 서버와 Core 서버만 해당 DB에 접근한다.
+- 최신 DB 백업·격리 복원이 통과하고 운영용 백업 등급과 보존 기간이 확인된다.
+- Cloud Run revision과 Vercel deployment의 복구를 검증한다.
+- 예약·배정·동행·채팅·관리자 심사·결제 상태를 운영 격리 데이터로 확인한다. 실제 송금·계좌·환불은 별도 승인 범위다.
+- 환자 위치 기능은 동의·종료·파기·권한 검증 전까지 활성화하지 않는다.
+- release Android의 Auth·App Check·Kakao 설정과 관리자 MFA·세부 역할을 검증한다.
+- 운영 Supabase는 운영 Firebase만 신뢰하며 다른 프로젝트 token과 비참여자 Realtime 구독을 거부한다.
+- 공개 DB role 권한, Storage 원문 접근, RLS와 감사 경계를 확인한다.
+- 운영·복구 담당자와 장애 연락 경로, 실제 수집·보관에 맞는 고지·동의를 준비한다.
 
-- [Supabase 요금](https://supabase.com/pricing)
-- [Supabase DB 연결 방식](https://supabase.com/docs/guides/database/connecting-to-postgres)
-- [Supabase 백업](https://supabase.com/docs/guides/platform/backups)
-- [Supabase Firebase Auth 연동](https://supabase.com/docs/guides/auth/third-party/firebase-auth)
-- [Supabase Realtime 시작과 private channel](https://supabase.com/docs/guides/realtime/getting_started)
-- [Vercel 요금](https://vercel.com/pricing)
-- [Vercel Hobby 제한](https://vercel.com/docs/plans/hobby)
-- [Google Cloud budget](https://cloud.google.com/billing/docs/how-to/budgets)
-- [데이터 보관 및 파기 정책](data-retention-policy.md)
+## 복구 원칙
+
+배포 오류는 직전 정상 배포로 되돌린다. DB 변경은 호환 애플리케이션 복구와 데이터 보정을 분리하고, 파괴적 복구는 승인된 정비 시간에만 수행한다. PostgreSQL 전환 뒤 Firestore 이중 쓰기로 복구하지 않는다.
+
+Firestore 비교 자료는 고정된 임시 날짜에 일괄 삭제하지 않는다. 도메인별 안정화 결과, 백업과 보존 예외를 확인한 뒤 [보관 정책](data-retention-policy.md)에 따라 정리한다.

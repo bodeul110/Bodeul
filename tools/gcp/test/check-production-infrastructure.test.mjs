@@ -136,7 +136,7 @@ test("expected 상태만 있으면 성공하고 drift, unavailable, error는 실
 });
 
 test("WIF provider 조건은 허용 조건 전체가 정확히 일치해야 한다", () => {
-  const condition = "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'production-infrastructure-audit' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/production-infrastructure-audit.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'";
+  const condition = "assertion.repository == 'bodeul110/bodeul-platform' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'production-infrastructure-audit' && assertion.workflow_ref == 'bodeul110/bodeul-platform/.github/workflows/production-infrastructure-audit.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'";
   const provider = {
     state: "ACTIVE",
     oidc: {issuerUri: "https://token.actions.githubusercontent.com"},
@@ -165,12 +165,12 @@ test("운영 WIF provider는 정확한 workflow와 불변 저장소 식별자를
       "attribute.actor": "assertion.actor",
       "attribute.workflow": "assertion.workflow",
     },
-    attributeCondition: "assertion.repository == 'bodeul110/Bodeul' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production' && assertion.workflow_ref == 'bodeul110/Bodeul/.github/workflows/core-api-production-deploy.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
+    attributeCondition: "assertion.repository == 'bodeul110/bodeul-platform' && assertion.repository_id == '1209358990' && assertion.repository_owner_id == '275679915' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production' && assertion.workflow_ref == 'bodeul110/bodeul-platform/.github/workflows/core-api-production-deploy.yml@refs/heads/master' && assertion.event_name == 'workflow_dispatch'",
   };
   assert.equal(isExpectedOperationalProvider(provider, "deploy"), true);
   assert.equal(isExpectedOperationalProvider({
     ...provider,
-    attributeCondition: "assertion.repository == 'bodeul110/Bodeul' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production'",
+    attributeCondition: "assertion.repository == 'bodeul110/bodeul-platform' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-production'",
   }, "deploy"), false);
   assert.equal(isExpectedOperationalProvider(provider, "unknown"), false);
 });
@@ -417,6 +417,32 @@ test("허용하지 않은 단계 상태는 실행 경계 drift로 기록한다",
   const configuration = report.baseline.checks.find((item) => item.id === "configuration.fixed-target");
   assert.equal(configuration?.status, STATUS.DRIFT);
   assert.match(configuration?.message ?? "", /1개/);
+});
+
+test("운영 표시 이름 변경 후에도 Firebase 프로젝트 ID와 number를 함께 검증한다", async () => {
+  const expected = {
+    projectId: "bodeul-prod-110",
+    projectNumber: "649312328770",
+    displayName: "bodeul-prod",
+  };
+  for (const [overrides, status] of [
+    [{}, STATUS.PASS],
+    [{displayName: "BoDeul Production"}, STATUS.DRIFT],
+    [{projectId: "bodeul-dev"}, STATUS.DRIFT],
+    [{projectNumber: "533563500316"}, STATUS.DRIFT],
+  ]) {
+    const report = await auditProductionInfrastructure({
+      env: validEnvironment,
+      tokenResolver: async () => "short-lived-test-token-without-real-access",
+      fetchImpl: async (url) => {
+        if (String(url) === "https://firebase.googleapis.com/v1beta1/projects/bodeul-prod-110") {
+          return Response.json({...expected, ...overrides});
+        }
+        return new Response("", {status: 403});
+      },
+    });
+    assert.equal(report.baseline.checks.find((item) => item.id === "firebase.project")?.status, status);
+  }
 });
 
 test("원격 조회가 모두 거부되면 raw 응답 없이 실패 상태를 반환한다", async () => {

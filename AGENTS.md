@@ -10,12 +10,21 @@
 
 ## 프로젝트 구조
 
-- `app/`: Android 앱. Java 기반이며 화면 흐름, Firebase 데이터 접근, 인증/예약/위치/리포트 기능을 포함한다.
+- `app/`: Java 기반 Android 앱. 화면 흐름, Core API와 Firebase 결합 데이터 접근, 인증/예약/위치/리포트 기능을 포함한다.
 - `core-api/`: Java 21 + Spring Boot 기반 사용자 서비스 API. Google Cloud Run에 독립 배포한다.
 - `functions/`: Firebase Functions. Node 22 기준으로 운영한다.
 - `tools/firebase/`: Firebase 점검, 백업, seed, preflight, 운영 리포트용 Node 스크립트.
 - `docs/`: 설계, 운영, 보안, 상태, 보고서 문서의 기준 위치.
 - `.github/`: PR/Issue 템플릿, CODEOWNERS, Dependabot, SECURITY 정책, Actions workflow.
+
+- 관리자 웹·Next.js 서버의 source of truth는 별도 `bodeul110/bodeul-admin-web` 저장소다. 메인 저장소의 과거 `admin-web/` 로컬 산출물을 소스로 취급하지 않는다.
+- 현재 개발은 Codex와 CLI 기준이며 Android Studio는 선택 사항이다. Android 소스 Java 17, Gradle 실행 JDK 21 기준을 구분한다.
+
+## 관리자 웹 작업
+
+- 웹 UI·Next.js 서버·Vercel 설정·웹 전용 환경변수는 별도 웹 저장소에서 수정한다.
+- 메인 저장소의 Rules·PostgreSQL schema·Core API 계약 변경은 웹 영향과 검증을 공용 문서에 남긴다.
+- 웹 검증은 해당 저장소의 현재 package script와 CI를 따른다. 메인 저장소에서 과거 `npm --prefix admin-web ...`를 실행했다고 기록하지 않는다.
 
 ## Android 앱 작업
 
@@ -40,7 +49,8 @@
 - 사용자·매니저 앱 계약은 Spring에 직접 구현하고 다른 API 서버를 중간 proxy로 두지 않는다.
 - Java 21과 현재 Spring Boot 3.5.x 기준을 사용자 승인 없이 올리지 않는다.
 - Firebase ID token 검증, PostgreSQL role 인가, 외부 API key 처리는 서버 경계에 둔다.
-- 변경 후 `core-api` Gradle Wrapper로 검증한다.
+- 변경 후 `.\core-api\gradlew.bat -p core-api check --console=plain`로 검증한다.
+- DB migration·운영 배포·백업 복원은 각 수동 workflow 경계를 유지한다. 소스 migration 존재와 환경별 실제 적용 완료를 구분한다.
 
 ## GitHub 운영
 
@@ -61,6 +71,9 @@
 - Android 앱 코드 변경: `.\gradlew.bat assembleDebug --console=plain`
 - Core API 변경: `.\core-api\gradlew.bat -p core-api check --console=plain`
 - Firebase 운영 스크립트 변경: `npm --prefix tools/firebase run preflight:local` 또는 관련 스크립트
+- Functions 변경: `npm --prefix functions test` (Node 22)
+- Firestore/Storage Rules: `npm --prefix tools/firebase run test:rules`
+- Firebase 도구 단위 테스트: `npm --prefix tools/firebase run test:toolkit`
 - GitHub YAML 변경: `yq e '.' <파일>`로 파싱 확인
 - 문서 전용 변경은 빌드가 필요하지 않지만, 링크와 경로가 현재 구조와 맞는지 확인한다.
 

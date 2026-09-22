@@ -1,90 +1,73 @@
-# Firestore/Storage Rules 검증 정리
+# Firestore/Storage Rules 권한 경계와 검증
 
-기준일: 2026-07-17
+기준일: 2026-09-21
 
-이 문서는 현재 `firestore.rules`, `storage.rules` 기준으로 환자, 보호자, 매니저, 관리자 권한 경계를 정리한다. 결론부터 말하면 현재 운영 권한은 Firebase Auth 로그인과 `users/{uid}.role` 문서 필드로 판정하며, custom claims 기반 관리자 권한은 아직 사용하지 않는다.
+이 문서는 저장소의 [Firestore Rules](../../firestore.rules), [Storage Rules](../../storage.rules)와 [에뮬레이터 테스트](../../tools/firebase/rules-emulator-tests/run-rules-tests.js)를 기준으로 한다. 이번 갱신은 코드와 테스트 시나리오의 정적 대조이며, Rules 재배포나 에뮬레이터 재실행 결과가 아니다.
 
-## 관리자 권한 구조
+## 인증과 업무 권한
 
-- 인증 기준: Firebase Authentication 로그인 사용자
-- 역할 기준: `users/{uid}.role`
-- 관리자 값: `ADMIN`
-- 관리자 웹 진입: 별도 `bodeul-admin-web` 저장소가 로그인 사용자의 `users/{uid}` 문서를 읽고 `role == "ADMIN"`인지 확인한다. 서버 API는 PostgreSQL role도 추가 확인한다.
-- Firestore Rules: `currentRole()`이 `users/{request.auth.uid}.role`을 읽고 `isAdmin()`, `isManager()`, `isPatient()`, `isGuardian()`을 계산한다.
-- Storage Rules: Firestore와 동일하게 `users/{uid}.role`을 읽어 관리자와 매니저 본인 여부를 판정한다.
-- Functions 수동 실행 callable: `dispatchAppointmentReminderJobs`, `dispatchAdminActionDeliveryJobs`는 호출자의 `users/{uid}.role == ADMIN`을 별도로 확인한다.
+- Firebase Auth는 사용자 신원 확인을 맡는다. 로그인만으로 관리자 업무 권한을 부여하지 않는다.
+- Core API는 Firebase ID token과 PostgreSQL 역할·참여 관계·동의를 확인한다.
+- 관리자 서버는 PostgreSQL `app_users.role=ADMIN`과 활성 세부 역할 `SUPER_ADMIN`, `OPERATIONS`, `DEVELOPER`를 확인한다. 원문 접근과 권한 변경에는 사유·감사를 적용한다.
+- Firestore와 Storage의 `isAdmin()`은 현재 항상 `false`다. 브라우저의 ADMIN 문서나 custom claim으로 서버 인가를 우회할 수 없다.
+- Firebase에 남긴 본인 프로필·매니저 제출·지원 경로는 `users/{uid}.role`과 소유 관계를 검사한다. 이 역할 필드가 관리자 서버의 최종 권한 원본은 아니다.
+- Realtime의 `role: authenticated` custom claim은 구독용 인증 역할이며 관리자 권한이 아니다.
 
-현재 custom claims를 쓰지 않는 이유는 Android 앱, 관리자 웹, Rules, Functions가 모두 같은 `users` 문서 역할 계약을 공유하고 있고, 관리자 수가 적은 초기 운영에서는 권한 변경을 Firestore 문서 변경으로 즉시 추적하는 편이 단순하기 때문이다. 다만 관리자 계정 수가 늘거나 Rules role read 비용과 권한 전파 정책을 더 엄격히 분리해야 하면 custom claims 전환을 검토한다.
+자세한 관리자 계약은 [관리자 RBAC](../architecture/admin-rbac.md), 데이터 경계는 [목표 인프라](../architecture/target-infrastructure.md)를 따른다.
 
-## 검증 상태
+## Firestore 클라이언트 접근
 
-| 항목 | 현재 상태 |
+아래 표는 Firebase 클라이언트 SDK에 적용되는 Rules다. Admin SDK와 서버 서비스 계정은 Rules를 우회하므로 서버의 인가·감사와 IAM을 별도로 검증해야 한다.
+
+| 경로 | 허용하는 클라이언트 접근 | 차단하는 접근 |
+| --- | --- | --- |
+| `users/{uid}` | 본인 조회, PATIENT/GUARDIAN/MANAGER 본인 생성, 역할을 유지한 안전한 프로필·제출 갱신 | 다른 사용자 조회, 목록 조회, 삭제, ADMIN 생성·역할 승격, 서버 심사·삭제 claim 필드 위조 |
+| `appointmentRequests` | 해당 문서의 환자 본인에게만 과거 비교 자료 읽기 | 보호자·매니저·관리자 직접 읽기, 모든 생성·수정·삭제 |
+| `companionSessions` | 해당 문서의 환자 본인에게만 과거 비교 자료 읽기 | 보호자·매니저·관리자 직접 읽기, 채팅·위치·상태를 포함한 모든 쓰기 |
+| `sessionReports` | 연결된 Firestore 세션의 환자 본인 읽기 | 보호자·매니저·관리자 직접 읽기, 모든 쓰기 |
+| `appointmentFollowUps` | 연결된 Firestore 예약의 환자 본인 읽기 | 보호자·매니저·관리자 직접 읽기, 모든 쓰기 |
+| `hospitalGuides` | 로그인 사용자 읽기 | 모든 클라이언트 쓰기 |
+| `supportInquiries` | 매니저 본인 문의 생성·읽기 | 타인 조회와 클라이언트 수정·삭제 |
+| `clientSupportRequests` | PATIENT/GUARDIAN의 본인 문의 생성, 본인 문서 읽기 | 타인 조회와 클라이언트 수정·삭제 |
+| `adminSettlementRecords`, `adminEmergencyIssues`, 알림·감사·전달 job 컬렉션, `appointmentReminderJobs` | 없음 | ADMIN을 포함한 모든 클라이언트 읽기·쓰기 |
+
+Core 업무의 원본은 PostgreSQL이다. Firestore 비교 자료 읽기 권한이 남아 있다는 이유로 신규 기능을 Firestore 경로에 구현하지 않는다. 관리자 업무와 보호자·매니저의 조회는 각 서버의 권한 경계를 거친다.
+
+## Storage 클라이언트 접근
+
+| 경로 | 현재 경계 |
 | --- | --- |
-| 정적 규칙 검토 | 2026-06-25 기준 `firestore.rules`, `storage.rules`를 다시 읽어 역할별 허용 범위를 문서화했다. |
-| 기존 실계정 검증 기록 | `docs/security/firestore-hardening.md`에 2026-05-04 기준 guardian, manager, patient 권한 축소 검증 기록이 있다. |
-| 자동 Rules 테스트 | `tools/firebase`의 `test:rules`와 `.github/workflows/firebase-rules.yml`로 Firestore/Storage emulator 기반 자동 테스트를 실행한다. |
-| 배포 검증 | Rules 파일 변경이 없으므로 이번 작업에서는 배포를 수행하지 않았다. |
+| `manager-documents/{managerUserId}/{documentKey}/{fileName}` | 매니저 본인 읽기와 새 고유 경로 생성만 허용. 덮어쓰기·삭제는 서버 보존 절차로 처리 |
+| 신규 매니저 제출 | `license` 또는 `nursingLicense`, JPEG/PNG/WebP, 파일당 최대 10 MiB. 실제 제출 메타데이터는 자격 증빙 1종만 허용 |
+| 삭제 claim이 있는 매니저 | 신규 업로드·제출 변경 차단. 클라이언트가 claim을 지워 우회할 수 없음 |
+| 신분증·범죄경력·건강 원본 | 신규 수집 경로 차단. 기존 자료의 정리·이관은 별도 보존 절차 |
+| legacy `companion-chat-attachments/{sessionId}/{fileName}` | 연결된 Firestore 세션의 환자 본인 읽기만 유지. 보호자·매니저·관리자 직접 읽기와 모든 클라이언트 쓰기 차단 |
+| Core-only 채팅 첨부 | Spring Core API가 PostgreSQL 참여 관계·동의·만료를 확인하고 버킷 IAM으로 원본 처리 |
+| 관리자 증빙 원문 | Next.js 서버의 세부 역할·사유·감사 경유. Storage의 ADMIN 직접 읽기는 허용하지 않음 |
+| 그 외 경로 | 거부 |
 
-## Firestore 권한 경계
+## 검증 방법과 범위
 
-| 컬렉션 | 환자 | 보호자 | 매니저 | 관리자 |
-| --- | --- | --- | --- | --- |
-| `users` | 본인 문서 읽기/생성/수정 가능. 역할 변경은 제한된다. | 본인 문서 읽기/생성/수정 가능. 역할 변경은 제한된다. | 본인 문서 읽기/생성/수정 가능. 심사 관련 일부 필드는 제한된다. | 사용자 목록, 개별 문서 읽기/수정/삭제 가능 |
-| `appointmentRequests` | 본인이 환자 또는 요청자인 예약 읽기/생성/일부 수정 가능 | 본인이 보호자 또는 요청자인 예약 읽기/생성/일부 수정 가능 | 배정된 예약의 상태 변경 가능 | 전체 읽기/쓰기 가능 |
-| `companionSessions` | 연결 예약 참여자인 경우 읽기, 환자 채팅/취소 관련 업데이트 가능 | 연결 예약 참여자인 경우 읽기, 보호자 채팅/취소 관련 업데이트 가능 | 배정 매니저인 경우 읽기/생성/진행 업데이트 가능 | 전체 읽기/쓰기 가능 |
-| `hospitalGuides` | 로그인 사용자 읽기 가능 | 로그인 사용자 읽기 가능 | 로그인 사용자 읽기 가능 | 쓰기 가능 |
-| `sessionReports` | 연결 세션 참여자인 경우 읽기 가능 | 연결 세션 참여자인 경우 읽기 가능 | 연결 세션 매니저인 경우 생성/수정 가능 | 전체 읽기/쓰기 가능 |
-| `appointmentFollowUps` | 연결 예약 참여자인 경우 읽기/생성/수정 가능 | 연결 예약 참여자인 경우 읽기/생성/수정 가능 | 직접 쓰기 없음 | 전체 읽기/쓰기 가능 |
-| `supportInquiries` | 접근 없음 | 접근 없음 | 본인 문의 생성/읽기 가능 | 전체 읽기/쓰기 가능 |
-| `clientSupportRequests` | 본인 문의 생성/읽기 가능 | 본인 문의 생성/읽기 가능 | 접근 없음 | 전체 읽기/쓰기 가능 |
-| 관리자 운영 컬렉션 | 접근 없음 | 접근 없음 | 접근 없음 | 전체 읽기/쓰기 가능 |
-| `appointmentReminderJobs` | 접근 없음 | 접근 없음 | 접근 없음 | 관리자 읽기만 가능, 클라이언트 쓰기 금지 |
-
-## Storage 권한 경계
-
-| 경로 | 환자 | 보호자 | 매니저 | 관리자 |
-| --- | --- | --- | --- | --- |
-| `manager-documents/{managerUserId}/{documentKey}/{fileName}` | 접근 없음 | 접근 없음 | 본인 경로 읽기/쓰기 가능. 허용 키와 파일 형식, 10MB 제한 적용 | 모든 매니저 서류 읽기 가능 |
-| legacy `companion-chat-attachments/{sessionId}/{fileName}` | Firestore 세션 참여자이면 읽기/쓰기 가능 | Firestore 세션 참여자이면 읽기/쓰기 가능 | Firestore 세션 참여자이면 읽기/쓰기 가능 | Firestore 세션 문서가 존재하면 읽기/쓰기 가능 |
-| Core-only 세션 채팅 첨부 | 클라이언트 직접 접근 거부, Core API 경유 | 클라이언트 직접 접근 거부, Core API 경유 | 클라이언트 직접 접근 거부, Core API 경유 | 관리자 전용 다운로드 API는 별도 요구사항 |
-| 그 외 경로 | 거부 | 거부 | 거부 | 거부 |
-
-## 확인된 보안 판단
-
-- 관리자 권한은 단순 Firebase 로그인만으로 부여되지 않는다. 반드시 `users/{uid}.role == ADMIN`이어야 한다.
-- 사용자가 스스로 `ADMIN` 역할을 만들거나 바꾸는 경로는 Firestore Rules에서 차단한다.
-- `users` 목록 조회는 관리자만 가능하므로 환자/보호자/매니저가 이메일이나 전화번호로 다른 사용자를 직접 검색하는 구조는 닫혀 있다.
-- 참여자 연결과 배정 매니저 조회는 클라이언트 직접 쿼리 대신 Functions callable을 사용한다.
-- 매니저 서류 원본은 Storage에서 매니저 본인과 관리자 읽기 경계가 분리되어 있다.
-- Firestore 세션 문서가 없는 Core-only 채팅 첨부는 Storage Rules로 권한을 복제하지 않는다. Spring Core API가 PostgreSQL 참여 관계와 만료 상태를 확인하고 Cloud Run 런타임 계정의 버킷 IAM으로 원본을 처리한다.
-
-## 남은 보강
-
-- Rules 변경 시 PR에서 `Firebase Rules` workflow 결과를 확인한다.
-- 관리자 custom claims 전환 여부는 관리자 계정 수, role read 비용, 긴급 권한 회수 정책이 확정된 뒤 다시 판단한다.
-- Core-only 채팅 첨부에 관리자 감사 목적 다운로드 API가 필요한지 운영 요구를 확정한다.
-
-## 자동 테스트
-
-로컬 실행:
+JDK 21과 `tools/firebase` 의존성을 준비한 뒤 저장소 루트에서 실행한다. Codex 터미널에서 실행할 수 있으며 Android Studio는 필수가 아니다.
 
 ```powershell
-cd D:\BoDeul
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+java -version
 npm --prefix tools/firebase run test:rules
 ```
 
-검증 범위:
-- `users`: 본인/관리자 읽기, 관리자 목록 조회, 클라이언트 역할 생성 제한
-- `appointmentRequests`: 참여자 읽기, 환자 생성/취소, 비참여자 거부
-- `companionSessions`: 참여자 읽기, 배정 매니저 생성/진행 수정, 환자 채팅 수정, 비허용 필드 거부
-- `sessionReports`, 관리자 전용 컬렉션, `appointmentReminderJobs`: 역할별 쓰기/읽기 경계
-- 관리자 전용 컬렉션: `adminSettlementRecords`, `adminEmergencyIssues`, `adminActionNotifications`, `adminAuditLogs`, `adminActionDeliveries`, `adminActionDeliveryJobs`
-- Storage `manager-documents`: 매니저 본인과 관리자 읽기, 허용 문서 키/파일 형식 검증
-- Storage `companion-chat-attachments`: legacy 세션 참여자 읽기/쓰기, 비참여자와 비허용 파일 형식 거부, Firestore 문서가 없는 Core-only 세션의 클라이언트 직접 업로드 거부
+현재 테스트 소스는 다음을 검사한다.
 
-CI 실행:
-- workflow: `.github/workflows/firebase-rules.yml`
-- 실행 조건: Rules 파일, Firebase 설정, Rules 테스트, `tools/firebase` 테스트 의존성 변경 PR
-- emulator 실행을 위해 JDK 21을 사용한다.
+- 본인 프로필 읽기와 역할 위조 거부, ADMIN 브라우저의 타인 프로필·업무·운영 컬렉션 접근 거부
+- Core 전환 컬렉션의 모든 직접 쓰기 거부, 환자 비교 자료 읽기와 보호자·매니저 직접 읽기 거부
+- 자격 증빙 canonical 경로 일치, 1종 제출, 심사 필드 보호, legacy 교체와 legal hold
+- 삭제 claim 중 원본 재참조·업로드·상태 변경 거부
+- Storage의 새 원본 생성 제한, 파일 형식·크기·타인 경로 거부, 채팅 직접 쓰기 거부
+
+CI 기준은 [Firebase Rules workflow](../../.github/workflows/firebase-rules.yml)다. PR의 실제 체크 결과와 배포 대상 Rules revision을 각각 확인한다.
+
+## 적용 시 주의
+
+- [2026-05-04 보강 기록](firestore-hardening.md)은 당시 검증 결과다. 현재 권한 표를 대신하지 않는다.
+- Rules만 바꾸면 구버전 Android 관리자 화면이나 legacy 데이터 경로가 실패할 수 있다. [관리자 RBAC](../architecture/admin-rbac.md)의 앱·Rules 동시 릴리스 경계를 유지한다.
+- 운영 관리자 Auth 계정 등록, MFA 완료, PostgreSQL 세부 역할 부여, 운영 DB 연결은 서로 다른 단계다. 계정 등록만으로 운영 로그인이 검증된 것은 아니다.
+- 이번 문서 수정에서는 Rules·데이터·IAM을 변경하지 않았다. 운영 적용 전 에뮬레이터, 서버 권한 테스트, 대상 환경 smoke를 별도로 통과시킨다.
