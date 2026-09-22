@@ -28,6 +28,8 @@
   - metadata-only 감사와 기대 구성 대조
 - [Google Cloud 접근 관리](google-cloud-access-governance.md)
   - 사람 계정·그룹과 CI·서비스 계정 경계
+- [Google Cloud 공식 조직 이전](google-cloud-organization-migration.md)
+  - 개발·운영 프로젝트의 공식 조직 소속, 이전 검증과 복귀 경계
 - [Android 릴리스 서명](android-release-signing.md)
   - 팀 소유 서명과 release 검증 준비
 - [Core API 가이드 실기기 fixture](core-api-guide-device-fixture.md)

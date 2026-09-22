@@ -1,13 +1,14 @@
 # 인프라 운영 기준선
 
-기준일: 2026-09-21
+기준일: 2026-09-22
 
-배포·실기기·복원 성공은 각 날짜의 증적이다. 이번 갱신은 현재 코드와 기록 대조이며, 외부 서비스의 모든 가동 상태를 다시 검증한 것은 아니다.
+배포·실기기·복원 성공은 각 날짜의 증적이다. 9월 22일에는 Google Cloud 조직 이전과 설정·접근을 실조회했다. 다른 서비스의 모든 가동 상태를 다시 검증한 것은 아니다.
 
 ## 개발 인프라 기준선
 
 | 범위 | 기준 |
 | --- | --- |
+| Google Cloud 조직·결제 | 개발·운영 프로젝트 모두 공식 `bodeul.kr` 소속. 공용 `bodeul-shared-billing1` 연결·결제 활성 유지. [이전 기록](google-cloud-organization-migration.md) |
 | 관리자 웹 | 별도 저장소 Next.js, Vercel Preview/Production 환경 표시. 개발 DB 401·403·200 검증 기록과 운영 로그인 준비 상태는 별도 |
 | Core API | Cloud Run `bodeul-core-api-preview`, Spring Boot, WIF 배포와 revision rollback |
 | 공용 DB | 환경별 Supabase Tokyo 프로젝트, migration/core/admin/retention 역할 분리. 소스 V1~V23 |
