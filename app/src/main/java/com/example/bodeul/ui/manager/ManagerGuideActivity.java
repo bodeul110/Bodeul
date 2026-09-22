@@ -79,6 +79,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private ManagerGuideDashboardBinder managerGuideDashboardBinder;
     private ManagerGuideReceptionBinder managerGuideReceptionBinder;
     private ManagerGuidePreConsultationBinder managerGuidePreConsultationBinder;
+    private ManagerGuideVitalsBinder managerGuideVitalsBinder;
 
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
@@ -280,10 +281,13 @@ public class ManagerGuideActivity extends AppCompatActivity {
         managerGuideReceptionBinder = new ManagerGuideReceptionBinder(findViewById(android.R.id.content));
         managerGuidePreConsultationBinder = new ManagerGuidePreConsultationBinder(
                 findViewById(android.R.id.content));
+        managerGuideVitalsBinder = new ManagerGuideVitalsBinder(
+                findViewById(android.R.id.content), viewModel::saveVitalsDraft);
 
         findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
         findViewById(R.id.buttonBackGuidePreConsultation).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuideVitals).setOnClickListener(view -> finish());
         findViewById(R.id.buttonGuideReceptionShare).setOnClickListener(view -> {
             if (!"RECEPTION_QUEUE".equals(currentStepCode) || mutationInFlight) {
                 return;
@@ -406,6 +410,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (state.statePanelType != ManagerGuideViewModel.StatePanelType.NONE) {
             managerGuideReceptionBinder.hideForState();
             managerGuidePreConsultationBinder.hideForState();
+            managerGuideVitalsBinder.hideForState();
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             currentStepCode = "";
             clearCurrentLocationMarkerOutsideMeetingStep();
@@ -441,6 +446,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                             state.screenModel, state.dashboard, mutationInFlight);
                     managerGuidePreConsultationBinder.bind(
                             state.screenModel, state.dashboard, mutationInFlight);
+                    managerGuideVitalsBinder.bind(
+                            state.screenModel, state.dashboard, mutationInFlight,
+                            viewModel.getVitalsDraft(state.dashboard.getSession().getId()));
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
@@ -456,6 +464,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
             } else {
                 managerGuideReceptionBinder.hideForState();
                 managerGuidePreConsultationBinder.hideForState();
+                managerGuideVitalsBinder.hideForState();
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 currentStepCode = "";
                 clearCurrentLocationMarkerOutsideMeetingStep();
@@ -515,6 +524,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
 
     private void disableMutationActions() {
         managerGuideReceptionBinder.setShareEnabled(false);
+        managerGuideVitalsBinder.setInputsEnabled(false);
         findViewById(R.id.buttonGuidePreConsultationComplete).setEnabled(false);
         buttonAdvanceGuide.setEnabled(false);
         buttonSubmitReport.setEnabled(false);
@@ -528,6 +538,13 @@ public class ManagerGuideActivity extends AppCompatActivity {
             return;
         }
         if (currentPrimaryAction == ManagerGuidePrimaryAction.ADVANCE) {
+            if ("VITALS_CHECK".equals(currentStepCode)) {
+                String note = managerGuideVitalsBinder.buildNote();
+                if (note != null) {
+                    viewModel.saveVitalsAndAdvance(note);
+                }
+                return;
+            }
             if (ManagerGuideAdvanceConfirmationPolicy.requiresConfirmation(
                     currentPrimaryAction,
                     currentStepCode)) {

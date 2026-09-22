@@ -662,7 +662,6 @@
     <string name="guide_video_unavailable_title">영상 안내를 사용할 수 없습니다</string>
     <string name="guide_video_fallback_default">영상 대신 아래 설명과 카카오맵 경로를 확인해 주세요.</string>
     <string name="guide_action_reception_complete">접수 완료</string>
-    <string name="guide_action_vitals_complete">측정 확인 완료</string>
     <string name="guide_action_consultation_ready">진료 준비 완료</string>
     <string name="guide_action_consultation_complete">진료 완료</string>
     <string name="guide_action_summary_complete">요약 확인 완료</string>

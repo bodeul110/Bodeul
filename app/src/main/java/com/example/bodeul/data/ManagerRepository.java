@@ -79,6 +79,26 @@ public interface ManagerRepository {
 
     void saveFieldPhotoNote(String managerUserId, String fieldPhotoNote, RepositoryCallback<ManagerDashboard> callback);
 
+    /** 기초 측정값은 화면에서 확인한 세션과 단계가 그대로일 때만 저장한다. */
+    default void saveVitalsNote(
+            String managerUserId,
+            String expectedSessionId,
+            String expectedStepCode,
+            String note,
+            RepositoryCallback<ManagerDashboard> callback
+    ) {
+        callback.onError("기초 측정 저장에는 Core API 연결이 필요합니다.");
+    }
+
+    static boolean matchesVitalsExpectation(
+            CompanionSession session,
+            String expectedSessionId,
+            String expectedStepCode
+    ) {
+        return "VITALS_CHECK".equals(normalize(expectedStepCode))
+                && matchesAdvanceExpectation(session, expectedSessionId, expectedStepCode);
+    }
+
     void saveMedicationNote(String managerUserId, String medicationNote, RepositoryCallback<ManagerDashboard> callback);
 
     void savePharmacySummary(String managerUserId, String pharmacySummary, RepositoryCallback<ManagerDashboard> callback);

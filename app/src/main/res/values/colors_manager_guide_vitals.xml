@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="guide_vitals_input">#ECEEF1</color>
+    <color name="guide_vitals_input_hint">#C7CBD1</color>
+    <color name="guide_vitals_card_outline">#E6E8EB</color>
+    <color name="guide_vitals_blood_icon_background">#4DFFDAD6</color>
+    <color name="guide_vitals_heart_icon_background">#333C72D1</color>
+    <color name="guide_vitals_weight_icon_background">#33BAAE3A</color>
+    <color name="guide_vitals_weight_icon">#686000</color>
+</resources>
