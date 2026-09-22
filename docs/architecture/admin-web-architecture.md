@@ -1,6 +1,6 @@
 # 관리자 웹 역할과 서버 경계
 
-기준일: 2026-08-29
+기준일: 2026-09-21. 관리자 웹 배포·환경 표시와 로그인 경계 갱신.
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -9,7 +9,11 @@
 
 관리자 웹은 [bodeul110/bodeul-admin-web](https://github.com/bodeul110/bodeul-admin-web) 저장소의 Next.js 애플리케이션이 source of truth다. Vercel 서버가 Firebase ID token, PostgreSQL `ADMIN` 진입 자격과 활성 세부 역할을 확인한 뒤 관리자 전용 DB role로 직접 조회한다. Spring Core API나 기존 Node API를 중간 proxy로 두지 않는다.
 
-## 현재 검증
+## 검증 범위
+
+2026-09-21 웹 [PR #64](https://github.com/bodeul110/bodeul-admin-web/pull/64)를 병합하고 실제 Preview 로그인 화면의 `개발 환경`, Production 로그인 화면의 `운영 환경` 표시를 확인했다. 배포 표시는 DB·Firebase 연결이나 실제 관리자 로그인 성공을 뜻하지 않는다. 운영 계정 등록은 Firebase Auth까지만 수행했으며 DB 재개·관리자 역할 부여·운영 업무 검증은 포함하지 않았다.
+
+아래는 2026-07-17~18 Preview 실연동 검증 기록이며 이번에 재실행한 결과가 아니다. 당시 이후 관리자 세부 역할·업무 함수 계약이 추가됐으므로 현재 운영 검증을 대신하지 않는다.
 
 | 시나리오 | 결과 |
 | --- | --- |
@@ -19,9 +23,9 @@
 | 관리자 token | 200, 병원 가이드 조회 |
 | 임시 검증 데이터 | 검증 후 Firebase 사용자와 DB row 삭제 확인 |
 | DB TLS | Supabase Root CA를 명시하고 인증서 검증 유지 |
-| DB 권한 | 관리자 runtime role은 SELECT만 허용, 연결 상한 5 |
+| DB 권한 | 당시 runtime 조회 권한과 연결 상한 5 확인. 현재 계약은 제한된 조회와 허용된 업무 함수 실행이며 테이블 직접 쓰기는 금지 |
 
-Preview에만 `ADMIN_DATABASE_URL`을 두고 production에는 등록하지 않았다. 따라서 위 결과는 개발 인프라 경계 검증 완료이며 production 전환 완료가 아니다.
+환경별 DB·자격 증명 준비 상태와 이후 검증은 [관리자 웹 환경 기준](../operations/admin-web-environments.md)을 따른다. 웹 배포 완료와 production 업무 전환 완료를 분리한다.
 
 ## 역할
 
@@ -29,6 +33,7 @@ Preview에만 `ADMIN_DATABASE_URL`을 두고 production에는 등록하지 않�
 - 신고·문의·운영 상태 확인
 - 병원 가이드와 운영 데이터 조회
 - 민감정보 마스킹과 관리자 유휴 세션 종료
+- 로그인·2차 인증·관리 화면에 유지되는 개발/운영 배포 환경 표시
 - 관리자 권한과 감사 이력 관리
 - `SUPER_ADMIN`, `OPERATIONS`, `DEVELOPER` 역할별 메뉴와 API 제한
 - 민감정보 원문 접근 사유, 최대 60분 break-glass와 추가 전용 감사
@@ -52,10 +57,10 @@ Preview에만 `ADMIN_DATABASE_URL`을 두고 production에는 등록하지 않�
 
 ## 남은 범위
 
-- production Firebase·Supabase·Vercel 환경과 자격 증명 분리
-- custom domain과 Firebase Auth authorized domain 확정
+- 분리된 production 기반의 실제 DB 접속·최소 권한·관리자 업무 검증. 프로젝트 생성과 웹 배포는 이미 완료
+- 최종 서비스 도메인과 Firebase Auth authorized domain 대조
 - reCAPTCHA Enterprise 기반 App Check와 enforcement 기준 검증
-- Firestore 직접 접근 화면을 도메인별 서버 계약으로 이전하고 이전이 끝난 경로부터 브라우저 Rules 권한 제거
+- 현재 차단한 브라우저 ADMIN의 Firestore/Storage 직접 권한을 유지하고 신규 업무도 서버 세부 역할·감사 경유로만 확장
 - production 역할 bootstrap, MFA 확인과 긴급 권한 회수 리허설
 
 Vite 빌드는 별도 저장소에 rollback 자산으로 남아 있다. 메인 저장소의 중복 `admin-web/`은 제거했으므로 웹 변경과 배포는 별도 저장소에서만 진행한다.

@@ -1,10 +1,10 @@
 # DB 선택 근거
 
-기준일: 2026-07-19
+초기 선택·전환 기록: 2026-07-19. 현재 경계 대조: 2026-09-21.
 
 BoDeul의 초기 MVP는 Cloud Firestore를 주 저장소로 사용했다. 현재 운영 목표는 `Spring Core API + Next.js 관리자 서버 + 공용 Supabase PostgreSQL`이며 Firebase는 Auth, FCM, App Check, Storage, 결합 Functions와 인증 프로필·지원·서류 데이터만 유지한다.
 
-2026-07-19 기준 개발 Android의 예약·매칭·동행·리포트·후속 처리·채팅·읽음·위치 쓰기는 Core API와 PostgreSQL로 전환했다. production PostgreSQL과 복원 기반은 준비했지만 사용자 트래픽 전환은 연말 승인 전까지 보류한다. 이 문서의 Firestore 비교는 초기 선택 기록이며, 운영 전환 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
+2026-07-19 기준 개발 Android의 예약·매칭·동행·리포트·후속 처리·채팅·읽음·위치 쓰기는 Core API와 PostgreSQL로 전환했다. production 기반·복원 이력은 있지만 9월 21일 운영 DB는 일시정지 상태다. 실제 사용자 트래픽 전환일은 미정이며 최신 migration·권한·복구 검증 후 결정한다. 이 문서의 Firestore 비교는 초기 선택 기록이며, 운영 전환 결정은 [PostgreSQL 운영 전환 결정](postgres-operational-transition.md)을 기준으로 본다.
 
 ## 초기 판단 기준
 
@@ -34,7 +34,7 @@ BoDeul의 초기 MVP는 Cloud Firestore를 주 저장소로 사용했다. 현재
 ## 초기 보완 기준
 
 - 서버 검증이 필요한 작업은 Cloud Functions callable 또는 Firestore trigger로 이동한다.
-- 역할 권한은 현재 `users/{uid}.role` 문서 필드와 Rules 함수로 검증한다. Custom claims는 현재 사용하지 않으며, 관리자 수가 늘거나 Rules role read 비용과 전파 정책을 더 엄격히 관리해야 할 때 전환 후보로 둔다.
+- 당시 역할은 `users/{uid}.role`과 Rules 중심이었다. 현재 관리자는 PostgreSQL 세부 역할·서버 감사로 바뀌었고 브라우저 ADMIN은 차단한다. Realtime용 `role: authenticated` claim은 관리자 권한과 별개다.
 - 관리자 대시보드가 전체 컬렉션 스캔에 가까워지면 서버 집계 문서나 페이지네이션 쿼리로 바꾼다.
 - 정산, 통계, 장기 분석이 커지면 BigQuery export 또는 PostgreSQL 보조 저장소를 검토한다.
 

@@ -1,6 +1,6 @@
 param(
-  [string] $RepoUrl = "https://github.com/bodeul110/Bodeul",
-  [string] $RepoApi = "repos/bodeul110/Bodeul",
+  [string] $RepoUrl = "https://github.com/bodeul110/bodeul-platform",
+  [string] $RepoApi = "repos/bodeul110/bodeul-platform",
   [string] $SourceRunnerRoot = "D:\actions-runner\bodeul-preflight",
   [string] $ServiceRunnerRoot = "D:\actions-runner\bodeul-preflight-service",
   [string] $RunnerName = "$env:COMPUTERNAME-bodeul-preflight-service",

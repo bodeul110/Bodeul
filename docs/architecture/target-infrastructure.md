@@ -1,6 +1,6 @@
 # 목표 인프라 구조
 
-기준일: 2026-08-26
+기준일: 2026-09-21
 
 초기에는 빠른 구현을 우선했기 때문에 모든 선택 근거가 사전에 정리되지는 않았다.
 현재는 구현된 구조를 기준으로 선택 이유, 대안, 단점, 전환 조건을 정리하고 있다.
@@ -14,7 +14,7 @@
 - 관리자 Vercel Functions, Cloud Run과 Supabase는 Tokyo 리전에 맞춘다.
 - Firebase Auth, FCM, App Check, Storage와 Firebase 결합 Functions는 유지한다.
 - 채팅·위치·상태 갱신은 PostgreSQL 커밋 후 Supabase Realtime private Broadcast로 전달한다.
-- 위치 경로는 기술적으로 검증됐지만 최신 MVP 제품 범위에서는 활성화하지 않는다. 기존 경로와 24시간 파기는 향후 재검토와 전환 데이터 안전망으로 유지한다.
+- 환자 GPS 1분 공유가 제품 목표다. 기존 매니저 GPS 경로는 기본 OFF, release·production 고정 OFF다. 매니저 자신의 지도 위치 확인 UI와 서버 위치 수집·공유는 구분한다.
 - 전환 대상 Core 업무 Firestore 문서는 전환 기간의 읽기 전용 rollback 자료로만 남기고 안정화 후 해당 업무 경로에서 제거한다. 인증 프로필·지원·서류처럼 Firebase에 남긴 데이터는 별도 계약으로 유지한다.
 - 두 서버는 서로를 proxy로 호출하지 않는다.
 - Kakao Local REST와 서버 비밀값이 필요한 외부 연동은 Spring Core API가 소유한다.
@@ -33,26 +33,28 @@ Realtime은 DB 직접 접근 경로가 아니다. Supabase Third-Party Auth에 �
 | --- | --- | --- |
 | 런타임 | Vercel Next.js | Google Cloud Run Spring Boot |
 | 인증 | Firebase ID token | Firebase ID token |
-| 인가 | PostgreSQL `ADMIN` role | 사용자·보호자·매니저 role |
+| 인가 | PostgreSQL ADMIN + 활성 세부 역할 | 사용자·보호자·매니저 역할·참여 관계·동의 |
 | DB 접속 | `bodeul_admin_service` | `bodeul_core_service` |
 | DB role 연결 상한 | 5 | 5 |
-| 프로세스 연결 pool | 1 | 인스턴스당 2 |
+| 프로세스 연결 pool | 1 | Preview workflow 5, production workflow 2 |
 | 외부 API | 관리자 전용 후속 연동 | Kakao Local 등 사용자 서비스 연동 |
 
 DDL은 메인 저장소 `core-api/`의 Flyway migration만 소유한다. 런타임 계정에는 필요한 DML만 부여하고 migration 자격 증명을 전달하지 않는다. 브라우저와 APK에는 PostgreSQL 접속 문자열을 넣지 않는다.
 
-## 현재 도달 상태
+## 구현과 과거 검증 기록
+
+아래 검증은 각 보고서 시점의 결과다. 2026-09-21 현재 #429는 Preview 500/503 재확인 과제로 열려 있고, production DB는 일시정지 확인 후 재개하지 않았다. 코드 존재·이전 검증 성공을 현재 가용성으로 해석하지 않는다.
 
 - Spring Core API Cloud Run preview, WIF 배포, Secret Manager, DB 연결과 rollback을 검증했다.
 - 관리자 Next.js Preview에서 Firebase token과 PostgreSQL 관리자 role을 사용한 401·403·200을 검증했다.
-- 관리자 DB role은 읽기 전용이고 Preview 환경에만 자격 증명을 두었다.
+- 관리자 DB role은 일반 테이블 직접 쓰기를 금지하고 배정·결제·감사에 필요한 제한 함수만 실행한다. 단순 SELECT-only 서버가 아니다. 환경별 자격 증명 준비는 관리자 웹 환경 문서를 따른다.
 - Node API 프로토타입과 메인 저장소 관리자 웹 중복본은 제거했다.
 - Android의 Kakao Local REST 직접 호출과 REST 키를 제거했다.
 - 개발 환경의 예약·동행 세션·리포트·후속 처리는 PostgreSQL을 쓰기 source of truth로 사용하고, Firestore Rules는 해당 업무 쓰기를 거부한다.
 - 개발 DB의 채팅·위치는 PostgreSQL V8~V12 schema·trigger, 최소 권한과 보관 계약을 적용했다. Core API snapshot·메시지·읽음·위치 계약과 privileged Broadcast publisher를 배포했고 Firestore legacy 쓰기는 차단했다.
 - Core-only 세션 채팅 첨부는 Spring Core API 서버 중계 계약으로 전환했다. 개발·production Firebase 기본 버킷에는 각 Cloud Run 런타임 계정의 버킷 단위 `roles/storage.objectUser`만 부여했고, 버킷 메타데이터 권한 없이 객체 API를 직접 사용한다. Preview 배포, 인증된 실기기 업로드·다운로드와 DB 충돌 보상 삭제를 완료했으며 production 적용은 #134 출시 게이트까지 보류한다.
 - 실제 세션으로 private Realtime join·재연결, 채팅·읽음·위치, FCM 실기기 알림을 확인했다. 10개 동시 join과 `chat.changed` 10/10 수신은 운영 목표 Pro 포함량 안에서 통과했다.
-- production Google Cloud/Firebase `bodeul-prod-110`과 Supabase `bodeul-prod`를 개발 환경과 분리했다.
+- production Google Cloud/Firebase `bodeul-prod-110`(표시 이름 `bodeul-prod`)과 Supabase `bodeul-db-prod`를 개발 환경과 분리했다. 기존 식별자는 유지하고 [명칭 기준](../operations/resource-naming.md)에 따라 표시 이름만 정리한다.
 - production Flyway V1~V15, 최소 권한 role, Artifact Registry, WIF와 DB Secret Manager version을 검증했다.
 - production PostgreSQL V15 dump를 격리 PostgreSQL 17에 복원해 schema, row 수, owner, ACL, RLS, 인덱스와 제약 일치를 검증했다.
 - production Supabase 조직은 아직 Free이며, 실제 사용자 데이터 투입 전 Pro 전환이 필요하다.
@@ -74,15 +76,15 @@ DDL은 메인 저장소 `core-api/`의 Flyway migration만 소유한다. 런타�
 1. [x] 개발과 분리된 Google Cloud/Firebase 프로젝트와 Supabase 프로젝트를 만들고 기존 Vercel 프로젝트의 Production 환경을 사용한다.
 2. [x] production migration과 Core API runtime 자격 증명을 별도 Environment/Secret Manager에 둔다.
 3. [ ] Kakao 운영 키를 등록하고 첫 Cloud Run revision의 인증·DB·rollback을 검증한다.
-4. [ ] Vercel Production에 SELECT-only 관리자 DB 자격 증명을 연결하고 관리자 401·403·200을 검증한다.
+4. [ ] Vercel Production에 최소 권한 관리자 DB 자격 증명을 연결하고 MFA·역할별 401·403·200과 업무 함수를 검증한다.
 5. [ ] custom domain, Firebase Auth authorized domain과 App Check provider/enforcement를 검증한다.
 6. [x] PostgreSQL backup/restore를 격리 환경에서 리허설한다.
 7. [x] 도메인별 source of truth, 이중 쓰기 금지와 rollback 기준을 문서화한다.
-8. [x] 월 비용 한도와 목표 전환일을 정한다.
-9. [ ] 충돌하는 데이터 보관기간과 위치 수집 범위를 기획·법률이 승인한다.
+8. [ ] 기존 월 비용 승인 한도 150,000 KRW 안에서 실제 플랜·청구액을 확인하고 운영 전환일을 확정한다.
+9. [ ] 현재 채택한 보관기간·환자 위치 목표를 실제 동의·인가·파기 구현 및 운영 고지와 대조한다.
 10. [ ] Cloud Run과 Vercel 직전 revision rollback을 리허설한다.
 11. [ ] 관리자 감사 이력과 실명 장애 대응 담당 2명을 확정한다.
-12. [ ] 2026-12-15 Go/No-Go 게이트를 통과한다.
+12. [ ] 확정된 출시 일정에 맞춰 Go/No-Go 게이트를 통과한다. 2026-12-15는 이전 계획 가정이지 확정 운영일이 아니다.
 
 ## 리스크
 

@@ -143,8 +143,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_REPOSITORY}" != "bodeul110/Bodeul" || "${GITHUB_REF}" != "refs/heads/master" ]]; then
-            echo "production 인프라 점검은 bodeul110/Bodeul의 master에서만 실행할 수 있습니다." >&2
+          if [[ "${GITHUB_REPOSITORY}" != "bodeul110/bodeul-platform" || "${GITHUB_REF}" != "refs/heads/master" ]]; then
+            echo "production 인프라 점검은 bodeul110/bodeul-platform의 master에서만 실행할 수 있습니다." >&2
             exit 1
           fi
           if [[ ! "${CONFIRM_COMMIT}" =~ ^[0-9a-f]{40}$ || "${CONFIRM_COMMIT}" != "${GITHUB_SHA}" ]]; then

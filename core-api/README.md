@@ -14,11 +14,27 @@
 - 환자 예약 생성·수정·취소, 보호자 동의 범위 내 최소 조회와 배정 매니저 조회를 처리하는 `/api/appointments`
 - 성인 환자의 예약별 보호자 정보공유 동의·조회·철회를 처리하는 `/api/appointments/{id}/guardian-sharing-consent`
 - 참여자·배정 매니저의 동행 조회와 매니저 진행·리포트를 처리하는 `/api/companion-sessions`
+- 채팅 snapshot·메시지·읽음·첨부와 legacy 위치 경계, PostgreSQL 커밋 후 Realtime Broadcast
+- 무통장입금 조회·입금자명 제출과 동행 증빙 업로드·조회·삭제
 - 명시적으로 허용하지 않은 경로는 기본 차단
 - `local` profile에서는 DB 없이 기동
 - `preview`, `production` profile에서는 PostgreSQL 설정 필수
 
-기존 `api/`의 Node `bodeul-api`는 인증, 인가, PostgreSQL 계약을 검증한 prototype이다. `core-api/`는 해당 계약을 Spring으로 옮기되 Node API를 중간 서버로 호출하지 않는다.
+기존 `api/`의 Node `bodeul-api` prototype은 검증 후 제거했다. 현재 `core-api/`는 사용자 계약을 직접 처리하며 Node API나 관리자 서버를 중간 서버로 호출하지 않는다. 코드의 API·migration 존재와 배포 환경의 적용 여부는 구분한다.
+
+## API 찾기
+
+| 범위 | 경로 | 계약 |
+| --- | --- | --- |
+| 예약·후속 처리 | `/api/appointments`, `/{id}/follow-up` | [예약 계약](../docs/architecture/appointment-core-api.md) |
+| 무통장입금 | `/api/appointments/{id}/payment`, `/payment/depositor` | 환자 본인 조회·입금자명 제출. 관리자 상태 전이는 별도 Next.js 서버 |
+| 보호자 동의 | `/api/appointments/{id}/guardian-sharing-consent` | [동의 계약](../docs/architecture/adult-patient-guardian-sharing-consent.md) |
+| 동행·종료·리포트 | `/api/companion-sessions`, `/{id}/advance`, `/care-end`, `/report` | [동행 계약](../docs/architecture/companion-session-core-api.md) |
+| 채팅·읽음·첨부 | `/api/companion-sessions/{id}/realtime`, `/messages`, `/read-receipt`, `/attachments/{attachmentId}` | 서버 인가·저장, Realtime은 변경 신호만 전달 |
+| 동행 증빙 | `/api/companion-sessions/{id}/artifacts` | PostgreSQL 메타데이터와 Firebase Storage 원본 분리 |
+| 기존 매니저 위치 | `/api/companion-sessions/{id}/locations` | 기본 OFF, production 고정 OFF. 환자 GPS 1분 공유 구현과 별개 |
+
+위 경로의 축약된 접미사는 같은 예약 또는 세션 base path를 사용한다. 정확한 HTTP 메서드는 Controller와 각 계약 문서를 따른다. Flyway 소스는 [V1~V23 목록](../docs/architecture/database-migration-catalog.md)에서 확인한다.
 
 Android, Firebase 도구, 공통 데이터 계약과 함께 변경 내용을 검토하기 위해 메인 저장소 안에서 관리한다. 배포는 저장소 구조와 별개로 Cloud Run 서비스와 `core-api-preview` 또는 `core-api-production` GitHub Environment를 사용한다.
 
@@ -163,9 +179,12 @@ V15 이후 migration workflow는 Flyway 적용 뒤 `verifyAccountDeletionInvento
 
 ## 다음 작업
 
-1. Core API 채팅·위치 endpoint와 PostgreSQL 커밋 후 Broadcast 발행 구현
-2. Firebase JWT 기반 Supabase Realtime private 채널 인가와 재연결 검증
-3. Android 채팅·위치 repository 전환 뒤 Firestore legacy 쓰기 중지
+채팅·읽음·legacy 위치 endpoint, private Broadcast와 Android 저장소 전환 코드는 이미 반영됐다. 다음 작업은 다음과 같이 구분한다.
+
+1. [#429](https://github.com/bodeul110/bodeul-platform/issues/429): Preview 500/503 관찰의 현재 상태와 서버·DB 연결 확인. 과거 성공 기록으로 복구를 단정하지 않는다.
+2. [#419](https://github.com/bodeul110/bodeul-platform/issues/419): 보호자 예약 생성. 현재 정보공유 동의만으로 예약 쓰기를 허용하지 않는다.
+3. [#420](https://github.com/bodeul110/bodeul-platform/issues/420): 비식별 테스트 데이터로 Naver Cloud STT 내부 연동. OCR·AI 리포트 자동 생성은 제외한다.
+4. [#222](https://github.com/bodeul110/bodeul-platform/issues/222), [#348](https://github.com/bodeul110/bodeul-platform/issues/348): production 파기 검증, 탈퇴·법정 보존 분리. 실제 apply는 별도 승인 경계다.
 
 ## 자동 파기 DB 권한
 

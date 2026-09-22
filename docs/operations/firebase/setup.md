@@ -1,6 +1,8 @@
 # Firebase 설정
 
-기준일: 2026-07-18
+기준일: 2026-09-21 (설정 안내 대조, 과거 스키마 예시 포함)
+
+현재 업무 원본은 PostgreSQL이다. 아래 Firestore 예약·세션·리포트 예시와 예약 알림 Functions 흐름은 legacy 비교·운영 도구 설명이며 신규 Core 예약 경로가 아니다. 현재 권한은 [Rules 경계](../../security/firebase-rules-validation.md), 업무 계약은 [예약 Core API](../../architecture/appointment-core-api.md), DB 버전은 [migration 목록](../../architecture/database-migration-catalog.md)을 우선한다. 개발·운영 리소스에 배포·seed·reset을 실행하는 것은 별도 승인 작업이다.
 
 ## 현재 프로젝트 상태
 
@@ -11,7 +13,7 @@
 - Firebase 데이터 범위: 인증·FCM 토큰, Storage, 전환 기간 legacy 읽기 자료
 - Functions: `functions/index.js` 집계 파일과 `functions/src/` 기능별 모듈
 - Firebase 설정이 없으면 앱은 자동으로 목업 모드로 동작한다.
-- 최신 기능설명서 기준으로 예약 후속, 문의, 관리자 후속 알림/전달 기록 컬렉션까지 확장 중이다.
+- 인증 프로필·지원·매니저 심사 메타데이터와 Firebase 결합 job을 유지한다. Core 예약·세션을 Firestore로 새로 확장하지 않는다.
 - 관리자 웹은 별도 저장소의 Next.js/Vercel이 소유한다. 루트 `firebase.json`은 Functions, Firestore, Storage와 emulator 설정만 관리한다.
 
 ## 소셜 로그인 로컬 설정
@@ -52,7 +54,9 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 
 관리자 웹 build와 배포는 [bodeul-admin-web](https://github.com/bodeul110/bodeul-admin-web) 저장소에서 수행한다. 메인 저장소는 관리자 Hosting을 배포하지 않는다. Firebase Web config, Auth domain, App Check와 관리자 DB 접속 기준은 [관리자 웹 환경 기준](../admin-web-environments.md)을 따른다.
 
-## 현재 쓰는 컬렉션
+## 유지 데이터와 legacy 컬렉션 예시
+
+`users`, 지원·심사·알림 경로와 전환된 Core 업무의 비교 자료를 구분한다. 예시 JSON이 현재 클라이언트 쓰기 허용을 뜻하지 않는다.
 
 ### `users`
 
@@ -277,7 +281,9 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 }
 ```
 
-## D-7 / D-3 / D-1 알림 준비
+## Legacy D-7 / D-3 / D-1 알림 구조
+
+아래 Functions는 Firestore `appointmentRequests`를 읽는다. PostgreSQL에만 있는 새 예약의 알림이 이 경로로 자동 생성된다고 간주하지 않는다.
 
 현재는 `Cloud Functions`가 세 단계로 동작한다.
 
@@ -324,9 +330,9 @@ bodeulSupabasePublishableKey=개발_Supabase_publishable_key
 }
 ```
 
-- 읽기: 본인(`userId`)과 관리자만 허용
+- 클라이언트 읽기: 본인(`userId`)만 허용. 관리자 업무는 서버 인가 경유
 - 생성: 환자/보호자 본인만 허용
-- 수정/삭제: 관리자만 허용
+- 클라이언트 수정/삭제: 거부. 관리자 업무는 서버 인가 경유
 
 현재 단계에서는 작업 문서 생성, 큐 처리, 실제 발송 또는 시뮬레이션 기록, 예약 변경 시 정리까지 구현되어 있다.
 
@@ -374,7 +380,9 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - 값이 없으면 관리자 푸시는 `SIMULATED`로 처리되고 전달 기록 메모에 시뮬레이션 문구를 남긴다.
 - 현재 payload는 `title`, `body`, `recipients[]`, `metadata` 공통 JSON 어댑터 형태다.
 
-## 연동 순서
+## 과거 Firestore 예약 연동 순서
+
+다음은 legacy 알림 경로를 설명하는 기록이다. 현재 Android 예약은 Core API를 호출하며 Firestore 예약 직접 쓰기는 Rules에서 거부한다.
 
 1. 앱에서 예약 생성
 2. `REQUESTED` 상태에서는 앱에서 같은 요청을 수정하거나 취소 가능
@@ -387,7 +395,9 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 9. 예약이 바뀌면 `cleanupAppointmentReminderJobs`가 기존 대기 작업을 정리
 10. 관리자 계정은 `dispatchAppointmentReminderJobs` callable로 수동 발송도 가능
 
-## 검증 체크리스트
+## Legacy 예약 알림 점검 항목
+
+격리된 legacy fixture를 별도 승인해 검증할 때만 사용한다. 현재 Core 예약 검증은 [내부 테스트 가이드](../internal-test-guide.md)를 따른다.
 
 1. `google-services.json`이 `app/` 아래에 있는지 확인
 2. 이메일 로그인과 현재 활성화된 Google/Kakao 로그인 키를 로컬에 입력
@@ -403,11 +413,11 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 
 ## 데모 계정
 
-- 매니저: `manager@bodeul.app` / `bodeul1234`
-- 환자: `patient@bodeul.app` / `bodeul1234`
-- 보호자: `guardian@bodeul.app` / `bodeul1234`
+환경별 검증 계정은 비공개로 전달한다. 과거 seed의 고정 기본값을 현재 로그인 정보로 안내하거나 실제 운영 계정에 재사용하지 않는다.
 
 ## 개발용 기준선 초기화
+
+Firebase 전용 절차이며 PostgreSQL 업무 데이터를 초기화하지 않는다. 대상·백업·dry-run 확인과 명시적 apply 승인 없이 실행하지 않는다.
 
 - Firestore를 비우고 `users`, `hospitalGuides`만 기준선으로 다시 맞추는 절차는 [reset-baseline.md](reset-baseline.md)에 정리했다.
 - 실행 스크립트는 [reset-firestore-baseline.js](../../../tools/firebase/reset-firestore-baseline.js)이며, `tools/firebase` 폴더에서 `npm run reset:baseline:dry-run`, `npm run reset:baseline:apply`로 사용할 수 있다.
@@ -423,7 +433,7 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 - CI에서는 `npm run preflight:ci` 또는 [.github/workflows/android-preflight.yml](../../../.github/workflows/android-preflight.yml)로 같은 점검 루틴을 재사용한다. Firebase 운영 점검을 요구하지 않으면 Android 빌드/테스트만 수행한다.
 - GitHub Actions의 Firebase 운영 점검은 사용자 refresh token이 아니라 GitHub OIDC와 Google Cloud WIF로 전용 서비스 계정을 가장한다.
 - `google-github-actions/auth`가 실행마다 30분짜리 OAuth access token을 만들고, [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)는 `GOOGLE_OAUTH_ACCESS_TOKEN`을 우선 사용한다.
-- WIF provider는 `bodeul110/Bodeul`, 저장소 ID, `master`, `android-preflight.yml`, `workflow_dispatch`를 모두 만족하는 토큰만 허용한다.
+- WIF provider는 `bodeul110/bodeul-platform`, 저장소 ID, `master`, `android-preflight.yml`, `workflow_dispatch`를 모두 만족하는 토큰만 허용한다.
 - 전용 서비스 계정은 개발 프로젝트의 Firestore 읽기, Firebase Auth 읽기와 API 사용 권한만 갖는다.
 - GitHub Actions 설정은 [configure-actions-firebase.js](../../../tools/github/configure-actions-firebase.js)로 반영한다. 이 도구는 사용자 토큰을 올리지 않고 WIF provider·서비스 계정 변수와 정적 Firebase 설정만 관리한다.
 - 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.
@@ -432,13 +442,13 @@ ADMIN_PUSH_AUTH_SCHEME=Bearer
 ## 2026-05-05 내부 테스트 빠른 시작 메모
 
 - 기획/내부 QA용 계정, 더미 데이터, 역할별 테스트 순서는 [내부 테스트 가이드](../internal-test-guide.md)를 기준으로 본다.
-- 개발자가 기준선 데이터를 다시 넣어야 할 때는 아래 순서를 사용한다.
+- 다음은 영향 범위를 확인하는 dry-run 예시다. 실제 재설정이 필요하면 대상·백업·승인을 확인한 뒤 각 apply를 따로 실행한다.
 
 ```powershell
 cd D:\BoDeul\tools\firebase
-npm run reset:baseline:apply
-npm run seed:sample:apply
-npm run seed:manager-docs:apply
+npm run reset:baseline:dry-run
+npm run seed:sample:dry-run
+npm run seed:manager-docs:dry-run
 ```
 
 - `check:state`, `check:readiness`, `preflight:local` 같은 운영 점검 명령은 `firebaseOauthClientSecret` 또는 `FIREBASE_OAUTH_CLIENT_SECRET` 설정이 없으면 실행되지 않는다.

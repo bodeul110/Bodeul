@@ -9,7 +9,7 @@ Production 배포나 데이터 조회 없이 Google Cloud/Firebase 기반의 누
 ## 실행 경계
 
 - GitHub Actions `workflow_dispatch`에서만 실행한다.
-- 저장소 `bodeul110/Bodeul`, `master`, 현재 commit SHA, `bodeul-prod-110`을 모두 확인한다.
+- 저장소 `bodeul110/bodeul-platform`, `master`, 현재 commit SHA, `bodeul-prod-110`을 모두 확인한다.
 - GitHub Environment `production-infrastructure-audit`의 승인을 통과해야 한다.
 - WIF provider는 저장소 이름과 불변 ID, 소유자 ID, `master`, Environment, workflow 경로와 이벤트를 모두 제한한다.
 - 서비스 계정 JSON key를 만들지 않는다.
