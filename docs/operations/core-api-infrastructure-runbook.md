@@ -53,7 +53,7 @@ production은 다음 식별자를 사용한다.
 | 항목 | production 기준 |
 | --- | --- |
 | Google Cloud/Firebase project | `bodeul-prod-110` (`649312328770`) |
-| Supabase project | `bodeul-prod` (`aoijbzgozbopsxzrasbb`) |
+| Supabase project | `bodeul-db-prod` (`aoijbzgozbopsxzrasbb`, 표시 이름만 변경) |
 | 리전 | `asia-northeast1` / `ap-northeast-1` (Tokyo) |
 | Cloud Run 서비스 | `bodeul-core-api` |
 | Artifact Registry | `bodeul-core-api` |
@@ -207,7 +207,7 @@ gcloud iam workload-identity-pools providers create-oidc bodeul-core-api-preview
   --location=global `
   --issuer-uri="https://token.actions.githubusercontent.com" `
   --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.ref=assertion.ref,attribute.environment=assertion.environment,attribute.actor=assertion.actor,attribute.workflow=assertion.workflow" `
-  --attribute-condition="assertion.repository == 'bodeul110/Bodeul' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-preview'"
+  --attribute-condition="assertion.repository_id == '1209358990' && assertion.repository == 'bodeul110/bodeul-platform' && assertion.ref == 'refs/heads/master' && assertion.environment == 'core-api-preview'"
 ```
 
 이미 존재하는 리소스의 create 명령은 다시 실행하지 않는다. `describe` 또는 Google Cloud Console에서 현재 상태를 먼저 확인한다.
@@ -451,7 +451,7 @@ DB migration은 배포 workflow와 분리돼 있으므로 애플리케이션 rol
 ## 중단 조건
 
 - Google Cloud 결제 계정이나 프로젝트 소유권이 확인되지 않음
-- WIF provider가 `bodeul110/Bodeul`로 제한되지 않음
+- WIF provider가 `bodeul110/bodeul-platform`과 불변 저장소 ID로 제한되지 않음
 - 서비스 계정 JSON key를 발급하거나 저장소에 넣어야만 배포 가능함
 - DB owner 또는 migration 자격 증명을 runtime에 사용함
 - Cloud Run 최대 인스턴스와 DB pool 상한이 설정되지 않음

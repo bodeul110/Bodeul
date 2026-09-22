@@ -433,7 +433,7 @@ Firebase 전용 절차이며 PostgreSQL 업무 데이터를 초기화하지 않�
 - CI에서는 `npm run preflight:ci` 또는 [.github/workflows/android-preflight.yml](../../../.github/workflows/android-preflight.yml)로 같은 점검 루틴을 재사용한다. Firebase 운영 점검을 요구하지 않으면 Android 빌드/테스트만 수행한다.
 - GitHub Actions의 Firebase 운영 점검은 사용자 refresh token이 아니라 GitHub OIDC와 Google Cloud WIF로 전용 서비스 계정을 가장한다.
 - `google-github-actions/auth`가 실행마다 30분짜리 OAuth access token을 만들고, [firebase-toolkit.js](../../../tools/firebase/lib/firebase-toolkit.js)는 `GOOGLE_OAUTH_ACCESS_TOKEN`을 우선 사용한다.
-- WIF provider는 `bodeul110/Bodeul`, 저장소 ID, `master`, `android-preflight.yml`, `workflow_dispatch`를 모두 만족하는 토큰만 허용한다.
+- WIF provider는 `bodeul110/bodeul-platform`, 저장소 ID, `master`, `android-preflight.yml`, `workflow_dispatch`를 모두 만족하는 토큰만 허용한다.
 - 전용 서비스 계정은 개발 프로젝트의 Firestore 읽기, Firebase Auth 읽기와 API 사용 권한만 갖는다.
 - GitHub Actions 설정은 [configure-actions-firebase.js](../../../tools/github/configure-actions-firebase.js)로 반영한다. 이 도구는 사용자 토큰을 올리지 않고 WIF provider·서비스 계정 변수와 정적 Firebase 설정만 관리한다.
 - 실제 `workflow_dispatch`까지 성공시키려면 `.github/workflows/android-preflight.yml`이 원격 기본 브랜치에도 있어야 한다.

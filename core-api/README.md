@@ -181,10 +181,10 @@ V15 이후 migration workflow는 Flyway 적용 뒤 `verifyAccountDeletionInvento
 
 채팅·읽음·legacy 위치 endpoint, private Broadcast와 Android 저장소 전환 코드는 이미 반영됐다. 다음 작업은 다음과 같이 구분한다.
 
-1. [#429](https://github.com/bodeul110/Bodeul/issues/429): Preview 500/503 관찰의 현재 상태와 서버·DB 연결 확인. 과거 성공 기록으로 복구를 단정하지 않는다.
-2. [#419](https://github.com/bodeul110/Bodeul/issues/419): 보호자 예약 생성. 현재 정보공유 동의만으로 예약 쓰기를 허용하지 않는다.
-3. [#420](https://github.com/bodeul110/Bodeul/issues/420): 비식별 테스트 데이터로 Naver Cloud STT 내부 연동. OCR·AI 리포트 자동 생성은 제외한다.
-4. [#222](https://github.com/bodeul110/Bodeul/issues/222), [#348](https://github.com/bodeul110/Bodeul/issues/348): production 파기 검증, 탈퇴·법정 보존 분리. 실제 apply는 별도 승인 경계다.
+1. [#429](https://github.com/bodeul110/bodeul-platform/issues/429): Preview 500/503 관찰의 현재 상태와 서버·DB 연결 확인. 과거 성공 기록으로 복구를 단정하지 않는다.
+2. [#419](https://github.com/bodeul110/bodeul-platform/issues/419): 보호자 예약 생성. 현재 정보공유 동의만으로 예약 쓰기를 허용하지 않는다.
+3. [#420](https://github.com/bodeul110/bodeul-platform/issues/420): 비식별 테스트 데이터로 Naver Cloud STT 내부 연동. OCR·AI 리포트 자동 생성은 제외한다.
+4. [#222](https://github.com/bodeul110/bodeul-platform/issues/222), [#348](https://github.com/bodeul110/bodeul-platform/issues/348): production 파기 검증, 탈퇴·법정 보존 분리. 실제 apply는 별도 승인 경계다.
 
 ## 자동 파기 DB 권한
 

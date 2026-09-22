@@ -35,6 +35,7 @@ test("production 픽스처는 개발 픽스처와 표식과 경로를 분리한�
   const fixture = buildFixtureDefinition(now, PRODUCTION_PROFILE);
 
   assert.equal(PRODUCTION_PROFILE.projectId, PROJECT_ID);
+  assert.equal(fixture.documents.sessionExpired.data.bodeulFixture.owner, "bodeul110/Bodeul");
   assert.notEqual(PRODUCTION_PROFILE.marker, DEVELOPMENT_PROFILE.marker);
   assert.match(
       fixture.documents.sessionExpired.path,
@@ -104,6 +105,12 @@ test("production action은 로컬 ADC와 잘못된 Environment 토큰을 거부�
       () => assertBoundary({...options, confirmCommit: "f".repeat(40)}),
       /--confirm-commit/,
   );
+  for (const repository of ["bodeul110/Bodeul", "other/bodeul-platform"]) {
+    assert.throws(
+        () => assertBoundary(options, {GITHUB_REPOSITORY: repository}),
+        /보호된 GitHub Actions/,
+    );
+  }
 });
 
 test("production WIF 리소스 ID는 GCP 길이 제한과 workflow 기준을 지킨다", () => {
@@ -185,6 +192,16 @@ test("production APPLY는 별도 확인값과 정책 검토 증적을 요구한�
     policyReviewReference:
       "https://www.notion.so/bodeul/privacy-policy-review-0123456789abcdef",
   }));
+  assert.doesNotThrow(() => assertBoundary({
+    ...options,
+    policyReviewReference:
+      "https://github.com/bodeul110/bodeul-platform/issues/222#issuecomment-5385359314",
+  }));
+  assert.throws(() => assertBoundary({
+    ...options,
+    policyReviewReference:
+      "https://github.com/bodeul110/bodeul-platform/issues/223#issuecomment-1",
+  }), /--policy-review-reference/);
   assert.doesNotThrow(() => assertBoundary(options));
 });
 
@@ -290,7 +307,7 @@ function productionReadOptions(action) {
 function githubEnvironment(overrides = {}) {
   return {
     GITHUB_ACTIONS: "true",
-    GITHUB_REPOSITORY: "bodeul110/Bodeul",
+    GITHUB_REPOSITORY: "bodeul110/bodeul-platform",
     GITHUB_REF: "refs/heads/master",
     GITHUB_SHA,
     FIREBASE_RETENTION_ENVIRONMENT: "firebase-retention-production",

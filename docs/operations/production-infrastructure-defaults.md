@@ -1,15 +1,15 @@
 # Production 인프라 기본값
 
-기준일: 2026-09-21
+기준일: 2026-09-22
 
 이 문서는 BoDeul production 리소스의 식별자, 리전, 배포 경계와 운영 기준을 관리한다. 리소스 생성 기록과 현재 사용 가능 상태는 구분한다. 도메인은 보유 여부와 실제 연결을 확인하고, 새로 구매해야 한다고 단정하지 않는다.
 
 ## 현재 확인 요약
 
-- 2026-09-21 운영 Supabase는 일시정지 상태로 확인했으며 재개하지 않았다. 8월 26일 재개·V15 복원 기록이 현재 가동을 의미하지 않는다.
+- 2026-09-22 운영 Supabase는 일시정지를 유지한 채 표시 이름만 `bodeul-db-prod`로 변경했다. 8월 26일 재개·V15 복원 기록이 현재 가동을 의미하지 않는다.
 - 운영 관리자 웹 배포와 Firebase Auth 계정 등록은 확인 기록이 있다. DB 연결·세부 역할·MFA·실제 업무 흐름 완료와는 별개다.
 - 현재 소스는 Flyway V1~V23이다. 운영 적용 이력은 [migration 목록](../architecture/database-migration-catalog.md)과 해당 환경 조회로 확인한다.
-- 결제 연결·비밀값·IAM은 이번 문서 작업에서 변경하거나 재조회하지 않았다. 아래 생성 기록을 현재 권한·청구 상태로 해석하지 않는다.
+- 2026-09-22 두 Google Cloud 프로젝트의 공식 조직 소속과 공용 결제 연결·활성을 확인했다. [명칭 기준](resource-naming.md)에 따라 표시 이름만 갱신했으며, 결제 연결·비밀값·IAM은 이름 정리 과정에서 변경하지 않았다.
 - 실제 전환일과 유료 전환일은 미정이다. 최신 확인 범위는 [관리자 웹 환경](admin-web-environments.md)을 따른다.
 
 ## 결정 요약
@@ -31,8 +31,8 @@
 
 | 범위 | 확정값 | 비고 |
 | --- | --- | --- |
-| Google Cloud/Firebase 표시 이름 | `BoDeul Production` | 하나의 Google Cloud 프로젝트에서 Firebase를 활성화한다. |
-| Google Cloud project ID / number | `bodeul-prod-110` / `649312328770` | Firebase 생성 기록 있음. 현재 결제 연결은 별도 재확인 |
+| Google Cloud/Firebase 표시 이름 | `bodeul-prod` | 두 관리 API의 표시 이름을 일치시켰다. |
+| Google Cloud project ID / number | `bodeul-prod-110` / `649312328770` | 식별자 유지. 공식 조직 소속과 공용 결제 연결·활성 확인 |
 | Google Cloud/Cloud Run 리전 | `asia-northeast1` | Tokyo |
 | Cloud Run 서비스 | `bodeul-core-api` | preview 접미사를 사용하지 않는다. |
 | Artifact Registry/이미지 | `bodeul-core-api` | 개발 프로젝트와 이름은 같아도 프로젝트 경계로 분리된다. |
@@ -44,7 +44,7 @@
 | 배포 Environment | `core-api-production` | 수동 production 배포와 승인 보호 |
 | migration Environment | `core-api-migration-production` | 앱 배포와 DB 변경을 분리한다. |
 | 인프라 감사 Environment | `production-infrastructure-audit` | metadata-only WIF 점검과 승인 보호 |
-| Supabase 표시 이름 / ref | `bodeul-prod` / `aoijbzgozbopsxzrasbb` | 개발 프로젝트와 별도 생성 |
+| Supabase 표시 이름 / ref | `bodeul-db-prod` / `aoijbzgozbopsxzrasbb` | 개발 프로젝트와 별도 생성. 이름 변경 후에도 일시정지 유지 |
 | Supabase 리전 | `ap-northeast-1` | Tokyo |
 | Vercel 프로젝트 | `bodeul-admin-web` | 기존 프로젝트를 유지한다. |
 | Vercel production branch | `master` | 보호된 PR 병합만 허용한다. |
@@ -56,8 +56,8 @@
 
 | 환경 | Google Cloud/Firebase | Supabase | Vercel | 용도 |
 | --- | --- | --- | --- | --- |
-| 개발 | `bodeul-dev` | 현재 Tokyo 개발 프로젝트 | Preview | PR, 실연동, 실기기 검증 |
-| production | `bodeul-prod-110` | `bodeul-prod` | Production | 출시 전 격리 운영 |
+| 개발 | `bodeul-dev` | `bodeul-db-dev` | Preview | PR, 실연동, 실기기 검증 |
+| production | `bodeul-prod-110` (표시 이름 `bodeul-prod`) | `bodeul-db-prod` | Production | 출시 전 격리 운영 |
 
 Vercel Preview에는 개발 Firebase와 개발 관리자 DB 값만 둔다. Production에는 production 값만 두며, 값이 없을 때 서버 API가 설정 오류로 종료되는 fail-closed 상태를 유지한다. Firebase authorized domain에는 실제 관리자 도메인과 출시 전 검증에 필요한 Vercel 도메인만 정확한 호스트명으로 등록하고 wildcard를 사용하지 않는다.
 
