@@ -4,6 +4,7 @@
 
 ## 최신 점검
 
+- [Notion 접근 확인·GitHub 이슈 정리와 예약 생성 판정 준비 (2026-09-24)](issue-sync-2026-09-24.md)
 - [전체 문서 정합성 갱신 (2026-09-21)](document-refresh-2026-09-21.md)
 - [관리자 웹 개발·운영 환경 표시 (2026-09-21)](admin-web-environment-display-2026-09-21.md)
 - [관리자 결제 조회·상태 연동 (2026-09-05)](issue-27-admin-payment-integration-2026-09-05.md)
