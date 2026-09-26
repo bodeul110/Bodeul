@@ -78,6 +78,11 @@ public final class ManagerGuidePreviewActivity extends ManagerGuideActivity {
     }
 
     @Override
+    protected boolean isGuidePreviewMode() {
+        return true;
+    }
+
+    @Override
     protected void openManagerHome() {
         finish();
     }

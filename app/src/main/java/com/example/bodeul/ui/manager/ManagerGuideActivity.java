@@ -15,7 +15,9 @@ import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
@@ -82,6 +84,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private ManagerGuidePreConsultationBinder managerGuidePreConsultationBinder;
     private ManagerGuideVitalsBinder managerGuideVitalsBinder;
     private ManagerGuidePrescriptionBinder managerGuidePrescriptionBinder;
+    private ManagerGuideConsultationBinder managerGuideConsultationBinder;
 
     private int pendingLocationPermissionAction = LOCATION_ACTION_NONE;
     private boolean liveLocationActivationInFlight;
@@ -91,6 +94,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     private boolean mutationInFlight;
     private boolean currentLocationReadInFlight;
     private boolean legacyManagerLocationEnabled;
+    private boolean exitConfirmationShowing;
     private ManagerGuidePrimaryAction currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
     private String currentStepCode = "";
 
@@ -287,12 +291,30 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 findViewById(android.R.id.content), viewModel::saveVitalsDraft);
         managerGuidePrescriptionBinder = new ManagerGuidePrescriptionBinder(
                 findViewById(android.R.id.content));
+        managerGuideConsultationBinder = new ManagerGuideConsultationBinder(
+                findViewById(android.R.id.content),
+                isGuidePreviewMode(),
+                savedInstanceState,
+                viewModel::saveConsultationDraft);
 
-        findViewById(R.id.buttonBackGuide).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonBackGuideReception).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonBackGuidePreConsultation).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonBackGuideVitals).setOnClickListener(view -> finish());
-        findViewById(R.id.buttonBackGuidePrescription).setOnClickListener(view -> finish());
+        findViewById(R.id.buttonBackGuide).setOnClickListener(
+                view -> attemptExit(this::finish));
+        findViewById(R.id.buttonBackGuideReception).setOnClickListener(
+                view -> attemptExit(this::finish));
+        findViewById(R.id.buttonBackGuidePreConsultation).setOnClickListener(
+                view -> attemptExit(this::finish));
+        findViewById(R.id.buttonBackGuideVitals).setOnClickListener(
+                view -> attemptExit(this::finish));
+        findViewById(R.id.buttonBackGuidePrescription).setOnClickListener(
+                view -> attemptExit(this::finish));
+        findViewById(R.id.buttonBackGuideConsultation).setOnClickListener(
+                view -> attemptExit(this::finish));
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                attemptExit(ManagerGuideActivity.this::finish);
+            }
+        });
         findViewById(R.id.buttonGuideReceptionShare).setOnClickListener(view -> {
             if (!"RECEPTION_QUEUE".equals(currentStepCode) || mutationInFlight) {
                 return;
@@ -302,11 +324,12 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 viewModel.saveGuardianUpdate(message);
             }
         });
-        findViewById(R.id.navGuideHome).setOnClickListener(view -> openManagerHome());
-        findViewById(R.id.navGuideHistory).setOnClickListener(view ->
-                startActivity(new Intent(this, ManagerHistoryActivity.class)));
-        findViewById(R.id.navGuideProfile).setOnClickListener(view ->
-                startActivity(new Intent(this, ManagerProfileActivity.class)));
+        findViewById(R.id.navGuideHome).setOnClickListener(
+                view -> attemptExit(this::openManagerHome));
+        findViewById(R.id.navGuideHistory).setOnClickListener(view -> attemptExit(() ->
+                startActivity(new Intent(this, ManagerHistoryActivity.class))));
+        findViewById(R.id.navGuideProfile).setOnClickListener(view -> attemptExit(() ->
+                startActivity(new Intent(this, ManagerProfileActivity.class))));
         findViewById(R.id.buttonGuidePreConsultationComplete).setOnClickListener(view -> {
             if ("PRE_CONSULTATION".equals(currentStepCode)
                     && !managerGuidePreConsultationBinder.isConfirmed()) {
@@ -321,6 +344,18 @@ public class ManagerGuideActivity extends AppCompatActivity {
         findViewById(R.id.buttonSaveLocationSummary).setOnClickListener(view -> viewModel.saveLocationSummary(valueOf(inputGuideLocationSummary)));
         findViewById(R.id.buttonSaveGuardianUpdate).setOnClickListener(view -> viewModel.saveGuardianUpdate(valueOf(inputGuardianUpdate)));
         findViewById(R.id.buttonSaveGuidePhotoNote).setOnClickListener(view -> viewModel.saveFieldPhotoNote(valueOf(inputGuidePhotoNote)));
+        findViewById(R.id.buttonGuideConsultationSaveGuardian).setOnClickListener(view -> {
+            if ("CONSULTATION_SUPPORT".equals(currentStepCode) && !mutationInFlight) {
+                viewModel.saveConsultationGuardianUpdate(
+                        managerGuideConsultationBinder.guardianUpdate());
+            }
+        });
+        findViewById(R.id.buttonGuideConsultationSaveFieldNote).setOnClickListener(view -> {
+            if ("CONSULTATION_SUPPORT".equals(currentStepCode) && !mutationInFlight) {
+                viewModel.saveConsultationFieldNote(
+                        managerGuideConsultationBinder.fieldNote());
+            }
+        });
         buttonSelectGuideSessionArtifact.setOnClickListener(view -> selectCurrentStepArtifact());
         buttonClearGuideSessionArtifact.setOnClickListener(view -> clearCurrentStepArtifact());
         findViewById(R.id.buttonGuidePrescriptionSelect).setOnClickListener(
@@ -431,6 +466,11 @@ public class ManagerGuideActivity extends AppCompatActivity {
         return true;
     }
 
+    /** debug 미리보기에서만 실제 녹음과 분리된 로컬 상태 시뮬레이션을 노출한다. */
+    protected boolean isGuidePreviewMode() {
+        return false;
+    }
+
     private void handleUiState(ManagerGuideViewModel.UiState state) {
         if (state == null) return;
 
@@ -444,6 +484,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
             managerGuidePreConsultationBinder.hideForState();
             managerGuideVitalsBinder.hideForState();
             managerGuidePrescriptionBinder.hideForState();
+            managerGuideConsultationBinder.hideForState();
             currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
             currentStepCode = "";
             clearCurrentLocationMarkerOutsideMeetingStep();
@@ -484,6 +525,15 @@ public class ManagerGuideActivity extends AppCompatActivity {
                             viewModel.getVitalsDraft(state.dashboard.getSession().getId()));
                     managerGuidePrescriptionBinder.bind(
                             state.screenModel, state.dashboard, mutationInFlight);
+                    String sessionId = state.dashboard == null
+                            || state.dashboard.getSession() == null
+                            ? ""
+                            : state.dashboard.getSession().getId();
+                    managerGuideConsultationBinder.bind(
+                            state.screenModel,
+                            state.dashboard,
+                            mutationInFlight,
+                            viewModel.getConsultationDraft(sessionId));
                     applyReportDraft();
                 } finally {
                     bindingPreConsultationConfirmation = false;
@@ -501,6 +551,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 managerGuidePreConsultationBinder.hideForState();
                 managerGuideVitalsBinder.hideForState();
                 managerGuidePrescriptionBinder.hideForState();
+                managerGuideConsultationBinder.hideForState();
                 currentPrimaryAction = ManagerGuidePrimaryAction.NONE;
                 currentStepCode = "";
                 clearCurrentLocationMarkerOutsideMeetingStep();
@@ -562,6 +613,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         managerGuideReceptionBinder.setShareEnabled(false);
         managerGuideVitalsBinder.setInputsEnabled(false);
         managerGuidePrescriptionBinder.setActionsEnabled(false);
+        managerGuideConsultationBinder.setInputsEnabled(false);
         findViewById(R.id.buttonGuidePreConsultationComplete).setEnabled(false);
         buttonAdvanceGuide.setEnabled(false);
         buttonSubmitReport.setEnabled(false);
@@ -575,6 +627,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
             return;
         }
         if (currentPrimaryAction == ManagerGuidePrimaryAction.ADVANCE) {
+            if ("CONSULTATION_SUPPORT".equals(currentStepCode)
+                    && managerGuideConsultationBinder.showUnsavedInputError()) {
+                return;
+            }
             if ("VITALS_CHECK".equals(currentStepCode)) {
                 String note = managerGuideVitalsBinder.buildNote();
                 if (note != null) {
@@ -594,6 +650,51 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (currentPrimaryAction == ManagerGuidePrimaryAction.END_CARE) {
             viewModel.advanceStep();
         }
+    }
+
+    private void attemptExit(Runnable exitAction) {
+        boolean consultationMayStillBeActive = "CONSULTATION_SUPPORT".equals(currentStepCode)
+                || TextUtils.isEmpty(currentStepCode);
+        boolean hasUnsavedConsultation = consultationMayStillBeActive
+                && managerGuideConsultationBinder != null
+                && managerGuideConsultationBinder.hasUnsavedInput();
+        if (!hasUnsavedConsultation) {
+            exitAction.run();
+            return;
+        }
+        if (mutationInFlight) {
+            Toast.makeText(
+                    this,
+                    R.string.guide_consultation_save_in_progress,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (exitConfirmationShowing) {
+            return;
+        }
+        exitConfirmationShowing = true;
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.guide_consultation_exit_title)
+                .setMessage(R.string.guide_consultation_exit_body)
+                .setNegativeButton(R.string.guide_consultation_exit_stay, null)
+                .setPositiveButton(
+                        R.string.guide_consultation_exit_discard,
+                        (ignored, which) -> {
+                            discardConsultationDraft();
+                            exitAction.run();
+                        })
+                .create();
+        dialog.setOnDismissListener(ignored -> exitConfirmationShowing = false);
+        dialog.show();
+    }
+
+    private void discardConsultationDraft() {
+        managerGuideConsultationBinder.discardUnsavedInput();
+        String sessionId = currentDashboard == null
+                || currentDashboard.getSession() == null
+                ? ""
+                : currentDashboard.getSession().getId();
+        viewModel.clearConsultationDraft(sessionId);
     }
 
     private void showRouteCompletionConfirmation() {
@@ -1198,6 +1299,14 @@ public class ManagerGuideActivity extends AppCompatActivity {
         stopTrackerOnly();
     }
 
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        if (managerGuideConsultationBinder != null) {
+            managerGuideConsultationBinder.saveInstanceState(outState);
+        }
+        super.onSaveInstanceState(outState);
+    }
+
     private void syncLiveLocationTrackingWithDashboard(@Nullable ManagerDashboard dashboard) {
         if (!legacyManagerLocationEnabled) {
             stopTrackerOnly();
@@ -1237,9 +1346,9 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.state_permission_title, getString(R.string.guide_title)),
                 getString(R.string.state_permission_body),
                 getString(R.string.state_action_open_home),
-                view -> openGeneralHome(),
+                view -> attemptExit(this::openGeneralHome),
                 getString(R.string.state_action_open_login),
-                view -> openRoleSelection()
+                view -> attemptExit(this::openRoleSelection)
         );
     }
 
@@ -1250,7 +1359,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.state_auth_title),
                 getString(R.string.state_auth_body),
                 getString(R.string.state_action_open_login),
-                view -> openRoleSelection(),
+                view -> attemptExit(this::openRoleSelection),
                 null,
                 null
         );
@@ -1263,7 +1372,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.companion_chat_empty_title),
                 getString(R.string.companion_chat_empty_session_body),
                 getString(R.string.state_action_open_home),
-                view -> openManagerHome(),
+                view -> attemptExit(this::openManagerHome),
                 null,
                 null
         );
@@ -1282,7 +1391,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 getString(R.string.state_action_retry),
                 view -> viewModel.loadDashboard(),
                 getString(R.string.state_action_open_home),
-                view -> openManagerHome()
+                view -> attemptExit(this::openManagerHome)
         );
     }
 

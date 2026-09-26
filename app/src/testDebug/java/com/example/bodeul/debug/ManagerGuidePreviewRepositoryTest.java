@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import android.net.Uri;
 
 import com.example.bodeul.data.CompanionSessionArtifactUploadPolicy;
+import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -159,6 +160,88 @@ public class ManagerGuidePreviewRepositoryTest {
         assertEquals(
                 "MEDICATION_CONFIRMATION",
                 advanced.get().getSession().getCurrentStepCode());
+    }
+
+    @Test
+    public void consultationNotes_areRetainedAfterAdvanceToSummary() {
+        ManagerGuidePreviewRepository repository =
+                new ManagerGuidePreviewRepository("CONSULTATION_SUPPORT");
+        AtomicReference<ManagerDashboard> guardianSaved = new AtomicReference<>();
+        AtomicReference<ManagerDashboard> fieldNoteSaved = new AtomicReference<>();
+        AtomicReference<ManagerDashboard> advanced = new AtomicReference<>();
+        ManagerDashboard current = dashboard(repository);
+
+        repository.saveConsultationGuardianUpdate(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                current.getSession().getId(),
+                current.getSession().getCurrentStepCode(),
+                "보호자 공유 진료 진행",
+                callback(guardianSaved));
+        assertNotNull(guardianSaved.get());
+        assertEquals(
+                "보호자 공유 진료 진행",
+                guardianSaved.get().getSession().getGuardianUpdate());
+
+        repository.saveConsultationFieldNote(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                current.getSession().getId(),
+                current.getSession().getCurrentStepCode(),
+                "진료실 현장 메모",
+                callback(fieldNoteSaved));
+        assertNotNull(fieldNoteSaved.get());
+        assertEquals(
+                "진료실 현장 메모",
+                fieldNoteSaved.get().getSession().getFieldPhotoNote());
+
+        current = fieldNoteSaved.get();
+        repository.advanceCurrentStep(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                current.getSession().getId(),
+                current.getSession().getCurrentStepCode(),
+                callback(advanced));
+
+        assertNotNull(advanced.get());
+        assertEquals(7, advanced.get().getSession().getCurrentStepOrder());
+        assertEquals(
+                "CONSULTATION_SUMMARY",
+                advanced.get().getSession().getCurrentStepCode());
+        assertEquals(
+                "보호자 공유 진료 진행",
+                advanced.get().getSession().getGuardianUpdate());
+        assertEquals(
+                "진료실 현장 메모",
+                advanced.get().getSession().getFieldPhotoNote());
+    }
+
+    @Test
+    public void consultationSave_rejectsStaleStepWithoutChangingValue() {
+        ManagerGuidePreviewRepository repository =
+                new ManagerGuidePreviewRepository("CONSULTATION_SUPPORT");
+        ManagerDashboard current = dashboard(repository);
+        String originalGuardianUpdate = current.getSession().getGuardianUpdate();
+        AtomicReference<String> error = new AtomicReference<>();
+
+        repository.saveConsultationGuardianUpdate(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                current.getSession().getId(),
+                "CONSULTATION_SUMMARY",
+                "저장되면 안 되는 오래된 입력",
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        throw new AssertionError("오래된 단계 쓰기가 성공했습니다.");
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        error.set(message);
+                    }
+                });
+
+        assertEquals(ManagerRepository.MESSAGE_STALE_GUIDE_STEP, error.get());
+        assertEquals(
+                originalGuardianUpdate,
+                dashboard(repository).getSession().getGuardianUpdate());
     }
 
     @Test
