@@ -111,6 +111,9 @@ public class ManagerGuideViewModel extends ViewModel {
     @Nullable
     private ManagerGuideConsultationDraft consultationDraft;
     private String consultationDraftSessionId = "";
+    @Nullable
+    private ManagerGuidePaymentDraft paymentDraft;
+    private String paymentDraftSessionId = "";
 
     public ManagerGuideViewModel(
             AuthRepository authRepository,
@@ -187,6 +190,7 @@ public class ManagerGuideViewModel extends ViewModel {
         }
         retainVitalsDraftFor(dashboard);
         retainConsultationDraftFor(dashboard);
+        retainPaymentDraftFor(dashboard);
         _uiState.setValue(UiState.screen(dashboard, coordinator.createScreenModel(
                 dashboard,
                 managerRepository.isFirebaseBacked()
@@ -415,6 +419,50 @@ public class ManagerGuideViewModel extends ViewModel {
                 });
     }
 
+    public void savePaymentEvidenceNote(String note) {
+        UiState state = _uiState.getValue();
+        ManagerDashboard dashboard = state == null ? null : state.dashboard;
+        CompanionSession session = dashboard == null ? null : dashboard.getSession();
+        if (currentUser == null || session == null) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_NO_ACTIVE_SESSION);
+            return;
+        }
+        String expectedSessionId = session.getId();
+        String expectedStepCode = session.getCurrentStepCode();
+        if (!ManagerRepository.matchesPaymentExpectation(
+                session, expectedSessionId, expectedStepCode)) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+            return;
+        }
+        if (!beginMutation()) return;
+        String value = note == null ? "" : note.trim();
+        managerRepository.savePaymentEvidenceNote(
+                currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
+                value,
+                new RepositoryCallback<ManagerDashboard>() {
+                    @Override
+                    public void onSuccess(ManagerDashboard result) {
+                        clearPaymentDraft(expectedSessionId);
+                        finishMutation();
+                        _toastMessage.setValue(TextUtils.isEmpty(value)
+                                ? "현장 메모를 비웠습니다."
+                                : "현장 메모를 저장했습니다.");
+                        bindDashboard(result);
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        finishMutation();
+                        _toastMessage.setValue(errorMessage);
+                        if (ManagerRepository.MESSAGE_STALE_GUIDE_STEP.equals(errorMessage)) {
+                            loadDashboard();
+                        }
+                    }
+                });
+    }
+
     /** 기초 측정 메모 저장 성공을 확인한 뒤 같은 세션의 다음 단계로 이동한다. */
     public void saveVitalsAndAdvance(String note) {
         UiState state = _uiState.getValue();
@@ -589,13 +637,28 @@ public class ManagerGuideViewModel extends ViewModel {
         }
     }
 
-    public void replaceSessionArtifacts(String purpose, List<Uri> fileUris) {
+    public void replaceSessionArtifacts(
+            String expectedSessionId,
+            String expectedStepCode,
+            String purpose,
+            List<Uri> fileUris
+    ) {
         if (currentUser == null) return;
-        String requestFingerprint = artifactRequestFingerprint(purpose, fileUris);
+        if (TextUtils.isEmpty(expectedSessionId)
+                || TextUtils.isEmpty(expectedStepCode)
+                || TextUtils.isEmpty(purpose)) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+            loadDashboard();
+            return;
+        }
+        String requestFingerprint = artifactRequestFingerprint(
+                expectedSessionId, expectedStepCode, purpose, fileUris);
         String requestId = artifactRequestId(purpose, requestFingerprint);
         if (!beginMutation()) return;
         managerRepository.replaceSessionArtifacts(
                 currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
                 purpose,
                 requestId,
                 fileUris,
@@ -612,15 +675,67 @@ public class ManagerGuideViewModel extends ViewModel {
                     public void onError(String message) {
                         finishMutation();
                         _toastMessage.setValue(message);
+                        if (ManagerRepository.MESSAGE_STALE_GUIDE_STEP.equals(message)) {
+                            loadDashboard();
+                        }
                     }
                 });
     }
 
-    public void clearSessionArtifacts(String purpose) {
+    @Nullable
+    ManagerGuidePaymentDraft getPaymentDraft(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()
+                || !sessionId.equals(paymentDraftSessionId)) {
+            return null;
+        }
+        return paymentDraft;
+    }
+
+    void savePaymentDraft(String sessionId, ManagerGuidePaymentDraft draft) {
+        if (sessionId == null || sessionId.isEmpty() || draft == null) {
+            return;
+        }
+        paymentDraftSessionId = sessionId;
+        paymentDraft = draft;
+    }
+
+    void clearPaymentDraft(String sessionId) {
+        if (sessionId != null && sessionId.equals(paymentDraftSessionId)) {
+            paymentDraftSessionId = "";
+            paymentDraft = null;
+        }
+    }
+
+    private void retainPaymentDraftFor(ManagerDashboard dashboard) {
+        if (paymentDraft == null || dashboard.getSession() == null) {
+            return;
+        }
+        String activeSessionId = dashboard.getSession().getId();
+        String activeStepCode = dashboard.getSession().getCurrentStepCode();
+        if (!paymentDraftSessionId.equals(activeSessionId)
+                || !"PAYMENT_EVIDENCE".equals(activeStepCode)) {
+            clearPaymentDraft(paymentDraftSessionId);
+        }
+    }
+
+    public void clearSessionArtifacts(
+            String expectedSessionId,
+            String expectedStepCode,
+            String purpose
+    ) {
         if (currentUser == null) return;
+        if (TextUtils.isEmpty(expectedSessionId)
+                || TextUtils.isEmpty(expectedStepCode)
+                || TextUtils.isEmpty(purpose)) {
+            _toastMessage.setValue(ManagerRepository.MESSAGE_STALE_GUIDE_STEP);
+            loadDashboard();
+            return;
+        }
         if (!beginMutation()) return;
         managerRepository.clearSessionArtifacts(
                 currentUser.getId(),
+                expectedSessionId,
+                expectedStepCode,
                 purpose,
                 new RepositoryCallback<ManagerDashboard>() {
                     @Override
@@ -635,6 +750,9 @@ public class ManagerGuideViewModel extends ViewModel {
                     public void onError(String message) {
                         finishMutation();
                         _toastMessage.setValue(message);
+                        if (ManagerRepository.MESSAGE_STALE_GUIDE_STEP.equals(message)) {
+                            loadDashboard();
+                        }
                     }
                 });
     }
@@ -1058,8 +1176,17 @@ public class ManagerGuideViewModel extends ViewModel {
         return sessionId == null ? "" : sessionId.trim();
     }
 
-    private String artifactRequestFingerprint(String purpose, List<Uri> fileUris) {
-        StringBuilder fingerprint = new StringBuilder(purpose == null ? "" : purpose.trim());
+    private String artifactRequestFingerprint(
+            String expectedSessionId,
+            String expectedStepCode,
+            String purpose,
+            List<Uri> fileUris
+    ) {
+        StringBuilder fingerprint = new StringBuilder(
+                expectedSessionId == null ? "" : expectedSessionId.trim());
+        fingerprint.append('\n').append(
+                expectedStepCode == null ? "" : expectedStepCode.trim());
+        fingerprint.append('\n').append(purpose == null ? "" : purpose.trim());
         if (fileUris != null) {
             for (Uri uri : fileUris) {
                 fingerprint.append('\n').append(uri == null ? "" : uri.toString());
