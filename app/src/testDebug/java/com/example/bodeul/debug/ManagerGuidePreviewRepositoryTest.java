@@ -5,6 +5,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import android.net.Uri;
+
+import com.example.bodeul.data.CompanionSessionArtifactUploadPolicy;
 import com.example.bodeul.data.RepositoryCallback;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.domain.model.ManagerDashboard;
@@ -13,6 +16,7 @@ import com.example.bodeul.domain.model.SessionStatus;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -136,6 +140,71 @@ public class ManagerGuidePreviewRepositoryTest {
     }
 
     @Test
+    public void prescriptionWithoutArtifacts_advancesToMedicationConfirmation() {
+        ManagerGuidePreviewRepository repository =
+                new ManagerGuidePreviewRepository("PRESCRIPTION_DOCUMENTS");
+        ManagerDashboard current = dashboard(repository);
+        assertTrue(current.getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE).isEmpty());
+        AtomicReference<ManagerDashboard> advanced = new AtomicReference<>();
+
+        repository.advanceCurrentStep(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                current.getSession().getId(),
+                current.getSession().getCurrentStepCode(),
+                callback(advanced));
+
+        assertNotNull(advanced.get());
+        assertEquals(11, advanced.get().getSession().getCurrentStepOrder());
+        assertEquals(
+                "MEDICATION_CONFIRMATION",
+                advanced.get().getSession().getCurrentStepCode());
+    }
+
+    @Test
+    public void prescriptionArtifacts_replaceAndClearWithoutTouchingPaymentEvidence() {
+        ManagerGuidePreviewRepository repository =
+                new ManagerGuidePreviewRepository("PRESCRIPTION_DOCUMENTS");
+
+        ManagerDashboard withPayment = replaceArtifacts(
+                repository,
+                CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE,
+                1);
+        assertEquals(1, withPayment.getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE).size());
+
+        ManagerDashboard withThreePrescriptions = replaceArtifacts(
+                repository,
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE,
+                3);
+        assertEquals(3, withThreePrescriptions.getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE).size());
+        assertEquals(1, withThreePrescriptions.getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE).size());
+
+        ManagerDashboard withOnePrescription = replaceArtifacts(
+                repository,
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE,
+                1);
+        assertEquals(1, withOnePrescription.getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE).size());
+        assertEquals(1, withOnePrescription.getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE).size());
+
+        AtomicReference<ManagerDashboard> cleared = new AtomicReference<>();
+        repository.clearSessionArtifacts(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE,
+                callback(cleared));
+
+        assertNotNull(cleared.get());
+        assertTrue(cleared.get().getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PRESCRIPTION_IMAGE).isEmpty());
+        assertEquals(1, cleared.get().getSession().getArtifacts(
+                CompanionSessionArtifactUploadPolicy.PAYMENT_EVIDENCE).size());
+    }
+
+    @Test
     public void journalSubmission_returnsLocalReportWithoutActiveSessionReload() {
         ManagerGuidePreviewRepository repository =
                 new ManagerGuidePreviewRepository("MANAGER_JOURNAL");
@@ -173,6 +242,26 @@ public class ManagerGuidePreviewRepositoryTest {
         AtomicReference<ManagerDashboard> result = new AtomicReference<>();
         repository.getManagerDashboard(
                 ManagerGuidePreviewRepository.MANAGER_ID,
+                callback(result));
+        assertNotNull(result.get());
+        return result.get();
+    }
+
+    private ManagerDashboard replaceArtifacts(
+            ManagerGuidePreviewRepository repository,
+            String purpose,
+            int count
+    ) {
+        List<Uri> uris = new ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            uris.add(null);
+        }
+        AtomicReference<ManagerDashboard> result = new AtomicReference<>();
+        repository.replaceSessionArtifacts(
+                ManagerGuidePreviewRepository.MANAGER_ID,
+                purpose,
+                "debug-request-" + purpose + "-" + count,
+                uris,
                 callback(result));
         assertNotNull(result.get());
         return result.get();
