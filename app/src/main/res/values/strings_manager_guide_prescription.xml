@@ -15,6 +15,4 @@
     <string name="guide_prescription_field_note_open">현장 메모 열기</string>
     <string name="guide_prescription_field_note_close">현장 메모 닫기</string>
     <string name="guide_prescription_upload_description">처방 이미지 선택</string>
-    <string name="guide_prescription_document_icon_description">처방 자료</string>
-    <string name="guide_prescription_notification_description">알림</string>
 </resources>

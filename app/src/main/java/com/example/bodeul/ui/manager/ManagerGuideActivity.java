@@ -156,7 +156,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                     if (uris == null || uris.isEmpty()) {
                         return;
                     }
-                    if (uris.size() > 3) {
+                    if (ManagerGuidePrescriptionSelectionPolicy.exceedsLimit(uris.size())) {
                         Toast.makeText(
                                 this,
                                 R.string.guide_artifact_prescription_limit,

@@ -4,6 +4,8 @@
 
 Figma MVP의 `동행가이드 10`(`8:1838`)을 Android `PRESCRIPTION_DOCUMENTS` 단계에 연결한다. 기존 범용 메모 카드에 섞여 있던 처방 이미지 선택 기능을 안내 카드, 선택 영역, 등록 상태와 하단 CTA가 분명한 전용 화면으로 재구성한다.
 
+여기서 `8:1838`은 현행 `보들 MVP` 파일의 기준 node다. 이전 `보들 가이드` 파일에서 같은 화면에 대응하는 node는 `846:2507`이며, 서로 다른 Figma 파일의 node ID를 혼용하지 않는다.
+
 ## Figma 대응
 
 - 상단 앱바, 단계 배지와 진행 표시, 안내 카드, 자료 선택 카드의 시각 위계를 Android XML로 옮긴다.
@@ -31,8 +33,9 @@ Figma MVP의 `동행가이드 10`(`8:1838`)을 Android `PRESCRIPTION_DOCUMENTS` 
 - `testDebugUnitTest`: 전체 단위 테스트 통과
 - `assembleDebug`: Debug APK 빌드 통과
 - `lintDebug`: 기존 API 26 관련 6건과 기존 include layout 1건 때문에 실패했으며 이번 변경 파일에는 오류가 없다.
-- 완전한 실기기 검증에는 `currentStepCode=PRESCRIPTION_DOCUMENTS`인 개발 세션이 필요하다.
+- debug 단계 미리보기에서 무첨부 진행, 1·3개 등록, 전체 교체·삭제, 4개 초과 거부와 10→11단계 전환을 서버 권한 없이 검증할 수 있다.
+- 실제 Core API 업로드·재진입 보존 검증에는 `currentStepCode=PRESCRIPTION_DOCUMENTS`인 개발 세션이 필요하다.
 
 ## 브랜치 관계
 
-이 작업은 기초 측정 전용 화면 브랜치 `codex/manager-guide-vitals-figma`를 기준으로 시작했다. 해당 PR 병합 뒤 최신 `master`에 재베이스하고 독립 PR로 올린다.
+이 작업은 debug 단계 미리보기 PR #441 위의 후속 브랜치에서 정리한다. #441 병합 뒤 최신 `master` 기준의 독립 PR로 정리한다.

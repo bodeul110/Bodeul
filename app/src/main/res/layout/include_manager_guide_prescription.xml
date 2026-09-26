@@ -147,7 +147,7 @@
                 <ImageView
                     android:layout_width="18dp"
                     android:layout_height="20dp"
-                    android:contentDescription="@string/guide_prescription_document_icon_description"
+                    android:contentDescription="@null"
                     android:src="@drawable/ic_figma_prescription_document" />
             </LinearLayout>
 

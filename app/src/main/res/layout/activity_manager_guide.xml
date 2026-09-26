@@ -179,7 +179,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_gravity="end|center_vertical"
-            android:contentDescription="@string/guide_prescription_notification_description"
+            android:contentDescription="@null"
             android:padding="10dp"
             android:src="@drawable/ic_figma_reception_bell_vector" />
     </FrameLayout>
