@@ -419,6 +419,10 @@ public class ManagerGuideActivity extends AppCompatActivity {
         return LegacyManagerLocationSharingPolicy.isEnabled(this);
     }
 
+    protected boolean isPlaceSearchEnabled() {
+        return true;
+    }
+
     private void handleUiState(ManagerGuideViewModel.UiState state) {
         if (state == null) return;
 
@@ -739,7 +743,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     }
 
     private void updateHospitalAndPharmacyMarkers() {
-        if (currentDashboard == null) {
+        if (!isPlaceSearchEnabled() || currentDashboard == null) {
             return;
         }
         HospitalMapCoordinateQuery query = new HospitalMapCoordinateQuery(

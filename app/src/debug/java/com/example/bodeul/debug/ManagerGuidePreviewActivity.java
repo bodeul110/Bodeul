@@ -19,7 +19,7 @@ import com.example.bodeul.data.realtime.CompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.GuideStep;
 import com.example.bodeul.ui.manager.ManagerGuideActivity;
 
-/** 운영 의존성을 전혀 사용하지 않는 debug 가이드 미리보기다. */
+/** 운영 서버 저장소와 realtime을 사용하지 않는 debug 가이드 미리보기다. */
 public final class ManagerGuidePreviewActivity extends ManagerGuideActivity {
     static final String EXTRA_STEP_CODE =
             "com.example.bodeul.debug.extra.MANAGER_GUIDE_STEP_CODE";
@@ -69,6 +69,11 @@ public final class ManagerGuidePreviewActivity extends ManagerGuideActivity {
 
     @Override
     protected boolean isLegacyManagerLocationEnabled() {
+        return false;
+    }
+
+    @Override
+    protected boolean isPlaceSearchEnabled() {
         return false;
     }
 
