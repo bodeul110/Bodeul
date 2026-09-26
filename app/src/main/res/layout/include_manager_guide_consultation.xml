@@ -188,6 +188,7 @@
                 android:minHeight="96dp"
                 android:minLines="3"
                 android:padding="16dp"
+                android:saveEnabled="false"
                 android:textColor="@color/figma_mvp_text_primary"
                 android:textColorHint="@color/figma_mvp_text_hint"
                 android:textSize="14sp" />
@@ -252,6 +253,7 @@
                 android:minHeight="96dp"
                 android:minLines="3"
                 android:padding="16dp"
+                android:saveEnabled="false"
                 android:textColor="@color/figma_mvp_text_primary"
                 android:textColorHint="@color/figma_mvp_text_hint"
                 android:textSize="14sp" />
