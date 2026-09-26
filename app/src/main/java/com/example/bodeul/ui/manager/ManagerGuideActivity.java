@@ -32,6 +32,7 @@ import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.CompanionSessionArtifactUploadPolicy;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.ServiceLocator;
+import com.example.bodeul.data.realtime.CompanionRealtimeSubscriber;
 import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
 import com.example.bodeul.data.map.HospitalMapCoordinateQuery;
 import com.example.bodeul.data.map.HospitalMapCoordinateResult;
@@ -136,7 +137,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manager_guide);
-        legacyManagerLocationEnabled = LegacyManagerLocationSharingPolicy.isEnabled(this);
+        legacyManagerLocationEnabled = isLegacyManagerLocationEnabled();
 
         paymentEvidencePicker = registerForActivityResult(
                 new ActivityResultContracts.OpenDocument(),
@@ -170,8 +171,8 @@ public class ManagerGuideActivity extends AppCompatActivity {
                             selected);
                 });
 
-        AuthRepository authRepository = ServiceLocator.provideAuthRepository(this);
-        ManagerRepository managerRepository = ServiceLocator.provideManagerRepository(this);
+        AuthRepository authRepository = provideAuthRepository();
+        ManagerRepository managerRepository = provideManagerRepository();
         placeSearchClient = new KakaoLocalPlaceSearchClient(this);
         ManagerGuideCoordinator coordinator = new ManagerGuideCoordinator(
                 this,
@@ -183,7 +184,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
                 authRepository,
                 managerRepository,
                 coordinator,
-                new SupabaseCompanionRealtimeSubscriber(this),
+                provideRealtimeSubscriber(),
                 legacyManagerLocationEnabled
         );
         viewModel = new ViewModelProvider(this, factory).get(ManagerGuideViewModel.class);
@@ -397,6 +398,25 @@ public class ManagerGuideActivity extends AppCompatActivity {
         if (savedInstanceState == null) {
             // Note: viewModel.reload() will be called in onStart()
         }
+    }
+
+    /**
+     * 운영 화면은 기존 저장소를 쓰고, debug 미리보기는 하위 Activity에서만 로컬 저장소를 주입한다.
+     */
+    protected AuthRepository provideAuthRepository() {
+        return ServiceLocator.provideAuthRepository(this);
+    }
+
+    protected ManagerRepository provideManagerRepository() {
+        return ServiceLocator.provideManagerRepository(this);
+    }
+
+    protected CompanionRealtimeSubscriber provideRealtimeSubscriber() {
+        return new SupabaseCompanionRealtimeSubscriber(this);
+    }
+
+    protected boolean isLegacyManagerLocationEnabled() {
+        return LegacyManagerLocationSharingPolicy.isEnabled(this);
     }
 
     private void handleUiState(ManagerGuideViewModel.UiState state) {
@@ -982,7 +1002,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         }
     }
 
-    private void openCompanionChat() {
+    protected void openCompanionChat() {
         startActivity(CompanionChatActivity.createIntent(this));
     }
 
@@ -1279,7 +1299,7 @@ public class ManagerGuideActivity extends AppCompatActivity {
         finish();
     }
 
-    private void openManagerHome() {
+    protected void openManagerHome() {
         Intent intent = new Intent(this, ManagerActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);

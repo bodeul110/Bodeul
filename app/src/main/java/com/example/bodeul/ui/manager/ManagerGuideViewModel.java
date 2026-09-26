@@ -12,7 +12,7 @@ import androidx.lifecycle.ViewModel;
 import com.example.bodeul.data.AuthRepository;
 import com.example.bodeul.data.ManagerRepository;
 import com.example.bodeul.data.RepositoryCallback;
-import com.example.bodeul.data.realtime.SupabaseCompanionRealtimeSubscriber;
+import com.example.bodeul.data.realtime.CompanionRealtimeSubscriber;
 import com.example.bodeul.domain.model.ManagerDashboard;
 import com.example.bodeul.domain.model.MedicationComparisonDecision;
 import com.example.bodeul.domain.model.SessionStatus;
@@ -98,7 +98,7 @@ public class ManagerGuideViewModel extends ViewModel {
     private final AuthRepository authRepository;
     private final ManagerRepository managerRepository;
     private final ManagerGuideCoordinator coordinator;
-    private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
+    private final CompanionRealtimeSubscriber realtimeSubscriber;
     private final SavedStateHandle savedStateHandle;
     private final boolean legacyManagerLocationEnabled;
 
@@ -112,7 +112,7 @@ public class ManagerGuideViewModel extends ViewModel {
             AuthRepository authRepository,
             ManagerRepository managerRepository,
             ManagerGuideCoordinator coordinator,
-            SupabaseCompanionRealtimeSubscriber realtimeSubscriber,
+            CompanionRealtimeSubscriber realtimeSubscriber,
             SavedStateHandle savedStateHandle,
             boolean legacyManagerLocationEnabled
     ) {
@@ -1051,7 +1051,7 @@ public class ManagerGuideViewModel extends ViewModel {
         private final AuthRepository authRepository;
         private final ManagerRepository managerRepository;
         private final ManagerGuideCoordinator coordinator;
-        private final SupabaseCompanionRealtimeSubscriber realtimeSubscriber;
+        private final CompanionRealtimeSubscriber realtimeSubscriber;
         private final boolean legacyManagerLocationEnabled;
 
         public Factory(
@@ -1059,7 +1059,7 @@ public class ManagerGuideViewModel extends ViewModel {
                 AuthRepository authRepository,
                 ManagerRepository managerRepository,
                 ManagerGuideCoordinator coordinator,
-                SupabaseCompanionRealtimeSubscriber realtimeSubscriber,
+                CompanionRealtimeSubscriber realtimeSubscriber,
                 boolean legacyManagerLocationEnabled
         ) {
             super(owner, null);
